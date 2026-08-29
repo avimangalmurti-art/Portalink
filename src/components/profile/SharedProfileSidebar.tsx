@@ -70,11 +70,5 @@ export function SharedProfileSidebar({
         })}
         </ul>
       </nav>
-
-      <div className="shrink-0 border-t border-[var(--hairline)] px-2 py-3">
-        <a href="/?auth=signIn" target="_blank" rel="noreferrer" className="shared-profile-invitation shape-compact flex min-h-10 items-center justify-center border border-[var(--hairline)] bg-[var(--surface-raised)] px-3 text-center text-[11px] font-semibold leading-[1.2] text-[var(--text-primary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          Join the Portalink Network
-        </a>
-      </div>
     </aside>;
 }
