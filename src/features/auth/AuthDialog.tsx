@@ -168,7 +168,7 @@ export function AuthDialog({
         auth.closeAuth();
       }
     }}>
-          <motion.section ref={sheetRef} role="dialog" aria-modal="true" aria-label={titles[view]} className="auth-compact flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-7 text-[var(--text-primary)] shadow-[var(--shadow-modal)] sm:p-8" initial={shouldReduceMotion ? {
+          <motion.section ref={sheetRef} role="dialog" aria-modal="true" aria-label={titles[view]} className={`auth-compact flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-7 text-[var(--text-primary)] shadow-[var(--shadow-modal)] sm:p-8 ${view === 'signIn' ? 'auth-signin-vanta' : ''}`} initial={shouldReduceMotion ? {
         opacity: 0
       } : {
         opacity: 0,

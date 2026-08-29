@@ -1041,6 +1041,78 @@ body {
 .auth-compact p:last-child {
   font-size: 10px;
 }
+/* Only the Sign in view receives Portalink's deepest sky. Local tokens keep
+   every control legible on true VANTA black without changing Sign up, recovery,
+   reset-password, or any surrounding application surface. */
+.auth-signin-vanta {
+  --text-primary: #f5f5f7;
+  --text-secondary: rgba(245, 245, 247, 0.72);
+  --text-tertiary: rgba(245, 245, 247, 0.48);
+  --surface-raised: #000000;
+  --surface-default: rgba(255, 255, 255, 0.065);
+  --surface-sunken: rgba(255, 255, 255, 0.055);
+  --border-default: rgba(255, 255, 255, 0.22);
+  --hairline-strong: rgba(255, 255, 255, 0.2);
+  --accent-text: var(--accent-primary);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: #000000 !important;
+}
+.auth-signin-vanta::before,
+.auth-signin-vanta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  will-change: opacity;
+}
+.auth-signin-vanta::before {
+  background-image:
+    radial-gradient(1.3px 1.3px at 8% 18%, rgba(255, 255, 255, 0.92), transparent 100%),
+    radial-gradient(1px 1px at 22% 72%, rgba(255, 255, 255, 0.68), transparent 100%),
+    radial-gradient(1.15px 1.15px at 39% 36%, rgba(255, 255, 255, 0.76), transparent 100%),
+    radial-gradient(0.9px 0.9px at 57% 14%, rgba(255, 255, 255, 0.62), transparent 100%),
+    radial-gradient(1.25px 1.25px at 74% 64%, rgba(255, 255, 255, 0.84), transparent 100%),
+    radial-gradient(1px 1px at 91% 29%, rgba(255, 255, 255, 0.7), transparent 100%);
+  background-size: 260px 240px, 310px 280px, 230px 260px, 340px 300px, 290px 250px, 370px 320px;
+  opacity: 0.28;
+  animation: auth-vanta-twinkle-a 4.8s ease-in-out infinite;
+}
+.auth-signin-vanta::after {
+  background-image:
+    radial-gradient(0.85px 0.85px at 14% 52%, rgba(255, 255, 255, 0.72), transparent 100%),
+    radial-gradient(1.2px 1.2px at 31% 9%, rgba(255, 255, 255, 0.86), transparent 100%),
+    radial-gradient(1px 1px at 48% 82%, rgba(255, 255, 255, 0.66), transparent 100%),
+    radial-gradient(1.35px 1.35px at 66% 43%, rgba(255, 255, 255, 0.88), transparent 100%),
+    radial-gradient(0.9px 0.9px at 83% 88%, rgba(255, 255, 255, 0.6), transparent 100%),
+    radial-gradient(1.1px 1.1px at 97% 58%, rgba(255, 255, 255, 0.78), transparent 100%);
+  background-size: 300px 270px, 250px 310px, 360px 260px, 280px 330px, 330px 290px, 240px 250px;
+  opacity: 0.16;
+  animation: auth-vanta-twinkle-b 6.7s ease-in-out infinite reverse;
+}
+.auth-signin-vanta > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes auth-vanta-twinkle-a {
+  0%, 100% { opacity: 0.22; }
+  38% { opacity: 0.64; }
+  68% { opacity: 0.34; }
+}
+@keyframes auth-vanta-twinkle-b {
+  0%, 100% { opacity: 0.14; }
+  46% { opacity: 0.5; }
+  76% { opacity: 0.24; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-signin-vanta::before,
+  .auth-signin-vanta::after {
+    animation: none;
+  }
+}
 /* Portalink location cells are open canvas: no permanent border, background, or
    shadow — surface appears only on hover, focus, or press. */
 .accent-theme button[data-portalink-tile],
