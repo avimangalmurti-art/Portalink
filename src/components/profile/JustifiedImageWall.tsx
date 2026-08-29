@@ -1,5 +1,24 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useMemo } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  defaultAnimateLayoutChanges,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useReducedMotion } from 'framer-motion';
 import { GripVerticalIcon } from 'lucide-react';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
@@ -50,6 +69,16 @@ type Row = {
 };
 
 /**
+ * Prefer the card under the pointer, then fall back to the closest card centre.
+ * The fallback is what makes the empty gutter between two cards a useful drop
+ * target instead of a dead strip that ignores the creator's gesture.
+ */
+const gapAwareCollisionDetection: CollisionDetection = (args) => {
+  const directHits = pointerWithin(args);
+  return directHits.length > 0 ? directHits : closestCenter(args);
+};
+
+/**
  * Count-based row packing. Pure — same inputs, same layout.
  */
 function packRows(items: WallItem[], width: number, columns: number, trailingRowHeight: number): Row[] {
@@ -91,6 +120,100 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   }
   return rows;
 }
+
+type SortableWallCardProps = {
+  item: Row['items'][number] & { height: number };
+  itemIndex: number;
+  itemCount: number;
+  rowJustified: boolean;
+  isReordering: boolean;
+  isDisabled: boolean;
+  shouldReduceMotion: boolean;
+  reorderMode?: ReorderMode;
+};
+
+function SortableWallCard({
+  item,
+  itemIndex,
+  itemCount,
+  rowJustified,
+  isReordering,
+  isDisabled,
+  shouldReduceMotion,
+  reorderMode,
+}: SortableWallCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: item.key,
+    disabled: !isReordering || isDisabled,
+    transition: shouldReduceMotion ? null : {
+      duration: 190,
+      easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+    },
+    animateLayoutChanges: (args) => !shouldReduceMotion && defaultAnimateLayoutChanges(args),
+  });
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isReordering || isDisabled) return;
+    if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowUp')) {
+      event.preventDefault();
+      reorderMode?.onMoveByOffset(item.key, -1);
+      return;
+    }
+    if (event.altKey && (event.key === 'ArrowRight' || event.key === 'ArrowDown')) {
+      event.preventDefault();
+      reorderMode?.onMoveByOffset(item.key, 1);
+      return;
+    }
+    listeners?.onKeyDown?.(event);
+  };
+  const visualTransform = isDragging && transform
+    ? { ...transform, scaleX: 1, scaleY: 1 }
+    : transform;
+
+  return <div
+    ref={setNodeRef}
+    role="listitem"
+    className={`min-w-0 ${isReordering ? 'will-change-transform' : ''} ${isDragging ? 'z-30 opacity-90 drop-shadow-[0_16px_30px_rgba(0,0,0,0.32)]' : ''}`}
+    style={{
+      flex: rowJustified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
+      height: item.height,
+      transform: CSS.Transform.toString(visualTransform),
+      transition: shouldReduceMotion ? undefined : transition,
+    }}
+  >
+      <div
+        ref={isReordering ? setActivatorNodeRef : undefined}
+        {...(isReordering ? attributes : {})}
+        {...(isReordering && !isDisabled ? listeners : {})}
+        aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
+        aria-label={isReordering ? `Project ${itemIndex + 1} of ${itemCount}; drag to reorder` : undefined}
+        onKeyDown={isReordering ? handleKeyDown : undefined}
+        className={`h-full w-full min-w-0 ${isReordering ? 'cursor-grab touch-none rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
+      >
+        <div className={`relative h-full w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
+          animationDelay: `${itemIndex % 5 * -75}ms`,
+          animationDuration: `${620 + itemIndex % 4 * 55}ms`
+        } : undefined}>
+          <div className={isReordering ? 'pointer-events-none h-full w-full select-none' : 'h-full w-full'}>
+            {item.content}
+          </div>
+          {isReordering ? <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 z-30 inline-flex h-7 items-center gap-1 rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-semibold tabular-nums text-[var(--accent-text)] shadow-[var(--shadow-pop)]">
+              <GripVerticalIcon className="h-3.5 w-3.5" />
+              {itemIndex + 1}
+            </span> : null}
+        </div>
+      </div>
+    </div>;
+}
+
 export function JustifiedImageWall({
   items,
   columns,
@@ -115,8 +238,14 @@ export function JustifiedImageWall({
    */
   const view = useContentZoom<HTMLDivElement>();
   const shouldReduceMotion = useReducedMotion();
-  const draggedKeyRef = useRef<string | null>(null);
-  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   const preferredColumns = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, view.scaleColumns(columns)));
   // Three is the standard minimum in the profile workspace. Only a genuinely
   // narrow viewport may reduce the rendered count so cards never become
@@ -132,90 +261,37 @@ export function JustifiedImageWall({
     const trailingRowHeight = width / effectiveColumns / 0.82;
     return packRows(items, width, effectiveColumns, trailingRowHeight);
   }, [items, width, effectiveColumns]);
+  const itemIndexByKey = useMemo(() => new Map(items.map((item, index) => [item.key, index])), [items]);
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!reorderMode?.enabled || reorderMode.disabled || !over || active.id === over.id) return;
+    reorderMode.onMove(String(active.id), String(over.id));
+  };
   return <div ref={view.ref} className="relative w-full">
       <ZoomReadout view={view} />
-      {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">Drag a project card into a new position, or focus a card and hold Alt while pressing an arrow key.</p> : null}
-      <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
-      {rows.map((row, rowIndex) => <div key={row.items[0]?.key ?? rowIndex} className="flex w-full" style={{
-        gap: GAP,
-        marginBottom: rowIndex === rows.length - 1 ? 0 : GAP
-      }}>
-          {/* Basis carries the computed width; grow and shrink absorb the
-             sub-pixel remainder so the row lands exactly on both edges. */}
-          {row.items.map((item) => {
-            const itemIndex = items.findIndex((candidate) => candidate.key === item.key);
-            const isReordering = Boolean(reorderMode?.enabled);
-            const isDisabled = Boolean(reorderMode?.disabled);
-            const isDragging = draggingKey === item.key;
-            return <motion.div
-              key={item.key}
-              layout={isReordering && !shouldReduceMotion ? 'position' : false}
-              className={`min-w-0 ${isDragging ? 'z-30 opacity-75' : ''}`}
-              style={{
-                flex: row.justified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
-                height: row.height
-              }}
-            >
-              <div
-                role="listitem"
-                tabIndex={isReordering ? 0 : undefined}
-                draggable={isReordering && !isDisabled}
-                aria-grabbed={isReordering ? isDragging : undefined}
-                aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
-                aria-label={isReordering ? `Project ${itemIndex + 1} of ${items.length}; drag to reorder` : undefined}
-                onKeyDown={isReordering && !isDisabled ? (event) => {
-                  if (!event.altKey) return;
-                  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    reorderMode?.onMoveByOffset(item.key, -1);
-                  }
-                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    reorderMode?.onMoveByOffset(item.key, 1);
-                  }
-                } : undefined}
-                onDragStart={isReordering && !isDisabled ? (event) => {
-                  draggedKeyRef.current = item.key;
-                  setDraggingKey(item.key);
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', item.key);
-                } : undefined}
-                onDragOver={isReordering && !isDisabled ? (event) => {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = 'move';
-                } : undefined}
-                onDragEnter={isReordering && !isDisabled ? (event) => {
-                  event.preventDefault();
-                } : undefined}
-                onDrop={isReordering && !isDisabled ? (event) => {
-                  event.preventDefault();
-                  const sourceKey = draggedKeyRef.current;
-                  if (sourceKey && sourceKey !== item.key) reorderMode?.onMove(sourceKey, item.key);
-                  draggedKeyRef.current = null;
-                  setDraggingKey(null);
-                } : undefined}
-                onDragEnd={isReordering ? () => {
-                  draggedKeyRef.current = null;
-                  setDraggingKey(null);
-                } : undefined}
-                className={`h-full w-full min-w-0 ${isReordering ? 'cursor-grab rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
-              >
-                <div className={`relative h-full w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
-                  animationDelay: `${itemIndex % 5 * -75}ms`,
-                  animationDuration: `${620 + itemIndex % 4 * 55}ms`
-                } : undefined}>
-                  <div className={isReordering ? 'pointer-events-none h-full w-full select-none' : 'h-full w-full'}>
-                    {item.content}
-                  </div>
-                  {isReordering ? <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 z-30 inline-flex h-7 items-center gap-1 rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-semibold tabular-nums text-[var(--accent-text)] shadow-[var(--shadow-pop)]">
-                      <GripVerticalIcon className="h-3.5 w-3.5" />
-                      {itemIndex + 1}
-                    </span> : null}
-                </div>
-              </div>
-              </motion.div>;
-          })}
-        </div>)}
-      </div>
+      {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
+      <DndContext sensors={sensors} collisionDetection={gapAwareCollisionDetection} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((item) => item.key)} strategy={rectSortingStrategy} disabled={!reorderMode?.enabled || reorderMode.disabled}>
+          <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
+          {rows.map((row, rowIndex) => <div key={row.items[0]?.key ?? rowIndex} className="flex w-full" style={{
+            gap: GAP,
+            marginBottom: rowIndex === rows.length - 1 ? 0 : GAP
+          }}>
+              {/* Basis carries the computed width; grow and shrink absorb the
+                 sub-pixel remainder so the row lands exactly on both edges. */}
+              {row.items.map((item) => <SortableWallCard
+                key={item.key}
+                item={{ ...item, height: row.height }}
+                itemIndex={itemIndexByKey.get(item.key) ?? 0}
+                itemCount={items.length}
+                rowJustified={row.justified}
+                isReordering={Boolean(reorderMode?.enabled)}
+                isDisabled={Boolean(reorderMode?.disabled)}
+                shouldReduceMotion={Boolean(shouldReduceMotion)}
+                reorderMode={reorderMode}
+              />)}
+            </div>)}
+          </div>
+        </SortableContext>
+      </DndContext>
     </div>;
 }
