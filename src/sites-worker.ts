@@ -8,19 +8,16 @@ interface SitesEnvironment {
 
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment): Promise<Response> {
-    const response = await environment.ASSETS.fetch(request)
-
-    if (response.status !== 404 || request.method !== 'GET') {
-      return response
-    }
-
     const accept = request.headers.get('accept') ?? ''
-    if (!accept.includes('text/html')) {
-      return response
+    if (request.method === 'GET' && accept.includes('text/html')) {
+      // Client-side routes such as /share/:profileId must receive the app shell
+      // directly. The Sites asset service redirects unknown paths to `/`, which
+      // would otherwise erase the public-viewer route before React can read it.
+      const appShellUrl = new URL('/index.html', request.url)
+      return environment.ASSETS.fetch(new Request(appShellUrl, request))
     }
 
-    const fallbackUrl = new URL('/index.html', request.url)
-    return environment.ASSETS.fetch(new Request(fallbackUrl, request))
+    return environment.ASSETS.fetch(request)
   },
 }
 
