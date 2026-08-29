@@ -713,6 +713,23 @@ export function updatePrototypeProject(profileId: string, project: ProjectEntry)
   };
 }
 
+/** PROTOTYPE ONLY. Applies the profile wall's chosen project-card order. */
+export function reorderPrototypeProjects(profileId: string, projectOrder: string[]): void {
+  const index = profiles.findIndex((candidate) => candidate.id === profileId);
+  if (index < 0) {
+    throw new Error(`No profile with id "${profileId}".`);
+  }
+  const existing = profiles[index].projects;
+  const ranked = projectOrder
+    .map((id) => existing.find((project) => project.id === id))
+    .filter((project): project is ProjectEntry => Boolean(project));
+  const remainder = existing.filter((project) => !projectOrder.includes(project.id));
+  profiles[index] = {
+    ...profiles[index],
+    projects: [...ranked, ...remainder]
+  };
+}
+
 /** PROTOTYPE ONLY. Removes one project from the canonical in-memory profile. */
 export function removePrototypeProject(profileId: string, projectId: string): void {
   const index = profiles.findIndex((candidate) => candidate.id === profileId);

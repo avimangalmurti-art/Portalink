@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, HeartIcon, ImageIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, ReplaceIcon, Settings2Icon, UserPlusIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, ImageIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, ReplaceIcon, Settings2Icon, UserPlusIcon, XIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -21,6 +21,7 @@ import { ProjectHoverDetails } from './profile/ProjectHoverDetails';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { ModalPortal } from './ui/ModalPortal';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
+import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
 
 /**
  * A creator's profile overview.
@@ -375,6 +376,7 @@ export function UserProfilePage({
   // publishing flow.
   const showsOwnerTools = canAuthor(viewerRole);
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
+  const [isReorderingProjects, setIsReorderingProjects] = useState(false);
   /*
    * Public or private, written through the profile service. The state shown is
    * always the confirmed one — nothing flips ahead of the service agreeing.
@@ -437,10 +439,22 @@ export function UserProfilePage({
   /* Only canonical, published projects contribute media to this profile. A new
    * profile therefore starts empty, and no seeded photograph can appear under
    * somebody's identity. */
-  const imageryCells: WallItem[] = useMemo(() => profile.projects.filter((project) => Boolean(project.cover)).map((project) => ({
+  const cardProjects = useMemo(() => profile.projects.filter((project) => Boolean(project.cover)), [profile.projects]);
+  const projectOrder = useProfileProjectOrder(
+    showsOwnerTools && !isSharedView ? profile.id : null,
+    cardProjects,
+    showsOwnerTools && !isSharedView
+  );
+  const orderedCardProjects = useMemo(() => {
+    const projectsById = new Map(cardProjects.map((project) => [project.id, project]));
+    return projectOrder.order
+      .map((projectId) => projectsById.get(projectId))
+      .filter((project): project is Project => Boolean(project));
+  }, [cardProjects, projectOrder.order]);
+  const imageryCells: WallItem[] = useMemo(() => orderedCardProjects.map((project) => ({
     key: project.id,
     ratio: getProjectAspectRatio(project),
-    content: <div role="listitem" className="relative h-full w-full">
+    content: <div className="relative h-full w-full">
           <ProfileProjectTile
             project={project}
             onOpen={() => onOpenProject(project.id, project.categoryId)}
@@ -459,12 +473,12 @@ export function UserProfilePage({
               },
               onCancel: () => { void projectManagement.editor.close(); }
             } : undefined}
-            onEditDescription={showsOwnerTools && !isSharedView && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'description') : undefined}
-            onEditCover={showsOwnerTools && !isSharedView && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
-            onReplaceFiles={showsOwnerTools && !isSharedView && projectManagement.editor.projectId === null ? () => projectManagement.editor.openFiles(project.id) : undefined}
+            onEditDescription={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'description') : undefined}
+            onEditCover={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
+            onReplaceFiles={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.openFiles(project.id) : undefined}
           />
         </div>
-  })), [profile.projects, onOpenProject, isSharedView, showsOwnerTools, projectManagement.editor]);
+  })), [orderedCardProjects, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
   const followers = readStat(profile, 'Followers');
   const following = readStat(profile, 'Following');
   // Every region of the page — toolbar, identity, and wall — now sits on the
@@ -600,6 +614,14 @@ export function UserProfilePage({
                       <label htmlFor="profile-view-density" className="min-w-0 flex-1 text-[12px] font-medium text-[var(--text-primary)]">View density</label>
                       <input id="profile-view-density" type="range" min={MIN_COLUMNS} max={MAX_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => setColumnsPerRow(writeProfileDensity(Number(event.target.value)))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
                     </div>
+                    <button type="button" role="menuitem" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
+                  projectOrder.reset();
+                  setIsReorderingProjects(true);
+                  setIsManageOpen(false);
+                }} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
+                      <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
+                      Reorder projects
+                    </button>
                     <button type="button" role="menuitem" onClick={visibility.onToggle} disabled={visibility.isPending} aria-pressed={visibility.isPrivate} aria-busy={visibility.isPending || undefined} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                       <InterfaceIcon icon={LockIcon} size="sm" weight="medium" />
                       <span className="min-w-0 flex-1">Account visibility</span>
@@ -627,6 +649,35 @@ export function UserProfilePage({
       onAddCategory(label, iconName);
       setIsAddingCategory(false);
     }} />}
+
+      {isReorderingProjects && showsOwnerTools && !isSharedView ? <section aria-label="Reorder projects" className="mx-2 mt-3 flex flex-wrap items-center gap-3 rounded-[12px] bg-[var(--surface-raised)] px-3 py-2.5 shadow-[var(--shadow-pop)] ring-1 ring-inset ring-[var(--hairline)]">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--accent-soft)] text-[var(--accent-text)]">
+            <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
+          </span>
+          <div className="min-w-[190px] flex-1">
+            <p className="text-[12px] font-semibold text-[var(--text-primary)]">Arrange your projects</p>
+            <p className="text-[11px] leading-snug text-[var(--text-secondary)]">Drag the wiggling cards into place, then choose Done.</p>
+            {projectOrder.saveError ? <p role="alert" className="mt-1 text-[11px] text-[var(--status-danger)]">
+                {projectOrder.saveError}{' '}
+                <button type="button" onClick={async () => {
+              if (await projectOrder.retry()) setIsReorderingProjects(false);
+            }} className="font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>
+              </p> : null}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" disabled={projectOrder.isSaving} onClick={() => {
+          projectOrder.reset();
+          projectOrder.dismissError();
+          setIsReorderingProjects(false);
+        }} className="inline-flex h-8 items-center rounded-[8px] px-3 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Cancel</button>
+            <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={async () => {
+          if (await projectOrder.commit()) setIsReorderingProjects(false);
+        }} className="inline-flex h-8 min-w-[68px] items-center justify-center gap-1.5 rounded-[8px] bg-[var(--accent-primary)] px-3 text-[11px] font-semibold text-white transition-[filter] hover:brightness-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
+              {projectOrder.isSaving ? <InterfaceIcon icon={Loader2Icon} size="xs" weight="medium" className="animate-spin" /> : <InterfaceIcon icon={CheckIcon} size="xs" weight="medium" />}
+              {projectOrder.isSaving ? 'Saving…' : 'Done'}
+            </button>
+          </div>
+        </section> : null}
 
       {!isSharedView && <div className="w-full px-2 pt-3">
         {/* Three regions, read left to right: who → where else they are → what the
@@ -667,7 +718,12 @@ export function UserProfilePage({
              Each published image is also the direct entrance to the project it
              represents; the image itself remains visually unchanged at rest.
              A short trailing row ends naturally. */}
-            <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} />
+            <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects ? {
+          enabled: true,
+          disabled: projectOrder.isSaving,
+          onMove: projectOrder.move,
+          onMoveByOffset: projectOrder.moveByOffset
+        } : undefined} />
           </div>}
       </main>
       {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-5" onClick={(event) => {

@@ -375,13 +375,18 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
   const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows);
 
   const projectsByProfile = new Map<string, Project[]>();
-  projectRows.forEach((row) => {
-    const project = projectsById.get(row.id);
-    if (!project) return;
-    projectsByProfile.set(row.profile_id, [
-      ...(projectsByProfile.get(row.profile_id) ?? []),
-      project,
-    ]);
+  profileIds.forEach((currentProfileId) => {
+    const rows = projectRows.filter((row) => row.profile_id === currentProfileId);
+    // Negative positions are the explicit profile-wall ordering marker. Older
+    // records use per-category non-negative positions, often with duplicates,
+    // so they retain the established newest-first profile presentation until
+    // the owner deliberately arranges their wall.
+    const orderedRows = rows.some((row) => row.position < 0)
+      ? [...rows].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at))
+      : rows;
+    projectsByProfile.set(currentProfileId, orderedRows
+      .map((row) => projectsById.get(row.id))
+      .filter((project): project is Project => Boolean(project)));
   });
 
   return profileRows.map((row) => ({
@@ -738,6 +743,35 @@ export const supabaseProjectService: ProjectService = {
     return design;
   },
 
+  async saveProfileProjectOrder(profileId, projectIds) {
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from('projects')
+      .select('id,position,published_at')
+      .eq('profile_id', profileId)
+      .order('published_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as unknown as Array<{ id: string; position: number; published_at: string }>;
+    const liveIds = rows.map((row) => row.id);
+    const unique = [...new Set(projectIds)];
+    if (unique.length !== projectIds.length || unique.some((projectId) => !liveIds.includes(projectId))) {
+      throw new Error('That order contains a project this profile does not own.');
+    }
+    const current = rows.some((row) => row.position < 0)
+      ? [...rows].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)).map((row) => row.id)
+      : liveIds;
+    const next = [...unique, ...current.filter((projectId) => !unique.includes(projectId))];
+    // Negative positions distinguish the profile-wide wall order from legacy
+    // per-category positions without requiring a second persistence column.
+    const results = await Promise.all(next.map((projectId, index) => client
+      .from('projects')
+      .update({ position: index - next.length })
+      .eq('id', projectId)
+      .eq('profile_id', profileId)));
+    const failed = results.find((result) => result.error);
+    if (failed?.error) throw new Error(failed.error.message);
+  },
+
   async getProjectArrangement(profileId, categoryId) {
     const { data, error } = await requireSupabase()
       .from('projects')
@@ -756,6 +790,39 @@ export const supabaseProjectService: ProjectService = {
 
   async saveProjectArrangement(profileId, categoryId, arrangement) {
     const client = requireSupabase();
+    const { data: profileData, error: profileError } = await client
+      .from('projects')
+      .select('id,category_id,position')
+      .eq('profile_id', profileId)
+      .order('position');
+    if (profileError) throw new Error(profileError.message);
+    const profileRows = (profileData ?? []) as unknown as Array<{ id: string; category_id: string; position: number }>;
+    const categoryRows = profileRows.filter((row) => row.category_id === categoryId);
+    const categoryIds = categoryRows.map((row) => row.id);
+    if (arrangement.projectOrder.length !== categoryIds.length || arrangement.projectOrder.some((projectId) => !categoryIds.includes(projectId))) {
+      throw new Error('That arrangement refers to work this category does not hold.');
+    }
+
+    if (profileRows.some((row) => row.position < 0)) {
+      let categoryIndex = 0;
+      const mergedOrder = profileRows.map((row) => row.category_id === categoryId
+        ? arrangement.projectOrder[categoryIndex++]
+        : row.id);
+      const results = await Promise.all(mergedOrder.map((projectId, index) => {
+        const update = categoryIds.includes(projectId)
+          ? {
+              position: index - mergedOrder.length,
+              is_hidden: arrangement.hiddenProjectIds.includes(projectId),
+              is_pinned: arrangement.pinnedProjectIds.includes(projectId),
+            }
+          : { position: index - mergedOrder.length };
+        return client.from('projects').update(update).eq('id', projectId).eq('profile_id', profileId);
+      }));
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw new Error(failed.error.message);
+      return;
+    }
+
     const results = await Promise.all(arrangement.projectOrder.map((projectId, position) =>
       client.from('projects').update({
         position,

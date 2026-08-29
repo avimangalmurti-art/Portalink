@@ -9,7 +9,7 @@
  */
 
 import { accountsToExploreIds, featuredCuration, feedCuration } from '../../data/feed';
-import { applyPrototypeProfileUpdate, countPrototypeCategoryProjects, findProfileById, getProfileById, profiles, registerPrototypeCategory, registerPrototypeProfile, registerPrototypeProject, removePrototypeCategory, removePrototypeProject, renamePrototypeCategory, reorderPrototypeCategories, setPrototypeCategoryIcon, updatePrototypeProject } from '../../data/profiles';
+import { applyPrototypeProfileUpdate, countPrototypeCategoryProjects, findProfileById, getProfileById, profiles, registerPrototypeCategory, registerPrototypeProfile, registerPrototypeProject, removePrototypeCategory, removePrototypeProject, renamePrototypeCategory, reorderPrototypeCategories, reorderPrototypeProjects, setPrototypeCategoryIcon, updatePrototypeProject } from '../../data/profiles';
 import type { Profile as PrototypeProfile } from '../../data/profiles';
 import { cities } from '../../data/cities';
 import { liveSessionSeeds } from '../../data/liveSessions';
@@ -429,6 +429,15 @@ export const mockProjectService: ProjectService = {
     };
     projectDesigns.set(projectId, next);
     return next;
+  },
+  async saveProfileProjectOrder(profileId, projectIds) {
+    const live = getProfileById(profileId).projects.map((project) => project.id);
+    const unique = [...new Set(projectIds)];
+    if (unique.length !== projectIds.length || unique.some((projectId) => !live.includes(projectId))) {
+      throw new Error('That order contains a project this profile does not own.');
+    }
+    await resolve(undefined, 220);
+    reorderPrototypeProjects(profileId, unique);
   },
   async getProjectArrangement(profileId, categoryId) {
     // The canonical record decides which projects exist; the saved arrangement

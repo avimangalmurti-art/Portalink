@@ -185,6 +185,8 @@ export interface ProjectService {
    * never be written to a project and silently fall back at render time.
    */
   updateProjectDesign(projectId: Id, design: ProjectDesign): Promise<ProjectDesign>;
+  /** Owner-only order for the project cards on the profile overview. */
+  saveProfileProjectOrder(profileId: Id, projectIds: Id[]): Promise<void>;
   getProjectArrangement(profileId: Id, categoryId: Id): Promise<ProjectArrangement>;
   saveProjectArrangement(profileId: Id, categoryId: Id, arrangement: ProjectArrangement): Promise<void>;
   /** "Upload work" / "Add document": no storage backend exists yet. */

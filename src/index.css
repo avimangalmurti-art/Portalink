@@ -1679,6 +1679,30 @@ button[data-portalink-tile],
   border-color: var(--feed-card-border) !important;
   box-shadow: 0 0 0 2px var(--focus-ring) !important;
 }
+/* Project-order mode borrows the friendly physicality of a phone home-screen:
+   every card keeps moving until the creator saves or cancels. Staggered timing
+   prevents the wall from looking mechanically synchronized. */
+@keyframes profile-project-jiggle {
+  0%,
+  100% {
+    transform: rotate(-0.45deg) translateY(0);
+  }
+  50% {
+    transform: rotate(0.45deg) translateY(-1px);
+  }
+}
+.profile-project-reorder-card {
+  animation-name: profile-project-jiggle;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  transform-origin: 50% 58%;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-project-reorder-card {
+    animation: none !important;
+  }
+}
 /* Beats the shell rule that paints every top-level aside with the light
    surface token, so the navigation can carry the same sky as Portalink. */
 .sidebar-starfield,

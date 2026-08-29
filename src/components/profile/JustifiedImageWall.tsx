@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { GripVerticalIcon } from 'lucide-react';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
@@ -32,6 +34,12 @@ export type WallItem = {
   /** width / height. The frame's own proportion — never modified here. */
   ratio: number;
   content: React.ReactNode;
+};
+type ReorderMode = {
+  enabled: boolean;
+  disabled?: boolean;
+  onMove: (sourceKey: string, targetKey: string) => void;
+  onMoveByOffset: (key: string, offset: -1 | 1) => void;
 };
 type Row = {
   items: (WallItem & {
@@ -86,7 +94,8 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
 export function JustifiedImageWall({
   items,
   columns,
-  label
+  label,
+  reorderMode
 
 
 
@@ -94,7 +103,7 @@ export function JustifiedImageWall({
 
 
 
-}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;}) {
+}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;reorderMode?: ReorderMode;}) {
   const {
     ref,
     width
@@ -105,6 +114,9 @@ export function JustifiedImageWall({
    * their own proportions either way — nothing is cropped to zoom.
    */
   const view = useContentZoom<HTMLDivElement>();
+  const shouldReduceMotion = useReducedMotion();
+  const draggedKeyRef = useRef<string | null>(null);
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const preferredColumns = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, view.scaleColumns(columns)));
   // Three is the standard minimum in the profile workspace. Only a genuinely
   // narrow viewport may reduce the rendered count so cards never become
@@ -122,6 +134,7 @@ export function JustifiedImageWall({
   }, [items, width, effectiveColumns]);
   return <div ref={view.ref} className="relative w-full">
       <ZoomReadout view={view} />
+      {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">Drag a project card into a new position, or focus a card and hold Alt while pressing an arrow key.</p> : null}
       <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
       {rows.map((row, rowIndex) => <div key={row.items[0]?.key ?? rowIndex} className="flex w-full" style={{
         gap: GAP,
@@ -129,12 +142,79 @@ export function JustifiedImageWall({
       }}>
           {/* Basis carries the computed width; grow and shrink absorb the
              sub-pixel remainder so the row lands exactly on both edges. */}
-          {row.items.map((item) => <div key={item.key} className="min-w-0" style={{
-          flex: row.justified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
-          height: row.height
-        }}>
-              {item.content}
-            </div>)}
+          {row.items.map((item) => {
+            const itemIndex = items.findIndex((candidate) => candidate.key === item.key);
+            const isReordering = Boolean(reorderMode?.enabled);
+            const isDisabled = Boolean(reorderMode?.disabled);
+            const isDragging = draggingKey === item.key;
+            return <motion.div
+              key={item.key}
+              layout={isReordering && !shouldReduceMotion ? 'position' : false}
+              className={`min-w-0 ${isDragging ? 'z-30 opacity-75' : ''}`}
+              style={{
+                flex: row.justified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
+                height: row.height
+              }}
+            >
+              <div
+                role="listitem"
+                tabIndex={isReordering ? 0 : undefined}
+                draggable={isReordering && !isDisabled}
+                aria-grabbed={isReordering ? isDragging : undefined}
+                aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
+                aria-label={isReordering ? `Project ${itemIndex + 1} of ${items.length}; drag to reorder` : undefined}
+                onKeyDown={isReordering && !isDisabled ? (event) => {
+                  if (!event.altKey) return;
+                  if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    reorderMode?.onMoveByOffset(item.key, -1);
+                  }
+                  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    reorderMode?.onMoveByOffset(item.key, 1);
+                  }
+                } : undefined}
+                onDragStart={isReordering && !isDisabled ? (event) => {
+                  draggedKeyRef.current = item.key;
+                  setDraggingKey(item.key);
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', item.key);
+                } : undefined}
+                onDragOver={isReordering && !isDisabled ? (event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                } : undefined}
+                onDragEnter={isReordering && !isDisabled ? (event) => {
+                  event.preventDefault();
+                } : undefined}
+                onDrop={isReordering && !isDisabled ? (event) => {
+                  event.preventDefault();
+                  const sourceKey = draggedKeyRef.current;
+                  if (sourceKey && sourceKey !== item.key) reorderMode?.onMove(sourceKey, item.key);
+                  draggedKeyRef.current = null;
+                  setDraggingKey(null);
+                } : undefined}
+                onDragEnd={isReordering ? () => {
+                  draggedKeyRef.current = null;
+                  setDraggingKey(null);
+                } : undefined}
+                className={`h-full w-full min-w-0 ${isReordering ? 'cursor-grab rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
+              >
+                <div className={`relative h-full w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
+                  animationDelay: `${itemIndex % 5 * -75}ms`,
+                  animationDuration: `${620 + itemIndex % 4 * 55}ms`
+                } : undefined}>
+                  <div className={isReordering ? 'pointer-events-none h-full w-full select-none' : 'h-full w-full'}>
+                    {item.content}
+                  </div>
+                  {isReordering ? <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 z-30 inline-flex h-7 items-center gap-1 rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-semibold tabular-nums text-[var(--accent-text)] shadow-[var(--shadow-pop)]">
+                      <GripVerticalIcon className="h-3.5 w-3.5" />
+                      {itemIndex + 1}
+                    </span> : null}
+                </div>
+              </div>
+              </motion.div>;
+          })}
         </div>)}
       </div>
     </div>;
