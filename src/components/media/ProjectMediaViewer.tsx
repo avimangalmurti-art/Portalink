@@ -295,8 +295,8 @@ export function ProjectMediaViewer({
           {/* The glyph, spoken label, and tooltip all identify the destination
              of the next press: Description while comments are visible, and
              Comments while the description is visible. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show description' : 'Show comments'} title={railPanel === 'comments' ? 'Show description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show description' : 'Show comments'} title={railPanel === 'comments' ? 'Show description' : 'Show comments'} data-keep-color="" style={{ color: railPanel === 'comments' ? 'var(--apple-purple)' : 'var(--apple-mint)' }} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" keepColor stroke={railPanel === 'comments' ? 'var(--apple-purple)' : 'var(--apple-mint)'} />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The
