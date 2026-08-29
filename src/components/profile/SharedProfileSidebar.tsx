@@ -72,7 +72,7 @@ export function SharedProfileSidebar({
       </nav>
 
       <div data-shared-join-footer="" className="shrink-0 px-3 pb-3 pt-2">
-        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="inline-flex min-h-9 w-full items-center justify-center rounded-[8px] bg-[var(--apple-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="inline-flex min-h-9 w-full items-center justify-center rounded-[8px] bg-[var(--system-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <span>Join the Portalink<br />Network</span>
         </a>
       </div>
