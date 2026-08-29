@@ -34,7 +34,7 @@ export function SharedProfileSidebar({
   onOpenCategory
 }: SharedProfileSidebarProps) {
   const projectCount = profile.projects.length;
-  return <aside aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield flex h-full w-[208px] shrink-0 flex-col bg-transparent lg:w-[216px] 2xl:w-[224px]">
+  return <aside aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full w-[208px] shrink-0 flex-col bg-transparent lg:w-[216px] 2xl:w-[224px]">
       <div className="global-control-header shrink-0 px-2">
         <div className="flex h-full w-full min-w-0 flex-1 items-center justify-between gap-2 px-2">
           <span data-shared-header-title="" className="flex min-w-0 flex-col text-[16px] font-bold leading-[1.05] text-[var(--text-secondary)]">
@@ -48,7 +48,7 @@ export function SharedProfileSidebar({
         </div>
       </div>
 
-      <nav aria-label={possessivePortals(profile.name)} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+      <nav aria-label={possessivePortals(profile.name)} className="min-h-0 flex-1 overflow-y-auto px-2 pb-20 pt-3">
         <h2 className="relative my-2 flex h-7 w-full shrink-0 items-center">
           <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-keep-color="" data-shared-portals-heading="" aria-label={`Open ${profile.name}'s shared profile`} className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
             {possessivePortals(profile.name)}
@@ -71,8 +71,8 @@ export function SharedProfileSidebar({
         </ul>
       </nav>
 
-      <div data-shared-join-footer="" className="shrink-0 px-3 pb-3 pt-2">
-        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="inline-flex min-h-9 w-full items-center justify-center rounded-[8px] bg-[var(--system-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <div data-shared-join-footer="" className="pointer-events-none absolute inset-x-3 bottom-3 z-30">
+        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="pointer-events-auto inline-flex min-h-9 w-full items-center justify-center rounded-full bg-[var(--system-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition-[filter,transform] duration-150 hover:-translate-y-px hover:brightness-105 active:translate-y-0 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <span>Join the Portalink<br />Network</span>
         </a>
       </div>
