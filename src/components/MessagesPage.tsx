@@ -107,7 +107,7 @@ export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null 
                         </span>
                         <span className={`mt-0.5 flex items-center gap-2 text-[12px] ${conversation.isUnread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
                           <span className="min-w-0 flex-1 truncate">{conversation.lastMessage ?? conversation.participant.handle}</span>
-                          {conversation.isUnread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent-primary)]"><span className="sr-only">Unread</span></span> : null}
+                          {conversation.isUnread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-unread)]"><span className="sr-only">Unread</span></span> : null}
                         </span>
                       </span>
                     </button>)}
@@ -166,7 +166,7 @@ export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null 
 
 function ViewTab({ label, isActive, onSelect, badge = 0 }: { label: string; isActive: boolean; onSelect: () => void; badge?: number }) {
   return <button type="button" role="tab" aria-selected={isActive} onClick={onSelect} className={`ps-nav-item flex h-7 items-center gap-1.5 rounded-full px-3 text-[13px] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-raised)] font-semibold text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'font-medium text-[var(--text-secondary)] hover:text-[var(--accent-text)]'}`}>
-      {label}{badge > 0 ? <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--social-unread)] px-1 text-[10px] font-bold text-white">{badge}</span> : null}
+      {label}{badge > 0 ? <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--social-unread)] px-1 text-[10px] font-bold text-[var(--social-unread-foreground)]">{badge}</span> : null}
     </button>;
 }
 

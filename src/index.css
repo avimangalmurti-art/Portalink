@@ -297,6 +297,10 @@ textarea {
 }
 :root,
 .theme-light {
+  /* Attention indicators are semantic system red. They never inherit the
+     creator-selected accent, because unread and pending states must remain
+     immediately recognizable across every appearance. */
+  --system-red: #ff3b30;
   --apple-red: #ff0033;
   --apple-orange: #ff6a00;
   --apple-yellow: #ffd300;
@@ -318,6 +322,7 @@ textarea {
   --engagement-share-selected: #006edc;
 }
 .theme-dark {
+  --system-red: #ff453a;
   --apple-red: #ff1f4f;
   --apple-orange: #ff8a1f;
   --apple-yellow: #ffe01f;
@@ -390,7 +395,7 @@ textarea {
   --status-info: #0a6cd4;
   --status-danger-foreground: #ffffff;
   --status-danger-hover: #8f1d14;
-  --social-unread: #4f4f57;
+  --social-unread: var(--system-red);
   --social-unread-foreground: #ffffff;
   --social-presence: #237a3b;
   --social-verification: #0969da;
@@ -474,8 +479,8 @@ textarea {
   --status-info: #6fa7dc;
   --status-danger-foreground: #111114;
   --status-danger-hover: #f07a72;
-  --social-unread: #b7b7bd;
-  --social-unread-foreground: #111114;
+  --social-unread: var(--system-red);
+  --social-unread-foreground: #ffffff;
   --social-presence: #64b77a;
   --social-verification: #6fa7dc;
   --intelligence-accent: #8f8dc8;
@@ -540,7 +545,7 @@ textarea {
   --surface-selected: rgba(0, 0, 0, 0.14);
   --surface-pressed: rgba(0, 0, 0, 0.18);
   --feed-card-border: rgba(0, 0, 0, 0.55);
-  --social-unread: #111113;
+  --social-unread: var(--system-red);
 }
 .high-contrast.theme-dark {
   --label-secondary: #ffffff;
@@ -553,8 +558,8 @@ textarea {
   --surface-selected: rgba(255, 255, 255, 0.2);
   --surface-pressed: rgba(255, 255, 255, 0.26);
   --feed-card-border: rgba(255, 255, 255, 0.55);
-  --social-unread: #ffffff;
-  --social-unread-foreground: #000000;
+  --social-unread: var(--system-red);
+  --social-unread-foreground: #ffffff;
 }
 .high-contrast :focus-visible {
   outline: 2px solid var(--focus-ring, var(--accent-primary));
@@ -620,6 +625,7 @@ textarea {
 /* Defaults so portalled surfaces rendered outside the themed tree
    (dropdowns mounted on <body>) still resolve the token set. */
 :root {
+  --system-red: #ff3b30;
   --background-primary: #ffffff;
   --background-secondary: #f8f8f9;
   --surface-default: #ffffff;
@@ -655,7 +661,7 @@ textarea {
   --status-danger-foreground: #ffffff;
   --status-danger-hover: #8f1d14;
   --status-info: #0a84ff;
-  --social-unread: #4f4f57;
+  --social-unread: var(--system-red);
   --social-unread-foreground: #ffffff;
   --social-presence: #237a3b;
   --social-verification: #0969da;

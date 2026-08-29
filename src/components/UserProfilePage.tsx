@@ -521,7 +521,7 @@ export function UserProfilePage({
              list behind it cannot substantiate is worse than none. Zero is a
              real answer, so the control simply is not offered. */}
           {showsOwnerTools && visibility.isPrivate && followRequests.count > 0 && <div className="relative">
-              <button type="button" data-follow-requests-control="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="flex h-7 items-center gap-1.5 rounded-full border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="flex h-7 items-center gap-1.5 rounded-full border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <UserPlusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span className="tabular-nums">{followRequests.count}</span>
                 <span>{followRequests.count === 1 ? 'request' : 'requests'}</span>
