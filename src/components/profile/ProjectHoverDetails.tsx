@@ -56,7 +56,7 @@ export function ProjectHoverDetails({
       <span
         data-project-hover-description=""
         onClick={onOpen}
-        className="pointer-events-none block min-h-0 overflow-y-auto overscroll-contain text-[12px] font-medium leading-[1.45] text-[var(--accent-text)] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
+        className="project-hover-scrollbar pointer-events-none block min-h-0 overflow-y-auto overscroll-contain text-[12px] font-medium leading-[1.45] text-[var(--accent-text)] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
       >
         {summary}
       </span>
