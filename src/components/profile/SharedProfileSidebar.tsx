@@ -1,10 +1,12 @@
 import React from 'react';
 import { MoonIcon, SunIcon } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { Button } from '../ui/Button';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
+import { buildPath } from '../../app/routes';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
@@ -12,7 +14,6 @@ type SharedProfileSidebarProps = {
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
   onJoin: () => void;
-  onOpenProfile: () => void;
   onOpenCategory: (categoryId: string) => void;
 };
 
@@ -33,7 +34,6 @@ export function SharedProfileSidebar({
   theme,
   onThemeChange,
   onJoin,
-  onOpenProfile,
   onOpenCategory
 }: SharedProfileSidebarProps) {
   const projectCount = profile.projects.length;
@@ -53,9 +53,9 @@ export function SharedProfileSidebar({
 
       <nav aria-label={possessivePortals(profile.name)} className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         <h2 className="relative my-2 flex h-7 w-full shrink-0 items-center">
-          <button type="button" data-keep-color="" data-shared-portals-heading="" onClick={onOpenProfile} aria-label={`Open ${profile.name}'s shared profile`} className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-keep-color="" data-shared-portals-heading="" aria-label={`Open ${profile.name}'s shared profile`} className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
             {possessivePortals(profile.name)}
-          </button>
+          </Link>
         </h2>
         <ul className="sidebar-pill-group m-0 flex list-none flex-col p-0">
           {profile.categories.map((category) => {

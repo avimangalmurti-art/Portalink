@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import type { NavigationDestination } from './navigation';
 // Canonical domain models. The seed module's parallel copies stay behind the
 // mock service; production-facing components read the real contract.
@@ -57,6 +58,8 @@ type SidebarProps = {
   onCollapsedChange: (isCollapsed: boolean) => void;
   onNavigate: (destination: NavigationDestination) => void;
   onProfileOpen: () => void;
+  /** Canonical profile address; when present, profile access works before hydration. */
+  profileHref?: string;
   /**
    * Opens the profile currently being VIEWED, which is not always the viewer's
    * own. The portal row names that creator, so it must land on them.
@@ -122,6 +125,7 @@ function NavTile({
   isActive,
   activeClassName,
   onSelect,
+  href,
   ariaLabel,
   title,
   isProfileTile = false,
@@ -137,10 +141,16 @@ function NavTile({
 
 
 
-}: {label: string;icon: InterfaceIconSource;isActive: boolean;activeClassName: string;onSelect?: () => void;ariaLabel?: string;title?: string;isProfileTile?: boolean;disabled?: boolean;}) {
+}: {label: string;icon: InterfaceIconSource;isActive: boolean;activeClassName: string;onSelect?: () => void;href?: string;ariaLabel?: string;title?: string;isProfileTile?: boolean;disabled?: boolean;}) {
   // The destination name remains available to assistive technology and as a
   // native tooltip, while the four-button panel itself stays icon-only.
-  return <button type="button" disabled={disabled} onClick={disabled ? undefined : onSelect} aria-label={ariaLabel ?? label} title={title ?? ariaLabel ?? label} aria-current={!disabled && isActive ? 'page' : undefined} data-profile-tile={isProfileTile ? '' : undefined} className={`ps-nav-item nav-button sidebar-primary-control shape-compact mx-auto flex items-center justify-center text-center transition-colors focus:outline-none ${isActive ? `${activeClassName} font-semibold` : 'font-medium'}`}>
+  const className = `ps-nav-item nav-button sidebar-primary-control shape-compact mx-auto flex items-center justify-center text-center transition-colors focus:outline-none ${isActive ? `${activeClassName} font-semibold` : 'font-medium'}`;
+  if (href && !disabled) {
+    return <Link to={href} aria-label={ariaLabel ?? label} title={title ?? ariaLabel ?? label} aria-current={isActive ? 'page' : undefined} data-profile-tile={isProfileTile ? '' : undefined} className={className}>
+        <InterfaceIcon icon={Icon} weight="medium" />
+      </Link>;
+  }
+  return <button type="button" disabled={disabled} onClick={disabled ? undefined : onSelect} aria-label={ariaLabel ?? label} title={title ?? ariaLabel ?? label} aria-current={!disabled && isActive ? 'page' : undefined} data-profile-tile={isProfileTile ? '' : undefined} className={className}>
       <InterfaceIcon icon={Icon} weight="medium" />
     </button>;
 }
@@ -526,6 +536,7 @@ export function Sidebar({
   onCollapsedChange,
   onNavigate,
   onProfileOpen,
+  profileHref,
   onMessagesOpen,
   theme,
   onThemeChange,
@@ -814,9 +825,11 @@ export function Sidebar({
                 <button type="button" onClick={() => onMessagesOpen()} aria-label="Open messages" aria-current={activeTarget === 'messages' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none" data-profile-tile="">
                   <InterfaceIcon icon={MessageCircleIcon} weight="medium" />
                 </button>
-                <button type="button" onClick={handleProfileOpen} aria-label="Open your profile" title="Profile" aria-current={activeTarget === 'profile' ? 'page' : undefined} data-profile-tile="" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
-                  <InterfaceIcon icon={CircleUserRoundIcon} weight="medium" />
-                </button>
+                {profileHref ? <Link to={profileHref} aria-label="Open your profile" title="Profile" aria-current={activeTarget === 'profile' ? 'page' : undefined} data-profile-tile="" className="nav-button shape-compact sidebar-rail-slot flex items-center justify-center transition-colors focus:outline-none">
+                    <InterfaceIcon icon={CircleUserRoundIcon} weight="medium" />
+                  </Link> : <button type="button" onClick={handleProfileOpen} aria-label="Open your profile" title="Profile" aria-current={activeTarget === 'profile' ? 'page' : undefined} data-profile-tile="" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                    <InterfaceIcon icon={CircleUserRoundIcon} weight="medium" />
+                  </button>}
               </nav>
             </> : <>
           <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Navigation and work">
@@ -832,7 +845,7 @@ export function Sidebar({
                   <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
                   <NavTile label="Search" icon={SearchIcon} isActive={false} activeClassName="" ariaLabel="Search unavailable" title="Search is not available yet" disabled />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
-                  <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} ariaLabel="Open your profile" isProfileTile />
+                  <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
                 </div>
               </div>
             </nav>
