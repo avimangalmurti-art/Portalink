@@ -3,7 +3,6 @@ import { MoonIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
-import { Button } from '../ui/Button';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
@@ -13,7 +12,6 @@ type SharedProfileSidebarProps = {
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
-  onJoin: () => void;
   onOpenCategory: (categoryId: string) => void;
 };
 
@@ -33,7 +31,6 @@ export function SharedProfileSidebar({
   activeCategoryId,
   theme,
   onThemeChange,
-  onJoin,
   onOpenCategory
 }: SharedProfileSidebarProps) {
   const projectCount = profile.projects.length;
@@ -75,9 +72,9 @@ export function SharedProfileSidebar({
       </nav>
 
       <div data-shared-join-footer="" className="shrink-0 px-3 pb-3 pt-2">
-        <Button variant="primary" size="md" fullWidth onClick={onJoin}>
-          Join the Portalink Network
-        </Button>
+        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="inline-flex min-h-9 w-full items-center justify-center rounded-[8px] bg-[var(--apple-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black transition-[filter,transform] duration-150 hover:brightness-105 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <span>Join the Portalink<br />Network</span>
+        </a>
       </div>
     </aside>;
 }
