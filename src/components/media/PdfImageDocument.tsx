@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FileTextIcon, RotateCcwIcon, XIcon } from 'lucide-react';
+import { FileTextIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { useSinglePageZoom } from './useSinglePageZoom';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -23,6 +24,7 @@ type PdfImagePageProps = {
   label: string;
   enabled: boolean;
   isFocused: boolean;
+  zoom: number;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -33,6 +35,7 @@ function PdfImagePage({
   label,
   enabled,
   isFocused,
+  zoom,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -123,7 +126,7 @@ function PdfImagePage({
     const nativeViewport = page.getViewport({ scale: 1 });
     const widthScale = availableWidth / nativeViewport.width;
     const heightScale = availableHeight > 0 ? availableHeight / nativeViewport.height : widthScale;
-    const cssScale = isFocused ? Math.min(widthScale, heightScale) : widthScale;
+    const cssScale = isFocused ? Math.min(widthScale, heightScale) * zoom : widthScale;
     const cssViewport = page.getViewport({ scale: cssScale });
     const deviceScale = Math.max(1, window.devicePixelRatio || 1);
     const dimensionScale = MAX_RENDER_DIMENSION / Math.max(cssViewport.width, cssViewport.height);
@@ -174,7 +177,7 @@ function PdfImagePage({
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
     };
-  }, [isFocused, layoutRevision, page, pageNumber]);
+  }, [isFocused, layoutRevision, page, pageNumber, zoom]);
 
   return <div
     ref={hostRef}
@@ -208,7 +211,7 @@ function PdfImagePage({
         onToggleFocus(pageNumber);
       }
     }}
-    className={`${isFocused ? 'flex h-full w-full touch-auto items-center justify-center' : 'relative w-full touch-manipulation'} overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'relative w-full touch-manipulation overflow-hidden'} bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
     {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
@@ -232,7 +235,7 @@ function PdfImagePage({
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className={`block max-w-full bg-white transition-opacity duration-150 ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'max-w-none' : 'max-w-full'} bg-white transition-opacity duration-150 ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`}
     />
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
@@ -252,6 +255,11 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
   const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(null);
+  const zoom = useSinglePageZoom({
+    surfaceRef: scrollRootRef,
+    active: focusedPageNumber !== null,
+    onExit: () => setFocusedPageNumber(null)
+  });
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), pageCount || MAX_PAGES_PER_ROW);
 
   onErrorRef.current = onError;
@@ -325,16 +333,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
 
-  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`}>
-    {focusedPageNumber !== null && <button
-      type="button"
-      onClick={() => setFocusedPageNumber(null)}
-      aria-label="Close single-page view"
-      title="Return to all pages"
-      className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/65 text-white shadow-lg backdrop-blur-md transition hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-4 sm:top-4"
-    >
-      <XIcon aria-hidden="true" className="h-5 w-5" />
-    </button>}
+  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
     {!document && <div role="status" aria-live="polite" className="flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <FileTextIcon className="h-6 w-6" />
       <span className="sr-only">Preparing page images</span>
@@ -347,6 +346,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
           label={label}
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
+          zoom={focusedPageNumber === pageNumber ? zoom : 1}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

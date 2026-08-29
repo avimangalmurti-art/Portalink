@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ErrorState, LoadingState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
+import { useSinglePageZoom } from './useSinglePageZoom';
 
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
@@ -13,9 +14,10 @@ function ImagePage({
   pageCount,
   priorityCount,
   isFocused = false,
+  zoom = 1,
   onToggleFocus
 
-}: {attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;onToggleFocus: (attachmentId: string) => void;}) {
+}: {attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -51,14 +53,14 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} role="button" tabIndex={0} aria-pressed={isFocused} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Return image to project layout' : 'Expand image to fill the viewer'}`} title={isFocused ? 'Double-click or double-tap to return to the project layout' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={(event) => {
+  return <li ref={hostRef} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Use the wheel or a two-finger gesture to zoom' : 'Expand image to fill the viewer'}`} title={isFocused ? 'Wheel or pinch to zoom; zoom fully out to see all images' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
     // follow-on event instead of immediately toggling the image back.
     if (performance.now() - lastTouchToggleAtRef.current < 500) return;
     onToggleFocus(attachment.id);
-  }} onPointerUp={(event) => {
+  }} onPointerUp={isFocused ? undefined : (event) => {
     if (event.pointerType !== 'touch') return;
     const now = performance.now();
     const previous = lastTouchRef.current;
@@ -70,12 +72,12 @@ function ImagePage({
       lastTouchToggleAtRef.current = now;
       onToggleFocus(attachment.id);
     }
-  }} onKeyDown={(event) => {
+  }} onKeyDown={isFocused ? undefined : (event) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onToggleFocus(attachment.id);
     }
-  }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-center justify-center' : 'block min-h-[240px]'} touch-manipulation list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
+  }} className={`${isFocused ? `flex h-full min-h-0 w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'block min-h-[240px] touch-manipulation'} list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
       {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
@@ -88,7 +90,7 @@ function ImagePage({
         setStatus('loading');
         setAttempt((current) => current + 1);
       }} />
-        </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'h-full w-full object-contain' : 'h-auto w-full'} block ${status === 'ready' ? '' : 'hidden'}`} />}
+        </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? '' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
     </li>;
 }
@@ -122,6 +124,7 @@ export function ImageAttachment({
    * width a page is given, never the page's own proportions or its order.
    */columns?: number;}) {
   const [focusedPageId, setFocusedPageId] = useState<string | null>(null);
+  const zoomSurfaceRef = useRef<HTMLDivElement>(null);
   const columnCount = Math.max(1, Math.min(columns, pages.length));
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   useEffect(() => {
@@ -129,14 +132,17 @@ export function ImageAttachment({
       setFocusedPageId(null);
     }
   }, [focusedPageId, pages]);
-  const toggleFocus = (attachmentId: string) => {
-    setFocusedPageId((current) => current === attachmentId ? null : attachmentId);
-  };
+  const focusPage = (attachmentId: string) => setFocusedPageId(attachmentId);
+  const zoom = useSinglePageZoom({
+    surfaceRef: zoomSurfaceRef,
+    active: focusedPage !== null,
+    onExit: () => setFocusedPageId(null)
+  });
 
   if (focusedPage) {
-    return <div className="relative h-full min-h-0 w-full overflow-hidden">
+    return <div ref={zoomSurfaceRef} className="relative h-full min-h-0 w-full overflow-hidden" style={{ touchAction: 'pan-x pan-y' }}>
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused onToggleFocus={toggleFocus} />
+          <ImagePage attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} onToggleFocus={focusPage} />
         </ol>
       </div>;
   }
@@ -163,7 +169,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-1 p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} onToggleFocus={toggleFocus} />)}
+            {column.map((attachment) => <ImagePage key={attachment.id} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

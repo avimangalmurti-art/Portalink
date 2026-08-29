@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
+import { useSinglePageZoom } from './useSinglePageZoom';
 import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 
@@ -32,6 +32,7 @@ export function DocumentAttachment({
 }) {
   const [hasFailed, setHasFailed] = useState(false);
   const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(null);
+  const zoomSurfaceRef = useRef<HTMLDivElement>(null);
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const handlePdfFailure = useCallback(() => setHasFailed(true), []);
@@ -50,6 +51,12 @@ export function DocumentAttachment({
     setFocusedPageIndex(null);
     lastTouchRef.current = null;
   }, [attachment.id]);
+  const focusPage = (index: number) => setFocusedPageIndex(index);
+  const zoom = useSinglePageZoom({
+    surfaceRef: zoomSurfaceRef,
+    active: focusedPageIndex !== null,
+    onExit: () => setFocusedPageIndex(null)
+  });
   if (!attachment.sourceUrl || hasFailed) {
     return <GenericFileCard attachment={attachment} />;
   }
@@ -59,20 +66,10 @@ export function DocumentAttachment({
     : renderedPages[focusedPageIndex]
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
-  const focusPage = (index: number) => setFocusedPageIndex(index);
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`}>
-        {focusedPageIndex !== null && <button
-          type="button"
-          onClick={() => setFocusedPageIndex(null)}
-          aria-label="Close single-page view"
-          title="Return to all pages"
-          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/65 text-white shadow-lg backdrop-blur-md transition hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-4 sm:top-4"
-        >
-          <XIcon aria-hidden="true" className="h-5 w-5" />
-        </button>}
+      {renderedPages.length > 0 ? <div ref={zoomSurfaceRef} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`} title={focusedPageIndex === index ? undefined : 'Double-click or double-tap to fill the viewer'} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Use the wheel or a two-finger gesture to zoom' : 'Double-click or double-tap to fill the viewer'}`} title={focusedPageIndex === index ? 'Wheel or pinch to zoom; zoom fully out to see all pages' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);
@@ -93,7 +90,7 @@ export function DocumentAttachment({
               event.preventDefault();
               focusPage(index);
             }
-          }} className={`${focusedPageIndex === index ? 'h-full min-h-0 touch-auto' : 'touch-manipulation'} flex w-full justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
+          }} className={`${focusedPageIndex === index ? `h-full min-h-0 overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'justify-center'}` : 'touch-manipulation justify-center'} flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -102,7 +99,8 @@ export function DocumentAttachment({
               loading={page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               fetchPriority={page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
-              className={`${focusedPageIndex === index ? 'h-full w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
+              className={`${focusedPageIndex === index ? 'max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
+              style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
           </li>)}
         </ol>
