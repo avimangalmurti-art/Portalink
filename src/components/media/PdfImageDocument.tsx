@@ -22,6 +22,8 @@ type PdfImagePageProps = {
   pageNumber: number;
   label: string;
   enabled: boolean;
+  isFocused: boolean;
+  onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
 
@@ -30,10 +32,14 @@ function PdfImagePage({
   pageNumber,
   label,
   enabled,
+  isFocused,
+  onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const lastTouchToggleAtRef = useRef(0);
   const onSettledRef = useRef(onSettled);
   const [page, setPage] = useState<PdfPageProxy | null>(null);
   const [aspectRatio, setAspectRatio] = useState(8.5 / 11);
@@ -107,13 +113,17 @@ function PdfImagePage({
       return undefined;
     }
 
-    const availableWidth = host.getBoundingClientRect().width;
+    const bounds = host.getBoundingClientRect();
+    const availableWidth = bounds.width;
+    const availableHeight = bounds.height;
     if (!Number.isFinite(availableWidth) || availableWidth <= 0) {
       return undefined;
     }
 
     const nativeViewport = page.getViewport({ scale: 1 });
-    const cssScale = availableWidth / nativeViewport.width;
+    const widthScale = availableWidth / nativeViewport.width;
+    const heightScale = availableHeight > 0 ? availableHeight / nativeViewport.height : widthScale;
+    const cssScale = isFocused ? Math.min(widthScale, heightScale) : widthScale;
     const cssViewport = page.getViewport({ scale: cssScale });
     const deviceScale = Math.max(1, window.devicePixelRatio || 1);
     const dimensionScale = MAX_RENDER_DIMENSION / Math.max(cssViewport.width, cssViewport.height);
@@ -164,15 +174,42 @@ function PdfImagePage({
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
     };
-  }, [layoutRevision, page, pageNumber]);
+  }, [isFocused, layoutRevision, page, pageNumber]);
 
   return <div
     ref={hostRef}
-    role="img"
-    aria-label={`${label}, page ${pageNumber}`}
+    role="button"
+    tabIndex={0}
+    aria-pressed={isFocused}
+    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Return page to the document layout' : 'Expand page to fill the viewer'}`}
     aria-busy={status === 'waiting' || status === 'loading'}
-    className="relative w-full overflow-hidden bg-white"
-    style={{ aspectRatio }}
+    title={isFocused ? 'Double-click or double-tap to return to the document layout' : 'Double-click or double-tap to fill the viewer'}
+    onDoubleClick={(event) => {
+      event.preventDefault();
+      if (performance.now() - lastTouchToggleAtRef.current < 500) return;
+      onToggleFocus(pageNumber);
+    }}
+    onPointerUp={(event) => {
+      if (event.pointerType !== 'touch') return;
+      const now = performance.now();
+      const previous = lastTouchRef.current;
+      const isDoubleTap = previous && now - previous.time < 320 && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24;
+      lastTouchRef.current = { time: now, x: event.clientX, y: event.clientY };
+      if (isDoubleTap) {
+        event.preventDefault();
+        lastTouchRef.current = null;
+        lastTouchToggleAtRef.current = now;
+        onToggleFocus(pageNumber);
+      }
+    }}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        onToggleFocus(pageNumber);
+      }
+    }}
+    className={`${isFocused ? 'flex h-full w-full items-center justify-center' : 'relative w-full'} touch-manipulation overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    style={isFocused ? undefined : { aspectRatio }}
   >
     {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
       <FileTextIcon className="h-6 w-6" />
@@ -214,6 +251,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
+  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(null);
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), pageCount || MAX_PAGES_PER_ROW);
 
   onErrorRef.current = onError;
@@ -242,6 +280,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     setDocument(null);
     setPageCount(0);
     setRenderThrough(0);
+    setFocusedPageNumber(null);
     void (async () => {
       const pdfjs = await loadPdfJs();
       if (cancelled) {
@@ -279,18 +318,27 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     };
   }, [source]);
 
-  return <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto bg-[var(--surface-sunken)] p-2 sm:p-4">
+  const togglePageFocus = useCallback((pageNumber: number) => {
+    setFocusedPageNumber((current) => current === pageNumber ? null : pageNumber);
+  }, []);
+  const pageNumbers = focusedPageNumber === null
+    ? Array.from({ length: pageCount }, (_, index) => index + 1)
+    : [focusedPageNumber];
+
+  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`}>
     {!document && <div role="status" aria-live="polite" className="flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <FileTextIcon className="h-6 w-6" />
       <span className="sr-only">Preparing page images</span>
     </div>}
-    {document && <ol aria-label={`${label} pages`} className="mx-auto grid w-full max-w-[1600px] items-start gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
-      {Array.from({ length: pageCount }, (_, index) => <li key={index + 1} className="flex w-full justify-center">
+    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
+      {pageNumbers.map((pageNumber) => <li key={pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} flex w-full justify-center`}>
         <PdfImagePage
           document={document}
-          pageNumber={index + 1}
+          pageNumber={pageNumber}
           label={label}
-          enabled={index < renderThrough}
+          enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
+          isFocused={focusedPageNumber === pageNumber}
+          onToggleFocus={togglePageFocus}
           onSettled={handlePageSettled}
         />
       </li>)}

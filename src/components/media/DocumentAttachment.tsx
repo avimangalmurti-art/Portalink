@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
@@ -30,6 +30,9 @@ export function DocumentAttachment({
   };
 }) {
   const [hasFailed, setHasFailed] = useState(false);
+  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(null);
+  const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
+  const lastTouchToggleAtRef = useRef(0);
   const handlePdfFailure = useCallback(() => setHasFailed(true), []);
   const renderedPages = (attachment.metadata?.renderedPages ?? [])
     .filter((page): page is typeof page & { sourceUrl: string } => Boolean(page.sourceUrl));
@@ -42,14 +45,47 @@ export function DocumentAttachment({
       onPageCountResolved?.(knownPageCount);
     }
   }, [knownPageCount, onPageCountResolved]);
+  useEffect(() => {
+    setFocusedPageIndex(null);
+    lastTouchRef.current = null;
+  }, [attachment.id]);
   if (!attachment.sourceUrl || hasFailed) {
     return <GenericFileCard attachment={attachment} />;
   }
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), renderedPages.length || MAX_PAGES_PER_ROW);
+  const displayedPages = focusedPageIndex === null
+    ? renderedPages.map((page, index) => ({ page, index }))
+    : renderedPages[focusedPageIndex]
+      ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
+      : [];
+  const togglePageFocus = (index: number) => {
+    setFocusedPageIndex((current) => current === index ? null : index);
+  };
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--surface-sunken)] p-4 sm:p-6">
-        <ol aria-label={`${attachment.displayName} pages`} className="mx-auto grid w-full max-w-[2048px] items-start gap-2 sm:gap-3" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
-          {renderedPages.map((page) => <li key={page.storagePath} className="flex w-full justify-center">
+      {renderedPages.length > 0 ? <div className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`}>
+        <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
+          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role="button" tabIndex={0} aria-pressed={focusedPageIndex === index} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Return page to the document layout' : 'Expand page to fill the viewer'}`} title={focusedPageIndex === index ? 'Double-click or double-tap to return to the document layout' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={(event) => {
+            event.preventDefault();
+            if (performance.now() - lastTouchToggleAtRef.current < 500) return;
+            togglePageFocus(index);
+          }} onPointerUp={(event) => {
+            if (event.pointerType !== 'touch') return;
+            const now = performance.now();
+            const previous = lastTouchRef.current;
+            const isDoubleTap = previous && previous.index === index && now - previous.time < 320 && Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24;
+            lastTouchRef.current = { index, time: now, x: event.clientX, y: event.clientY };
+            if (isDoubleTap) {
+              event.preventDefault();
+              lastTouchRef.current = null;
+              lastTouchToggleAtRef.current = now;
+              togglePageFocus(index);
+            }
+          }} onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              togglePageFocus(index);
+            }
+          }} className={`${focusedPageIndex === index ? 'h-full min-h-0' : ''} touch-manipulation flex w-full justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -58,7 +94,7 @@ export function DocumentAttachment({
               loading={page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               fetchPriority={page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
-              className="h-auto max-h-full max-w-full bg-white object-contain"
+              className={`${focusedPageIndex === index ? 'h-full w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
             />
           </li>)}
         </ol>
