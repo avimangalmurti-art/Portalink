@@ -4566,3 +4566,49 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   outline-offset: 2px;
   box-shadow: none !important;
 }
+
+/* The sidebar gear opens one compact account surface instead of leaving the
+   application to reach Appearance. It follows the current appearance while
+   retaining the soft, integrated glass quality of the reference menu. */
+.account-menu-popover {
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  border: 0;
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.32),
+    0 2px 10px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+  animation: account-menu-arrive 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.account-menu-popover.theme-dark {
+  background: rgba(62, 62, 65, 0.92);
+}
+
+.account-menu-popover.theme-light {
+  background: rgba(246, 246, 248, 0.92);
+}
+
+.account-menu-popover :is(.account-menu-identity, .account-menu-row),
+.account-menu-popover :is(.account-menu-identity, .account-menu-row):hover,
+.account-menu-popover :is(.account-menu-identity, .account-menu-row):active {
+  border: 0 !important;
+  box-shadow: none;
+}
+
+@keyframes account-menu-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-menu-popover {
+    animation: none;
+  }
+}

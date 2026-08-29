@@ -9,13 +9,14 @@ import type { Profile, PortfolioCategory as ProfileCategory } from '../types/dom
 import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import type { CategoryDeletionCapability } from '../types/domain';
-import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, MoreHorizontalIcon, EyeIcon, EyeOffIcon, PencilIcon, ShapesIcon, Trash2Icon, WarehouseIcon } from 'lucide-react';
+import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, LogInIcon, LogOutIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, MoreHorizontalIcon, EyeIcon, EyeOffIcon, PencilIcon, ShapesIcon, Trash2Icon, WarehouseIcon } from 'lucide-react';
 import { AiMarkIcon } from './AiMarkIcon';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import { resolveAccentTokens } from '../utils/accentTokens';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
+import { CreatorAvatar } from './profile/CreatorAvatar';
 type NavItem = {
   label: NavigationDestination;
   displayLabel: string;
@@ -33,6 +34,13 @@ type SidebarProps = {
    * from, plus the two openers below.
    */
   onControlCenterOpen: () => void;
+  /** The account menu reflects the actual session rather than a fixed label. */
+  isAuthenticated: boolean;
+  isAuthActionPending: boolean;
+  accountName?: string;
+  accountAvatar?: string | null;
+  onSignIn: () => void;
+  onSignOut: () => Promise<boolean>;
   onPortalinkOpen: () => void;
   /**
    * A request from the profile page to create a category, carrying the title the
@@ -165,6 +173,179 @@ function PortalNetworkTile() {
 /** Empty footer capacity reserved for later product destinations. */
 function ReservedFooterTile({ slot, collapsed }: {slot: number;collapsed: boolean;}) {
   return <button type="button" disabled aria-label={`Reserved footer control ${slot}`} title="Reserved for a future feature" className={`${collapsed ? 'sidebar-rail-slot' : 'side-panel-compact-control mx-auto'} reserved-network-control shape-compact flex shrink-0 items-center justify-center focus:outline-none`} />;
+}
+
+function AccountMenuTrigger({
+  collapsed,
+  accentColor,
+  theme,
+  isAuthenticated,
+  isAuthActionPending,
+  accountName,
+  accountAvatar,
+  profileHref,
+  onProfileOpen,
+  onSettingsOpen,
+  onSignIn,
+  onSignOut
+}: {
+  collapsed: boolean;
+  accentColor: string;
+  theme: 'light' | 'dark';
+  isAuthenticated: boolean;
+  isAuthActionPending: boolean;
+  accountName?: string;
+  accountAvatar?: string | null;
+  profileHref?: string;
+  onProfileOpen: () => void;
+  onSettingsOpen: () => void;
+  onSignIn: () => void;
+  onSignOut: () => Promise<boolean>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [inviteStatus, setInviteStatus] = useState<'idle' | 'copied'>('idle');
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 8, left: 8 });
+
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+    setInviteStatus('idle');
+  }, []);
+
+  const positionMenu = useCallback(() => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+    const menuWidth = Math.min(326, window.innerWidth - 16);
+    const menuHeight = menuRef.current?.offsetHeight ?? 0;
+    setPosition({
+      top: Math.max(8, rect.top - menuHeight - 10),
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8))
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      positionMenu();
+    }
+  }, [isOpen, positionMenu]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    function closeOnOutsidePress(event: PointerEvent) {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) {
+        closeMenu();
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenu();
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', positionMenu);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', positionMenu);
+    };
+  }, [closeMenu, isOpen, positionMenu]);
+
+  async function inviteFriend() {
+    // Invites use the public viewer route, so a recipient never lands inside the
+    // sender's account workspace. The public page already offers its own Join
+    // the Portalink Network path for anyone who wants an account.
+    const publicProfileHref = profileHref?.replace(/^\/p\//, '/share/');
+    const inviteUrl = publicProfileHref ? new URL(publicProfileHref, window.location.origin).toString() : window.location.origin;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Portalink Networks',
+          text: 'Join me on the Portalink Network.',
+          url: inviteUrl
+        });
+        return;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setInviteStatus('copied');
+    } catch {
+      // A blocked clipboard write does not claim success.
+    }
+  }
+
+  async function handleAuthAction() {
+    if (!isAuthenticated) {
+      closeMenu();
+      onSignIn();
+      return;
+    }
+    setIsSigningOut(true);
+    const signedOut = await onSignOut();
+    setIsSigningOut(false);
+    if (signedOut) {
+      closeMenu();
+    }
+  }
+
+  const shownName = isAuthenticated ? accountName?.trim() || 'Portalink member' : 'Welcome to Portalink';
+  const triggerClassName = collapsed
+    ? 'sidebar-rail-slot shape-compact flex items-center justify-center transition-colors focus:outline-none'
+    : 'side-panel-compact-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none';
+
+  return <>
+      <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
+        <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
+      </button>
+      {isOpen && createPortal(<div ref={menuRef} role="menu" aria-label="Account and settings" style={{
+        ...resolveAccentTokens(accentColor, theme),
+        position: 'fixed',
+        top: position.top,
+        left: position.left,
+        zIndex: 10000
+      }} className={`account-menu-popover theme-${theme} accent-theme w-[min(326px,calc(100vw-16px))] overflow-hidden rounded-[22px] p-3 text-[var(--text-primary)]`}>
+          {isAuthenticated && profileHref ? <Link to={profileHref} role="menuitem" onClick={closeMenu} className="account-menu-identity flex h-10 w-full items-center gap-2.5 rounded-[12px] px-1.5 text-left font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <CreatorAvatar name={shownName} avatar={accountAvatar} shape="compact" className="h-7 w-7 shrink-0 text-[10px]" />
+              <span className="min-w-0 flex-1 truncate text-[15px]">{shownName}</span>
+            </Link> : <button type="button" role="menuitem" onClick={() => {
+          closeMenu();
+          isAuthenticated ? onProfileOpen() : onSignIn();
+        }} className="account-menu-identity flex h-10 w-full items-center gap-2.5 rounded-[12px] px-1.5 text-left font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              {isAuthenticated ? <CreatorAvatar name={shownName} avatar={accountAvatar} shape="compact" className="h-7 w-7 shrink-0 text-[10px]" /> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]"><CircleUserRoundIcon className="h-4 w-4" aria-hidden="true" /></span>}
+              <span className="min-w-0 flex-1 truncate text-[15px]">{shownName}</span>
+            </button>}
+          <span role="separator" className="mx-1 my-2 block h-px bg-[var(--hairline)]" />
+          <button type="button" role="menuitem" onClick={() => void inviteFriend()} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <InterfaceIcon icon={SendIcon} weight="medium" />
+            <span className="min-w-0 flex-1">{inviteStatus === 'copied' ? 'Invite link copied' : 'Invite a friend'}</span>
+          </button>
+          <button type="button" role="menuitem" onClick={() => {
+        closeMenu();
+        onSettingsOpen();
+      }} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <InterfaceIcon icon={SettingsIcon} weight="medium" />
+            <span className="min-w-0 flex-1">Settings</span>
+          </button>
+          <button type="button" role="menuitem" disabled={isAuthActionPending || isSigningOut} onClick={() => void handleAuthAction()} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <InterfaceIcon icon={isAuthenticated ? LogOutIcon : LogInIcon} weight="medium" />
+            <span className="min-w-0 flex-1">{isAuthenticated ? isSigningOut || isAuthActionPending ? 'Logging out…' : 'Log out' : 'Log in'}</span>
+          </button>
+          <span className="sr-only" aria-live="polite">{inviteStatus === 'copied' ? 'Invite link copied.' : ''}</span>
+        </div>, document.body)}
+    </>;
 }
 function CategoryRowContent({
   category,
@@ -526,6 +707,12 @@ export function Sidebar({
   isPortalinkActive,
   accentColor,
   onControlCenterOpen,
+  isAuthenticated,
+  isAuthActionPending,
+  accountName,
+  accountAvatar,
+  onSignIn,
+  onSignOut,
   onPortalinkOpen,
   addCategoryRequest,
   liveShow,
@@ -930,17 +1117,13 @@ export function Sidebar({
               and Appearance. The same order is preserved in the collapsed rail. */}
           <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
             {isSidebarCollapsed ? <>
-              <button type="button" onClick={onControlCenterOpen} aria-label="Open appearance settings" title="Settings" className="sidebar-rail-slot shape-compact flex items-center justify-center transition-colors focus:outline-none">
-                <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
-              </button>
+              <AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
               {[1, 2].map((slot) => <ReservedFooterTile key={slot} slot={slot} collapsed />)}
               <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
               </button>
             </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
-                <button type="button" onClick={onControlCenterOpen} aria-label="Open appearance settings" title="Settings" className="side-panel-compact-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none">
-                  <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
-                </button>
+                <AccountMenuTrigger collapsed={false} accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
                 {[1, 2].map((slot) => <ReservedFooterTile key={slot} slot={slot} collapsed={false} />)}
                 <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="side-panel-compact-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
