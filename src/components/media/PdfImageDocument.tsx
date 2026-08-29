@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FileTextIcon, RotateCcwIcon } from 'lucide-react';
+import { FileTextIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -178,18 +178,18 @@ function PdfImagePage({
 
   return <div
     ref={hostRef}
-    role="button"
-    tabIndex={0}
-    aria-pressed={isFocused}
-    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Return page to the document layout' : 'Expand page to fill the viewer'}`}
+    role={isFocused ? undefined : 'button'}
+    tabIndex={isFocused ? undefined : 0}
+    aria-pressed={isFocused ? undefined : false}
+    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`}
     aria-busy={status === 'waiting' || status === 'loading'}
-    title={isFocused ? 'Double-click or double-tap to return to the document layout' : 'Double-click or double-tap to fill the viewer'}
-    onDoubleClick={(event) => {
+    title={isFocused ? undefined : 'Double-click or double-tap to fill the viewer'}
+    onDoubleClick={isFocused ? undefined : (event) => {
       event.preventDefault();
       if (performance.now() - lastTouchToggleAtRef.current < 500) return;
       onToggleFocus(pageNumber);
     }}
-    onPointerUp={(event) => {
+    onPointerUp={isFocused ? undefined : (event) => {
       if (event.pointerType !== 'touch') return;
       const now = performance.now();
       const previous = lastTouchRef.current;
@@ -202,13 +202,13 @@ function PdfImagePage({
         onToggleFocus(pageNumber);
       }
     }}
-    onKeyDown={(event) => {
+    onKeyDown={isFocused ? undefined : (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         onToggleFocus(pageNumber);
       }
     }}
-    className={`${isFocused ? 'flex h-full w-full items-center justify-center' : 'relative w-full'} touch-manipulation overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    className={`${isFocused ? 'flex h-full w-full touch-auto items-center justify-center' : 'relative w-full touch-manipulation'} overflow-hidden bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
     {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
@@ -318,14 +318,23 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     };
   }, [source]);
 
-  const togglePageFocus = useCallback((pageNumber: number) => {
-    setFocusedPageNumber((current) => current === pageNumber ? null : pageNumber);
+  const focusPage = useCallback((pageNumber: number) => {
+    setFocusedPageNumber(pageNumber);
   }, []);
   const pageNumbers = focusedPageNumber === null
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
 
-  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`}>
+  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`}>
+    {focusedPageNumber !== null && <button
+      type="button"
+      onClick={() => setFocusedPageNumber(null)}
+      aria-label="Close single-page view"
+      title="Return to all pages"
+      className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/65 text-white shadow-lg backdrop-blur-md transition hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-4 sm:top-4"
+    >
+      <XIcon aria-hidden="true" className="h-5 w-5" />
+    </button>}
     {!document && <div role="status" aria-live="polite" className="flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <FileTextIcon className="h-6 w-6" />
       <span className="sr-only">Preparing page images</span>
@@ -338,7 +347,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
           label={label}
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
-          onToggleFocus={togglePageFocus}
+          onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />
       </li>)}

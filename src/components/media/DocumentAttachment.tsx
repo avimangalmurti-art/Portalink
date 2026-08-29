@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
@@ -58,17 +59,24 @@ export function DocumentAttachment({
     : renderedPages[focusedPageIndex]
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
-  const togglePageFocus = (index: number) => {
-    setFocusedPageIndex((current) => current === index ? null : index);
-  };
+  const focusPage = (index: number) => setFocusedPageIndex(index);
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`}>
+      {renderedPages.length > 0 ? <div className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`}>
+        {focusedPageIndex !== null && <button
+          type="button"
+          onClick={() => setFocusedPageIndex(null)}
+          aria-label="Close single-page view"
+          title="Return to all pages"
+          className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/65 text-white shadow-lg backdrop-blur-md transition hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white sm:right-4 sm:top-4"
+        >
+          <XIcon aria-hidden="true" className="h-5 w-5" />
+        </button>}
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role="button" tabIndex={0} aria-pressed={focusedPageIndex === index} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Return page to the document layout' : 'Expand page to fill the viewer'}`} title={focusedPageIndex === index ? 'Double-click or double-tap to return to the document layout' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={(event) => {
+          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`} title={focusedPageIndex === index ? undefined : 'Double-click or double-tap to fill the viewer'} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
-            togglePageFocus(index);
-          }} onPointerUp={(event) => {
+            focusPage(index);
+          }} onPointerUp={focusedPageIndex === index ? undefined : (event) => {
             if (event.pointerType !== 'touch') return;
             const now = performance.now();
             const previous = lastTouchRef.current;
@@ -78,14 +86,14 @@ export function DocumentAttachment({
               event.preventDefault();
               lastTouchRef.current = null;
               lastTouchToggleAtRef.current = now;
-              togglePageFocus(index);
+              focusPage(index);
             }
-          }} onKeyDown={(event) => {
+          }} onKeyDown={focusedPageIndex === index ? undefined : (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              togglePageFocus(index);
+              focusPage(index);
             }
-          }} className={`${focusedPageIndex === index ? 'h-full min-h-0' : ''} touch-manipulation flex w-full justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
+          }} className={`${focusedPageIndex === index ? 'h-full min-h-0 touch-auto' : 'touch-manipulation'} flex w-full justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
