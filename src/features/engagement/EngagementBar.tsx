@@ -112,17 +112,17 @@ export function EngagementBar({
               <InterfaceIcon icon={Icon} size={interfaceIconSize} weight="regular" keepColor fill={paint.fill} stroke={paint.stroke} />
             </button>;
         })}
-        {onShare && (isPanel ? <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color={isShared ? '' : undefined} style={isShared ? {
+        {onShare && (isPanel ? <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
           color: shareColor
-        } : undefined} className={`flex flex-col items-center rounded-[8px] px-1 py-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isShared ? '' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'}`}>
+        }} className="flex flex-col items-center rounded-[8px] px-1 py-2 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className="grid items-center justify-items-center gap-y-1.5">
-              <InterfaceIcon icon={SendIcon} size="lg" weight="regular" keepColor={isShared} fill={isShared ? shareColor : 'none'} stroke={isShared ? shareColor : undefined} />
+              <InterfaceIcon icon={SendIcon} size="lg" weight="regular" keepColor fill={isShared ? shareColor : 'none'} stroke={shareColor} />
               <span className="text-[12px] leading-none">{isShared ? 'Shared' : 'Share'}</span>
             </span>
-          </button> : <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} title={isShared ? 'Shared' : 'Share'} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color={isShared ? '' : undefined} style={isShared ? {
+          </button> : <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} title={isShared ? 'Shared' : 'Share'} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
           color: shareColor
-        } : undefined} className={`side-panel-compact-control flex items-center justify-center rounded-[8px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isRail ? 'h-10 w-10' : 'w-8'} ${isShared ? '' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'}`}>
-            <InterfaceIcon icon={SendIcon} size={interfaceIconSize} weight="regular" keepColor={isShared} fill={isShared ? shareColor : 'none'} stroke={isShared ? shareColor : undefined} />
+        }} className={`side-panel-compact-control flex items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isRail ? 'h-10 w-10' : 'w-8'}`}>
+            <InterfaceIcon icon={SendIcon} size={interfaceIconSize} weight="regular" keepColor fill={isShared ? shareColor : 'none'} stroke={shareColor} />
           </button>)}
       </div>
 
