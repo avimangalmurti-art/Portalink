@@ -38,12 +38,12 @@ function AccentExperience({
   const activeAccent = findNavAccent(accentColor);
 
   return <fieldset className={compact ? 'w-full' : 'rounded-[11px] bg-[var(--surface-sunken)] px-3 py-3'}>
-      <legend className={compact ? 'mb-1.5 text-[12px] font-semibold text-[var(--text-secondary)]' : 'sr-only'}>{compact ? 'Accent colors' : 'Choose your starting accent color'}</legend>
+      <legend className="sr-only">{compact ? 'Accent colors' : 'Choose your starting accent color'}</legend>
       {!compact && <>
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">Make it yours</p>
           <p className="mt-0.5 text-[12px] leading-snug text-[var(--text-secondary)]">Choose a starting color. Portalink changes instantly.</p>
         </>}
-      <div role="radiogroup" aria-label="Starting accent color" className={`${compact ? '' : 'mt-2.5'} flex flex-wrap gap-1`}>
+      <div role="radiogroup" aria-label="Starting accent color" className={`${compact ? 'justify-center gap-1.5' : 'mt-2.5 gap-1'} flex flex-wrap`}>
         {navAccents.map((option) => {
           const swatch = theme === 'dark' ? option.dark : option.light;
           const isSelected = option.id === activeAccent.id;
@@ -57,14 +57,14 @@ function AccentExperience({
               data-keep-color=""
               disabled={disabled}
               onClick={() => onAccentColorChange(swatch)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45"
+              className={`${compact ? 'shape-squircle-compact h-10 w-10' : 'h-8 w-8 rounded-full'} flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45`}
             >
               <span
                 data-system-color=""
-                className="flex h-5 w-5 items-center justify-center rounded-full transition-transform duration-150 motion-reduce:transition-none"
+                className={`${compact ? 'shape-squircle-compact h-10 w-10' : 'h-5 w-5 rounded-full'} flex items-center justify-center transition-transform duration-150 motion-reduce:transition-none`}
                 style={{
                   backgroundColor: swatch,
-                  transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                  transform: isSelected && !compact ? 'scale(1.08)' : 'scale(1)',
                   boxShadow: isSelected
                     ? '0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary)'
                     : `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`
@@ -292,7 +292,7 @@ function SignInForm({
      pinning to the bottom is gone — so the form sits centred in the space
      between the sheet's edges. */
   return <form onSubmit={submit} noValidate className="flex flex-col justify-center gap-4">
-      <h1 className="w-full whitespace-nowrap text-[clamp(24px,8vw,38px)] font-semibold leading-none tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
+      <h1 className="w-full whitespace-nowrap text-center text-[clamp(24px,8vw,38px)] font-semibold leading-none tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
       {auth.error && <FormError message={auth.error.message} />}
       <AccentExperience compact theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} disabled={isSubmitting} />
       <AuthField ref={firstFieldRef} id="auth-signin-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={isSubmitting} onChange={(value) => {
