@@ -18,10 +18,7 @@ export function PlatformGrid({
         const Icon = getCategoryIcon(link.iconName ?? 'globe');
         const href = profileLinkHref(link.href);
         return <li key={`${link.label}-${link.href}-${index}`} className="list-none">
-          <a href={href} target="_blank" rel="noreferrer" className={`${TILE_CLASS} transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] motion-reduce:transition-none`} title={`${link.label} — ${link.href}`} aria-label={`${link.label}: ${link.href}`}>
-            <svg aria-hidden="true" viewBox="0 0 40 40" className="pointer-events-none absolute inset-0 h-10 w-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 group-active:opacity-100 motion-reduce:transition-none">
-              <path d="M20 0.75C2.5 0.75 0.75 2.5 0.75 20s1.75 19.25 19.25 19.25S39.25 37.5 39.25 20 37.5 0.75 20 0.75Z" fill="none" stroke="var(--hairline-strong)" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-            </svg>
+          <a href={href} target="_blank" rel="noreferrer" className={`${TILE_CLASS} rounded-[10px] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-solid)] motion-reduce:transition-none`} title={`${link.label} — ${link.href}`} aria-label={`${link.label}: ${link.href}`}>
             <Icon className="relative z-10 h-[18px] w-[18px]" />
           </a>
         </li>;
