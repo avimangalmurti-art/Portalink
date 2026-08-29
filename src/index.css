@@ -2619,6 +2619,89 @@ select:focus-visible {
     -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
   }
 }
+
+/* Sign in is a first-arrival Portalink experience, not a generic modal. It
+   borrows the Satellite page's VANTA-black sky and puts the form on one pane of
+   deep glass. The class exists only while the Sign in view is active, so Sign
+   up, recovery, reset-password, and every other dialog keep their own material. */
+#root .accent-theme .auth-signin-experience {
+  isolation: isolate;
+  background-color: var(--portalink-bg-primary) !important;
+  background-image:
+    radial-gradient(1px 1px at 6% 54%, rgba(var(--star-rgb), 0.7), transparent 100%),
+    radial-gradient(1px 1px at 41% 9%, rgba(var(--star-rgb), 0.56), transparent 100%),
+    radial-gradient(1px 1px at 67% 61%, rgba(var(--star-rgb), 0.62), transparent 100%),
+    radial-gradient(1px 1px at 94% 36%, rgba(var(--star-rgb), 0.5), transparent 100%),
+    radial-gradient(1px 1px at 29% 41%, rgba(var(--star-rgb), 0.58), transparent 100%),
+    radial-gradient(1px 1px at 82% 92%, rgba(var(--star-rgb), 0.48), transparent 100%),
+    radial-gradient(circle at 50% 44%, rgba(18, 29, 44, 0.24), transparent 46%),
+    radial-gradient(circle at 50% 50%, transparent 34%, rgba(0, 0, 0, 0.82) 100%);
+  background-size: 118px 118px, 147px 147px, 92px 92px, 173px 173px, 108px 108px, 136px 136px, 100% 100%, 100% 100%;
+  backdrop-filter: blur(26px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(125%) !important;
+}
+#root .accent-theme .auth-signin-experience::before,
+#root .accent-theme .auth-signin-experience::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+  will-change: opacity;
+}
+#root .accent-theme .auth-signin-experience::before {
+  background-image:
+    radial-gradient(1.35px 1.35px at 12% 22%, rgba(var(--star-rgb), 0.98), transparent 100%),
+    radial-gradient(1px 1px at 34% 68%, rgba(var(--star-rgb), 0.78), transparent 100%),
+    radial-gradient(1px 1px at 58% 42%, rgba(var(--star-rgb), 0.7), transparent 100%),
+    radial-gradient(1px 1px at 4% 12%, rgba(var(--star-rgb), 0.68), transparent 100%),
+    radial-gradient(1.2px 1.2px at 71% 27%, rgba(var(--star-rgb), 0.9), transparent 100%),
+    radial-gradient(1px 1px at 47% 84%, rgba(var(--star-rgb), 0.66), transparent 100%),
+    radial-gradient(1px 1px at 92% 8%, rgba(var(--star-rgb), 0.72), transparent 100%),
+    radial-gradient(1px 1px at 18% 57%, rgba(var(--star-rgb), 0.62), transparent 100%);
+  background-size: 192px 192px, 236px 236px, 141px 141px, 113px 113px, 168px 168px, 132px 132px, 214px 214px, 101px 101px;
+  opacity: 0.62;
+  animation: auth-vanta-twinkle-a 4.8s ease-in-out infinite;
+}
+#root .accent-theme .auth-signin-experience::after {
+  background-image:
+    radial-gradient(1px 1px at 78% 14%, rgba(var(--star-rgb), 0.82), transparent 100%),
+    radial-gradient(1.35px 1.35px at 88% 74%, rgba(var(--star-rgb), 0.96), transparent 100%),
+    radial-gradient(1px 1px at 22% 88%, rgba(var(--star-rgb), 0.76), transparent 100%),
+    radial-gradient(1px 1px at 53% 6%, rgba(var(--star-rgb), 0.68), transparent 100%),
+    radial-gradient(1px 1px at 8% 76%, rgba(var(--star-rgb), 0.72), transparent 100%),
+    radial-gradient(1.2px 1.2px at 63% 52%, rgba(var(--star-rgb), 0.88), transparent 100%),
+    radial-gradient(1px 1px at 37% 31%, rgba(var(--star-rgb), 0.64), transparent 100%),
+    radial-gradient(1px 1px at 97% 63%, rgba(var(--star-rgb), 0.74), transparent 100%);
+  background-size: 157px 157px, 178px 178px, 209px 209px, 119px 119px, 148px 148px, 96px 96px, 187px 187px, 126px 126px;
+  opacity: 0.46;
+  animation: auth-vanta-twinkle-b 6.7s ease-in-out infinite reverse;
+}
+#root .accent-theme .auth-signin-experience > .auth-signin-vanta {
+  z-index: 1;
+  background-color: rgba(7, 9, 13, 0.62) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: 0 32px 96px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(34px) saturate(142%) !important;
+  -webkit-backdrop-filter: blur(34px) saturate(142%) !important;
+}
+#root .accent-theme .auth-signin-experience > .auth-signin-vanta::before {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.015) 42%, rgba(255, 255, 255, 0.035)) !important;
+  opacity: 0.72;
+  animation: none;
+}
+#root .accent-theme .auth-signin-experience > .auth-signin-vanta::after {
+  background: radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.09), transparent 44%) !important;
+  opacity: 0.54;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .accent-theme .auth-signin-experience::before,
+  #root .accent-theme .auth-signin-experience::after {
+    animation: none;
+  }
+}
 /* ═══════════════════════════════════════════════════════════════════════
    10. SCROLL AND CAROUSEL PRIMITIVES (unchanged behaviour)
    ═══════════════════════════════════════════════════════════════════════ */

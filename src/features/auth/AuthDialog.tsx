@@ -154,7 +154,7 @@ export function AuthDialog({
     return undefined;
   }, [view]);
   return <InteractionSafePresence isPresent={Boolean(view)}>
-      {view && <motion.div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-black/55 px-4 py-8" initial={{
+      {view && <motion.div className={`modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-black/55 px-4 py-8 ${view === 'signIn' ? 'auth-signin-experience' : ''}`} initial={{
       opacity: 0
     }} animate={{
       opacity: 1
