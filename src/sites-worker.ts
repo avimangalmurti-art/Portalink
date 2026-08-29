@@ -13,7 +13,10 @@ const worker = {
       // Client-side routes such as /share/:profileId must receive the app shell
       // directly. The Sites asset service redirects unknown paths to `/`, which
       // would otherwise erase the public-viewer route before React can read it.
-      const appShellUrl = new URL('/index.html', request.url)
+      // Fetch the canonical root instead of `/index.html`: the Sites asset
+      // service redirects `/index.html` to `/`, and forwarding that redirect
+      // would make the browser lose the original shared-viewer URL.
+      const appShellUrl = new URL('/', request.url)
       return environment.ASSETS.fetch(new Request(appShellUrl, request))
     }
 
