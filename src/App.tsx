@@ -1,0 +1,1192 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import { AppDetailPage } from './components/AppDetailPage';
+import type { ProductDetailState } from './components/AppDetailPage';
+import type { FeatureCardApp } from './components/FeatureCard';
+import { HomeFeed } from './components/home/HomeFeed';
+import { getProjectAspectRatio, getProjectDescription, getProjectMediaLabel } from './utils/projectPresentation';
+import type { Id, ProjectLocation, ProjectView } from './types/domain';
+import type { AuthIntent } from './types/auth';
+import type { ViewerRole } from './types/viewer';
+import { useProjectResolution } from './features/projects/useProjectResolution';
+import { UserProfilePage } from './components/UserProfilePage';
+import { ActivityCollectionPage } from './components/profile/ActivityCollectionPage';
+import { portfolioCategories } from './components/navigation';
+import type { NavigationDestination } from './components/navigation';
+import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
+import { useLocation } from 'react-router-dom';
+import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
+import { Sidebar } from './components/Sidebar';
+import { ProfileCategoryPage } from './components/profile/ProfileCategoryPage';
+import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
+import { IconPickerPage } from './components/profile/IconPickerPage';
+import { getTypefaceStack } from './data/typefaces';
+import { resolveNavButtonTokens } from './data/navButtonTokens';
+import { resolveAccentTokens } from './utils/accentTokens';
+import { resolveMacTokens } from './utils/macTokens';
+import { readAccentColor, readAppearanceMode, readContrastMode, readHighContrast, readIconColor, readLanguage, readNavSystemGray, readReduceTranslucency, resolveAppearance, writeAccentColor, writeAppearanceMode, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
+import { useScreenInit } from './useScreenInit.js';
+import { useFollows } from './features/follows/useFollows';
+import { useLiveSessions } from './features/live/useLiveSessions';
+import { useCategoryManagement } from './features/profile/useCategoryManagement';
+import { useAuth } from './contexts/AuthContext';
+import { AuthDialog } from './features/auth/AuthDialog';
+import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
+import { AlertCircleIcon, Loader2Icon } from 'lucide-react';
+import { InterfaceIcon } from './components/ui/InterfaceIcon';
+import { InteractionSafePresence } from './components/ui/InteractionSafePresence';
+import { FeatureInDesignPage } from './components/FeatureInDesignPage';
+import { useProfileOnboardingStatus } from './features/profile/useProfileOnboarding';
+import { ProfileOnboardingDialog } from './features/profile/ProfileOnboardingDialog';
+import { ProfileEditorDialog } from './features/profile/ProfileEditorDialog';
+import { PublishProjectDialog } from './features/publishing/PublishProjectDialog';
+import { useProfileQuery } from './contexts/ProfileDataContext';
+import { useScreenTransition } from './app/useScreenTransition';
+import './app/screenTransitions.css';
+import { buildPath } from './app/routes';
+
+// Expensive destinations are loaded only when opened. In particular, the
+// spatial discovery stack no longer competes with Home's first navigation frame.
+const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
+const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
+const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
+const SHARED_PORTALINK_ACCENT = '#0A84FF';
+const SHARED_PORTALINK_SYSTEM_GRAY = 'gray6';
+const SHARED_PORTALINK_THEME_KEY = 'portalink.sharedAppearance';
+const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
+
+function readMainSidebarCollapsed(): boolean {
+  try {
+    const stored = window.localStorage.getItem(MAIN_SIDEBAR_COLLAPSED_KEY);
+    return stored === null ? true : stored === 'true';
+  } catch {
+    return true;
+  }
+}
+
+function writeMainSidebarCollapsed(isCollapsed: boolean): void {
+  try {
+    window.localStorage.setItem(MAIN_SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+  } catch {
+    // Storage can be unavailable in a private session; the in-memory state
+    // remains fully usable for the current visit.
+  }
+}
+
+function readSharedPortalinkTheme(): AppearanceTheme {
+  try {
+    const storedTheme = window.localStorage.getItem(SHARED_PORTALINK_THEME_KEY);
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      return storedTheme;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+function writeSharedPortalinkTheme(theme: AppearanceTheme): void {
+  try {
+    window.localStorage.setItem(SHARED_PORTALINK_THEME_KEY, theme);
+  } catch {
+    // A private browsing session can still use the in-memory public theme.
+  }
+}
+/**
+ * The one mapping from a canonical project to the detail viewer's view model.
+ *
+ * Every field is read from the record; nothing is invented. A project with no
+ * page count, summary, or extent simply arrives without those fields, and the
+ * viewer omits them rather than showing a placeholder.
+ */
+function toDetailView(view: ProjectView): FeatureCardApp {
+  const {
+    project,
+    creator
+  } = view;
+  return {
+    name: project.title,
+    tagline: project.summary,
+    icon: '',
+    // Only a real filename, from a real uploaded file.
+    fileName: project.attachments?.find((attachment) => attachment.isCover)?.fileName ?? project.attachments?.[0]?.fileName,
+    pageCount: project.pageCount,
+    aspectRatio: getProjectAspectRatio(project),
+    description: getProjectDescription(project) ?? undefined,
+    mediaLabel: getProjectMediaLabel(project) ?? undefined,
+    coverImage: project.cover,
+    coverAlt: project.coverAlt,
+    coverKind: project.coverKind,
+    creatorId: creator.id,
+    creatorName: creator.name,
+    creatorKind: creator.kind,
+    creatorAvatar: creator.avatar
+  };
+}
+// The profile overview is addressed by canonical id and nothing else. There is
+// no stand-in identity: an id that does not resolve to a real profile record
+// opens no profile page at all, rather than a page assembled from a display name
+// and sample content.
+export function App() {
+  /**
+   * The URL is the destination. Everything a location can express — which
+   * surface is open, whose profile, which category, which project, the search
+   * query — is derived from it below, so a destination can be pasted, refreshed,
+   * and reached with the browser's own Back and Forward buttons.
+   */
+  const route = useAppRoute();
+  const nav = useRouteNavigator();
+  const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject';
+  const {
+    pathname,
+    search
+  } = useLocation();
+  const screenInit = useScreenInit();
+  const activeDestination: NavigationDestination = route.kind === 'destination' ? route.destination : 'Today';
+  // Appearance settings persist, so the viewer's current configuration is what
+  // the product opens with. Out of the box, appearance follows the operating
+  // system; accessibility enhancements remain opt-in here and also respond to
+  // the corresponding system media features in CSS. A stored preference wins.
+  const [accentColor, setAccentColor] = useState(() => readAccentColor('#0A84FF'));
+  // Navigation-button accessibility preferences live at the root so the real
+  // navigation components resolve them instantly.
+  const [highContrast, setHighContrast] = useState(() => readHighContrast(false));
+  const [reduceTranslucency, setReduceTranslucency] = useState(() => readReduceTranslucency(false));
+  const [appearanceMode, setAppearanceMode] = useState<StoredAppearanceMode>(() => readAppearanceMode('auto'));
+  // The navigation buttons' system gray. Held by id, so the one choice resolves
+  // to its light or dark value as the appearance changes. System Gray 1 is the
+  // default — the base of the ladder, identical in both appearances.
+  const [navSystemGray, setNavSystemGray] = useState(() => readNavSystemGray('gray6'));
+  const [contrastMode, setContrastMode] = useState<StoredContrastMode>(() => readContrastMode('default'));
+  const [iconColor, setIconColor] = useState<StoredIconColor>(() => readIconColor('default'));
+  const [language, setLanguage] = useState<StoredLanguage>(() => readLanguage('auto'));
+  // Public links have their own standard appearance. The choice belongs to the
+  // person viewing a shared Portalink and never reads from or writes to the
+  // signed-in profile's Control Center preference.
+  const [sharedPortalinkTheme, setSharedPortalinkTheme] = useState<AppearanceTheme>(readSharedPortalinkTheme);
+  const theme = resolveAppearance(appearanceMode);
+  const interfaceTheme = isSharedRoute ? sharedPortalinkTheme : theme;
+  const interfaceHighContrast = isSharedRoute ? false : highContrast;
+  const interfaceReduceTranslucency = isSharedRoute ? false : reduceTranslucency;
+  const interfaceNavSystemGray = isSharedRoute ? SHARED_PORTALINK_SYSTEM_GRAY : navSystemGray;
+  const interfaceAccentColor = isSharedRoute ? SHARED_PORTALINK_ACCENT : accentColor;
+  // Typography belongs to the project, so the shell holds none of it: the face is
+  // carried on the project's own design setting and read through
+  // `useProjectTypography` by the surface that presents the work.
+
+  /**
+   * Live sessions and the membership lifecycle. This used to be a display string
+   * set directly by the broadcast crawl, so the viewer could appear joined to a
+   * session that had no id and that no service had been asked about. Membership is
+   * now only ever what `LiveService` confirmed.
+   */
+  const live = useLiveSessions();
+  const liveShow = live.joinedSession ? `${live.joinedSession.hostName} — ${live.joinedSession.title}` : null;
+  // Carries the title the owner typed, so the record is created with its real
+  // name rather than a placeholder that has to be renamed afterwards.
+  const [addCategoryRequest, setAddCategoryRequest] = useState<{
+    nonce: number;
+    label: string;
+    iconName?: string;
+  } | null>(null);
+  const [iconPickerCategoryId, setIconPickerCategoryId] = useState<string | null>(null);
+  /**
+   * The icon the picker last attempted, so the tile in flight reports progress and
+   * a retry re-runs that same choice rather than losing which one was rejected.
+   */
+  const [attemptedIconName, setAttemptedIconName] = useState<string | null>(null);
+  /** Writes the chosen icon through the management boundary, closing only on success. */
+  async function chooseCategoryIcon(categoryId: string, iconName: string) {
+    setAttemptedIconName(iconName);
+    const saved = await management.setCategoryIcon(categoryId, iconName);
+    if (saved) {
+      setAttemptedIconName(null);
+      setIconPickerCategoryId(null);
+    }
+  }
+  function chooseTheme(nextTheme: AppearanceTheme) {
+    setAppearanceMode(nextTheme);
+  }
+  function chooseAppearanceMode(nextMode: StoredAppearanceMode) {
+    setAppearanceMode(nextMode);
+  }
+  // Every change writes through, so the settings on screen are the defaults.
+  useEffect(() => {
+    writeAppearanceMode(appearanceMode);
+  }, [appearanceMode]);
+  // System Automatic keeps following the operating system while the app runs.
+  const [, forceSystemSync] = useState(0);
+  useEffect(() => {
+    if (appearanceMode !== 'auto' || typeof window === 'undefined' || !window.matchMedia) {
+      return undefined;
+    }
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => forceSystemSync((tick) => tick + 1);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  }, [appearanceMode]);
+  // Keep browser-native controls, scrollbars, and portalled UI in the same
+  // resolved appearance. The pre-render bootstrap in index.html sets this before
+  // React starts; this effect keeps it current after an override or OS change.
+  useEffect(() => {
+    document.documentElement.dataset.appearance = interfaceTheme;
+    document.documentElement.style.colorScheme = interfaceTheme;
+  }, [interfaceTheme]);
+  // Portalled menus mount directly under body, outside the themed React tree.
+  // Mirror appearance and accessibility classes there so those transient
+  // controls resolve the same materials and contrast as the window beneath.
+  useEffect(() => {
+    document.body.classList.toggle('theme-dark', interfaceTheme === 'dark');
+    document.body.classList.toggle('theme-light', interfaceTheme === 'light');
+    document.body.classList.toggle('high-contrast', interfaceHighContrast);
+    document.body.classList.toggle('reduce-translucency', interfaceReduceTranslucency);
+  }, [interfaceTheme, interfaceHighContrast, interfaceReduceTranslucency]);
+  useEffect(() => {
+    if (isSharedRoute) {
+      writeSharedPortalinkTheme(sharedPortalinkTheme);
+    }
+  }, [isSharedRoute, sharedPortalinkTheme]);
+  useEffect(() => {
+    writeAccentColor(accentColor);
+  }, [accentColor]);
+  useEffect(() => {
+    writeContrastMode(contrastMode);
+  }, [contrastMode]);
+  useEffect(() => {
+    writeIconColor(iconColor);
+  }, [iconColor]);
+  useEffect(() => {
+    writeLanguage(language);
+  }, [language]);
+  // The document carries the locale and reading direction, so logical layout,
+  // directional glyphs, and assistive technology all agree. Automatic follows
+  // the browser; explicit preferences remain stable across sessions.
+  useEffect(() => {
+    const requestedLocale = language === 'auto' ? navigator.language || 'en' : language;
+    const baseLanguage = requestedLocale.toLowerCase().split('-')[0];
+    const rtlLanguages = new Set(['ar', 'fa', 'he', 'ps', 'ur']);
+    document.documentElement.lang = requestedLocale;
+    document.documentElement.dir = rtlLanguages.has(baseLanguage) ? 'rtl' : 'ltr';
+  }, [language]);
+  useEffect(() => {
+    writeHighContrast(highContrast);
+  }, [highContrast]);
+  useEffect(() => {
+    writeReduceTranslucency(reduceTranslucency);
+  }, [reduceTranslucency]);
+  useEffect(() => {
+    writeNavSystemGray(navSystemGray);
+  }, [navSystemGray]);
+  // Read before the first paint so both the sidebar and the feed start in the
+  // user's last layout, without briefly rendering the opposite state.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(readMainSidebarCollapsed);
+  useEffect(() => {
+    writeMainSidebarCollapsed(isSidebarCollapsed);
+  }, [isSidebarCollapsed]);
+  /**
+   * Which surface is open is a question about the URL, not about nine booleans.
+   * Home is the landing surface; Portalink and search are destinations the viewer
+   * chooses to go to.
+   */
+  const isSearchOpen = route.kind === 'search' || route.kind === 'portalink';
+  const isPortalsOpen = route.kind === 'portals';
+  const isInsightsOpen = route.kind === 'insights';
+  const isStudioOpen = route.kind === 'studio';
+  const inDesignFeature = isPortalsOpen ? 'Portals' as const : isInsightsOpen ? 'Insights' as const : isStudioOpen ? 'Studio' as const : null;
+  const isMessagesOpen = route.kind === 'messages';
+  const isControlCenterOpen = route.kind === 'controlCenter';
+  // Records addressed by the URL. Ids only — never a display name.
+  const routeProfileId = route.kind === 'profile' || route.kind === 'category' || route.kind === 'project' || route.kind === 'activity' || route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' ? route.profileId : null;
+  // Which engagement collection the URL asks for, if any.
+  const routeActivityKind = route.kind === 'activity' ? route.activityKind : null;
+  const routeCategoryId = route.kind === 'category' || route.kind === 'project' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' ? route.categoryId : null;
+  const activeProjectId = route.kind === 'project' || route.kind === 'sharedProject' ? route.projectId : null;
+  const routeItemId = route.kind === 'item' ? route.projectId : null;
+  /**
+   * The query lives in the URL (`/search?q=…`), but the field keeps its own draft
+   * so typing stays immediate and the caret is never disturbed. The URL is then
+   * mirrored on a short debounce, replacing rather than pushing so a search does
+   * not bury the previous destination under one entry per keystroke.
+   */
+  const [searchQuery, setSearchQuery] = useState(route.kind === 'search' ? route.query : '');
+  const routeQuery = route.kind === 'search' ? route.query : null;
+  // Back, Forward, or a pasted URL is authoritative over the draft.
+  useEffect(() => {
+    if (routeQuery !== null) {
+      setSearchQuery((current) => current === routeQuery ? current : routeQuery);
+    }
+  }, [routeQuery]);
+  const queryTimerRef = useRef<number | null>(null);
+  const searchOriginPathRef = useRef(pathname);
+  searchOriginPathRef.current = pathname;
+  useEffect(() => () => {
+    if (queryTimerRef.current !== null) {
+      window.clearTimeout(queryTimerRef.current);
+    }
+  }, []);
+  useEffect(() => {
+    // A scheduled search belongs to the screen where the user typed it. Once a
+    // newer click changes screens, that old timer loses the right to navigate.
+    if (queryTimerRef.current !== null) {
+      window.clearTimeout(queryTimerRef.current);
+      queryTimerRef.current = null;
+    }
+  }, [pathname]);
+  function changeSearchQuery(next: string) {
+    setSearchQuery(next);
+    if (queryTimerRef.current !== null) {
+      window.clearTimeout(queryTimerRef.current);
+    }
+    const originPathname = pathname;
+    queryTimerRef.current = window.setTimeout(() => {
+      queryTimerRef.current = null;
+      if (searchOriginPathRef.current !== originPathname) {
+        return;
+      }
+      // Already on a search or browse surface: replace, so the history stack
+      // holds the destination rather than every intermediate query.
+      nav.search(next, true);
+    }, 250);
+  }
+  // The one session source of truth for the whole application.
+  const auth = useAuth();
+  const hasHandledDirectAuthViewRef = useRef(false);
+  useEffect(() => {
+    if (hasHandledDirectAuthViewRef.current) {
+      return;
+    }
+    const requestedView = new URLSearchParams(search).get('auth');
+    if (requestedView !== 'signIn') {
+      return;
+    }
+    hasHandledDirectAuthViewRef.current = true;
+    auth.requestAuth('signIn');
+  }, [auth.requestAuth, search]);
+  /**
+   * Resolving a project or a creator by id lives behind its own boundary. No
+   * service is reached from the shell: navigation is all this file owns.
+   */
+  const projectNavigation = useProjectResolution();
+  useEffect(() => {
+    // An unresolved tile selection is subordinate to a newer route click. This
+    // invalidates the old request so its eventual response cannot reopen work
+    // after the viewer has already chosen Home, Messages, or another profile.
+    projectNavigation.cancel();
+  }, [pathname, projectNavigation.cancel]);
+  // The resolver callback is stable; the surrounding resolution object changes
+  // as loading settles and must not retrigger the item lookup effect below.
+  const resolveProject = projectNavigation.resolveProject;
+  /**
+   * A profile id in the URL is a request, not a fact. It is confirmed through the
+   * read boundary before any profile surface renders, so a pasted, stale, or
+   * deleted id produces a truthful not-found rather than opening whichever record
+   * a fallback would have handed back.
+   */
+  /**
+   * Which profile the portfolio context belongs to. On a creator route it is the
+   * id the URL asked for; elsewhere it is the viewer's own profile. A guest with
+   * no creator context has NO profile — there is no fallback id, because handing
+   * back a seeded creator invents an identity nobody asked for.
+   */
+  const viewedProfileId = routeProfileId ?? auth.viewerProfileId;
+  /**
+   * The discovery surface a project was opened FROM, if it was opened that way.
+   *
+   * This exists because arriving at a project from Home, an editorial feed, a
+   * city page, search, or an activity collection is a different flow from
+   * reaching it through the portal's own index: in the first case the viewer was
+   * mid-browse and wants to carry on, and there is nothing on the page that says
+   * where they came from. It is transient presentation state — never persisted,
+   * never part of a route — and it is what gates the return control, so the
+   * control cannot appear for a viewer who navigated in through the sidebar.
+   */
+  const [discoveryReturn, setDiscoveryReturn] = useState<{
+    path: string;
+    profileId: Id;
+  } | null>(null);
+  // Project-workspace panels belong to the browsing session rather than to the
+  // active category component. Category routes are separate transition layers,
+  // so keeping this state at the shell prevents a portal or project selection
+  // from silently restoring either panel to its default.
+  const [isProjectIndexCollapsed, setIsProjectIndexCollapsed] = useState(false);
+  const [isProjectEngagementOpen, setIsProjectEngagementOpen] = useState(false);
+  // Public links have distinct product defaults: their portal index starts open
+  // and their description rail starts open. They still retain the viewer's
+  // explicit choices while that person browses the shared Portalink.
+  const [isSharedProjectIndexCollapsed, setIsSharedProjectIndexCollapsed] = useState(false);
+  const [isSharedProjectDescriptionOpen, setIsSharedProjectDescriptionOpen] = useState(true);
+  const hasEnteredDiscoveryProjectRef = useRef(false);
+  useEffect(() => {
+    if (!discoveryReturn) {
+      hasEnteredDiscoveryProjectRef.current = false;
+      return;
+    }
+    // The offer expires when the viewer leaves the portal they were sent into —
+    // a stale "back to discovery" on an unrelated later visit would be a lie
+    // about how they got there. Moving between projects inside the same portal
+    // keeps it, because the browse they interrupted is still the way back.
+    const stillInPortal = (route.kind === 'project' || route.kind === 'category') && routeProfileId === discoveryReturn.profileId;
+    if (stillInPortal) {
+      hasEnteredDiscoveryProjectRef.current = true;
+      return;
+    }
+    // Setting the return target and navigating are separate React updates. Do
+    // not expire the target while the viewer is still on the discovery screen
+    // during that hand-off; only expire it after the target was actually entered.
+    if (hasEnteredDiscoveryProjectRef.current) {
+      setDiscoveryReturn(null);
+    }
+  }, [discoveryReturn, route.kind, routeProfileId]);
+  /**
+   * The read itself. The URL is a request, not a fact: the record arrives from
+   * `ProfileService` through the query boundary, so a pasted, stale, or deleted
+   * id produces a truthful not-found or a retryable failure rather than opening
+   * whichever record a fallback would have handed back.
+   */
+  const viewedProfileQuery = useProfileQuery(viewedProfileId);
+  const viewedProfile = viewedProfileQuery.profile;
+  // The footer always represents the signed-in viewer, even while they browse
+  // another creator. Reuse the current read when the viewed portal is their own;
+  // only resolve a second record when those identities genuinely differ.
+  // The record the service returned IS the answer — it is never re-derived from a
+  // seed store, and its own id is authoritative even if the service resolved an
+  // alias, so a profile that exists nowhere in the seed data renders exactly as
+  // returned.
+  const isProfileRouteReady = routeProfileId !== null && viewedProfileQuery.status === 'ready' && viewedProfile !== null;
+  const activeCategoryId = isProfileRouteReady ? routeCategoryId : null;
+  // Follow state and its request lifecycle live in the feature hook, resolved for
+  // the profile currently being viewed. Keying it to that profile is what stops a
+  // pending or failed request following the viewer to the next creator.
+  const follows = useFollows(isSharedRoute ? null : viewedProfileId);
+  // An account can exist without a profile; creator surfaces onboard instead.
+  const onboardingStatus = useProfileOnboardingStatus();
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
+  const [isGlobalCreatePending, setIsGlobalCreatePending] = useState(false);
+  const [messageRecipientId, setMessageRecipientId] = useState<string | null>(null);
+  // The page scrolls only when the viewer scrolls it. Nothing moves because
+  // somebody stopped moving.
+  const mainContentRef = useRef<HTMLElement>(null);
+  const productDetailStateRef = useRef<ProductDetailState | undefined>(screenInit.productDetailView ? {
+    activeView: screenInit.productDetailView as ProductDetailState['activeView'],
+    scrollTop: 0
+  } : undefined);
+  const shouldReduceMotion = useReducedMotion();
+  /**
+   * PREVIEW ONLY. A Magic Patterns screen preset describes its destination in the
+   * old in-memory state shape. It is translated into a canonical path once, on the
+   * first render, and from then on routing is the only navigation source.
+   */
+  const hasAppliedPresetRef = useRef(false);
+  useEffect(() => {
+    if (hasAppliedPresetRef.current) {
+      return;
+    }
+    hasAppliedPresetRef.current = true;
+    const presetPath = screenPresetPath(screenInit as Record<string, unknown>);
+    if (presetPath && presetPath !== pathname) {
+      nav.to(`${presetPath}${search}`, true);
+    }
+    // Deliberately once, at startup: a preset is initialization, not navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /**
+   * Scroll restoration, keyed by path rather than by a hand-rolled history array.
+   * Each destination remembers where it was left, so browser Back returns to the
+   * same place in the same view; a destination never seen before opens at the top.
+   */
+  const scrollPositionsRef = useRef(new Map<string, number>());
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
+  useEffect(() => {
+    const target = scrollPositionsRef.current.get(pathname) ?? 0;
+    let frame = 0;
+    let attempts = 0;
+    const apply = () => {
+      const element = mainContentRef.current;
+      if (element) {
+        element.scrollTo({
+          top: target,
+          behavior: 'auto'
+        });
+        if (Math.abs(element.scrollTop - target) < 2 || attempts > 40) {
+          return;
+        }
+      }
+      attempts += 1;
+      frame = requestAnimationFrame(apply);
+    };
+    frame = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(frame);
+  }, [pathname]);
+  function handleMainScroll(event: React.UIEvent<HTMLElement>) {
+    // Content only dissolves into the fixed navigation layer once it starts moving.
+    event.currentTarget.classList.toggle('is-at-top', event.currentTarget.scrollTop <= 1);
+    // Recorded as it happens, so the position is already known by the time a
+    // navigation replaces this view.
+    scrollPositionsRef.current.set(pathnameRef.current, event.currentTarget.scrollTop);
+  }
+  // Ownership is derived from the authenticated account, never from a hardcoded
+  // identity. Signed out, every profile is a visitor view.
+  const isOwnerMode = !isSharedRoute && auth.viewerProfileId !== null && viewedProfileId === auth.viewerProfileId;
+  /**
+   * One portfolio-management boundary for the whole shell. It lives here rather
+   * than inside the sidebar because the icon picker is a page, not a sidebar
+   * control: both now write through the same instance, so an icon change gets the
+   * same optimistic rollback, pending state, failure message, and exact retry as
+   * every other category operation instead of a second mutation path.
+   */
+  const management = useCategoryManagement(viewedProfileId, isOwnerMode);
+  /**
+   * Three distinct audiences, not two. Collapsing "not the owner" into one state
+   * meant a guest and a signed-in visitor were shown identical surfaces, so a
+   * guest was never told which actions need an account and a signed-in visitor
+   * was offered no more than someone who had never signed up.
+   *
+   * This decides what the interface OFFERS. It is not a security boundary: what a
+   * viewer is actually allowed to read or change is the service's decision, and a
+   * real backend must enforce it independently of anything here.
+   */
+  const viewerRole: ViewerRole = isSharedRoute ? 'guest' : isOwnerMode ? 'owner' : auth.isAuthenticated ? 'visitor' : 'guest';
+  /**
+   * Actions that genuinely need an account route through here. The label is
+   * what the person was trying to do, so the gate can say so.
+   */
+  function requireAuth(action: () => void, label = 'continue') {
+    if (auth.isAuthenticated) {
+      action();
+      return;
+    }
+    auth.requestAuthenticatedDestination({
+      kind: 'interaction',
+      label
+    });
+  }
+  // True once an authenticated identity has been observed during this mount.
+  const wasAuthenticatedRef = useRef(false);
+  // Restoring a persisted session is not a sign-in action. Only the explicit
+  // authenticating phase earns the post-sign-in landing behavior below; this is
+  // what lets refreshes and pasted deep links remain at their requested URL.
+  const interactiveSignInRef = useRef(false);
+  /**
+   * A destination that outlived the sign-in because the account still had to
+   * create a profile first. Onboarding interrupts the journey; it does not
+   * cancel it, so the destination waits here and is fulfilled afterwards.
+   */
+  const deferredIntentRef = useRef<AuthIntent | null>(null);
+  /*
+   * True for the one pass where an account-only URL was left behind by signing
+   * out rather than asked for by a guest. That URL is not a destination anybody
+   * requested, so the gate must not remember it.
+   */
+  const signedOutOfProtectedRef = useRef(false);
+  /** Takes the person to the destination they were originally reaching for. */
+  function fulfilIntent(intent: AuthIntent) {
+    if (intent.kind === 'interaction') {
+      // The action itself is never replayed — an account mutation must not fire
+      // on its own. The person is simply let through.
+      return;
+    }
+    // The sheet is gone by now, so focus belongs on the destination rather than
+    // the Sign in control that no longer applies.
+    requestAnimationFrame(() => mainContentRef.current?.focus());
+    if (intent.kind === 'route') {
+      // A URL the person asked for while signed out. It is continued to verbatim,
+      // so a pasted or refreshed protected destination survives the whole gate.
+      nav.to(intent.path, true);
+      return;
+    }
+    if (intent.kind === 'studio') {
+      nav.studio();
+      return;
+    }
+    if (intent.kind === 'create-project') {
+      setIsGlobalCreatePending(true);
+      if (auth.viewerProfileId) {
+        nav.profile(auth.viewerProfileId);
+      }
+      return;
+    }
+    if (intent.kind === 'messages') {
+      setMessageRecipientId(intent.recipientProfileId ?? null);
+      nav.messages();
+      return;
+    }
+    // `my-profile` is the only intent that resolves through the authenticated
+    // account's own id; every other destination was named explicitly.
+    if (intent.kind === 'my-profile') {
+      if (auth.viewerProfileId) {
+        nav.profile(auth.viewerProfileId);
+      }
+      return;
+    }
+    if (intent.kind === 'view-portfolio' && intent.categoryId) {
+      nav.category(intent.profileId, intent.categoryId);
+      return;
+    }
+    nav.profile(intent.profileId);
+  }
+  /**
+   * The single post-authentication coordinator. It runs exactly once per
+   * sign-in, on the transition into an authenticated session, and never on an
+   * unrelated re-render — so nothing here can loop back into the gate.
+   */
+  useEffect(() => {
+    if (auth.phase === 'authenticating') {
+      interactiveSignInRef.current = true;
+      return;
+    }
+    // Wait until identity is fully resolved, so nothing is fulfilled — or owner
+    // UI shown — while it is still unknown whether this account has a profile.
+    if (!auth.isAuthenticated) {
+      interactiveSignInRef.current = false;
+      /*
+       * Signing out of an account-only surface leaves the person standing on a
+       * URL they may no longer be there for. Leaving them on it would hand that
+       * destination to the gate, and the next sign-in would return them to it
+       * rather than to the front door — which is exactly what happened when
+       * signing out of Messages. So the session ends at Home.
+       */
+      if (wasAuthenticatedRef.current && PROTECTED_ROUTE_KINDS.has(route.kind)) {
+        signedOutOfProtectedRef.current = true;
+        nav.home(true);
+      }
+      wasAuthenticatedRef.current = false;
+      return;
+    }
+    if (onboardingStatus === 'unknown') {
+      // Identity is still resolving. Leave the transition flag alone — marking
+      // it here would make the later "ready" pass look like an ordinary
+      // re-render, and the pending destination would never be fulfilled.
+      return;
+    }
+    const justSignedIn = interactiveSignInRef.current;
+    interactiveSignInRef.current = false;
+    wasAuthenticatedRef.current = true;
+    if (!justSignedIn) {
+      // A session restored during initialization keeps the current URL. It did
+      // not originate in the sign-in sheet and has no landing intent to fulfil.
+      return;
+    }
+    // Signing in lands on Home — the product's front door — unless the person
+    // was on their way somewhere more specific, in which case that destination
+    // is honoured instead.
+    const intent = auth.consumePendingIntent();
+    // Creating a profile comes first, but the destination is not lost with it:
+    // it waits and is honoured once onboarding finishes.
+    if (onboardingStatus === 'required') {
+      deferredIntentRef.current = intent;
+      setIsOnboardingOpen(true);
+      return;
+    }
+    if (!intent || intent.kind === 'interaction') {
+      /*
+       * Nowhere specific was being reached for — either the person simply signed
+       * in, or they were gated on an ACTION rather than a destination. Either
+       * way the landing place is Home: the product's front door, rather than
+       * whichever page the sign-in happened to be triggered from.
+       */
+      nav.home();
+      requestAnimationFrame(() => mainContentRef.current?.focus());
+      return;
+    }
+    fulfilIntent(intent);
+    // The explicit phase distinguishes an interactive sign-in from restoring a
+    // persisted session; neither unrelated renders nor refreshes earn a redirect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.phase, auth.isAuthenticated, auth.viewerProfileId, onboardingStatus]);
+  /**
+   * "My profile" means the authenticated account's own profile — never a
+   * hardcoded id, and never one inferred from a name or an email.
+   */
+  function openOwnProfile() {
+    if (!auth.isAuthenticated) {
+      auth.requestAuthenticatedDestination({
+        kind: 'my-profile'
+      });
+      return;
+    }
+    if (onboardingStatus === 'required') {
+      setIsOnboardingOpen(true);
+      return;
+    }
+    if (auth.viewerProfileId) {
+      openProfile(auth.viewerProfileId);
+    }
+  }
+  const activeCategory = isProfileRouteReady && viewedProfile ? viewedProfile.categories.find((category) => category.id === activeCategoryId) ?? null : null;
+  // A category id in the URL that this profile does not hold is reported rather
+  // than quietly replaced with another category.
+  const isCategoryRouteMissing = isProfileRouteReady && activeCategoryId !== null && activeCategory === null;
+  /**
+   * Whether an account is required to be HERE. Reading a public profile, category,
+   * or project never is; the account's own surfaces and the creator's own tools
+   * are. This decides what the interface offers — it is not authorization, which
+   * remains the service's decision.
+   */
+  const isProtectedRoute = PROTECTED_ROUTE_KINDS.has(route.kind);
+  const isRouteBlocked = isProtectedRoute && !auth.isInitializing && !auth.isAuthenticated;
+  /**
+   * A protected URL asked for while signed out. The destination is preserved
+   * verbatim and handed to the gate, so it survives sign-in — and profile
+   * onboarding — and is continued to afterwards. The URL itself is left alone:
+   * redirecting away would lose what the person asked for.
+   */
+  useEffect(() => {
+    if (!isRouteBlocked) {
+      return;
+    }
+    if (signedOutOfProtectedRef.current) {
+      // Left behind by a sign-out, not asked for. The move to Home is already
+      // under way, so nothing is remembered and no gate is raised.
+      signedOutOfProtectedRef.current = false;
+      return;
+    }
+    auth.requestAuthenticatedDestination({
+      kind: 'route',
+      path: `${pathname}${search}`,
+      label: describeRoute(route)
+    });
+    // Keyed on the blocked destination, so it asks once per destination.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRouteBlocked, pathname, search]);
+  /**
+   * A CREATOR surface reached by an account that has no profile yet. Account
+   * settings are deliberately not included: they belong to the account, which
+   * exists whether or not a profile does.
+   */
+  /**
+   * A published portfolio category is public. Reading is open; only acting on what
+   * you find needs an account.
+   */
+  function selectProfileCategory(categoryId: string) {
+    // A category belongs to a profile, so there is nowhere to go without one.
+    if (!viewedProfileId) {
+      return;
+    }
+    if (isSharedRoute) {
+      nav.sharedCategory(viewedProfileId, categoryId);
+      return;
+    }
+    nav.category(viewedProfileId, categoryId);
+  }
+  /**
+   * The single door into a creator's profile. Every entry point — feed card,
+   * project preview, search result, sidebar — comes through here, and it is a
+   * navigation to a canonical URL rather than a state mutation.
+   */
+  function openProfile(profileId: string) {
+    nav.profile(profileId);
+  }
+  // Publishing needs an account that owns this profile. A signed-in account
+  // with no profile is onboarded rather than allowed to create orphaned work.
+  function requestPublish() {
+    if (onboardingStatus === 'required') {
+      setIsOnboardingOpen(true);
+      return;
+    }
+    if (!isOwnerMode) {
+      return;
+    }
+    if (!activeCategory) {
+      return;
+    }
+    setPublishTargetCategoryId(activeCategory.id);
+    setIsPublishOpen(true);
+  }
+  /**
+   * Create is a primary action, independent of where the viewer happens to be.
+   * It returns to the authenticated creator context, chooses the first category
+   * as a sensible default, and only then starts the real draft lifecycle.
+   */
+  function requestGlobalPublish() {
+    if (!auth.isAuthenticated) {
+      auth.requestAuthenticatedDestination({ kind: 'create-project' });
+      return;
+    }
+    if (onboardingStatus === 'required') {
+      deferredIntentRef.current = { kind: 'create-project' };
+      setIsOnboardingOpen(true);
+      return;
+    }
+    if (!auth.viewerProfileId) {
+      return;
+    }
+    setIsGlobalCreatePending(true);
+    if (!isOwnerMode) {
+      nav.profile(auth.viewerProfileId);
+    }
+  }
+  useEffect(() => {
+    if (!isGlobalCreatePending || !isOwnerMode || !viewedProfile) {
+      return;
+    }
+    const target = activeCategory ?? viewedProfile.categories[0] ?? null;
+    if (!target) {
+      // Profile creation provisions a default category in production. If that
+      // invariant is still settling, leave the intent pending instead of opening
+      // a publisher that has nowhere truthful to place the project.
+      return;
+    }
+    setPublishTargetCategoryId(target.id);
+    setIsPublishOpen(true);
+    setIsGlobalCreatePending(false);
+  }, [activeCategory, isGlobalCreatePending, isOwnerMode, viewedProfile]);
+  /** Opening or closing a project inside its category is a change of URL. */
+  function selectProject(projectId: string | null, replace = false) {
+    if (!activeCategory || !viewedProfileId) {
+      return;
+    }
+    if (projectId) {
+      if (isSharedRoute) {
+        nav.sharedProject(viewedProfileId, activeCategory.id, projectId, replace);
+        return;
+      }
+      nav.project(viewedProfileId, activeCategory.id, projectId, replace);
+      return;
+    }
+    if (isSharedRoute) {
+      nav.sharedCategory(viewedProfileId, activeCategory.id);
+      return;
+    }
+    nav.category(viewedProfileId, activeCategory.id);
+  }
+  function toggleFollowProfile() {
+    // Following is a real mutation, so it needs an account behind it.
+    requireAuth(() => follows.toggle());
+  }
+  function openPortalink() {
+    nav.portalink();
+  }
+  /**
+   * Messages is a main destination like Studio: it replaces the content area
+   * rather than floating above it. It needs an account, so a guest is sent
+   * through the gate first.
+   */
+  function openMessages(recipientProfileId?: string) {
+    const intent: AuthIntent = { kind: 'messages', ...(recipientProfileId ? { recipientProfileId } : {}) };
+    if (!auth.isAuthenticated) {
+      auth.requestAuthenticatedDestination(intent);
+      return;
+    }
+    if (onboardingStatus === 'required') {
+      deferredIntentRef.current = intent;
+      setIsOnboardingOpen(true);
+      return;
+    }
+    setMessageRecipientId(recipientProfileId ?? null);
+    nav.messages();
+  }
+  function navigateTo(destination: NavigationDestination) {
+    // A record label is an editorial destination, not a creator profile: it never
+    // opens a profile page built from a label name and a sample catalog.
+    nav.destination(destination);
+  }
+  function saveProductDetailState(state: ProductDetailState) {
+    productDetailStateRef.current = state;
+  }
+  /**
+   * A project opens at its own URL, so the detail view survives a refresh and
+   * closes with the browser's Back button. The record is resolved canonically
+   * through the boundary, which is also what reports loading, not-found, and
+   * failure — the view is only ever built from a confirmed record.
+   */
+  const [resolvedItem, setResolvedItem] = useState<{
+    projectId: string;
+    view: FeatureCardApp;
+  } | null>(null);
+  useEffect(() => {
+    if (!routeItemId) {
+      setResolvedItem(null);
+      return;
+    }
+    if (resolvedItem?.projectId === routeItemId) {
+      return;
+    }
+    resolveProject(routeItemId, (view) => setResolvedItem({
+      projectId: routeItemId,
+      view: toDetailView(view)
+    }));
+  }, [routeItemId, resolvedItem, resolveProject]);
+  const selectedApp = routeItemId && resolvedItem?.projectId === routeItemId ? resolvedItem.view : null;
+  const routeItemResolution = routeItemId && projectNavigation.resolution?.projectId === routeItemId ? projectNavigation.resolution : null;
+  /**
+   * A project opens in ONE place: the canonical project viewer at
+   * `/p/:profileId/c/:categoryId/:projectId`. It used to open at `/item/:id`
+   * when reached from discovery and at the canonical address when reached from a
+   * portfolio, so the same work behaved differently depending on where it was
+   * found. `/item/...` is now reserved for commerce and editorial products,
+   * which are not projects.
+   *
+   * A surface holding a resolved project passes its address along and opens
+   * immediately. One holding only an id (a search row) has the address resolved
+   * through the service boundary first — the same boundary that reports
+   * loading, not-found, and failure — so nothing opens on an unconfirmed record.
+   */
+  function openProjectById(
+    projectId: Id,
+    location?: ProjectLocation,
+    options: { openEngagement?: boolean } = {}
+  ) {
+    // Where the viewer was when they chose this work, so the portal can offer a
+    // way back to it. Transient by design: it is the current session's path, not
+    // a stored preference, and it is recorded ONLY on this route — opening a
+    // project from the portal's own index never sets it.
+    if (location) {
+      // Discovery is a deliberate entrance into one selected work. Preserve the
+      // existing work-first index treatment, and make Home's requested social
+      // context visible; subsequent project and portal choices do not touch
+      // either value.
+      setIsProjectIndexCollapsed(true);
+      if (options.openEngagement) {
+        setIsProjectEngagementOpen(true);
+      }
+      setDiscoveryReturn({
+        path: `${pathname}${search}`,
+        profileId: location.profileId
+      });
+      nav.project(location.profileId, location.categoryId, projectId);
+      return;
+    }
+    const origin = `${pathname}${search}`;
+    projectNavigation.resolveProject(projectId, (view) => {
+      setIsProjectIndexCollapsed(true);
+      if (options.openEngagement) {
+        setIsProjectEngagementOpen(true);
+      }
+      setDiscoveryReturn({
+        path: origin,
+        profileId: view.creator.id
+      });
+      nav.project(view.creator.id, view.project.categoryId, view.project.id);
+    });
+  }
+  function closeAppDetail() {
+    nav.back();
+  }
+  /**
+   * Opening a creator by id, from an attribution, a search hit, or the feed. The
+   * profile route confirms the id through the read boundary, so a creator id that
+   * resolves to nothing shows a not-found rather than a page assembled from a
+   * display name.
+   */
+  function openFeedCreator(creatorId: Id) {
+    nav.profile(creatorId);
+  }
+  function closeUserProfile() {
+    nav.back();
+  }
+  // Resolved only when a preference that feeds it actually changes. These two
+  // resolvers build whole token maps, and they were being re-run — and the style
+  // object rebuilt — on every render of the root, which is every keystroke,
+  // hover, and navigation in the product.
+  /**
+   * When the URL names something that cannot be shown, the page says so. None of
+   * these fall back to another record or to sample content: a blocked destination
+   * is preserved, an unknown address is reported, and an id that resolves to
+   * nothing produces a not-found rather than somebody else's work.
+   */
+  const routeStateView = isRouteBlocked ? <EmptyState title="Sign in required" description={`Sign in to ${describeRoute(route)}. This page will reopen after sign-in.`} action={{
+    label: 'Sign in',
+    onClick: () => auth.requestAuth('signIn')
+  }} /> : route.kind === 'unknown' ? <EmptyState title="Page not found" description="Check the address, or return home." action={{
+    label: 'Go home',
+    onClick: () => nav.home()
+  }} /> : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" /> : routeItemId && routeItemResolution?.state === 'not-found' ? <EmptyState title="Item not found" description="It may have been removed. Check the link, or return home." action={{
+    label: 'Go home',
+    onClick: () => nav.home()
+  }} /> : routeItemId && routeItemResolution?.state === 'error' ? <ErrorState title="Unable to open item" description="Check the connection, then try again." onRetry={projectNavigation.retry ?? undefined} /> : routeProfileId && viewedProfileQuery.status === 'loading' ? <LoadingState label="Opening profile…" /> : routeProfileId && viewedProfileQuery.status === 'not-found' ? <EmptyState title="Profile not found" description={isSharedRoute ? 'This shared profile is unavailable or no longer public.' : 'It may have been removed. Return home to browse creators and work.'} action={isSharedRoute ? undefined : {
+    label: 'Go home',
+    onClick: () => nav.home()
+  }} /> : routeProfileId && viewedProfileQuery.status === 'error' ? <ErrorState title="Unable to open profile" description={viewedProfileQuery.error ?? 'Check the connection, then try again.'} onRetry={viewedProfileQuery.retry} /> : isCategoryRouteMissing ? <EmptyState title="Portal not found" description="It may have been renamed or removed." action={{
+    label: viewedProfile ? `Back to ${viewedProfile.name}` : 'Back to the profile',
+    onClick: () => {
+      if (viewedProfileId) {
+        if (isSharedRoute) {
+          nav.sharedProfile(viewedProfileId);
+        } else {
+          nav.profile(viewedProfileId);
+        }
+      }
+    }
+  }} /> : null;
+  /*
+   * The discovery feed scrolls ITSELF, because its search field has to hold its
+   * place on screen while the work moves under it. That only works if the page
+   * wrapper is given a definite height — otherwise it grows to the content, the
+   * shell scrolls instead, and the field travels away with the grid. So the feed
+   * joins the views that manage their own scrolling. The condition mirrors the
+   * branch that actually renders the feed, so no other view is constrained by it.
+  */
+  const isFeedView = !routeStateView && !isControlCenterOpen && !iconPickerCategoryId && !inDesignFeature && !isMessagesOpen && !isSearchOpen && !(routeActivityKind && isProfileRouteReady && viewedProfile) && !(activeCategory && viewedProfile) && !((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile) && (activeDestination === 'Today' || isEditorialDestination(activeDestination));
+  /**
+   * One stable identity per workspace. Project selection remains inside its
+   * category workspace, so its canvases and local viewer state are not remounted
+   * merely to animate a route. Full workspace navigation receives a new layer.
+   */
+  const screenTransitionKey = routeStateView ? `route-state-${pathname}` : isControlCenterOpen ? 'control-center' : iconPickerCategoryId ? `icon-picker-${iconPickerCategoryId}` : inDesignFeature ? `in-design-${inDesignFeature.toLowerCase()}` : isMessagesOpen ? 'messages' : isSearchOpen ? 'search' : routeActivityKind && viewedProfileId ? `activity-${viewedProfileId}-${routeActivityKind}` : activeCategoryId ? `${isSharedRoute ? 'shared-' : ''}category-${viewedProfileId}-${activeCategoryId}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfileId ? `${isSharedRoute ? 'shared-' : ''}profile-${viewedProfileId}` : activeDestination;
+  const screenMainClassName = `scroll-edge-fade is-at-top min-h-0 w-full flex-1 ${activeCategory || isSearchOpen || isMessagesOpen || inDesignFeature ? 'overflow-hidden' : 'overflow-y-auto'} ${activeCategory ? '' : 'mono-icons'}`;
+  const screenAriaLabel = inDesignFeature ?? (isMessagesOpen ? 'Messages' : isSearchOpen ? 'Search and browse' : activeCategory ? `${viewedProfile?.name ?? 'Portfolio'} · ${activeCategory.label}${isSharedRoute ? ' · shared read-only view' : ''}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfile ? `${viewedProfile.name} profile${isSharedRoute ? ' · shared read-only view' : ''}` : selectedApp ? `${selectedApp.name} details` : `${activeDestination} content`);
+  const screenContent = <div className={`feed-starfield min-h-full ${activeCategory || isMessagesOpen || isSearchOpen || isFeedView ? 'h-full' : ''}`}>
+      <React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
+      {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isControlCenterOpen ? <ControlCenterPage theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={() => nav.back()} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
+        // The picker remains an ordinary screen. Only this outer snapshot moves.
+        void chooseCategoryIcon(iconPickerCategoryId, iconName);
+      }} onBack={() => {
+        management.dismissFailure();
+        setAttemptedIconName(null);
+        setIconPickerCategoryId(null);
+      }} /> : inDesignFeature ? <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} /> : isMessagesOpen ? <MessagesPage onBack={() => nav.back()} initialRecipientId={messageRecipientId} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
+          <ActivityCollectionPage kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
+        </div> : activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
+        const target = discoveryReturn.path;
+        setDiscoveryReturn(null);
+        nav.to(target);
+      } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
+        profileId: viewedProfile.id
+      })}` : undefined} follow={isSharedRoute ? undefined : {
+        isFollowing: follows.isFollowing,
+        isRequested: follows.isRequested,
+        isResolving: follows.isResolving,
+        resolveError: follows.resolveError,
+        isPending: follows.isPending,
+        mutationError: follows.mutationError,
+        onToggle: toggleFollowProfile,
+        onRetry: follows.retryMutation
+      }} onSignInRequest={isSharedRoute ? undefined : () => auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId) => {
+        if (isSharedRoute) {
+          nav.sharedProject(viewedProfile.id, categoryId, projectId);
+          return;
+        }
+        // The profile is the entrance to this creator's Portal, not a discovery
+        // feed. Navigate directly so the Portal index opens alongside the chosen
+        // project; discovery-only return state would intentionally collapse it.
+        nav.project(viewedProfile.id, categoryId, projectId);
+      }} onEditProfile={isOwnerMode ? () => setIsProfileEditorOpen(true) : undefined} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
+        nonce: (request?.nonce ?? 0) + 1,
+        label,
+        iconName
+      })) : undefined} onOpenActivity={isOwnerMode ? (kind) => nav.activity(viewedProfile.id, kind) : undefined} /> : <HomeFeed isSidebarCollapsed={isSidebarCollapsed} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
+        openEngagement: true
+      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} />}
+      </React.Suspense>
+    </div>;
+  const screenLayers = useScreenTransition(screenTransitionKey, {
+    mainClassName: screenMainClassName,
+    ariaLabel: screenAriaLabel,
+    content: screenContent
+  }, Boolean(shouldReduceMotion));
+  const rootTokenStyle = useMemo(() => ({
+    '--accent-color': interfaceAccentColor,
+    // The chosen accent resolves into its whole interaction family here, once,
+    // so every component already reading an accent token updates immediately.
+    ...resolveAccentTokens(interfaceAccentColor, interfaceTheme),
+    // Neutral controls across the product read this shared family, so one
+    // System Gray or accessibility change updates every interface surface.
+    ...resolveNavButtonTokens(interfaceTheme, interfaceAccentColor, interfaceHighContrast, interfaceReduceTranslucency, interfaceNavSystemGray),
+    // Selection and focus in the macOS token family follow the chosen accent,
+    // rather than being pinned to a fixed blue. Their appearance-dependent
+    // companions (labels, surfaces, fills, separators) resolve from the theme and
+    // preference classes on this same element, so there is one source of truth.
+    ...resolveMacTokens(interfaceAccentColor, interfaceTheme),
+    // Interface typography is fixed; only project presentation varies.
+    '--app-font': getTypefaceStack('default')
+  }) as React.CSSProperties, [interfaceAccentColor, interfaceTheme, interfaceHighContrast, interfaceReduceTranslucency, interfaceNavSystemGray]);
+  /*
+   * The shell paints from the macOS token set: the window surface, the interface
+   * face, and the primary label colour. `text-gray-900` was a hardcoded value
+   * that could not follow the appearance setting; `--mac-label-primary` does,
+   * inverting with `.theme-dark` on this same element.
+   */
+  return <div data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+      {isSharedRoute ? viewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={setSharedPortalinkTheme} onOpenProfile={() => nav.sharedProfile(viewedProfile.id)} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />}
+
+      {/* Every surface renders in the interface face. Creator typography is
+           carried by individual projects, not by the page around them, so the
+           chrome reads the same on every profile. */}
+      {/* The session's own conditions are stated above the page, because they
+           belong to no single screen. */}
+      <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
+      {!isSharedRoute && <SessionStatusBanner onCreateProfile={() => setIsOnboardingOpen(true)} />}
+      {/* Resolving a project by id, reported above the page: it belongs to the
+             act of navigating rather than to the screen being left behind. */}
+      {!isSharedRoute && projectNavigation.resolution && !routeItemId && <div role={projectNavigation.resolution.state === 'loading' ? 'status' : 'alert'} aria-live="polite" className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--surface-raised)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
+          {projectNavigation.resolution.state === 'loading' ? <>
+              <InterfaceIcon icon={Loader2Icon} effect="rotate" effectActive className="text-[var(--text-secondary)]" />
+              <span className="min-w-0 flex-1">Opening project…</span>
+            </> : <>
+              <AlertCircleIcon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                {projectNavigation.resolution.state === 'not-found' ? 'That project no longer exists, so nothing was opened in its place.' : 'That project could not be opened.'}
+              </span>
+              {projectNavigation.retry && <button type="button" onClick={projectNavigation.retry} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
+              <button type="button" onClick={projectNavigation.dismiss} aria-label="Dismiss" className="shrink-0 text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Dismiss</button>
+            </>}
+        </div>}
+      {/* A creator opened from an attribution is now confirmed by the profile
+             route's own read, whose loading, not-found, and retryable failure states
+             render in the page area — so there is no second resolution path to
+             report here. */}
+      <div id="app-viewport" className={shouldReduceMotion ? 'app-viewport--reduce-motion' : undefined}>
+        {screenLayers.map((layer) => <div key={layer.id} className={`app-screen-layer ${layer.phase}`} aria-hidden={layer.phase === 'screen-exit' ? true : undefined} ref={(element) => {
+          if (element) {
+            element.inert = layer.phase === 'screen-exit';
+          }
+        }}>
+            <main ref={layer.screenKey === screenTransitionKey ? mainContentRef : undefined} tabIndex={-1} onScroll={layer.screenKey === screenTransitionKey ? handleMainScroll : undefined} className={layer.snapshot.mainClassName} aria-label={layer.snapshot.ariaLabel}>
+              {layer.snapshot.content}
+            </main>
+          </div>)}
+      </div>
+      </div>
+
+      <InteractionSafePresence isPresent={Boolean(selectedApp)}>
+        {selectedApp && <AppDetailPage app={selectedApp} savedState={productDetailStateRef.current} onStateChange={saveProductDetailState} onBack={closeAppDetail} onOpenCreator={(creator) => openFeedCreator(creator.id)} />}
+      </InteractionSafePresence>
+
+      {/* The auth surface is application-level: any control can request it. */}
+      <AuthDialog theme={theme} accentColor={accentColor} onAccentColorChange={setAccentColor} />
+
+      {/* Editing is owner-only: it can only ever target the viewer's own id. */}
+      <ProfileEditorDialog isOpen={isProfileEditorOpen && isOwnerMode} profileId={auth.viewerProfileId} onClose={() => setIsProfileEditorOpen(false)} onSaved={() => setIsProfileEditorOpen(false)} />
+
+      {/* Publishing targets the category resolved when Create was pressed, so it
+           works from every destination rather than only inside a category. */}
+      <PublishProjectDialog isOpen={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
+        setIsPublishOpen(false);
+        setPublishTargetCategoryId(null);
+      }} onPublished={(projectId) => {
+        const targetCategoryId = publishTargetCategoryId;
+        setIsPublishOpen(false);
+        setPublishTargetCategoryId(null);
+        // The new work opens where it landed, through the normal viewer.
+        if (projectId && auth.viewerProfileId && targetCategoryId) {
+          nav.project(auth.viewerProfileId, targetCategoryId, projectId);
+        }
+      }} />
+
+      {/* Onboarding opens only when a creator surface needs a profile. */}
+      <ProfileOnboardingDialog isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
+        setIsOnboardingOpen(false);
+        // Abandoning onboarding abandons the journey it interrupted.
+        deferredIntentRef.current = null;
+      }} onComplete={(profileId) => {
+        setIsOnboardingOpen(false);
+        // The destination that survived onboarding resolves now; a person who was
+        // only creating a profile lands on the profile they just made.
+        const deferred = deferredIntentRef.current;
+        deferredIntentRef.current = null;
+        if (deferred && deferred.kind !== 'my-profile' && deferred.kind !== 'interaction') {
+          fulfilIntent(deferred);
+          return;
+        }
+        openProfile(profileId);
+      }} />
+
+    </div>;
+}
+function isEditorialDestination(destination: NavigationDestination) {
+  return destination === 'Today' || destination === 'Games' || destination === 'Apps' || destination === 'Arcade' || (portfolioCategories as readonly string[]).includes(destination);
+}

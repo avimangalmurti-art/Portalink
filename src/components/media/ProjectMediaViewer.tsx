@@ -1,0 +1,336 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { AudioLinesIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon } from 'lucide-react';
+import { AttachmentRenderer } from './AttachmentRenderer';
+import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
+import { EngagementBar } from '../../features/engagement/EngagementBar';
+import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
+import { CommentThreadView } from '../comments/CommentThreadView';
+import { useProjectComments } from '../../features/comments/useProjectComments';
+import type { MediaKind, ProjectAttachment } from '../../types/domain';
+import type { LucideIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { normalizePagesPerRow } from '../../features/projects/pageLayout';
+const KIND_ICONS: Record<MediaKind, LucideIcon> = {
+  image: ImageIcon,
+  video: PlayIcon,
+  audio: AudioLinesIcon,
+  document: FileTextIcon,
+  model3d: BoxIcon,
+  unknown: FileIcon
+};
+
+/**
+ * A project's files, each rendered by its own renderer.
+ *
+ * Mixed media is the normal case: a music project may hold a track, a stage
+ * model, a photograph, and a rider, and each is presented for what it is.
+ */
+export function ProjectMediaViewer({
+  projectId,
+  projectTitle,
+  projectSummary,
+  attachments,
+  contentTypefaceStack,
+  pagesPerRow = 3,
+  onPagesPerRowChange,
+  onPagesPerRowCommit,
+  processing,
+  onDocumentPageCountResolved,
+  isRailOpen,
+  onRailOpenChange,
+  readOnlyShare = false,
+  onClose
+
+
+
+
+
+
+
+
+
+
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+  /**
+   * How many pages sit side by side. The creator chooses the opening reading for
+   * this project and the project record carries it to every visitor. The choice
+   * changes only presentation: never page proportions, order, or source files.
+   *
+   * Three across is the platform standard for a piece that genuinely has pages.
+   * A single-page piece is never laid out in columns at all — there is nothing
+   * to sit beside it, and a lone page in a third of the width would just be a
+   * small image with two empty columns next to it.
+   */
+  const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  /**
+   * Which of the two readings of the work the rail is showing. They share the one
+   * area rather than stacking, because both are prose about the same piece and a
+   * viewer is doing one or the other. The conversation leads, since it is the part
+   * that changes.
+   */
+  const [railPanel, setRailPanel] = useState<'comments' | 'description'>('comments');
+  const [isProjectShared, setIsProjectShared] = useState(false);
+  useEffect(() => {
+    setActiveId(null);
+    setIsProjectShared(false);
+  }, [projectId]);
+  /**
+   * A project can exist while one of its files is still being prepared, so the
+   * viewer asks the service what state each stored asset is actually in rather
+   * than assuming the record is final. When a job finishes, the hook refreshes the
+   * canonical data and the finished preview arrives through the normal read.
+   */
+  // Canonical engagement, shared with the viewer's own activity collections: the
+  // same project can never read differently in two places. Public links pass no
+  // project id, so these account-only services remain completely dormant there.
+  const engagement = useProjectEngagement(readOnlyShare ? null : projectId);
+  // Keyed to the project, so project A's thread, pending reply, or failure can
+  // never appear on project B.
+  const comments = useProjectComments(readOnlyShare ? null : projectId);
+  const shareProject = async () => {
+    const url = window.location.href;
+    // Selection feedback belongs to the click itself. Native share sheets can be
+    // cancelled and clipboard permission can be unavailable, but neither should
+    // make the control appear as though the intentional press never happened.
+    setIsProjectShared(true);
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: projectTitle, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch (caught) {
+      // Cancelling the operating-system sheet keeps the explicit pressed state;
+      // it simply avoids a second clipboard attempt the user did not request.
+      if (caught instanceof DOMException && caught.name === 'AbortError') {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        // The visual confirmation still reports the click. Clipboard and native
+        // share permissions are browser capabilities, not engagement state.
+      }
+    }
+  };
+  const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
+  /**
+   * When audio and an image are uploaded as separate files, the image is the
+   * track's cover rather than a second thing to click through to. Resolved from the
+   * project's own files only — nothing is generated, so audio with no image simply
+   * has no cover.
+   */
+  /*
+   * Every image the project holds, in record order. They are read as pages of
+   * one piece rather than as separate files to step between — a photo essay is
+   * one work, not five attachments.
+   */
+  const imagePages = attachments.filter((item) => item.kind === 'image');
+  const switchable = attachments.filter((item) => item.kind !== 'image' || item.id === imagePages[0]?.id);
+  const artworkAttachment = attachments.find((item) => item.kind === 'image' && item.sourceUrl);
+  const artwork = artworkAttachment?.sourceUrl ? {
+    url: artworkAttachment.sourceUrl,
+    alt: artworkAttachment.displayName
+  } : undefined;
+  const documentPageCount = active?.kind === 'document'
+    ? Math.max(active.metadata?.renderedPages?.length ?? 0, active.metadata?.pageCount ?? 0)
+    : 0;
+  const hasPageLayout = active?.kind === 'image'
+    ? imagePages.length > 1
+    : active?.kind === 'document' && documentPageCount !== 1;
+  const densitySurfaceRef = useRef<HTMLDivElement>(null);
+  const wheelDeltaRef = useRef(0);
+  const lastDensityStepRef = useRef(0);
+  const densityCommitTimerRef = useRef<number | null>(null);
+  const densityCommitCallbackRef = useRef(onPagesPerRowCommit);
+  useEffect(() => {
+    densityCommitCallbackRef.current = onPagesPerRowCommit;
+  }, [onPagesPerRowCommit]);
+  useEffect(() => () => {
+    if (densityCommitTimerRef.current !== null) {
+      window.clearTimeout(densityCommitTimerRef.current);
+      densityCommitTimerRef.current = null;
+    }
+  }, [projectId]);
+  /**
+   * The work surface itself is the density instrument, but only for a trackpad
+   * pinch. Browsers expose a two-finger pinch as a wheel event with `ctrlKey`;
+   * an ordinary two-finger vertical swipe has no modifier and must remain native
+   * page scrolling. Pinching inward reveals more, smaller pages and pinching
+   * outward reveals fewer, larger pages. The listener is non-passive so only the
+   * recognized pinch can be contained inside the 1–9 density range instead of
+   * also zooming the browser page.
+   */
+  useEffect(() => {
+    const surface = densitySurfaceRef.current;
+    if (!surface || !hasPageLayout || !onPagesPerRowChange) {
+      return undefined;
+    }
+    const handleDensityWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey || event.deltaY === 0) {
+        wheelDeltaRef.current = 0;
+        return;
+      }
+
+      event.preventDefault();
+      const direction = event.deltaY > 0 ? 1 : -1;
+      const next = normalizePagesPerRow(normalizedPagesPerRow + direction);
+      if (next === normalizedPagesPerRow) {
+        wheelDeltaRef.current = 0;
+        return;
+      }
+
+      const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 24 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 120 : 1;
+      wheelDeltaRef.current += event.deltaY * deltaScale;
+      const threshold = 24;
+      const now = performance.now();
+      if (Math.abs(wheelDeltaRef.current) < threshold || now - lastDensityStepRef.current < 120) {
+        return;
+      }
+      lastDensityStepRef.current = now;
+      wheelDeltaRef.current = 0;
+      onPagesPerRowChange(next);
+      if (densityCommitTimerRef.current !== null) {
+        window.clearTimeout(densityCommitTimerRef.current);
+      }
+      densityCommitTimerRef.current = window.setTimeout(() => {
+        densityCommitTimerRef.current = null;
+        densityCommitCallbackRef.current?.(next);
+      }, 450);
+    };
+    surface.addEventListener('wheel', handleDensityWheel, { passive: false });
+    return () => surface.removeEventListener('wheel', handleDensityWheel);
+  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
+  if (!active) {
+    return null;
+  }
+  /**
+   * The work and the response to it, side by side.
+   *
+   * Previously both engagement and the thread were stacked UNDER the work, each
+   * capped by height, which squeezed the work into the top half and left the
+   * conversation reading through a 45%-tall slot. Given a wide viewer the natural
+   * split is horizontal: the work takes the width it can use, and the rail beside
+   * it is a single continuous column so engagement and comments share one scroll
+   * instead of two competing ones. It stacks back under the work on narrow
+   * screens, where there is no width to give away.
+   *
+   * The work column ALWAYS takes everything the rail does not, and the work inside
+   * it is sized by that width — so closing the rail genuinely enlarges the work
+   * rather than leaving its freed space as empty canvas, and opening it contracts
+   * the work back. The rail owns the only fixed dimension in the row.
+   */
+  return <div className="flex h-full min-h-0 w-full flex-col lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div ref={densitySurfaceRef} data-page-density-surface="" className="min-h-0 flex-1">
+          <AttachmentRenderer attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+          state: processing.resolveState(active),
+          message: processing.resolveMessage(active),
+          canRetry: processing.canRetry(active),
+          isRetrying: processing.retrying.includes(active.id),
+          onRetry: () => void processing.retry(active.id)
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onClose={onClose} />
+        </div>
+
+        {/* The status query itself failed — distinct from a job failing, so it says
+           so and offers the query again rather than a retry of the work. It stays
+           with the work, because that is what it is about. */}
+        {processing.error && <div role="alert" className="flex shrink-0 items-center gap-2.5 border-t border-[var(--hairline)] px-4 py-2 text-[13px] text-[var(--text-secondary)]">
+            <span className="min-w-0 flex-1">{processing.error}</span>
+            <button type="button" onClick={processing.refresh} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Check again</button>
+          </div>}
+
+        {/* Only shown when there is genuinely more than one file to move between. */}
+        {/* Images collapse to a single entry, because they are now read as pages
+           of one piece — listing each of them here would offer a way to step
+           through something that is already continuous. */}
+        {switchable.length > 1 && <nav data-material="toolbar" aria-label={`${projectTitle} files`} className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-t border-[var(--hairline)] px-4 py-2">
+          {switchable.map((attachment) => {
+          const Icon = KIND_ICONS[attachment.kind];
+          // Any image being shown means the whole image sequence is being shown,
+          // so its single entry is the current one.
+          const isActive = attachment.id === active.id || attachment.kind === 'image' && active.kind === 'image';
+          return <button key={attachment.id} type="button" onClick={() => setActiveId(attachment.id)} aria-current={isActive ? 'true' : undefined} title={`${attachment.displayName} · ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+                <InterfaceIcon icon={Icon} size="sm" weight="medium" />
+                <span className="min-w-0 truncate">{attachment.displayName}</span>
+              </button>;
+        })}
+        </nav>}
+      </div>
+
+      {/* The rail: engagement above the conversation, in one scroll.
+         Engagement reads the same canonical record the feed card does, so a like
+         made here is already true there — no refetch, no second state. */}
+      {/* The rail is the fixed side of the split, so the work absorbs the whole
+         difference between its two states. The width animates so the work is seen
+         to grow into the space rather than jumping into it. */}
+      {/* The rail shares the work's canvas rather than sitting on a raised panel:
+         it is part of the same page, and a second background only added a seam
+         down the middle of one composition. The hairline carries the separation. */}
+      {readOnlyShare ? <aside aria-label={`Description of ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+          <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'gap-1 px-2' : 'justify-center px-1.5'}`}>
+            <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide description' : 'Show description'} title={isRailOpen ? 'Hide description' : 'Show description'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+              {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
+            </button>
+            {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Description</h2>}
+          </div>
+          {isRailOpen && <div className="border-t border-[var(--hairline)] px-5 py-5">
+            {projectSummary ? <p data-font-preview="" style={{
+          fontFamily: contentTypefaceStack
+        }} className="text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+          </div>}
+        </aside> : <aside aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+        {/* The control travels with the rail rather than sitting on the work, so
+           the thing that moves is the thing you press. */}
+        {/* One row: the engagement controls and the control that hides them. The
+           inline chip form is used here rather than the stacked panel, because a
+           row shared with a 36px button has height for one line, not two. */}
+        {/* Reading order: the control for the rail itself, then what the rail is
+           showing, then the actions on the work. Broadest scope first. */}
+        <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'engagement-panel-toolbar px-2' : 'justify-center px-1.5'}`}>
+          <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide engagement and comments' : 'Show engagement and comments'} title={isRailOpen ? 'Hide comments' : 'Show comments'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+            {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
+          </button>
+          {/* The glyph, spoken label, and tooltip all identify the destination
+             of the next press: Description while comments are visible, and
+             Comments while the description is visible. */}
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show description' : 'Show comments'} title={railPanel === 'comments' ? 'Show description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
+            </button>}
+          {/* Offered only where it has something to do: the owner of the portal,
+             looking at a piece that genuinely holds more than one page. The
+             slider and its count carry the control on their own, with its name
+             in the accessible label and a tooltip — the same form the profile
+             grid's density control takes. */}
+          {/* Acting on the work belongs where the work is being looked at, so these
+             live here and NOT on the discovery or explore grids — a tile there is a
+             way in to the project, not a place to respond to it. */}
+          {isRailOpen && <div className="engagement-toolbar-actions min-w-0">
+              <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
+            </div>}
+        </div>
+
+        {!isRailOpen && <div className="flex flex-1 justify-center border-t border-[var(--hairline)] py-2">
+            <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
+          </div>}
+
+        {/* Closed, the rail carries nothing but its own control: the engagement
+           controls remain available as a vertical icon rail, while the thread
+           and prose are removed rather than squeezed into unreadable fragments. */}
+        {isRailOpen && <div className="border-t border-[var(--hairline)] px-5 py-5">
+            {/* The conversation sits beside the work it is about, on the canonical
+             project detail rather than on a page of its own. */}
+            {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} /> : <section className="flex flex-col gap-2.5">
+                <h3 className="text-left text-[13px] font-semibold text-[var(--text-primary)]">Description</h3>
+                {/* Only what the creator wrote, in the face the work is set in. A
+               project with no description says so rather than being padded with
+               fields to fill the space. */}
+                {projectSummary ? <p data-font-preview="" style={{
+            fontFamily: contentTypefaceStack
+          }} className="text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+              </section>}
+          </div>}
+      </aside>}
+    </div>;
+}

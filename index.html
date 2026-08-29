@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/image.png" />
+    <link rel="apple-touch-icon" href="/image.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#f7f7f8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b0c0f" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      #portalink-preboot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        overflow: hidden;
+        background: #fff;
+        color: #000;
+      }
+
+      #portalink-preboot svg {
+        width: clamp(220px, 42vmin, 320px);
+        max-width: 82vw;
+        max-height: 78dvh;
+      }
+    </style>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let mode = 'auto';
+        try {
+          const stored = window.localStorage.getItem('portalinknetworks.appearanceMode');
+          if (stored === 'light' || stored === 'dark' || stored === 'auto') mode = stored;
+        } catch {
+          // Storage can be unavailable in private browsing; System still works.
+        }
+        const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+        const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
+        root.dataset.appearance = resolved;
+        root.style.colorScheme = resolved;
+      })();
+    </script>
+    <meta name="description" content="A creator platform for publishing work and discovering people, projects, and places." />
+    <meta name="application-name" content="portalinknetworks" />
+    <meta name="apple-mobile-web-app-title" content="portalinknetworks" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="portalinknetworks" />
+    <meta property="og:description" content="Publish work. Discover people, projects, and places." />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="portalinknetworks" />
+    <meta name="twitter:description" content="Publish work. Discover people, projects, and places." />
+    <meta name="twitter:image" content="/og.png" />
+    <title>portalinknetworks is a product of Portalink Technologies Inc.</title>
+  </head>
+  <body>
+    <div id="root">
+      <!-- First paint: React replaces this exact mitten frame with the animated
+           layered loader. Keeping it inline prevents a blank network/JS gap. -->
+      <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 420 600">
+          <defs>
+            <clipPath id="portalink-preboot-head-clip">
+              <circle cx="164" cy="148" r="96"></circle>
+            </clipPath>
+            <clipPath id="portalink-preboot-torso-clip">
+              <path d="M124 232 C95 244 78 287 75 344 C70 434 96 517 164 526 C232 517 258 434 253 344 C250 287 233 244 204 232 C185 243 143 243 124 232 Z"></path>
+            </clipPath>
+          </defs>
+
+          <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M214 247 C245 250 273 230 290 199"></path>
+            <path d="M232 285 C271 275 303 247 319 213"></path>
+            <path d="M290 199 C284 181 280 160 287 151 C293 143 302 149 310 166 L315 177 C319 153 328 126 344 116 C358 107 373 114 378 128 C385 150 372 177 358 199 L345 222 C325 220 305 211 290 199 Z"></path>
+            <path d="M319 213 C327 218 336 221 345 222"></path>
+
+            <path d="M117 239 C85 250 66 301 62 362 L58 420 C56 447 66 464 82 464 C96 464 103 449 98 431 C105 420 103 407 97 399 L102 353 C106 307 114 274 129 252"></path>
+            <path d="M62 368 C74 373 86 374 99 370"></path>
+
+            <g clip-path="url(#portalink-preboot-torso-clip)">
+              <path d="M164 228 L164 529"></path>
+              <path d="M127 230 C105 300 106 457 139 523"></path>
+              <path d="M201 230 C223 300 222 457 189 523"></path>
+              <path d="M82 278 C118 305 208 305 246 278"></path>
+              <path d="M75 346 C116 375 212 375 253 346"></path>
+              <path d="M82 416 C122 447 206 447 246 416"></path>
+              <path d="M102 486 C135 502 193 502 226 486"></path>
+            </g>
+            <path d="M124 232 C95 244 78 287 75 344 C70 434 96 517 164 526 C232 517 258 434 253 344 C250 287 233 244 204 232 C185 243 143 243 124 232 Z"></path>
+
+            <g clip-path="url(#portalink-preboot-head-clip)">
+              <path d="M164 50 L164 246"></path>
+              <path d="M145 52 C109 91 107 203 145 244"></path>
+              <path d="M183 52 C219 91 221 203 183 244"></path>
+              <path d="M78 108 C121 88 207 88 250 108"></path>
+              <path d="M68 148 C113 158 215 158 260 148"></path>
+              <path d="M79 193 C123 213 205 213 249 193"></path>
+            </g>
+            <circle cx="164" cy="148" r="96"></circle>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,77 @@
+import React from 'react';
+import { AlertCircleIcon, ArrowLeftIcon, CheckIcon, Loader2Icon } from 'lucide-react';
+import { categoryIconNames, getCategoryIcon } from './categoryIcons';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
+type IconPickerPageProps = {
+  categoryLabel: string;
+  currentIconName: string;
+  /** True while the chosen icon is being written, so a second save cannot race it. */
+  isSaving?: boolean;
+  /** The icon the write is in flight for, so only that tile reports progress. */
+  savingIconName?: string | null;
+  /** Set when the store refused the change; the picker stays open to say so. */
+  failureMessage?: string | null;
+  onRetry?: () => void;
+  onDismissFailure?: () => void;
+  onSelect: (iconName: string) => void;
+  onBack: () => void;
+};
+
+// Deliberately neutral: the icon is the only thing being chosen here, so
+// semantic surfaces and labels adapt without introducing competing colour.
+export function IconPickerPage({
+  categoryLabel,
+  currentIconName,
+  isSaving = false,
+  savingIconName = null,
+  failureMessage = null,
+  onRetry,
+  onDismissFailure,
+  onSelect,
+  onBack
+}: IconPickerPageProps) {
+  return <div className="min-h-full w-full bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <header className="ps-panel-toolbar global-control-header gap-2 px-[var(--content-gutter)]">
+        <button type="button" onClick={onBack} className="shape-capsule inline-flex h-8 items-center gap-1.5 px-2.5 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
+          Back
+        </button>
+        <span className="min-w-0">
+          <h1 className="truncate text-large font-bold tracking-tight text-[var(--text-primary)]">Change icon</h1>
+          <p className="truncate text-small text-[var(--text-secondary)]">{categoryLabel}</p>
+        </span>
+      </header>
+
+      <div className="px-[var(--content-gutter)] py-6">
+
+      {/* A rejected icon is reported here rather than only in the sidebar, and the
+         picker stays open, so the choice that failed is still on screen to retry. */}
+      {failureMessage && <div role="alert" className="mt-4 flex flex-col gap-1.5 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-small leading-relaxed text-[var(--text-primary)]">
+          <span className="flex items-start gap-2">
+            <InterfaceIcon icon={AlertCircleIcon} weight="medium" className="mt-0.5 text-[var(--status-danger)]" />
+            <span className="min-w-0 flex-1">{failureMessage}</span>
+          </span>
+          <span className="flex items-center gap-3 pl-6">
+            {onRetry && <button type="button" onClick={onRetry} className="font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
+            {onDismissFailure && <button type="button" onClick={onDismissFailure} className="text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Dismiss</button>}
+          </span>
+        </div>}
+
+      <ul className="mt-6 grid list-none grid-cols-4 gap-3 p-0 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
+        {categoryIconNames.map((iconName) => {
+        const Icon = getCategoryIcon(iconName);
+        const isSelected = iconName === currentIconName;
+        const isPending = isSaving && savingIconName === iconName;
+        return <li key={iconName} className="list-none">
+              {/* Disabled while a write is in flight, so the same icon cannot be
+               saved twice and a second choice cannot overtake the first. */}
+              <button type="button" onClick={() => onSelect(iconName)} disabled={isSaving} aria-pressed={isSelected} aria-busy={isPending || undefined} aria-label={`Use the ${iconName} icon`} className={`shape-container relative flex aspect-square w-full items-center justify-center border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed ${isSaving && !isPending ? 'opacity-45' : ''} ${isSelected ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'border-[var(--hairline)] bg-[var(--surface-raised)] text-[var(--text-primary)] hover:border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)]'}`}>
+                {isPending ? <InterfaceIcon icon={Loader2Icon} size="lg" weight="medium" keepColor className="animate-spin motion-reduce:animate-none" /> : <InterfaceIcon icon={Icon} size="xl" weight="medium" keepColor />}
+                {isSelected && !isPending && <InterfaceIcon icon={CheckIcon} size="sm" weight="semibold" keepColor className="absolute right-1.5 top-1.5 text-[var(--accent-foreground)]" />}
+              </button>
+            </li>;
+      })}
+      </ul>
+      </div>
+    </div>;
+}
