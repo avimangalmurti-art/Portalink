@@ -292,7 +292,7 @@ function SignInForm({
      pinning to the bottom is gone — so the form sits centred in the space
      between the sheet's edges. */
   return <form onSubmit={submit} noValidate className="flex flex-col justify-center gap-4">
-      <CompanyWordmark title="Sign in" />
+      <h1 className="w-full whitespace-nowrap text-[clamp(24px,8vw,38px)] font-semibold leading-none tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
       {auth.error && <FormError message={auth.error.message} />}
       <AccentExperience compact theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} disabled={isSubmitting} />
       <AuthField ref={firstFieldRef} id="auth-signin-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={isSubmitting} onChange={(value) => {
