@@ -2,6 +2,7 @@ import React from 'react';
 import { MoonIcon, SunIcon } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { Button } from '../ui/Button';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
@@ -10,6 +11,7 @@ type SharedProfileSidebarProps = {
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
+  onJoin: () => void;
   onOpenProfile: () => void;
   onOpenCategory: (categoryId: string) => void;
 };
@@ -22,14 +24,15 @@ function possessivePortals(name: string): string {
 /**
  * The shell used by a shared profile URL. It deliberately contains only the
  * creator and their public Portal navigation: no Home, account, messaging,
- * network, publishing, following, or platform-discovery controls. Its one
- * appearance control changes only this standardized public-view theme.
+ * network, publishing, following, or platform-discovery controls. The footer
+ * offers the one intentional exit: sign in or create a Portalink account.
  */
 export function SharedProfileSidebar({
   profile,
   activeCategoryId,
   theme,
   onThemeChange,
+  onJoin,
   onOpenProfile,
   onOpenCategory
 }: SharedProfileSidebarProps) {
@@ -70,5 +73,11 @@ export function SharedProfileSidebar({
         })}
         </ul>
       </nav>
+
+      <div data-shared-join-footer="" className="shrink-0 px-3 pb-3 pt-2">
+        <Button variant="primary" size="md" fullWidth onClick={onJoin}>
+          Join the Portalink Network
+        </Button>
+      </div>
     </aside>;
 }
