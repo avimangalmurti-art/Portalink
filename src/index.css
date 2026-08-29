@@ -4545,3 +4545,24 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   font-size: 11px !important;
   line-height: 1.2 !important;
 }
+
+/* The main eight destinations and the sidebar expander have no drawn edge in
+   rest, hover, pressed, or selected states. Their surface and icon already
+   communicate state; keyboard navigation retains a separate focus outline. */
+#root .codex-shell .sidebar-surface
+  :is(.sidebar-network-grid .nav-button, .sidebar-group .nav-button, [data-sidebar-toggle]),
+#root .codex-shell .sidebar-surface
+  :is(.sidebar-network-grid .nav-button, .sidebar-group .nav-button, [data-sidebar-toggle]):hover,
+#root .codex-shell .sidebar-surface
+  :is(.sidebar-network-grid .nav-button, .sidebar-group .nav-button, [data-sidebar-toggle]):active,
+#root .codex-shell .sidebar-surface
+  :is(.sidebar-network-grid .nav-button, .sidebar-group .nav-button)[aria-current='page'] {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#root .codex-shell .sidebar-surface [data-sidebar-toggle]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
