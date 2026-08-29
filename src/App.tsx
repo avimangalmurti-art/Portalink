@@ -350,6 +350,10 @@ export function App() {
   }
   // The one session source of truth for the whole application.
   const auth = useAuth();
+  // Sign in is shown over Home as a first-arrival experience. Collapse the
+  // navigation visually while it is open, without overwriting the person's
+  // saved sidebar preference; closing the dialog restores their own layout.
+  const isSignInExperienceOpen = auth.pendingView === 'signIn';
   const hasHandledDirectAuthViewRef = useRef(false);
   useEffect(() => {
     if (hasHandledDirectAuthViewRef.current) {
@@ -1068,7 +1072,7 @@ export function App() {
         nonce: (request?.nonce ?? 0) + 1,
         label,
         iconName
-      })) : undefined} onOpenActivity={isOwnerMode ? (kind) => nav.activity(viewedProfile.id, kind) : undefined} /> : <HomeFeed isSidebarCollapsed={isSidebarCollapsed} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
+      })) : undefined} onOpenActivity={isOwnerMode ? (kind) => nav.activity(viewedProfile.id, kind) : undefined} /> : <HomeFeed isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
       })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} />}
       </React.Suspense>
@@ -1101,7 +1105,7 @@ export function App() {
    * inverting with `.theme-dark` on this same element.
    */
   return <div data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
-      {isSharedRoute ? viewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={setSharedPortalinkTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />}
+      {isSharedRoute ? viewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={setSharedPortalinkTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />}
 
       {/* Every surface renders in the interface face. Creator typography is
            carried by individual projects, not by the page around them, so the
