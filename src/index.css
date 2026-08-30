@@ -4627,6 +4627,11 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.018);
 }
 
+.theme-light [data-premium-project-viewer] [data-project-stage] {
+  background: #d2d2d7;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.035);
+}
+
 [data-premium-project-viewer] [data-project-stage] .premium-media-mode-enter {
   background-color: transparent !important;
 }
