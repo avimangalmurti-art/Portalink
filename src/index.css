@@ -4703,6 +4703,15 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   backdrop-filter: blur(18px) saturate(135%);
 }
 
+.premium-viewer-page-counter {
+  bottom: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
+  box-sizing: border-box;
+  max-width: calc(100% - 4rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 [data-premium-project-viewer] .premium-viewer-page-control,
 [data-premium-project-viewer] .premium-viewer-page-control:active {
   transform: translateY(-50%);
