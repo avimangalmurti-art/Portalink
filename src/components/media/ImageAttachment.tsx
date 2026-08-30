@@ -205,12 +205,12 @@ export function ImageAttachment({
       if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
     }} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={{ touchAction: 'pan-x pan-y' }}>
         {pages.length > 1 ? <>
-            <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible && focusedPageIndex > 0 ? 0 : -1} disabled={focusedPageIndex <= 0} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+            {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
-            </button>
-            <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible && focusedPageIndex < pages.length - 1 ? 0 : -1} disabled={focusedPageIndex >= pages.length - 1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+            </button> : null}
+            {focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control absolute right-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:right-8">
               <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
-            </button>
+            </button> : null}
             <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">

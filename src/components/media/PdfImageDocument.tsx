@@ -393,12 +393,12 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
   }} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
     {focusedPageNumber !== null && pageCount > 1 ? <>
-        <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageNumber > 1 ? 0 : -1} disabled={focusedPageNumber <= 1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+        {focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
           <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
-        </button>
-        <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageNumber < pageCount ? 0 : -1} disabled={focusedPageNumber >= pageCount} onClick={() => moveFocusedPage(1)} aria-label="Next page" className="premium-viewer-page-control absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+        </button> : null}
+        {focusedPageNumber < pageCount ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next page" className="premium-viewer-page-control absolute right-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:right-8">
           <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
-        </button>
+        </button> : null}
         <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageNumber} / {pageCount}</span>
       </> : null}
     {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
