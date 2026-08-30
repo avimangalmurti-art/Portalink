@@ -10,6 +10,7 @@ import type { MediaKind, ProjectAttachment } from '../../types/domain';
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   image: ImageIcon,
   video: PlayIcon,
@@ -60,9 +61,10 @@ export function ProjectMediaViewer({
    * A single-page piece is never laid out in columns at all — there is nothing
    * to sit beside it, and a lone page in a third of the width would just be a
    * small image with two empty columns next to it.
-   */
+  */
   const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const viewerMemoryKey = `project:${projectId}`;
+  const [activeId, setActiveId] = useState<string | null>(() => readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
   /**
    * Which of the two readings of the work the rail is showing. They share the one
    * area rather than stacking, because both are prose about the same piece and a
@@ -75,10 +77,10 @@ export function ProjectMediaViewer({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const controlsTimerRef = useRef<number | null>(null);
   useEffect(() => {
-    setActiveId(null);
+    const rememberedAttachmentId = readViewerMemory(viewerMemoryKey).activeAttachmentId;
+    setActiveId(rememberedAttachmentId && attachments.some((attachment) => attachment.id === rememberedAttachmentId) ? rememberedAttachmentId : null);
     setIsProjectShared(false);
-    setIsImmersive(false);
-  }, [projectId]);
+  }, [attachments, viewerMemoryKey]);
   const revealControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
@@ -91,6 +93,13 @@ export function ProjectMediaViewer({
       }, 1800);
     }
   }, [isImmersive]);
+  const holdControls = useCallback(() => {
+    setAreControlsVisible(true);
+    if (controlsTimerRef.current !== null) {
+      window.clearTimeout(controlsTimerRef.current);
+      controlsTimerRef.current = null;
+    }
+  }, []);
   useEffect(() => {
     revealControls();
     return () => {
@@ -257,21 +266,21 @@ export function ProjectMediaViewer({
    * rather than leaving its freed space as empty canvas, and opening it contracts
    * the work back. The rail owns the only fixed dimension in the row.
    */
-  return <div data-premium-project-viewer="" data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={revealControls} onPointerLeave={() => {
+  return <div data-premium-project-viewer="" data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-col lg:flex-row">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {isImmersive && <div role="status" aria-live="polite" className="premium-viewer-hud pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium text-white">
             Scroll or pinch to zoom · Zoom out to return
           </div>}
-        <div ref={densitySurfaceRef} data-page-density-surface="" className="min-h-0 flex-1">
-          <AttachmentRenderer attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+        <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" className="min-h-0 flex-1">
+          <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -292,7 +301,10 @@ export function ProjectMediaViewer({
           // Any image being shown means the whole image sequence is being shown,
           // so its single entry is the current one.
           const isActive = attachment.id === active.id || attachment.kind === 'image' && active.kind === 'image';
-          return <button key={attachment.id} type="button" onClick={() => setActiveId(attachment.id)} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          return <button key={attachment.id} type="button" onClick={() => {
+            setActiveId(attachment.id);
+            updateViewerMemory(viewerMemoryKey, { activeAttachmentId: attachment.id });
+          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
                 <span className="min-w-0 truncate">{attachment.displayName}</span>
               </button>;

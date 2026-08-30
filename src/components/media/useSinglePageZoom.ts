@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -17,13 +18,16 @@ const PINCH_EXIT_THRESHOLD = 0.9;
 export function useSinglePageZoom({
   surfaceRef,
   active,
-  onExit
+  onExit,
+  memoryKey
 }: {
   surfaceRef: RefObject<HTMLElement | null>;
   active: boolean;
   onExit: () => void;
+  memoryKey?: string;
 }) {
-  const [zoom, setZoomState] = useState(MIN_ZOOM);
+  const initialZoom = memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
+  const [zoom, setZoomState] = useState(() => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, initialZoom)));
   const zoomRef = useRef(MIN_ZOOM);
   const exitPullRef = useRef(0);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
@@ -31,18 +35,21 @@ export function useSinglePageZoom({
 
   onExitRef.current = onExit;
 
-  const setZoom = (next: number) => {
+  const setZoom = useCallback((next: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
     zoomRef.current = clamped;
     setZoomState(clamped);
-  };
+    if (memoryKey) updateViewerMemory(memoryKey, { zoom: clamped });
+  }, [memoryKey]);
 
   useEffect(() => {
-    zoomRef.current = MIN_ZOOM;
-    setZoomState(MIN_ZOOM);
+    const remembered = active && memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, remembered));
+    zoomRef.current = next;
+    setZoomState(next);
     exitPullRef.current = 0;
     pinchStartRef.current = null;
-  }, [active]);
+  }, [active, memoryKey]);
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -53,6 +60,7 @@ export function useSinglePageZoom({
     const exit = () => {
       zoomRef.current = MIN_ZOOM;
       setZoomState(MIN_ZOOM);
+      if (memoryKey) updateViewerMemory(memoryKey, { zoom: MIN_ZOOM });
       exitPullRef.current = 0;
       pinchStartRef.current = null;
       onExitRef.current();
@@ -129,7 +137,7 @@ export function useSinglePageZoom({
       surface.removeEventListener('touchcancel', handleTouchEnd);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [active, surfaceRef]);
+  }, [active, memoryKey, setZoom, surfaceRef]);
 
   return zoom;
 }

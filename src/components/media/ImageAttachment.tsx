@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { ErrorState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { useSinglePageZoom } from './useSinglePageZoom';
+import { readViewerMemory, updateViewerMemory } from './viewerMemory';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
@@ -109,9 +112,11 @@ function ImagePage({
  * with the freed space showing as empty canvas.
  */
 export function ImageAttachment({
+  projectId,
   pages,
   columns = 1,
-  onFocusModeChange
+  onFocusModeChange,
+  controlsVisible = true
 
 
 
@@ -120,32 +125,94 @@ export function ImageAttachment({
 
 
 
-}: { /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
+}: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
-   */columns?: number;onFocusModeChange?: (focused: boolean) => void;}) {
-  const [focusedPageId, setFocusedPageId] = useState<string | null>(null);
+   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;}) {
+  const memoryKey = `images:${projectId}`;
+  const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
+    const remembered = readViewerMemory(memoryKey).focusedPageId;
+    return remembered && pages.some((page) => page.id === remembered) ? remembered : null;
+  });
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
+  const gridScrollRef = useRef<HTMLOListElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const columnCount = Math.max(1, Math.min(columns, pages.length));
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
+  const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
+  useEffect(() => {
+    const remembered = readViewerMemory(memoryKey).focusedPageId;
+    setFocusedPageId(remembered && pages.some((page) => page.id === remembered) ? remembered : null);
+  }, [memoryKey, pages]);
   useEffect(() => {
     if (focusedPageId && !pages.some((page) => page.id === focusedPageId)) {
       setFocusedPageId(null);
+      updateViewerMemory(memoryKey, { focusedPageId: null });
     }
-  }, [focusedPageId, pages]);
+  }, [focusedPageId, memoryKey, pages]);
   useEffect(() => {
     onFocusModeChange?.(focusedPage !== null);
     return () => onFocusModeChange?.(false);
   }, [focusedPage, onFocusModeChange]);
-  const focusPage = (attachmentId: string) => setFocusedPageId(attachmentId);
+  const focusPage = useCallback((attachmentId: string) => {
+    setFocusedPageId(attachmentId);
+    updateViewerMemory(memoryKey, { focusedPageId: attachmentId });
+  }, [memoryKey]);
+  const exitFocus = useCallback(() => {
+    setFocusedPageId(null);
+    updateViewerMemory(memoryKey, { focusedPageId: null, zoom: 1 });
+  }, [memoryKey]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
-    onExit: () => setFocusedPageId(null)
+    onExit: exitFocus,
+    memoryKey: focusedPage ? `${memoryKey}:${focusedPage.id}` : memoryKey
   });
 
+  const moveFocusedPage = useCallback((direction: -1 | 1) => {
+    if (focusedPageIndex < 0) return;
+    const nextIndex = Math.min(pages.length - 1, Math.max(0, focusedPageIndex + direction));
+    if (nextIndex !== focusedPageIndex) focusPage(pages[nextIndex].id);
+  }, [focusPage, focusedPageIndex, pages]);
+
+  useEffect(() => {
+    if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
+  }, [focusedPage]);
+
+  useLayoutEffect(() => {
+    if (focusedPage) return;
+    const element = gridScrollRef.current;
+    if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
+  }, [focusedPage, memoryKey]);
+
   if (focusedPage) {
-    return <div ref={zoomSurfaceRef} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden" style={{ touchAction: 'pan-x pan-y' }}>
+    return <div ref={zoomSurfaceRef} tabIndex={0} aria-label={`Image ${focusedPageIndex + 1} of ${pages.length}. Use arrow keys or swipe to move between images`} onKeyDown={(event) => {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        moveFocusedPage(-1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        moveFocusedPage(1);
+      }
+    }} onPointerDown={(event) => {
+      if (event.pointerType === 'touch' && zoom <= 1.01) swipeStartRef.current = { x: event.clientX, y: event.clientY };
+    }} onPointerUp={(event) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      if (!start || event.pointerType !== 'touch' || zoom > 1.01) return;
+      const deltaX = event.clientX - start.x;
+      const deltaY = event.clientY - start.y;
+      if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
+    }} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={{ touchAction: 'pan-x pan-y' }}>
+        {pages.length > 1 ? <>
+            <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible && focusedPageIndex > 0 ? 0 : -1} disabled={focusedPageIndex <= 0} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+              <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
+            </button>
+            <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible && focusedPageIndex < pages.length - 1 ? 0 : -1} disabled={focusedPageIndex >= pages.length - 1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+              <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
+            </button>
+            <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>
+          </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
           <ImagePage attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} onToggleFocus={focusPage} />
         </ol>
@@ -168,7 +235,7 @@ export function ImageAttachment({
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
   return <div className="premium-media-mode-enter relative h-full w-full">
-      <ol className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-1 overflow-x-hidden overflow-y-auto p-0">
+      <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-1 overflow-x-hidden overflow-y-auto p-0">
       {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-1">
           {/* The pages themselves stay list items, so a screen reader still hears
              "Page 2 of 5" in the work's own order regardless of which column it

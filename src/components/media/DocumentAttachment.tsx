@@ -1,10 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { readViewerMemory, updateViewerMemory } from './viewerMemory';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 /**
  * Every real PDF page is presented as page artwork inside the platform. The
@@ -13,17 +16,21 @@ import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects
  */
 export function DocumentAttachment({
   attachment,
+  projectId,
   columns = 1,
   processing,
   onPageCountResolved,
   onFocusModeChange,
+  controlsVisible = true,
 
 
 }: {
   attachment: ProjectAttachment;
+  projectId: string;
   columns?: number;
   onPageCountResolved?: (pageCount: number) => void;
   onFocusModeChange?: (focused: boolean) => void;
+  controlsVisible?: boolean;
   processing?: {
     state: 'processing' | 'processing-failed';
     message: string | null;
@@ -32,9 +39,12 @@ export function DocumentAttachment({
     onRetry: () => void;
   };
 }) {
+  const memoryKey = `document:${projectId}:${attachment.id}:rendered`;
+  const liveDocumentMemoryKey = `document:${projectId}:${attachment.id}:live`;
   const [hasFailed, setHasFailed] = useState(false);
-  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(null);
+  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => readViewerMemory(memoryKey).focusedPageNumber ?? null);
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const handlePdfFailure = useCallback(() => setHasFailed(true), []);
@@ -50,15 +60,37 @@ export function DocumentAttachment({
     }
   }, [knownPageCount, onPageCountResolved]);
   useEffect(() => {
-    setFocusedPageIndex(null);
+    const rememberedPage = readViewerMemory(memoryKey).focusedPageNumber;
+    setFocusedPageIndex(typeof rememberedPage === 'number' && rememberedPage >= 0 && rememberedPage < renderedPages.length ? rememberedPage : null);
     lastTouchRef.current = null;
-  }, [attachment.id]);
-  const focusPage = (index: number) => setFocusedPageIndex(index);
+  }, [memoryKey, renderedPages.length]);
+  const focusPage = useCallback((index: number) => {
+    setFocusedPageIndex(index);
+    updateViewerMemory(memoryKey, { focusedPageNumber: index });
+  }, [memoryKey]);
+  const exitFocus = useCallback(() => {
+    setFocusedPageIndex(null);
+    updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
+  }, [memoryKey]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPageIndex !== null,
-    onExit: () => setFocusedPageIndex(null)
+    onExit: exitFocus,
+    memoryKey
   });
+  const moveFocusedPage = useCallback((direction: -1 | 1) => {
+    if (focusedPageIndex === null) return;
+    const next = Math.min(renderedPages.length - 1, Math.max(0, focusedPageIndex + direction));
+    if (next !== focusedPageIndex) focusPage(next);
+  }, [focusPage, focusedPageIndex, renderedPages.length]);
+  useEffect(() => {
+    if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
+  }, [focusedPageIndex]);
+  useLayoutEffect(() => {
+    if (focusedPageIndex !== null) return;
+    const element = zoomSurfaceRef.current;
+    if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
+  }, [focusedPageIndex, memoryKey]);
   useEffect(() => {
     if (renderedPages.length === 0) {
       return undefined;
@@ -76,7 +108,33 @@ export function DocumentAttachment({
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={focusedPageIndex === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageIndex === null ? undefined : (event) => {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          moveFocusedPage(-1);
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          moveFocusedPage(1);
+        }
+      }} onPointerDown={focusedPageIndex === null ? undefined : (event) => {
+        if (event.pointerType === 'touch' && zoom <= 1.01) swipeStartRef.current = { x: event.clientX, y: event.clientY };
+      }} onPointerUp={focusedPageIndex === null ? undefined : (event) => {
+        const start = swipeStartRef.current;
+        swipeStartRef.current = null;
+        if (!start || event.pointerType !== 'touch' || zoom > 1.01) return;
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
+        if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
+      }} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+        {focusedPageIndex !== null && renderedPages.length > 1 ? <>
+            <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageIndex > 0 ? 0 : -1} disabled={focusedPageIndex <= 0} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+              <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
+            </button>
+            <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageIndex < renderedPages.length - 1 ? 0 : -1} disabled={focusedPageIndex >= renderedPages.length - 1} onClick={() => moveFocusedPage(1)} aria-label="Next page" className="premium-viewer-page-control absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+              <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
+            </button>
+            <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {renderedPages.length}</span>
+          </> : null}
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
           {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Use the wheel or a two-finger gesture to zoom' : 'Double-click or double-tap to fill the viewer'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
@@ -113,7 +171,7 @@ export function DocumentAttachment({
             />
           </li>)}
         </ol>
-      </div> : <PdfImageDocument source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} />}
+      </div> : <PdfImageDocument source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

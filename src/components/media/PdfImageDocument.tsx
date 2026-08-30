@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { RotateCcwIcon } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useSinglePageZoom } from './useSinglePageZoom';
+import { readViewerMemory, updateViewerMemory } from './viewerMemory';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -17,6 +19,8 @@ type PdfImageDocumentProps = {
   /** The PDF's immutable total, resolved from its own document catalog. */
   onPageCount?: (pageCount: number) => void;
   onFocusModeChange?: (focused: boolean) => void;
+  memoryKey: string;
+  controlsVisible?: boolean;
 };
 
 type PdfImagePageProps = {
@@ -256,7 +260,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ source, label, columns = 1, onError, onPageCount, onFocusModeChange }: PdfImageDocumentProps) {
+export function PdfImageDocument({ source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -264,11 +268,17 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
-  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(null);
+  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => readViewerMemory(memoryKey).focusedPageNumber ?? null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const exitFocus = useCallback(() => {
+    setFocusedPageNumber(null);
+    updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
+  }, [memoryKey]);
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
     active: focusedPageNumber !== null,
-    onExit: () => setFocusedPageNumber(null)
+    onExit: exitFocus,
+    memoryKey: focusedPageNumber ? `${memoryKey}:page:${focusedPageNumber}` : memoryKey
   });
   useEffect(() => {
     onFocusModeChange?.(focusedPageNumber !== null);
@@ -302,7 +312,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     setDocument(null);
     setPageCount(0);
     setRenderThrough(0);
-    setFocusedPageNumber(null);
+    setFocusedPageNumber(readViewerMemory(memoryKey).focusedPageNumber ?? null);
     void (async () => {
       const pdfjs = await loadPdfJs();
       if (cancelled) {
@@ -338,16 +348,59 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
       window.clearTimeout(loadTimeout);
       void loadingTask?.destroy();
     };
-  }, [source]);
+  }, [memoryKey, source]);
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);
-  }, []);
+    updateViewerMemory(memoryKey, { focusedPageNumber: pageNumber });
+  }, [memoryKey]);
+  const moveFocusedPage = useCallback((direction: -1 | 1) => {
+    if (focusedPageNumber === null) return;
+    const next = Math.min(pageCount, Math.max(1, focusedPageNumber + direction));
+    if (next !== focusedPageNumber) focusPage(next);
+  }, [focusPage, focusedPageNumber, pageCount]);
+  useEffect(() => {
+    if (focusedPageNumber !== null && pageCount > 0 && focusedPageNumber > pageCount) exitFocus();
+  }, [exitFocus, focusedPageNumber, pageCount]);
+  useEffect(() => {
+    if (focusedPageNumber !== null) scrollRootRef.current?.focus({ preventScroll: true });
+  }, [focusedPageNumber]);
+  useLayoutEffect(() => {
+    if (focusedPageNumber !== null) return;
+    const element = scrollRootRef.current;
+    if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
+  }, [document, focusedPageNumber, memoryKey]);
   const pageNumbers = focusedPageNumber === null
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
 
-  return <div key={focusedPageNumber === null ? 'pdf-grid' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+  return <div key={focusedPageNumber === null ? 'pdf-grid' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      moveFocusedPage(-1);
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      moveFocusedPage(1);
+    }
+  }} onPointerDown={focusedPageNumber === null ? undefined : (event) => {
+    if (event.pointerType === 'touch' && zoom <= 1.01) swipeStartRef.current = { x: event.clientX, y: event.clientY };
+  }} onPointerUp={focusedPageNumber === null ? undefined : (event) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start || event.pointerType !== 'touch' || zoom > 1.01) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
+  }} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+    {focusedPageNumber !== null && pageCount > 1 ? <>
+        <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageNumber > 1 ? 0 : -1} disabled={focusedPageNumber <= 1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+          <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
+        </button>
+        <button type="button" data-viewer-page-control="" tabIndex={controlsVisible && focusedPageNumber < pageCount ? 0 : -1} disabled={focusedPageNumber >= pageCount} onClick={() => moveFocusedPage(1)} aria-label="Next page" className="premium-viewer-page-control absolute right-3 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white disabled:opacity-0">
+          <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
+        </button>
+        <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageNumber} / {pageCount}</span>
+      </> : null}
     {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
