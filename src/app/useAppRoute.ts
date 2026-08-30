@@ -5,6 +5,7 @@ import { activityKindFromSlug, activitySlugForKind } from '../types/engagement';
 import type { EngagementKind } from '../types/engagement';
 import type { NavigationDestination } from '../components/navigation';
 import type { Id } from '../types/domain';
+import { beginProjectContinuity } from '../utils/projectContinuity';
 
 /**
  * The URL, read as a destination.
@@ -274,13 +275,17 @@ export function useRouteNavigator() {
       profileId,
       categoryId
     })),
-    sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => navigate(buildPath('sharedProject', {
-      profileId,
-      categoryId,
-      projectId
-    }), {
-      replace
-    }),
+    sharedProject: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
+      const viewTransition = !replace && beginProjectContinuity(projectId);
+      navigate(buildPath('sharedProject', {
+        profileId,
+        categoryId,
+        projectId
+      }), {
+        replace,
+        viewTransition
+      });
+    },
     category: (profileId: Id, categoryId: Id) => navigate(buildPath('profileCategory', {
       profileId,
       categoryId
@@ -290,13 +295,17 @@ export function useRouteNavigator() {
      * on its first project, and that must not become a history entry, or Back
      * would return to a bare category that immediately re-selects it.
      */
-    project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => navigate(buildPath('project', {
-      profileId,
-      categoryId,
-      projectId
-    }), {
-      replace
-    }),
+    project: (profileId: Id, categoryId: Id, projectId: Id, replace = false) => {
+      const viewTransition = !replace && beginProjectContinuity(projectId);
+      navigate(buildPath('project', {
+        profileId,
+        categoryId,
+        projectId
+      }), {
+        replace,
+        viewTransition
+      });
+    },
     /** The URL says `likes`/`saved`/`reposts`; the domain says like/save/repost. */
     activity: (profileId: Id, activityKind: EngagementKind) => navigate(buildPath('activity', {
       profileId,
@@ -312,8 +321,9 @@ export function useRouteNavigator() {
     controlCenter: () => navigate(routes.controlCenter.path),
     /** Browser history owns Back. Nothing reconstructs the trail by hand. */
     back: () => navigate(-1),
-    to: (path: string, replace = false) => navigate(path, {
-      replace
+    to: (path: string, replace = false, viewTransition = false) => navigate(path, {
+      replace,
+      viewTransition
     })
   }), [navigate]);
 }

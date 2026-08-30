@@ -15,6 +15,7 @@ import { useProjectManagement } from '../../features/projects/useProjectManageme
 import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAssetProcessing } from '../../features/media/useAssetProcessing';
+import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -121,6 +122,18 @@ export function ProfileCategoryPage({
     activeProject?.design?.pagesPerRow ?? 3
   );
   const activeAttachments = useMemo(() => activeProject ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category]);
+  useEffect(() => {
+    if (!activeProject) return undefined;
+    const activeIndex = projects.findIndex((project) => project.id === activeProject.id);
+    const adjacentProjects = [projects[activeIndex - 1], projects[activeIndex + 1]]
+      .filter((project): project is typeof activeProject => Boolean(project));
+    const timer = window.setTimeout(() => {
+      for (const project of adjacentProjects) {
+        preloadProjectMedia(resolveProjectAttachments(project, category), 3);
+      }
+    }, 160);
+    return () => window.clearTimeout(timer);
+  }, [activeProject, category, projects]);
   const processing = useAssetProcessing(activeAttachments);
   const [resolvedDocumentPageCounts, setResolvedDocumentPageCounts] = useState<Record<string, number>>({});
   useEffect(() => {

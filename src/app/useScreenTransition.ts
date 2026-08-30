@@ -22,7 +22,8 @@ const TRANSITION_DURATION_MS = 240;
 export function useScreenTransition<T>(
   screenKey: string,
   snapshot: T,
-  reduceMotion: boolean
+  reduceMotion: boolean,
+  skipLayerTransition = false
 ): ScreenTransitionLayer<T>[] {
   const nextIdRef = useRef(1);
   const committedKeyRef = useRef(screenKey);
@@ -54,7 +55,7 @@ export function useScreenTransition<T>(
     committedKeyRef.current = screenKey;
     committedSnapshotRef.current = incomingSnapshot;
 
-    if (reduceMotion) {
+    if (reduceMotion || skipLayerTransition) {
       setLayers([{
         id: incomingId,
         screenKey,
@@ -100,10 +101,19 @@ export function useScreenTransition<T>(
       cancelAnimationFrame(secondFrame);
       window.clearTimeout(cleanupTimer);
     };
-  }, [reduceMotion, screenKey]);
+  }, [reduceMotion, screenKey, skipLayerTransition]);
 
   // Same-route data updates replace only the active snapshot. They do not start
   // a navigation transition or remount the layer that owns the current screen.
+  if (skipLayerTransition && screenKey !== committedKeyRef.current) {
+    return [{
+      id: nextIdRef.current,
+      screenKey,
+      phase: 'screen-active',
+      snapshot
+    }];
+  }
+
   return layers.map((layer) => layer.screenKey === screenKey ? {
     ...layer,
     snapshot

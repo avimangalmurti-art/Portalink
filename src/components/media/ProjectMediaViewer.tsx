@@ -11,6 +11,8 @@ import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
+import { projectContinuityStyle } from '../../utils/projectContinuity';
+import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
 const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   image: ImageIcon,
   video: PlayIcon,
@@ -165,6 +167,13 @@ export function ProjectMediaViewer({
    */
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const switchable = attachments.filter((item) => item.kind !== 'image' || item.id === imagePages[0]?.id);
+  useEffect(() => {
+    const activeSwitchableIndex = switchable.findIndex((item) => item.id === active?.id || (active?.kind === 'image' && item.kind === 'image'));
+    const nearby = active?.kind === 'image'
+      ? imagePages.slice(0, 4)
+      : [switchable[activeSwitchableIndex - 1], switchable[activeSwitchableIndex + 1]].filter((item): item is ProjectAttachment => Boolean(item));
+    preloadProjectMedia(nearby, 4);
+  }, [active?.id, active?.kind, imagePages, switchable]);
   const artworkAttachment = attachments.find((item) => item.kind === 'image' && item.sourceUrl);
   const artwork = artworkAttachment?.sourceUrl ? {
     url: artworkAttachment.sourceUrl,
@@ -240,7 +249,7 @@ export function ProjectMediaViewer({
     return () => surface.removeEventListener('wheel', handleDensityWheel);
   }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
   if (!active) {
-    return <div data-premium-project-viewer="" className="flex h-full min-h-0 w-full items-center justify-center p-6">
+    return <div data-premium-project-viewer="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
             <InterfaceIcon icon={FileIcon} size="lg" weight="medium" />
@@ -273,7 +282,7 @@ export function ProjectMediaViewer({
         {isImmersive && <div role="status" aria-live="polite" className="premium-viewer-hud pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium text-white">
             Scroll or pinch to zoom · Zoom out to return
           </div>}
-        <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" className="min-h-0 flex-1">
+        <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),

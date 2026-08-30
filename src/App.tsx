@@ -43,6 +43,7 @@ import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
 import { useScreenTransition } from './app/useScreenTransition';
 import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
+import { beginProjectContinuity, isProjectContinuityActive } from './utils/projectContinuity';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
@@ -1055,8 +1056,9 @@ export function App() {
           <ActivityCollectionPage kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
+        const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
-        nav.to(target);
+        nav.to(target, false, viewTransition);
       } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute ? undefined : {
@@ -1090,7 +1092,7 @@ export function App() {
     mainClassName: screenMainClassName,
     ariaLabel: screenAriaLabel,
     content: screenContent
-  }, Boolean(shouldReduceMotion));
+  }, Boolean(shouldReduceMotion), isProjectContinuityActive());
   const rootTokenStyle = useMemo(() => ({
     '--accent-color': interfaceAccentColor,
     // The chosen accent resolves into its whole interaction family here, once,

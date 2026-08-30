@@ -11,6 +11,7 @@ import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import type { Profile, ProfileLink, Project } from '../types/domain';
 import { canAuthor, needsAccount, type ViewerRole } from '../types/viewer';
 import { getProjectAspectRatio } from '../utils/projectPresentation';
+import { projectContinuityStyle } from '../utils/projectContinuity';
 import { ProjectCover } from './media/ProjectCover';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { ResponsiveImage } from './ui/ResponsiveImage';
@@ -260,6 +261,9 @@ function ProfileProjectTile({
     <div className="group relative h-full w-full">
       <button
         type="button"
+        data-project-continuity-surface=""
+        data-project-continuity-id={project.id}
+        style={projectContinuityStyle(project.id)}
         onClick={onOpen}
         aria-label={`Open ${project.title}`}
         title={project.title}

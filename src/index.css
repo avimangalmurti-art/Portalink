@@ -4617,6 +4617,73 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    The work remains visually dominant. Focused pages temporarily consume the
    response rail and file strip, while interaction guidance appears only during
    active pointer, touch, or keyboard use. */
+
+/* Project continuity: the selected artwork travels from its exact card frame
+   into the viewer. The surrounding workspace crossfades more quickly, so the
+   work—not the interface—carries the viewer's sense of place. */
+html[data-project-continuity]::view-transition-group(portalink-project) {
+  z-index: 120;
+  overflow: clip;
+  border-radius: 10px;
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-project-continuity]::view-transition-image-pair(portalink-project) {
+  isolation: auto;
+  overflow: clip;
+  border-radius: 10px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+}
+
+html[data-project-continuity]::view-transition-old(portalink-project),
+html[data-project-continuity]::view-transition-new(portalink-project) {
+  height: 100%;
+  width: 100%;
+  mix-blend-mode: normal;
+  object-fit: cover;
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html[data-project-continuity='open']::view-transition-old(portalink-project),
+html[data-project-continuity='return']::view-transition-new(portalink-project) {
+  animation-name: project-continuity-soften-out;
+}
+
+html[data-project-continuity='open']::view-transition-new(portalink-project),
+html[data-project-continuity='return']::view-transition-old(portalink-project) {
+  animation-name: project-continuity-resolve-in;
+}
+
+html[data-project-continuity]::view-transition-old(root) {
+  animation: project-continuity-workspace-out 180ms ease-out both;
+}
+
+html[data-project-continuity]::view-transition-new(root) {
+  animation: project-continuity-workspace-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes project-continuity-soften-out {
+  from { opacity: 1; filter: saturate(1); }
+  to { opacity: 0.12; filter: saturate(0.92); }
+}
+
+@keyframes project-continuity-resolve-in {
+  from { opacity: 0.18; filter: saturate(0.94); }
+  to { opacity: 1; filter: saturate(1); }
+}
+
+@keyframes project-continuity-workspace-out {
+  from { opacity: 1; }
+  to { opacity: 0.42; }
+}
+
+@keyframes project-continuity-workspace-in {
+  from { opacity: 0.36; }
+  to { opacity: 1; }
+}
+
 [data-premium-project-viewer] {
   isolation: isolate;
   background: var(--surface-canvas);
@@ -4816,6 +4883,14 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html[data-project-continuity]::view-transition-group(portalink-project),
+  html[data-project-continuity]::view-transition-old(portalink-project),
+  html[data-project-continuity]::view-transition-new(portalink-project),
+  html[data-project-continuity]::view-transition-old(root),
+  html[data-project-continuity]::view-transition-new(root) {
+    animation: none;
+  }
+
   .premium-media-mode-enter,
   .premium-media-ready,
   .premium-media-placeholder::after,

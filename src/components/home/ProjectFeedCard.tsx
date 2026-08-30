@@ -4,6 +4,7 @@ import type { Id, ProjectLocation, ProjectView } from '../../types/domain';
 import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from '../profile/ProjectHoverDetails';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
+import { projectContinuityStyle } from '../../utils/projectContinuity';
 type ProjectFeedCardProps = {
   /** The canonical project and its resolved attribution. */
   view: ProjectView;
@@ -37,8 +38,9 @@ export function ProjectFeedCard({
         categoryId: project.categoryId
       })} aria-label={`Open ${project.title} by ${creator.name}`} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
         {/* Real source imagery, shown at the ratio the file itself implies. */}
-        <span className="feed-card__preview relative block w-full overflow-hidden" style={{
-          aspectRatio: getProjectAspectRatio(project)
+        <span data-project-continuity-surface="" data-project-continuity-id={project.id} className="feed-card__preview relative block w-full overflow-hidden" style={{
+          aspectRatio: getProjectAspectRatio(project),
+          ...projectContinuityStyle(project.id)
         }}>
           <span className="feed-card__cover-transition absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
             <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1420px) 25vw, (min-width: 940px) 33vw, (min-width: 620px) 40vw, 92vw" priority={priority} />
