@@ -4612,3 +4612,169 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
     animation: none;
   }
 }
+
+/* ── Premium project viewing ───────────────────────────────────────────────
+   The work remains visually dominant. Focused pages temporarily consume the
+   response rail and file strip, while interaction guidance appears only during
+   active pointer, touch, or keyboard use. */
+[data-premium-project-viewer] {
+  isolation: isolate;
+  background: var(--surface-canvas);
+}
+
+[data-premium-project-viewer] [data-project-response-rail] {
+  background: color-mix(in srgb, var(--surface-raised) 76%, transparent) !important;
+  border-color: transparent !important;
+  box-shadow: -16px 0 34px -30px rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+}
+
+[data-premium-project-viewer] [data-project-file-strip] {
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  border-color: transparent !important;
+  box-shadow: 0 -14px 30px -30px rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  backdrop-filter: blur(18px) saturate(120%);
+  transition: max-height 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 140ms ease,
+    padding 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-premium-project-viewer] button {
+  transition-property: color, background-color, opacity, transform;
+  transition-duration: 150ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-premium-project-viewer] button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+[data-premium-project-viewer] [data-page-density-surface] :is(li, div)[role='button'] {
+  cursor: zoom-in;
+}
+
+[data-premium-project-viewer][data-immersive='true'] [data-project-response-rail] {
+  width: 0 !important;
+  min-width: 0 !important;
+  height: 0;
+  min-height: 0;
+  opacity: 0;
+  border: 0 !important;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+[data-premium-project-viewer][data-immersive='true'] [data-project-file-strip] {
+  max-height: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.premium-viewer-hud {
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  background: rgba(18, 18, 20, 0.72);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+[data-premium-project-viewer][data-controls-visible='true'] .premium-viewer-hud {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.premium-media-mode-enter {
+  animation: premium-media-mode-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.premium-focused-media {
+  transition: width 90ms ease-out, height 90ms ease-out, opacity 180ms ease;
+  will-change: width, height;
+}
+
+.premium-media-ready {
+  animation: premium-media-ready 240ms ease-out both;
+}
+
+.premium-media-placeholder {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
+}
+
+.premium-media-placeholder::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    color-mix(in srgb, var(--text-primary) 8%, transparent) 47%,
+    transparent 64%
+  );
+  transform: translateX(-100%);
+  animation: premium-media-shimmer 1.5s ease-in-out infinite;
+}
+
+.premium-media-loading-mark {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
+  border-top-color: var(--text-secondary);
+  animation: premium-media-spin 800ms linear infinite;
+}
+
+@keyframes premium-media-mode-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes premium-media-ready {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes premium-media-shimmer {
+  to { transform: translateX(100%); }
+}
+
+@keyframes premium-media-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (min-width: 1024px) {
+  [data-premium-project-viewer][data-immersive='true'] [data-project-response-rail] {
+    height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-media-mode-enter,
+  .premium-media-ready,
+  .premium-media-placeholder::after,
+  .premium-media-loading-mark {
+    animation: none;
+  }
+
+  .premium-focused-media,
+  .premium-viewer-hud,
+  [data-premium-project-viewer] [data-project-file-strip] {
+    transition: none;
+  }
+}

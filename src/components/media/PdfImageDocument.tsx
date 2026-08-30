@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FileTextIcon, RotateCcwIcon } from 'lucide-react';
+import { RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -16,6 +16,7 @@ type PdfImageDocumentProps = {
   onError: () => void;
   /** The PDF's immutable total, resolved from its own document catalog. */
   onPageCount?: (pageCount: number) => void;
+  onFocusModeChange?: (focused: boolean) => void;
 };
 
 type PdfImagePageProps = {
@@ -49,6 +50,7 @@ function PdfImagePage({
   const [layoutRevision, setLayoutRevision] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'waiting' | 'loading' | 'ready' | 'failed'>('waiting');
+  const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
 
   onSettledRef.current = onSettled;
 
@@ -126,7 +128,11 @@ function PdfImagePage({
     const nativeViewport = page.getViewport({ scale: 1 });
     const widthScale = availableWidth / nativeViewport.width;
     const heightScale = availableHeight > 0 ? availableHeight / nativeViewport.height : widthScale;
-    const cssScale = isFocused ? Math.min(widthScale, heightScale) * zoom : widthScale;
+    // Focused zoom is applied with CSS below rather than repainting the PDF on
+    // every wheel or pinch frame. The canvas is rendered once at the fitted
+    // device resolution, which keeps the gesture responsive and removes the
+    // render queue that previously made zoom feel delayed.
+    const cssScale = isFocused ? Math.min(widthScale, heightScale) : widthScale;
     const cssViewport = page.getViewport({ scale: cssScale });
     const deviceScale = Math.max(1, window.devicePixelRatio || 1);
     const dimensionScale = MAX_RENDER_DIMENSION / Math.max(cssViewport.width, cssViewport.height);
@@ -135,8 +141,10 @@ function PdfImagePage({
 
     canvas.width = Math.max(1, Math.ceil(renderViewport.width));
     canvas.height = Math.max(1, Math.ceil(renderViewport.height));
-    canvas.style.width = `${Math.floor(cssViewport.width)}px`;
-    canvas.style.height = `${Math.floor(cssViewport.height)}px`;
+    setBaseCanvasSize({
+      width: Math.max(1, Math.floor(cssViewport.width)),
+      height: Math.max(1, Math.floor(cssViewport.height))
+    });
     setStatus('loading');
 
     let cancelled = false;
@@ -177,7 +185,7 @@ function PdfImagePage({
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
     };
-  }, [isFocused, layoutRevision, page, pageNumber, zoom]);
+  }, [isFocused, layoutRevision, page, pageNumber]);
 
   return <div
     ref={hostRef}
@@ -186,7 +194,6 @@ function PdfImagePage({
     aria-pressed={isFocused ? undefined : false}
     aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`}
     aria-busy={status === 'waiting' || status === 'loading'}
-    title={isFocused ? undefined : 'Double-click or double-tap to fill the viewer'}
     onDoubleClick={isFocused ? undefined : (event) => {
       event.preventDefault();
       if (performance.now() - lastTouchToggleAtRef.current < 500) return;
@@ -211,11 +218,11 @@ function PdfImagePage({
         onToggleFocus(pageNumber);
       }
     }}
-    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'relative w-full touch-manipulation overflow-hidden'} bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'w-full touch-manipulation overflow-hidden'} relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
-    {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
-      <FileTextIcon className="h-6 w-6" />
+    {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
+      <span className="premium-media-loading-mark" />
     </span> : null}
     {status === 'failed' ? <span className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)]">
       <button
@@ -226,7 +233,6 @@ function PdfImagePage({
           setAttempt((current) => current + 1);
         }}
         aria-label={`Retry ${label}, page ${pageNumber}`}
-        title="Retry page"
         className="inline-flex items-center justify-center rounded-[var(--control-radius)] p-2 text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         <RotateCcwIcon aria-hidden="true" className="h-4 w-4" />
@@ -235,7 +241,11 @@ function PdfImagePage({
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className={`block ${isFocused ? 'max-w-none' : 'max-w-full'} bg-white transition-opacity duration-150 ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'premium-focused-media max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
+      style={baseCanvasSize ? {
+        width: `${baseCanvasSize.width * (isFocused ? zoom : 1)}px`,
+        height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
+      } : undefined}
     />
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
@@ -246,7 +256,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ source, label, columns = 1, onError, onPageCount }: PdfImageDocumentProps) {
+export function PdfImageDocument({ source, label, columns = 1, onError, onPageCount, onFocusModeChange }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -260,6 +270,10 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     active: focusedPageNumber !== null,
     onExit: () => setFocusedPageNumber(null)
   });
+  useEffect(() => {
+    onFocusModeChange?.(focusedPageNumber !== null);
+    return () => onFocusModeChange?.(false);
+  }, [focusedPageNumber, onFocusModeChange]);
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), pageCount || MAX_PAGES_PER_ROW);
 
   onErrorRef.current = onError;
@@ -333,9 +347,9 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
 
-  return <div ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
-    {!document && <div role="status" aria-live="polite" className="flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
-      <FileTextIcon className="h-6 w-6" />
+  return <div key={focusedPageNumber === null ? 'pdf-grid' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+    {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
+      <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}
     {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>

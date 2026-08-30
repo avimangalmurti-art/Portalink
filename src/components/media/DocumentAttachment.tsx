@@ -16,12 +16,14 @@ export function DocumentAttachment({
   columns = 1,
   processing,
   onPageCountResolved,
+  onFocusModeChange,
 
 
 }: {
   attachment: ProjectAttachment;
   columns?: number;
   onPageCountResolved?: (pageCount: number) => void;
+  onFocusModeChange?: (focused: boolean) => void;
   processing?: {
     state: 'processing' | 'processing-failed';
     message: string | null;
@@ -57,6 +59,13 @@ export function DocumentAttachment({
     active: focusedPageIndex !== null,
     onExit: () => setFocusedPageIndex(null)
   });
+  useEffect(() => {
+    if (renderedPages.length === 0) {
+      return undefined;
+    }
+    onFocusModeChange?.(focusedPageIndex !== null);
+    return () => onFocusModeChange?.(false);
+  }, [focusedPageIndex, onFocusModeChange, renderedPages.length]);
   if (!attachment.sourceUrl || hasFailed) {
     return <GenericFileCard attachment={attachment} />;
   }
@@ -67,9 +76,9 @@ export function DocumentAttachment({
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div ref={zoomSurfaceRef} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Use the wheel or a two-finger gesture to zoom' : 'Double-click or double-tap to fill the viewer'}`} title={focusedPageIndex === index ? 'Wheel or pinch to zoom; zoom fully out to see all pages' : 'Double-click or double-tap to fill the viewer'} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Use the wheel or a two-finger gesture to zoom' : 'Double-click or double-tap to fill the viewer'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);
@@ -99,12 +108,12 @@ export function DocumentAttachment({
               loading={page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               fetchPriority={page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
-              className={`${focusedPageIndex === index ? 'max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
+              className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
           </li>)}
         </ol>
-      </div> : <PdfImageDocument source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} />}
+      </div> : <PdfImageDocument source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

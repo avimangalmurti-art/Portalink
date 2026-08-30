@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioLinesIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
@@ -71,10 +71,35 @@ export function ProjectMediaViewer({
    */
   const [railPanel, setRailPanel] = useState<'comments' | 'description'>('comments');
   const [isProjectShared, setIsProjectShared] = useState(false);
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [areControlsVisible, setAreControlsVisible] = useState(true);
+  const controlsTimerRef = useRef<number | null>(null);
   useEffect(() => {
     setActiveId(null);
     setIsProjectShared(false);
+    setIsImmersive(false);
   }, [projectId]);
+  const revealControls = useCallback(() => {
+    setAreControlsVisible(true);
+    if (controlsTimerRef.current !== null) {
+      window.clearTimeout(controlsTimerRef.current);
+    }
+    if (isImmersive) {
+      controlsTimerRef.current = window.setTimeout(() => {
+        controlsTimerRef.current = null;
+        setAreControlsVisible(false);
+      }, 1800);
+    }
+  }, [isImmersive]);
+  useEffect(() => {
+    revealControls();
+    return () => {
+      if (controlsTimerRef.current !== null) {
+        window.clearTimeout(controlsTimerRef.current);
+        controlsTimerRef.current = null;
+      }
+    };
+  }, [isImmersive, revealControls]);
   /**
    * A project can exist while one of its files is still being prepared, so the
    * viewer asks the service what state each stored asset is actually in rather
@@ -115,6 +140,9 @@ export function ProjectMediaViewer({
     }
   };
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
+  useEffect(() => {
+    setIsImmersive(false);
+  }, [active?.id]);
   /**
    * When audio and an image are uploaded as separate files, the image is the
    * track's cover rather than a second thing to click through to. Resolved from the
@@ -203,7 +231,15 @@ export function ProjectMediaViewer({
     return () => surface.removeEventListener('wheel', handleDensityWheel);
   }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
   if (!active) {
-    return null;
+    return <div data-premium-project-viewer="" className="flex h-full min-h-0 w-full items-center justify-center p-6">
+        <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
+          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
+            <InterfaceIcon icon={FileIcon} size="lg" weight="medium" />
+          </span>
+          <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">No media yet</h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">This project is ready for its first image, document, video, audio file, or model.</p>
+        </div>
+      </div>;
   }
   /**
    * The work and the response to it, side by side.
@@ -221,8 +257,13 @@ export function ProjectMediaViewer({
    * rather than leaving its freed space as empty canvas, and opening it contracts
    * the work back. The rail owns the only fixed dimension in the row.
    */
-  return <div className="flex h-full min-h-0 w-full flex-col lg:flex-row">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+  return <div data-premium-project-viewer="" data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={revealControls} onPointerLeave={() => {
+    if (isImmersive) setAreControlsVisible(false);
+  }} className="flex h-full min-h-0 w-full flex-col lg:flex-row">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {isImmersive && <div role="status" aria-live="polite" className="premium-viewer-hud pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium text-white">
+            Scroll or pinch to zoom · Zoom out to return
+          </div>}
         <div ref={densitySurfaceRef} data-page-density-surface="" className="min-h-0 flex-1">
           <AttachmentRenderer attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
@@ -230,7 +271,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -245,13 +286,13 @@ export function ProjectMediaViewer({
         {/* Images collapse to a single entry, because they are now read as pages
            of one piece — listing each of them here would offer a way to step
            through something that is already continuous. */}
-        {switchable.length > 1 && <nav data-material="toolbar" aria-label={`${projectTitle} files`} className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-t border-[var(--hairline)] px-4 py-2">
+        {switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-t border-[var(--hairline)] px-4 py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
           // Any image being shown means the whole image sequence is being shown,
           // so its single entry is the current one.
           const isActive = attachment.id === active.id || attachment.kind === 'image' && active.kind === 'image';
-          return <button key={attachment.id} type="button" onClick={() => setActiveId(attachment.id)} aria-current={isActive ? 'true' : undefined} title={`${attachment.displayName} · ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          return <button key={attachment.id} type="button" onClick={() => setActiveId(attachment.id)} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
                 <span className="min-w-0 truncate">{attachment.displayName}</span>
               </button>;
@@ -268,9 +309,9 @@ export function ProjectMediaViewer({
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
-      {readOnlyShare ? <aside aria-label={`Description of ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+      {readOnlyShare ? <aside data-project-response-rail="" aria-label={`Description of ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
           <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'gap-1 px-2' : 'justify-center px-1.5'}`}>
-            <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide description' : 'Show description'} title={isRailOpen ? 'Hide description' : 'Show description'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+            <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide description' : 'Show description'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
             {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Description</h2>}
@@ -280,7 +321,7 @@ export function ProjectMediaViewer({
           fontFamily: contentTypefaceStack
         }} className="text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
           </div>}
-        </aside> : <aside aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+        </aside> : <aside data-project-response-rail="" aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         {/* One row: the engagement controls and the control that hides them. The

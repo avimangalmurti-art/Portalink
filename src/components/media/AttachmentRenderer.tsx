@@ -26,6 +26,7 @@ export function AttachmentRenderer({
   artwork,
   processing,
   onDocumentPageCountResolved,
+  onFocusModeChange,
   onClose
 
 
@@ -68,7 +69,7 @@ export function AttachmentRenderer({
    */artwork?: {url: string;alt: string;}; /**
    * The live processing state for this asset, when the service has been asked.
    * Absent falls back to the record's own state.
-   */processing?: {state: ProjectAttachment['status'];message: string | null;canRetry: boolean;isRetrying: boolean;onRetry: () => void;}; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void;onClose: () => void;}) {// The title reads as the work when the project holds a single file, and as
+   */processing?: {state: ProjectAttachment['status'];message: string | null;canRetry: boolean;isRetrying: boolean;onRetry: () => void;}; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Lets the surrounding project viewer become immersive while one page is isolated. */onFocusModeChange?: (focused: boolean) => void;onClose: () => void;}) {// The title reads as the work when the project holds a single file, and as
   // the file when it holds several.
   const title = attachment.displayName || projectTitle;const state = processing?.state ?? attachment.status; /**
    * A stored asset whose derived preview does not exist yet. Rendering a viewer
@@ -91,11 +92,11 @@ export function AttachmentRenderer({
           canRetry: processing?.canRetry ?? false,
           isRetrying: processing?.isRetrying ?? false,
           onRetry: processing?.onRetry ?? (() => undefined)
-        } : undefined} onPageCountResolved={(pageCount) => onDocumentPageCountResolved?.(attachment.id, pageCount)} />
+        } : undefined} onPageCountResolved={(pageCount) => onDocumentPageCountResolved?.(attachment.id, pageCount)} onFocusModeChange={onFocusModeChange} />
         </MediaFrame> : <PdfViewer fileName={title} pageCount={attachment.metadata?.pageCount ?? 6} onClose={onClose} />;
     case 'image':
       return <MediaFrame>
-          <ImageAttachment pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]} columns={imageColumns} />
+          <ImageAttachment pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]} columns={imageColumns} onFocusModeChange={onFocusModeChange} />
         </MediaFrame>;
     case 'video':
       return <MediaFrame>

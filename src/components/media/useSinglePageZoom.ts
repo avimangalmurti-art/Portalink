@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
-const WHEEL_ZOOM_STEP = 0.12;
-const WHEEL_THRESHOLD = 36;
+const WHEEL_ZOOM_SENSITIVITY = 0.0022;
+const WHEEL_EXIT_PULL = 56;
 const PINCH_EXIT_THRESHOLD = 0.9;
 
 /**
@@ -25,7 +25,7 @@ export function useSinglePageZoom({
 }) {
   const [zoom, setZoomState] = useState(MIN_ZOOM);
   const zoomRef = useRef(MIN_ZOOM);
-  const wheelDeltaRef = useRef(0);
+  const exitPullRef = useRef(0);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
   const onExitRef = useRef(onExit);
 
@@ -40,7 +40,7 @@ export function useSinglePageZoom({
   useEffect(() => {
     zoomRef.current = MIN_ZOOM;
     setZoomState(MIN_ZOOM);
-    wheelDeltaRef.current = 0;
+    exitPullRef.current = 0;
     pinchStartRef.current = null;
   }, [active]);
 
@@ -53,7 +53,7 @@ export function useSinglePageZoom({
     const exit = () => {
       zoomRef.current = MIN_ZOOM;
       setZoomState(MIN_ZOOM);
-      wheelDeltaRef.current = 0;
+      exitPullRef.current = 0;
       pinchStartRef.current = null;
       onExitRef.current();
     };
@@ -67,20 +67,26 @@ export function useSinglePageZoom({
       event.stopPropagation();
 
       const deltaScale = event.deltaMode === WheelEvent.DOM_DELTA_LINE
-        ? 18
+        ? 16
         : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-          ? 100
+          ? 90
           : 1;
-      wheelDeltaRef.current += event.deltaY * deltaScale;
-      if (Math.abs(wheelDeltaRef.current) < WHEEL_THRESHOLD) return;
+      const delta = Math.max(-120, Math.min(120, event.deltaY * deltaScale));
 
-      const zoomDirection = wheelDeltaRef.current < 0 ? 1 : -1;
-      wheelDeltaRef.current = 0;
-      if (zoomDirection < 0 && zoomRef.current <= MIN_ZOOM) {
-        exit();
+      // Once the page is fully fitted, continuing the same zoom-out gesture
+      // gently releases back to the overview. A small accumulated pull prevents
+      // trackpad noise from dismissing the focused page accidentally.
+      if (delta > 0 && zoomRef.current <= MIN_ZOOM + 0.005) {
+        exitPullRef.current += delta;
+        if (exitPullRef.current >= WHEEL_EXIT_PULL) {
+          exit();
+        }
         return;
       }
-      setZoom(zoomRef.current + zoomDirection * WHEEL_ZOOM_STEP);
+
+      exitPullRef.current = 0;
+      const requestedZoom = zoomRef.current * Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY);
+      setZoom(requestedZoom <= MIN_ZOOM + 0.012 ? MIN_ZOOM : requestedZoom);
     };
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 2) return;
