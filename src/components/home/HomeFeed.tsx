@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
 import { BentoFeedGrid } from './BentoFeedGrid';
@@ -13,7 +13,30 @@ type HomeFeedProps = {
   /** Navigation is by stable id: no project record is ever handed upward. */
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
+  /** Warms the creator record before navigation when pointer or focus shows intent. */
+  onWarmCreator?: (creatorId: Id) => void;
+  /** Separates Home, city, and any future feed scroll memories. */
+  scrollMemoryKey?: string;
 };
+
+const FEED_SCROLL_PREFIX = 'portalink.feedScroll.';
+
+function readFeedScroll(key: string): number {
+  try {
+    const value = Number(window.sessionStorage.getItem(`${FEED_SCROLL_PREFIX}${key}`));
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeFeedScroll(key: string, value: number): void {
+  try {
+    window.sessionStorage.setItem(`${FEED_SCROLL_PREFIX}${key}`, String(Math.max(0, Math.round(value))));
+  } catch {
+    // The current in-memory DOM position still works when storage is unavailable.
+  }
+}
 
 /**
  * The signed-in viewer's relationship feed.
@@ -26,9 +49,14 @@ type HomeFeedProps = {
 export function HomeFeed({
   onOpenProject,
   onOpenCreator,
+  onWarmCreator,
+  scrollMemoryKey = 'home',
 }: HomeFeedProps) {
   const feed = useFeed();
   const autoScrollRef = useRef<HTMLDivElement>(null);
+  const hasRestoredScrollRef = useRef(false);
+  const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
+  const persistFrameRef = useRef(0);
 
   const projects = useMemo(() => {
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
@@ -44,13 +72,52 @@ export function HomeFeed({
       view={view}
       onOpenProject={onOpenProject}
       onOpenCreator={onOpenCreator}
+      onWarmCreator={onWarmCreator}
       priority={index < 2}
     />,
   }));
 
+  // Home and location feeds scroll inside the screen rather than through the
+  // shell. Restore that real scroll surface once its cards exist, so Back lands
+  // on the work the viewer left instead of quietly returning them to the top.
+  useLayoutEffect(() => {
+    if (hasRestoredScrollRef.current || (feed.status === 'loading' && projects.length === 0)) {
+      return undefined;
+    }
+    hasRestoredScrollRef.current = true;
+    const target = latestScrollTopRef.current;
+    let frame = 0;
+    let attempts = 0;
+    const restore = () => {
+      const element = autoScrollRef.current;
+      if (!element) return;
+      element.scrollTop = target;
+      if (Math.abs(element.scrollTop - target) < 2 || attempts >= 30) return;
+      attempts += 1;
+      frame = requestAnimationFrame(restore);
+    };
+    frame = requestAnimationFrame(restore);
+    return () => cancelAnimationFrame(frame);
+  }, [feed.status, projects.length]);
+
+  const rememberScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    latestScrollTopRef.current = event.currentTarget.scrollTop;
+    if (persistFrameRef.current) return;
+    persistFrameRef.current = requestAnimationFrame(() => {
+      persistFrameRef.current = 0;
+      writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
+    });
+  }, [scrollMemoryKey]);
+
+  useLayoutEffect(() => () => {
+    cancelAnimationFrame(persistFrameRef.current);
+    writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
+  }, [scrollMemoryKey]);
+
   return <div className="feed-starfield relative flex h-full w-full flex-col">
       <div
         ref={autoScrollRef}
+        onScroll={rememberScroll}
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div className="relative pt-3">

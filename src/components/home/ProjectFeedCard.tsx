@@ -14,12 +14,14 @@ type ProjectFeedCardProps = {
   */
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
+  onWarmCreator?: (creatorId: Id) => void;
   priority?: boolean;
 };
 export function ProjectFeedCard({
   view,
   onOpenProject,
   onOpenCreator,
+  onWarmCreator,
   priority = false,
 }: ProjectFeedCardProps) {
   const {
@@ -30,7 +32,7 @@ export function ProjectFeedCard({
     // The card shell remains stable; only the cover frame exchanges artwork for
     // the same hover details used by a creator's profile wall.
     <article className="feed-card group relative min-w-0 overflow-hidden">
-      <button type="button" onClick={() => onOpenProject(project.id, {
+      <button type="button" onPointerEnter={() => onWarmCreator?.(creator.id)} onPointerDown={() => onWarmCreator?.(creator.id)} onFocus={() => onWarmCreator?.(creator.id)} onClick={() => onOpenProject(project.id, {
         profileId: creator.id,
         categoryId: project.categoryId
       })} aria-label={`Open ${project.title} by ${creator.name}`} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
@@ -48,6 +50,9 @@ export function ProjectFeedCard({
         type="button"
         data-creator-link=""
         data-hover-attribution=""
+        onPointerEnter={() => onWarmCreator?.(creator.id)}
+        onPointerDown={() => onWarmCreator?.(creator.id)}
+        onFocus={() => onWarmCreator?.(creator.id)}
         onClick={() => onOpenCreator(creator.id)}
         aria-label={`Open ${creator.name}'s profile`}
         title={creator.name}

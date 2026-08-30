@@ -9,6 +9,7 @@ type CityContentPageProps = {
   onBack: () => void;
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
+  onWarmCreator?: (creatorId: Id) => void;
 };
 
 // A city opens straight into the standard content feed, scoped to that place.
@@ -16,7 +17,8 @@ export function CityContentPage({
   city,
   onBack,
   onOpenProject,
-  onOpenCreator
+  onOpenCreator,
+  onWarmCreator
 }: CityContentPageProps) {
   // A Portalink network page, so the stars are drawn here rather than by the feed
   // it hosts — the same feed on Home carries no sky of its own.
@@ -30,7 +32,7 @@ export function CityContentPage({
       </div>
       {/* The feed owns its own scroll so it can keep loading endlessly. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <HomeFeed isSidebarCollapsed={false} onOpenProject={onOpenProject} onOpenCreator={onOpenCreator} />
+        <HomeFeed key={city.name} isSidebarCollapsed={false} onOpenProject={onOpenProject} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator} scrollMemoryKey={`city:${city.name}`} />
       </div>
     </div>;
 }

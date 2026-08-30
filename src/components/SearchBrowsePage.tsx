@@ -12,6 +12,7 @@ type SearchBrowsePageProps = {
   onQueryChange: (query: string) => void;
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
+  onWarmCreator?: (creatorId: Id) => void;
   live: LiveSessionsState;
   view: 'atlas' | 'world' | 'location';
   locationId: Id | null;
@@ -23,6 +24,7 @@ type SearchBrowsePageProps = {
 export function SearchBrowsePage({
   onOpenProject,
   onOpenCreator,
+  onWarmCreator,
   live,
   view,
   locationId,
@@ -49,6 +51,7 @@ export function SearchBrowsePage({
         onBack={onOpenAtlas}
         onOpenProject={onOpenProject}
         onOpenCreator={onOpenCreator}
+        onWarmCreator={onWarmCreator}
       />
     );
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { AppDetailPage } from './components/AppDetailPage';
 import type { ProductDetailState } from './components/AppDetailPage';
@@ -32,15 +32,14 @@ import { useCategoryManagement } from './features/profile/useCategoryManagement'
 import { useAuth } from './contexts/AuthContext';
 import { AuthDialog } from './features/auth/AuthDialog';
 import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
-import { AlertCircleIcon, Loader2Icon } from 'lucide-react';
-import { InterfaceIcon } from './components/ui/InterfaceIcon';
+import { AlertCircleIcon } from 'lucide-react';
 import { InteractionSafePresence } from './components/ui/InteractionSafePresence';
 import { FeatureInDesignPage } from './components/FeatureInDesignPage';
 import { useProfileOnboardingStatus } from './features/profile/useProfileOnboarding';
 import { ProfileOnboardingDialog } from './features/profile/ProfileOnboardingDialog';
 import { ProfileEditorDialog } from './features/profile/ProfileEditorDialog';
 import { PublishProjectDialog } from './features/publishing/PublishProjectDialog';
-import { useProfileQuery } from './contexts/ProfileDataContext';
+import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
 import { useScreenTransition } from './app/useScreenTransition';
 import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
@@ -447,8 +446,18 @@ export function App() {
    * id produces a truthful not-found or a retryable failure rather than opening
    * whichever record a fallback would have handed back.
    */
+  const { fetchProfile } = useProfileData();
   const viewedProfileQuery = useProfileQuery(viewedProfileId);
   const viewedProfile = viewedProfileQuery.profile;
+  // Pointer, touch, or keyboard intent can arrive a beat before navigation.
+  // Warm the same canonical profile query the destination consumes so the
+  // click does not start a duplicate request or flash an avoidable empty state.
+  const warmCreator = useCallback((creatorId: Id) => {
+    void fetchProfile(creatorId).catch(() => {
+      // Prefetch is deliberately silent. If navigation follows, the route owns
+      // the truthful error and retry presentation; if it does not, nothing nags.
+    });
+  }, [fetchProfile]);
   // The footer always represents the signed-in viewer, even while they browse
   // another creator. Reuse the current read when the viewed portal is their own;
   // only resolve a second record when those identities genuinely differ.
@@ -1042,7 +1051,7 @@ export function App() {
         management.dismissFailure();
         setAttemptedIconName(null);
         setIconPickerCategoryId(null);
-      }} /> : inDesignFeature ? <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} /> : isMessagesOpen ? <MessagesPage onBack={() => nav.back()} initialRecipientId={messageRecipientId} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
+      }} /> : inDesignFeature ? <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} /> : isMessagesOpen ? <MessagesPage onBack={() => nav.back()} initialRecipientId={messageRecipientId} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;
@@ -1074,7 +1083,7 @@ export function App() {
         iconName
       })) : undefined} onOpenActivity={isOwnerMode ? (kind) => nav.activity(viewedProfile.id, kind) : undefined} /> : <HomeFeed isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
-      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} />}
+      })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
       </React.Suspense>
     </div>;
   const screenLayers = useScreenTransition(screenTransitionKey, {
@@ -1114,26 +1123,20 @@ export function App() {
            belong to no single screen. */}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
       {!isSharedRoute && <SessionStatusBanner onCreateProfile={() => setIsOnboardingOpen(true)} />}
-      {/* Resolving a project by id, reported above the page: it belongs to the
-             act of navigating rather than to the screen being left behind. */}
-      {!isSharedRoute && projectNavigation.resolution && !routeItemId && <div role={projectNavigation.resolution.state === 'loading' ? 'status' : 'alert'} aria-live="polite" className="flex shrink-0 items-center gap-2.5 border-b border-[var(--hairline)] bg-[var(--surface-raised)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
-          {projectNavigation.resolution.state === 'loading' ? <>
-              <InterfaceIcon icon={Loader2Icon} effect="rotate" effectActive className="text-[var(--text-secondary)]" />
-              <span className="min-w-0 flex-1">Opening project…</span>
-            </> : <>
-              <AlertCircleIcon className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                {projectNavigation.resolution.state === 'not-found' ? 'That project no longer exists, so nothing was opened in its place.' : 'That project could not be opened.'}
-              </span>
-              {projectNavigation.retry && <button type="button" onClick={projectNavigation.retry} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
-              <button type="button" onClick={projectNavigation.dismiss} aria-label="Dismiss" className="shrink-0 text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Dismiss</button>
-            </>}
-        </div>}
       {/* A creator opened from an attribution is now confirmed by the profile
              route's own read, whose loading, not-found, and retryable failure states
              render in the page area — so there is no second resolution path to
              report here. */}
       <div id="app-viewport" className={shouldReduceMotion ? 'app-viewport--reduce-motion' : undefined}>
+        {!isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <div role="status" aria-live="polite" aria-label="Opening project" className="navigation-progress" /> : null}
+        {!isSharedRoute && projectNavigation.resolution && projectNavigation.resolution.state !== 'loading' && !routeItemId ? <div role="alert" aria-live="polite" className="navigation-feedback shape-compact flex items-center gap-2.5 border border-[var(--hairline)] bg-[var(--surface-raised)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
+            <AlertCircleIcon className="h-4 w-4 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              {projectNavigation.resolution.state === 'not-found' ? 'That project no longer exists, so nothing was opened in its place.' : 'That project could not be opened.'}
+            </span>
+            {projectNavigation.retry && <button type="button" onClick={projectNavigation.retry} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
+            <button type="button" onClick={projectNavigation.dismiss} aria-label="Dismiss" className="shrink-0 text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Dismiss</button>
+          </div> : null}
         {screenLayers.map((layer) => <div key={layer.id} className={`app-screen-layer ${layer.phase}`} aria-hidden={layer.phase === 'screen-exit' ? true : undefined} ref={(element) => {
           if (element) {
             element.inert = layer.phase === 'screen-exit';

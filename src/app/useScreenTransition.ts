@@ -9,7 +9,7 @@ export type ScreenTransitionLayer<T> = {
   snapshot: T;
 };
 
-const TRANSITION_DURATION_MS = 320;
+const TRANSITION_DURATION_MS = 240;
 
 /**
  * Route-only screen state controller.

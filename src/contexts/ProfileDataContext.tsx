@@ -49,10 +49,14 @@ export function ProfileDataProvider({
   } = useServices();
   const [revision, setRevision] = useState(0);
   const cacheRef = useRef(new Map<Id, Profile>());
+  const inFlightRef = useRef(new Map<Id, Promise<Profile>>());
+  const cacheGenerationRef = useRef(0);
   const invalidateProfiles = useCallback(() => {
     // Emptied rather than patched: after a write, every cached record is suspect,
     // and a stale entry is exactly what this boundary exists to prevent.
+    cacheGenerationRef.current += 1;
     cacheRef.current.clear();
+    inFlightRef.current.clear();
     setRevision((current) => current + 1);
   }, []);
   const fetchProfile = useCallback(async (profileId: Id) => {
@@ -60,12 +64,34 @@ export function ProfileDataProvider({
     if (cached) {
       return cached;
     }
-    const profile = await profileService.getProfile(profileId);
-    // Keyed by both the requested id and the record's own id, so a service that
-    // resolves an alias still answers a peek under either.
-    cacheRef.current.set(profileId, profile);
-    cacheRef.current.set(profile.id, profile);
-    return profile;
+    const pending = inFlightRef.current.get(profileId);
+    if (pending) {
+      return pending;
+    }
+
+    const generation = cacheGenerationRef.current;
+    const request = profileService.getProfile(profileId).then((profile) => {
+      // A write may have invalidated this read while it was travelling. The
+      // caller may finish its own stale-safe lifecycle, but this old answer must
+      // never repopulate the shared cache after that invalidation.
+      if (cacheGenerationRef.current === generation) {
+        // Keyed by both the requested id and the record's own id, so a service
+        // that resolves an alias still answers a peek under either.
+        cacheRef.current.set(profileId, profile);
+        cacheRef.current.set(profile.id, profile);
+      }
+      return profile;
+    });
+    inFlightRef.current.set(profileId, request);
+    const clearRequest = () => {
+      if (inFlightRef.current.get(profileId) === request) {
+        inFlightRef.current.delete(profileId);
+      }
+    };
+    // Supplying both handlers keeps this housekeeping branch fulfilled even
+    // when the caller receives a rejection to present through the route.
+    void request.then(clearRequest, clearRequest);
+    return request;
   }, [profileService]);
   const peekProfile = useCallback((profileId: Id) => cacheRef.current.get(profileId) ?? null, []);
   const value = useMemo<ProfileDataContextValue>(() => ({
@@ -116,6 +142,7 @@ export type ProfileQuery = {
 export function useProfileQuery(profileId: Id | null): ProfileQuery {
   const {
     fetchProfile,
+    peekProfile,
     revision
   } = useProfileData();
   const [attempt, setAttempt] = useState(0);
@@ -138,6 +165,17 @@ export function useProfileQuery(profileId: Id | null): ProfileQuery {
         profileId: null,
         profile: null,
         status: 'idle',
+        error: null
+      });
+      return;
+    }
+    const prefetchedProfile = peekProfile(profileId);
+    if (prefetchedProfile) {
+      latestRequestRef.current += 1;
+      setState({
+        profileId,
+        profile: prefetchedProfile,
+        status: 'ready',
         error: null
       });
       return;
@@ -176,12 +214,13 @@ export function useProfileQuery(profileId: Id | null): ProfileQuery {
         error: messageFor(error, missing ? 'That profile does not exist.' : 'That profile could not be read.')
       });
     });
-  }, [profileId, fetchProfile, revision, attempt]);
+  }, [profileId, fetchProfile, peekProfile, revision, attempt]);
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
+  const prefetchedProfile = profileId ? peekProfile(profileId) : null;
   return useMemo(() => ({
-    profile: state.profileId === profileId ? state.profile : null,
-    status: state.profileId === profileId ? state.status : profileId ? 'loading' : 'idle',
+    profile: state.profileId === profileId ? state.profile : prefetchedProfile,
+    status: state.profileId === profileId ? state.status : prefetchedProfile ? 'ready' : profileId ? 'loading' : 'idle',
     error: state.error,
     retry
-  }), [state, profileId, retry]);
+  }), [state, profileId, prefetchedProfile, retry]);
 }
