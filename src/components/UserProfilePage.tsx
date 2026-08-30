@@ -635,7 +635,7 @@ export function UserProfilePage({
                   setIsManageOpen(false);
                 }} aria-haspopup="dialog" className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
-                        Add category
+                        Add Portal
                       </button> : null}
                   </div> : null}
               </div> : null}
