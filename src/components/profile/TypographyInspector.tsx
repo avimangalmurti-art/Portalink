@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckIcon, TypeIcon } from 'lucide-react';
 import { scriptFallbackStack, typefaceCategories, typefaces } from '../../data/typefaces';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -13,6 +14,11 @@ type TypographyInspectorProps = {
   onTypefaceChange: (typefaceId: string) => void;
 };
 
+type PopoverPosition = {
+  left: number;
+  top: number;
+};
+
 /**
  * Typography lives with the other authoring controls, in the portal sidebar: a
  * quiet anchored inspector that edits the open project's own type tokens live.
@@ -23,13 +29,53 @@ export function TypographyInspector({
   onTypefaceChange
 }: TypographyInspectorProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const positionPopover = useCallback(() => {
+    const trigger = containerRef.current;
+    const popover = popoverRef.current;
+    if (!trigger || !popover) {
+      return;
+    }
+
+    const viewportGutter = 8;
+    const anchorGap = 8;
+    const triggerRect = trigger.getBoundingClientRect();
+    const popoverRect = popover.getBoundingClientRect();
+
+    // The inspector belongs visually to the control, but lives above the page
+    // so a narrow or collapsed sidebar can never clip it.
+    let left = triggerRect.right + anchorGap;
+    if (left + popoverRect.width > window.innerWidth - viewportGutter) {
+      left = triggerRect.left - popoverRect.width - anchorGap;
+    }
+    left = Math.max(viewportGutter, Math.min(left, window.innerWidth - popoverRect.width - viewportGutter));
+
+    const top = Math.max(
+      viewportGutter,
+      Math.min(triggerRect.top, window.innerHeight - popoverRect.height - viewportGutter)
+    );
+
+    setPopoverPosition({ left, top });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setPopoverPosition(null);
+      return;
+    }
+    positionPopover();
+  }, [isOpen, positionPopover]);
+
   useEffect(() => {
     if (!isOpen) {
       return undefined;
     }
     function closeOnOutsideTap(event: PointerEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
         setIsOpen(false);
       }
     }
@@ -40,20 +86,28 @@ export function TypographyInspector({
     }
     document.addEventListener('pointerdown', closeOnOutsideTap);
     document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', positionPopover);
+    window.addEventListener('scroll', positionPopover, true);
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsideTap);
       document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('resize', positionPopover);
+      window.removeEventListener('scroll', positionPopover, true);
     };
-  }, [isOpen]);
+  }, [isOpen, positionPopover]);
   return <div ref={containerRef} className="relative shrink-0">
       {/* Matches the collapse and new-project controls it now sits beside. */}
       <button type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
         <TypeIcon className="h-[18px] w-[18px]" aria-hidden="true" />
       </button>
 
-      {/* Opens toward the work rather than away from it: anchored left, the panel
-         is wider than the sidebar and would otherwise run off the edge. */}
-      {isOpen && <div role="dialog" aria-label="Typography" className="absolute left-0 top-11 z-30 w-[330px] overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-elevated)]">
+      {/* Portaled above the work so neither the open nor collapsed sidebar can
+         constrain its width, stacking order, or visible bounds. */}
+      {isOpen && createPortal(<div ref={popoverRef} role="dialog" aria-label="Typography" style={popoverPosition ?? {
+      left: 0,
+      top: 0,
+      visibility: 'hidden'
+    }} className="fixed z-[120] w-[min(330px,calc(100vw-16px))] overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-elevated)]">
           <div className="border-b border-[var(--hairline)] px-3.5 py-3">
             <h2 className="text-small font-bold text-[var(--text-primary)]">Typography</h2>
           </div>
@@ -69,7 +123,7 @@ export function TypographyInspector({
                 </ul>
               </section>)}
           </div>
-        </div>}
+        </div>, document.body)}
     </div>;
 }
 function TypefaceOption({
