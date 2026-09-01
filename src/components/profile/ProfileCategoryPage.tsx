@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, InfoIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon } from 'lucide-react';
+import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
@@ -353,9 +353,6 @@ export function ProfileCategoryPage({
                 </button>}
               {sharedReadOnly && <button data-shared-viewer-control="fullscreen" data-borderless-control="" type="button" onClick={() => void toggleProjectFullscreen()} aria-label={isProjectFullscreen ? 'Exit fullscreen presentation' : 'Open fullscreen presentation'} aria-pressed={isProjectFullscreen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isProjectFullscreen ? Minimize2Icon : Maximize2Icon} weight="medium" />
-                </button>}
-              {sharedReadOnly && <button data-shared-viewer-control="information" data-borderless-control="" type="button" onClick={() => onEngagementOpenChange(!isEngagementOpen)} aria-label={isEngagementOpen ? 'Hide project information' : 'Show project information'} aria-expanded={isEngagementOpen} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
-                  <InterfaceIcon icon={InfoIcon} weight="medium" />
                 </button>}
               {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <FilePlusIcon className="h-[18px] w-[18px]" aria-hidden="true" />
