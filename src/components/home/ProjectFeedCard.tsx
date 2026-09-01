@@ -29,14 +29,16 @@ export function ProjectFeedCard({
     project,
     creator
   } = view;
+  const projectLocation = {
+    profileId: creator.id,
+    categoryId: project.categoryId
+  };
+  const openProject = () => onOpenProject(project.id, projectLocation);
   return (
     // The card shell remains stable; only the cover frame exchanges artwork for
     // the same hover details used by a creator's profile wall.
     <article className="feed-card individual-content-outline group relative min-w-0 overflow-hidden">
-      <button type="button" onPointerEnter={() => onWarmCreator?.(creator.id)} onPointerDown={() => onWarmCreator?.(creator.id)} onFocus={() => onWarmCreator?.(creator.id)} onClick={() => onOpenProject(project.id, {
-        profileId: creator.id,
-        categoryId: project.categoryId
-      })} aria-label={`Open ${project.title} by ${creator.name}`} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+      <button type="button" onPointerEnter={() => onWarmCreator?.(creator.id)} onPointerDown={() => onWarmCreator?.(creator.id)} onFocus={() => onWarmCreator?.(creator.id)} onClick={openProject} aria-label={`Open ${project.title} by ${creator.name}`} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
         {/* Real source imagery, shown at the ratio the file itself implies. */}
         <span data-project-continuity-surface="" data-project-continuity-id={project.id} className="feed-card__preview relative block w-full overflow-hidden" style={{
           aspectRatio: getProjectAspectRatio(project),
@@ -45,9 +47,18 @@ export function ProjectFeedCard({
           <span className="feed-card__cover-transition absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
             <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1420px) 25vw, (min-width: 940px) 33vw, (min-width: 620px) 40vw, 92vw" priority={priority} />
           </span>
-          <ProjectHoverDetails projectId={project.id} summary={project.summary} bottomInset={60} className="feed-card__details-transition opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none" />
         </span>
       </button>
+      {/* Keep the social controls outside the cover button so the comment
+          action is its own valid, keyboard-accessible target. */}
+      <ProjectHoverDetails
+        projectId={project.id}
+        summary={project.summary}
+        bottomInset={60}
+        onOpen={openProject}
+        onOpenComments={openProject}
+        className="feed-card__details-transition pointer-events-none opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+      />
       <button
         type="button"
         data-creator-link=""
