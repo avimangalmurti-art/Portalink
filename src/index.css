@@ -4541,9 +4541,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   line-height: 1.05 !important;
 }
 
-.codex-shell.shared-portalink-shell [data-shared-project-count] {
-  font-size: 11px !important;
-  line-height: 1.2 !important;
+.codex-shell.shared-portalink-shell [data-shared-profile-home],
+.codex-shell.shared-portalink-shell [data-shared-profile-home]:hover,
+.codex-shell.shared-portalink-shell [data-shared-profile-home]:active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 /* The main eight destinations and the sidebar expander have no drawn edge in

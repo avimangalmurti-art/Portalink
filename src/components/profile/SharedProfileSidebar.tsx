@@ -3,6 +3,7 @@ import { MoonIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { CreatorAvatar } from './CreatorAvatar';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
@@ -33,7 +34,6 @@ export function SharedProfileSidebar({
   onThemeChange,
   onOpenCategory
 }: SharedProfileSidebarProps) {
-  const projectCount = profile.projects.length;
   return <aside aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full w-[208px] shrink-0 flex-col bg-transparent lg:w-[216px] 2xl:w-[224px]">
       <div className="global-control-header shrink-0 px-2">
         <div className="flex h-full w-full min-w-0 flex-1 items-center justify-between gap-2 px-2">
@@ -41,7 +41,9 @@ export function SharedProfileSidebar({
             <span className="block truncate">Portalink</span>
             <span className="block truncate">Networks</span>
           </span>
-          <span data-shared-project-count="" className="shrink-0 whitespace-nowrap text-[11px] font-semibold text-[var(--text-primary)]">{projectCount} {projectCount === 1 ? 'project' : 'projects'}</span>
+          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} className="shape-compact flex h-10 w-10 shrink-0 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />
+          </Link>
           <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-system-color="" className="shared-profile-theme-toggle side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
           </button>
@@ -50,9 +52,9 @@ export function SharedProfileSidebar({
 
       <nav aria-label={possessivePortals(profile.name)} className="min-h-0 flex-1 overflow-y-auto px-2 pb-20 pt-3">
         <h2 className="relative my-2 flex h-7 w-full shrink-0 items-center">
-          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-keep-color="" data-shared-portals-heading="" aria-label={`Open ${profile.name}'s shared profile`} className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+          <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)]">
             {possessivePortals(profile.name)}
-          </Link>
+          </span>
         </h2>
         <ul className="sidebar-pill-group m-0 flex list-none flex-col p-0">
           {profile.categories.map((category) => {
