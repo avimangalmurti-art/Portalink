@@ -108,6 +108,13 @@ body,
   color: var(--portalink-splash-fg);
   background-color: var(--portalink-splash-bg);
   background-image: none;
+  contain: strict;
+  isolation: isolate;
+  will-change: opacity;
+}
+
+.portalink-splash-lockup {
+  will-change: opacity, transform;
 }
 
 html[data-appearance='dark'] .portalink-splash {

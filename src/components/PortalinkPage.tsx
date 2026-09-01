@@ -10,6 +10,7 @@ import { WorldViewToggle } from './portalink/WorldViewToggle';
 import { toCityDestination } from '../data/geography';
 import { useServices } from '../contexts/ServicesContext';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
+import { PORTALINK_SPLASH_EXIT_EVENT } from '../app/splashLifecycle';
 type PortalinkPageProps = {
   onBack: () => void;
   onSelectCity: (city: City) => void;
@@ -33,6 +34,9 @@ export function PortalinkPage({
   const [scale, setScale] = useState(MIN_SCALE);
   const [isDragging, setIsDragging] = useState(false);
   const [query, setQuery] = useState('');
+  const [isGlobeDetailReady, setIsGlobeDetailReady] = useState(() =>
+    typeof document === 'undefined' || !document.querySelector('[data-portalink-splash]')
+  );
   // Rendered size of the globe, so cluster separation and the label budget are
   // resolved in real screen space rather than viewBox units.
   const [pixelSize, setPixelSize] = useState(560);
@@ -63,6 +67,27 @@ export function PortalinkPage({
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    if (isGlobeDetailReady) return undefined;
+
+    let frameId: number | null = null;
+    const revealGlobeDetail = () => {
+      if (frameId !== null) return;
+      // Give the browser one clean frame after removing the splash layer, then
+      // schedule the detailed globe as non-urgent rendering work.
+      frameId = window.requestAnimationFrame(() => {
+        React.startTransition(() => setIsGlobeDetailReady(true));
+      });
+    };
+
+    window.addEventListener(PORTALINK_SPLASH_EXIT_EVENT, revealGlobeDetail, { once: true });
+    if (!document.querySelector('[data-portalink-splash]')) revealGlobeDetail();
+
+    return () => {
+      window.removeEventListener(PORTALINK_SPLASH_EXIT_EVENT, revealGlobeDetail);
+      if (frameId !== null) window.cancelAnimationFrame(frameId);
+    };
+  }, [isGlobeDetailReady]);
   function zoomBy(delta: number) {
     setScale((current) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, current * delta)));
   }
@@ -94,8 +119,14 @@ export function PortalinkPage({
     setCenterLongitude(city.longitude);
     setCenterLatitude(city.latitude);
   }
-  const landPaths = buildLandPaths(centerLongitude, centerLatitude);
-  const polarCaps = buildPolarCaps(centerLongitude, centerLatitude);
+  const landPaths = useMemo(
+    () => isGlobeDetailReady ? buildLandPaths(centerLongitude, centerLatitude) : [],
+    [centerLatitude, centerLongitude, isGlobeDetailReady]
+  );
+  const polarCaps = useMemo(
+    () => isGlobeDetailReady ? buildPolarCaps(centerLongitude, centerLatitude) : [],
+    [centerLatitude, centerLongitude, isGlobeDetailReady]
+  );
   const isNight = isNightAt(centerLongitude);
   // Memoized so the geographic pipeline only reruns when the camera moves.
   const camera = useMemo(() => ({
@@ -190,7 +221,7 @@ export function PortalinkPage({
             <g clipPath="url(#portalink-clip)">
               <circle cx={GLOBE_CENTER} cy={GLOBE_CENTER} r={GLOBE_RADIUS} fill="url(#portalink-ocean)" />
               <circle cx={GLOBE_CENTER} cy={GLOBE_CENTER} r={GLOBE_RADIUS} fill="url(#portalink-specular)" />
-              {/* Cartography scales with the camera; markers do not, so they stay
+              {isGlobeDetailReady && <>{/* Cartography scales with the camera; markers do not, so they stay
                  legible at every level of detail. */}
               <g transform={`translate(${GLOBE_CENTER} ${GLOBE_CENTER}) scale(${scale}) translate(${-GLOBE_CENTER} ${-GLOBE_CENTER})`}>
                 {/* Shallow water shelves the coastlines. */}
@@ -237,6 +268,7 @@ export function PortalinkPage({
                   <ellipse cx="68" cy="70" rx="3.4" ry="1.5" />
                 </g>
               </g>
+              </>}
               <circle cx={GLOBE_CENTER} cy={GLOBE_CENTER} r={GLOBE_RADIUS} fill="url(#portalink-shade)" />
               <circle cx={GLOBE_CENTER} cy={GLOBE_CENTER} r={GLOBE_RADIUS} fill="url(#portalink-bounce)" />
             </g>
@@ -244,14 +276,14 @@ export function PortalinkPage({
             <circle cx={GLOBE_CENTER} cy={GLOBE_CENTER} r={GLOBE_RADIUS} fill="url(#portalink-sunlimb)" />
             {/* One geographic layer: a tiny point per reachable destination,
                derived from the camera. Navigation stays here. */}
-            <g clipPath="url(#portalink-clip)">
+            {isGlobeDetailReady && <g clipPath="url(#portalink-clip)">
               <GeographicLayer cities={geography.cities} camera={camera} pixelSize={pixelSize} onActivate={(city) => {
               const destination = toCityDestination(city.destinationId);
               if (destination) {
                 onSelectCity(destination);
               }
-            }} />
-            </g>
+              }} />
+            </g>}
           </svg>
         </div>
       </div>

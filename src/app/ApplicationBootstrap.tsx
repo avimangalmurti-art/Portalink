@@ -5,6 +5,7 @@ import { App } from '../App';
 import { PortalinkSplashLoader } from '../components/ui/PortalinkSplashLoader';
 import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
+import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 const MINIMUM_SPLASH_MS = 420;
@@ -71,7 +72,12 @@ export function ApplicationBootstrap() {
 
   return <>
       {!auth.isInitializing ? <App /> : null}
-      <AnimatePresence>
+      <AnimatePresence onExitComplete={() => {
+        // The World view deliberately waits for this handoff before painting
+        // its expensive cartography and blur layers. That keeps the full-screen
+        // splash fade on the compositor instead of competing with globe work.
+        window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
+      }}>
         {shouldShowSplash ? <PortalinkSplashLoader key="portalink-splash" /> : null}
       </AnimatePresence>
     </>;
