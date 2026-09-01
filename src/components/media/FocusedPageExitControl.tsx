@@ -1,9 +1,9 @@
 import React, { useCallback, useLayoutEffect, useState } from 'react';
 import { XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { FOCUSED_PAGE_CONTROL_INSET, getFittedPageRect } from '../../utils/focusedPageControls';
 
 const CONTROL_SIZE = 32;
-const PAGE_INSET = 8;
 
 type ControlPosition = {
   left: number;
@@ -31,8 +31,8 @@ export function FocusedPageExitControl({
   label?: string;
 }) {
   const [position, setPosition] = useState<ControlPosition>({
-    left: PAGE_INSET,
-    top: PAGE_INSET
+    left: FOCUSED_PAGE_CONTROL_INSET,
+    top: FOCUSED_PAGE_CONTROL_INSET
   });
 
   const updatePosition = useCallback(() => {
@@ -42,25 +42,13 @@ export function FocusedPageExitControl({
     const { width, height } = container.getBoundingClientRect();
     if (width <= 0 || height <= 0) return;
 
-    const safeAspectRatio = Number.isFinite(pageAspectRatio) && pageAspectRatio > 0
-      ? pageAspectRatio
-      : 1;
-    const safeZoom = Number.isFinite(zoom) ? Math.max(1, zoom) : 1;
-    const containerAspectRatio = width / height;
-    const fittedWidth = containerAspectRatio > safeAspectRatio
-      ? height * safeAspectRatio
-      : width;
-    const fittedHeight = containerAspectRatio > safeAspectRatio
-      ? height
-      : width / safeAspectRatio;
-    const pageLeft = Math.max(0, (width - fittedWidth * safeZoom) / 2);
-    const pageTop = Math.max(0, (height - fittedHeight * safeZoom) / 2);
-    const maximumLeft = Math.max(PAGE_INSET, width - CONTROL_SIZE - PAGE_INSET);
-    const maximumTop = Math.max(PAGE_INSET, height - CONTROL_SIZE - PAGE_INSET);
+    const page = getFittedPageRect(width, height, pageAspectRatio, zoom);
+    const maximumLeft = Math.max(FOCUSED_PAGE_CONTROL_INSET, width - CONTROL_SIZE - FOCUSED_PAGE_CONTROL_INSET);
+    const maximumTop = Math.max(FOCUSED_PAGE_CONTROL_INSET, height - CONTROL_SIZE - FOCUSED_PAGE_CONTROL_INSET);
 
     setPosition({
-      left: Math.min(maximumLeft, Math.max(PAGE_INSET, pageLeft + PAGE_INSET)),
-      top: Math.min(maximumTop, Math.max(PAGE_INSET, pageTop + PAGE_INSET))
+      left: Math.min(maximumLeft, Math.max(FOCUSED_PAGE_CONTROL_INSET, page.left + FOCUSED_PAGE_CONTROL_INSET)),
+      top: Math.min(maximumTop, Math.max(FOCUSED_PAGE_CONTROL_INSET, page.top + FOCUSED_PAGE_CONTROL_INSET))
     });
   }, [containerRef, pageAspectRatio, zoom]);
 

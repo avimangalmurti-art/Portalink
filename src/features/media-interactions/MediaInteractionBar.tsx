@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
+import { FOCUSED_PAGE_CONTROL_INSET, getFittedPageRect } from '../../utils/focusedPageControls';
 
 const ACTIONS: Array<{
   kind: MediaEngagementKind;
@@ -52,18 +53,10 @@ export function MediaInteractionBar({
       const availableHeight = Math.max(0, surface.clientHeight - paddingTop - paddingBottom);
       if (!availableWidth || !availableHeight) return;
 
-      const viewportRatio = availableWidth / availableHeight;
-      const zoom = Math.max(1, focusedZoom);
-      const pageWidth = (focusedPageAspectRatio >= viewportRatio
-        ? availableWidth
-        : availableHeight * focusedPageAspectRatio) * zoom;
-      const pageHeight = (focusedPageAspectRatio >= viewportRatio
-        ? availableWidth / focusedPageAspectRatio
-        : availableHeight) * zoom;
-      const inset = 12;
+      const page = getFittedPageRect(availableWidth, availableHeight, focusedPageAspectRatio, focusedZoom);
       setFocusedPosition({
-        left: Math.round(paddingLeft + Math.max(0, (availableWidth - pageWidth) / 2) + inset),
-        bottom: Math.round(paddingBottom + Math.max(0, (availableHeight - pageHeight) / 2) + inset)
+        left: Math.round(paddingLeft + page.left + FOCUSED_PAGE_CONTROL_INSET),
+        bottom: Math.round(paddingBottom + page.top + FOCUSED_PAGE_CONTROL_INSET)
       });
     };
 
@@ -88,7 +81,7 @@ export function MediaInteractionBar({
     ref={interactionRef}
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-3 left-3 flex-col-reverse items-start' : 'bottom-2 left-2 flex-col-reverse items-start'}`}
+    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-1 left-1 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
     style={placement === 'focused' && focusedPosition ? focusedPosition : undefined}
     onPointerDown={stop}
     onPointerUp={stop}
