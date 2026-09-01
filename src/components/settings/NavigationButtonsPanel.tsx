@@ -262,7 +262,7 @@ export function NavigationButtonsPanel({
 
 function SettingsGroup({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="min-w-0">
+    <section className="min-w-0 rounded-[11px] border border-transparent p-3 transition-[border-color] duration-150 hover:border-[var(--hairline-strong)]">
       <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.055em] text-[var(--text-tertiary)]">
         {title}
       </h3>
