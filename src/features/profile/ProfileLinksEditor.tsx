@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
-import { ChevronDownIcon, ChevronUpIcon, GripVerticalIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { GripVerticalIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { getCategoryIcon, profileLinkIconOptions, type ProfileLinkIconOption } from '../../components/profile/categoryIcons';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import type { EditableProfileLink, ProfileLinkFieldError } from './useProfileEditor';
@@ -15,31 +15,46 @@ type ProfileLinksEditorProps = {
   onAdd: () => string | null;
   onChange: (linkId: string, patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>>) => void;
   onRemove: (linkId: string) => void;
-  onMove: (linkId: string, direction: -1 | 1) => void;
   onReorder: (linkIds: string[]) => void;
 };
 
-function ReorderableProfileLinkTile({
+function ReorderableProfileLinkRow({
   link,
   index,
   total,
-  isSelected,
-  hasError,
+  errors,
   disabled,
-  onSelect,
+  isConfirmingRemoval,
+  onChange,
+  onChooseIcon,
+  onRequestRemove,
+  onCancelRemove,
+  onConfirmRemove,
 }: {
   link: EditableProfileLink;
   index: number;
   total: number;
-  isSelected: boolean;
-  hasError: boolean;
+  errors: ProfileLinkFieldError;
   disabled: boolean;
-  onSelect: () => void;
+  isConfirmingRemoval: boolean;
+  onChange: (patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>>) => void;
+  onChooseIcon: () => void;
+  onRequestRemove: () => void;
+  onCancelRemove: () => void;
+  onConfirmRemove: () => void;
 }) {
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();
-  const isDraggingRef = useRef(false);
   const Icon = getCategoryIcon(link.iconName ?? 'globe');
+  function updateDestination(patch: Pick<Partial<EditableProfileLink>, 'label' | 'href'>) {
+    const nextLabel = patch.label ?? link.label;
+    const nextHref = patch.href ?? link.href;
+    const nextIconName = inferProfileLinkIconName(nextLabel, nextHref, link.iconName);
+    onChange({
+      ...patch,
+      ...(nextIconName !== link.iconName ? { iconName: nextIconName } : {})
+    });
+  }
 
   return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
     duration: shouldReduceMotion ? 0 : 0.16,
@@ -48,33 +63,38 @@ function ReorderableProfileLinkTile({
     zIndex: 120,
     scale: 1.015,
     boxShadow: '0 10px 24px rgba(0,0,0,0.16)'
-  }} onDragStart={() => {
-    isDraggingRef.current = true;
-  }} onDragEnd={() => {
-    window.setTimeout(() => {
-      isDraggingRef.current = false;
-    }, 0);
-  }} className="relative min-w-0 max-w-full list-none">
-      <button type="button" role="listitem" onClick={() => {
-        if (!isDraggingRef.current) onSelect();
-      }} aria-pressed={isSelected} aria-label={`${link.label || 'Untitled link'}, position ${index + 1} of ${total}. Drag to reorder.`} className={`shape-compact inline-flex h-7 max-w-full min-w-0 items-center gap-1 px-1.5 text-left transition-[color,background-color,box-shadow] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--text-primary)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'} ${hasError ? 'ring-1 ring-inset ring-[var(--status-danger)]' : ''}`}>
-        <span data-profile-link-drag-handle="" aria-hidden="true" title="Drag to reorder" onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }} onPointerDown={disabled ? undefined : (event) => dragControls.start(event)} className={`flex h-5 w-3.5 shrink-0 touch-none items-center justify-center text-[var(--text-tertiary)] ${disabled ? 'cursor-default opacity-40' : 'cursor-grab active:cursor-grabbing'}`}>
+  }} role="listitem" aria-label={`${link.label || 'Untitled link'}, position ${index + 1} of ${total}`} className="profile-link-editor-row relative min-w-0 list-none rounded-[12px] p-2.5">
+      <div className="grid min-w-0 grid-cols-[18px_40px_minmax(0,1fr)_32px] items-start gap-2 sm:grid-cols-[18px_40px_minmax(110px,0.75fr)_minmax(160px,1.25fr)_32px]">
+        <button type="button" aria-label={`Drag ${link.label || 'link'} to reorder`} onPointerDown={disabled ? undefined : (event) => dragControls.start(event)} disabled={disabled} className={`mt-[22px] flex h-8 w-[18px] shrink-0 touch-none items-center justify-center rounded-[6px] text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${disabled ? 'cursor-default opacity-40' : 'cursor-grab active:cursor-grabbing'}`}>
           <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
-        </span>
-        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span className="cdx-dense-label min-w-0 max-w-[160px] truncate pr-1 text-[11px] font-medium" title={link.label || 'Untitled link'}>{link.label || 'Untitled link'}</span>
-      </button>
+        </button>
+        <button type="button" onClick={onChooseIcon} disabled={disabled} aria-label={`Choose icon for ${link.label || 'link'}`} className="shape-squircle-compact mt-[18px] flex h-10 w-10 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--hairline)] transition-colors hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
+        <div className="min-w-0">
+          <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Name</label>
+          <input id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
+          {errors.label ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
+        </div>
+        <div className="col-span-2 col-start-3 min-w-0 sm:col-span-1 sm:col-start-auto">
+          <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">URL</label>
+          <input id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
+          {errors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
+        </div>
+        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} className="col-start-4 row-start-1 mt-[22px] flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--status-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:col-start-auto sm:row-start-auto">
+          <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
+        </button>
+        {isConfirmingRemoval ? <div className="col-span-full flex items-center justify-end gap-2 border-t border-[var(--hairline)] pt-2">
+            <span className="mr-auto text-[11px] text-[var(--text-secondary)]">Remove this link?</span>
+            <button type="button" onClick={onCancelRemove} className="h-7 rounded-[7px] px-2 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
+            <button type="button" onClick={onConfirmRemove} className="h-7 rounded-[7px] bg-[var(--status-danger)] px-2.5 text-[11px] font-semibold text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
+          </div> : null}
+      </div>
     </Reorder.Item>;
 }
 
-/**
- * Compact master/detail editing keeps the whole profile dialog on one screen:
- * the list shows every saved destination, while only the selected link exposes
- * its fields and icon palette.
- */
+/** One sortable row per destination: the order, icon, label, and URL are edited
+ * in one place so there is no competing chip list or second reorder system. */
 export function ProfileLinksEditor({
   links,
   errors,
@@ -82,13 +102,13 @@ export function ProfileLinksEditor({
   onAdd,
   onChange,
   onRemove,
-  onMove,
   onReorder,
 }: ProfileLinksEditorProps) {
   const [selectedId, setSelectedId] = useState<string | null>(links[0]?.id ?? null);
   const [isChoosingIcon, setIsChoosingIcon] = useState(false);
   const [iconQuery, setIconQuery] = useState('');
   const [draftIconName, setDraftIconName] = useState('globe');
+  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedId && links.some((link) => link.id === selectedId)) return;
@@ -97,10 +117,7 @@ export function ProfileLinksEditor({
     setIconQuery('');
   }, [links, selectedId]);
 
-  const selectedIndex = links.findIndex((link) => link.id === selectedId);
-  const selected = selectedIndex >= 0 ? links[selectedIndex] : null;
-  const selectedErrors = selected ? errors[selected.id] ?? {} : {};
-  const SelectedIcon = getCategoryIcon(selected?.iconName ?? 'globe');
+  const selected = links.find((link) => link.id === selectedId) ?? null;
   const DraftIcon = getCategoryIcon(draftIconName);
   const draftIconOption = profileLinkIconOptions.find((option) => option.name === draftIconName) ?? null;
   const filteredIconOptions = useMemo(() => {
@@ -119,9 +136,11 @@ export function ProfileLinksEditor({
     setIconQuery('');
   }
 
-  function openIconPicker() {
-    if (!selected) return;
-    setDraftIconName(selected.iconName ?? 'globe');
+  function openIconPicker(linkId: string) {
+    const link = links.find((candidate) => candidate.id === linkId);
+    if (!link) return;
+    setSelectedId(link.id);
+    setDraftIconName(link.iconName ?? 'globe');
     setIconQuery('');
     setIsChoosingIcon(true);
   }
@@ -130,76 +149,34 @@ export function ProfileLinksEditor({
     const id = onAdd();
     if (id) {
       setSelectedId(id);
+      setPendingRemovalId(null);
       setIsChoosingIcon(false);
       setIconQuery('');
     }
   }
 
-  function updateDestination(patch: Pick<Partial<EditableProfileLink>, 'label' | 'href'>) {
-    if (!selected) return;
-    const nextLabel = patch.label ?? selected.label;
-    const nextHref = patch.href ?? selected.href;
-    const nextIconName = inferProfileLinkIconName(nextLabel, nextHref, selected.iconName);
-    onChange(selected.id, {
-      ...patch,
-      ...(nextIconName !== selected.iconName ? { iconName: nextIconName } : {})
-    });
-  }
-
   return <>
-    <fieldset className="m-0 flex min-h-0 min-w-0 flex-col gap-2 border-0 p-0">
-      <div className="flex min-h-8 items-center justify-between gap-3">
+    <fieldset className="m-0 flex min-h-0 min-w-0 flex-col gap-3 border-0 p-0">
+      <div className="flex min-h-9 items-start justify-between gap-3">
         <div>
-          <legend className="p-0 text-[13px] font-semibold text-[var(--text-primary)]">Profile links</legend>
-          <p className="text-[11px] leading-tight text-[var(--text-tertiary)]">Add any destination, choose its icon, and drag to reorder.</p>
+          <legend className="p-0 text-[14px] font-semibold text-[var(--text-primary)]">Profile links</legend>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Drag a handle to set the order viewers see.</p>
         </div>
-        <button type="button" onClick={addLink} disabled={disabled || links.length >= MAX_PROFILE_LINKS} className="shape-compact inline-flex h-8 shrink-0 items-center gap-1.5 px-2.5 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+        <button type="button" onClick={addLink} disabled={disabled || links.length >= MAX_PROFILE_LINKS} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-2.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
           <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
           Add link
         </button>
       </div>
 
-      {links.length > 0 ? <Reorder.Group axis="y" values={links.map((link) => link.id)} onReorder={disabled ? () => undefined : onReorder} className="scrollbar-hidden flex max-h-[96px] flex-wrap content-start gap-1.5 overflow-y-auto p-0" role="list" aria-label="Profile links">
-          {links.map((link, index) => <ReorderableProfileLinkTile key={link.id} link={link} index={index} total={links.length} isSelected={selectedId === link.id} hasError={Boolean(errors[link.id]?.label || errors[link.id]?.href)} disabled={disabled} onSelect={() => {
-            setSelectedId(link.id);
-            setIsChoosingIcon(false);
-            setIconQuery('');
+      {links.length > 0 ? <Reorder.Group axis="y" values={links.map((link) => link.id)} onReorder={disabled ? () => undefined : onReorder} className="scrollbar-overlay m-0 flex max-h-[328px] list-none flex-col gap-2 overflow-y-auto p-0 pr-1" role="list" aria-label="Profile links">
+          {links.map((link, index) => <ReorderableProfileLinkRow key={link.id} link={link} index={index} total={links.length} errors={errors[link.id] ?? {}} disabled={disabled} isConfirmingRemoval={pendingRemovalId === link.id} onChange={(patch) => onChange(link.id, patch)} onChooseIcon={() => openIconPicker(link.id)} onRequestRemove={() => setPendingRemovalId(link.id)} onCancelRemove={() => setPendingRemovalId(null)} onConfirmRemove={() => {
+            onRemove(link.id);
+            setPendingRemovalId(null);
           }} />)}
-        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} className="shape-compact flex h-14 items-center justify-center gap-2 border border-dashed border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} className="flex h-20 items-center justify-center gap-2 rounded-[12px] border border-dashed border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={LinkIcon} size="sm" weight="medium" />
           Add your first link
         </button>}
-
-      {selected ? <div className="shape-compact relative grid grid-cols-[40px_minmax(0,0.7fr)_minmax(0,1.3fr)] gap-2 bg-[var(--surface-sunken)] p-2">
-          <div className="relative">
-            <button type="button" onClick={openIconPicker} disabled={disabled} aria-expanded={isChoosingIcon} aria-haspopup="dialog" aria-label={`Choose icon for ${selected.label || 'link'}`} title="Choose icon" className="shape-squircle-compact flex h-10 w-10 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)] ring-1 ring-inset ring-[var(--hairline)] transition-colors hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <SelectedIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="min-w-0">
-            <label htmlFor={`profile-link-label-${selected.id}`} className="sr-only">Link label</label>
-            <input id={`profile-link-label-${selected.id}`} value={selected.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Label" aria-invalid={selectedErrors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
-            {selectedErrors.label ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{selectedErrors.label}</p> : null}
-          </div>
-          <div className="min-w-0">
-            <label htmlFor={`profile-link-url-${selected.id}`} className="sr-only">Destination URL</label>
-            <input id={`profile-link-url-${selected.id}`} type="text" inputMode="url" value={selected.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={selectedErrors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
-            {selectedErrors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{selectedErrors.href}</p> : null}
-          </div>
-
-          <div className="col-span-3 flex items-center justify-end gap-1 border-t border-[var(--hairline)] pt-1.5">
-            <button type="button" onClick={() => onMove(selected.id, -1)} disabled={disabled || selectedIndex <= 0} aria-label="Move link earlier" className="shape-compact flex h-7 w-7 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-35">
-              <InterfaceIcon icon={ChevronUpIcon} size="sm" weight="medium" />
-            </button>
-            <button type="button" onClick={() => onMove(selected.id, 1)} disabled={disabled || selectedIndex === links.length - 1} aria-label="Move link later" className="shape-compact flex h-7 w-7 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-35">
-              <InterfaceIcon icon={ChevronDownIcon} size="sm" weight="medium" />
-            </button>
-            <button type="button" onClick={() => onRemove(selected.id)} disabled={disabled} aria-label={`Remove ${selected.label || 'link'}`} className="shape-compact ml-1 flex h-7 w-7 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--status-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
-            </button>
-          </div>
-        </div> : null}
     </fieldset>
 
     {isChoosingIcon && selected ? createPortal(

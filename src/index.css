@@ -4685,6 +4685,54 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
 }
 
+/* The profile editor is a focused workspace rather than a large floating
+   sheet. Its glass surface preserves context, while the two quiet inset
+   sections make identity and destinations easy to scan. */
+.profile-editor-dialog {
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.28),
+    0 6px 24px rgba(0, 0, 0, 0.16);
+  -webkit-backdrop-filter: blur(32px) saturate(130%);
+  backdrop-filter: blur(32px) saturate(130%);
+}
+
+.profile-editor-dialog [data-profile-editor-section] {
+  background: color-mix(in srgb, var(--surface-sunken) 62%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.profile-editor-dialog .profile-link-editor-row {
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--text-primary) 6%, transparent);
+}
+
+.profile-editor-footer {
+  background: color-mix(in srgb, var(--surface-raised) 78%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  backdrop-filter: blur(20px) saturate(120%);
+}
+
+/* Save is a constructive action, so it uses the platform's system blue rather
+   than a danger-like red. The shared Button disabled state continues to make
+   it available only when the form contains a valid change. */
+#profile-editor-save {
+  border: 0 !important;
+  background: #0a84ff !important;
+  color: #ffffff !important;
+}
+
+#profile-editor-save:hover:not(:disabled) {
+  background: #409cff !important;
+}
+
+#profile-editor-save:active:not(:disabled) {
+  background: #0071e3 !important;
+}
+
 /* ── Premium project viewing ───────────────────────────────────────────────
    The work remains visually dominant. Focused pages temporarily consume the
    response rail and file strip, while interaction guidance appears only during

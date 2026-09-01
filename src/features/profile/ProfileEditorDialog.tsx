@@ -85,7 +85,7 @@ export function ProfileEditorDialog({
   } = editor;
   const isBusy = editor.phase === 'saving';
   return <AnimatePresence>
-      <motion.div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-black/55 p-3" initial={{
+      <motion.div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-black/48 p-3 backdrop-blur-[12px]" initial={{
       opacity: 0
     }} animate={{
       opacity: 1
@@ -99,9 +99,7 @@ export function ProfileEditorDialog({
         onClose();
       }
     }}>
-        {/* Wide and compact: this edits the profile already on screen, so it
-           reads across rather than running down a long single column. */}
-        <motion.section role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="flex max-h-[calc(100dvh-24px)] w-full max-w-[880px] flex-col overflow-hidden rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-4 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:p-5" initial={shouldReduceMotion ? {
+        <motion.section role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="profile-editor-dialog flex max-h-[calc(100dvh-24px)] w-full max-w-[820px] flex-col overflow-hidden rounded-[18px] text-[var(--text-primary)]" initial={shouldReduceMotion ? {
         opacity: 0
       } : {
         opacity: 0,
@@ -118,24 +116,28 @@ export function ProfileEditorDialog({
         duration: shouldReduceMotion ? 0 : 0.18,
         ease: [0.22, 1, 0.36, 1]
       }}>
-          <div className="flex items-start justify-between gap-3">
-            <h2 id="profile-editor-title" className="text-[16px] font-semibold leading-tight">Edit profile</h2>
+          <header className="flex shrink-0 items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6">
+            <div>
+              <h2 id="profile-editor-title" className="text-[18px] font-semibold leading-tight">Edit profile</h2>
+              <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-secondary)]">Refine how your identity and destinations appear across Portalink.</p>
+            </div>
             <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
               <InterfaceIcon icon={XIcon} weight="medium" />
             </button>
-          </div>
+          </header>
 
-          {editor.loadError ? <div className="mt-5">
+          {editor.loadError ? <div className="px-6 pb-6">
               <ErrorState title="Unable to load profile" description={editor.loadError} />
-            </div> : editor.phase === 'loading' || !fields ? <div className="mt-5">
+            </div> : editor.phase === 'loading' || !fields ? <div className="px-6 pb-6">
               <LoadingState label="Loading profile" />
             </div> : <form onSubmit={(event) => {
           event.preventDefault();
           if (editor.canSave) {
             void editor.submit();
           }
-        }} noValidate className="mt-4 flex min-h-0 flex-col gap-4">
-              {editor.phase === 'failed' && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2 text-[12px] leading-relaxed focus:outline-none">
+        }} noValidate className="flex min-h-0 flex-1 flex-col">
+            <div className="scrollbar-overlay min-h-0 flex-1 overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6">
+              {editor.phase === 'failed' && <div ref={errorRef} tabIndex={-1} role="alert" className="mb-4 flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2 text-[12px] leading-relaxed focus:outline-none">
                   <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     {editor.save.error}
@@ -145,13 +147,17 @@ export function ProfileEditorDialog({
                   </span>
                 </div>}
 
-              {editor.phase === 'saved' && <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-2 text-[12px] leading-relaxed">
+              {editor.phase === 'saved' && <div role="status" className="mb-4 flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-2 text-[12px] leading-relaxed">
                   <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
                   <span>Profile updated.</span>
                 </div>}
 
-              <div className="grid min-h-0 grid-cols-[minmax(220px,0.72fr)_minmax(0,1.6fr)] gap-5">
-              <div className="flex min-w-0 flex-col gap-4">
+              <div className="grid min-h-0 grid-cols-1 gap-5 md:grid-cols-[minmax(220px,0.78fr)_minmax(360px,1.55fr)] md:gap-6">
+              <section data-profile-editor-section="identity" aria-labelledby="profile-identity-heading" className="flex min-w-0 flex-col gap-4 rounded-[14px] p-4">
+              <div>
+                <h3 id="profile-identity-heading" className="text-[14px] font-semibold text-[var(--text-primary)]">Profile identity</h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">The essential details viewers see first.</p>
+              </div>
               {/* The profile picture is edited here, with the identity it
                belongs to. It rides along on the same save as the fields
                below, so nothing is written until the creator saves — and a
@@ -162,17 +168,20 @@ export function ProfileEditorDialog({
 
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
               <ProfileField id="profile-editor-city" label="City" value={fields.location} optional autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City" error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
-              </div>
+              </section>
 
-              <ProfileLinksEditor links={fields.links} errors={linkErrors} disabled={isBusy} onAdd={editor.addProfileLink} onChange={editor.setProfileLink} onRemove={editor.removeProfileLink} onMove={editor.moveProfileLink} onReorder={editor.reorderProfileLinks} />
+              <section data-profile-editor-section="links" aria-label="Profile destinations" className="min-w-0 rounded-[14px] p-4">
+                <ProfileLinksEditor links={fields.links} errors={linkErrors} disabled={isBusy} onAdd={editor.addProfileLink} onChange={editor.setProfileLink} onRemove={editor.removeProfileLink} onReorder={editor.reorderProfileLinks} />
+              </section>
               </div>
+            </div>
 
-              <div className="flex items-center justify-end gap-2 border-t border-[var(--hairline)] pt-3">
+              <footer className="profile-editor-footer flex shrink-0 items-center justify-end gap-2 border-t border-[var(--hairline)] px-5 py-4 sm:px-6">
                 <Button variant="secondary" size="lg" disabled={isBusy} onClick={onClose}>Cancel</Button>
-                <Button type="submit" variant="primary" size="lg" isLoading={isBusy} disabled={!editor.canSave}>
+                <Button id="profile-editor-save" type="submit" variant="primary" size="lg" isLoading={isBusy} disabled={!editor.canSave}>
                   {isBusy ? 'Saving…' : 'Save changes'}
                 </Button>
-              </div>
+              </footer>
             </form>}
 
         </motion.section>
