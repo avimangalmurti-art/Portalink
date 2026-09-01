@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
@@ -14,11 +14,68 @@ const ACTIONS: Array<{
   { kind: 'repost', label: 'Repost', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' }
 ];
 
-export function MediaInteractionBar({ target, placement = 'page' }: { target: MediaInteractionTarget;placement?: 'page' | 'focused'; }) {
+export function MediaInteractionBar({
+  target,
+  placement = 'page',
+  focusedPageAspectRatio,
+  focusedZoom = 1
+}: {
+  target: MediaInteractionTarget;
+  placement?: 'page' | 'focused';
+  /** The visible artwork, not its surrounding viewer, owns focused controls. */
+  focusedPageAspectRatio?: number;
+  focusedZoom?: number;
+}) {
   const activity = useMediaInteractions(target);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const interactionRef = useRef<HTMLDivElement>(null);
+  const [focusedPosition, setFocusedPosition] = useState<{ left: number; bottom: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (placement !== 'focused' || !focusedPageAspectRatio || focusedPageAspectRatio <= 0) {
+      setFocusedPosition(null);
+      return undefined;
+    }
+    const interaction = interactionRef.current;
+    const surface = interaction?.offsetParent;
+    if (!(surface instanceof HTMLElement)) return undefined;
+
+    const measure = () => {
+      const styles = window.getComputedStyle(surface);
+      const paddingLeft = Number.parseFloat(styles.paddingLeft) || 0;
+      const paddingRight = Number.parseFloat(styles.paddingRight) || 0;
+      const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
+      const availableWidth = Math.max(0, surface.clientWidth - paddingLeft - paddingRight);
+      const availableHeight = Math.max(0, surface.clientHeight - paddingTop - paddingBottom);
+      if (!availableWidth || !availableHeight) return;
+
+      const viewportRatio = availableWidth / availableHeight;
+      const zoom = Math.max(1, focusedZoom);
+      const pageWidth = (focusedPageAspectRatio >= viewportRatio
+        ? availableWidth
+        : availableHeight * focusedPageAspectRatio) * zoom;
+      const pageHeight = (focusedPageAspectRatio >= viewportRatio
+        ? availableWidth / focusedPageAspectRatio
+        : availableHeight) * zoom;
+      const inset = 12;
+      setFocusedPosition({
+        left: Math.round(paddingLeft + Math.max(0, (availableWidth - pageWidth) / 2) + inset),
+        bottom: Math.round(paddingBottom + Math.max(0, (availableHeight - pageHeight) / 2) + inset)
+      });
+    };
+
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(surface);
+    window.addEventListener('resize', measure, { passive: true });
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [focusedPageAspectRatio, focusedZoom, placement]);
 
   useEffect(() => {
     if (activity.commentResumeToken === 0) return;
@@ -28,9 +85,11 @@ export function MediaInteractionBar({ target, placement = 'page' }: { target: Me
 
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
+    ref={interactionRef}
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
     className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-3 left-3 flex-col-reverse items-start' : 'right-2 top-2 flex-col items-end'}`}
+    style={placement === 'focused' && focusedPosition ? focusedPosition : undefined}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}

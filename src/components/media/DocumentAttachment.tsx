@@ -146,12 +146,6 @@ export function DocumentAttachment({
             <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
               <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
             </button>
-            <MediaInteractionBar placement="focused" target={{
-              projectId,
-              attachmentId: attachment.id,
-              pageIndex: focusedPageIndex,
-              label: `${attachment.displayName}, page ${renderedPages[focusedPageIndex]?.withinDocumentIndex ?? focusedPageIndex + 1}`
-            }} />
           </> : null}
         {focusedPageIndex !== null && renderedPages.length > 1 ? <>
             {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
@@ -196,12 +190,12 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            {focusedPageIndex !== index ? <MediaInteractionBar target={{
+            <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} focusedPageAspectRatio={page.width && page.height ? page.width / page.height : 8.5 / 11} focusedZoom={focusedPageIndex === index ? zoom : 1} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,
               label: `${attachment.displayName}, page ${page.withinDocumentIndex}`
-            }} /> : null}
+            }} />
           </li>)}
         </ol>
       </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}

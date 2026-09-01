@@ -103,12 +103,12 @@ function ImagePage({
       }} />
         </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
-      {!isFocused ? <MediaInteractionBar target={{
+      <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? attachment.metadata.widthPixels / attachment.metadata.heightPixels : 1} focusedZoom={zoom} target={{
         projectId,
         attachmentId: attachment.id,
         pageIndex: pageNumber - 1,
         label: pageCount > 1 ? `${attachment.displayName}, image ${pageNumber}` : attachment.displayName
-      }} /> : null}
+      }} />
     </li>;
 }
 
@@ -228,12 +228,6 @@ export function ImageAttachment({
         <button type="button" onClick={exitFocus} aria-label="Exit single-image view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
           <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
         </button>
-        <MediaInteractionBar placement="focused" target={{
-          projectId,
-          attachmentId: focusedPage.id,
-          pageIndex: focusedPageIndex,
-          label: pages.length > 1 ? `${focusedPage.displayName}, image ${focusedPageIndex + 1}` : focusedPage.displayName
-        }} />
         {pages.length > 1 ? <>
             {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />

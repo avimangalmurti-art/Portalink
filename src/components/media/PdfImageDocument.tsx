@@ -258,12 +258,12 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    {!isFocused ? <MediaInteractionBar target={{
+    <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={aspectRatio} focusedZoom={zoom} target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
       label: `${label}, page ${pageNumber}`
-    }} /> : null}
+    }} />
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
 }
@@ -416,12 +416,6 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
           <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
         </button>
-        <MediaInteractionBar placement="focused" target={{
-          projectId,
-          attachmentId,
-          pageIndex: focusedPageNumber - 1,
-          label: `${label}, page ${focusedPageNumber}`
-        }} />
       </> : null}
     {focusedPageNumber !== null && pageCount > 1 ? <>
         {focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
