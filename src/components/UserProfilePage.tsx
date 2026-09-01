@@ -258,7 +258,7 @@ function ProfileProjectTile({
   };
 
   return (
-    <div className="individual-content-outline group relative h-full w-full">
+    <div className="group relative h-full w-full">
       <button
         type="button"
         data-project-continuity-surface=""
@@ -267,7 +267,7 @@ function ProfileProjectTile({
         onClick={onOpen}
         aria-label={`Open ${project.title}`}
         title={project.title}
-        className="relative block h-full w-full cursor-pointer overflow-hidden rounded-none bg-[var(--surface-sunken)] text-left ring-1 ring-[var(--hairline)] transition-[border-radius] duration-150 group-hover:rounded-[8px] focus:outline-none focus-visible:rounded-[8px] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none"
+        className="relative block h-full w-full cursor-pointer overflow-hidden rounded-none bg-[var(--surface-sunken)] text-left ring-1 ring-inset ring-[var(--hairline)] transition-[border-radius] duration-150 group-hover:rounded-[8px] focus:outline-none focus-visible:rounded-[8px] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none"
       >
         <span className="absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
           <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw" />
@@ -280,7 +280,7 @@ function ProfileProjectTile({
         summary={project.summary}
         showEngagementMetrics={showEngagementMetrics}
         onOpen={onOpen}
-        className="pointer-events-none rounded-[8px] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+        className="pointer-events-none rounded-[8px] opacity-0 ring-1 ring-inset ring-transparent transition-[opacity,box-shadow] duration-150 group-hover:opacity-100 group-hover:ring-[var(--hairline-strong)] group-focus-within:opacity-100 group-focus-within:ring-[var(--focus-ring)] motion-reduce:transition-none"
         footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className={`relative inline-flex items-center transition-opacity duration-150 motion-reduce:transition-none ${isMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100'}`}>
             <button type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />

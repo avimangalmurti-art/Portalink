@@ -1356,12 +1356,12 @@ button[data-portalink-tile],
     border-radius: 10px !important;
   }
 }
-/* Content never gains a hard rectangular outline — hover reads through the
-   quiet lift and the media itself. */
+/* Content uses its existing edge for hover, strengthening that one line rather
+   than stacking a second outline above it. */
 @media (hover: hover) and (pointer: fine) {
   .accent-theme .card-hover-outline:hover,
   .accent-theme .card-hover-outline:focus-within {
-    border-color: var(--hairline) !important;
+    border-color: var(--hairline-strong) !important;
     box-shadow: none !important;
   }
 }
@@ -1388,10 +1388,10 @@ button[data-portalink-tile],
   position: relative;
   isolation: isolate;
 }
-/* Home and profile work receives one semantic hairline above its media and
-   hover details. A generated overlay keeps the line out of layout, so neither
-   the card nor its neighbours move when the pointer arrives. The token resolves
-   to dark ink in light appearance and light ink in dark appearance. */
+/* Borderless feed work receives one semantic hairline above its media and
+   hover details. Cards that already own a border strengthen that existing edge
+   instead, avoiding doubled lines. The generated overlay stays out of layout
+   and inherits the card's live corner radius. */
 .individual-content-outline {
   position: relative;
   isolation: isolate;
@@ -1422,7 +1422,7 @@ button[data-portalink-tile],
 @media (hover: hover) and (pointer: fine) {
   .card-hover-outline:hover,
   .card-hover-outline:focus-within {
-    border-color: var(--hairline);
+    border-color: var(--hairline-strong);
     box-shadow: none;
   }
 }
