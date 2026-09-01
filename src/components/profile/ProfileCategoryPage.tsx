@@ -326,14 +326,14 @@ export function ProfileCategoryPage({
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : <div aria-hidden="true" className="global-control-header shrink-0" /> : null}
-        {/* The way back to the browse this project was chosen from. It sits above
+        {/* The way back to the home surface this project was chosen from. It sits above
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
-           actually arrived from a discovery surface. */}
+           actually arrived from the home surface. */}
         {onReturnToDiscovery && <div className={`flex shrink-0 items-center pt-3 ${isIndexCollapsed ? 'justify-center px-1.5' : 'px-3'}`}>
-            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to discovery" title="Back to discovery" className={`flex h-8 items-center rounded-[8px] text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-9 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
+            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`flex h-8 items-center rounded-[8px] text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-9 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
-              {!isIndexCollapsed && 'Discovery'}
+              {!isIndexCollapsed && 'Back to home'}
             </button>
           </div>}
 
