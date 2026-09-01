@@ -102,12 +102,6 @@ export function SharedProfileSidebar({
         </ul>
       </nav>
 
-      <div data-shared-join-footer="" className={`pointer-events-none absolute inset-x-3 z-30 transition-[bottom] duration-200 ease-out motion-reduce:transition-none ${isSettingsOpen ? 'bottom-[156px]' : 'bottom-[60px]'}`}>
-        <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="pointer-events-auto inline-flex min-h-9 w-full items-center justify-center rounded-full bg-[var(--system-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition-[filter,transform] duration-150 hover:-translate-y-px hover:brightness-105 active:translate-y-0 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-          <span>Join the Portalink<br />Network</span>
-        </a>
-      </div>
-
       <div data-shared-account-footer="" className="absolute inset-x-2 bottom-2 z-40">
         <div className="relative flex h-10 items-center justify-between px-1">
           {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className="account-menu-popover absolute bottom-12 left-1 right-1 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)]">
