@@ -22,6 +22,39 @@ const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   unknown: FileIcon
 };
 
+const SAMPLE_VERIFICATION_SIGNALS = [
+  {
+    key: 'original',
+    label: 'Original signals',
+    value: 72,
+    color: '#0a84ff'
+  },
+  {
+    key: 'cited',
+    label: 'Cited material',
+    value: 18,
+    color: '#bf5af2'
+  },
+  {
+    key: 'ai-like',
+    label: 'AI-like signals',
+    value: 7,
+    color: '#ff9f0a'
+  },
+  {
+    key: 'uncertain',
+    label: 'Uncertain',
+    value: 3,
+    color: '#8e8e93'
+  }
+] as const;
+
+const SAMPLE_CHECKER_EVIDENCE = [
+  { provider: 'LumenProof AI', result: 'Low AI-pattern risk' },
+  { provider: 'SourceTrace', result: 'References matched' },
+  { provider: 'PatternLens', result: '3% uncertain' }
+] as const;
+
 function formatPublishedDate(value?: string): string | null {
   if (!value) return null;
   const date = new Date(value);
@@ -398,28 +431,70 @@ export function ProjectMediaViewer({
                 </dl>
               </div>}
           </div>}
-          {isRailOpen && sharedInfoPanel === 'verification' && <section id="shared-project-detail-panel" aria-label="AI verification services" className="flex flex-col gap-4 px-5 py-5">
+          {isRailOpen && sharedInfoPanel === 'verification' && <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="flex flex-col gap-5 px-5 py-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Evidence signals and creator disclosures.</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-[var(--surface-sunken)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
+              </div>
+
               <div>
-                <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
-                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Checker records supplied by the creator.</p>
-              </div>
-              <div className="rounded-[12px] bg-[var(--surface-sunken)] p-3">
-                <div className="flex items-center gap-2.5">
-                  <span aria-hidden="true" className="shape-squircle-compact flex h-9 w-9 shrink-0 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)]">
-                    <InterfaceIcon icon={BadgeCheckIcon} size="md" weight="medium" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12px] font-semibold text-[var(--text-primary)]">LumenProof AI</span>
-                    <span className="mt-0.5 block text-[10px] text-[var(--text-tertiary)]">Originality and attribution</span>
-                  </span>
-                  <span className="rounded-full bg-[var(--surface-raised)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
+                <div className="mb-2.5 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] text-[var(--text-tertiary)]">Verification strength</p>
+                    <p className="mt-0.5 text-[13px] font-semibold text-[var(--text-primary)]">High agreement</p>
+                  </div>
+                  <p className="text-right text-[10px] leading-snug text-[var(--text-tertiary)]">3 checks<br />completed</p>
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-[var(--hairline)] pt-2.5 text-[10px]">
-                  <span className="text-[var(--text-tertiary)]">Record status</span>
-                  <span className="font-semibold text-[var(--text-secondary)]">Preview only</span>
+                <div role="img" aria-label={SAMPLE_VERIFICATION_SIGNALS.map((signal) => `${signal.label} ${signal.value} percent`).join(', ')} className="flex h-5 w-full gap-[2px] overflow-hidden rounded-[7px] bg-[var(--surface-sunken)]">
+                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <span key={signal.key} aria-hidden="true" style={{ width: `${signal.value}%`, backgroundColor: signal.color }} />)}
+                </div>
+                <dl aria-label="Verification signal legend" className="mt-3 grid gap-2">
+                  {SAMPLE_VERIFICATION_SIGNALS.map((signal) => <div key={signal.key} className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-center gap-2 text-[10px] leading-none">
+                      <span aria-hidden="true" style={{ backgroundColor: signal.color }} className="h-2 w-2 rounded-full" />
+                      <dt className="min-w-0 text-[var(--text-secondary)]">{signal.label}</dt>
+                      <dd className="font-semibold tabular-nums text-[var(--text-primary)]">{signal.value}%</dd>
+                    </div>)}
+                </dl>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
+                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Coverage</p>
+                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">{pageCount !== null ? `${pageCount} of ${pageCount} pages` : `${attachments.length} files`}</p>
+                </div>
+                <div className="rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
+                  <p className="text-[9px] uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Agreement</p>
+                  <p className="mt-1 text-[11px] font-semibold text-[var(--text-primary)]">3 of 3 checks</p>
                 </div>
               </div>
-              <p className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">Demo provider for interface preview. No live verification has been completed.</p>
+
+              <div>
+                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Checker evidence</h4>
+                <div className="mt-2 divide-y divide-[var(--hairline)] border-y border-[var(--hairline)]">
+                  {SAMPLE_CHECKER_EVIDENCE.map((checker) => <div key={checker.provider} className="flex items-center gap-2.5 py-2.5">
+                      <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
+                        <InterfaceIcon icon={BadgeCheckIcon} size="sm" weight="medium" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[10px] font-semibold text-[var(--text-primary)]">{checker.provider}</span>
+                        <span className="mt-0.5 block text-[9px] text-[var(--text-tertiary)]">{checker.result}</span>
+                      </span>
+                    </div>)}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-[11px] font-semibold text-[var(--text-primary)]">Creator-declared AI tools</h4>
+                <div className="mt-2 rounded-[10px] bg-[var(--surface-sunken)] px-3 py-2.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">No tools declared</p>
+                  <p className="mt-1 text-[9px] leading-relaxed text-[var(--text-tertiary)]">Tool names appear here only when supplied by the creator. Checkers do not guess the product used.</p>
+                </div>
+              </div>
+
+              <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>}
         </aside> : <aside data-project-response-rail="" aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
         {/* The control travels with the rail rather than sitting on the work, so
