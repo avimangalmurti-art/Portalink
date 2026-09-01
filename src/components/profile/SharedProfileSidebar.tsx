@@ -40,7 +40,10 @@ export function SharedProfileSidebar({
   onCreateAccount
 }: SharedProfileSidebarProps) {
   const sharedSidebarWidth = useResizablePanelWidth({
-    id: 'shared-profile-navigation',
+    // A copied public link has its own maximum-width baseline. Its viewer-side
+    // resize choice must not inherit a narrower navigation width saved by an
+    // earlier implementation or by the signed-in workspace.
+    id: 'shared-profile-navigation-standard',
     defaultWidth: 360,
     minWidth: 180,
     maxWidth: 360,

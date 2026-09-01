@@ -65,7 +65,10 @@ export function ProfileCategoryPage({
   onReturnToDiscovery
 }: ProfileCategoryPageProps) {
   const projectIndexWidth = useResizablePanelWidth({
-    id: 'project-index',
+    // Public copies keep a separate preference from the signed-in workspace.
+    // This makes their first/default layout the full standard width instead of
+    // inheriting a compressed project index from another viewing context.
+    id: sharedReadOnly ? 'shared-project-index-standard' : 'project-index',
     defaultWidth: 420,
     minWidth: 220,
     maxWidth: 420,
