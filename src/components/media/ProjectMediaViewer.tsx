@@ -96,29 +96,11 @@ export function ProjectMediaViewer({
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
+  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
-  const verificationMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!isVerificationOpen) return undefined;
-    function closeVerification(event: PointerEvent) {
-      if (!verificationMenuRef.current?.contains(event.target as Node)) {
-        setIsVerificationOpen(false);
-      }
-    }
-    function closeVerificationOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsVerificationOpen(false);
-    }
-    document.addEventListener('pointerdown', closeVerification);
-    document.addEventListener('keydown', closeVerificationOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeVerification);
-      document.removeEventListener('keydown', closeVerificationOnEscape);
-    };
-  }, [isVerificationOpen]);
-  useEffect(() => {
-    if (!isRailOpen) setIsVerificationOpen(false);
-  }, [isRailOpen]);
+    setSharedInfoPanel('project');
+  }, [projectId]);
   useEffect(() => {
     if (deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)) {
       setActiveId(deepLinkedAttachmentId);
@@ -377,42 +359,19 @@ export function ProjectMediaViewer({
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
-      {readOnlyShare ? <aside data-project-response-rail="" aria-label={`Project information for ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+      {readOnlyShare ? <aside data-project-response-rail="" aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
           <div className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'gap-1 px-2' : 'justify-center px-1.5'}`}>
-            <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project information' : 'Show project information'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+            <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
-            {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Project info</h2>}
-            {isRailOpen && <div ref={verificationMenuRef} className="relative shrink-0">
-                <button type="button" onClick={() => setIsVerificationOpen((open) => !open)} aria-label="View AI verification services" aria-expanded={isVerificationOpen} aria-controls="project-ai-verification" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isVerificationOpen ? 'bg-[var(--surface-selected)] text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--text-primary)]'}`}>
-                  <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
-                </button>
-                {isVerificationOpen && <section id="project-ai-verification" aria-label="AI verification services" data-material="toolbar" className="absolute right-0 top-[calc(100%+8px)] z-50 w-[232px] overflow-hidden rounded-[12px] text-[var(--text-primary)] shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
-                    <div className="px-3.5 pb-2.5 pt-3.5">
-                      <h3 className="text-[12px] font-semibold">AI verification</h3>
-                      <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">Checker records supplied by the creator.</p>
-                    </div>
-                    <div className="mx-2.5 mb-2.5 rounded-[10px] bg-[var(--surface-sunken)] p-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <span aria-hidden="true" className="shape-squircle-compact flex h-9 w-9 shrink-0 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)]">
-                          <InterfaceIcon icon={BadgeCheckIcon} size="md" weight="medium" />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12px] font-semibold">LumenProof AI</span>
-                          <span className="mt-0.5 block text-[10px] text-[var(--text-tertiary)]">Originality and attribution</span>
-                        </span>
-                        <span className="rounded-full bg-[var(--surface-raised)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
-                      </div>
-                      <div className="mt-2.5 flex items-center justify-between border-t border-[var(--hairline)] pt-2 text-[10px]">
-                        <span className="text-[var(--text-tertiary)]">Record status</span>
-                        <span className="font-semibold text-[var(--text-secondary)]">Preview only</span>
-                      </div>
-                    </div>
-                    <p className="border-t border-[var(--hairline)] px-3.5 py-2.5 text-[9px] leading-relaxed text-[var(--text-tertiary)]">Demo provider for interface preview. No live verification has been completed.</p>
-                  </section>}
-              </div>}
+            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('project')} aria-label="Show project information" aria-pressed={sharedInfoPanel === 'project'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'project' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+                <span aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[18px] w-[18px] items-center justify-center rounded-full border border-current text-[12px] font-semibold leading-none">i</span>
+              </button>}
+            {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel('verification')} aria-label="Show AI verification services" aria-pressed={sharedInfoPanel === 'verification'} aria-controls="shared-project-detail-panel" className={`side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${sharedInfoPanel === 'verification' ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+                <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
+              </button>}
           </div>
-          {isRailOpen && <div className="flex flex-col gap-5 px-5 py-5">
+          {isRailOpen && sharedInfoPanel === 'project' && <div id="shared-project-detail-panel" className="flex flex-col gap-5 px-5 py-5">
             <div>
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
               <p className="mt-1 text-[12px] text-[var(--text-secondary)]">By {creatorName}</p>
@@ -439,6 +398,29 @@ export function ProjectMediaViewer({
                 </dl>
               </div>}
           </div>}
+          {isRailOpen && sharedInfoPanel === 'verification' && <section id="shared-project-detail-panel" aria-label="AI verification services" className="flex flex-col gap-4 px-5 py-5">
+              <div>
+                <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Checker records supplied by the creator.</p>
+              </div>
+              <div className="rounded-[12px] bg-[var(--surface-sunken)] p-3">
+                <div className="flex items-center gap-2.5">
+                  <span aria-hidden="true" className="shape-squircle-compact flex h-9 w-9 shrink-0 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-secondary)]">
+                    <InterfaceIcon icon={BadgeCheckIcon} size="md" weight="medium" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[12px] font-semibold text-[var(--text-primary)]">LumenProof AI</span>
+                    <span className="mt-0.5 block text-[10px] text-[var(--text-tertiary)]">Originality and attribution</span>
+                  </span>
+                  <span className="rounded-full bg-[var(--surface-raised)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--text-secondary)]">Sample</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between border-t border-[var(--hairline)] pt-2.5 text-[10px]">
+                  <span className="text-[var(--text-tertiary)]">Record status</span>
+                  <span className="font-semibold text-[var(--text-secondary)]">Preview only</span>
+                </div>
+              </div>
+              <p className="text-[10px] leading-relaxed text-[var(--text-tertiary)]">Demo provider for interface preview. No live verification has been completed.</p>
+            </section>}
         </aside> : <aside data-project-response-rail="" aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
