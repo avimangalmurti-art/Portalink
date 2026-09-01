@@ -102,7 +102,7 @@ export function SharedProfileSidebar({
         </ul>
       </nav>
 
-      <div data-shared-join-footer="" className="pointer-events-none absolute inset-x-3 bottom-[60px] z-30">
+      <div data-shared-join-footer="" className={`pointer-events-none absolute inset-x-3 z-30 transition-[bottom] duration-200 ease-out motion-reduce:transition-none ${isSettingsOpen ? 'bottom-[156px]' : 'bottom-[60px]'}`}>
         <a href="/?auth=signIn" target="_blank" rel="noopener noreferrer" aria-label="Join the Portalink Network (opens in a new tab)" data-shared-join-link="" className="pointer-events-auto inline-flex min-h-9 w-full items-center justify-center rounded-full bg-[var(--system-pink)] px-3 py-1.5 text-center text-[13px] font-semibold leading-[1.05] text-black shadow-[0_10px_24px_rgba(0,0,0,0.32)] transition-[filter,transform] duration-150 hover:-translate-y-px hover:brightness-105 active:translate-y-0 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <span>Join the Portalink<br />Network</span>
         </a>
@@ -110,17 +110,17 @@ export function SharedProfileSidebar({
 
       <div data-shared-account-footer="" className="absolute inset-x-2 bottom-2 z-40">
         <div className="relative flex h-10 items-center justify-between px-1">
-          {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" className="account-menu-popover absolute bottom-[104px] left-0 w-[196px] overflow-hidden rounded-[16px] p-2 text-[var(--text-primary)]">
-              <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2 text-left font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <InterfaceIcon icon={UserPlusIcon} weight="medium" />
-                <span>Create an account</span>
+          {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className="account-menu-popover absolute bottom-12 left-1 right-1 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)]">
+              <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row flex h-9 w-full items-center gap-2 rounded-[8px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
+                <span className="whitespace-nowrap leading-none">Create an account</span>
               </button>
-              <button type="button" role="menuitem" onClick={() => openAuth(onSignIn)} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-2 text-left font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <InterfaceIcon icon={LogInIcon} weight="medium" />
-                <span>Sign in</span>
+              <button type="button" role="menuitem" onClick={() => openAuth(onSignIn)} className="account-menu-row flex h-9 w-full items-center gap-2 rounded-[8px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={LogInIcon} size="sm" weight="medium" /></span>
+                <span className="whitespace-nowrap leading-none">Sign in</span>
               </button>
             </div> : null}
-          <button ref={settingsTriggerRef} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label="Open settings" aria-haspopup="menu" aria-expanded={isSettingsOpen} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button ref={settingsTriggerRef} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
           </button>
           <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-system-color="" className="shared-profile-theme-toggle side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">

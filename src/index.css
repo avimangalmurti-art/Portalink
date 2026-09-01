@@ -4648,6 +4648,19 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background: rgba(246, 246, 248, 0.92);
 }
 
+/* The signed-out public menu is anchored to the gear rather than floating over
+   the Join action. Its smaller, quieter glass surface keeps the pink invitation
+   as the dominant call to action while preserving clear menu contrast. */
+.codex-shell.shared-portalink-shell [data-shared-account-menu] {
+  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  border: 0;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+}
+
 .account-menu-popover :is(.account-menu-identity, .account-menu-row),
 .account-menu-popover :is(.account-menu-identity, .account-menu-row):hover,
 .account-menu-popover :is(.account-menu-identity, .account-menu-row):active {
