@@ -317,15 +317,14 @@ export function ProfileCategoryPage({
       {/* Local document navigation: related to the global sidebar, but one tonal
          step lighter and divided by a single hairline rather than a card. */}
       <div data-resizable-panel="" data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={isIndexCollapsed ? undefined : { width: `${projectIndexWidth.width}px` }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
-        {/* The global navigation reserves its first 64px for the brand header.
-           A collapsed document rail uses that same top row for its expander;
-           the open rail keeps the row clear so its fuller header remains below
-           the discovery return. */}
-        {onReturnToDiscovery ? isIndexCollapsed ? <div className="global-control-header shrink-0 justify-center px-1.5">
+        {/* A collapsed document rail keeps its expander in the global header.
+           The open rail puts its complete toolbar there instead of reserving an
+           empty, darker band above the controls. */}
+        {onReturnToDiscovery && isIndexCollapsed ? <div className="global-control-header shrink-0 justify-center px-1.5">
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : <div aria-hidden="true" className="global-control-header shrink-0" /> : null}
+          </div> : null}
         {/* The way back to the home surface this project was chosen from. It sits above
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
@@ -341,7 +340,7 @@ export function ProfileCategoryPage({
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : <header className="ps-panel-toolbar global-control-header shrink-0">
+          </div> : <header className="ps-panel-toolbar global-control-header order-first shrink-0">
             <div className="flex h-full min-w-0 flex-1 items-center gap-1 px-2">
               <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
