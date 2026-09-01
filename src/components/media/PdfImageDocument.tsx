@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -7,6 +7,7 @@ import { useSinglePageZoom } from './useSinglePageZoom';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+import { FocusedPageExitControl } from './FocusedPageExitControl';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -38,6 +39,7 @@ type PdfImagePageProps = {
   isFocused: boolean;
   zoom: number;
   showMediaInteractions: boolean;
+  onAspectRatioResolved?: (aspectRatio: number) => void;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -52,6 +54,7 @@ function PdfImagePage({
   isFocused,
   zoom,
   showMediaInteractions,
+  onAspectRatioResolved,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -60,6 +63,7 @@ function PdfImagePage({
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const onSettledRef = useRef(onSettled);
+  const onAspectRatioResolvedRef = useRef(onAspectRatioResolved);
   const [page, setPage] = useState<PdfPageProxy | null>(null);
   const [aspectRatio, setAspectRatio] = useState(8.5 / 11);
   const [layoutRevision, setLayoutRevision] = useState(0);
@@ -68,6 +72,7 @@ function PdfImagePage({
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
 
   onSettledRef.current = onSettled;
+  onAspectRatioResolvedRef.current = onAspectRatioResolved;
 
   useEffect(() => {
     if (!enabled) {
@@ -85,7 +90,9 @@ function PdfImagePage({
         return;
       }
       const nativeViewport = nextPage.getViewport({ scale: 1 });
-      setAspectRatio(nativeViewport.width / nativeViewport.height);
+      const nextAspectRatio = nativeViewport.width / nativeViewport.height;
+      setAspectRatio(nextAspectRatio);
+      onAspectRatioResolvedRef.current?.(nextAspectRatio);
       setPage(nextPage);
     }).catch(() => {
       if (!cancelled) {
@@ -285,6 +292,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
+  const [focusedPageAspectRatio, setFocusedPageAspectRatio] = useState(8.5 / 11);
   const linkedPageNumber = () => {
     if (typeof window === 'undefined') return null;
     const query = new URLSearchParams(window.location.search);
@@ -392,6 +400,9 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   useEffect(() => {
     if (focusedPageNumber !== null) scrollRootRef.current?.focus({ preventScroll: true });
   }, [focusedPageNumber]);
+  useEffect(() => {
+    setFocusedPageAspectRatio(8.5 / 11);
+  }, [focusedPageNumber]);
   useLayoutEffect(() => {
     if (focusedPageNumber !== null) return;
     const element = scrollRootRef.current;
@@ -418,12 +429,13 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     const deltaX = event.clientX - start.x;
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
-  }} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
-    {focusedPageNumber !== null ? <>
-        <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
-          <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
-        </button>
-      </> : null}
+  }} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+    {focusedPageNumber !== null ? <FocusedPageExitControl
+      containerRef={scrollRootRef}
+      pageAspectRatio={focusedPageAspectRatio}
+      zoom={zoom}
+      onExit={exitFocus}
+    /> : null}
     {focusedPageNumber !== null && pageCount > 1 ? <>
         {focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
           <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
@@ -449,6 +461,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions}
+          onAspectRatioResolved={focusedPageNumber === pageNumber ? setFocusedPageAspectRatio : undefined}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

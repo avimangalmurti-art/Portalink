@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { ErrorState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
@@ -7,6 +7,7 @@ import { useSinglePageZoom } from './useSinglePageZoom';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+import { FocusedPageExitControl } from './FocusedPageExitControl';
 
 function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
   if (typeof window === 'undefined') return null;
@@ -231,9 +232,13 @@ export function ImageAttachment({
       const deltaY = event.clientY - start.y;
       if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
     }} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={{ touchAction: 'pan-x pan-y' }}>
-        <button type="button" onClick={exitFocus} aria-label="Exit single-image view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
-          <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
-        </button>
+        <FocusedPageExitControl
+          containerRef={zoomSurfaceRef}
+          pageAspectRatio={focusedPage.metadata?.widthPixels && focusedPage.metadata?.heightPixels ? focusedPage.metadata.widthPixels / focusedPage.metadata.heightPixels : 1}
+          zoom={zoom}
+          onExit={exitFocus}
+          label="Exit single-image view"
+        />
         {pages.length > 1 ? <>
             {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />

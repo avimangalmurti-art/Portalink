@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
@@ -9,6 +9,7 @@ import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+import { FocusedPageExitControl } from './FocusedPageExitControl';
 
 function deepLinkedDocumentPage(attachmentId: string, pageCount?: number): number | null {
   if (typeof window === 'undefined') return null;
@@ -148,12 +149,13 @@ export function DocumentAttachment({
         const deltaX = event.clientX - start.x;
         const deltaY = event.clientY - start.y;
         if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
-      }} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
-        {focusedPageIndex !== null ? <>
-            <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
-              <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
-            </button>
-          </> : null}
+      }} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+        {focusedPageIndex !== null ? <FocusedPageExitControl
+          containerRef={zoomSurfaceRef}
+          pageAspectRatio={renderedPages[focusedPageIndex]?.width && renderedPages[focusedPageIndex]?.height ? renderedPages[focusedPageIndex].width / renderedPages[focusedPageIndex].height : 8.5 / 11}
+          zoom={zoom}
+          onExit={exitFocus}
+        /> : null}
         {focusedPageIndex !== null && renderedPages.length > 1 ? <>
             {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
