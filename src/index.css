@@ -2166,12 +2166,27 @@ button[data-portalink-tile],
    geometry. Controls stay on the same responsive centerline because alignment
    belongs to their containers, never to per-icon offsets. */
 .global-control-header {
+  position: relative;
   display: flex;
   align-items: center;
   box-sizing: border-box;
   height: 64px;
   min-height: 64px;
-  border-bottom: 1px solid var(--hairline);
+  border-bottom: 0;
+}
+
+/* Every navigation header uses the same inset hairline. Drawing it inside the
+   header keeps a small amount of breathing room at both ends in open and
+   collapsed rails instead of letting the divider touch either panel edge. */
+.global-control-header::after {
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 1px;
+  content: '';
+  background: var(--hairline);
+  pointer-events: none;
 }
 
 /* The open engagement header is one six-control navigation row. Previously
