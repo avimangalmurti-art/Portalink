@@ -99,6 +99,83 @@ body,
 #root {
   height: 100%;
 }
+
+/* Startup uses the viewer's resolved appearance from index.html, so a dark
+   workspace never flashes white before React mounts. The one slow open-palm
+   greeting and a restrained progress trace keep the moment branded without
+   turning ordinary navigation into a performance. */
+.portalink-splash {
+  --portalink-splash-bg: #f3f4f6;
+  --portalink-splash-fg: #151517;
+  --portalink-splash-muted: rgba(21, 21, 23, 0.34);
+  --portalink-splash-trace: #0a84ff;
+  color: var(--portalink-splash-fg);
+  background-color: var(--portalink-splash-bg);
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(10, 132, 255, 0.055), transparent 31%),
+    radial-gradient(1px 1px at 18% 24%, rgba(21, 21, 23, 0.08), transparent 100%),
+    radial-gradient(1px 1px at 76% 31%, rgba(21, 21, 23, 0.065), transparent 100%),
+    radial-gradient(1px 1px at 64% 79%, rgba(21, 21, 23, 0.055), transparent 100%);
+}
+
+html[data-appearance='dark'] .portalink-splash {
+  --portalink-splash-bg: #0b0c0f;
+  --portalink-splash-fg: #f5f5f7;
+  --portalink-splash-muted: rgba(245, 245, 247, 0.28);
+  background-image:
+    radial-gradient(circle at 50% 42%, rgba(10, 132, 255, 0.09), transparent 32%),
+    radial-gradient(1px 1px at 18% 24%, rgba(255, 255, 255, 0.18), transparent 100%),
+    radial-gradient(1px 1px at 76% 31%, rgba(255, 255, 255, 0.13), transparent 100%),
+    radial-gradient(1px 1px at 64% 79%, rgba(255, 255, 255, 0.11), transparent 100%);
+}
+
+.portalink-splash-character {
+  color: var(--portalink-splash-fg);
+}
+
+.portalink-splash-wordmark {
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--portalink-splash-fg);
+}
+
+.portalink-splash-progress {
+  background: var(--portalink-splash-muted);
+}
+
+.portalink-splash-progress > span {
+  background: var(--portalink-splash-trace);
+  animation: portalink-splash-progress 1.15s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.portalink-splash-wave {
+  transform-box: view-box;
+  transform-origin: 214px 247px;
+  animation: portalink-splash-wave 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes portalink-splash-wave {
+  0%, 100% { transform: rotate(0deg); }
+  38% { transform: rotate(-2.25deg); }
+  68% { transform: rotate(0.8deg); }
+}
+
+@keyframes portalink-splash-progress {
+  0% { opacity: 0.28; transform: scaleX(0.08); }
+  58% { opacity: 0.9; transform: scaleX(0.76); }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portalink-splash-wave,
+  .portalink-splash-progress > span {
+    animation: none;
+  }
+
+  .portalink-splash-progress > span {
+    opacity: 0.62;
+    transform: scaleX(0.5);
+  }
+}
 /* Sensible defaults so any new page or component inherits the system. */
 h1 {
   font-size: var(--text-large);

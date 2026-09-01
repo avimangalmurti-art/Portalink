@@ -24,14 +24,76 @@
         min-height: 100dvh;
         place-items: center;
         overflow: hidden;
-        background: #fff;
-        color: #000;
+        background-color: #f3f4f6;
+        background-image:
+          radial-gradient(circle at 50% 42%, rgba(10, 132, 255, 0.055), transparent 31%),
+          radial-gradient(1px 1px at 18% 24%, rgba(21, 21, 23, 0.08), transparent 100%),
+          radial-gradient(1px 1px at 76% 31%, rgba(21, 21, 23, 0.065), transparent 100%);
+        color: #151517;
+      }
+
+      html[data-appearance='dark'] #portalink-preboot {
+        background-color: #0b0c0f;
+        background-image:
+          radial-gradient(circle at 50% 42%, rgba(10, 132, 255, 0.09), transparent 32%),
+          radial-gradient(1px 1px at 18% 24%, rgba(255, 255, 255, 0.18), transparent 100%),
+          radial-gradient(1px 1px at 76% 31%, rgba(255, 255, 255, 0.13), transparent 100%);
+        color: #f5f5f7;
+      }
+
+      .portalink-preboot-lockup {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
       }
 
       #portalink-preboot svg {
-        width: clamp(220px, 42vmin, 320px);
-        max-width: 82vw;
-        max-height: 78dvh;
+        width: clamp(142px, 24vmin, 188px);
+        max-width: 58vw;
+        height: auto;
+      }
+
+      .portalink-preboot-wordmark {
+        margin: 12px 0 0;
+        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .portalink-preboot-progress {
+        display: block;
+        width: 80px;
+        height: 1px;
+        margin-top: 16px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in srgb, currentColor 28%, transparent);
+      }
+
+      .portalink-preboot-progress > span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: #0a84ff;
+        transform-origin: left;
+        animation: portalink-preboot-progress 1.15s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+      }
+
+      @keyframes portalink-preboot-progress {
+        0% { opacity: 0.28; transform: scaleX(0.08); }
+        58% { opacity: 0.9; transform: scaleX(0.76); }
+        100% { opacity: 0; transform: scaleX(1); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .portalink-preboot-progress > span {
+          animation: none;
+          opacity: 0.62;
+          transform: scaleX(0.5);
+        }
       }
     </style>
     <script>
@@ -45,7 +107,15 @@
           // Storage can be unavailable in private browsing; System still works.
         }
         const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-        const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
+        let resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
+        if (window.location.pathname.startsWith('/share/')) {
+          try {
+            const sharedTheme = window.localStorage.getItem('portalink.sharedAppearance');
+            if (sharedTheme === 'light' || sharedTheme === 'dark') resolved = sharedTheme;
+          } catch {
+            // The resolved system appearance remains the public-link fallback.
+          }
+        }
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
       })();
@@ -65,9 +135,10 @@
   </head>
   <body>
     <div id="root">
-      <!-- First paint: React replaces this exact mitten frame with the animated
-           layered loader. Keeping it inline prevents a blank network/JS gap. -->
+      <!-- First paint matches React's theme-aware lockup, preventing a blank or
+           opposite-theme frame while the application bundle starts. -->
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
+        <div class="portalink-preboot-lockup">
         <svg aria-hidden="true" focusable="false" viewBox="0 0 420 600">
           <defs>
             <clipPath id="portalink-preboot-head-clip">
@@ -79,10 +150,10 @@
           </defs>
 
           <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M214 247 C245 250 273 230 290 199"></path>
-            <path d="M232 285 C271 275 303 247 319 213"></path>
-            <path d="M290 199 C284 181 280 160 287 151 C293 143 302 149 310 166 L315 177 C319 153 328 126 344 116 C358 107 373 114 378 128 C385 150 372 177 358 199 L345 222 C325 220 305 211 290 199 Z"></path>
-            <path d="M319 213 C327 218 336 221 345 222"></path>
+            <path d="M214 247 C245 250 273 229 291 197"></path>
+            <path d="M232 285 C271 275 302 248 318 220"></path>
+            <path d="M291 197 C284 178 282 158 288 149 C294 141 303 149 311 165 L316 178 L315 123 C315 109 320 99 328 99 C337 99 339 109 336 123 L329 159 L340 118 C343 105 351 99 358 103 C366 107 363 119 359 131 L348 163 L357 137 C361 125 368 122 374 127 C380 132 376 144 371 155 L359 177 L366 160 C371 149 378 149 382 155 C386 161 379 172 374 181 L359 207 C350 224 333 230 317 221 C305 215 298 206 291 197 Z"></path>
+            <path d="M318 220 C328 226 343 226 359 207"></path>
 
             <path d="M117 239 C85 250 66 301 62 362 L58 420 C56 447 66 464 82 464 C96 464 103 449 98 431 C105 420 103 407 97 399 L102 353 C106 307 114 274 129 252"></path>
             <path d="M62 368 C74 373 86 374 99 370"></path>
@@ -109,6 +180,9 @@
             <circle cx="164" cy="148" r="96"></circle>
           </g>
         </svg>
+        <p class="portalink-preboot-wordmark">Portalink Networks</p>
+        <span class="portalink-preboot-progress" aria-hidden="true"><span></span></span>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/index.tsx"></script>

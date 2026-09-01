@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
 import { PortalinkSplashLoader } from '../components/ui/PortalinkSplashLoader';
@@ -6,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
+const MINIMUM_SPLASH_MS = 420;
 
 function sharedProfileIdFromPath(pathname: string): string | null {
   const project = matchPath(routes.sharedProject.path, pathname);
@@ -28,8 +30,9 @@ function readSharedViewerProfileId(): string | null {
 
 /**
  * Session restoration is the application's real startup readiness boundary.
- * A full page load holds the splash for one second, then it leaves as soon as
- * that minimum and the existing readiness state have both settled.
+ * A short branded first frame prevents a flash while session restoration runs.
+ * The application mounts behind it as soon as authentication is ready, and the
+ * splash then crossfades away instead of adding a fixed one-second delay.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
@@ -42,7 +45,7 @@ export function ApplicationBootstrap() {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setHasMinimumSplashTimeElapsed(true);
-    }, 1000);
+    }, MINIMUM_SPLASH_MS);
 
     return () => window.clearTimeout(timeoutId);
   }, []);
@@ -64,5 +67,12 @@ export function ApplicationBootstrap() {
     return <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId })} />;
   }
 
-  return auth.isInitializing || !hasMinimumSplashTimeElapsed ? <PortalinkSplashLoader /> : <App />;
+  const shouldShowSplash = auth.isInitializing || !hasMinimumSplashTimeElapsed;
+
+  return <>
+      {!auth.isInitializing ? <App /> : null}
+      <AnimatePresence>
+        {shouldShowSplash ? <PortalinkSplashLoader key="portalink-splash" /> : null}
+      </AnimatePresence>
+    </>;
 }
