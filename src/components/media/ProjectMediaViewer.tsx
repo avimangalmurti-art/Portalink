@@ -347,7 +347,7 @@ export function ProjectMediaViewer({
             </button>
             {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Description</h2>}
           </div>
-          {isRailOpen && <div className="border-t border-[var(--hairline)] px-5 py-5">
+          {isRailOpen && <div className="px-5 py-5">
             {projectSummary ? <p data-font-preview="" style={{
           fontFamily: contentTypefaceStack
         }} className="text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
@@ -382,14 +382,14 @@ export function ProjectMediaViewer({
             </div>}
         </div>
 
-        {!isRailOpen && <div className="flex flex-1 justify-center border-t border-[var(--hairline)] py-2">
+        {!isRailOpen && <div className="flex flex-1 justify-center py-2">
             <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
           </div>}
 
         {/* Closed, the rail carries nothing but its own control: the engagement
            controls remain available as a vertical icon rail, while the thread
            and prose are removed rather than squeezed into unreadable fragments. */}
-        {isRailOpen && <div className="border-t border-[var(--hairline)] px-5 py-5">
+        {isRailOpen && <div className="px-5 py-5">
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
             {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} /> : <section className="flex flex-col gap-2.5">
