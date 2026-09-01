@@ -4983,15 +4983,17 @@ html[data-project-continuity]::view-transition-new(root) {
   backdrop-filter: blur(18px) saturate(135%);
 }
 
-/* Public presentations can begin beside an open navigation rail, leaving a
-   narrower artwork viewport. Keep the exit control compact and inset fully
-   inside that viewport so neither the circle nor its hit area is clipped. */
-[data-premium-project-viewer][data-read-only-share='true']
-  .premium-viewer-exit-control {
+/* A focused page can begin beside either the account navigation or the public
+   navigation rail. Keep its exit control compact and inset from the actual
+   artwork viewport in every mode, including device safe areas, so neither the
+   circle nor its hit target can sit beyond a clipped edge. */
+[data-premium-project-viewer] .premium-viewer-exit-control {
   top: max(0.5rem, env(safe-area-inset-top, 0px));
   left: max(0.5rem, env(safe-area-inset-left, 0px));
   width: 2rem;
   height: 2rem;
+  max-width: calc(100% - 1rem);
+  max-height: calc(100% - 1rem);
   box-sizing: border-box;
 }
 
