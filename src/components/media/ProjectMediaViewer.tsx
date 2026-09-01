@@ -6,7 +6,7 @@ import { EngagementBar } from '../../features/engagement/EngagementBar';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
 import { CommentThreadView } from '../comments/CommentThreadView';
 import { useProjectComments } from '../../features/comments/useProjectComments';
-import type { MediaKind, ProjectAttachment } from '../../types/domain';
+import type { MediaKind, ProjectAttachment, ProjectCredit } from '../../types/domain';
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -22,6 +22,13 @@ const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   unknown: FileIcon
 };
 
+function formatPublishedDate(value?: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+}
+
 /**
  * A project's files, each rendered by its own renderer.
  *
@@ -32,11 +39,17 @@ export function ProjectMediaViewer({
   projectId,
   projectTitle,
   projectSummary,
+  creatorName,
+  portalLabel,
+  publishedAt,
+  credits = [],
+  pageCount,
   attachments,
   contentTypefaceStack,
   pagesPerRow = 3,
   onPagesPerRowChange,
   onPagesPerRowCommit,
+  pageOverviewRequest = 0,
   processing,
   onDocumentPageCountResolved,
   isRailOpen,
@@ -54,7 +67,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Requests that a focused page return to the thumbnail overview. */pageOverviewRequest?: number; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -196,6 +209,7 @@ export function ProjectMediaViewer({
   const hasPageLayout = active?.kind === 'image'
     ? imagePages.length > 1
     : active?.kind === 'document' && documentPageCount !== 1;
+  const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
   const wheelDeltaRef = useRef(0);
   const lastDensityStepRef = useRef(0);
@@ -300,7 +314,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} pageOverviewRequest={pageOverviewRequest} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -341,17 +355,39 @@ export function ProjectMediaViewer({
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
-      {readOnlyShare ? <aside data-project-response-rail="" aria-label={`Description of ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
+      {readOnlyShare ? <aside data-project-response-rail="" aria-label={`Project information for ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
           <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'gap-1 px-2' : 'justify-center px-1.5'}`}>
-            <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide description' : 'Show description'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+            <button type="button" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project information' : 'Show project information'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
-            {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Description</h2>}
+            {isRailOpen && <h2 data-shared-header-title="" className="min-w-0 flex-1 truncate px-2 text-[16px] font-semibold text-[var(--text-primary)]">Project information</h2>}
           </div>
-          {isRailOpen && <div className="px-5 py-5">
-            {projectSummary ? <p data-font-preview="" style={{
-          fontFamily: contentTypefaceStack
-        }} className="text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+          {isRailOpen && <div className="flex flex-col gap-5 px-5 py-5">
+            <div>
+              <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
+              <p className="mt-1 text-[12px] text-[var(--text-secondary)]">By {creatorName}</p>
+            </div>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[12px] leading-snug">
+              <dt className="text-[var(--text-tertiary)]">Portal</dt>
+              <dd className="min-w-0 text-right font-medium text-[var(--text-primary)]">{portalLabel}</dd>
+              {pageCount !== null && <><dt className="text-[var(--text-tertiary)]">Pages</dt><dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{pageCount}</dd></>}
+              <dt className="text-[var(--text-tertiary)]">Files</dt>
+              <dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{attachments.length}</dd>
+              {publishedLabel && <><dt className="text-[var(--text-tertiary)]">Published</dt><dd className="text-right font-medium text-[var(--text-primary)]">{publishedLabel}</dd></>}
+            </dl>
+            <div>
+              <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">About this project</h3>
+              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+            </div>
+            {credits.length > 0 && <div>
+                <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Credits</h3>
+                <dl className="mt-2 flex flex-col gap-2">
+                  {credits.map((credit, index) => <div key={`${credit.label}-${credit.value}-${index}`} className="text-[12px] leading-snug">
+                      <dt className="text-[var(--text-tertiary)]">{credit.label}</dt>
+                      <dd className="mt-0.5 text-[var(--text-primary)]">{credit.value}</dd>
+                    </div>)}
+                </dl>
+              </div>}
           </div>}
         </aside> : <aside data-project-response-rail="" aria-label={`Response to ${projectTitle}`} className={`ps-panel flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[256px] xl:w-[280px]' : 'lg:w-[52px]'}`}>
         {/* The control travels with the rail rather than sitting on the work, so

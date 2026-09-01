@@ -33,6 +33,7 @@ export function DocumentAttachment({
   onFocusModeChange,
   controlsVisible = true,
   showMediaInteractions = true,
+  pageOverviewRequest = 0,
 
 
 }: {
@@ -43,6 +44,7 @@ export function DocumentAttachment({
   onFocusModeChange?: (focused: boolean) => void;
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
+  pageOverviewRequest?: number;
   processing?: {
     state: 'processing' | 'processing-failed';
     message: string | null;
@@ -90,6 +92,9 @@ export function DocumentAttachment({
     setFocusedPageIndex(null);
     updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
   }, [memoryKey]);
+  useEffect(() => {
+    if (pageOverviewRequest > 0) exitFocus();
+  }, [exitFocus, pageOverviewRequest]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPageIndex !== null,
@@ -200,7 +205,7 @@ export function DocumentAttachment({
             }} />}
           </li>)}
         </ol>
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} pageOverviewRequest={pageOverviewRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

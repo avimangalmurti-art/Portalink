@@ -25,6 +25,7 @@ type PdfImageDocumentProps = {
   memoryKey: string;
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
+  pageOverviewRequest?: number;
 };
 
 type PdfImagePageProps = {
@@ -276,7 +277,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, pageOverviewRequest = 0 }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -297,6 +298,9 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     setFocusedPageNumber(null);
     updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
   }, [memoryKey]);
+  useEffect(() => {
+    if (pageOverviewRequest > 0) exitFocus();
+  }, [exitFocus, pageOverviewRequest]);
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
     active: focusedPageNumber !== null,

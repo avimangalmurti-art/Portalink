@@ -4729,6 +4729,16 @@ html[data-project-continuity]::view-transition-new(root) {
   background: var(--surface-canvas);
 }
 
+[data-project-presentation]:fullscreen {
+  height: 100vh;
+  width: 100vw;
+  background: var(--surface-canvas);
+}
+
+[data-project-presentation]:fullscreen [data-premium-project-viewer] {
+  height: 100%;
+}
+
 [data-premium-project-viewer] [data-project-stage] {
   background: color-mix(in srgb, #090a0c 96%, var(--accent-primary));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.018);

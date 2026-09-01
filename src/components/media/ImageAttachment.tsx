@@ -132,7 +132,8 @@ export function ImageAttachment({
   columns = 1,
   onFocusModeChange,
   controlsVisible = true,
-  showMediaInteractions = true
+  showMediaInteractions = true,
+  pageOverviewRequest = 0
 
 
 
@@ -144,7 +145,7 @@ export function ImageAttachment({
 }: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
-   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;}) {
+   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;pageOverviewRequest?: number;}) {
   const memoryKey = `images:${projectId}`;
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
     const linked = deepLinkedImageId(pages);
@@ -185,6 +186,9 @@ export function ImageAttachment({
     setFocusedPageId(null);
     updateViewerMemory(memoryKey, { focusedPageId: null, zoom: 1 });
   }, [memoryKey]);
+  useEffect(() => {
+    if (pageOverviewRequest > 0) exitFocus();
+  }, [exitFocus, pageOverviewRequest]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
