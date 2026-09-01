@@ -1,6 +1,7 @@
 import React from 'react';
-import { BookmarkIcon, HeartIcon, Repeat2Icon } from 'lucide-react';
+import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
+import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { Id } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
@@ -31,7 +32,8 @@ export function ProjectHoverDetails({
   bottomInset,
   footerEnd,
   showEngagementMetrics = true,
-  onOpen
+  onOpen,
+  onOpenComments
 }: {
   projectId: Id;
   summary: string;
@@ -44,9 +46,13 @@ export function ProjectHoverDetails({
   showEngagementMetrics?: boolean;
   /** Profile cards place this overlay beside their open button, so it forwards clicks. */
   onOpen?: () => void;
+  /** Opens the project directly into its conversation rail. */
+  onOpenComments?: () => void;
 }) {
   const engagement = useProjectEngagement(projectId);
+  const comments = useProjectComments(onOpenComments ? projectId : null);
   const hasFooter = showEngagementMetrics || Boolean(footerEnd);
+  const commentCount = comments.phase === 'ready' ? comments.totalCount : null;
 
   return (
     <span
@@ -60,13 +66,27 @@ export function ProjectHoverDetails({
       >
         {summary}
       </span>
-      {hasFooter ? <span className="flex min-w-0 items-center gap-4 border-t border-[var(--control-border)] pt-2 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
-          {showEngagementMetrics ? METRICS.map(({ kind, label, icon, color }) => (
-            <span key={kind} className="inline-flex min-w-0 items-center gap-1" title={`${formatEngagementCount(engagement.count(kind))} ${label}`}>
-              <InterfaceIcon icon={icon} size="xs" weight="medium" keepColor stroke={color} style={{ color }} />
-              <span>{formatEngagementCount(engagement.count(kind))}</span>
-            </span>
-          )) : null}
+      {hasFooter ? <span className="flex min-w-0 items-center gap-2 border-t border-[var(--control-border)] pt-2 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
+          {showEngagementMetrics ? <>
+              {METRICS.map(({ kind, label, icon, color }) => (
+                <span key={kind} className="inline-flex min-w-0 items-center gap-1" title={`${formatEngagementCount(engagement.count(kind))} ${label}`}>
+                  <InterfaceIcon icon={icon} size="xs" weight="medium" keepColor stroke={color} style={{ color }} />
+                  <span>{formatEngagementCount(engagement.count(kind))}</span>
+                </span>
+              ))}
+              {onOpenComments ? <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenComments();
+                }}
+                aria-label={`Open comments${commentCount === null ? '' : ` (${commentCount})`}`}
+                className="pointer-events-auto inline-flex min-w-0 items-center gap-1 rounded-[5px] text-[var(--control-icon)] transition-colors duration-150 hover:text-[var(--apple-purple)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              >
+                <InterfaceIcon icon={MessageCircleIcon} size="xs" weight="medium" keepColor stroke="var(--apple-purple)" style={{ color: 'var(--apple-purple)' }} />
+                <span>{formatEngagementCount(commentCount)}</span>
+              </button> : null}
+            </> : null}
           {footerEnd ? <span className="pointer-events-auto relative ml-auto inline-flex shrink-0 items-center">{footerEnd}</span> : null}
         </span> : null}
     </span>

@@ -64,7 +64,7 @@ type UserProfilePageProps = {
   };
   onSignInRequest?: () => void;
   /** Opens the published project represented by a profile image. */
-  onOpenProject: (projectId: string, categoryId: string) => void;
+  onOpenProject: (projectId: string, categoryId: string, options?: { openComments?: boolean }) => void;
   onEditProfile?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
@@ -218,6 +218,7 @@ function ProfileDescriptionEditor({
 function ProfileProjectTile({
   project,
   onOpen,
+  onOpenComments,
   showEngagementMetrics,
   descriptionEditor,
   onEditDescription,
@@ -226,6 +227,7 @@ function ProfileProjectTile({
 }: {
   project: Project;
   onOpen: () => void;
+  onOpenComments?: () => void;
   showEngagementMetrics: boolean;
   descriptionEditor?: InlineDescriptionEditor;
   onEditDescription?: () => void;
@@ -280,6 +282,7 @@ function ProfileProjectTile({
         summary={project.summary}
         showEngagementMetrics={showEngagementMetrics}
         onOpen={onOpen}
+        onOpenComments={onOpenComments}
         className="pointer-events-none rounded-[8px] opacity-0 ring-1 ring-inset ring-transparent transition-[opacity,box-shadow] duration-150 group-hover:opacity-100 group-hover:ring-[var(--hairline-strong)] group-focus-within:opacity-100 group-focus-within:ring-[var(--focus-ring)] motion-reduce:transition-none"
         footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className={`relative inline-flex items-center transition-opacity duration-150 motion-reduce:transition-none ${isMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100'}`}>
             <button type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
@@ -462,6 +465,7 @@ export function UserProfilePage({
           <ProfileProjectTile
             project={project}
             onOpen={() => onOpenProject(project.id, project.categoryId)}
+            onOpenComments={!isSharedView ? () => onOpenProject(project.id, project.categoryId, { openComments: true }) : undefined}
             showEngagementMetrics={!isSharedView}
             descriptionEditor={projectManagement.editor.projectId === project.id && projectManagement.editor.mode === 'description' ? {
               phase: projectManagement.editor.phase,

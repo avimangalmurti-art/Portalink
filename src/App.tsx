@@ -1070,10 +1070,13 @@ export function App() {
         mutationError: follows.mutationError,
         onToggle: toggleFollowProfile,
         onRetry: follows.retryMutation
-      }} onSignInRequest={isSharedRoute ? undefined : () => auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId) => {
+      }} onSignInRequest={isSharedRoute ? undefined : () => auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId, options) => {
         if (isSharedRoute) {
           nav.sharedProject(viewedProfile.id, categoryId, projectId);
           return;
+        }
+        if (options?.openComments) {
+          setIsProjectEngagementOpen(true);
         }
         // The profile is the entrance to this creator's Portal, not a discovery
         // feed. Navigate directly so the Portal index opens alongside the chosen
