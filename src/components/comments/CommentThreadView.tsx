@@ -17,11 +17,12 @@ import { ResponsiveImage } from '../ui/ResponsiveImage';
  */
 export function CommentThreadView({
   comments,
-  projectTitle
+  projectTitle,
+  isOwner = false
 
 
 
-}: {comments: ProjectCommentsLifecycle;projectTitle: string;}) {
+}: {comments: ProjectCommentsLifecycle;projectTitle: string;isOwner?: boolean;}) {
   const topLevelPending = comments.pending.filter((item) => item.parentId === null);
   // One rhythm throughout: heading to field, field to button, comment to
   // comment all sit on the same 10px step, so no gap reads as a section break
@@ -49,7 +50,7 @@ export function CommentThreadView({
             <button type="button" onClick={comments.reload} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>
           </span>
         </p> : <ul role="list" className="m-0 flex list-none flex-col gap-2.5 p-0">
-          {comments.isEmpty && <li className="text-[12px] text-[var(--text-secondary)]">No comments yet. Be the first to say something.</li>}
+          {comments.isEmpty && !isOwner && <li className="text-[12px] text-[var(--text-secondary)]">No comments yet. Be the first to say something.</li>}
           {comments.threads.map((thread) => <li key={thread.comment.id} className="flex flex-col gap-2.5">
               <CommentRow comment={thread.comment} comments={comments} />
 

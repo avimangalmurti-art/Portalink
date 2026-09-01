@@ -41,6 +41,7 @@ export function ProjectMediaViewer({
   onDocumentPageCountResolved,
   isRailOpen,
   onRailOpenChange,
+  isOwner = false,
   readOnlyShare = false,
   onClose
 
@@ -53,7 +54,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -392,7 +393,7 @@ export function ProjectMediaViewer({
         {isRailOpen && <div className="px-5 py-5">
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
-            {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} /> : <section className="flex flex-col gap-2.5">
+            {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /> : <section className="flex flex-col gap-2.5">
                 <h3 className="text-left text-[13px] font-semibold text-[var(--text-primary)]">Description</h3>
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
