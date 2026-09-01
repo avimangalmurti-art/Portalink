@@ -10,10 +10,11 @@ const PINCH_EXIT_THRESHOLD = 0.9;
 /**
  * Natural, control-free zoom for an isolated page.
  *
- * A mouse wheel and a trackpad gesture both arrive as wheel input, while a
- * touchscreen pinch arrives as a two-touch gesture. One-finger swipes are never
- * cancelled, so a zoomed page can still be panned normally. Pulling back past
- * the fitted size returns to the multi-page layout.
+ * Trackpad pinches arrive as modified wheel input, while ordinary mouse-wheel
+ * and two-finger vertical movement arrive without a modifier. Only the former
+ * is captured for zoom. Plain vertical movement remains native scrolling; at
+ * the fitted size it also releases the isolated page back to the page overview.
+ * Touchscreen pinch remains a two-touch gesture.
  */
 export function useSinglePageZoom({
   surfaceRef,
@@ -71,6 +72,18 @@ export function useSinglePageZoom({
     );
     const handleWheel = (event: WheelEvent) => {
       if (event.deltaY === 0) return;
+
+      // Hardware detection is unreliable in browsers, but gesture intent is
+      // not: trackpad pinch and explicit keyboard zoom carry a modifier. Never
+      // consume an unmodified wheel event as zoom, so a mouse wheel and a
+      // two-finger vertical swipe keep their native scrolling behavior.
+      const isZoomGesture = event.ctrlKey || event.metaKey;
+      if (!isZoomGesture) {
+        exitPullRef.current = 0;
+        if (zoomRef.current <= MIN_ZOOM + 0.005) exit();
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
 
