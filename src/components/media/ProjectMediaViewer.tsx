@@ -304,7 +304,7 @@ export function ProjectMediaViewer({
    * rather than leaving its freed space as empty canvas, and opening it contracts
    * the work back. The rail owns the only fixed dimension in the row.
    */
-  return <div data-premium-project-viewer="" data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  return <div data-premium-project-viewer="" data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-col lg:flex-row">
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">

@@ -4906,6 +4906,18 @@ html[data-project-continuity]::view-transition-new(root) {
   backdrop-filter: blur(18px) saturate(135%);
 }
 
+/* Public presentations can begin beside an open navigation rail, leaving a
+   narrower artwork viewport. Keep the exit control compact and inset fully
+   inside that viewport so neither the circle nor its hit area is clipped. */
+[data-premium-project-viewer][data-read-only-share='true']
+  .premium-viewer-exit-control {
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  left: max(0.5rem, env(safe-area-inset-left, 0px));
+  width: 2rem;
+  height: 2rem;
+  box-sizing: border-box;
+}
+
 .premium-viewer-page-counter {
   bottom: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem));
   box-sizing: border-box;
