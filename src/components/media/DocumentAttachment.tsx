@@ -32,6 +32,7 @@ export function DocumentAttachment({
   onPageCountResolved,
   onFocusModeChange,
   controlsVisible = true,
+  showMediaInteractions = true,
 
 
 }: {
@@ -41,6 +42,7 @@ export function DocumentAttachment({
   onPageCountResolved?: (pageCount: number) => void;
   onFocusModeChange?: (focused: boolean) => void;
   controlsVisible?: boolean;
+  showMediaInteractions?: boolean;
   processing?: {
     state: 'processing' | 'processing-failed';
     message: string | null;
@@ -190,15 +192,15 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} focusedPageAspectRatio={page.width && page.height ? page.width / page.height : 8.5 / 11} focusedZoom={focusedPageIndex === index ? zoom : 1} target={{
+            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} focusedPageAspectRatio={page.width && page.height ? page.width / page.height : 8.5 / 11} focusedZoom={focusedPageIndex === index ? zoom : 1} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,
               label: `${attachment.displayName}, page ${page.withinDocumentIndex}`
-            }} />
+            }} />}
           </li>)}
         </ol>
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

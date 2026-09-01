@@ -24,6 +24,7 @@ type PdfImageDocumentProps = {
   onFocusModeChange?: (focused: boolean) => void;
   memoryKey: string;
   controlsVisible?: boolean;
+  showMediaInteractions?: boolean;
 };
 
 type PdfImagePageProps = {
@@ -35,6 +36,7 @@ type PdfImagePageProps = {
   enabled: boolean;
   isFocused: boolean;
   zoom: number;
+  showMediaInteractions: boolean;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -48,6 +50,7 @@ function PdfImagePage({
   enabled,
   isFocused,
   zoom,
+  showMediaInteractions,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -258,12 +261,12 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={aspectRatio} focusedZoom={zoom} target={{
+    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={aspectRatio} focusedZoom={zoom} target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
       label: `${label}, page ${pageNumber}`
-    }} />
+    }} />}
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
 }
@@ -273,7 +276,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -441,6 +444,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
+          showMediaInteractions={showMediaInteractions}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

@@ -300,7 +300,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
