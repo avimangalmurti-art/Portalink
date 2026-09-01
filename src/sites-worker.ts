@@ -64,7 +64,11 @@ function parseTarget(value: Partial<Target>): Target {
   }
   return {
     projectId: boundedText(value.projectId, 'project'),
-    attachmentId: boundedText(value.attachmentId, 'media item'),
+    // Persisted attachments deliberately use their full storage path as the
+    // stable id. That path contains the profile, draft, generated object id,
+    // and original filename, so a valid uploaded page can exceed the generic
+    // 160-character text limit even though the renderer can load it normally.
+    attachmentId: boundedText(value.attachmentId, 'media item', 1_024),
     pageIndex,
     label: typeof value.label === 'string' ? value.label.slice(0, 240) : undefined,
   }
