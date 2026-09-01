@@ -1388,6 +1388,37 @@ button[data-portalink-tile],
   position: relative;
   isolation: isolate;
 }
+/* Home and profile work receives one semantic hairline above its media and
+   hover details. A generated overlay keeps the line out of layout, so neither
+   the card nor its neighbours move when the pointer arrives. The token resolves
+   to dark ink in light appearance and light ink in dark appearance. */
+.individual-content-outline {
+  position: relative;
+  isolation: isolate;
+}
+.individual-content-outline::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  transition: border-color 150ms var(--ease-standard);
+}
+@media (hover: hover) and (pointer: fine) {
+  .individual-content-outline:hover::after {
+    border-color: var(--hairline-strong);
+  }
+}
+.individual-content-outline:focus-within::after {
+  border-color: var(--hairline-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+  .individual-content-outline::after {
+    transition: none;
+  }
+}
 @media (hover: hover) and (pointer: fine) {
   .card-hover-outline:hover,
   .card-hover-outline:focus-within {

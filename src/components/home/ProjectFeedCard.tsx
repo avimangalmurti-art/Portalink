@@ -32,7 +32,7 @@ export function ProjectFeedCard({
   return (
     // The card shell remains stable; only the cover frame exchanges artwork for
     // the same hover details used by a creator's profile wall.
-    <article className="feed-card group relative min-w-0 overflow-hidden">
+    <article className="feed-card individual-content-outline group relative min-w-0 overflow-hidden">
       <button type="button" onPointerEnter={() => onWarmCreator?.(creator.id)} onPointerDown={() => onWarmCreator?.(creator.id)} onFocus={() => onWarmCreator?.(creator.id)} onClick={() => onOpenProject(project.id, {
         profileId: creator.id,
         categoryId: project.categoryId

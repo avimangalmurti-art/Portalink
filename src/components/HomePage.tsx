@@ -106,7 +106,7 @@ function ProductCard({
 }: {item: ListeningItem;onView: (item: FeatureCardApp) => void;featured?: boolean;className?: string;}) {
   const [selectedColour, setSelectedColour] = useState(() => getPlaceholderColour(item.name));
   const [isColourPickerOpen, setIsColourPickerOpen] = useState(false);
-  return <article className={`card-hover-outline shape-container group relative min-w-0 overflow-hidden ${className} ${isColourPickerOpen ? 'z-50' : 'z-0'}`} role="listitem">
+  return <article className={`card-hover-outline individual-content-outline shape-container group relative min-w-0 overflow-hidden ${className} ${isColourPickerOpen ? 'z-50' : 'z-0'}`} role="listitem">
       <div className="shape-container bg-[var(--surface-raised)] shadow-sm ring-1 ring-[var(--hairline)]">
         <div style={{
         backgroundColor: selectedColour

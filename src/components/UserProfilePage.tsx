@@ -258,7 +258,7 @@ function ProfileProjectTile({
   };
 
   return (
-    <div className="group relative h-full w-full">
+    <div className="individual-content-outline group relative h-full w-full">
       <button
         type="button"
         data-project-continuity-surface=""
