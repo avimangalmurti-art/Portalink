@@ -47,10 +47,14 @@
         align-items: center;
       }
 
-      #portalink-preboot svg {
-        width: clamp(142px, 24vmin, 188px);
-        max-width: 58vw;
+      #portalink-preboot img {
+        width: clamp(108px, 18vmin, 148px);
+        max-width: 48vw;
         height: auto;
+      }
+
+      html[data-appearance='dark'] #portalink-preboot img {
+        filter: invert(1);
       }
 
       .portalink-preboot-wordmark {
@@ -63,38 +67,6 @@
         text-transform: uppercase;
       }
 
-      .portalink-preboot-progress {
-        display: block;
-        width: 80px;
-        height: 1px;
-        margin-top: 16px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: color-mix(in srgb, currentColor 28%, transparent);
-      }
-
-      .portalink-preboot-progress > span {
-        display: block;
-        width: 100%;
-        height: 100%;
-        background: #0a84ff;
-        transform-origin: left;
-        animation: portalink-preboot-progress 1.15s cubic-bezier(0.22, 1, 0.36, 1) infinite;
-      }
-
-      @keyframes portalink-preboot-progress {
-        0% { opacity: 0.28; transform: scaleX(0.08); }
-        58% { opacity: 0.9; transform: scaleX(0.76); }
-        100% { opacity: 0; transform: scaleX(1); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .portalink-preboot-progress > span {
-          animation: none;
-          opacity: 0.62;
-          transform: scaleX(0.5);
-        }
-      }
     </style>
     <script>
       (() => {
@@ -139,49 +111,8 @@
            opposite-theme frame while the application bundle starts. -->
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
         <div class="portalink-preboot-lockup">
-        <svg aria-hidden="true" focusable="false" viewBox="0 0 420 600">
-          <defs>
-            <clipPath id="portalink-preboot-head-clip">
-              <circle cx="164" cy="148" r="96"></circle>
-            </clipPath>
-            <clipPath id="portalink-preboot-torso-clip">
-              <path d="M124 232 C95 244 78 287 75 344 C70 434 96 517 164 526 C232 517 258 434 253 344 C250 287 233 244 204 232 C185 243 143 243 124 232 Z"></path>
-            </clipPath>
-          </defs>
-
-          <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M214 247 C245 250 273 229 291 197"></path>
-            <path d="M232 285 C271 275 302 248 318 220"></path>
-            <path d="M291 197 C284 178 282 158 288 149 C294 141 303 149 311 165 L316 178 L315 123 C315 109 320 99 328 99 C337 99 339 109 336 123 L329 159 L340 118 C343 105 351 99 358 103 C366 107 363 119 359 131 L348 163 L357 137 C361 125 368 122 374 127 C380 132 376 144 371 155 L359 177 L366 160 C371 149 378 149 382 155 C386 161 379 172 374 181 L359 207 C350 224 333 230 317 221 C305 215 298 206 291 197 Z"></path>
-            <path d="M318 220 C328 226 343 226 359 207"></path>
-
-            <path d="M117 239 C85 250 66 301 62 362 L58 420 C56 447 66 464 82 464 C96 464 103 449 98 431 C105 420 103 407 97 399 L102 353 C106 307 114 274 129 252"></path>
-            <path d="M62 368 C74 373 86 374 99 370"></path>
-
-            <g clip-path="url(#portalink-preboot-torso-clip)">
-              <path d="M164 228 L164 529"></path>
-              <path d="M127 230 C105 300 106 457 139 523"></path>
-              <path d="M201 230 C223 300 222 457 189 523"></path>
-              <path d="M82 278 C118 305 208 305 246 278"></path>
-              <path d="M75 346 C116 375 212 375 253 346"></path>
-              <path d="M82 416 C122 447 206 447 246 416"></path>
-              <path d="M102 486 C135 502 193 502 226 486"></path>
-            </g>
-            <path d="M124 232 C95 244 78 287 75 344 C70 434 96 517 164 526 C232 517 258 434 253 344 C250 287 233 244 204 232 C185 243 143 243 124 232 Z"></path>
-
-            <g clip-path="url(#portalink-preboot-head-clip)">
-              <path d="M164 50 L164 246"></path>
-              <path d="M145 52 C109 91 107 203 145 244"></path>
-              <path d="M183 52 C219 91 221 203 183 244"></path>
-              <path d="M78 108 C121 88 207 88 250 108"></path>
-              <path d="M68 148 C113 158 215 158 260 148"></path>
-              <path d="M79 193 C123 213 205 213 249 193"></path>
-            </g>
-            <circle cx="164" cy="148" r="96"></circle>
-          </g>
-        </svg>
+        <img src="/portalink-splash-character.png" alt="" aria-hidden="true" width="222" height="372" />
         <p class="portalink-preboot-wordmark">Portalink Networks</p>
-        <span class="portalink-preboot-progress" aria-hidden="true"><span></span></span>
         </div>
       </div>
     </div>
