@@ -6,12 +6,20 @@ import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+
+function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
+  if (typeof window === 'undefined') return null;
+  const attachmentId = new URLSearchParams(window.location.search).get('media');
+  return attachmentId && pages.some((page) => page.id === attachmentId) ? attachmentId : null;
+}
 
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
  * so one unreachable file never blanks the pages around it.
  */
 function ImagePage({
+  projectId,
   attachment,
   pageNumber,
   pageCount,
@@ -20,7 +28,7 @@ function ImagePage({
   zoom = 1,
   onToggleFocus
 
-}: {attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -80,7 +88,7 @@ function ImagePage({
       event.preventDefault();
       onToggleFocus(attachment.id);
     }
-  }} className={`${isFocused ? `flex h-full min-h-0 w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'block min-h-[240px] touch-manipulation'} list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
+  }} className={`${isFocused ? `flex h-full min-h-0 w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'block min-h-[240px] touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
       {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
@@ -95,6 +103,12 @@ function ImagePage({
       }} />
         </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
+      <MediaInteractionBar target={{
+        projectId,
+        attachmentId: attachment.id,
+        pageIndex: pageNumber - 1,
+        label: pageCount > 1 ? `${attachment.displayName}, image ${pageNumber}` : attachment.displayName
+      }} />
     </li>;
 }
 
@@ -131,6 +145,8 @@ export function ImageAttachment({
    */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;}) {
   const memoryKey = `images:${projectId}`;
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
+    const linked = deepLinkedImageId(pages);
+    if (linked) return linked;
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     return remembered && pages.some((page) => page.id === remembered) ? remembered : null;
   });
@@ -141,6 +157,11 @@ export function ImageAttachment({
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
   useEffect(() => {
+    const linked = deepLinkedImageId(pages);
+    if (linked) {
+      setFocusedPageId(linked);
+      return;
+    }
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     setFocusedPageId(remembered && pages.some((page) => page.id === remembered) ? remembered : null);
   }, [memoryKey, pages]);
@@ -214,7 +235,7 @@ export function ImageAttachment({
             <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} onToggleFocus={focusPage} />
+          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} onToggleFocus={focusPage} />
         </ol>
       </div>;
   }
@@ -241,7 +262,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-1 p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

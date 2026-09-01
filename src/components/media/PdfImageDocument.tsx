@@ -6,12 +6,15 @@ import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
 const PAGE_RENDER_TIMEOUT_MS = 20_000;
 
 type PdfImageDocumentProps = {
+  projectId: string;
+  attachmentId: string;
   source: string;
   label: string;
   columns?: number;
@@ -24,6 +27,8 @@ type PdfImageDocumentProps = {
 };
 
 type PdfImagePageProps = {
+  projectId: string;
+  attachmentId: string;
   document: PdfDocument;
   pageNumber: number;
   label: string;
@@ -35,6 +40,8 @@ type PdfImagePageProps = {
 };
 
 function PdfImagePage({
+  projectId,
+  attachmentId,
   document,
   pageNumber,
   label,
@@ -222,7 +229,7 @@ function PdfImagePage({
         onToggleFocus(pageNumber);
       }
     }}
-    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'w-full touch-manipulation overflow-hidden'} relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'w-full touch-manipulation overflow-hidden'} group/media relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
     {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
@@ -251,6 +258,12 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
+    <MediaInteractionBar target={{
+      projectId,
+      attachmentId,
+      pageIndex: pageNumber - 1,
+      label: `${label}, page ${pageNumber}`
+    }} />
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
 }
@@ -260,7 +273,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -268,7 +281,14 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
-  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => readViewerMemory(memoryKey).focusedPageNumber ?? null);
+  const linkedPageNumber = () => {
+    if (typeof window === 'undefined') return null;
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('media') !== attachmentId) return null;
+    const pageNumber = Number(query.get('page'));
+    return Number.isInteger(pageNumber) && pageNumber >= 1 ? pageNumber : null;
+  };
+  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const exitFocus = useCallback(() => {
     setFocusedPageNumber(null);
@@ -312,7 +332,7 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
     setDocument(null);
     setPageCount(0);
     setRenderThrough(0);
-    setFocusedPageNumber(readViewerMemory(memoryKey).focusedPageNumber ?? null);
+    setFocusedPageNumber(linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
     void (async () => {
       const pdfjs = await loadPdfJs();
       if (cancelled) {
@@ -406,8 +426,10 @@ export function PdfImageDocument({ source, label, columns = 1, onError, onPageCo
       <span className="sr-only">Preparing page images</span>
     </div>}
     {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-      {pageNumbers.map((pageNumber) => <li key={pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} flex w-full justify-center`}>
+      {pageNumbers.map((pageNumber) => <li key={pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
         <PdfImagePage
+          projectId={projectId}
+          attachmentId={attachmentId}
           document={document}
           pageNumber={pageNumber}
           label={label}

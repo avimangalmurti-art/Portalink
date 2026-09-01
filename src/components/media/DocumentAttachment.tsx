@@ -8,6 +8,16 @@ import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+
+function deepLinkedDocumentPage(attachmentId: string, pageCount?: number): number | null {
+  if (typeof window === 'undefined') return null;
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('media') !== attachmentId) return null;
+  const pageNumber = Number(query.get('page'));
+  if (!Number.isInteger(pageNumber) || pageNumber < 1 || (pageCount && pageNumber > pageCount)) return null;
+  return pageNumber - 1;
+}
 
 /**
  * Every real PDF page is presented as page artwork inside the platform. The
@@ -42,7 +52,7 @@ export function DocumentAttachment({
   const memoryKey = `document:${projectId}:${attachment.id}:rendered`;
   const liveDocumentMemoryKey = `document:${projectId}:${attachment.id}:live`;
   const [hasFailed, setHasFailed] = useState(false);
-  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => readViewerMemory(memoryKey).focusedPageNumber ?? null);
+  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => deepLinkedDocumentPage(attachment.id) ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
@@ -60,6 +70,12 @@ export function DocumentAttachment({
     }
   }, [knownPageCount, onPageCountResolved]);
   useEffect(() => {
+    const linkedPage = deepLinkedDocumentPage(attachment.id, renderedPages.length);
+    if (linkedPage !== null) {
+      setFocusedPageIndex(linkedPage);
+      lastTouchRef.current = null;
+      return;
+    }
     const rememberedPage = readViewerMemory(memoryKey).focusedPageNumber;
     setFocusedPageIndex(typeof rememberedPage === 'number' && rememberedPage >= 0 && rememberedPage < renderedPages.length ? rememberedPage : null);
     lastTouchRef.current = null;
@@ -157,7 +173,7 @@ export function DocumentAttachment({
               event.preventDefault();
               focusPage(index);
             }
-          }} className={`${focusedPageIndex === index ? `h-full min-h-0 overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'justify-center'}` : 'touch-manipulation justify-center'} flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
+          }} className={`${focusedPageIndex === index ? `h-full min-h-0 overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'justify-center'}` : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -169,9 +185,15 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
+            <MediaInteractionBar target={{
+              projectId,
+              attachmentId: attachment.id,
+              pageIndex: index,
+              label: `${attachment.displayName}, page ${page.withinDocumentIndex}`
+            }} />
           </li>)}
         </ol>
-      </div> : <PdfImageDocument source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

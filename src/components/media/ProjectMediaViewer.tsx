@@ -66,7 +66,12 @@ export function ProjectMediaViewer({
   */
   const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
   const viewerMemoryKey = `project:${projectId}`;
-  const [activeId, setActiveId] = useState<string | null>(() => readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
+  const deepLinkedAttachmentId = typeof window === 'undefined'
+    ? null
+    : new URLSearchParams(window.location.search).get('media');
+  const [activeId, setActiveId] = useState<string | null>(() => deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)
+    ? deepLinkedAttachmentId
+    : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
   /**
    * Which of the two readings of the work the rail is showing. They share the one
    * area rather than stacking, because both are prose about the same piece and a
@@ -79,10 +84,15 @@ export function ProjectMediaViewer({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const controlsTimerRef = useRef<number | null>(null);
   useEffect(() => {
+    if (deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)) {
+      setActiveId(deepLinkedAttachmentId);
+      setIsProjectShared(false);
+      return;
+    }
     const rememberedAttachmentId = readViewerMemory(viewerMemoryKey).activeAttachmentId;
     setActiveId(rememberedAttachmentId && attachments.some((attachment) => attachment.id === rememberedAttachmentId) ? rememberedAttachmentId : null);
     setIsProjectShared(false);
-  }, [attachments, viewerMemoryKey]);
+  }, [attachments, deepLinkedAttachmentId, viewerMemoryKey]);
   const revealControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
