@@ -737,7 +737,7 @@ export function Sidebar({
 }: SidebarProps) {
   const mainSidebarWidth = useResizablePanelWidth({
     id: 'main-navigation',
-    defaultWidth: 216,
+    defaultWidth: 360,
     minWidth: 184,
     maxWidth: 360,
     viewportReserve: 340

@@ -47,7 +47,7 @@ export function AppDetailPage({
 }: AppDetailPageProps) {
   const detailsPanelWidth = useResizablePanelWidth({
     id: 'content-details',
-    defaultWidth: 340,
+    defaultWidth: 480,
     minWidth: 260,
     maxWidth: 480,
     viewportReserve: 620

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const STORAGE_PREFIX = 'portalink.layout.panel.';
+const STORAGE_REVISION_KEY = 'portalink.layout.panel-revision';
+const STORAGE_REVISION = 'maximum-defaults-v1';
 const RESET_EVENT = 'portalink:reset-panel-widths';
 
 type ResizablePanelOptions = {
@@ -16,8 +18,24 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
+/**
+ * The maximum-width layout is the platform baseline. Clear widths saved by the
+ * previous midpoint-default layout once, then continue respecting any widths
+ * the viewer deliberately chooses under the new baseline.
+ */
+function migrateStoredPanelWidths(): void {
+  if (typeof window === 'undefined') return;
+  if (window.localStorage.getItem(STORAGE_REVISION_KEY) === STORAGE_REVISION) return;
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith(STORAGE_PREFIX)) window.localStorage.removeItem(key);
+  }
+  window.localStorage.setItem(STORAGE_REVISION_KEY, STORAGE_REVISION);
+}
+
 function readStoredWidth(key: string, fallback: number, min: number, max: number): number {
   if (typeof window === 'undefined') return fallback;
+  migrateStoredPanelWidths();
   const stored = Number(window.localStorage.getItem(key));
   return Number.isFinite(stored) ? clamp(stored, min, max) : fallback;
 }

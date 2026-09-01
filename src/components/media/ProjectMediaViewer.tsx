@@ -104,7 +104,7 @@ export function ProjectMediaViewer({
 }: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Requests that a focused page return to the thumbnail overview. */pageOverviewRequest?: number; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   const responseRailWidth = useResizablePanelWidth({
     id: 'project-response',
-    defaultWidth: 280,
+    defaultWidth: 440,
     minWidth: 240,
     maxWidth: 440,
     viewportReserve: 420

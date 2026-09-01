@@ -41,7 +41,7 @@ export function SharedProfileSidebar({
 }: SharedProfileSidebarProps) {
   const sharedSidebarWidth = useResizablePanelWidth({
     id: 'shared-profile-navigation',
-    defaultWidth: 216,
+    defaultWidth: 360,
     minWidth: 180,
     maxWidth: 360,
     viewportReserve: 320

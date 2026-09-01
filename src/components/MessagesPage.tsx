@@ -32,7 +32,7 @@ function messageTime(value: string | null): string {
 export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null }: MessagesPageProps) {
   const conversationListWidth = useResizablePanelWidth({
     id: 'messages-conversations',
-    defaultWidth: 340,
+    defaultWidth: 480,
     minWidth: 280,
     maxWidth: 480,
     viewportReserve: 560

@@ -66,7 +66,7 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   const projectIndexWidth = useResizablePanelWidth({
     id: 'project-index',
-    defaultWidth: 268,
+    defaultWidth: 420,
     minWidth: 220,
     maxWidth: 420,
     viewportReserve: 360

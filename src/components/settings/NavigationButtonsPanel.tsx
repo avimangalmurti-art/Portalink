@@ -259,7 +259,7 @@ export function NavigationButtonsPanel({
         <AccordionSection
           id="layout-settings"
           title="Layout"
-          summary={layoutWasReset ? 'Original spacing restored' : 'Sidebar sizing · spacing · arrangement'}
+          summary={layoutWasReset ? 'Maximum sidebar widths restored' : 'Maximum-width baseline · resizable'}
           isOpen={openSection === 'layout'}
           onToggle={() => setOpenSection((current) => (current === 'layout' ? null : 'layout'))}
         >
@@ -267,7 +267,7 @@ export function NavigationButtonsPanel({
             <div className="flex min-h-[52px] items-center justify-between gap-5">
               <span className="min-w-0">
                 <span className="block text-[13px] font-medium text-[var(--text-primary)]">Sidebar widths</span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its original spacing.</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its maximum standard width.</span>
               </span>
               <button
                 type="button"
@@ -282,7 +282,7 @@ export function NavigationButtonsPanel({
               </button>
             </div>
             <p role="status" aria-live="polite" className="mt-2 min-h-[18px] text-[12px] text-[var(--text-tertiary)]">
-              {layoutWasReset ? 'Original sidebar spacing restored.' : 'Double-click any resize edge to reset only that sidebar.'}
+              {layoutWasReset ? 'Maximum sidebar widths restored.' : 'Double-click any resize edge to return that sidebar to its maximum width.'}
             </p>
           </SettingsGroup>
         </AccordionSection>
