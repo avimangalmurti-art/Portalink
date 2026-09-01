@@ -16,10 +16,13 @@ const ACTIONS: Array<{
 
 export function MediaInteractionBar({
   target,
-  placement = 'page'
+  placement = 'page',
+  isOwner = false
 }: {
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
+  /** Derived from authenticated profile ownership, never navigation history. */
+  isOwner?: boolean;
 }) {
   // Uploaded source names can contain machine-generated or extraction text.
   // They never belong in the social UI, including when the creator views their
@@ -105,7 +108,7 @@ export function MediaInteractionBar({
         {activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
       <div className="scrollbar-overlay max-h-48 overflow-y-auto px-3.5 py-2.5">
-        {activity.record.comments.length === 0 && !activity.isLoading ? <p className="py-4 text-center text-[11px] leading-relaxed text-white/55">Be the first to respond to this page.</p> : null}
+        {activity.record.comments.length === 0 && !activity.isLoading && !isOwner ? <p className="py-4 text-center text-[11px] leading-relaxed text-white/55">Be the first to respond to this page.</p> : null}
         <ul className="m-0 list-none space-y-3 p-0">
           {activity.record.comments.map((comment) => <li key={comment.id} className="group/comment">
             <div className="flex items-start gap-2">
