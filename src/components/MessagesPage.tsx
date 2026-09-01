@@ -9,6 +9,7 @@ import { NewChatPanel } from './messages/NewChatPanel';
 import { CreatorAvatar } from './profile/CreatorAvatar';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from './ui/StateViews';
+import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePanelHandle';
 
 type MessagesPageProps = {
   onBack: () => void;
@@ -29,6 +30,13 @@ function messageTime(value: string | null): string {
 
 /** A production one-to-one message destination backed by MessagingService. */
 export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null }: MessagesPageProps) {
+  const conversationListWidth = useResizablePanelWidth({
+    id: 'messages-conversations',
+    defaultWidth: 340,
+    minWidth: 280,
+    maxWidth: 480,
+    viewportReserve: 560
+  });
   const auth = useAuth();
   const inbox = useNotifications();
   const messaging = useMessaging(initialRecipientId);
@@ -74,7 +82,7 @@ export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null 
       </header>
 
       {view === 'inbox' ? <InboxPanel /> : <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-          <aside className="ps-panel flex min-h-0 shrink-0 flex-col border-b border-[var(--hairline)] lg:w-[340px] lg:border-b-0 lg:border-r">
+          <aside data-resizable-panel="" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="ps-panel relative flex min-h-0 shrink-0 flex-col border-b border-[var(--hairline)] lg:w-[var(--messages-sidebar-width)] lg:border-b-0 lg:border-r">
             {isNewChatOpen ? <NewChatPanel onClose={() => setIsNewChatOpen(false)} isStarting={messaging.isStarting} onSelectCreator={(profileId) => void messaging.startConversation(profileId)} /> : <>
                 {messaging.conversations.length > 0 ? <div className="shrink-0 space-y-3 px-4 py-4">
                   <div className="flex items-center justify-end">
@@ -113,6 +121,7 @@ export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null 
                     </button>)}
                 </div>
               </>}
+            <ResizablePanelHandle desktopOnly side="right" value={conversationListWidth.width} min={280} max={480} onResize={conversationListWidth.updateWidth} onResizeEnd={conversationListWidth.commitWidth} onReset={conversationListWidth.resetWidth} label="Resize conversation list. Double-click to restore the default width." />
           </aside>
 
           <main className="flex min-h-0 flex-1 flex-col bg-[var(--surface-sunken)]">

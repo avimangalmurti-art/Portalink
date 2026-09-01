@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { CheckIcon } from 'lucide-react';
+import { CheckIcon, RotateCcwIcon } from 'lucide-react';
 import { findNavAccent, findSystemGray, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
 import type { AppearanceTheme, StoredAppearanceMode } from '../../utils/appearancePreferences';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { resetResizablePanelLayout } from '../ui/ResizablePanelHandle';
 
 type NavigationButtonsPanelProps = {
   theme: AppearanceTheme;
@@ -48,6 +49,7 @@ export function NavigationButtonsPanel({
   reduceTranslucency,
   onReduceTranslucencyChange
 }: NavigationButtonsPanelProps) {
+  const [layoutWasReset, setLayoutWasReset] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const activeAccent = findNavAccent(accentColor);
   const accent = theme === 'dark' ? activeAccent.dark : activeAccent.light;
@@ -229,6 +231,29 @@ export function NavigationButtonsPanel({
               transition={transition}
             />
           </div>
+        </SettingsGroup>
+
+        <SettingsGroup title="Layout">
+          <div className="flex min-h-[52px] items-center justify-between gap-5">
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-[var(--text-primary)]">Sidebar widths</span>
+              <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its original spacing.</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                resetResizablePanelLayout();
+                setLayoutWasReset(true);
+              }}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+            >
+              <InterfaceIcon icon={layoutWasReset ? CheckIcon : RotateCcwIcon} size="xs" weight="semibold" />
+              {layoutWasReset ? 'Reset' : 'Reset layout'}
+            </button>
+          </div>
+          <p role="status" aria-live="polite" className="mt-2 min-h-[18px] text-[12px] text-[var(--text-tertiary)]">
+            {layoutWasReset ? 'Original sidebar spacing restored.' : 'Double-click any resize edge to reset only that sidebar.'}
+          </p>
         </SettingsGroup>
       </div>
     </section>

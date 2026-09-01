@@ -7,6 +7,7 @@ import { CreatorAvatar } from './CreatorAvatar';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
+import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
@@ -38,6 +39,13 @@ export function SharedProfileSidebar({
   onSignIn,
   onCreateAccount
 }: SharedProfileSidebarProps) {
+  const sharedSidebarWidth = useResizablePanelWidth({
+    id: 'shared-profile-navigation',
+    defaultWidth: 216,
+    minWidth: 180,
+    maxWidth: 360,
+    viewportReserve: 320
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
@@ -66,7 +74,7 @@ export function SharedProfileSidebar({
     setIsSettingsOpen(false);
     request();
   };
-  return <aside aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full w-[208px] shrink-0 flex-col bg-transparent lg:w-[216px] 2xl:w-[224px]">
+  return <aside data-resizable-panel="" style={{ width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full shrink-0 flex-col bg-transparent">
       <div className="global-control-header shrink-0 px-2">
         <div className="flex h-full w-full min-w-0 flex-1 items-center justify-between gap-2 px-2">
           <button type="button" onClick={onSignIn} data-keep-color="" data-shared-brand-sign-in="" aria-label="Sign in to Portalink Networks" className="flex min-w-0 flex-1 flex-col bg-transparent p-0 text-left text-[16px] font-bold leading-[1.05] text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -122,5 +130,6 @@ export function SharedProfileSidebar({
           </button>
         </div>
       </div>
+      <ResizablePanelHandle side="right" value={sharedSidebarWidth.width} min={180} max={360} onResize={sharedSidebarWidth.updateWidth} onResizeEnd={sharedSidebarWidth.commitWidth} onReset={sharedSidebarWidth.resetWidth} label="Resize shared profile navigation. Double-click to restore the default width." />
     </aside>;
 }

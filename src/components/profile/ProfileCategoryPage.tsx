@@ -16,6 +16,7 @@ import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/project
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAssetProcessing } from '../../features/media/useAssetProcessing';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
+import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -63,6 +64,13 @@ export function ProfileCategoryPage({
   sharedReadOnly = false,
   onReturnToDiscovery
 }: ProfileCategoryPageProps) {
+  const projectIndexWidth = useResizablePanelWidth({
+    id: 'project-index',
+    defaultWidth: 268,
+    minWidth: 220,
+    maxWidth: 420,
+    viewportReserve: 360
+  });
   const [query, setQuery] = useState('');
   /*
    * Arriving from discovery, the index starts closed: the viewer chose one piece
@@ -308,7 +316,7 @@ export function ProfileCategoryPage({
   return <div ref={projectPresentationRef} data-project-presentation="" className="flex h-full w-full bg-transparent">
       {/* Local document navigation: related to the global sidebar, but one tonal
          step lighter and divided by a single hairline rather than a card. */}
-      <div data-shared-navigation-panel={sharedReadOnly ? '' : undefined} className={`ps-panel flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : 'w-[256px] lg:w-[268px] 2xl:w-[280px]'}`}>
+      <div data-resizable-panel="" data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={isIndexCollapsed ? undefined : { width: `${projectIndexWidth.width}px` }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* The global navigation reserves its first 64px for the brand header.
            A collapsed document rail uses that same top row for its expander;
            the open rail keeps the row clear so its fuller header remains below
@@ -444,6 +452,7 @@ export function ProfileCategoryPage({
           onSelectProject(null);
         }} />}
           </nav>}
+        {!isIndexCollapsed && <ResizablePanelHandle side="right" value={projectIndexWidth.width} min={220} max={420} onResize={projectIndexWidth.updateWidth} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
       </div>
 
       {activeProject ? <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>

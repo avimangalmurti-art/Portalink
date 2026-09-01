@@ -5188,3 +5188,67 @@ html[data-project-continuity]::view-transition-new(root) {
     transition: none;
   }
 }
+/* Every split-view panel exposes the same restrained resize edge. The edge is
+   intentionally invisible at rest; the cursor, hover hairline, and keyboard
+   focus reveal it without adding another permanent divider to the interface. */
+[data-panel-resize-handle] {
+  position: absolute;
+  inset-block: 0;
+  z-index: 70;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+[data-panel-resize-handle][data-side='left'] {
+  left: 0;
+}
+
+[data-panel-resize-handle][data-side='right'] {
+  right: 0;
+}
+
+[data-panel-resize-handle]::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--text-tertiary);
+  content: '';
+  opacity: 0;
+  transform: translate(-50%, -50%) scaleY(0.72);
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms ease;
+}
+
+[data-panel-resize-handle]:hover::after,
+[data-panel-resize-handle]:focus-visible::after,
+[data-panel-resize-handle][data-resizing]::after {
+  opacity: 0.72;
+  transform: translate(-50%, -50%) scaleY(1);
+}
+
+[data-panel-resize-handle]:focus-visible::after,
+[data-panel-resize-handle][data-resizing]::after {
+  background: var(--accent-text);
+}
+
+/* Width follows the pointer directly while dragging; open/close transitions
+   resume as soon as the pointer is released. */
+[data-resizable-panel]:has([data-panel-resize-handle][data-resizing]) {
+  transition-duration: 0s !important;
+}
+
+@media (max-width: 1023px) {
+  [data-panel-resize-handle][data-desktop-only] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-panel-resize-handle]::after {
+    transition: none;
+  }
+}

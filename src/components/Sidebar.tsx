@@ -17,6 +17,7 @@ import { resolveAccentTokens } from '../utils/accentTokens';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
 import { CreatorAvatar } from './profile/CreatorAvatar';
+import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePanelHandle';
 type NavItem = {
   label: NavigationDestination;
   displayLabel: string;
@@ -734,6 +735,13 @@ export function Sidebar({
   onCategorySelect,
   isOwnerMode
 }: SidebarProps) {
+  const mainSidebarWidth = useResizablePanelWidth({
+    id: 'main-navigation',
+    defaultWidth: 216,
+    minWidth: 184,
+    maxWidth: 360,
+    viewportReserve: 340
+  });
   const portalsHeading = viewedProfile ? getPortalsHeading(viewedProfile, isOwnerMode) : 'Portals';
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isAddingPortal, setIsAddingPortal] = useState(false);
@@ -951,7 +959,7 @@ export function Sidebar({
          the surface spans the full rail and its centre is the sidebar's. Each
          responsive width now follows Apple Notes-style three-pane proportions,
          leaving room for full labels while keeping the content dominant. */}
-      <aside className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-150 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'w-[208px] p-0 lg:w-[216px] 2xl:w-[224px]'}`} aria-label="Portalink navigation">
+      <aside data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-150 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
         {/* Flat application region: one hairline divider, no floating card.
            It sits above the starfield layers behind it. */}
         {/* Collapsed, the surface carries no side padding: a 40px rail tile does
@@ -1131,6 +1139,7 @@ export function Sidebar({
               </div>}
           </div>
         </div>
+        {!isSidebarCollapsed && <ResizablePanelHandle side="right" value={mainSidebarWidth.width} min={184} max={360} onResize={mainSidebarWidth.updateWidth} onResizeEnd={mainSidebarWidth.commitWidth} onReset={mainSidebarWidth.resetWidth} label="Resize main navigation. Double-click to restore the default width." />}
       </aside>
       {isAddingPortal && isOwnerMode && <NewCategoryDialog itemName="portal" onCancel={() => setIsAddingPortal(false)} onCreate={(label, iconName) => {
         void addCategory(label, iconName);

@@ -6,6 +6,7 @@ import { CreatorAvatar } from './profile/CreatorAvatar';
 import { ProjectCover } from './media/ProjectCover';
 import type { FeatureCardApp } from './FeatureCard';
 import { InterfaceIcon } from './ui/InterfaceIcon';
+import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePanelHandle';
 type AppDetailPageProps = {
   app: FeatureCardApp;
   savedState?: ProductDetailState;
@@ -44,6 +45,13 @@ export function AppDetailPage({
   onBack,
   onOpenCreator
 }: AppDetailPageProps) {
+  const detailsPanelWidth = useResizablePanelWidth({
+    id: 'content-details',
+    defaultWidth: 340,
+    minWidth: 260,
+    maxWidth: 480,
+    viewportReserve: 620
+  });
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const shouldReduceMotion = useReducedMotion();
   const pageCount = app.pageCount ?? 1;
@@ -168,7 +176,7 @@ export function AppDetailPage({
             <p role="status" aria-live="polite" className="mt-4 text-center text-[12px] font-medium tabular-nums text-[var(--text-tertiary)]">{zoom}%</p>
           </div>
 
-          <aside aria-label="Content details" className="scrollbar-slim min-h-0 shrink-0 overflow-y-auto border-t border-[var(--hairline)] px-4 py-5 sm:px-5 lg:w-[300px] lg:border-l lg:border-t-0 xl:w-[340px]">
+          <aside data-resizable-panel="" style={{ ['--content-details-width' as string]: `${detailsPanelWidth.width}px` }} aria-label="Content details" className="scrollbar-slim relative min-h-0 shrink-0 overflow-y-auto border-t border-[var(--hairline)] px-4 py-5 sm:px-5 lg:w-[var(--content-details-width)] lg:border-l lg:border-t-0">
             {/* Creator identity leads, visually distinct from the title. */}
             {app.creatorName && <div className="mb-5">
                 {openCreator ? <button type="button" onClick={openCreator} aria-label={`Open ${app.creatorName}'s profile`} data-creator-link="" className="group/creator flex w-full items-center gap-2.5 rounded-[10px] px-1.5 py-1.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -195,6 +203,7 @@ export function AppDetailPage({
               <DetailRow label="File">{fileName}</DetailRow>
               {showPageCount && <DetailRow label="Pages">{pageCount}</DetailRow>}
             </dl>
+            <ResizablePanelHandle desktopOnly side="left" value={detailsPanelWidth.width} min={260} max={480} onResize={detailsPanelWidth.updateWidth} onResizeEnd={detailsPanelWidth.commitWidth} onReset={detailsPanelWidth.resetWidth} label="Resize content details. Double-click to restore the default width." />
           </aside>
         </div>
       </motion.section>
