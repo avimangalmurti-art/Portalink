@@ -73,9 +73,9 @@ export function SharedProfileSidebar({
             <span className="block truncate">Portalink</span>
             <span className="block truncate">Networks</span>
           </button>
-          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} className="shape-compact flex h-10 w-10 shrink-0 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />
-          </Link>
+          {activeCategoryId ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} className="shape-compact flex h-10 w-10 shrink-0 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />
+            </Link> : null}
         </div>
       </div>
 
