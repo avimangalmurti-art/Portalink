@@ -940,7 +940,7 @@ export function Sidebar({
   }
   /* One system panel control in both states, matching the project and engagement
      sidebars instead of giving the main sidebar a separate globe metaphor. */
-  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
+  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       {isSidebarCollapsed ? <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
     </button>;
   return <>

@@ -4607,6 +4607,25 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   box-shadow: none !important;
 }
 
+/* Opening and closing a navigation region is structural, so the same quiet
+   system grey is used by the main, project, information, and engagement rails.
+   These controls never compete with content actions by brightening or filling. */
+#root .codex-shell button[data-structural-toggle],
+#root .codex-shell button[data-structural-toggle]:hover,
+#root .codex-shell button[data-structural-toggle]:active {
+  color: var(--gray) !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+#root .codex-shell button[data-structural-toggle]
+  :is(svg, [data-interface-icon-frame], [data-interface-icon]) {
+  color: inherit !important;
+}
+
 /* The sidebar gear opens one compact account surface instead of leaving the
    application to reach Appearance. It follows the current appearance while
    retaining the soft, integrated glass quality of the reference menu. */
