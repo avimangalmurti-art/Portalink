@@ -26,6 +26,7 @@ type PdfImageDocumentProps = {
   memoryKey: string;
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
+  showMediaSourceLabel?: boolean;
   pageOverviewRequest?: number;
 };
 
@@ -39,6 +40,7 @@ type PdfImagePageProps = {
   isFocused: boolean;
   zoom: number;
   showMediaInteractions: boolean;
+  showMediaSourceLabel: boolean;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -53,6 +55,7 @@ function PdfImagePage({
   isFocused,
   zoom,
   showMediaInteractions,
+  showMediaSourceLabel,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -264,7 +267,7 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} target={{
+    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} showSourceLabel={showMediaSourceLabel} target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
@@ -279,7 +282,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, pageOverviewRequest = 0 }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, showMediaSourceLabel = false, pageOverviewRequest = 0 }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -449,6 +452,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions}
+          showMediaSourceLabel={showMediaSourceLabel}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
@@ -16,12 +16,18 @@ const ACTIONS: Array<{
 
 export function MediaInteractionBar({
   target,
-  placement = 'page'
+  placement = 'page',
+  showSourceLabel = false
 }: {
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
+  /** The uploaded file/page name is creator metadata, not visitor-facing copy. */
+  showSourceLabel?: boolean;
 }) {
-  const activity = useMediaInteractions(target);
+  const presentedTarget = useMemo(() => showSourceLabel
+    ? target
+    : { ...target, label: `Page ${target.pageIndex + 1}` }, [showSourceLabel, target.attachmentId, target.label, target.pageIndex, target.projectId]);
+  const activity = useMediaInteractions(presentedTarget);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -43,7 +49,7 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-material="toolbar" role="group" aria-label={`Actions for ${target.label}`} className="media-item-engagement-bar flex items-center gap-0.5 rounded-full p-1">
+    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar flex items-center gap-0.5 rounded-full p-1">
       {ACTIONS.map(({ kind, label, icon: Icon, color }) => {
         const engaged = activity.record.engaged[kind];
         const count = activity.record.counts[kind];
@@ -51,7 +57,7 @@ export function MediaInteractionBar({
           key={kind}
           type="button"
           aria-pressed={engaged}
-          aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${target.label}`}
+          aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}`}
           disabled={activity.pendingKind === kind}
           data-keep-color=""
           style={{ color }}
@@ -67,7 +73,7 @@ export function MediaInteractionBar({
       <button
         type="button"
         aria-expanded={commentsOpen}
-        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${target.label}`}
+        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}`}
         data-keep-color=""
         style={{ color: 'var(--apple-purple)' }}
         onClick={() => setCommentsOpen((open) => !open)}
@@ -79,7 +85,7 @@ export function MediaInteractionBar({
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
-        aria-label={`${activity.shareState === 'shared' ? 'Shared' : 'Share'} ${target.label}`}
+        aria-label={`${activity.shareState === 'shared' ? 'Shared' : 'Share'} ${presentedTarget.label}`}
         data-keep-color=""
         style={{ color: 'var(--engagement-share-selected)' }}
         onClick={() => void activity.share()}
@@ -89,11 +95,11 @@ export function MediaInteractionBar({
       </button>
     </div>
 
-    {commentsOpen ? <section aria-label={`Comments for ${target.label}`} className="media-comments-popover w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-[14px] text-left">
+    {commentsOpen ? <section aria-label={`Comments for ${presentedTarget.label}`} className="media-comments-popover w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-[14px] text-left">
       <header className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
-          <p className="truncate text-[10px] text-white/55">{target.label}</p>
+          <p className="truncate text-[10px] text-white/55">{presentedTarget.label}</p>
         </div>
         {activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
@@ -130,7 +136,7 @@ export function MediaInteractionBar({
             rows={2}
             maxLength={1000}
             placeholder="Add a comment"
-            aria-label={`Comment on ${target.label}`}
+            aria-label={`Comment on ${presentedTarget.label}`}
             className="min-h-8 min-w-0 flex-1 resize-none bg-transparent text-[11px] leading-relaxed text-white outline-none placeholder:text-white/35"
           />
           <button type="submit" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
