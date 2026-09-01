@@ -88,7 +88,7 @@ export function MediaInteractionBar({
     ref={interactionRef}
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-3 left-3 flex-col-reverse items-start' : 'right-2 top-2 flex-col items-end'}`}
+    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-3 left-3 flex-col-reverse items-start' : 'bottom-2 left-2 flex-col-reverse items-start'}`}
     style={placement === 'focused' && focusedPosition ? focusedPosition : undefined}
     onPointerDown={stop}
     onPointerUp={stop}
