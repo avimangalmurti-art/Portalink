@@ -126,7 +126,10 @@ export function MessagesPage({ onBack, onOpenCreator, initialRecipientId = null 
 
           <main className="flex min-h-0 flex-1 flex-col bg-[var(--surface-sunken)]">
             {messaging.activeConversation ? <>
-                <div className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--hairline)] bg-[var(--surface-canvas)] px-4">
+                {/* The Messages navigation header already draws the shared inset
+                    hairline. A second full-width border on this identity row was
+                    the duplicate grey line and also touched both panel edges. */}
+                <div className="flex h-14 shrink-0 items-center gap-3 bg-[var(--surface-canvas)] px-4">
                   <button type="button" onClick={() => onOpenCreator?.(messaging.activeConversation?.participant.id ?? '')} className="flex min-w-0 items-center gap-2.5 rounded-[9px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <CreatorAvatar name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} className="h-8 w-8 text-[11px]" />
                     <span className="min-w-0">
