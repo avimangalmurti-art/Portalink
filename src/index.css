@@ -4549,6 +4549,15 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   box-shadow: none !important;
 }
 
+.codex-shell.shared-portalink-shell [data-shared-brand-sign-in],
+.codex-shell.shared-portalink-shell [data-shared-brand-sign-in]:hover,
+.codex-shell.shared-portalink-shell [data-shared-brand-sign-in]:active {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--text-secondary) !important;
+}
+
 /* The main eight destinations and the sidebar expander have no drawn edge in
    rest, hover, pressed, or selected states. Their surface and icon already
    communicate state; keyboard navigation retains a separate focus outline. */
