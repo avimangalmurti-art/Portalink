@@ -4594,6 +4594,19 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   box-shadow: none !important;
 }
 
+/* The document-list expander belongs directly to the navigation rail. It never
+   becomes a darker tile; only its icon colour and keyboard focus communicate
+   interaction in both the open and collapsed forms. */
+#root .codex-shell button[data-project-index-toggle],
+#root .codex-shell button[data-project-index-toggle]:hover,
+#root .codex-shell button[data-project-index-toggle]:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
 /* The sidebar gear opens one compact account surface instead of leaving the
    application to reach Appearance. It follows the current appearance while
    retaining the soft, integrated glass quality of the reference menu. */

@@ -280,10 +280,14 @@ export function ProfileCategoryPage({
          step lighter and divided by a single hairline rather than a card. */}
       <div data-shared-navigation-panel={sharedReadOnly ? '' : undefined} className={`ps-panel flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : 'w-[256px] lg:w-[268px] 2xl:w-[280px]'}`}>
         {/* The global navigation reserves its first 64px for the brand header.
-           When this panel also carries a discovery return, reserve that same
-           row here so Back and panel open/close land on the main grid's first
-           and second control rows instead of floating above them. */}
-        {onReturnToDiscovery ? <div aria-hidden="true" className="global-control-header shrink-0" /> : null}
+           A collapsed document rail uses that same top row for its expander;
+           the open rail keeps the row clear so its fuller header remains below
+           the discovery return. */}
+        {onReturnToDiscovery ? isIndexCollapsed ? <div className="global-control-header shrink-0 justify-center px-1.5">
+            <button data-project-index-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+              <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+            </button>
+          </div> : <div aria-hidden="true" className="global-control-header shrink-0" /> : null}
         {/* The way back to the browse this project was chosen from. It sits above
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
@@ -295,13 +299,13 @@ export function ProfileCategoryPage({
             </button>
           </div>}
 
-        {isIndexCollapsed ? <div className="ps-panel-toolbar global-control-header shrink-0 justify-center px-1.5">
-            <button type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        {isIndexCollapsed ? !onReturnToDiscovery && <div className="global-control-header shrink-0 justify-center px-1.5">
+            <button data-project-index-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : <header className="ps-panel-toolbar global-control-header shrink-0">
             <div className="flex h-full min-w-0 flex-1 items-center gap-1 px-2">
-              <button type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button data-project-index-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </button>
               <span className="min-w-0 flex-1 truncate px-1 text-center text-[12px] font-medium tabular-nums text-[var(--text-secondary)]" aria-label={activePageLabel ?? undefined}>
