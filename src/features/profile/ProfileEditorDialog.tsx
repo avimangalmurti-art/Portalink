@@ -167,7 +167,7 @@ export function ProfileEditorDialog({
               <AvatarPicker pending={editor.avatar.avatar} error={editor.avatar.error} currentUrl={editor.profile?.avatar} currentInitials={(editor.profile?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('')} disabled={isBusy} storageNotice={editor.avatar.storageNotice} onSelect={editor.avatar.select} onClear={editor.avatar.clear} />
 
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
-              <ProfileField id="profile-editor-city" label="City" value={fields.location} optional autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City" error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
+              <ProfileField id="profile-editor-city" label="Portalink city" value={fields.location} optional autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City for location discovery" error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
               </section>
 
               <section data-profile-editor-section="links" aria-label="Profile destinations" className="min-w-0 rounded-[14px] p-4">

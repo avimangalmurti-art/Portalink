@@ -312,6 +312,11 @@ export interface DiscoveryService {
   /** Null when the curated hero no longer names a canonical project. */
   getFeaturedProject(): Promise<ProjectView | null>;
   listFeedProjects(): Promise<ProjectView[]>;
+  /**
+   * Public work whose creator explicitly chose the requested Portalink city.
+   * Project prose and the viewer's Home relationships never qualify this list.
+   */
+  listLocationProjects(locationId: Id): Promise<ProjectView[]>;
   listAccountsToExplore(): Promise<FeedCreator[]>;
 }
 export interface SearchService {

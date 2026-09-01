@@ -300,7 +300,7 @@ export function ProfileOnboardingDialog({
             }));
           }} />
 
-              <ProfileField id="onboarding-location" label="Location" optional value={location} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City, country" error={fieldErrors.location} disabled={isSubmitting} onChange={(value) => {
+              <ProfileField id="onboarding-location" label="Portalink city" optional value={location} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City for location discovery" error={fieldErrors.location} disabled={isSubmitting} onChange={(value) => {
             setLocation(value);
             setFieldErrors((current) => ({
               ...current,

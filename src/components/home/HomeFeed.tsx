@@ -17,6 +17,10 @@ type HomeFeedProps = {
   onWarmCreator?: (creatorId: Id) => void;
   /** Separates Home, city, and any future feed scroll memories. */
   scrollMemoryKey?: string;
+  /** Present only for a Portalink city surface; switches to location placement. */
+  locationId?: Id;
+  emptyTitle?: string;
+  emptyDescription?: string;
 };
 
 const FEED_SCROLL_PREFIX = 'portalink.feedScroll.';
@@ -51,8 +55,11 @@ export function HomeFeed({
   onOpenCreator,
   onWarmCreator,
   scrollMemoryKey = 'home',
+  locationId,
+  emptyTitle = 'Your Home feed is ready',
+  emptyDescription = 'Your published work and new work from creators you follow will appear here.',
 }: HomeFeedProps) {
-  const feed = useFeed();
+  const feed = useFeed(locationId);
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const hasRestoredScrollRef = useRef(false);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
@@ -135,8 +142,8 @@ export function HomeFeed({
               : null}
             {feed.isEmpty
               ? <EmptyState
-                  title="Your Home feed is ready"
-                  description="Your published work and new work from creators you follow will appear here."
+                  title={emptyTitle}
+                  description={emptyDescription}
                 />
               : null}
             {projects.length > 0 ? <BentoFeedGrid items={cells} /> : null}

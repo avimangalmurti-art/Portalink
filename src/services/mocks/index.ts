@@ -38,6 +38,7 @@ import type { DeleteProjectResult, ProjectDraft, PublishProjectInput, PublishRes
 import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../../types/profile';
 import { deriveInitials, normalizeHandle } from '../../features/profile/validation';
 import { buildUserContentSphere, rankDiscoverProjects, rankHomeProjects } from '../../domain/discovery/ranking';
+import { creatorLocationMatches, decideProjectPlacement } from '../../domain/contentPlacement';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 
 /**
@@ -109,6 +110,20 @@ const PROTOTYPE_PUBLISH_FAILURE_TITLE = 'publish fail';
 /** PROTOTYPE ONLY: drafts live here for the session and are lost on reload. */
 const drafts = new Map<Id, ProjectDraft>();
 let draftCounter = 0;
+
+function profileForCurrentViewer(profile: PrototypeProfile): Profile {
+  const session = readPrototypeSession();
+  const isOwner = session?.user.profileId === profile.id;
+  const hiddenCategoryIds = new Set(savedArrangements.get(profile.id)?.hiddenCategoryIds ?? []);
+  const categories = isOwner ? profile.categories : profile.categories.filter((category) => !hiddenCategoryIds.has(category.id));
+  const visibleCategoryIds = new Set(categories.map((category) => category.id));
+  const projects = isOwner ? profile.projects : profile.projects.filter((project) => {
+    if (!visibleCategoryIds.has(project.categoryId)) return false;
+    return !(savedProjectArrangements.get(projectArrangementKey(profile.id, project.categoryId))?.hiddenProjectIds.includes(project.id) ?? false);
+  });
+  return { ...profile, categories, projects } as Profile;
+}
+
 export const mockProfileService: ProfileService = {
   async getProfile(profileId) {
     const profile = findProfileById(profileId);
@@ -117,15 +132,16 @@ export const mockProfileService: ProfileService = {
     if (!profile) {
       throw new Error(`Unknown profile: ${profileId}`);
     }
-    return resolve(profile as Profile);
+    return resolve(profileForCurrentViewer(profile));
   },
   async getProfileForAccount(accountId) {
     const profileId = accountProfileIds.get(accountId);
     // Null is a real answer: an authenticated account may own no profile.
-    return resolve(profileId ? getProfileById(profileId) as Profile : null);
+    return resolve(profileId ? profileForCurrentViewer(getProfileById(profileId)) : null);
   },
   async listProfiles() {
-    return resolve(profiles as Profile[]);
+    const ownProfileId = readPrototypeSession()?.user.profileId ?? null;
+    return resolve(profiles.filter((profile) => !profile.isPrivate || profile.id === ownProfileId).map(profileForCurrentViewer));
   },
   async checkHandleAvailability(handle): Promise<HandleAvailability> {
     const normalized = normalizeHandle(handle);
@@ -333,7 +349,9 @@ function creatorFromProfile(profile: PrototypeProfile): FeedCreator {
     id: profile.id,
     name: profile.name,
     kind: profile.headline,
-    avatar: profile.avatar
+    avatar: profile.avatar,
+    location: profile.location,
+    isPrivate: profile.isPrivate === true
   };
 }
 function viewFor(projectId: Id): ProjectView | null {
@@ -342,6 +360,26 @@ function viewFor(projectId: Id): ProjectView | null {
     project: owner.project,
     creator: creatorFromProfile(owner.profile)
   } : null;
+}
+
+function prototypePlacementFlags(profile: PrototypeProfile, project: Project): {
+  isCategoryHidden: boolean;
+  isProjectHidden: boolean;
+} {
+  const categoryArrangement = savedArrangements.get(profile.id);
+  const projectArrangement = savedProjectArrangements.get(projectArrangementKey(profile.id, project.categoryId));
+  return {
+    isCategoryHidden: categoryArrangement?.hiddenCategoryIds.includes(project.categoryId) ?? false,
+    isProjectHidden: projectArrangement?.hiddenProjectIds.includes(project.id) ?? false,
+  };
+}
+
+function prototypeViews(): Array<{ view: ProjectView; profile: PrototypeProfile; flags: ReturnType<typeof prototypePlacementFlags> }> {
+  return profiles.flatMap((profile) => profile.projects.map((project) => ({
+    view: { project: project as Project, creator: creatorFromProfile(profile) },
+    profile,
+    flags: prototypePlacementFlags(profile, project as Project),
+  })));
 }
 /**
  * Project design settings, session-only.
@@ -771,12 +809,20 @@ export const mockMediaService: MediaService = {
 let mockHomeFeedMode: import('../../types/discovery').HomeFeedMode = 'balanced';
 export const mockDiscoveryService: DiscoveryService = {
   async getHomeDiscovery() {
-    const availableProjects = profiles.flatMap((profile) => profile.projects.map((project) => viewFor(project.id))).filter((view): view is ProjectView => view !== null);
     const session = readPrototypeSession();
     const viewerProfile = session?.user.profileId
       ? profiles.find((profile) => profile.id === session.user.profileId) ?? null
       : null;
     const followedCreatorIds = session ? [...followsFor(session.user.id)] : [];
+    const availableProjects = prototypeViews()
+      .filter(({ view, flags }) => decideProjectPlacement({
+        view,
+        surface: 'home',
+        viewerProfileId: viewerProfile?.id ?? null,
+        followedCreatorIds,
+        ...flags,
+      }).eligible)
+      .map(({ view }) => view);
     const sphere = buildUserContentSphere({ viewerProfile, availableProjects, followedCreatorIds, engagement: [], explicitSignals: [] });
     return resolve(rankHomeProjects(availableProjects, sphere, new Date(), mockHomeFeedMode));
   },
@@ -785,7 +831,9 @@ export const mockDiscoveryService: DiscoveryService = {
     return this.getHomeDiscovery();
   },
   async getDiscoverSections(mode) {
-    const availableProjects = profiles.flatMap((profile) => profile.projects.map((project) => viewFor(project.id))).filter((view): view is ProjectView => view !== null);
+    const availableProjects = prototypeViews()
+      .filter(({ view, flags }) => decideProjectPlacement({ view, surface: 'discover', ...flags }).eligible)
+      .map(({ view }) => view);
     const sphere = buildUserContentSphere({ viewerProfile: null, availableProjects, followedCreatorIds: [], engagement: [], explicitSignals: [] });
     return resolve(rankDiscoverProjects(availableProjects, sphere, mode));
   },
@@ -795,19 +843,37 @@ export const mockDiscoveryService: DiscoveryService = {
   // Curation decides WHICH work and in what order; the work itself always
   // resolves canonically, so discovery cannot contradict a profile.
   async getFeaturedProject() {
-    return resolve(viewFor(featuredCuration.projectId));
+    const entry = prototypeViews().find(({ view }) => view.project.id === featuredCuration.projectId);
+    return resolve(entry && decideProjectPlacement({ view: entry.view, surface: 'discover', ...entry.flags }).eligible ? entry.view : null);
   },
   async listFeedProjects() {
-    const curated = feedCuration.map((entry) => viewFor(entry.projectId)).filter((view): view is ProjectView => view !== null);
+    const eligible = prototypeViews().filter(({ view, flags }) => decideProjectPlacement({ view, surface: 'discover', ...flags }).eligible);
+    const eligibleById = new Map(eligible.map(({ view }) => [view.project.id, view]));
+    const curated = feedCuration.map((entry) => eligibleById.get(entry.projectId)).filter((view): view is ProjectView => Boolean(view));
     // Work published through the product is eligible for discovery the moment it
     // exists, and leads the run as the newest thing on the platform. It is the
     // same canonical record the profile and category show.
     const curatedIds = new Set(curated.map((view) => view.project.id));
-    const published = profiles.flatMap((profile) => profile.projects.filter((project) => project.sessionOnly).map((project) => viewFor(project.id))).filter((view): view is ProjectView => view !== null && !curatedIds.has(view.project.id));
+    const published = eligible.map(({ view }) => view).filter((view) => view.project.sessionOnly && !curatedIds.has(view.project.id));
     return resolve([...published, ...curated]);
   },
+  async listLocationProjects(locationId) {
+    const city = cities.find((entry) => toLocationId(entry.name) === locationId);
+    if (!city) return resolve([]);
+    const located = prototypeViews()
+      .filter(({ view, flags }) => creatorLocationMatches(view.creator.location, city.name)
+        && decideProjectPlacement({
+          view,
+          surface: 'location',
+          requestedLocationName: city.name,
+          ...flags,
+        }).eligible)
+      .map(({ view }) => view)
+      .sort((left, right) => (right.project.publishedAt ?? '').localeCompare(left.project.publishedAt ?? '') || left.project.id.localeCompare(right.project.id));
+    return resolve(located);
+  },
   async listAccountsToExplore() {
-    const creators = accountsToExploreIds.map((profileId) => profiles.find((profile) => profile.id === profileId)).filter((profile): profile is PrototypeProfile => profile !== undefined).map(creatorFromProfile);
+    const creators = accountsToExploreIds.map((profileId) => profiles.find((profile) => profile.id === profileId)).filter((profile): profile is PrototypeProfile => profile !== undefined && !profile.isPrivate).map(creatorFromProfile);
     return resolve(creators);
   }
 };
@@ -822,18 +888,18 @@ export const mockSearchService: SearchService = {
       const words = value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
       return queryWords.every((token) => words.some((word) => word === token || (token.length >= 4 && word.startsWith(token))));
     };
-    const profileHits: SearchResult[] = profiles.filter((profile) => matchesText(`${profile.name} ${profile.headline}`)).map((profile) => ({
+    const profileHits: SearchResult[] = profiles.filter((profile) => !profile.isPrivate && matchesText(`${profile.name} ${profile.headline}`)).map((profile) => ({
       id: profile.id,
       kind: 'profile',
       title: profile.name,
       subtitle: profile.headline,
       avatar: profile.avatar
     }));
-    const projectHits: SearchResult[] = profiles.flatMap((profile) => profile.projects.map((project) => ({
-      project,
+    const projectHits: SearchResult[] = prototypeViews().filter(({ view, flags }) => decideProjectPlacement({ view, surface: 'search', ...flags }).eligible).map(({ view, profile }) => ({
+      project: view.project,
       profile,
-      categoryLabel: profile.categories.find((category) => category.id === project.categoryId)?.label ?? ''
-    }))).filter(({
+      categoryLabel: profile.categories.find((category) => category.id === view.project.categoryId)?.label ?? ''
+    })).filter(({
       project,
       categoryLabel
     }) => matchesText(`${project.title} ${project.summary} ${categoryLabel}`)).map(({

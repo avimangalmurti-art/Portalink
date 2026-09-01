@@ -15,6 +15,7 @@ import type {
   RankedProjectView,
   RecommendationReason,
 } from '../../types/discovery';
+import { decideProjectPlacement } from '../contentPlacement';
 
 export const CONTENT_DISTANCE_THRESHOLDS = {
   core: 0.48,
@@ -345,13 +346,17 @@ function oneProjectPerCreator(views: RankedProjectView[]): RankedProjectView[] {
 }
 
 export function rankHomeProjects(available: ProjectView[], sphere: ContentSphere, now = new Date(), homeMode: HomeFeedMode = 'balanced'): HomeDiscovery {
-  const followed = new Set(sphere.followedCreatorIds);
   // Home is the relationship inbox, not another discovery ranking surface.
   // Every published project from the viewer and creators they follow is
   // eligible. There is deliberately no per-creator collapse or fixed item cap:
   // both would make valid work silently disappear from Home.
   const eligible = available
-    .filter((view) => view.creator.id === sphere.viewerProfileId || followed.has(view.creator.id))
+    .filter((view) => decideProjectPlacement({
+      view,
+      surface: 'home',
+      viewerProfileId: sphere.viewerProfileId,
+      followedCreatorIds: sphere.followedCreatorIds,
+    }).eligible)
     .map((view) => rankOne(view, sphere, now, false, homeMode))
     .sort((left, right) =>
       (right.project.publishedAt ?? '').localeCompare(left.project.publishedAt ?? '')
@@ -360,7 +365,10 @@ export function rankHomeProjects(available: ProjectView[], sphere: ContentSphere
 }
 
 export function rankDiscoverProjects(available: ProjectView[], sphere: ContentSphere, mode: ExplorationMode, now = new Date()): DiscoverSections {
-  const ranked = oneProjectPerCreator(available.map((view) => rankOne(view, sphere, now, true)).sort(stableRank));
+  const ranked = oneProjectPerCreator(available
+    .filter((view) => decideProjectPlacement({ view, surface: 'discover' }).eligible)
+    .map((view) => rankOne(view, sphere, now, true))
+    .sort(stableRank));
   const byZone = (zone: DiscoveryZone) => ranked.filter((view) => view.discovery.zone === zone).sort(stableRank);
   const limits = mode === 'close'
     ? { core: 8, adjacent: 5, outside: 3 }

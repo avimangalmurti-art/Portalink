@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import type { AsyncStatus, FeedCreator } from '../../types/domain';
-import type { ContentSphere, HomeFeedMode, RankedProjectView } from '../../types/discovery';
+import type { AsyncStatus, FeedCreator, Id, ProjectView } from '../../types/domain';
+import type { ContentSphere, HomeFeedMode } from '../../types/discovery';
 
 /**
  * The Home feed's data boundary.
@@ -20,8 +20,8 @@ export type FeedState = {
    * a real answer, not a failure: it means the curation no longer names a project
    * that exists. Nothing is substituted in its place.
    */
-  featured: RankedProjectView | null;
-  projects: RankedProjectView[];
+  featured: ProjectView | null;
+  projects: ProjectView[];
   creators: FeedCreator[];
   sphere: ContentSphere | null;
   homeMode: HomeFeedMode;
@@ -60,7 +60,7 @@ function getFeedCacheEntry(discovery: object, cacheKey: string): FeedCacheEntry 
   return entry;
 }
 
-export function useFeed(): FeedState {
+export function useFeed(locationId?: Id): FeedState {
   const {
     discovery
   } = useServices();
@@ -68,11 +68,11 @@ export function useFeed(): FeedState {
     revision
   } = useProfileData();
   const accountId = useAuth().user?.id ?? 'guest';
-  const cacheKey = `${accountId}:${revision}`;
+  const cacheKey = `${accountId}:${revision}:${locationId ?? 'home'}`;
   const initialSnapshot = getFeedCacheEntry(discovery, cacheKey).snapshot;
   const [status, setStatus] = useState<AsyncStatus>(initialSnapshot ? 'success' : 'idle');
-  const [featured, setFeatured] = useState<RankedProjectView | null>(initialSnapshot?.featured ?? null);
-  const [projects, setProjects] = useState<RankedProjectView[]>(initialSnapshot?.projects ?? []);
+  const [featured, setFeatured] = useState<ProjectView | null>(initialSnapshot?.featured ?? null);
+  const [projects, setProjects] = useState<ProjectView[]>(initialSnapshot?.projects ?? []);
   const [creators, setCreators] = useState<FeedCreator[]>(initialSnapshot?.creators ?? []);
   const [sphere, setSphere] = useState<ContentSphere | null>(initialSnapshot?.sphere ?? null);
   const [homeMode, setHomeModeState] = useState<HomeFeedMode>(initialSnapshot?.homeMode ?? 'balanced');
@@ -95,18 +95,26 @@ export function useFeed(): FeedState {
       setStatus('loading');
     }
     setError(null);
-    // Ranking and the content sphere resolve atomically, so reasons always
-    // describe the exact snapshot the viewer is looking at.
+    // Home ranking and its sphere resolve atomically. A location feed is a
+    // different placement query entirely: it never borrows Home relationships.
     if (!entry.request || attempt > 0) {
-      entry.request = discovery.getHomeDiscovery().then((home) => ({
-        featured: home.featured,
-        projects: home.projects,
-        // Home is a work feed. A creator is not inserted as a second card beside
-        // the projects already attributed to them.
-        creators: [],
-        sphere: home.sphere,
-        homeMode: home.homeMode,
-      }));
+      entry.request = locationId
+        ? discovery.listLocationProjects(locationId).then((projects) => ({
+            featured: null,
+            projects,
+            creators: [],
+            sphere: null,
+            homeMode: 'balanced' as HomeFeedMode,
+          }))
+        : discovery.getHomeDiscovery().then((home) => ({
+            featured: home.featured,
+            projects: home.projects,
+            // Home is a work feed. A creator is not inserted as a second card beside
+            // the projects already attributed to them.
+            creators: [],
+            sphere: home.sphere,
+            homeMode: home.homeMode,
+          }));
     }
     const request = entry.request;
     request.then((snapshot) => {
@@ -149,7 +157,7 @@ export function useFeed(): FeedState {
     return () => {
       isCurrent = false;
     };
-  }, [discovery, cacheKey, attempt]);
+  }, [discovery, cacheKey, attempt, locationId]);
   const retry = useCallback(() => {
     setAttempt((count) => count + 1);
   }, []);

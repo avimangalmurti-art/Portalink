@@ -69,6 +69,8 @@ export type Profile = {
   links: {label: string;href: string;}[];
   categories: ProfileCategory[];
   projects: ProjectEntry[];
+  /** Withheld from public discovery unless a confirmed relationship grants access. */
+  isPrivate?: boolean;
 };
 
 const POSTER_CALM = "/2ab1d7db-2435-4a11-9be3-6fea4c5b80bc.jpg";

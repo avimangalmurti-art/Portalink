@@ -293,6 +293,10 @@ export type FeedCreator = {
   kind: string;
   /** The image chosen on the creator's canonical profile. */
   avatar: string;
+  /** Creator-declared city. It qualifies work for Portalink location views. */
+  location?: string;
+  /** Public discovery must never infer this from missing data. */
+  isPrivate?: boolean;
 };
 
 /**

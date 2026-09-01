@@ -4,6 +4,7 @@ import type { City } from '../data/cities';
 import { HomeFeed } from './home/HomeFeed';
 import type { Id, ProjectLocation } from '../types/domain';
 import { InterfaceIcon } from './ui/InterfaceIcon';
+import { toLocationId } from '../utils/location';
 type CityContentPageProps = {
   city: City;
   onBack: () => void;
@@ -32,7 +33,17 @@ export function CityContentPage({
       </div>
       {/* The feed owns its own scroll so it can keep loading endlessly. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <HomeFeed key={city.name} isSidebarCollapsed={false} onOpenProject={onOpenProject} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator} scrollMemoryKey={`city:${city.name}`} />
+        <HomeFeed
+          key={city.name}
+          isSidebarCollapsed={false}
+          locationId={toLocationId(city.name)}
+          onOpenProject={onOpenProject}
+          onOpenCreator={onOpenCreator}
+          onWarmCreator={onWarmCreator}
+          scrollMemoryKey={`city:${city.name}`}
+          emptyTitle={`No work is placed in ${city.name} yet`}
+          emptyDescription={`Only public work from creators who choose ${city.name} as their profile city appears here.`}
+        />
       </div>
     </div>;
 }

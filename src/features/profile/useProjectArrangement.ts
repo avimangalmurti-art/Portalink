@@ -174,6 +174,11 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
   }, [isOwner, arrangement, save]);
 
   const arrange = useCallback((categoryProjects: Project[], includeHidden: boolean) => {
+    // A visitor cannot be shown the unfiltered canonical list while visibility
+    // is still loading (or failed to load). Unknown visibility is not public.
+    if (!includeHidden && (isLoading || loadError !== null)) {
+      return [];
+    }
     const ranked = [...categoryProjects].sort((a, b) => {
       const indexA = order.indexOf(a.id);
       const indexB = order.indexOf(b.id);
@@ -186,7 +191,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     // Hidden entries always sit at the bottom of the owner's index.
     return [...shown, ...ranked.filter((project) => hiddenIds.includes(project.id))];
     // eslint-disable-next-line react-hooks/exhaustive-deps -- order/hiddenIds are derived arrays.
-  }, [order.join(','), hiddenIds.join(',')]);
+  }, [order.join(','), hiddenIds.join(','), isLoading, loadError]);
 
   return useMemo(() => ({
     order,

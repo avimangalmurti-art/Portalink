@@ -47,6 +47,7 @@ import {
   rankDiscoverProjects,
   rankHomeProjects,
 } from '../../domain/discovery/ranking';
+import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 
@@ -350,11 +351,14 @@ async function hydrateProjects(
 
 async function loadProfiles(profileId?: string): Promise<Profile[]> {
   const client = requireSupabase();
+  const { data: authData } = await client.auth.getUser();
+  const viewerAccountId = authData.user?.id ?? null;
   let profileQuery = client.from('profiles').select('*').order('created_at', { ascending: false });
   if (profileId) profileQuery = profileQuery.eq('id', profileId);
   const { data: profileData, error: profileError } = await profileQuery;
   if (profileError) throwProfileError(profileError, 'Profiles could not be loaded.');
-  const profileRows = (profileData ?? []) as unknown as ProfileRow[];
+  const profileRows = ((profileData ?? []) as unknown as ProfileRow[])
+    .filter((row) => Boolean(profileId) || !row.is_private || row.account_id === viewerAccountId);
   if (profileRows.length === 0) return [];
 
   const profileIds = profileRows.map((row) => row.id);
@@ -389,7 +393,14 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
       .filter((project): project is Project => Boolean(project)));
   });
 
-  return profileRows.map((row) => ({
+  return profileRows.map((row) => {
+    const isOwner = viewerAccountId !== null && row.account_id === viewerAccountId;
+    const visibleCategories = categoryRows.filter((category) => category.profile_id === row.id && (isOwner || !category.is_hidden));
+    const visibleCategoryIds = new Set(visibleCategories.map((category) => category.id));
+    const visibleProjectIds = new Set(projectRows
+      .filter((project) => project.profile_id === row.id && (isOwner || (!project.is_hidden && visibleCategoryIds.has(project.category_id))))
+      .map((project) => project.id));
+    return {
     id: row.id,
     name: row.name,
     handle: `@${row.handle}`,
@@ -401,18 +412,17 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
     stats: asStats(row.stats),
     socialLinks: asStringRecord(row.social_links),
     links: asLinks(row.links),
-    categories: categoryRows
-      .filter((category) => category.profile_id === row.id)
-      .map((category) => ({
+    categories: visibleCategories.map((category) => ({
         id: category.id,
         label: category.label,
         iconName: category.icon_name,
         format: category.format as CategoryFormat,
         blurb: category.blurb,
       })),
-    projects: projectsByProfile.get(row.id) ?? [],
+    projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
-  }));
+    };
+  });
 }
 
 async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectView[]> {
@@ -430,7 +440,7 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
   const profileIds = [...new Set(projectRows.map((row) => row.profile_id))];
   const categoryIds = [...new Set(projectRows.map((row) => row.category_id))];
   const [profileResult, categoryResult, attachmentResult] = await Promise.all([
-    client.from('profiles').select('id,name,headline,avatar_url').in('id', profileIds),
+    client.from('profiles').select('id,name,headline,avatar_url,location,is_private').in('id', profileIds),
     client.from('portfolio_categories').select('id,label').in('id', categoryIds),
     client.from('project_attachments').select('*').in('project_id', requestedIds).order('position'),
   ]);
@@ -438,7 +448,7 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
   if (categoryResult.error) throw new Error(categoryResult.error.message);
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
 
-  const creatorRows = (profileResult.data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url'>>;
+  const creatorRows = (profileResult.data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url' | 'location' | 'is_private'>>;
   const categoryRows = (categoryResult.data ?? []) as unknown as Array<Pick<CategoryRow, 'id' | 'label'>>;
   const attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
   const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows);
@@ -447,6 +457,8 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
     name: row.name,
     kind: row.headline,
     avatar: row.avatar_url,
+    location: row.location,
+    isPrivate: row.is_private,
   }]));
   const viewsById = new Map<string, ProjectView>();
   projectRows.forEach((row) => {
@@ -710,7 +722,7 @@ export const supabaseProjectService: ProjectService = {
     const profile = await supabaseProfileService.getProfile(await projectProfileId(projectId));
     const project = profile.projects.find((item) => item.id === projectId);
     if (!project) throw new ProjectMutationError('not_found', 'That project could not be found.');
-    return { project, creator: { id: profile.id, name: profile.name, kind: profile.headline, avatar: profile.avatar } };
+    return { project, creator: { id: profile.id, name: profile.name, kind: profile.headline, avatar: profile.avatar, location: profile.location, isPrivate: profile.isPrivate === true } };
   },
 
   async listProjectViews(projectIds) {
@@ -972,15 +984,27 @@ export const supabaseProjectService: ProjectService = {
   },
 };
 
-async function latestProjectIds(limit = 60): Promise<string[]> {
+async function visibleCategoryIdsForProfiles(profileIds: string[]): Promise<string[]> {
+  const uniqueProfileIds = [...new Set(profileIds.filter(Boolean))];
+  if (uniqueProfileIds.length === 0) return [];
   const { data, error } = await requireSupabase()
-    .from('projects')
+    .from('portfolio_categories')
     .select('id')
-    .eq('is_hidden', false)
-    .order('published_at', { ascending: false })
-    .limit(limit);
+    .in('profile_id', uniqueProfileIds)
+    .eq('is_hidden', false);
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as Array<{ id: string }>).map((row) => row.id);
+}
+
+async function latestProjectIds(limit = 60): Promise<string[]> {
+  const { data, error } = await requireSupabase()
+    .from('profiles')
+    .select('id')
+    .eq('is_private', false)
+    .limit(500);
+  if (error) throw new Error(error.message);
+  const publicProfileIds = ((data ?? []) as unknown as Array<{ id: string }>).map((row) => row.id);
+  return (await projectIdsForProfiles(publicProfileIds)).slice(0, limit);
 }
 
 async function projectIdsForProfiles(profileIds: string[]): Promise<string[]> {
@@ -991,11 +1015,14 @@ async function projectIdsForProfiles(profileIds: string[]): Promise<string[]> {
   const projectIds: string[] = [];
   for (let profileStart = 0; profileStart < uniqueProfileIds.length; profileStart += profileBatchSize) {
     const profileBatch = uniqueProfileIds.slice(profileStart, profileStart + profileBatchSize);
+    const visibleCategoryIds = await visibleCategoryIdsForProfiles(profileBatch);
+    if (visibleCategoryIds.length === 0) continue;
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await requireSupabase()
         .from('projects')
         .select('id')
         .in('profile_id', profileBatch)
+        .in('category_id', visibleCategoryIds)
         .eq('is_hidden', false)
         .order('published_at', { ascending: false })
         .order('id', { ascending: true })
@@ -1151,16 +1178,31 @@ export const supabaseDiscoveryService: DiscoveryService = {
   async listFeedProjects() {
     return (await this.getHomeDiscovery()).projects;
   },
+  async listLocationProjects(locationId) {
+    const city = cities.find((entry) => toLocationId(entry.name) === locationId);
+    if (!city) return [];
+    const { data, error } = await requireSupabase()
+      .from('profiles')
+      .select('id,location')
+      .eq('is_private', false)
+      .limit(500);
+    if (error) throw new Error(error.message);
+    const profileIds = ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'location'>>)
+      .filter((row) => creatorLocationMatches(row.location, city.name))
+      .map((row) => row.id);
+    const projectIds = await projectIdsForProfiles(profileIds);
+    return projectViewsForIds(projectIds);
+  },
   async listAccountsToExplore(): Promise<FeedCreator[]> {
     const { data, error } = await requireSupabase()
       .from('profiles')
-      .select('id,name,headline,avatar_url')
+      .select('id,name,headline,avatar_url,location')
       .eq('is_private', false)
       .order('created_at', { ascending: false })
       .limit(20);
     if (error) throwProfileError(error, 'Creators could not be loaded.');
-    return ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url'>>)
-      .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url }));
+    return ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url' | 'location'>>)
+      .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
 };
 
@@ -1186,29 +1228,23 @@ export const supabaseSearchService: SearchService = {
     const categoryRows = (categories.data ?? []) as unknown as Array<Pick<CategoryRow, 'id' | 'label'>>;
     const publicProfileIds = new Set(profileRows.map((row) => row.id));
     const categoryLabels = new Map(categoryRows.map((row) => [row.id, row.label]));
+    const profilesById = new Map(profileRows.map((row) => [row.id, row]));
     const matchesSemantic = (value: string) => {
       const words = normalized(value).split(/\s+/).filter(Boolean);
       return semanticTokens.length === 0 || semanticTokens.every((token) => words.some((word) => word === token || (token.length >= 4 && word.startsWith(token))));
     };
     const matchingProfiles = profileRows.filter((row) => {
       const text = `${row.name} ${row.handle} ${row.headline} ${row.location}`;
-      if (explicitLocation && normalized(row.location) !== normalized(explicitLocation.label) && !normalized(row.location).includes(normalized(explicitLocation.label))) return matchesSemantic(`${row.name} ${row.handle} ${row.headline}`);
+      if (explicitLocation && !creatorLocationMatches(row.location, explicitLocation.label)) return false;
       return matchesSemantic(text);
     }).slice(0, 20);
     const matchingProjects = projectRows.filter((row) => {
       if (!publicProfileIds.has(row.profile_id)) return false;
+      if (!categoryLabels.has(row.category_id)) return false;
       const categoryLabel = categoryLabels.get(row.category_id) ?? '';
       const topicLabels = (row.topic_keys ?? []).map((topic) => topic.replace(/[-_]+/g, ' ')).join(' ');
-      const relevance = deriveProjectRelevance({
-        title: row.title,
-        summary: row.summary,
-        categoryLabel,
-        stored: row.content_location ? {
-          contentGeography: { label: row.content_location, city: row.content_location },
-          geographicScope: row.geographic_scope as GeographicScope,
-        } : null,
-      });
-      const placeMatches = !explicitLocation || normalized(relevance.contentGeography?.label ?? '') === normalized(explicitLocation.label);
+      const creator = profilesById.get(row.profile_id);
+      const placeMatches = !explicitLocation || Boolean(creator && creatorLocationMatches(creator.location, explicitLocation.label));
       return placeMatches && matchesSemantic(`${row.title} ${row.summary} ${categoryLabel} ${topicLabels}`);
     }).slice(0, 30);
     const normalizedTerm = normalized(term);
