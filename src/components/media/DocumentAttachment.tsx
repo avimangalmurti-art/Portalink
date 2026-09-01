@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
@@ -142,6 +142,17 @@ export function DocumentAttachment({
         const deltaY = event.clientY - start.y;
         if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
       }} className={`${focusedPageIndex === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-4 sm:p-6`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+        {focusedPageIndex !== null ? <>
+            <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
+              <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
+            </button>
+            <MediaInteractionBar placement="focused" target={{
+              projectId,
+              attachmentId: attachment.id,
+              pageIndex: focusedPageIndex,
+              label: `${attachment.displayName}, page ${renderedPages[focusedPageIndex]?.withinDocumentIndex ?? focusedPageIndex + 1}`
+            }} />
+          </> : null}
         {focusedPageIndex !== null && renderedPages.length > 1 ? <>
             {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
@@ -185,12 +196,12 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            <MediaInteractionBar target={{
+            {focusedPageIndex !== index ? <MediaInteractionBar target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,
               label: `${attachment.displayName}, page ${page.withinDocumentIndex}`
-            }} />
+            }} /> : null}
           </li>)}
         </ol>
       </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} />}

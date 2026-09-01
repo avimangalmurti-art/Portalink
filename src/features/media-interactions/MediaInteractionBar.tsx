@@ -14,7 +14,7 @@ const ACTIONS: Array<{
   { kind: 'repost', label: 'Repost', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' }
 ];
 
-export function MediaInteractionBar({ target }: { target: MediaInteractionTarget }) {
+export function MediaInteractionBar({ target, placement = 'page' }: { target: MediaInteractionTarget;placement?: 'page' | 'focused'; }) {
   const activity = useMediaInteractions(target);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
@@ -30,7 +30,7 @@ export function MediaInteractionBar({ target }: { target: MediaInteractionTarget
   return <div
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className="media-item-engagement absolute right-2 top-2 z-40 flex flex-col items-end gap-2"
+    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-3 left-3 flex-col-reverse items-start' : 'right-2 top-2 flex-col items-end'}`}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}

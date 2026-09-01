@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon, XIcon } from 'lucide-react';
 import { loadPdfJs } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -258,12 +258,12 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    <MediaInteractionBar target={{
+    {!isFocused ? <MediaInteractionBar target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
       label: `${label}, page ${pageNumber}`
-    }} />
+    }} /> : null}
     {status === 'failed' && <span className="sr-only">Page image unavailable</span>}
   </div>;
 }
@@ -412,6 +412,17 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     const deltaY = event.clientY - start.y;
     if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
   }} className={`${focusedPageNumber === null ? 'overflow-y-auto' : 'overflow-hidden outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)] p-2 sm:p-4`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+    {focusedPageNumber !== null ? <>
+        <button type="button" onClick={exitFocus} aria-label="Exit single-page view" className="premium-viewer-exit-control absolute left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full text-white">
+          <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
+        </button>
+        <MediaInteractionBar placement="focused" target={{
+          projectId,
+          attachmentId,
+          pageIndex: focusedPageNumber - 1,
+          label: `${label}, page ${focusedPageNumber}`
+        }} />
+      </> : null}
     {focusedPageNumber !== null && pageCount > 1 ? <>
         {focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous page" className="premium-viewer-page-control absolute left-6 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full text-white sm:left-8">
           <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />

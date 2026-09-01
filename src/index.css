@@ -4780,6 +4780,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-viewer-page-control,
+.premium-viewer-exit-control,
 .premium-viewer-page-counter {
   background: rgba(18, 18, 20, 0.66);
   box-shadow: 0 7px 22px rgba(0, 0, 0, 0.24);
@@ -4801,7 +4802,8 @@ html[data-project-continuity]::view-transition-new(root) {
   transform: translateY(-50%);
 }
 
-.premium-viewer-page-control:hover:not(:disabled) {
+.premium-viewer-page-control:hover:not(:disabled),
+.premium-viewer-exit-control:hover:not(:disabled) {
   background: rgba(34, 34, 38, 0.82);
 }
 
@@ -4839,6 +4841,12 @@ html[data-project-continuity]::view-transition-new(root) {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0) scale(1);
+}
+
+.media-item-engagement--focused {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
 }
 
 .media-item-engagement-bar {
