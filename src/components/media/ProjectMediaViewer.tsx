@@ -519,8 +519,8 @@ export function ProjectMediaViewer({
           </button>
           {/* The semantic colour and spoken label identify the destination of the
              next press without adding a hover tooltip over the compact control. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} data-keep-color="" style={{ color: '#ffffff' }} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" keepColor stroke="#ffffff" />
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} data-keep-color="" style={{ color: railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)' }} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" keepColor stroke={railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)'} />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The

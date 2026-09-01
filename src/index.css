@@ -351,12 +351,13 @@ textarea {
   --apple-purple: #9d00ff;
   --apple-pink: #ff00c8;
   --apple-brown: #ff0080;
+  --international-orange: #ff4f00;
   --system-pink: #ff2d55;
   /* Engagement selections are semantic, not creator-accent driven. The light
      yellow is deliberately deep enough to remain legible on white surfaces. */
   --engagement-like-selected: #e11d48;
   --engagement-save-selected: #b88300;
-  --engagement-repost-selected: #18864b;
+  --engagement-repost-selected: var(--apple-mint);
   --engagement-share-selected: #006edc;
 }
 .theme-dark {
@@ -373,10 +374,11 @@ textarea {
   --apple-purple: #ad2bff;
   --apple-pink: #ff2bd6;
   --apple-brown: #ff2b96;
+  --international-orange: #ff4f00;
   --system-pink: #ff375f;
   --engagement-like-selected: #ff375f;
   --engagement-save-selected: #ffd60a;
-  --engagement-repost-selected: #30d158;
+  --engagement-repost-selected: var(--apple-mint);
   --engagement-share-selected: #0a84ff;
 }
 .theme-light {

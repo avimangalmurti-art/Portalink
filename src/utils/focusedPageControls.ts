@@ -1,5 +1,5 @@
-/** The smallest premium inset that keeps a control fully inside the artwork. */
-export const FOCUSED_PAGE_CONTROL_INSET = 4;
+/** Controls begin on the artwork's true left edge while remaining fully inside it. */
+export const FOCUSED_PAGE_CONTROL_INSET = 0;
 
 export type FittedPageRect = {
   left: number;

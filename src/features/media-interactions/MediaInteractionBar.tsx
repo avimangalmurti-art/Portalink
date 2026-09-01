@@ -115,11 +115,11 @@ export function MediaInteractionBar({
         aria-expanded={commentsOpen}
         aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${target.label}`}
         data-keep-color=""
-        style={{ color: 'var(--apple-mint)' }}
+        style={{ color: 'var(--apple-purple)' }}
         onClick={() => setCommentsOpen((open) => !open)}
         className="media-item-action inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
-        <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-mint)" />
+        <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-purple)" />
         {activity.record.comments.length > 0 ? <span className="text-[10px] font-semibold tabular-nums">{activity.record.comments.length}</span> : null}
       </button>
       <button
