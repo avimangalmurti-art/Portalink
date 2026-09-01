@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { CheckIcon, RotateCcwIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, RotateCcwIcon } from 'lucide-react';
 import { findNavAccent, findSystemGray, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
 import type { AppearanceTheme, StoredAppearanceMode } from '../../utils/appearancePreferences';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -26,6 +26,8 @@ const appearanceOptions: ReadonlyArray<{ mode: StoredAppearanceMode; label: stri
   { mode: 'dark', label: 'Dark' }
 ];
 
+type AppearanceSection = 'system-grey' | 'appearance' | 'layout';
+
 // Swatches are samples of the colour being chosen, rather than application
 // chrome, so their literal colour intentionally sits outside the semantic
 // surface system.
@@ -50,8 +52,11 @@ export function NavigationButtonsPanel({
   onReduceTranslucencyChange
 }: NavigationButtonsPanelProps) {
   const [layoutWasReset, setLayoutWasReset] = useState(false);
+  const [openSection, setOpenSection] = useState<AppearanceSection | null>('appearance');
   const shouldReduceMotion = useReducedMotion();
   const activeAccent = findNavAccent(accentColor);
+  const activeAppearance = appearanceOptions.find((option) => option.mode === appearanceMode)?.label ?? 'System';
+  const activeSystemGray = findSystemGray(systemGray);
   const accent = theme === 'dark' ? activeAccent.dark : activeAccent.light;
   const ease = 'cubic-bezier(0.25, 0.9, 0.35, 1)';
   const transition = shouldReduceMotion
@@ -79,183 +84,261 @@ export function NavigationButtonsPanel({
         Configure the interface and navigation controls.
       </p>
 
-      <div className="mt-5 grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
-        <SettingsGroup title="Appearance">
-          <div
-            role="radiogroup"
-            aria-label="Interface appearance"
-            className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
-            style={{ transition }}
-          >
-            {appearanceOptions.map((option) => {
-              const isSelected = appearanceMode === option.mode;
-              return (
-                <button
-                  key={option.mode}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => onAppearanceModeChange(option.mode)}
-                  className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                  style={{
-                    backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
-                    borderColor: isSelected ? 'var(--hairline)' : 'transparent',
-                    color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    boxShadow: isSelected && !highContrast ? 'var(--shadow-elevated)' : 'none',
-                    transition
-                  }}
-                >
-                  {isSelected && <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" />}
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">
-            {appearanceMode === 'auto' ? `Following the system; currently ${theme}.` : `Using ${theme} appearance.`}
-          </p>
-        </SettingsGroup>
-
-        <SettingsGroup title="System Gray">
-          <div
-            role="radiogroup"
-            aria-label="Interface control system gray"
-            className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
-            style={{ transition }}
-          >
-            {systemGrays.map((option) => {
-              const isSelected = option.id === systemGray;
-              const swatch = theme === 'dark' ? option.dark : option.light;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  aria-label={option.label}
-                  title={option.label}
-                  onClick={() => onSystemGrayChange(option.id)}
-                  className="flex h-[46px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                  style={{
-                    backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
-                    borderColor: isSelected ? 'var(--hairline)' : 'transparent',
-                    boxShadow: isSelected && !highContrast ? 'var(--shadow-elevated)' : 'none',
-                    transition
-                  }}
-                >
-                  <span
-                    data-system-color=""
-                    className="flex h-5 w-5 items-center justify-center rounded-full"
-                    style={{
-                      ...swatchSurface(swatch),
-                      boxShadow: `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`,
-                      transition
-                    }}
-                  >
-                    {isSelected && (
-                      <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" keepColor style={{ color: isLightSurface(swatch) ? '#1C1C1E' : '#FFFFFF' }} />
-                    )}
-                  </span>
-                  <span
-                    className="text-[11px] leading-none tabular-nums"
-                    style={{
-                      color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontWeight: isSelected ? 600 : 500
-                    }}
-                  >
-                    {option.id === 'gray' ? '1' : option.id.replace('gray', '')}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">
-            {findSystemGray(systemGray).label}, shown as it resolves in {theme} appearance.
-          </p>
-        </SettingsGroup>
-
-        <SettingsGroup title="Accent Color">
-          <div role="radiogroup" aria-label="Accent color" className="-ml-1.5 flex flex-wrap items-center">
-            {navAccents.map((option) => {
-              const swatch = theme === 'dark' ? option.dark : option.light;
-              const isSelected = option.id === activeAccent.id;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  aria-label={option.label}
-                  title={option.label}
-                  onClick={() => onAccentColorChange(swatch)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                >
-                  <span
-                    data-system-color=""
-                    className="flex h-6 w-6 items-center justify-center rounded-full"
-                    style={{
-                      ...swatchSurface(swatch),
-                      boxShadow: isSelected
-                        ? '0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary)'
-                        : `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`,
-                      transition
-                    }}
-                  >
-                    {isSelected && (
-                      <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" keepColor style={{ color: isLightSurface(swatch) ? '#1C1C1E' : '#FFFFFF' }} />
-                    )}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </SettingsGroup>
-
-        <SettingsGroup title="Contrast &amp; Transparency">
-          <div>
-            <SwitchRow
-              label="High Contrast"
-              description="Sharpen edges between navigation states."
-              isOn={highContrast}
-              onToggle={() => onHighContrastChange(!highContrast)}
-              accent={accent}
-              transition={transition}
-              hasDivider
-            />
-            <SwitchRow
-              label="Reduce Translucency"
-              description="Use opaque system-gray surfaces instead."
-              isOn={reduceTranslucency}
-              onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)}
-              accent={accent}
-              transition={transition}
-            />
-          </div>
-        </SettingsGroup>
-
-        <SettingsGroup title="Layout">
-          <div className="flex min-h-[52px] items-center justify-between gap-5">
-            <span className="min-w-0">
-              <span className="block text-[13px] font-medium text-[var(--text-primary)]">Sidebar widths</span>
-              <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its original spacing.</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                resetResizablePanelLayout();
-                setLayoutWasReset(true);
-              }}
-              className="flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+      <div className="mt-5 space-y-2.5">
+        <AccordionSection
+          id="system-grey-settings"
+          title="System grey"
+          summary={`${activeSystemGray.label.replace('Gray', 'Grey')} · ${theme} mode`}
+          isOpen={openSection === 'system-grey'}
+          onToggle={() => setOpenSection((current) => (current === 'system-grey' ? null : 'system-grey'))}
+        >
+          <SettingsGroup title="Grey intensity">
+            <div
+              role="radiogroup"
+              aria-label="Interface control system grey"
+              className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
+              style={{ transition }}
             >
-              <InterfaceIcon icon={layoutWasReset ? CheckIcon : RotateCcwIcon} size="xs" weight="semibold" />
-              {layoutWasReset ? 'Reset' : 'Reset layout'}
-            </button>
+              {systemGrays.map((option) => {
+                const isSelected = option.id === systemGray;
+                const swatch = theme === 'dark' ? option.dark : option.light;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    aria-label={option.label}
+                    title={option.label}
+                    onClick={() => onSystemGrayChange(option.id)}
+                    className="flex h-[46px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    style={{
+                      backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
+                      borderColor: isSelected ? 'var(--hairline)' : 'transparent',
+                      boxShadow: isSelected && !highContrast ? 'var(--shadow-elevated)' : 'none',
+                      transition
+                    }}
+                  >
+                    <span
+                      data-system-color=""
+                      className="flex h-5 w-5 items-center justify-center rounded-full"
+                      style={{
+                        ...swatchSurface(swatch),
+                        boxShadow: `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`,
+                        transition
+                      }}
+                    >
+                      {isSelected && (
+                        <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" keepColor style={{ color: isLightSurface(swatch) ? '#1C1C1E' : '#FFFFFF' }} />
+                      )}
+                    </span>
+                    <span
+                      className="text-[11px] leading-none tabular-nums"
+                      style={{
+                        color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontWeight: isSelected ? 600 : 500
+                      }}
+                    >
+                      {option.id === 'gray' ? '1' : option.id.replace('gray', '')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">
+              {activeSystemGray.label.replace('Gray', 'Grey')}, shown as it resolves in {theme} appearance.
+            </p>
+          </SettingsGroup>
+        </AccordionSection>
+
+        <AccordionSection
+          id="appearance-settings"
+          title="Appearance"
+          summary={`${activeAppearance} · ${activeAccent.label}${highContrast ? ' · High contrast' : ''}`}
+          isOpen={openSection === 'appearance'}
+          onToggle={() => setOpenSection((current) => (current === 'appearance' ? null : 'appearance'))}
+        >
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+            <SettingsGroup title="Interface appearance">
+              <div
+                role="radiogroup"
+                aria-label="Interface appearance"
+                className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
+                style={{ transition }}
+              >
+                {appearanceOptions.map((option) => {
+                  const isSelected = appearanceMode === option.mode;
+                  return (
+                    <button
+                      key={option.mode}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => onAppearanceModeChange(option.mode)}
+                      className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                      style={{
+                        backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
+                        borderColor: isSelected ? 'var(--hairline)' : 'transparent',
+                        color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        boxShadow: isSelected && !highContrast ? 'var(--shadow-elevated)' : 'none',
+                        transition
+                      }}
+                    >
+                      {isSelected && <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" />}
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[12px] text-[var(--text-tertiary)]">
+                {appearanceMode === 'auto' ? `Following the system; currently ${theme}.` : `Using ${theme} appearance.`}
+              </p>
+            </SettingsGroup>
+
+            <SettingsGroup title="Accent color">
+              <div role="radiogroup" aria-label="Accent color" className="-ml-1.5 flex flex-wrap items-center">
+                {navAccents.map((option) => {
+                  const swatch = theme === 'dark' ? option.dark : option.light;
+                  const isSelected = option.id === activeAccent.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-label={option.label}
+                      title={option.label}
+                      onClick={() => onAccentColorChange(swatch)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    >
+                      <span
+                        data-system-color=""
+                        className="flex h-6 w-6 items-center justify-center rounded-full"
+                        style={{
+                          ...swatchSurface(swatch),
+                          boxShadow: isSelected
+                            ? '0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary)'
+                            : `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`,
+                          transition
+                        }}
+                      >
+                        {isSelected && (
+                          <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" keepColor style={{ color: isLightSurface(swatch) ? '#1C1C1E' : '#FFFFFF' }} />
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </SettingsGroup>
+
+            <SettingsGroup title="Visual styling">
+              <div>
+                <SwitchRow
+                  label="High Contrast"
+                  description="Sharpen edges between navigation states."
+                  isOn={highContrast}
+                  onToggle={() => onHighContrastChange(!highContrast)}
+                  accent={accent}
+                  transition={transition}
+                  hasDivider
+                />
+                <SwitchRow
+                  label="Reduce Translucency"
+                  description="Use opaque system-gray surfaces instead."
+                  isOn={reduceTranslucency}
+                  onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)}
+                  accent={accent}
+                  transition={transition}
+                />
+              </div>
+            </SettingsGroup>
           </div>
-          <p role="status" aria-live="polite" className="mt-2 min-h-[18px] text-[12px] text-[var(--text-tertiary)]">
-            {layoutWasReset ? 'Original sidebar spacing restored.' : 'Double-click any resize edge to reset only that sidebar.'}
-          </p>
-        </SettingsGroup>
+        </AccordionSection>
+
+        <AccordionSection
+          id="layout-settings"
+          title="Layout"
+          summary={layoutWasReset ? 'Original spacing restored' : 'Sidebar sizing · spacing · arrangement'}
+          isOpen={openSection === 'layout'}
+          onToggle={() => setOpenSection((current) => (current === 'layout' ? null : 'layout'))}
+        >
+          <SettingsGroup title="Sidebar layout">
+            <div className="flex min-h-[52px] items-center justify-between gap-5">
+              <span className="min-w-0">
+                <span className="block text-[13px] font-medium text-[var(--text-primary)]">Sidebar widths</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its original spacing.</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  resetResizablePanelLayout();
+                  setLayoutWasReset(true);
+                }}
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+              >
+                <InterfaceIcon icon={layoutWasReset ? CheckIcon : RotateCcwIcon} size="xs" weight="semibold" />
+                {layoutWasReset ? 'Reset' : 'Reset layout'}
+              </button>
+            </div>
+            <p role="status" aria-live="polite" className="mt-2 min-h-[18px] text-[12px] text-[var(--text-tertiary)]">
+              {layoutWasReset ? 'Original sidebar spacing restored.' : 'Double-click any resize edge to reset only that sidebar.'}
+            </p>
+          </SettingsGroup>
+        </AccordionSection>
       </div>
+    </section>
+  );
+}
+
+function AccordionSection({
+  id,
+  title,
+  summary,
+  isOpen,
+  onToggle,
+  children
+}: {
+  id: string;
+  title: string;
+  summary: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const contentId = `${id}-content`;
+
+  return (
+    <section
+      className={`overflow-hidden rounded-[12px] border transition-[border-color,background-color] duration-150 ${
+        isOpen
+          ? 'border-[var(--hairline-strong)] bg-[var(--surface-sunken)]'
+          : 'border-[var(--hairline)] bg-transparent hover:border-[var(--hairline-strong)]'
+      }`}
+    >
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        onClick={onToggle}
+        className="flex min-h-[62px] w-full items-center gap-4 px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[13px] font-semibold text-[var(--text-primary)]">{title}</span>
+          <span className="mt-0.5 block truncate text-[12px] text-[var(--text-tertiary)]">{summary}</span>
+        </span>
+        <InterfaceIcon
+          icon={ChevronDownIcon}
+          size="sm"
+          weight="semibold"
+          className={`shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isOpen && (
+        <div id={contentId} className="border-t border-[var(--hairline)] bg-[var(--surface-raised)] p-2 sm:p-3">
+          {children}
+        </div>
+      )}
     </section>
   );
 }
