@@ -16,17 +16,18 @@ const ACTIONS: Array<{
 
 export function MediaInteractionBar({
   target,
-  placement = 'page',
-  showSourceLabel = false
+  placement = 'page'
 }: {
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
-  /** The uploaded file/page name is creator metadata, not visitor-facing copy. */
-  showSourceLabel?: boolean;
 }) {
-  const presentedTarget = useMemo(() => showSourceLabel
-    ? target
-    : { ...target, label: `Page ${target.pageIndex + 1}` }, [showSourceLabel, target.attachmentId, target.label, target.pageIndex, target.projectId]);
+  // Uploaded source names can contain machine-generated or extraction text.
+  // They never belong in the social UI, including when the creator views their
+  // own work. A stable page number keeps every audience-facing label clean.
+  const presentedTarget = useMemo(() => ({
+    ...target,
+    label: `Page ${target.pageIndex + 1}`
+  }), [target.attachmentId, target.pageIndex, target.projectId]);
   const activity = useMediaInteractions(presentedTarget);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');

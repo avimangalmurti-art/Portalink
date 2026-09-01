@@ -28,10 +28,9 @@ function ImagePage({
   isFocused = false,
   zoom = 1,
   showMediaInteractions = true,
-  showMediaSourceLabel = false,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;showMediaSourceLabel?: boolean;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -106,7 +105,7 @@ function ImagePage({
       }} />
         </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
-      {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} showSourceLabel={showMediaSourceLabel} target={{
+      {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} target={{
         projectId,
         attachmentId: attachment.id,
         pageIndex: pageNumber - 1,
@@ -135,7 +134,6 @@ export function ImageAttachment({
   onFocusModeChange,
   controlsVisible = true,
   showMediaInteractions = true,
-  showMediaSourceLabel = false,
   pageOverviewRequest = 0
 
 
@@ -148,7 +146,7 @@ export function ImageAttachment({
 }: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
-   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;showMediaSourceLabel?: boolean;pageOverviewRequest?: number;}) {
+   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;pageOverviewRequest?: number;}) {
   const memoryKey = `images:${projectId}`;
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
     const linked = deepLinkedImageId(pages);
@@ -248,7 +246,7 @@ export function ImageAttachment({
             <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} showMediaSourceLabel={showMediaSourceLabel} onToggleFocus={focusPage} />
+          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} onToggleFocus={focusPage} />
         </ol>
       </div>;
   }
@@ -275,7 +273,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-1 p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions} showMediaSourceLabel={showMediaSourceLabel} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

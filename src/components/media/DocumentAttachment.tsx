@@ -34,7 +34,6 @@ export function DocumentAttachment({
   onFocusModeChange,
   controlsVisible = true,
   showMediaInteractions = true,
-  showMediaSourceLabel = false,
   pageOverviewRequest = 0,
 
 
@@ -46,7 +45,6 @@ export function DocumentAttachment({
   onFocusModeChange?: (focused: boolean) => void;
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
-  showMediaSourceLabel?: boolean;
   pageOverviewRequest?: number;
   processing?: {
     state: 'processing' | 'processing-failed';
@@ -198,7 +196,7 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} showSourceLabel={showMediaSourceLabel} target={{
+            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,
@@ -206,7 +204,7 @@ export function DocumentAttachment({
             }} />}
           </li>)}
         </ol>
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} showMediaSourceLabel={showMediaSourceLabel} pageOverviewRequest={pageOverviewRequest} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} pageOverviewRequest={pageOverviewRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}
