@@ -36,7 +36,12 @@ function migrateStoredPanelWidths(): void {
 function readStoredWidth(key: string, fallback: number, min: number, max: number): number {
   if (typeof window === 'undefined') return fallback;
   migrateStoredPanelWidths();
-  const stored = Number(window.localStorage.getItem(key));
+  const rawStoredWidth = window.localStorage.getItem(key);
+  // `Number(null)` is 0. Treating a missing preference as a number therefore
+  // sent panels mounted after a global reset to their minimum width instead of
+  // the maximum-width platform default supplied as `fallback`.
+  if (rawStoredWidth === null) return fallback;
+  const stored = Number(rawStoredWidth);
   return Number.isFinite(stored) ? clamp(stored, min, max) : fallback;
 }
 
