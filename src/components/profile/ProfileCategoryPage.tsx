@@ -279,6 +279,11 @@ export function ProfileCategoryPage({
       {/* Local document navigation: related to the global sidebar, but one tonal
          step lighter and divided by a single hairline rather than a card. */}
       <div data-shared-navigation-panel={sharedReadOnly ? '' : undefined} className={`ps-panel flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : 'w-[256px] lg:w-[268px] 2xl:w-[280px]'}`}>
+        {/* The global navigation reserves its first 64px for the brand header.
+           When this panel also carries a discovery return, reserve that same
+           row here so Back and panel open/close land on the main grid's first
+           and second control rows instead of floating above them. */}
+        {onReturnToDiscovery ? <div aria-hidden="true" className="global-control-header shrink-0" /> : null}
         {/* The way back to the browse this project was chosen from. It sits above
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
