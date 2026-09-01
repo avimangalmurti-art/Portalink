@@ -1,8 +1,7 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
-import { FOCUSED_PAGE_CONTROL_INSET, getFittedPageRect } from '../../utils/focusedPageControls';
 
 const ACTIONS: Array<{
   kind: MediaEngagementKind;
@@ -17,58 +16,15 @@ const ACTIONS: Array<{
 
 export function MediaInteractionBar({
   target,
-  placement = 'page',
-  focusedPageAspectRatio,
-  focusedZoom = 1
+  placement = 'page'
 }: {
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
-  /** The visible artwork, not its surrounding viewer, owns focused controls. */
-  focusedPageAspectRatio?: number;
-  focusedZoom?: number;
 }) {
   const activity = useMediaInteractions(target);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
-  const interactionRef = useRef<HTMLDivElement>(null);
-  const [focusedPosition, setFocusedPosition] = useState<{ left: number; bottom: number } | null>(null);
-
-  useLayoutEffect(() => {
-    if (placement !== 'focused' || !focusedPageAspectRatio || focusedPageAspectRatio <= 0) {
-      setFocusedPosition(null);
-      return undefined;
-    }
-    const interaction = interactionRef.current;
-    const surface = interaction?.offsetParent;
-    if (!(surface instanceof HTMLElement)) return undefined;
-
-    const measure = () => {
-      const styles = window.getComputedStyle(surface);
-      const paddingLeft = Number.parseFloat(styles.paddingLeft) || 0;
-      const paddingRight = Number.parseFloat(styles.paddingRight) || 0;
-      const paddingTop = Number.parseFloat(styles.paddingTop) || 0;
-      const paddingBottom = Number.parseFloat(styles.paddingBottom) || 0;
-      const availableWidth = Math.max(0, surface.clientWidth - paddingLeft - paddingRight);
-      const availableHeight = Math.max(0, surface.clientHeight - paddingTop - paddingBottom);
-      if (!availableWidth || !availableHeight) return;
-
-      const page = getFittedPageRect(availableWidth, availableHeight, focusedPageAspectRatio, focusedZoom);
-      setFocusedPosition({
-        left: Math.round(paddingLeft + page.left + FOCUSED_PAGE_CONTROL_INSET),
-        bottom: Math.round(paddingBottom + page.top + FOCUSED_PAGE_CONTROL_INSET)
-      });
-    };
-
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    observer?.observe(surface);
-    window.addEventListener('resize', measure, { passive: true });
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [focusedPageAspectRatio, focusedZoom, placement]);
 
   useEffect(() => {
     if (activity.commentResumeToken === 0) return;
@@ -78,11 +34,9 @@ export function MediaInteractionBar({
 
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
-    ref={interactionRef}
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-1 left-1 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
-    style={placement === 'focused' && focusedPosition ? focusedPosition : undefined}
+    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}

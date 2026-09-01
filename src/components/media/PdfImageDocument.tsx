@@ -39,7 +39,6 @@ type PdfImagePageProps = {
   isFocused: boolean;
   zoom: number;
   showMediaInteractions: boolean;
-  onAspectRatioResolved?: (aspectRatio: number) => void;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -54,7 +53,6 @@ function PdfImagePage({
   isFocused,
   zoom,
   showMediaInteractions,
-  onAspectRatioResolved,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -63,7 +61,6 @@ function PdfImagePage({
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const onSettledRef = useRef(onSettled);
-  const onAspectRatioResolvedRef = useRef(onAspectRatioResolved);
   const [page, setPage] = useState<PdfPageProxy | null>(null);
   const [aspectRatio, setAspectRatio] = useState(8.5 / 11);
   const [layoutRevision, setLayoutRevision] = useState(0);
@@ -72,7 +69,6 @@ function PdfImagePage({
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
 
   onSettledRef.current = onSettled;
-  onAspectRatioResolvedRef.current = onAspectRatioResolved;
 
   useEffect(() => {
     if (!enabled) {
@@ -92,7 +88,6 @@ function PdfImagePage({
       const nativeViewport = nextPage.getViewport({ scale: 1 });
       const nextAspectRatio = nativeViewport.width / nativeViewport.height;
       setAspectRatio(nextAspectRatio);
-      onAspectRatioResolvedRef.current?.(nextAspectRatio);
       setPage(nextPage);
     }).catch(() => {
       if (!cancelled) {
@@ -269,7 +264,7 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={aspectRatio} focusedZoom={zoom} target={{
+    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
@@ -292,7 +287,6 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
-  const [focusedPageAspectRatio, setFocusedPageAspectRatio] = useState(8.5 / 11);
   const linkedPageNumber = () => {
     if (typeof window === 'undefined') return null;
     const query = new URLSearchParams(window.location.search);
@@ -400,9 +394,6 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   useEffect(() => {
     if (focusedPageNumber !== null) scrollRootRef.current?.focus({ preventScroll: true });
   }, [focusedPageNumber]);
-  useEffect(() => {
-    setFocusedPageAspectRatio(8.5 / 11);
-  }, [focusedPageNumber]);
   useLayoutEffect(() => {
     if (focusedPageNumber !== null) return;
     const element = scrollRootRef.current;
@@ -431,9 +422,6 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
   }} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : { touchAction: 'pan-x pan-y' }}>
     {focusedPageNumber !== null ? <FocusedPageExitControl
-      containerRef={scrollRootRef}
-      pageAspectRatio={focusedPageAspectRatio}
-      zoom={zoom}
       onExit={exitFocus}
     /> : null}
     {focusedPageNumber !== null && pageCount > 1 ? <>
@@ -461,7 +449,6 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions}
-          onAspectRatioResolved={focusedPageNumber === pageNumber ? setFocusedPageAspectRatio : undefined}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

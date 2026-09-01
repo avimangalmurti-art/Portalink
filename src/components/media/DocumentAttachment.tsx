@@ -151,9 +151,6 @@ export function DocumentAttachment({
         if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
       }} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
         {focusedPageIndex !== null ? <FocusedPageExitControl
-          containerRef={zoomSurfaceRef}
-          pageAspectRatio={renderedPages[focusedPageIndex]?.width && renderedPages[focusedPageIndex]?.height ? renderedPages[focusedPageIndex].width / renderedPages[focusedPageIndex].height : 8.5 / 11}
-          zoom={zoom}
           onExit={exitFocus}
         /> : null}
         {focusedPageIndex !== null && renderedPages.length > 1 ? <>
@@ -199,7 +196,7 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} focusedPageAspectRatio={page.width && page.height ? page.width / page.height : 8.5 / 11} focusedZoom={focusedPageIndex === index ? zoom : 1} target={{
+            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,

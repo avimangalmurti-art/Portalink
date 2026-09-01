@@ -105,7 +105,7 @@ function ImagePage({
       }} />
         </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
-      {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} focusedPageAspectRatio={attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? attachment.metadata.widthPixels / attachment.metadata.heightPixels : 1} focusedZoom={zoom} target={{
+      {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} target={{
         projectId,
         attachmentId: attachment.id,
         pageIndex: pageNumber - 1,
@@ -233,9 +233,6 @@ export function ImageAttachment({
       if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
     }} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={{ touchAction: 'pan-x pan-y' }}>
         <FocusedPageExitControl
-          containerRef={zoomSurfaceRef}
-          pageAspectRatio={focusedPage.metadata?.widthPixels && focusedPage.metadata?.heightPixels ? focusedPage.metadata.widthPixels / focusedPage.metadata.heightPixels : 1}
-          zoom={zoom}
           onExit={exitFocus}
           label="Exit single-image view"
         />
