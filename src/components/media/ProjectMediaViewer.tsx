@@ -409,6 +409,10 @@ export function ProjectMediaViewer({
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
               <p className="mt-1 text-[12px] text-[var(--text-secondary)]">By {creatorName}</p>
             </div>
+            <div>
+              <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>
+              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+            </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[12px] leading-snug">
               <dt className="text-[var(--text-tertiary)]">Portal</dt>
               <dd className="min-w-0 text-right font-medium text-[var(--text-primary)]">{portalLabel}</dd>
@@ -417,10 +421,6 @@ export function ProjectMediaViewer({
               <dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{attachments.length}</dd>
               {publishedLabel && <><dt className="text-[var(--text-tertiary)]">Published</dt><dd className="text-right font-medium text-[var(--text-primary)]">{publishedLabel}</dd></>}
             </dl>
-            <div>
-              <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">About this project</h3>
-              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
-            </div>
             {credits.length > 0 && <div>
                 <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Credits</h3>
                 <dl className="mt-2 flex flex-col gap-2">
