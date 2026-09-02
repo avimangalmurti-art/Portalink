@@ -3,7 +3,6 @@ import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusI
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory, ProjectOpeningPage } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
-import { TypographyInspector } from './TypographyInspector';
 import { getTypefaceStack } from '../../data/typefaces';
 import { ProjectMediaViewer } from '../media/ProjectMediaViewer';
 import { resolveProjectAttachments } from '../../features/media/projectAttachments';
@@ -302,17 +301,8 @@ export function ProfileCategoryPage({
   }, [activeProject?.id, pendingPageLayoutSave, showsOwnerTools, typography.savingProjectId, typography.setPagesPerRow]);
   const projectTypefaceStack = getTypefaceStack(activeTypefaceId);
   // A row reads in the face of the project it points at.
-  const projectTypefaceStacks = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, getTypefaceStack(typography.resolveTypefaceId(project.id))])), [categoryProjects, typography]);
-  /**
-   * Setting a project's face is an authoring choice, so only its owner gets it,
-   * and it only ever changes the project currently open. The inspector stays
-   * presentational: it reports the current face and hands back a choice.
-   *
-   * It lives in the sidebar header with the other owner tools rather than on the
-   * project frame, so every control that acts on this portal is in one place and
-   * the frame around the work stays an identity bar.
-   */
-  const typographyControl = showsOwnerTools && activeProject ? <TypographyInspector typefaceId={activeTypefaceId} onTypefaceChange={(typefaceId) => void typography.setTypeface(activeProject.id, typefaceId)} /> : null;
+  const projectTypefaceIds = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, typography.resolveTypefaceId(project.id)])), [categoryProjects, typography]);
+  const projectTypefaceStacks = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, getTypefaceStack(projectTypefaceIds[project.id])])), [categoryProjects, projectTypefaceIds]);
   /**
    * A portal always has a project open, and the index beside it is the only way to
    * change which one.
@@ -437,7 +427,6 @@ export function ProfileCategoryPage({
               {showsOwnerTools && onCreateProject && <button type="button" onClick={onCreateProject} aria-label={`Add a new project to ${category.label}`} title="New project" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <FilePlusIcon className="h-[18px] w-[18px]" aria-hidden="true" />
                 </button>}
-              {typographyControl}
             </div>
           </header>}
 
@@ -514,7 +503,7 @@ export function ProfileCategoryPage({
           </div>}
 
         {!isIndexCollapsed && <nav aria-label={`${category.label} index`} className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-            <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onReplaceFiles={showsOwnerTools ? management.editor.openFiles : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
+            <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onReplaceFiles={showsOwnerTools ? management.editor.openFiles : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
             {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
             {/* Owner-only surfaces. They act on the canonical record through the

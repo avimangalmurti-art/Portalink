@@ -12,6 +12,9 @@ const MULTI_SCRIPT_SPECIMEN = 'Hello / 今日は / नमस्ते / 𑖪𑖯
 type TypographyInspectorProps = {
   typefaceId: string;
   onTypefaceChange: (typefaceId: string) => void;
+  /** The project menu owns typography now; the header variant remains reusable. */
+  triggerVariant?: 'header' | 'menu';
+  onSelectComplete?: () => void;
 };
 
 type PopoverPosition = {
@@ -20,13 +23,14 @@ type PopoverPosition = {
 };
 
 /**
- * Typography lives with the other authoring controls, in the portal sidebar: a
- * quiet anchored inspector that edits the open project's own type tokens live.
- * The project beside it is the only preview.
+ * Typography lives with the project it changes: a quiet anchored inspector that
+ * edits that project's own type tokens live. The project beside it is the preview.
  */
 export function TypographyInspector({
   typefaceId,
-  onTypefaceChange
+  onTypefaceChange,
+  triggerVariant = 'header',
+  onSelectComplete
 }: TypographyInspectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
@@ -95,15 +99,24 @@ export function TypographyInspector({
       window.removeEventListener('scroll', positionPopover, true);
     };
   }, [isOpen, positionPopover]);
+  const selectTypeface = (nextTypefaceId: string) => {
+    onTypefaceChange(nextTypefaceId);
+    if (triggerVariant === 'menu') {
+      setIsOpen(false);
+      onSelectComplete?.();
+    }
+  };
   return <div ref={containerRef} className="relative shrink-0">
-      {/* Matches the collapse and new-project controls it now sits beside. */}
-      <button type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-        <TypeIcon className="h-[18px] w-[18px]" aria-hidden="true" />
-      </button>
+      {triggerVariant === 'menu' ? <button type="button" role="menuitem" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <InterfaceIcon icon={TypeIcon} size="sm" weight="medium" />
+          Change typography…
+        </button> : <button type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <TypeIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>}
 
       {/* Portaled above the work so neither the open nor collapsed sidebar can
          constrain its width, stacking order, or visible bounds. */}
-      {isOpen && createPortal(<div ref={popoverRef} role="dialog" aria-label="Typography" style={popoverPosition ?? {
+      {isOpen && createPortal(<div ref={popoverRef} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
       left: 0,
       top: 0,
       visibility: 'hidden'
@@ -112,13 +125,13 @@ export function TypographyInspector({
             <h2 className="text-small font-bold text-[var(--text-primary)]">Typography</h2>
           </div>
           <div className="scrollbar-slim max-h-[380px] overflow-y-auto p-2">
-            <TypefaceOption label="System Default" description="Matches the Portalink interface font" isSelected={typefaceId === DEFAULT_TYPEFACE_ID} onSelect={() => onTypefaceChange(DEFAULT_TYPEFACE_ID)} />
+            <TypefaceOption label="System Default" description="Matches the Portalink interface font" isSelected={typefaceId === DEFAULT_TYPEFACE_ID} onSelect={() => selectTypeface(DEFAULT_TYPEFACE_ID)} />
             {typefaceCategories.map((category) => <section key={category} className="mt-2">
                 {/* Category headings stay in the interface font. */}
                 <h3 className="px-2 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[var(--text-tertiary)]">{category}</h3>
                 <ul className="m-0 list-none p-0">
                   {typefaces.filter((typeface) => typeface.category === category && typeface.id !== DEFAULT_TYPEFACE_ID).map((typeface) => <li key={typeface.id} className="list-none">
-                        <TypefaceOption label={typeface.name} specimenStack={typeface.stack} isSelected={typeface.id === typefaceId} onSelect={() => onTypefaceChange(typeface.id)} />
+                        <TypefaceOption label={typeface.name} specimenStack={typeface.stack} isSelected={typeface.id === typefaceId} onSelect={() => selectTypeface(typeface.id)} />
                       </li>)}
                 </ul>
               </section>)}

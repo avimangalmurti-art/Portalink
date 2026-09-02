@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
-import { ArrowDownIcon, ArrowUpIcon, EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, ReplaceIcon, Trash2Icon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, ReplaceIcon, Trash2Icon } from 'lucide-react';
 // Canonical domain model, not the seed module's parallel copy.
 import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { TypographyInspector } from './TypographyInspector';
 type ProjectIndexListProps = {
   projects: ProjectEntry[];
   /** Each row reads in the face of the project it points at, keyed by id. */
   typefaceStacks: Record<string, string>;
+  typefaceIds: Record<string, string>;
   hiddenIds: string[];
   /** Work fixed to the top of the index. Published, so visitors see it too. */
   pinnedIds: string[];
@@ -22,6 +24,8 @@ type ProjectIndexListProps = {
   onEdit?: (projectId: string) => void;
   /** Owner-only: opens the editor directly at the file replacement controls. */
   onReplaceFiles?: (projectId: string) => void;
+  /** Owner-only: changes the selected project's published typeface. */
+  onTypefaceChange?: (projectId: string, typefaceId: string) => void;
   /** Owner-only: asks for the destructive confirmation. Never deletes directly. */
   onDelete?: (projectId: string) => void;
 };
@@ -49,6 +53,7 @@ function SectionHeading({
 export function ProjectIndexList({
   projects,
   typefaceStacks,
+  typefaceIds,
   hiddenIds,
   pinnedIds,
   activeProjectId,
@@ -59,6 +64,7 @@ export function ProjectIndexList({
   onSelect,
   onEdit,
   onReplaceFiles,
+  onTypefaceChange,
   onDelete,
 }: ProjectIndexListProps) {
   /*
@@ -104,6 +110,7 @@ export function ProjectIndexList({
   const rowProps = (project: ProjectEntry) => ({
     project,
     typefaceStack: typefaceStacks[project.id],
+    typefaceId: typefaceIds[project.id],
     isHidden: hiddenIds.includes(project.id),
     isPinned: pinnedIds.includes(project.id),
     isActive: project.id === activeProjectId,
@@ -112,19 +119,9 @@ export function ProjectIndexList({
     onSelect: () => onSelect(project.id),
     onEdit: onEdit ? () => onEdit(project.id) : undefined,
     onReplaceFiles: onReplaceFiles ? () => onReplaceFiles(project.id) : undefined,
+    onTypefaceChange: onTypefaceChange ? (typefaceId: string) => onTypefaceChange(project.id, typefaceId) : undefined,
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
-  function moveProject(projectId: string, direction: -1 | 1) {
-    const currentIndex = rest.findIndex((project) => project.id === projectId);
-    const nextIndex = currentIndex + direction;
-    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= rest.length) {
-      return;
-    }
-    const reordered = [...rest];
-    const [movedProject] = reordered.splice(currentIndex, 1);
-    reordered.splice(nextIndex, 0, movedProject);
-    onReorder([...pinned, ...reordered, ...hidden]);
-  }
   return <div>
       {pinned.length > 0 && <>
           <SectionHeading label="Pinned" icon={PinIcon} />
@@ -137,7 +134,7 @@ export function ProjectIndexList({
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
       {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="m-0 list-none space-y-1 p-0">
-          {rest.map((project, index) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable canMoveUp={index > 0} canMoveDown={index < rest.length - 1} onMoveUp={() => moveProject(project.id, -1)} onMoveDown={() => moveProject(project.id, 1)} />)}
+          {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable />)}
         </Reorder.Group>}
 
       {/* Hidden work sits under its own heading, dimmed, so the owner can see
@@ -186,6 +183,7 @@ function ProjectLink({
 function ProjectRow({
   project,
   typefaceStack,
+  typefaceId,
   isHidden,
   isPinned,
   isActive,
@@ -195,11 +193,8 @@ function ProjectRow({
   onSelect,
   onEdit,
   onReplaceFiles,
+  onTypefaceChange,
   onDelete,
-  canMoveUp = false,
-  canMoveDown = false,
-  onMoveUp,
-  onMoveDown
 
 
 
@@ -213,7 +208,7 @@ function ProjectRow({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onReplaceFiles?: () => void;onDelete?: () => void;canMoveUp?: boolean;canMoveDown?: boolean;onMoveUp?: () => void;onMoveDown?: () => void;}) {
+}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onReplaceFiles?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -222,7 +217,8 @@ function ProjectRow({
       return;
     }
     const onPointerDown = (event: PointerEvent) => {
-      if (!rowRef.current?.contains(event.target as Node)) {
+      const target = event.target as Element;
+      if (!rowRef.current?.contains(target) && !target.closest('[data-typography-popover]')) {
         setIsMenuOpen(false);
       }
     };
@@ -261,7 +257,15 @@ function ProjectRow({
         y: -4
       }} transition={{
         duration: 0.14
-      }} className="absolute right-1 top-[calc(100%-2px)] z-30 w-40 rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
+      }} className="absolute right-1 top-[calc(100%-2px)] z-30 w-48 rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
+            {onEdit && <button type="button" role="menuitem" onClick={() => {
+          onEdit();
+          setIsMenuOpen(false);
+        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
+                Edit details…
+              </button>}
+            {onTypefaceChange && <TypographyInspector typefaceId={typefaceId} triggerVariant="menu" onTypefaceChange={onTypefaceChange} onSelectComplete={() => setIsMenuOpen(false)} />}
             <button type="button" role="menuitem" onClick={() => {
           onTogglePinned();
           setIsMenuOpen(false);
@@ -276,22 +280,6 @@ function ProjectRow({
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
             </button>
-            {isDraggable && <>
-                <button type="button" role="menuitem" disabled={!canMoveUp} onClick={() => {
-            onMoveUp?.();
-            setIsMenuOpen(false);
-          }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 enabled:hover:bg-[var(--surface-sunken)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <ArrowUpIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  Move up
-                </button>
-                <button type="button" role="menuitem" disabled={!canMoveDown} onClick={() => {
-            onMoveDown?.();
-            setIsMenuOpen(false);
-          }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 enabled:hover:bg-[var(--surface-sunken)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                  <ArrowDownIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  Move down
-                </button>
-              </>}
             {/* These act on the published record itself, through the project
              management boundary — not on a local copy of it. */}
             {onReplaceFiles && <button type="button" role="menuitem" onClick={() => {
@@ -300,13 +288,6 @@ function ProjectRow({
         }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={ReplaceIcon} size="sm" weight="medium" />
                 Replace files…
-              </button>}
-            {onEdit && <button type="button" role="menuitem" onClick={() => {
-          onEdit();
-          setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
-                Edit details…
               </button>}
             {onDelete && <button type="button" role="menuitem" onClick={() => {
           onDelete();
