@@ -2,8 +2,11 @@ type ViewerMemory = {
   activeAttachmentId?: string | null;
   focusedPageId?: string | null;
   focusedPageNumber?: number | null;
+  lastFocusedPageId?: string | null;
+  lastFocusedPageNumber?: number | null;
   zoom?: number;
   scrollTop?: number;
+  scrollLeft?: number;
 };
 
 const STORAGE_PREFIX = 'portalink.viewer.';

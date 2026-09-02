@@ -35,7 +35,7 @@ export function DocumentAttachment({
   controlsVisible = true,
   showMediaInteractions = true,
   isOwner = false,
-  pageOverviewRequest = 0,
+  pageViewToggleRequest = 0,
 
 
 }: {
@@ -47,7 +47,7 @@ export function DocumentAttachment({
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
   isOwner?: boolean;
-  pageOverviewRequest?: number;
+  pageViewToggleRequest?: number;
   processing?: {
     state: 'processing' | 'processing-failed';
     message: string | null;
@@ -64,6 +64,7 @@ export function DocumentAttachment({
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
+  const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
   const handlePdfFailure = useCallback(() => setHasFailed(true), []);
   const renderedPages = (attachment.metadata?.renderedPages ?? [])
     .filter((page): page is typeof page & { sourceUrl: string } => Boolean(page.sourceUrl));
@@ -89,20 +90,32 @@ export function DocumentAttachment({
   }, [memoryKey, renderedPages.length]);
   const focusPage = useCallback((index: number) => {
     setFocusedPageIndex(index);
-    updateViewerMemory(memoryKey, { focusedPageNumber: index });
+    updateViewerMemory(memoryKey, { focusedPageNumber: index, lastFocusedPageNumber: index });
   }, [memoryKey]);
   const exitFocus = useCallback(() => {
-    setFocusedPageIndex(null);
-    updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
+    setFocusedPageIndex((current) => {
+      updateViewerMemory(memoryKey, { focusedPageNumber: null, ...(current !== null ? { lastFocusedPageNumber: current } : {}) });
+      return null;
+    });
   }, [memoryKey]);
   useEffect(() => {
-    if (pageOverviewRequest > 0) exitFocus();
-  }, [exitFocus, pageOverviewRequest]);
+    if (pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
+    handledViewToggleRequestRef.current = pageViewToggleRequest;
+    if (focusedPageIndex !== null) {
+      exitFocus();
+      return;
+    }
+    const rememberedPage = readViewerMemory(memoryKey).lastFocusedPageNumber;
+    const pageToRestore = typeof rememberedPage === 'number' && rememberedPage >= 0 && rememberedPage < renderedPages.length
+      ? rememberedPage
+      : renderedPages.length > 0 ? 0 : null;
+    if (pageToRestore !== null) focusPage(pageToRestore);
+  }, [exitFocus, focusPage, focusedPageIndex, memoryKey, pageViewToggleRequest, renderedPages.length]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPageIndex !== null,
     onExit: exitFocus,
-    memoryKey
+    memoryKey: focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey
   });
   const moveFocusedPage = useCallback((direction: -1 | 1) => {
     if (focusedPageIndex === null) return;
@@ -113,9 +126,12 @@ export function DocumentAttachment({
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
   useLayoutEffect(() => {
-    if (focusedPageIndex !== null) return;
     const element = zoomSurfaceRef.current;
-    if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
+    if (!element) return;
+    const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
+    const remembered = readViewerMemory(positionMemoryKey);
+    element.scrollTop = remembered.scrollTop ?? 0;
+    element.scrollLeft = remembered.scrollLeft ?? 0;
   }, [focusedPageIndex, memoryKey]);
   useEffect(() => {
     if (renderedPages.length === 0) {
@@ -134,7 +150,10 @@ export function DocumentAttachment({
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={focusedPageIndex === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageIndex === null ? undefined : (event) => {
+      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
+        const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
+        updateViewerMemory(positionMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });
+      }} onKeyDown={focusedPageIndex === null ? undefined : (event) => {
         if (event.key === 'ArrowLeft') {
           event.preventDefault();
           moveFocusedPage(-1);
@@ -206,7 +225,7 @@ export function DocumentAttachment({
             }} />}
           </li>)}
         </ol>
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageOverviewRequest={pageOverviewRequest} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

@@ -27,7 +27,7 @@ type PdfImageDocumentProps = {
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
   isOwner?: boolean;
-  pageOverviewRequest?: number;
+  pageViewToggleRequest?: number;
 };
 
 type PdfImagePageProps = {
@@ -41,6 +41,7 @@ type PdfImagePageProps = {
   zoom: number;
   showMediaInteractions: boolean;
   isOwner: boolean;
+  focusMemoryKey?: string;
   onToggleFocus: (pageNumber: number) => void;
   onSettled: (pageNumber: number) => void;
 };
@@ -56,6 +57,7 @@ function PdfImagePage({
   zoom,
   showMediaInteractions,
   isOwner,
+  focusMemoryKey,
   onToggleFocus,
   onSettled
 }: PdfImagePageProps) {
@@ -70,6 +72,14 @@ function PdfImagePage({
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'waiting' | 'loading' | 'ready' | 'failed'>('waiting');
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!isFocused || !focusMemoryKey) return;
+    const remembered = readViewerMemory(focusMemoryKey);
+    if (hostRef.current) {
+      hostRef.current.scrollTop = remembered.scrollTop ?? 0;
+      hostRef.current.scrollLeft = remembered.scrollLeft ?? 0;
+    }
+  }, [focusMemoryKey, isFocused, status]);
 
   onSettledRef.current = onSettled;
 
@@ -214,6 +224,7 @@ function PdfImagePage({
     aria-pressed={isFocused ? undefined : false}
     aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`}
     aria-busy={status === 'waiting' || status === 'loading'}
+    onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })}
     onDoubleClick={isFocused ? undefined : (event) => {
       event.preventDefault();
       if (performance.now() - lastTouchToggleAtRef.current < 500) return;
@@ -282,7 +293,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageOverviewRequest = 0 }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -299,13 +310,13 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   };
   const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
   const exitFocus = useCallback(() => {
-    setFocusedPageNumber(null);
-    updateViewerMemory(memoryKey, { focusedPageNumber: null, zoom: 1 });
+    setFocusedPageNumber((current) => {
+      updateViewerMemory(memoryKey, { focusedPageNumber: null, ...(current !== null ? { lastFocusedPageNumber: current } : {}) });
+      return null;
+    });
   }, [memoryKey]);
-  useEffect(() => {
-    if (pageOverviewRequest > 0) exitFocus();
-  }, [exitFocus, pageOverviewRequest]);
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
     active: focusedPageNumber !== null,
@@ -384,8 +395,21 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);
-    updateViewerMemory(memoryKey, { focusedPageNumber: pageNumber });
+    updateViewerMemory(memoryKey, { focusedPageNumber: pageNumber, lastFocusedPageNumber: pageNumber });
   }, [memoryKey]);
+  useEffect(() => {
+    if (pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
+    handledViewToggleRequestRef.current = pageViewToggleRequest;
+    if (focusedPageNumber !== null) {
+      exitFocus();
+      return;
+    }
+    const rememberedPage = readViewerMemory(memoryKey).lastFocusedPageNumber;
+    const pageToRestore = typeof rememberedPage === 'number' && rememberedPage >= 1 && rememberedPage <= pageCount
+      ? rememberedPage
+      : pageCount > 0 ? 1 : null;
+    if (pageToRestore !== null) focusPage(pageToRestore);
+  }, [exitFocus, focusPage, focusedPageNumber, memoryKey, pageCount, pageViewToggleRequest]);
   const moveFocusedPage = useCallback((direction: -1 | 1) => {
     if (focusedPageNumber === null) return;
     const next = Math.min(pageCount, Math.max(1, focusedPageNumber + direction));
@@ -453,6 +477,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions}
           isOwner={isOwner}
+          focusMemoryKey={focusedPageNumber === pageNumber ? `${memoryKey}:page:${pageNumber}` : undefined}
           onToggleFocus={focusPage}
           onSettled={handlePageSettled}
         />

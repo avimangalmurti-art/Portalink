@@ -29,9 +29,10 @@ function ImagePage({
   zoom = 1,
   showMediaInteractions = true,
   isOwner = false,
+  focusMemoryKey,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -39,6 +40,14 @@ function ImagePage({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   // Remounting the element is what a retry actually means for an image.
   const [attempt, setAttempt] = useState(0);
+  useLayoutEffect(() => {
+    if (!isFocused || !focusMemoryKey) return;
+    const remembered = readViewerMemory(focusMemoryKey);
+    if (hostRef.current) {
+      hostRef.current.scrollTop = remembered.scrollTop ?? 0;
+      hostRef.current.scrollLeft = remembered.scrollLeft ?? 0;
+    }
+  }, [focusMemoryKey, isFocused, status]);
   useEffect(() => {
     if (shouldRender) return undefined;
     const host = hostRef.current;
@@ -67,7 +76,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -136,7 +145,7 @@ export function ImageAttachment({
   controlsVisible = true,
   showMediaInteractions = true,
   isOwner = false,
-  pageOverviewRequest = 0
+  pageViewToggleRequest = 0
 
 
 
@@ -148,7 +157,7 @@ export function ImageAttachment({
 }: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
-   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;pageOverviewRequest?: number;}) {
+   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;pageViewToggleRequest?: number;}) {
   const memoryKey = `images:${projectId}`;
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
     const linked = deepLinkedImageId(pages);
@@ -159,6 +168,7 @@ export function ImageAttachment({
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLOListElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
   const columnCount = Math.max(1, Math.min(columns, pages.length));
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
@@ -183,15 +193,27 @@ export function ImageAttachment({
   }, [focusedPage, onFocusModeChange]);
   const focusPage = useCallback((attachmentId: string) => {
     setFocusedPageId(attachmentId);
-    updateViewerMemory(memoryKey, { focusedPageId: attachmentId });
+    updateViewerMemory(memoryKey, { focusedPageId: attachmentId, lastFocusedPageId: attachmentId });
   }, [memoryKey]);
   const exitFocus = useCallback(() => {
-    setFocusedPageId(null);
-    updateViewerMemory(memoryKey, { focusedPageId: null, zoom: 1 });
+    setFocusedPageId((current) => {
+      updateViewerMemory(memoryKey, { focusedPageId: null, ...(current ? { lastFocusedPageId: current } : {}) });
+      return null;
+    });
   }, [memoryKey]);
   useEffect(() => {
-    if (pageOverviewRequest > 0) exitFocus();
-  }, [exitFocus, pageOverviewRequest]);
+    if (pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
+    handledViewToggleRequestRef.current = pageViewToggleRequest;
+    if (focusedPageId) {
+      exitFocus();
+      return;
+    }
+    const rememberedPageId = readViewerMemory(memoryKey).lastFocusedPageId;
+    const pageToRestore = rememberedPageId && pages.some((page) => page.id === rememberedPageId)
+      ? rememberedPageId
+      : pages[0]?.id;
+    if (pageToRestore) focusPage(pageToRestore);
+  }, [exitFocus, focusPage, focusedPageId, memoryKey, pageViewToggleRequest, pages]);
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
@@ -248,7 +270,7 @@ export function ImageAttachment({
             <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} isOwner={isOwner} onToggleFocus={focusPage} />
+          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
         </ol>
       </div>;
   }

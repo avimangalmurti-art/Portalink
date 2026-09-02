@@ -83,7 +83,8 @@ export function ProjectMediaViewer({
   pagesPerRow = 3,
   onPagesPerRowChange,
   onPagesPerRowCommit,
-  pageOverviewRequest = 0,
+  pageViewToggleRequest = 0,
+  onPageFocusModeChange,
   processing,
   onDocumentPageCountResolved,
   isRailOpen,
@@ -101,7 +102,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Requests that a focused page return to the thumbnail overview. */pageOverviewRequest?: number; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the fixed PDF catalog total; unrelated to scrolling or density. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   const responseRailWidth = useResizablePanelWidth({
     // The public-link information rail is independently resizable, but its
     // baseline is always the maximum standard width. A width chosen in the
@@ -225,7 +226,12 @@ export function ProjectMediaViewer({
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
   useEffect(() => {
     setIsImmersive(false);
-  }, [active?.id]);
+    onPageFocusModeChange?.(false);
+  }, [active?.id, onPageFocusModeChange]);
+  const handlePageFocusModeChange = useCallback((focused: boolean) => {
+    setIsImmersive(focused);
+    onPageFocusModeChange?.(focused);
+  }, [onPageFocusModeChange]);
   /**
    * When audio and an image are uploaded as separate files, the image is the
    * track's cover rather than a second thing to click through to. Resolved from the
@@ -362,7 +368,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={setIsImmersive} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} pageOverviewRequest={pageOverviewRequest} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
