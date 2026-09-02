@@ -3,7 +3,6 @@ import { LogInIcon, MoonIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
-import { CreatorAvatar } from './CreatorAvatar';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
@@ -75,9 +74,8 @@ export function SharedProfileSidebar({
   return <aside data-resizable-panel="" style={{ width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full shrink-0 flex-col bg-transparent">
       <div className="global-control-header shrink-0 px-2">
         <div className="flex h-full w-full min-w-0 flex-1 items-center px-2">
-          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 shrink-0 text-[12px]" />
-            <span className="cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--text-primary)]">{profile.name}</span>
+          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link>
         </div>
       </div>
