@@ -73,8 +73,6 @@ export function ProjectMediaViewer({
   projectId,
   projectTitle,
   projectSummary,
-  creatorName,
-  portalLabel,
   publishedAt,
   credits = [],
   pageCount,
@@ -105,7 +103,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Stable creator-authored page used for public entry or an owner preview. */openingPage?: ProjectOpeningPage; /** Increments only when the owner deliberately previews another opening page. */openingPageRequest?: number; /** Public links apply the authored opening page on project entry. */useOpeningPageOnMount?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Stable creator-authored page used for public entry or an owner preview. */openingPage?: ProjectOpeningPage; /** Increments only when the owner deliberately previews another opening page. */openingPageRequest?: number; /** Public links apply the authored opening page on project entry. */useOpeningPageOnMount?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   const responseRailWidth = useResizablePanelWidth({
     // The public-link information rail is independently resizable, but its
     // baseline is always the maximum standard width. A width chosen in the
@@ -442,18 +440,13 @@ export function ProjectMediaViewer({
           {isRailOpen && sharedInfoPanel === 'project' && <div id="shared-project-detail-panel" className="flex flex-col gap-5 px-5 py-5">
             <div>
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
-              <p className="mt-1 text-[12px] text-[var(--text-secondary)]">By {creatorName}</p>
             </div>
             <div>
               <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>
               {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
             </div>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[12px] leading-snug">
-              <dt className="text-[var(--text-tertiary)]">Portal</dt>
-              <dd className="min-w-0 text-right font-medium text-[var(--text-primary)]">{portalLabel}</dd>
               {pageCount !== null && <><dt className="text-[var(--text-tertiary)]">Pages</dt><dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{pageCount}</dd></>}
-              <dt className="text-[var(--text-tertiary)]">Files</dt>
-              <dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{attachments.length}</dd>
               {publishedLabel && <><dt className="text-[var(--text-tertiary)]">Published</dt><dd className="text-right font-medium text-[var(--text-primary)]">{publishedLabel}</dd></>}
             </dl>
             {credits.length > 0 && <div>
