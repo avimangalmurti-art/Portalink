@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { ErrorState } from '../ui/StateViews';
-import type { ProjectAttachment } from '../../types/domain';
+import type { ProjectAttachment, ProjectOpeningPage } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
@@ -145,6 +145,10 @@ export function ImageAttachment({
   controlsVisible = true,
   showMediaInteractions = true,
   isOwner = false,
+  memoryScope = 'workspace',
+  openingPage,
+  openingPageRequest = 0,
+  useOpeningPageOnMount = false,
   pageViewToggleRequest = 0
 
 
@@ -157,11 +161,16 @@ export function ImageAttachment({
 }: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
-   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;pageViewToggleRequest?: number;}) {
-  const memoryKey = `images:${projectId}`;
+   */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;memoryScope?: string;openingPage?: ProjectOpeningPage;openingPageRequest?: number;useOpeningPageOnMount?: boolean;pageViewToggleRequest?: number;}) {
+  const memoryKey = `${memoryScope}:images:${projectId}`;
+  const pageIdsKey = pages.map((page) => page.id).join('|');
+  const linkedImageId = deepLinkedImageId(pages);
+  const openingImageId = openingPage && pages.some((page) => page.id === openingPage.attachmentId)
+    ? openingPage.attachmentId
+    : null;
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
-    const linked = deepLinkedImageId(pages);
-    if (linked) return linked;
+    if (linkedImageId) return linkedImageId;
+    if ((useOpeningPageOnMount || openingPageRequest > 0) && openingImageId) return openingImageId;
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     return remembered && pages.some((page) => page.id === remembered) ? remembered : null;
   });
@@ -169,24 +178,29 @@ export function ImageAttachment({
   const gridScrollRef = useRef<HTMLOListElement>(null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
+  const handledOpeningPageRequestRef = useRef(openingPageRequest);
   const columnCount = Math.max(1, Math.min(columns, pages.length));
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
   useEffect(() => {
-    const linked = deepLinkedImageId(pages);
-    if (linked) {
-      setFocusedPageId(linked);
+    if (linkedImageId) {
+      setFocusedPageId(linkedImageId);
+      return;
+    }
+    if (useOpeningPageOnMount && openingImageId) {
+      setFocusedPageId(openingImageId);
       return;
     }
     const remembered = readViewerMemory(memoryKey).focusedPageId;
-    setFocusedPageId(remembered && pages.some((page) => page.id === remembered) ? remembered : null);
-  }, [memoryKey, pages]);
+    const pageIds = pageIdsKey ? pageIdsKey.split('|') : [];
+    setFocusedPageId(remembered && pageIds.includes(remembered) ? remembered : null);
+  }, [linkedImageId, memoryKey, openingImageId, pageIdsKey, useOpeningPageOnMount]);
   useEffect(() => {
-    if (focusedPageId && !pages.some((page) => page.id === focusedPageId)) {
+    if (focusedPageId && !pageIdsKey.split('|').includes(focusedPageId)) {
       setFocusedPageId(null);
       updateViewerMemory(memoryKey, { focusedPageId: null });
     }
-  }, [focusedPageId, memoryKey, pages]);
+  }, [focusedPageId, memoryKey, pageIdsKey]);
   useEffect(() => {
     onFocusModeChange?.(focusedPage !== null);
     return () => onFocusModeChange?.(false);
@@ -195,6 +209,11 @@ export function ImageAttachment({
     setFocusedPageId(attachmentId);
     updateViewerMemory(memoryKey, { focusedPageId: attachmentId, lastFocusedPageId: attachmentId });
   }, [memoryKey]);
+  useEffect(() => {
+    if (openingPageRequest <= handledOpeningPageRequestRef.current) return;
+    handledOpeningPageRequestRef.current = openingPageRequest;
+    if (openingImageId) focusPage(openingImageId);
+  }, [focusPage, openingImageId, openingPageRequest]);
   const exitFocus = useCallback(() => {
     setFocusedPageId((current) => {
       updateViewerMemory(memoryKey, { focusedPageId: null, ...(current ? { lastFocusedPageId: current } : {}) });

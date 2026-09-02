@@ -6,7 +6,7 @@ import { EngagementBar } from '../../features/engagement/EngagementBar';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
 import { CommentThreadView } from '../comments/CommentThreadView';
 import { useProjectComments } from '../../features/comments/useProjectComments';
-import type { MediaKind, ProjectAttachment, ProjectCredit } from '../../types/domain';
+import type { MediaKind, ProjectAttachment, ProjectCredit, ProjectOpeningPage } from '../../types/domain';
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
@@ -83,6 +83,9 @@ export function ProjectMediaViewer({
   pagesPerRow = 3,
   onPagesPerRowChange,
   onPagesPerRowCommit,
+  openingPage,
+  openingPageRequest = 0,
+  useOpeningPageOnMount = false,
   pageViewToggleRequest = 0,
   onPageFocusModeChange,
   processing,
@@ -102,7 +105,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;creatorName: string;portalLabel: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected opening density, controlled directly over the work surface. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** Stable creator-authored page used for public entry or an owner preview. */openingPage?: ProjectOpeningPage; /** Increments only when the owner deliberately previews another opening page. */openingPageRequest?: number; /** Public links apply the authored opening page on project entry. */useOpeningPageOnMount?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   const responseRailWidth = useResizablePanelWidth({
     // The public-link information rail is independently resizable, but its
     // baseline is always the maximum standard width. A width chosen in the
@@ -124,13 +127,21 @@ export function ProjectMediaViewer({
    * small image with two empty columns next to it.
   */
   const normalizedPagesPerRow = normalizePagesPerRow(pagesPerRow);
-  const viewerMemoryKey = `project:${projectId}`;
+  const viewerMemoryScope = readOnlyShare ? 'shared' : 'workspace';
+  const viewerMemoryKey = `${viewerMemoryScope}:project:${projectId}`;
+  const attachmentIdsKey = attachments.map((attachment) => attachment.id).join('|');
   const deepLinkedAttachmentId = typeof window === 'undefined'
     ? null
     : new URLSearchParams(window.location.search).get('media');
+  const openingAttachmentId = openingPage && attachments.some((attachment) => attachment.id === openingPage.attachmentId)
+    ? openingPage.attachmentId
+    : null;
   const [activeId, setActiveId] = useState<string | null>(() => deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)
     ? deepLinkedAttachmentId
-    : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
+    : (useOpeningPageOnMount || openingPageRequest > 0) && openingAttachmentId
+      ? openingAttachmentId
+      : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
+  const handledOpeningPageRequestRef = useRef(openingPageRequest);
   /**
    * Which of the two readings of the work the rail is showing. They share the one
    * area rather than stacking, because both are prose about the same piece and a
@@ -152,10 +163,17 @@ export function ProjectMediaViewer({
       setIsProjectShared(false);
       return;
     }
+    const hasNewOpeningPreview = openingPageRequest > handledOpeningPageRequestRef.current;
+    handledOpeningPageRequestRef.current = openingPageRequest;
+    if (openingAttachmentId && (useOpeningPageOnMount || hasNewOpeningPreview)) {
+      setActiveId(openingAttachmentId);
+      setIsProjectShared(false);
+      return;
+    }
     const rememberedAttachmentId = readViewerMemory(viewerMemoryKey).activeAttachmentId;
     setActiveId(rememberedAttachmentId && attachments.some((attachment) => attachment.id === rememberedAttachmentId) ? rememberedAttachmentId : null);
     setIsProjectShared(false);
-  }, [attachments, deepLinkedAttachmentId, viewerMemoryKey]);
+  }, [attachmentIdsKey, attachments, deepLinkedAttachmentId, openingAttachmentId, openingPageRequest, useOpeningPageOnMount, viewerMemoryKey]);
   const revealControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
@@ -368,7 +386,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} />
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} openingPage={openingPage} openingPageRequest={openingPageRequest} useOpeningPageOnMount={useOpeningPageOnMount} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} />
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says

@@ -237,7 +237,7 @@ function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachmen
 
 function asDesign(value: unknown): ProjectDesign | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-  const candidate = value as { typefaceId?: unknown; pagesPerRow?: unknown };
+  const candidate = value as { typefaceId?: unknown; pagesPerRow?: unknown; openingPage?: unknown };
   if (typeof candidate.typefaceId !== 'string') return undefined;
   const pagesPerRow = typeof candidate.pagesPerRow === 'number'
     && Number.isInteger(candidate.pagesPerRow)
@@ -245,9 +245,22 @@ function asDesign(value: unknown): ProjectDesign | undefined {
     && candidate.pagesPerRow <= MAX_PAGES_PER_ROW
     ? candidate.pagesPerRow
     : undefined;
+  const openingCandidate = candidate.openingPage && typeof candidate.openingPage === 'object' && !Array.isArray(candidate.openingPage)
+    ? candidate.openingPage as { attachmentId?: unknown; pageNumber?: unknown }
+    : null;
+  const openingPage = openingCandidate
+    && typeof openingCandidate.attachmentId === 'string'
+    && openingCandidate.attachmentId.length > 0
+    && typeof openingCandidate.pageNumber === 'number'
+    && Number.isInteger(openingCandidate.pageNumber)
+    && openingCandidate.pageNumber >= 1
+    && openingCandidate.pageNumber <= 10_000
+    ? { attachmentId: openingCandidate.attachmentId, pageNumber: openingCandidate.pageNumber }
+    : undefined;
   return {
     typefaceId: candidate.typefaceId,
     ...(pagesPerRow ? { pagesPerRow } : {}),
+    ...(openingPage ? { openingPage } : {}),
   };
 }
 
@@ -749,6 +762,9 @@ export const supabaseProjectService: ProjectService = {
     }
     if (design.pagesPerRow !== undefined && (!Number.isInteger(design.pagesPerRow) || design.pagesPerRow < MIN_PAGES_PER_ROW || design.pagesPerRow > MAX_PAGES_PER_ROW)) {
       throw new ProjectMutationError('invalid_metadata', `Pages per row must be between ${MIN_PAGES_PER_ROW} and ${MAX_PAGES_PER_ROW}.`);
+    }
+    if (design.openingPage !== undefined && (!design.openingPage.attachmentId || !Number.isInteger(design.openingPage.pageNumber) || design.openingPage.pageNumber < 1 || design.openingPage.pageNumber > 10_000)) {
+      throw new ProjectMutationError('invalid_metadata', 'The opening page is not valid.');
     }
     const { error } = await requireSupabase().from('projects').update({ design }).eq('id', projectId);
     if (error) throw new ProjectMutationError(error.code === '42501' ? 'permission_denied' : 'network', error.message);

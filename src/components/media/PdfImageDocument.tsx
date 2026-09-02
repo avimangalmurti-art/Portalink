@@ -8,6 +8,7 @@ import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
+import type { ProjectOpeningPage } from '../../types/domain';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -27,6 +28,9 @@ type PdfImageDocumentProps = {
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
   isOwner?: boolean;
+  openingPage?: ProjectOpeningPage;
+  openingPageRequest?: number;
+  useOpeningPageOnMount?: boolean;
   pageViewToggleRequest?: number;
 };
 
@@ -294,7 +298,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, openingPage, openingPageRequest = 0, useOpeningPageOnMount = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -302,16 +306,23 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const [document, setDocument] = useState<PdfDocument | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
-  const linkedPageNumber = () => {
+  const linkedPageNumber = useCallback(() => {
     if (typeof window === 'undefined') return null;
     const query = new URLSearchParams(window.location.search);
     if (query.get('media') !== attachmentId) return null;
     const pageNumber = Number(query.get('page'));
     return Number.isInteger(pageNumber) && pageNumber >= 1 ? pageNumber : null;
-  };
-  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
+  }, [attachmentId]);
+  const requestedOpeningPageNumber = openingPage?.attachmentId === attachmentId ? openingPage.pageNumber : null;
+  const openingPageOnLoadRef = useRef<number | null>((useOpeningPageOnMount || openingPageRequest > 0) ? requestedOpeningPageNumber : null);
+  openingPageOnLoadRef.current = (useOpeningPageOnMount || openingPageRequest > 0) ? requestedOpeningPageNumber : null;
+  const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => linkedPageNumber()
+    ?? openingPageOnLoadRef.current
+    ?? readViewerMemory(memoryKey).focusedPageNumber
+    ?? null);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
+  const handledOpeningPageRequestRef = useRef(openingPageRequest);
   const exitFocus = useCallback(() => {
     setFocusedPageNumber((current) => {
       updateViewerMemory(memoryKey, { focusedPageNumber: null, ...(current !== null ? { lastFocusedPageNumber: current } : {}) });
@@ -356,7 +367,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     setDocument(null);
     setPageCount(0);
     setRenderThrough(0);
-    setFocusedPageNumber(linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
+    setFocusedPageNumber(linkedPageNumber() ?? openingPageOnLoadRef.current ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
     void (async () => {
       const pdfjs = await loadPdfJs();
       if (cancelled) {
@@ -379,6 +390,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       window.clearTimeout(loadTimeout);
       setDocument(nextDocument);
       setPageCount(nextDocument.numPages);
+      setFocusedPageNumber((current) => current === null ? null : Math.min(nextDocument.numPages, Math.max(1, current)));
       onPageCountRef.current?.(nextDocument.numPages);
     })().catch(() => {
       if (!cancelled) {
@@ -392,12 +404,19 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       window.clearTimeout(loadTimeout);
       void loadingTask?.destroy();
     };
-  }, [memoryKey, source]);
+  }, [linkedPageNumber, memoryKey, source]);
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);
     updateViewerMemory(memoryKey, { focusedPageNumber: pageNumber, lastFocusedPageNumber: pageNumber });
   }, [memoryKey]);
+  useEffect(() => {
+    if (openingPageRequest <= handledOpeningPageRequestRef.current) return;
+    handledOpeningPageRequestRef.current = openingPageRequest;
+    if (requestedOpeningPageNumber !== null) {
+      focusPage(pageCount > 0 ? Math.min(pageCount, Math.max(1, requestedOpeningPageNumber)) : requestedOpeningPageNumber);
+    }
+  }, [focusPage, openingPageRequest, pageCount, requestedOpeningPageNumber]);
   useEffect(() => {
     if (pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
     handledViewToggleRequestRef.current = pageViewToggleRequest;

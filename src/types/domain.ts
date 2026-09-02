@@ -218,10 +218,19 @@ export type ProjectAttachment = {
  * different faces. Carrying it on the record is what makes the same project read
  * the same way on the feed, in search, in its category, and in its viewer.
  */
+export type ProjectOpeningPage = {
+  /** Stable asset identity, so reordering image pages does not change the choice. */
+  attachmentId: Id;
+  /** One-based page within the asset. Image attachments always use page 1. */
+  pageNumber: number;
+};
+
 export type ProjectDesign = {
   typefaceId: string;
   /** Creator-selected opening density for page-based work. */
   pagesPerRow?: number;
+  /** The page a public project visit opens on; browsing never mutates it. */
+  openingPage?: ProjectOpeningPage;
 };
 export type Project = {
   id: Id;

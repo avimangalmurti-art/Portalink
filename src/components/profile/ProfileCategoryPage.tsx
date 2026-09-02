@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
-import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
+import type { Profile, PortfolioCategory as ProfileCategory, ProjectOpeningPage } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
 import { TypographyInspector } from './TypographyInspector';
 import { getTypefaceStack } from '../../data/typefaces';
@@ -191,6 +191,64 @@ export function ProfileCategoryPage({
     : activePageCount === 1
       ? '1 page'
       : `${activePageCount} pages`;
+  const openingPageTargets = useMemo<ProjectOpeningPage[]>(() => {
+    if (!activeProject) return [];
+    const documents = activeAttachments.filter((attachment) => attachment.kind === 'document');
+    if (documents.length > 0) {
+      const counts = documents.map((attachment) => Math.max(
+        attachment.metadata?.renderedPages?.length ?? 0,
+        attachment.metadata?.pageCount ?? 0,
+        processing.statuses[attachment.id]?.pageCount ?? 0,
+        resolvedDocumentPageCounts[attachment.id] ?? 0,
+        documents.length === 1 ? activePageCount ?? 0 : 0
+      ));
+      if (counts.some((count) => count < 1)) return [];
+      return documents.flatMap((attachment, documentIndex) => Array.from(
+        { length: counts[documentIndex] },
+        (_, pageIndex) => ({ attachmentId: attachment.id, pageNumber: pageIndex + 1 })
+      ));
+    }
+    const images = activeAttachments.filter((attachment) => attachment.kind === 'image');
+    return images.length === activeAttachments.length
+      ? images.map((attachment) => ({ attachmentId: attachment.id, pageNumber: 1 }))
+      : [];
+  }, [activeAttachments, activePageCount, activeProject, processing.statuses, resolvedDocumentPageCounts]);
+  const savedOpeningPage = typography.resolveOpeningPage(
+    activeProject?.id ?? null,
+    activeProject?.design?.openingPage
+  );
+  const savedOpeningPageIndex = openingPageTargets.findIndex((target) =>
+    target.attachmentId === savedOpeningPage?.attachmentId
+    && target.pageNumber === savedOpeningPage.pageNumber
+  );
+  const canonicalOpeningPage = savedOpeningPageIndex >= 0
+    ? openingPageTargets[savedOpeningPageIndex]
+    : openingPageTargets[0] ?? savedOpeningPage;
+  const [openingPageDraft, setOpeningPageDraft] = useState(1);
+  const [openingPagePreview, setOpeningPagePreview] = useState<{ target: ProjectOpeningPage; request: number } | null>(null);
+  const openingPagePreviewSequence = useRef(0);
+  useEffect(() => {
+    setOpeningPageDraft(savedOpeningPageIndex >= 0 ? savedOpeningPageIndex + 1 : 1);
+  }, [activeProject?.id, savedOpeningPageIndex]);
+  useEffect(() => {
+    setOpeningPagePreview(null);
+  }, [activeProject?.id]);
+  const previewOpeningPage = useCallback((value: number) => {
+    const next = Math.min(openingPageTargets.length, Math.max(1, Math.round(value)));
+    const target = openingPageTargets[next - 1];
+    if (!target) return;
+    setOpeningPageDraft(next);
+    openingPagePreviewSequence.current += 1;
+    setOpeningPagePreview({ target, request: openingPagePreviewSequence.current });
+  }, [openingPageTargets]);
+  const commitOpeningPage = useCallback((value: number) => {
+    if (!showsOwnerTools || !activeProject) return;
+    const next = Math.min(openingPageTargets.length, Math.max(1, Math.round(value)));
+    const target = openingPageTargets[next - 1];
+    if (!target) return;
+    if (savedOpeningPage?.attachmentId === target.attachmentId && savedOpeningPage.pageNumber === target.pageNumber) return;
+    void typography.setOpeningPage(activeProject.id, target);
+  }, [activeProject, openingPageTargets, savedOpeningPage, showsOwnerTools, typography]);
   const [pageViewToggleRequest, setPageViewToggleRequest] = useState(0);
   const [isPageFocused, setIsPageFocused] = useState(false);
   const [isProjectFullscreen, setIsProjectFullscreen] = useState(false);
@@ -352,6 +410,24 @@ export function ProfileCategoryPage({
               <span className="min-w-0 flex-1 truncate px-1 text-center text-[12px] font-medium tabular-nums text-[var(--text-secondary)]" aria-label={activePageLabel ?? undefined}>
                 {activePageLabel}
               </span>
+              {showsOwnerTools && openingPageTargets.length > 1 && <label className="flex min-w-[122px] max-w-[138px] flex-1 items-center gap-2 px-1 text-[10px] font-medium tabular-nums text-[var(--text-secondary)]">
+                  <span className="shrink-0 whitespace-nowrap">Opening {openingPageDraft}</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={openingPageTargets.length}
+                    step={1}
+                    value={openingPageDraft}
+                    disabled={typography.savingProjectId === activeProject?.id}
+                    onChange={(event) => previewOpeningPage(Number(event.currentTarget.value))}
+                    onPointerUp={(event) => commitOpeningPage(Number(event.currentTarget.value))}
+                    onKeyUp={(event) => commitOpeningPage(Number(event.currentTarget.value))}
+                    onBlur={(event) => commitOpeningPage(Number(event.currentTarget.value))}
+                    aria-label="Public opening page"
+                    aria-valuetext={`Page ${openingPageDraft} of ${openingPageTargets.length}`}
+                    className="h-1 min-w-0 flex-1 cursor-pointer accent-[var(--accent-primary)] disabled:cursor-wait disabled:opacity-50"
+                  />
+                </label>}
               {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isPageFocused ? Grid2X2Icon : SquareIcon} weight="medium" />
                 </button>}
@@ -461,7 +537,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} creatorName={profile.name} portalLabel={category.label} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} creatorName={profile.name} portalLabel={category.label} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} openingPage={sharedReadOnly ? canonicalOpeningPage : openingPagePreview?.target} openingPageRequest={openingPagePreview?.request ?? 0} useOpeningPageOnMount={sharedReadOnly} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <div role="alert" className="max-w-[420px] text-center">
             <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>
