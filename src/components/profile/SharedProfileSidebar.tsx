@@ -19,11 +19,6 @@ type SharedProfileSidebarProps = {
   onCreateAccount: () => void;
 };
 
-function possessivePortals(name: string): string {
-  const firstName = name.trim().split(/\s+/)[0] || 'Creator';
-  return `${firstName}${firstName.toLowerCase().endsWith('s') ? '’' : '’s'} Portals`;
-}
-
 /**
  * The shell used by a shared profile URL. It deliberately contains only the
  * creator and their public Portal navigation: no Home, account, messaging,
@@ -79,21 +74,18 @@ export function SharedProfileSidebar({
   };
   return <aside data-resizable-panel="" style={{ width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full shrink-0 flex-col bg-transparent">
       <div className="global-control-header shrink-0 px-2">
-        <div className="flex h-full w-full min-w-0 flex-1 items-center justify-between gap-2 px-2">
-          <button type="button" onClick={onSignIn} data-keep-color="" data-shared-brand-sign-in="" aria-label="Sign in to Portalink Networks" className="flex min-w-0 flex-1 flex-col bg-transparent p-0 text-left text-[16px] font-bold leading-[1.05] text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <span className="block truncate">Portalink</span>
-            <span className="block truncate">Networks</span>
-          </button>
-          {activeCategoryId ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} className="shape-compact flex h-10 w-10 shrink-0 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />
-            </Link> : null}
+        <div className="flex h-full w-full min-w-0 flex-1 items-center px-2">
+          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 shrink-0 text-[12px]" />
+            <span className="cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold text-[var(--text-primary)]">{profile.name}</span>
+          </Link>
         </div>
       </div>
 
-      <nav aria-label={possessivePortals(profile.name)} className="min-h-0 flex-1 overflow-y-auto px-2 pb-40 pt-3">
+      <nav aria-label={`${profile.name} portals`} className="min-h-0 flex-1 overflow-y-auto px-2 pb-40 pt-3">
         <h2 className="relative my-2 flex h-7 w-full shrink-0 items-center">
           <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)]">
-            {possessivePortals(profile.name)}
+            Portals
           </span>
         </h2>
         <ul className="sidebar-pill-group m-0 flex list-none flex-col p-0">
