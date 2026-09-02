@@ -205,7 +205,7 @@ export function DocumentAttachment({
               event.preventDefault();
               focusPage(index);
             }
-          }} className={`${focusedPageIndex === index ? `h-full min-h-0 overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'justify-center'}` : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
+          }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -214,7 +214,7 @@ export function DocumentAttachment({
               loading={page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               fetchPriority={page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
-              className={`${focusedPageIndex === index ? 'premium-focused-media max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
+              className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
             {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} isOwner={isOwner} target={{

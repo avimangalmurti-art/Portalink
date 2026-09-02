@@ -5086,7 +5086,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-focused-media {
-  transition: width 90ms ease-out, height 90ms ease-out, opacity 180ms ease;
+  transition: opacity 180ms ease;
   will-change: width, height;
 }
 

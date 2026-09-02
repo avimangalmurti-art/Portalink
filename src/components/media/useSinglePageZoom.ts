@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 
 const MIN_ZOOM = 1;
@@ -6,6 +6,16 @@ const MAX_ZOOM = 4;
 const WHEEL_ZOOM_SENSITIVITY = 0.0022;
 const WHEEL_EXIT_PULL = 56;
 const PINCH_EXIT_THRESHOLD = 0.9;
+
+type PendingZoomAnchor = {
+  element: HTMLElement;
+  viewportX: number;
+  viewportY: number;
+  contentX: number;
+  contentY: number;
+  scrollWidth: number;
+  scrollHeight: number;
+};
 
 /**
  * Natural, control-free zoom for an isolated page.
@@ -32,16 +42,43 @@ export function useSinglePageZoom({
   const zoomRef = useRef(MIN_ZOOM);
   const exitPullRef = useRef(0);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const pendingAnchorRef = useRef<PendingZoomAnchor | null>(null);
   const onExitRef = useRef(onExit);
 
   onExitRef.current = onExit;
 
-  const setZoom = useCallback((next: number) => {
+  const setZoom = useCallback((next: number, clientX?: number, clientY?: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+    const surface = surfaceRef.current;
+    const scrollElement = surface?.querySelector<HTMLElement>('[data-focused-page-scroll]') ?? surface;
+    if (scrollElement && Math.abs(clamped - zoomRef.current) > 0.0001) {
+      const bounds = scrollElement.getBoundingClientRect();
+      const viewportX = Math.min(scrollElement.clientWidth, Math.max(0, clientX === undefined ? scrollElement.clientWidth / 2 : clientX - bounds.left));
+      const viewportY = Math.min(scrollElement.clientHeight, Math.max(0, clientY === undefined ? scrollElement.clientHeight / 2 : clientY - bounds.top));
+      pendingAnchorRef.current = {
+        element: scrollElement,
+        viewportX,
+        viewportY,
+        contentX: scrollElement.scrollLeft + viewportX,
+        contentY: scrollElement.scrollTop + viewportY,
+        scrollWidth: Math.max(1, scrollElement.scrollWidth),
+        scrollHeight: Math.max(1, scrollElement.scrollHeight)
+      };
+    }
     zoomRef.current = clamped;
     setZoomState(clamped);
     if (memoryKey) updateViewerMemory(memoryKey, { zoom: clamped });
-  }, [memoryKey]);
+  }, [memoryKey, surfaceRef]);
+
+  useLayoutEffect(() => {
+    const anchor = pendingAnchorRef.current;
+    if (!anchor || !anchor.element.isConnected) return;
+    pendingAnchorRef.current = null;
+    const widthRatio = anchor.element.scrollWidth / anchor.scrollWidth;
+    const heightRatio = anchor.element.scrollHeight / anchor.scrollHeight;
+    anchor.element.scrollLeft = anchor.contentX * widthRatio - anchor.viewportX;
+    anchor.element.scrollTop = anchor.contentY * heightRatio - anchor.viewportY;
+  }, [zoom]);
 
   useEffect(() => {
     const remembered = active && memoryKey ? readViewerMemory(memoryKey).zoom ?? MIN_ZOOM : MIN_ZOOM;
@@ -50,6 +87,7 @@ export function useSinglePageZoom({
     setZoomState(next);
     exitPullRef.current = 0;
     pinchStartRef.current = null;
+    pendingAnchorRef.current = null;
   }, [active, memoryKey]);
 
   useEffect(() => {
@@ -107,7 +145,7 @@ export function useSinglePageZoom({
 
       exitPullRef.current = 0;
       const requestedZoom = zoomRef.current * Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY);
-      setZoom(requestedZoom <= MIN_ZOOM + 0.012 ? MIN_ZOOM : requestedZoom);
+      setZoom(requestedZoom <= MIN_ZOOM + 0.012 ? MIN_ZOOM : requestedZoom, event.clientX, event.clientY);
     };
     const handleTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 2) return;
@@ -127,7 +165,9 @@ export function useSinglePageZoom({
         exit();
         return;
       }
-      setZoom(requestedZoom);
+      const clientX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+      const clientY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+      setZoom(requestedZoom, clientX, clientY);
     };
     const handleTouchEnd = (event: TouchEvent) => {
       if (event.touches.length < 2) pinchStartRef.current = null;

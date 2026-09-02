@@ -76,7 +76,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -100,7 +100,7 @@ function ImagePage({
       event.preventDefault();
       onToggleFocus(attachment.id);
     }
-  }} className={`${isFocused ? `flex h-full min-h-0 w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'block min-h-[240px] touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
+  }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block min-h-[240px] touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
       {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
@@ -113,7 +113,7 @@ function ImagePage({
         setStatus('loading');
         setAttempt((current) => current + 1);
       }} />
-        </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
+        </div> : <ResponsiveImage key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
       {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} isOwner={isOwner} target={{
         projectId,

@@ -219,6 +219,7 @@ function PdfImagePage({
 
   return <div
     ref={hostRef}
+    data-focused-page-scroll={isFocused ? '' : undefined}
     role={isFocused ? undefined : 'button'}
     tabIndex={isFocused ? undefined : 0}
     aria-pressed={isFocused ? undefined : false}
@@ -249,7 +250,7 @@ function PdfImagePage({
         onToggleFocus(pageNumber);
       }
     }}
-    className={`${isFocused ? `flex h-full w-full overflow-auto overscroll-contain ${zoom > 1 ? 'items-start justify-start' : 'items-center justify-center'}` : 'w-full touch-manipulation overflow-hidden'} group/media relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
+    className={`${isFocused ? 'flex h-full w-full items-start justify-start overflow-auto overscroll-contain' : 'w-full touch-manipulation overflow-hidden'} group/media relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
     {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
@@ -272,7 +273,7 @@ function PdfImagePage({
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className={`block ${isFocused ? 'premium-focused-media max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
       style={baseCanvasSize ? {
         width: `${baseCanvasSize.width * (isFocused ? zoom : 1)}px`,
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
