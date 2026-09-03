@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity';
+export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -108,7 +108,7 @@ export const routes: Record<RouteId, RouteDefinition> = {
     id: 'insights',
     path: '/insights',
     params: [],
-    description: 'Reserved Insights product destination while the feature is being designed.'
+    description: 'Private creator save and follower totals for the signed-in creator.'
   },
   studio: {
     id: 'studio',
@@ -127,6 +127,14 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/appearance',
     params: [],
     description: 'Control Center, opened from the sidebar. Public: it configures this browser.'
+  },
+  saved: {
+    id: 'saved', path: '/saved', params: [],
+    description: 'Private saved projects and creators. Requires an account.'
+  },
+  notifications: {
+    id: 'notifications', path: '/notifications', params: [],
+    description: 'Activity notifications addressed to the signed-in account.'
   },
   activity: {
     id: 'activity',

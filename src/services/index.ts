@@ -27,6 +27,7 @@ import {
   supabaseSocialService,
 } from './supabase/communityServices';
 import { supabaseMessagingService } from './supabase/messagingService';
+import { supabaseCreatorSaveService, unavailableCreatorSaveService } from './supabase/creatorSaveService';
 import {
   unavailableAnalyticsService,
   unavailableCommerceService,
@@ -44,6 +45,7 @@ export const services: Services = {
   search: isSupabaseConfigured ? supabaseSearchService : mockSearchService,
   social: isSupabaseConfigured ? supabaseSocialService : mockSocialService,
   engagement: isSupabaseConfigured ? supabaseEngagementService : mockEngagementService,
+  creatorSaves: isSupabaseConfigured ? supabaseCreatorSaveService : unavailableCreatorSaveService,
   comments: isSupabaseConfigured ? supabaseCommentService : mockCommentService,
   notifications: isSupabaseConfigured ? supabaseNotificationService : mockNotificationService,
   messaging: isSupabaseConfigured ? supabaseMessagingService : mockMessagingService,

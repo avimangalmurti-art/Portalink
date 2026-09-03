@@ -22,6 +22,7 @@ import type { GeographicBounds, GeographicLod, GeographicResult } from '../types
 import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode } from '../types/discovery';
 import type { ReportingPeriodId } from '../data/studioAnalytics';
 import type { ConversationSummary, DirectMessage } from '../types/messages';
+import type { SaveInsights } from '../types/creatorSaves';
 
 /**
  * Authentication. The dependency direction is
@@ -443,6 +444,13 @@ export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
   markRead(notificationId: Id): Promise<void>;
 }
+/** Private bookmarks; identity comes from the session, never an argument. */
+export interface CreatorSaveService {
+  getCreatorSave(profileId: Id): Promise<boolean>;
+  setCreatorSave(profileId: Id, saved: boolean): Promise<boolean>;
+  listSavedCreatorIds(): Promise<Id[]>;
+  getSaveInsights(): Promise<SaveInsights>;
+}
 /** Private, durable one-to-one conversations between creator profiles. */
 export interface MessagingService {
   listConversations(): Promise<ConversationSummary[]>;
@@ -514,6 +522,7 @@ export type Services = {
   search: SearchService;
   social: SocialService;
   engagement: EngagementService;
+  creatorSaves: CreatorSaveService;
   comments: CommentService;
   notifications: NotificationService;
   messaging: MessagingService;

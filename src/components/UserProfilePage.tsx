@@ -5,6 +5,7 @@ import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
 import { EmptyState } from './ui/StateViews';
 import { describeActivityCollection, ENGAGEMENT_KINDS, type EngagementKind } from '../types/engagement';
+import { CreatorSaveButton } from '../features/library/CreatorSaveButton';
 import { PlatformGrid } from './profile/PlatformGrid';
 import { JustifiedImageWall, type WallItem } from './profile/JustifiedImageWall';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
@@ -598,8 +599,9 @@ export function UserProfilePage({
             {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="flex h-7 items-center rounded-full border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Sign in to follow
               </button>}
+            {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
             {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="flex items-center gap-2">
-                {ENGAGEMENT_KINDS.map((kind) => {
+                {ENGAGEMENT_KINDS.filter((kind) => kind !== 'save').map((kind) => {
               const Icon = ACTIVITY_ICONS[kind];
               const labels = describeActivityCollection(kind);
               const color = ACTIVITY_COLORS[kind];

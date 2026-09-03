@@ -12,6 +12,7 @@ import { ProjectCover } from '../media/ProjectCover';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
+import { useAuth } from '../../contexts/AuthContext';
 
 /**
  * One activity collection: Likes, Saved, or Reposts.
@@ -32,12 +33,27 @@ const ICONS: Record<EngagementKind, typeof HeartIcon> = {
   save: BookmarkIcon,
   repost: Repeat2Icon
 };
-export function ActivityCollectionPage({
+type ActivityCollectionProps = {
+  kind: EngagementKind;
+  profileName: string;
+  isViewerOwnCollection: boolean;
+  onBack: () => void;
+  onOpenProject: (projectId: string, location?: ProjectLocation) => void;
+  embedded?: boolean;
+};
+
+export function ActivityCollectionPage(props: ActivityCollectionProps) {
+  const { user, isAuthenticated } = useAuth();
+  return <ActivityCollectionContent key={user?.id ?? 'guest'} {...props} isViewerOwnCollection={isAuthenticated && props.isViewerOwnCollection} />;
+}
+
+function ActivityCollectionContent({
   kind,
   profileName,
   isViewerOwnCollection,
   onBack,
-  onOpenProject
+  onOpenProject,
+  embedded = false
 
 
 
@@ -45,25 +61,25 @@ export function ActivityCollectionPage({
 
 
 
-}: {kind: EngagementKind;profileName: string; /** True only when the signed-in account owns the profile in the URL. */isViewerOwnCollection: boolean;onBack: () => void;onOpenProject: (projectId: string, location?: ProjectLocation) => void;}) {
+}: ActivityCollectionProps) {
   const collection = useActivityCollection(kind, isViewerOwnCollection);
   const labels = describeActivityCollection(kind);
   const Icon = ICONS[kind];
   return <section aria-label={`${profileName} — ${labels.title}`} className="w-full">
-      <header className="ps-panel-toolbar global-control-header gap-2 px-[var(--content-gutter)]">
+      {!embedded && <header className="ps-panel-toolbar global-control-header gap-2 px-[var(--content-gutter)]">
         <button type="button" onClick={onBack} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           Back to work
         </button>
         <h2 className="text-medium font-semibold text-[var(--text-primary)]">{labels.title}</h2>
-      </header>
+      </header>}
 
-      <div className="px-[var(--content-gutter)] py-8">
-        <p className="text-[13px] text-[var(--text-secondary)]">
+      <div className={embedded ? '' : 'px-[var(--content-gutter)] py-8'}>
+        {!embedded && <p className="text-[13px] text-[var(--text-secondary)]">
           {isViewerOwnCollection ? 'Only you can view this collection.' : `${labels.title} are private.`}
-        </p>
+        </p>}
 
-        <div className="mt-8">
+        <div className={embedded ? '' : 'mt-8'}>
         {/* Somebody else's collection: stated as private, never as empty. */}
         {!isViewerOwnCollection ? <EmptyState title={`${labels.title} are private`} description="Only the creator can view this collection." /> : collection.phase === 'loading' ? <LoadingState label={`Loading ${labels.title.toLowerCase()}…`} /> : collection.phase === 'error' ? <ErrorState title={`Unable to load ${labels.title.toLowerCase()}`} description={collection.error ?? 'Check the connection, then try again.'} onRetry={collection.retry} /> : collection.isEmpty ? <div className="flex flex-col items-center gap-3 rounded-[14px] border border-[var(--border-subtle)] px-6 py-14 text-center">
             <InterfaceIcon icon={Icon} size="xl" weight="medium" className="text-[var(--text-tertiary)]" />

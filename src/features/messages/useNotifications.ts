@@ -1,59 +1,52 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAccountQuery } from '../library/useAccountQuery';
 import type { AsyncStatus, Notification } from '../../types/domain';
 
-/**
- * The inbox: everything addressed to the viewer that is not a conversation.
- *
- * Read through the existing `NotificationService` boundary, so nothing here is
- * invented locally — an empty inbox is a real answer from the service rather
- * than a placeholder.
- */
 export type NotificationsState = {
   status: AsyncStatus;
   notifications: Notification[];
   unreadCount: number;
   error: string | null;
+  mutationError: string | null;
+  pendingId: string | null;
+  markRead: (id: string) => Promise<void>;
   retry: () => void;
 };
+
+/** The same private notification source for Activity and the Messages inbox. */
 export function useNotifications(): NotificationsState {
-  const {
-    notifications: service
-  } = useServices();
-  const [status, setStatus] = useState<AsyncStatus>('idle');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    let isCurrent = true;
-    setStatus('loading');
-    setError(null);
-    service.listNotifications().then((next) => {
-      if (!isCurrent) {
-        return;
-      }
-      setNotifications(next);
-      setStatus('success');
-    }).catch((caught) => {
-      if (!isCurrent) {
-        return;
-      }
-      setNotifications([]);
-      setError(caught instanceof Error ? caught.message : 'Unable to load inbox.');
-      setStatus('error');
-    });
-    return () => {
-      isCurrent = false;
-    };
-  }, [service, attempt]);
-  const retry = useCallback(() => {
-    setAttempt((count) => count + 1);
-  }, []);
+  const { notifications: service } = useServices();
+  const { user } = useAuth();
+  const account = user?.id;
+  const currentAccount = useRef(account);
+  currentAccount.current = account;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const query = useCallback(() => service.listNotifications(), [service]);
+  const state = useAccountQuery(query);
+  const [mutation, setMutation] = useState<{ account?: string; pendingId?: string; error?: string; readIds: string[] }>({ readIds: [] });
+  const visibleMutation = mutation.account === account ? mutation : { readIds: [] };
+  const notifications = (state.data ?? []).map((entry) => visibleMutation.readIds.includes(entry.id) ? { ...entry, isUnread: false } : entry);
+  async function markRead(id: string) {
+    if (!account || visibleMutation.pendingId || !notifications.some((n) => n.id === id && n.isUnread)) return;
+    setMutation({ account, pendingId: id, readIds: visibleMutation.readIds });
+    try {
+      await service.markRead(id);
+      if (mounted.current && currentAccount.current === account) setMutation({ account, readIds: [...visibleMutation.readIds, id] });
+    } catch {
+      if (mounted.current && currentAccount.current === account) setMutation({ account, readIds: visibleMutation.readIds, error: 'Could not mark this notification as read. Please try again.' });
+    }
+  }
   return {
-    status,
+    status: state.loading ? 'loading' : state.error ? 'error' : 'success',
     notifications,
     unreadCount: notifications.filter((entry) => entry.isUnread).length,
-    error,
-    retry
+    error: state.error ?? null,
+    mutationError: visibleMutation.error ?? null,
+    pendingId: visibleMutation.pendingId ?? null,
+    markRead,
+    retry: state.retry,
   };
 }

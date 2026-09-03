@@ -69,6 +69,10 @@ export type AppRoute = {
 } | {
   kind: 'messages';
 } | {
+  kind: 'saved';
+} | {
+  kind: 'notifications';
+} | {
   kind: 'controlCenter';
 } | {
   /** A path that matches no declared route. Reported, never quietly redirected. */
@@ -80,7 +84,7 @@ export type AppRoute = {
  * belong to a creator. Reading a public profile, category, or project is open to
  * guests; these are the account itself and the creator's own tools.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
@@ -89,6 +93,12 @@ export function describeRoute(route: AppRoute): string {
       return 'open Studio';
     case 'messages':
       return 'read your messages';
+    case 'saved':
+      return 'open your saved library';
+    case 'notifications':
+      return 'view your activity';
+    case 'insights':
+      return 'view your private insights';
     default:
       return 'continue';
   }
@@ -189,6 +199,8 @@ function parse(pathname: string, search: string): AppRoute {
       kind: 'messages'
     };
   }
+  if (matchPath(routes.saved.path, pathname)) return { kind: 'saved' };
+  if (matchPath(routes.notifications.path, pathname)) return { kind: 'notifications' };
   if (matchPath(routes.portals.path, pathname)) {
     return {
       kind: 'portals'

@@ -46,8 +46,9 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
   const listTokenRef = useRef(0);
   const requestedRef = useRef<Set<Id>>(new Set());
   const isMountedRef = useRef(true);
-  useEffect(() => () => {
-    isMountedRef.current = false;
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
   const loadIds = useCallback(() => {
     // Only the viewer's own collection can be read: the service is viewer-scoped,
