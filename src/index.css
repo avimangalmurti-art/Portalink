@@ -4607,31 +4607,83 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
 }
 
-/* The three public navigation headers form one continuous top rail: the brand,
-   document index, and Description panel share a centerline, typography scale,
-   control geometry, and glyph size regardless of their individual contents. */
-.codex-shell.shared-portalink-shell > aside.sidebar-starfield.shared-profile-sidebar {
-  padding-top: var(--codex-workspace-border-width);
+/* One geometry contract for all three public navigation headers, expanded or
+   collapsed. Public workspace borders are removed, so its left sidebar must
+   not retain the signed-in shell's one-pixel top compensation. */
+.codex-shell.shared-portalink-shell {
+  --shared-header-height: 64px;
+  --shared-header-control: 40px;
+  --shared-header-glyph: 18px;
 }
 
-.codex-shell.shared-portalink-shell .global-control-header {
-  height: 64px;
-  min-height: 64px;
+.codex-shell.shared-portalink-shell > aside.sidebar-starfield.shared-profile-sidebar {
+  padding-top: 0;
+}
+
+.codex-shell.shared-portalink-shell [data-shared-navigation-header] {
+  display: flex;
+  box-sizing: border-box;
+  height: var(--shared-header-height);
+  min-height: var(--shared-header-height);
+  max-height: var(--shared-header-height);
+  flex-shrink: 0;
+  padding-block: 0;
   align-items: center;
 }
 
-.codex-shell.shared-portalink-shell .global-control-header
-  :is(.shared-profile-theme-toggle, .side-panel-header-icon) {
-  width: 40px !important;
-  min-width: 40px !important;
-  height: 40px !important;
-  min-height: 40px !important;
+.codex-shell.shared-portalink-shell [data-shared-navigation-row] {
+  display: flex;
+  height: 100%;
+  align-items: center;
 }
 
-.codex-shell.shared-portalink-shell .global-control-header button
-  :is([data-interface-icon-frame], [data-interface-icon], svg) {
-  width: 18px !important;
-  height: 18px !important;
+/* Target header controls only, not portal rows or menus. Explicit bounds and
+   zero padding keep selected, pressed, and collapsed controls the same size. */
+.codex-shell.shared-portalink-shell [data-shared-navigation-header] button {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex: 0 0 var(--shared-header-control);
+  width: var(--shared-header-control) !important;
+  min-width: var(--shared-header-control) !important;
+  max-width: var(--shared-header-control) !important;
+  height: var(--shared-header-control) !important;
+  min-height: var(--shared-header-control) !important;
+  max-height: var(--shared-header-control) !important;
+  margin-block: 0;
+  padding: 0 !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+.codex-shell.shared-portalink-shell [data-shared-navigation-header] button
+  :is([data-interface-icon-frame], [data-interface-icon], svg, [data-shared-info-glyph]) {
+  width: var(--shared-header-glyph) !important;
+  height: var(--shared-header-glyph) !important;
+  flex-shrink: 0;
+}
+
+/* The text-based Plex Mono information mark must not inherit the panel's
+   larger body-copy line box; its circle uses the same 18px icon frame. */
+.codex-shell.shared-portalink-shell [data-shared-navigation-header] [data-shared-info-glyph] {
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.codex-shell.shared-portalink-shell [data-shared-page-count] {
+  height: var(--shared-header-control);
+  line-height: var(--shared-header-control);
+}
+
+/* The other two headers sit outside their scrollers. Keep details controls
+   on that same top line when the details content scrolls. */
+.codex-shell.shared-portalink-shell [data-project-response-rail] > [data-shared-navigation-header] {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .codex-shell.shared-portalink-shell [data-shared-header-title] {

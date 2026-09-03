@@ -76,8 +76,8 @@ export function SharedProfileSidebar({
   };
   const toggleLabel = isCollapsed ? 'Expand navigation' : 'Collapse navigation';
   return <aside data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={isCollapsed ? undefined : { width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-150 motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
-      <div className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-        <div className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'gap-1 px-2'}`}>
+      <div data-shared-navigation-header="" className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
+        <div data-shared-navigation-row="" className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'gap-1 px-2'}`}>
           {!isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link> : null}
