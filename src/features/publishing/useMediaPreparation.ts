@@ -180,10 +180,44 @@ export function useMediaPreparation() {
     });
   }, []);
   const setCover = useCallback((mediaId: string) => {
-    setItems((current) => reindex(current.map((item) => ({
-      ...item,
-      isCover: item.id === mediaId
-    }))));
+    setItems((current) => {
+      if (current.every((item) => item.isCover === (item.id === mediaId))) {
+        return current;
+      }
+      return reindex(current.map((item) => ({
+        ...item,
+        isCover: item.id === mediaId
+      })));
+    });
+  }, []);
+  const setCoverPage = useCallback((mediaId: string, pageNumber: number, pageCount?: number) => {
+    const safePageCount = pageCount && Number.isInteger(pageCount) && pageCount > 0 ? pageCount : undefined;
+    const safePageNumber = Math.max(1, Math.min(Math.round(pageNumber), safePageCount ?? Number.MAX_SAFE_INTEGER));
+    setItems((current) => {
+      const target = current.find((item) => item.id === mediaId);
+      if (!target) {
+        return current;
+      }
+      const nextPageCount = safePageCount ?? target.metadata?.pageCount;
+      const isUnchanged = current.every((item) => item.isCover === (item.id === mediaId))
+        && target.metadata?.coverPageNumber === safePageNumber
+        && target.metadata?.pageCount === nextPageCount;
+      if (isUnchanged) {
+        return current;
+      }
+      return reindex(current.map((item) => item.id === mediaId ? {
+        ...item,
+        isCover: true,
+        metadata: {
+          ...item.metadata,
+          ...(nextPageCount ? { pageCount: nextPageCount } : {}),
+          coverPageNumber: safePageNumber,
+        },
+      } : {
+        ...item,
+        isCover: false,
+      }));
+    });
   }, []);
   const setCoverFrame = useCallback((mediaId: string, coverFrame: ProjectCoverFrame) => {
     setItems((current) => current.map((item) => item.id === mediaId ? {
@@ -224,6 +258,7 @@ export function useMediaPreparation() {
     clear,
     reorder,
     setCover,
+    setCoverPage,
     setCoverFrame,
     rename,
     releaseOwnership

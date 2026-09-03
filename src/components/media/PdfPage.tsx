@@ -24,6 +24,7 @@ type PdfPageProps = {
   source: string;
   label: string;
   pageNumber?: number;
+  onPageCountChange?: (pageCount: number) => void;
   className?: string;
 };
 
@@ -37,6 +38,7 @@ export function PdfPage({
   source,
   label,
   pageNumber = 1,
+  onPageCountChange,
   className = ''
 }: PdfPageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -81,6 +83,7 @@ export function PdfPage({
       }
       loadingTask = pdfjs.getDocument({ url: source });
       const document = await loadingTask.promise;
+      onPageCountChange?.(document.numPages);
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));
       if (!cancelled) {
         setPage(nextPage);
@@ -95,7 +98,7 @@ export function PdfPage({
       cancelled = true;
       void loadingTask?.destroy();
     };
-  }, [pageNumber, shouldRender, source]);
+  }, [onPageCountChange, pageNumber, shouldRender, source]);
 
   useEffect(() => {
     if (!shouldRender) {

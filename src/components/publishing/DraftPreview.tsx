@@ -130,7 +130,7 @@ export function DraftPreview({
           }}
           className={`group/cover-preview relative aspect-[4/3] w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isEditingCover && cover?.previewUrl && !disabled ? 'cursor-grab touch-none active:cursor-grabbing' : ''}`}
         >
-          {cover?.previewUrl ? <ProjectCover source={cover.previewUrl} alt={`Local preview of ${cover.fileName}`} kind={coverKind} frame={coverFrame} aspectRatio={cover.metadata?.widthPixels && cover.metadata.heightPixels ? cover.metadata.widthPixels / cover.metadata.heightPixels : 4 / 3} sizes="320px" priority /> : <div aria-hidden="true" className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
+          {cover?.previewUrl ? <ProjectCover source={cover.previewUrl} alt={`Local preview of ${cover.fileName}`} kind={coverKind} frame={coverFrame} pageNumber={cover.metadata?.coverPageNumber} aspectRatio={cover.metadata?.widthPixels && cover.metadata.heightPixels ? cover.metadata.widthPixels / cover.metadata.heightPixels : 4 / 3} sizes="320px" priority /> : <div aria-hidden="true" className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
               <FileIcon className="h-6 w-6" />
               {cover && <span className="px-4 text-center text-[12px] leading-relaxed">No cover preview is available for this {cover.typeLabel.toLowerCase()} file</span>}
             </div>}

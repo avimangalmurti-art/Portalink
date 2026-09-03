@@ -16,6 +16,8 @@ type ProjectCoverProps = {
   sizes?: string;
   priority?: boolean;
   frame?: ProjectCoverFrame;
+  pageNumber?: number;
+  onDocumentPageCountChange?: (pageCount: number) => void;
 };
 
 /** One cover renderer shared by every project surface. */
@@ -29,6 +31,8 @@ export function ProjectCover({
   sizes,
   priority = false,
   frame,
+  pageNumber = 1,
+  onDocumentPageCountChange,
 }: ProjectCoverProps) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [source]);
@@ -43,7 +47,7 @@ export function ProjectCover({
     : undefined;
   const safeRatio = aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const content = kind === 'document'
-    ? <PdfPage source={source} label={`${alt}, PDF cover`} className="h-full w-full" />
+    ? <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className="h-full w-full" />
     : kind === 'video'
       ? <video
           src={source}
@@ -70,7 +74,7 @@ export function ProjectCover({
 
   if (!normalizedFrame) {
     if (kind === 'document') {
-      return <PdfPage source={source} label={`${alt}, PDF cover`} className={className} />;
+      return <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className={className} />;
     }
     return React.cloneElement(content, {
       className: `${content.props.className ?? ''} ${className}`.trim(),

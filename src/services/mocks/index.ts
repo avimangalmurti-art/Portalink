@@ -594,7 +594,7 @@ export const mockProjectService: ProjectService = {
       throw new PublishServiceError('network', 'Could not reach the server. Your draft is still here.');
     }
     // The creator's cover choice leads. Images render directly, PDFs render
-    // their first page, and videos render natively; unsupported assets are not
+    // the selected page, and videos render natively; unsupported assets are not
     // offered as cover choices by the preparation rules.
     const attachments = persistedAttachments.length > 0 ? [...persistedAttachments].sort((a, b) => a.order - b.order) : attachmentsFromPreparedMedia(preparedMedia);
     const isPersisted = persistedAttachments.length > 0;
@@ -614,6 +614,7 @@ export const mockProjectService: ProjectService = {
       coverKind: coverAsset?.kind === 'video' ? 'video' : coverAsset?.kind === 'document' ? 'document' : undefined,
       coverAspectRatio: coverAsset?.metadata?.widthPixels && coverAsset.metadata.heightPixels ? coverAsset.metadata.widthPixels / coverAsset.metadata.heightPixels : undefined,
       coverFrame: coverAsset?.metadata?.coverFrame,
+      coverPageNumber: coverAsset?.kind === 'document' ? coverAsset.metadata?.coverPageNumber : undefined,
       // No page count: the files are mixed media, and their number is not a page
       // count. Extent is read from the attachments themselves.
       // Each file keeps its own media kind, so the viewer never has to guess.
@@ -695,6 +696,7 @@ export const mockProjectService: ProjectService = {
       coverAlt: input.metadata.title.trim(),
       coverKind: coverAsset ? coverAsset.kind === 'video' ? 'video' : coverAsset.kind === 'document' ? 'document' : undefined : current.coverKind,
       coverFrame: coverAsset?.metadata?.coverFrame,
+      coverPageNumber: coverAsset?.kind === 'document' ? coverAsset.metadata?.coverPageNumber : undefined,
       attachments,
       // Anything edited in this runtime lives in this runtime only.
       sessionOnly: true

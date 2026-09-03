@@ -30,6 +30,8 @@ export type ProjectEntry = {
   coverOrientation?: 'portrait' | 'landscape' | 'square';
   coverAspectRatio?: number;
   coverFrame?: ProjectCoverFrame;
+  /** One-based page used when a document is the project cover. */
+  coverPageNumber?: number;
   pageCount?: number;
   chapters?: ProjectChapter[];
   credits?: {label: string;value: string;}[];

@@ -97,7 +97,7 @@ function ActivityCard({
   const engagement = useProjectEngagement(item.project.id);
   return <li className="flex min-w-0 flex-col">
       <button type="button" data-project-continuity-surface="" data-project-continuity-id={item.project.id} style={projectContinuityStyle(item.project.id)} onClick={onOpen} aria-label={`Open ${item.project.title}`} className="card-hover-outline shape-container relative block aspect-[4/3] w-full overflow-hidden bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-        <ProjectCover source={item.project.cover} alt={item.project.coverAlt} kind={item.project.coverKind} frame={item.project.coverFrame} aspectRatio={getProjectAspectRatio(item.project)} sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />
+        <ProjectCover source={item.project.cover} alt={item.project.coverAlt} kind={item.project.coverKind} frame={item.project.coverFrame} pageNumber={item.project.coverPageNumber} aspectRatio={getProjectAspectRatio(item.project)} sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />
       </button>
       <div className="mt-2 min-w-0">
         <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{item.project.title}</p>

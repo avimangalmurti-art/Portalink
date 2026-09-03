@@ -195,6 +195,8 @@ export type ProjectAttachment = {
     aspectRatio?: number;
     processingError?: string;
     failedPage?: number;
+    /** One-based PDF page selected by the creator when this asset is the cover. */
+    coverPageNumber?: number;
     /** Creator-selected focal point and zoom for this asset when used as cover. */
     coverFrame?: ProjectCoverFrame;
     /** Server-rendered PDF pages; sourceUrl is a short-lived signed URL. */
@@ -245,6 +247,8 @@ export type Project = {
   coverAspectRatio?: number;
   /** Creator-selected non-destructive cover crop. */
   coverFrame?: ProjectCoverFrame;
+  /** One-based page used when the cover is a multipage document. */
+  coverPageNumber?: number;
   pageCount?: number;
   /**
    * The files this project is made of, when it was published through the

@@ -32,7 +32,7 @@ function DiscoveryCard({
   return <article className="feed-card group min-w-[220px] max-w-[320px] flex-1 overflow-hidden">
     <button type="button" onClick={() => onOpenProject(project.id, { profileId: creator.id, categoryId: project.categoryId })} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]" aria-label={`Open ${project.title} by ${creator.name}`}>
       <span data-project-continuity-surface="" data-project-continuity-id={project.id} className="feed-card__preview block w-full overflow-hidden" style={{ aspectRatio: getProjectAspectRatio(project), ...projectContinuityStyle(project.id) }}>
-        <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} aspectRatio={getProjectAspectRatio(project)} sizes="320px" />
+        <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes="320px" />
       </span>
       <span className="block truncate px-2 pt-2 text-[12.5px] font-semibold text-[var(--text-primary)]">{project.title}</span>
     </button>

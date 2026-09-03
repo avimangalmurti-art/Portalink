@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -39,6 +39,9 @@ const FAMILY_ICONS: Record<AssetFamily, typeof FileIcon> = {
   code: CodeIcon,
   archive: FileIcon
 };
+function previewPageCountFor(item: PreparedMedia): number {
+  return item.family === 'document' ? Math.max(1, item.metadata?.pageCount ?? 1) : 1;
+}
 type MediaPickerProps = {
   media: MediaPreparation;
   /**
@@ -64,9 +67,92 @@ export function MediaPicker({
     items,
     error,
     state,
-    capability
+    capability,
+    setCoverPage,
   } = media;
-  const firstPage = items[0] ?? null;
+  const [previewItemId, setPreviewItemId] = useState<string | null>(null);
+  const [previewPageNumber, setPreviewPageNumber] = useState(1);
+  const previewItem = items.find((item) => item.id === previewItemId) ?? items[0] ?? null;
+  const activePreviewItemId = previewItem?.id ?? null;
+  const activePreviewFamily = previewItem?.family ?? null;
+  const activePreviewStoredPageCount = previewItem?.metadata?.pageCount;
+  const previewItemIndex = previewItem ? items.findIndex((item) => item.id === previewItem.id) : -1;
+  const previewPageCount = previewItem ? previewPageCountFor(previewItem) : 1;
+  const totalPreviewPages = items.reduce((total, item) => total + previewPageCountFor(item), 0);
+  const absolutePreviewPage = previewItemIndex < 0
+    ? 0
+    : items.slice(0, previewItemIndex).reduce((total, item) => total + previewPageCountFor(item), 0) + previewPageNumber;
+  const hasPreviousPreview = previewItemIndex > 0 || previewPageNumber > 1;
+  const hasNextPreview = previewItemIndex >= 0
+    && (previewPageNumber < previewPageCount || previewItemIndex < items.length - 1);
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setPreviewItemId(null);
+      setPreviewPageNumber(1);
+      return;
+    }
+    if (!previewItemId || !items.some((item) => item.id === previewItemId)) {
+      setPreviewItemId(items[0].id);
+      setPreviewPageNumber(1);
+    }
+  }, [items, previewItemId]);
+
+  useEffect(() => {
+    if (!activePreviewItemId) {
+      return;
+    }
+    const safePage = Math.min(previewPageNumber, activePreviewStoredPageCount ?? 1);
+    if (safePage !== previewPageNumber) {
+      setPreviewPageNumber(safePage);
+    }
+    setCoverPage(activePreviewItemId, safePage, activePreviewStoredPageCount);
+  }, [activePreviewItemId, activePreviewStoredPageCount, previewPageNumber, setCoverPage]);
+
+  const showPreview = useCallback((itemIndex: number, pageNumber: number) => {
+    const item = items[itemIndex];
+    if (!item) {
+      return;
+    }
+    const safePage = Math.max(1, Math.min(pageNumber, previewPageCountFor(item)));
+    setPreviewItemId(item.id);
+    setPreviewPageNumber(safePage);
+    setCoverPage(item.id, safePage, item.metadata?.pageCount);
+  }, [items, setCoverPage]);
+
+  const showPreviousPreview = () => {
+    if (!previewItem || !hasPreviousPreview) {
+      return;
+    }
+    if (previewPageNumber > 1) {
+      showPreview(previewItemIndex, previewPageNumber - 1);
+      return;
+    }
+    const previousIndex = previewItemIndex - 1;
+    showPreview(previousIndex, previewPageCountFor(items[previousIndex]));
+  };
+
+  const showNextPreview = () => {
+    if (!previewItem || !hasNextPreview) {
+      return;
+    }
+    if (previewPageNumber < previewPageCount) {
+      showPreview(previewItemIndex, previewPageNumber + 1);
+      return;
+    }
+    showPreview(previewItemIndex + 1, 1);
+  };
+
+  const handleDocumentPageCount = useCallback((pageCount: number) => {
+    if (!activePreviewItemId || activePreviewFamily !== 'document') {
+      return;
+    }
+    const safePage = Math.min(previewPageNumber, pageCount);
+    if (safePage !== previewPageNumber) {
+      setPreviewPageNumber(safePage);
+    }
+    setCoverPage(activePreviewItemId, safePage, pageCount);
+  }, [activePreviewFamily, activePreviewItemId, previewPageNumber, setCoverPage]);
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -111,16 +197,22 @@ export function MediaPicker({
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
         </div> : <div className="flex flex-col gap-2">
-          <div aria-label={`First page preview of ${firstPage?.displayTitle ?? 'selected file'}`} className="relative aspect-[4/3] w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]">
-            <ProjectCover source={firstPage?.previewUrl} alt={`First page of ${firstPage?.fileName ?? 'selected file'}`} kind={firstPage?.family === 'document' ? 'document' : firstPage?.family === 'video' ? 'video' : undefined} fit="contain" aspectRatio={firstPage?.metadata?.widthPixels && firstPage.metadata.heightPixels ? firstPage.metadata.widthPixels / firstPage.metadata.heightPixels : 4 / 3} sizes="440px" priority />
-            <span className="shape-compact pointer-events-none absolute bottom-2 left-2 bg-[var(--surface-media-control)] px-2 py-1 text-[10px] font-semibold text-[var(--media-control-text)] shadow-sm">Page 1</span>
+          <div aria-label={`Cover preview of ${previewItem?.displayTitle ?? 'selected file'}, page ${absolutePreviewPage} of ${totalPreviewPages}`} className="relative aspect-[4/3] w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]">
+            <ProjectCover source={previewItem?.previewUrl} alt={`Cover preview of ${previewItem?.fileName ?? 'selected file'}`} kind={previewItem?.family === 'document' ? 'document' : previewItem?.family === 'video' ? 'video' : undefined} pageNumber={previewPageNumber} onDocumentPageCountChange={handleDocumentPageCount} fit="contain" aspectRatio={previewItem?.metadata?.widthPixels && previewItem.metadata.heightPixels ? previewItem.metadata.widthPixels / previewItem.metadata.heightPixels : 4 / 3} sizes="440px" priority />
+            <button type="button" aria-label="Previous cover page" disabled={isLocked || !hasPreviousPreview} onClick={showPreviousPreview} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
+              <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <button type="button" aria-label="Next cover page" disabled={isLocked || !hasNextPreview} onClick={showNextPreview} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
+              <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <span className="shape-compact pointer-events-none absolute bottom-2 left-2 bg-[var(--surface-media-control)] px-2 py-1 text-[10px] font-semibold text-[var(--media-control-text)] shadow-sm">Cover · {absolutePreviewPage} of {totalPreviewPages}</span>
           </div>
           <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[180px] list-none flex-col gap-1.5 overflow-y-auto p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
         item: upload.itemProgress[item.id] ?? null
-      } : null} onReorder={media.reorder} onSetCover={() => media.setCover(item.id)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
+      } : null} onReorder={media.reorder} onSetCover={() => showPreview(index, item.metadata?.coverPageNumber ?? 1)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
           </ul>
         </div>}
 

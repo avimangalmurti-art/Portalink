@@ -272,7 +272,7 @@ function ProfileProjectTile({
         className="relative block h-full w-full cursor-pointer overflow-hidden rounded-none bg-[var(--surface-sunken)] text-left ring-1 ring-inset ring-[var(--hairline)] transition-[border-radius] duration-150 group-hover:rounded-[8px] focus:outline-none focus-visible:rounded-[8px] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none"
       >
         <span className="absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
-          <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw" />
+          <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw" />
         </span>
 
       </button>

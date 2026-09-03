@@ -193,6 +193,7 @@ function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachmen
     aspectRatio?: unknown;
     processingError?: unknown;
     failedPage?: unknown;
+    coverPageNumber?: unknown;
     coverFrame?: unknown;
     renderedPages?: unknown;
   };
@@ -204,6 +205,9 @@ function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachmen
   if (typeof candidate.aspectRatio === 'number') metadata.aspectRatio = candidate.aspectRatio;
   if (typeof candidate.processingError === 'string') metadata.processingError = candidate.processingError;
   if (typeof candidate.failedPage === 'number') metadata.failedPage = candidate.failedPage;
+  if (typeof candidate.coverPageNumber === 'number' && Number.isInteger(candidate.coverPageNumber) && candidate.coverPageNumber > 0) {
+    metadata.coverPageNumber = candidate.coverPageNumber;
+  }
   if (candidate.coverFrame && typeof candidate.coverFrame === 'object' && !Array.isArray(candidate.coverFrame)) {
     metadata.coverFrame = normalizeProjectCoverFrame(candidate.coverFrame);
   }
@@ -340,6 +344,7 @@ async function hydrateProjects(
         ? cover.metadata.widthPixels / cover.metadata.heightPixels
         : undefined,
       coverFrame: cover?.metadata?.coverFrame,
+      coverPageNumber: cover?.kind === 'document' ? cover.metadata?.coverPageNumber : undefined,
       pageCount: cover?.kind === 'document' ? cover.metadata?.pageCount : undefined,
       attachments,
       design: asDesign(row.design),
