@@ -59,10 +59,13 @@ export function ProjectHoverDetails({
       className={`absolute inset-0 grid bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${footerEnd ? 'overflow-visible' : 'overflow-hidden'} ${hasFooter ? 'grid-rows-[minmax(0,1fr)_auto] gap-3' : 'grid-rows-[minmax(0,1fr)]'} ${className}`}
       style={bottomInset === undefined ? undefined : { paddingBottom: bottomInset }}
     >
+      {/* Let wheel and two-finger scrolling chain to the profile/feed when the
+          description fits or reaches either edge. Containment here traps the
+          page scroll across almost the entire project-card hit area. */}
       <span
         data-project-hover-description=""
         onClick={onOpen}
-        className="project-hover-scrollbar pointer-events-none block min-h-0 overflow-y-auto overscroll-contain text-[12px] font-medium leading-[1.45] text-[var(--accent-text)] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
+        className="project-hover-scrollbar pointer-events-none block min-h-0 overflow-y-auto overscroll-y-auto text-[12px] font-medium leading-[1.45] text-[var(--accent-text)] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
       >
         {summary}
       </span>
