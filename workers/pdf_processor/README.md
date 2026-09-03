@@ -44,7 +44,7 @@ starting the worker. The migration is the ingestion handler and queue contract.
 ## Guarantees
 
 - PDF identification uses MIME type or `.pdf` extension at ingestion.
-- The application, database, storage bucket, and worker enforce a 50 MB per-file maximum while Portalink uses Supabase's Free plan.
+- Supabase's global Storage setting is the only file-size boundary; Portalink does not impose a second per-file ceiling.
 - Encrypted, empty, fake, and unreadable PDFs fail without rendering.
 - Each page is rendered independently with a timeout and memory ceiling.
 - Output is RGB WebP, quality 85, at 200 DPI up to 2048 px on either axis.

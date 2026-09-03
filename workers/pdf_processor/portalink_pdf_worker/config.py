@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import os
 
 
-MAX_PDF_BYTES = 50 * 1024 * 1024
 MAX_PAGE_DIMENSION = 2048
 WEBP_QUALITY = 85
 RENDER_DPI = 200

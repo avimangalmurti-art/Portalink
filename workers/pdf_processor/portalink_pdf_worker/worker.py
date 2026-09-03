@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import time
 
-from .config import MAX_PDF_BYTES, Settings
+from .config import Settings
 from .models import PdfJob, PdfPipelineError
 from .rendering import ensure_within_job_deadline, render_page_isolated, validate_pdf
 from .repository import SupabaseRepository
@@ -26,12 +26,6 @@ def process_job(repository: SupabaseRepository, settings: Settings, job: PdfJob)
 
     try:
         source = repository.download_source(job)
-        if len(source) > MAX_PDF_BYTES:
-            raise PdfPipelineError(
-                "pdf_too_large",
-                "PDF files must be 50 MB or smaller.",
-                retryable=False,
-            )
 
         with tempfile.TemporaryDirectory(prefix="portalink-pdf-") as directory:
             work_dir = Path(directory)

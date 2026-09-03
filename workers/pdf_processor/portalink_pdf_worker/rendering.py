@@ -13,21 +13,14 @@ except ImportError:  # PyMuPDF < 1.24 keeps the historical module name.
     import fitz  # type: ignore[no-redef]
 from PIL import Image
 
-from .config import MAX_PAGE_DIMENSION, MAX_PDF_BYTES, RENDER_DPI, WEBP_QUALITY
+from .config import MAX_PAGE_DIMENSION, RENDER_DPI, WEBP_QUALITY
 from .models import PdfPipelineError, RenderedPage
 
 
 def validate_pdf(source_path: Path) -> int:
     """Validate the source without rendering the entire document into memory."""
-    size = source_path.stat().st_size
-    if size <= 0:
+    if source_path.stat().st_size <= 0:
         raise PdfPipelineError("empty_pdf", "The PDF file is empty.", retryable=False)
-    if size > MAX_PDF_BYTES:
-        raise PdfPipelineError(
-            "pdf_too_large",
-            "PDF files must be 50 MB or smaller.",
-            retryable=False,
-        )
 
     with source_path.open("rb") as source:
         if b"%PDF-" not in source.read(1024):
@@ -38,10 +31,10 @@ def validate_pdf(source_path: Path) -> int:
             )
 
     try:
-        # Opening validation from a byte stream prevents PyMuPDF's corrupt-file
-        # error path from retaining a Windows file handle. Page rendering still
-        # reopens the bounded source in isolated children.
-        document = fitz.open(stream=source_path.read_bytes(), filetype="pdf")
+        # Open from disk so validation does not duplicate a large source file in
+        # memory. Page rendering reopens the same temporary file in an isolated
+        # child process with its own memory and time limits.
+        document = fitz.open(source_path)
     except Exception as error:
         raise PdfPipelineError(
             "corrupted_pdf",
