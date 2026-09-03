@@ -5265,6 +5265,15 @@ html[data-project-continuity]::view-transition-new(root) {
 /* The identity preview uses a neutral smoke scrim instead of the light-mode
    surface overlay. Content remains visible through it without turning the
    full viewport milky white behind the floating avatar and creator name. */
-#root .accent-theme [data-avatar-preview-scrim] {
+#root > .app-shell > [data-avatar-preview-scrim] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  box-sizing: border-box;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-width: 100vw;
+  min-height: 100vh;
+  margin: 0 !important;
   background-color: rgba(0, 0, 0, 0.46) !important;
 }
