@@ -206,9 +206,12 @@ async function performUpload(
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : 'The resumable upload failed.';
+        const exceedsStorageAllowance = /maximum|too large|size limit|413|payload too large|entity too large/i.test(message);
         throw new UploadServiceError({
-          code: /maximum|too large|size limit/i.test(message) ? 'too_large' : 'network',
-          message: `${item.fileName} could not be uploaded: ${message}`,
+          code: exceedsStorageAllowance ? 'too_large' : 'network',
+          message: exceedsStorageAllowance
+            ? `${item.fileName} exceeds the current Supabase file-size allowance.`
+            : `${item.fileName} could not be uploaded: ${message}`,
           persisted,
           cleanupRequired: persisted.length > 0,
         });

@@ -3,7 +3,7 @@ import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, CodeIcon, FileIco
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
-import { canBeCover, MAX_PROJECT_UPLOAD_BYTES, processingLabel, supportedFormatGroups } from '../../features/publishing/assetTypes';
+import { canBeCover, processingLabel, supportedFormatGroups } from '../../features/publishing/assetTypes';
 import type { MediaPreparation } from '../../features/publishing/useMediaPreparation';
 import type { MediaUpload } from '../../features/publishing/useMediaUpload';
 import type { AssetFamily, PreparedMedia, UploadItemState } from '../../types/publishing';
@@ -127,7 +127,7 @@ export function MediaPicker({
       </div>
 
       {showsFormats && <div className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3">
-        <p className="mb-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">Each file can be up to {formatFileSize(MAX_PROJECT_UPLOAD_BYTES)}. For sharp full-screen covers, use images at least 1600 px on the longest edge. Original files and their embedded colour profiles are preserved.</p>
+        <p className="mb-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">File size follows your current storage allowance. Large files upload in resumable parts. For sharp full-screen covers, use images at least 1600 px on the longest edge. Original files and their embedded colour profiles are preserved.</p>
         <dl className="m-0 grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12px] leading-relaxed sm:grid-cols-2">
           {supportedFormatGroups.map((group) => <div key={group.title} className="min-w-0">
               <dt className="font-semibold text-[var(--text-secondary)]">{group.title}</dt>

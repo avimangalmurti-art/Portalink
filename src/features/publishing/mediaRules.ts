@@ -1,4 +1,6 @@
 const MB = 1024 * 1024;
+const GB = 1024 * MB;
+const TB = 1024 * GB;
 
 /**
  * Size formatting shared by the publishing surfaces.
@@ -14,5 +16,11 @@ export function formatFileSize(bytes: number): string {
   if (bytes < MB) {
     return `${Math.round(bytes / 1024)} KB`;
   }
-  return `${(bytes / MB).toFixed(1)} MB`;
+  if (bytes < GB) {
+    return `${(bytes / MB).toFixed(1)} MB`;
+  }
+  if (bytes < TB) {
+    return `${(bytes / GB).toFixed(1)} GB`;
+  }
+  return `${(bytes / TB).toFixed(1)} TB`;
 }

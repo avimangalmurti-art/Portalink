@@ -17,69 +17,55 @@ import type { MediaKind } from '../../types/domain';
  * The original upload is always preserved regardless of capability.
  */
 
-const MB = 1024 * 1024;
-export const MAX_PROJECT_UPLOAD_BYTES = 50 * MB;
 type FamilyDefinition = {
   label: string;
   /** Shown in the quiet family line under the drop area. */
   shortLabel: string;
-  maxBytes: number;
 };
 export const assetFamilies: Record<AssetFamily, FamilyDefinition> = {
   image: {
     label: 'Image',
-    shortLabel: 'Images',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Images'
   },
   document: {
     label: 'Document',
-    shortLabel: 'Documents',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Documents'
   },
   presentation: {
     label: 'Presentation',
-    shortLabel: 'Documents',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Documents'
   },
   data: {
     label: 'Data',
-    shortLabel: 'Data',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Data'
   },
   video: {
     label: 'Video',
-    shortLabel: 'Video',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Video'
   },
   audio: {
     label: 'Audio',
-    shortLabel: 'Audio',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Audio'
   },
   model: {
     label: '3D model',
-    shortLabel: '3D',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: '3D'
   },
   cad: {
     label: 'CAD',
-    shortLabel: '3D',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: '3D'
   },
   design: {
     label: 'Design file',
-    shortLabel: 'Documents',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Documents'
   },
   code: {
     label: 'Code',
-    shortLabel: 'Code',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Code'
   },
   archive: {
     label: 'Archive',
-    shortLabel: 'Data',
-    maxBytes: MAX_PROJECT_UPLOAD_BYTES
+    shortLabel: 'Data'
   }
 };
 
@@ -90,8 +76,6 @@ type ExtensionDefinition = {
   /** Overrides the family label when the format itself is the useful word. */
   label?: string;
   capability: AssetPreviewCapability;
-  /** A format-specific ceiling when the family accepts larger source files. */
-  maxBytes?: number;
 };
 const EXTENSIONS: Record<string, ExtensionDefinition> = {
   // Images
@@ -230,7 +214,6 @@ export type DetectedAsset = {
   /** Human-readable type, e.g. "3D model", "PDF", "Spreadsheet". */
   typeLabel: string;
   capability: AssetPreviewCapability;
-  maxBytes: number;
 };
 
 /**
@@ -246,8 +229,7 @@ export function detectAsset(file: File): DetectedAsset {
     return {
       family: known.family,
       typeLabel: known.label ?? assetFamilies[known.family].label,
-      capability: known.capability,
-      maxBytes: known.maxBytes ?? assetFamilies[known.family].maxBytes
+      capability: known.capability
     };
   }
   const mime = file.type;
@@ -255,16 +237,14 @@ export function detectAsset(file: File): DetectedAsset {
     return {
       family: 'document',
       typeLabel: 'PDF',
-      capability: 'native',
-      maxBytes: MAX_PROJECT_UPLOAD_BYTES
+      capability: 'native'
     };
   }
   const fallbackFamily: AssetFamily = mime.startsWith('image/') ? 'image' : mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : mime.startsWith('text/') ? 'code' : 'archive';
   return {
     family: fallbackFamily,
     typeLabel: extension ? extension.toUpperCase() : assetFamilies[fallbackFamily].label,
-    capability: mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') ? 'native' : 'source-only',
-    maxBytes: assetFamilies[fallbackFamily].maxBytes
+    capability: mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/') ? 'native' : 'source-only'
   };
 }
 

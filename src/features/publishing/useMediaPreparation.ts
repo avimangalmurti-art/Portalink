@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { canBeCover, canPreviewLocally, detectAsset, initialProcessingState } from './assetTypes';
-import { formatFileSize } from './mediaRules';
 import type { MediaPreparationState, MediaRejectionCode, PreparedMedia, UploadCapability } from '../../types/publishing';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import type { ProjectCoverFrame } from '../../types/domain';
@@ -102,14 +101,6 @@ export function useMediaPreparation() {
       file,
       detected: detectAsset(file)
     }));
-    for (const { file, detected } of candidates) {
-      if (file.size > detected.maxBytes) {
-        setError(`${file.name} is ${formatFileSize(file.size)} — keep ${detected.typeLabel.toLowerCase()} files under ${formatFileSize(detected.maxBytes)}.`);
-        setIsSelecting(false);
-        return;
-      }
-    }
-
     const preparedUrls: string[] = [];
     void Promise.all(candidates.map(async ({ file, detected }): Promise<PreparedMedia> => {
         const previewUrl = canPreviewLocally(detected.family, detected.capability) ? URL.createObjectURL(file) : null;
