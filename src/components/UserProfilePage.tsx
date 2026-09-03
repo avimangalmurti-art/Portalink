@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, ImageIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, ReplaceIcon, Settings2Icon, UserPlusIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, ImageIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, ReplaceIcon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -734,15 +734,10 @@ export function UserProfilePage({
         } : undefined} />
           </div>}
       </main>
-      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-[var(--surface-overlay)] p-6" onClick={(event) => {
-      if (event.target === event.currentTarget) setIsAvatarPreviewOpen(false);
-    }}>
+      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto bg-[var(--surface-overlay)] p-6" onClick={() => setIsAvatarPreviewOpen(false)}>
           <div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview="" className="flex max-w-full flex-col items-center" style={{
           maxHeight: 'calc(100dvh - 48px)'
         }}>
-            <button type="button" autoFocus onClick={() => setIsAvatarPreviewOpen(false)} aria-label="Close profile image" className="shape-compact fixed right-4 top-4 z-[1] flex h-10 w-10 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-pop)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={XIcon} size="sm" weight="medium" />
-            </button>
             <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{
             width: 'clamp(148px, 22vw, 240px)',
             height: 'clamp(148px, 22vw, 240px)'
