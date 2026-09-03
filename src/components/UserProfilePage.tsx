@@ -734,8 +734,8 @@ export function UserProfilePage({
         } : undefined} />
           </div>}
       </main>
-      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" data-avatar-preview-scrim="" className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto p-6" onClick={() => setIsAvatarPreviewOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview="" className="flex max-w-full flex-col items-center" style={{
+      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview-scrim="" className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto p-6" onClick={() => setIsAvatarPreviewOpen(false)}>
+          <figure data-avatar-preview="" className="m-0 flex max-w-full flex-col items-center" style={{
           maxHeight: 'calc(100dvh - 48px)'
         }}>
             <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{
@@ -744,12 +744,12 @@ export function UserProfilePage({
           }}>
               <ResponsiveImage src={profile.avatar} alt={`${displayName} profile image`} priority width={840} height={840} sizes="(min-width: 800px) 420px, 64vw" className="block h-full w-full object-cover" />
             </div>
-            <h2 id="profile-avatar-preview-title" className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{
+            <figcaption id="profile-avatar-preview-title" className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{
             maxWidth: 'min(84vw, 520px)'
           }}>
               {displayName}
-            </h2>
-          </div>
+            </figcaption>
+          </figure>
         </div></ModalPortal> : null}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
     </div>;
