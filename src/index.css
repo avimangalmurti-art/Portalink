@@ -4355,6 +4355,15 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   width: var(--cdx-dense-row-sm);
 }
 
+/* Public links retain the creator's Portal marks when labels are collapsed.
+   Expanded-row padding must not squeeze a 40px icon target into the slim rail. */
+.codex-shell .shared-profile-sidebar[data-collapsed='true'] [data-category-row] {
+  width: 40px;
+  height: 40px;
+  padding-inline: 0 !important;
+  gap: 0 !important;
+}
+
 .codex-shell .ps-panel .ps-list-item > button:not([aria-haspopup='menu']) {
   min-height: var(--cdx-dense-row-min);
   padding-inline: var(--cdx-dense-inline-padding) !important;
@@ -4567,6 +4576,11 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 #root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']
   :is(span, svg, [data-interface-icon-frame], [data-interface-icon]) {
   color: var(--accent-text) !important;
+}
+
+#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 /* The public project index applies selection to a wrapper around its button.

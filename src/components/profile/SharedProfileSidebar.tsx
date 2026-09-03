@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LogInIcon, MoonIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide-react';
+import { HomeIcon, LogInIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -44,6 +44,9 @@ export function SharedProfileSidebar({
     viewportReserve: 320
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // This is the public viewer's visit, not the owner's saved workspace layout.
+  // Keep the maximum-width default and preserve the choice between shared routes.
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -71,41 +74,50 @@ export function SharedProfileSidebar({
     setIsSettingsOpen(false);
     request();
   };
-  return <aside data-resizable-panel="" style={{ width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className="shared-profile-sidebar sidebar-starfield relative flex h-full shrink-0 flex-col bg-transparent">
-      <div className="global-control-header shrink-0 px-2">
-        <div className="flex h-full w-full min-w-0 flex-1 items-center px-2">
-          <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+  const toggleLabel = isCollapsed ? 'Expand navigation' : 'Collapse navigation';
+  return <aside data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={isCollapsed ? undefined : { width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-150 motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
+      <div className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
+        <div className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'gap-1 px-2'}`}>
+          {!isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
-          </Link>
+          </Link> : null}
+          <button type="button" onClick={() => { setIsSettingsOpen(false); setIsCollapsed((value) => !value); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <InterfaceIcon icon={isCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
+          </button>
         </div>
       </div>
 
-      <nav aria-label={`${profile.name} portals`} className="min-h-0 flex-1 overflow-y-auto px-2 pb-40 pt-3">
-        <h2 className="relative my-2 flex h-7 w-full shrink-0 items-center">
+      <nav id="shared-profile-portals" aria-label={`${profile.name} portals`} className={`min-h-0 flex-1 overflow-y-auto pb-3 pt-3 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+        {isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} title={`${profile.name} — Profile`} aria-current={activeCategoryId ? undefined : 'page'} className={`sidebar-rail-slot shape-compact mx-auto mb-2 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeCategoryId ? 'text-[var(--text-primary)] hover:text-[var(--accent-text)]' : 'text-[var(--accent-text)]'}`}>
+            <InterfaceIcon icon={HomeIcon} weight="medium" />
+          </Link> : null}
+        <h2 className={isCollapsed ? 'sr-only' : 'relative my-2 flex h-7 w-full shrink-0 items-center'}>
           <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)]">
             Portals
           </span>
         </h2>
-        <ul className="sidebar-pill-group m-0 flex list-none flex-col p-0">
+        <ul className={`sidebar-pill-group m-0 flex list-none flex-col p-0 ${isCollapsed ? 'items-center' : ''}`}>
           {profile.categories.map((category) => {
           const Icon = getCategoryIcon(category.iconName);
           const isActive = category.id === activeCategoryId;
-          return <li key={category.id} className="side-panel-row group/row relative mb-[var(--side-panel-row-gap)] w-full list-none">
-                <button type="button" data-category-row="" onClick={() => onOpenCategory(category.id)} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[180ms] ease-out focus:outline-none ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
+          return <li key={category.id} className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] list-none ${isCollapsed ? 'w-10 shrink-0' : 'w-full'}`}>
+                <button type="button" data-category-row="" onClick={() => onOpenCategory(category.id)} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[180ms] ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
                   <span aria-hidden="true" data-icon-tile="" className="flex h-4 w-6 shrink-0 items-center justify-center">
                     <InterfaceIcon icon={Icon} weight="medium" />
                   </span>
-                  <span className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" title={category.label}>{category.label}</span>
-                  <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true" />
+                  {!isCollapsed ? <>
+                    <span className="cdx-dense-label min-w-0 flex-1 truncate py-0.5" title={category.label}>{category.label}</span>
+                    <span className="flex w-6 shrink-0 items-center justify-center" aria-hidden="true" />
+                  </> : null}
                 </button>
               </li>;
         })}
         </ul>
       </nav>
 
-      <div data-shared-account-footer="" className="absolute inset-x-2 bottom-2 z-40">
-        <div className="relative flex h-10 items-center justify-between px-1">
-          {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className="account-menu-popover absolute bottom-12 left-1 right-1 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)]">
+      <div data-shared-account-footer="" className={`relative z-40 shrink-0 py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+        <div className={`relative flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'h-10 justify-between px-1'}`}>
+          {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
               <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row flex h-9 w-full items-center gap-2 rounded-[8px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
                 <span className="whitespace-nowrap leading-none">Create an account</span>
@@ -123,6 +135,6 @@ export function SharedProfileSidebar({
           </button>
         </div>
       </div>
-      <ResizablePanelHandle side="right" value={sharedSidebarWidth.width} min={180} max={360} onResize={sharedSidebarWidth.updateWidth} onResizeEnd={sharedSidebarWidth.commitWidth} onReset={sharedSidebarWidth.resetWidth} label="Resize shared profile navigation. Double-click to restore the default width." />
+      {!isCollapsed ? <ResizablePanelHandle side="right" value={sharedSidebarWidth.width} min={180} max={360} onResize={sharedSidebarWidth.updateWidth} onResizeEnd={sharedSidebarWidth.commitWidth} onReset={sharedSidebarWidth.resetWidth} label="Resize shared profile navigation. Double-click to restore the default width." /> : null}
     </aside>;
 }
