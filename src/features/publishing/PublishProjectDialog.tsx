@@ -3,7 +3,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertCircleIcon, CheckCircle2Icon, InfoIcon, XIcon } from 'lucide-react';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
-import { DraftPreview } from '../../components/publishing/DraftPreview';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
@@ -37,7 +36,6 @@ export function PublishProjectDialog({
   const shouldReduceMotion = useReducedMotion();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
-  const saveErrorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
@@ -91,8 +89,8 @@ export function PublishProjectDialog({
     return undefined;
   }, [isOpen, step, publishFlow.draft]);
   useEffect(() => {
-    // Moving between authoring, review, and the result announces itself.
-    if (step === 'preview' || step === 'done') {
+    // The completed result announces itself after the one-page form publishes.
+    if (step === 'done') {
       stepHeadingRef.current?.focus();
     }
   }, [step]);
@@ -101,12 +99,6 @@ export function PublishProjectDialog({
       errorRef.current?.focus();
     }
   }, [state]);
-  // A refused draft save takes focus too, so it is read rather than only shown.
-  useEffect(() => {
-    if (publishFlow.saveDraftError) {
-      saveErrorRef.current?.focus();
-    }
-  }, [publishFlow.saveDraftError]);
   // A failed validation pass moves focus to the first field that needs
   // attention, so the reason is read rather than merely displayed.
   useEffect(() => {
@@ -188,7 +180,7 @@ export function PublishProjectDialog({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h2 id="publish-dialog-title" ref={stepHeadingRef} tabIndex={-1} className="text-[20px] font-semibold leading-tight focus:outline-none">
-                {step === 'done' ? publishFlow.result?.mediaPersisted ? 'Project published' : 'Published to this session' : step === 'preview' ? 'Preview project' : 'New project'}
+                {step === 'done' ? publishFlow.result?.mediaPersisted ? 'Project published' : 'Published to this session' : 'New project'}
               </h2>
               <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">
                 {step === 'done' ? `${categoryLabel} · draft cleared` : `Adding to ${categoryLabel}`}
@@ -218,25 +210,10 @@ export function PublishProjectDialog({
               </div>
             </div> : <form onSubmit={(event) => {
           event.preventDefault();
-          if (step === 'metadata') {
-            void publishFlow.goToPreview();
-            return;
-          }
           if (publishFlow.canPublish) {
             void publishFlow.publish.run();
           }
         }} noValidate className="mt-5 flex flex-col gap-4">
-              {/* The draft save on the way to review was refused, so the flow is
-               still on the editing step with everything intact. */}
-              {step === 'metadata' && publishFlow.saveDraftError && <div ref={saveErrorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
-                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    {publishFlow.saveDraftError}
-                    {' Nothing was lost — your details and files are still here.'}
-                    <button type="button" onClick={() => void publishFlow.goToPreview()} disabled={publishFlow.isSavingDraft} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Try again</button>
-                  </span>
-                </div>}
-
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately
                separate from a publish failure, because the recovery differs. */}
@@ -248,8 +225,7 @@ export function PublishProjectDialog({
                     <button type="button" onClick={() => void publishFlow.retryUpload()} disabled={publishFlow.upload.isBusy} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Retry upload</button>
                     <button type="button" onClick={() => {
                 publishFlow.upload.dismissFailure();
-                publishFlow.setStep('metadata');
-              }} disabled={publishFlow.upload.isBusy} className="ml-2.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Back to details</button>
+              }} disabled={publishFlow.upload.isBusy} className="ml-2.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Dismiss</button>
                   </span>
                 </div>}
 
@@ -266,7 +242,7 @@ export function PublishProjectDialog({
 
               {/* One portrait-oriented reading order at every viewport size:
                files first, followed by every public detail and the action. */}
-              {step === 'metadata' ? <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
                   <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
@@ -283,24 +259,12 @@ export function PublishProjectDialog({
                         </button>
                       </div> : null}
                   </div>
-                </div> : <DraftPreview metadata={metadata} categoryLabel={categoryLabel} media={media} disabled={isPublishing || publishFlow.upload.isBusy} />}
-
-              {/* At the point of committing, the flow says exactly what will and
-               will not happen to the files. */}
-              {step === 'preview' && !publishFlow.willPersistMedia && <p role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-2.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
-                  <InfoIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  {publishFlow.media.capability?.reason ?? 'File storage is not connected yet.'} Publishing adds this project to your profile for the current session only — your files are not uploaded, and a reload clears it.
-                </p>}
-
-              <div className="flex items-center justify-between gap-2">
-                {step === 'preview' ? <Button variant="ghost" size="lg" disabled={isPublishing} onClick={() => publishFlow.setStep('metadata')}>Back to details</Button> : <span />}
-                <div className="flex items-center gap-2">
-                  {step === 'metadata' ? <Button type="submit" variant="primary" size="lg" isLoading={publishFlow.isSavingDraft} disabled={!publishFlow.canPreview}>
-                      {publishFlow.isSavingDraft ? 'Saving draft…' : 'Preview project'}
-                    </Button> : <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
-                      {isPublishing ? 'Publishing…' : publishFlow.willPersistMedia ? 'Publish' : 'Publish to this session'}
-                    </Button>}
                 </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
+                  {isPublishing ? 'Publishing…' : 'Publish'}
+                </Button>
               </div>
             </form>}
 

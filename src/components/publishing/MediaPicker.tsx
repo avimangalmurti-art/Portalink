@@ -10,6 +10,7 @@ import type { AssetFamily, PreparedMedia, UploadItemState } from '../../types/pu
 import { PdfPage } from '../media/PdfPage';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
+import { ProjectCover } from '../media/ProjectCover';
 
 /**
  * Project files — the universal asset list.
@@ -65,6 +66,7 @@ export function MediaPicker({
     state,
     capability
   } = media;
+  const firstPage = items[0] ?? null;
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -108,13 +110,19 @@ export function MediaPicker({
             Choose files
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
-        </div> : <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[248px] list-none flex-col gap-1.5 overflow-y-auto p-0">
+        </div> : <div className="flex flex-col gap-2">
+          <div aria-label={`First page preview of ${firstPage?.displayTitle ?? 'selected file'}`} className="relative aspect-[4/3] w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]">
+            <ProjectCover source={firstPage?.previewUrl} alt={`First page of ${firstPage?.fileName ?? 'selected file'}`} kind={firstPage?.family === 'document' ? 'document' : firstPage?.family === 'video' ? 'video' : undefined} fit="contain" aspectRatio={firstPage?.metadata?.widthPixels && firstPage.metadata.heightPixels ? firstPage.metadata.widthPixels / firstPage.metadata.heightPixels : 4 / 3} sizes="440px" priority />
+            <span className="shape-compact pointer-events-none absolute bottom-2 left-2 bg-[var(--surface-media-control)] px-2 py-1 text-[10px] font-semibold text-[var(--media-control-text)] shadow-sm">Page 1</span>
+          </div>
+          <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[180px] list-none flex-col gap-1.5 overflow-y-auto p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
         item: upload.itemProgress[item.id] ?? null
       } : null} onReorder={media.reorder} onSetCover={() => media.setCover(item.id)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
-        </ul>}
+          </ul>
+        </div>}
 
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <button type="button" onClick={() => setShowsFormats((open) => !open)} aria-expanded={showsFormats} className="flex items-center gap-1 text-[12px] text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">

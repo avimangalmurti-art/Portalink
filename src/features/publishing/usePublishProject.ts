@@ -184,6 +184,13 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }
     isPublishingRef.current = true;
     try {
+      // Publishing is one continuous action. Persist the current details here
+      // instead of requiring a separate review step to save them first.
+      try {
+        await projectService.updateDraft(draft.id, metadata);
+      } catch (caught) {
+        throw new Error(caught instanceof Error && caught.message ? caught.message : 'These details could not be saved to your draft.');
+      }
       const canPersist = media.capability?.isAvailable === true;
       let attachments = upload.attachments;
       if (canPersist && attachments.length === 0) {
@@ -392,7 +399,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     // missing on the fields themselves, rather than disabling the only way
     // forward and leaving the person to guess.
     canPreview: !publish.isLoading && !isSavingDraft && !upload.isBusy,
-    canPublish: Boolean(draft) && isMetadataComplete && media.isComplete && !publish.isLoading && !upload.isBusy && step === 'preview',
+    canPublish: Boolean(draft) && isMetadataComplete && media.isComplete && !publish.isLoading && !upload.isBusy,
     /**
      * An upload in flight must not be abandoned silently by Escape or a backdrop
      * click: the dialog asks for confirmation, or requires cancellation first.
