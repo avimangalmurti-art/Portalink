@@ -5244,3 +5244,20 @@ html[data-project-continuity]::view-transition-new(root) {
     transition: none;
   }
 }
+
+/* The profile-picture preview is an identity composition, not a modal card.
+   Generic dialog material would draw a second rounded rectangle around the
+   squircle and trap the creator's name inside it. The dialog remains semantic,
+   while its visual wrapper stays completely clear so the image and label sit
+   directly on the full-screen translucent backdrop. */
+.accent-theme [data-avatar-preview],
+.codex-shell [data-avatar-preview] {
+  overflow: visible !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

@@ -740,16 +740,18 @@ export function UserProfilePage({
           <div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview="" className="flex max-w-full flex-col items-center" style={{
           maxHeight: 'calc(100dvh - 48px)'
         }}>
+            <button type="button" autoFocus onClick={() => setIsAvatarPreviewOpen(false)} aria-label="Close profile image" className="shape-compact fixed right-4 top-4 z-[1] flex h-10 w-10 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-pop)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={XIcon} size="sm" weight="medium" />
+            </button>
             <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{
             width: 'clamp(148px, 22vw, 240px)',
             height: 'clamp(148px, 22vw, 240px)'
           }}>
               <ResponsiveImage src={profile.avatar} alt={`${displayName} profile image`} priority width={480} height={480} sizes="(min-width: 1100px) 240px, max(148px, 22vw)" className="block h-full w-full object-cover" />
-              <button type="button" autoFocus onClick={() => setIsAvatarPreviewOpen(false)} aria-label="Close profile image" className="shape-compact absolute right-2 top-2 flex h-9 w-9 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-pop)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <InterfaceIcon icon={XIcon} size="sm" weight="medium" />
-              </button>
             </div>
-            <h2 id="profile-avatar-preview-title" className="mt-4 max-w-[min(84vw,520px)] px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]">
+            <h2 id="profile-avatar-preview-title" className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{
+            maxWidth: 'min(84vw, 520px)'
+          }}>
               {displayName}
             </h2>
           </div>
