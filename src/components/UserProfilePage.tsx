@@ -734,17 +734,22 @@ export function UserProfilePage({
         } : undefined} />
           </div>}
       </main>
-      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/45 p-5" onClick={(event) => {
+      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-[var(--surface-overlay)] p-5" onClick={(event) => {
       if (event.target === event.currentTarget) setIsAvatarPreviewOpen(false);
     }}>
-          <div role="dialog" aria-modal="true" aria-label={`${displayName} profile image`} data-avatar-preview="" className="squircle relative flex items-center justify-center overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.4)]" style={{
-          width: 'min(72vw, 72vh, 520px)',
-          height: 'min(72vw, 72vh, 520px)'
-        }}>
-            <ResponsiveImage src={profile.avatar} alt={`${displayName} profile image`} priority width={800} height={800} sizes="min(72vw, 72vh, 520px)" className="block h-full w-full object-cover" />
-            <button type="button" autoFocus onClick={() => setIsAvatarPreviewOpen(false)} aria-label="Close profile image" className="shape-compact absolute right-2 top-2 flex h-9 w-9 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-pop)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={XIcon} size="sm" weight="medium" />
-            </button>
+          <div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview="" className="flex max-w-full flex-col items-center">
+            <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{
+            width: 'min(72vw, 64vh, 520px)',
+            height: 'min(72vw, 64vh, 520px)'
+          }}>
+              <ResponsiveImage src={profile.avatar} alt={`${displayName} profile image`} priority width={800} height={800} sizes="min(72vw, 64vh, 520px)" className="block h-full w-full object-cover" />
+              <button type="button" autoFocus onClick={() => setIsAvatarPreviewOpen(false)} aria-label="Close profile image" className="shape-compact absolute right-2 top-2 flex h-9 w-9 items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[var(--shadow-pop)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <InterfaceIcon icon={XIcon} size="sm" weight="medium" />
+              </button>
+            </div>
+            <h2 id="profile-avatar-preview-title" className="mt-4 max-w-[min(84vw,520px)] px-2 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]">
+              {displayName}
+            </h2>
           </div>
         </div></ModalPortal> : null}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
