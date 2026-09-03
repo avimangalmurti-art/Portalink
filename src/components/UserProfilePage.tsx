@@ -355,6 +355,8 @@ function ProfileStats({
 }) {
   return <p className="flex items-center gap-4 text-[11px] leading-none text-[var(--text-secondary)]">
       <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{projectCount}</span> {projectCount === 1 ? 'project' : 'projects'}</span>
+      {/* Visual placeholder only. Portal membership is not modelled yet. */}
+      <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">0</span> portals</span>
       <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{followers ?? '0'}</span> followers</span>
       <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{following ?? '0'}</span> following</span>
     </p>;
