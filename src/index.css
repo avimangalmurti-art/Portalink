@@ -4673,11 +4673,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   line-height: 1;
 }
 
-.codex-shell.shared-portalink-shell [data-shared-page-count] {
-  height: var(--shared-header-control);
-  line-height: var(--shared-header-control);
-}
-
 /* The other two headers sit outside their scrollers. Keep details controls
    on that same top line when the details content scrolls. */
 .codex-shell.shared-portalink-shell [data-project-response-rail] > [data-shared-navigation-header] {

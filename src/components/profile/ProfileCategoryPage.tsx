@@ -185,11 +185,6 @@ export function ProfileCategoryPage({
     }
     return null;
   }, [activeAttachments, activeProject, processing.statuses, resolvedDocumentPageCounts]);
-  const activePageLabel = activePageCount === null
-    ? null
-    : activePageCount === 1
-      ? '1 page'
-      : `${activePageCount} pages`;
   const [pageViewToggleRequest, setPageViewToggleRequest] = useState(0);
   const [isPageFocused, setIsPageFocused] = useState(false);
   const [isProjectFullscreen, setIsProjectFullscreen] = useState(false);
@@ -339,9 +334,9 @@ export function ProfileCategoryPage({
               <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </button>
-              <span data-shared-page-count={sharedReadOnly ? '' : undefined} className="min-w-0 flex-1 truncate px-1 text-center text-[12px] font-medium tabular-nums text-[var(--text-secondary)]" aria-label={activePageLabel ?? undefined}>
-                {activePageLabel}
-              </span>
+              {/* Page totals belong in project information, not the toolbar.
+                 Keep the remaining controls aligned with the adjacent rails. */}
+              <span aria-hidden="true" className="min-w-0 flex-1" />
               {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="flex min-w-[150px] max-w-[178px] flex-1 items-center gap-2 px-1 text-[10px] font-medium tabular-nums text-[var(--text-secondary)]" title="Set the number of pages viewers see in each row when they open this project">
                   <span className="shrink-0 whitespace-nowrap">Pages/row {pageLayoutDraft}</span>
                   <input

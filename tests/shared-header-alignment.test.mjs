@@ -75,16 +75,27 @@ test('all public header controls share fixed geometry without pressed-state move
   assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 12);
 });
 
-test('text glyph and page count share the header centerline without losing Plex Mono', () => {
+test('information glyph stays on the header centerline without losing Plex Mono', () => {
   const source = read('../src/components/media/ProjectMediaViewer.tsx');
   assert.match(source, /data-shared-info-glyph=""[^\n]+IBM Plex Mono/);
   const glyph = declarations(`${scope} [data-shared-navigation-header] [data-shared-info-glyph]`);
   assert.equal(glyph['font-size'], '12px');
   assert.equal(glyph['line-height'], '1');
-  const count = declarations(`${scope} [data-shared-page-count]`);
-  assert.equal(count.height, 'var(--shared-header-control)');
-  assert.equal(count['line-height'], count.height);
-  assert.equal(attributes('../src/components/profile/ProfileCategoryPage.tsx', 'data-shared-page-count').result.length, 1);
+});
+
+test('project header omits duplicate page totals but retains layout controls and project information', () => {
+  const path = '../src/components/profile/ProfileCategoryPage.tsx';
+  const source = read(path);
+  assert.equal(attributes(path, 'data-shared-page-count').result.length, 0);
+  assert.ok(!source.includes('activePageLabel'));
+  assert.match(source, /Pages\/row \{pageLayoutDraft\}/);
+  assert.match(source, /aria-label="Pages per row"/);
+  assert.match(source, /min=\{MIN_PAGES_PER_ROW\}/);
+  assert.match(source, /max=\{MAX_PAGES_PER_ROW\}/);
+  assert.match(source, /pageCount=\{activePageCount\}/);
+  const viewer = read('../src/components/media/ProjectMediaViewer.tsx');
+  assert.match(viewer, />Pages<\/dt><dd[^>]*>\{pageCount\}/);
+  assert.equal(Object.keys(declarations(`${scope} [data-shared-page-count]`)).length, 0);
 });
 
 test('public sidebar has no stray top inset and details header stays anchored during scrolling', () => {
