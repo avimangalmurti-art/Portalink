@@ -194,6 +194,44 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
   await ensureSchema(db)
   const url = new URL(request.url)
 
+  if (url.pathname === '/api/media-interactions/saved') {
+    // Account identity comes only from the verified session, never the query.
+    const user = (await authenticatedUser(request, true))!
+    if (request.method === 'GET') {
+      const rawCursor = url.searchParams.get('cursor')
+      let cursor: { time: string; row: number } | null = null
+      if (rawCursor) {
+        try {
+          const parsed = JSON.parse(atob(rawCursor))
+          if (rawCursor.length > 256 || typeof parsed.time !== 'string' || parsed.time.length > 40 || !Number.isSafeInteger(parsed.row) || parsed.row < 1) throw new Error()
+          cursor = parsed
+        } catch { return json({ error: 'Invalid saved-pages cursor.' }, 400) }
+      }
+      const result = await db.prepare(`SELECT rowid AS saved_row, project_id, attachment_id, page_index, created_at
+        FROM media_engagements WHERE account_id = ? AND kind = 'save'
+        ${cursor ? 'AND (created_at < ? OR (created_at = ? AND rowid < ?))' : ''}
+        ORDER BY created_at DESC, rowid DESC LIMIT 25`)
+        .bind(user.id, ...(cursor ? [cursor.time, cursor.time, cursor.row] : []))
+        .all<{ saved_row: number; project_id: string; attachment_id: string; page_index: number; created_at: string }>()
+      const rows = result.results ?? []
+      const page = rows.slice(0, 24)
+      const last = page[page.length - 1]
+      return json({
+        items: page.map((row) => ({ projectId: row.project_id, attachmentId: row.attachment_id, pageIndex: row.page_index, savedAt: row.created_at })),
+        nextCursor: rows.length > 24 && last ? btoa(JSON.stringify({ time: last.created_at, row: last.saved_row })) : null,
+      })
+    }
+    if (request.method === 'DELETE') {
+      const target = parseTarget(await requestBody(request))
+      // Unsave remains possible when the project/page is no longer accessible.
+      await db.prepare(`DELETE FROM media_engagements
+        WHERE account_id = ? AND project_id = ? AND attachment_id = ? AND page_index = ? AND kind = 'save'`)
+        .bind(user.id, target.projectId, target.attachmentId, target.pageIndex).run()
+      return json({ removed: true })
+    }
+    return json({ error: 'Method not allowed.' }, 405)
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/media-interactions') {
     const target = parseTarget({
       projectId: url.searchParams.get('projectId') ?? undefined,

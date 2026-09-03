@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { requireSupabase } from '../../services/supabase/client';
+import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
 
 export type MediaEngagementKind = 'like' | 'save' | 'repost';
 
@@ -71,29 +71,6 @@ function takePendingAction(key: string): PendingMediaAction | null {
   }
 }
 
-async function accessToken(): Promise<string | null> {
-  try {
-    const { data } = await requireSupabase().auth.getSession();
-    return data.session?.access_token ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function apiRequest<T>(path: string, init?: RequestInit, requireAccount = false): Promise<T> {
-  const token = await accessToken();
-  if (requireAccount && !token) throw new Error('Sign in to continue.');
-  const headers = new Headers(init?.headers);
-  headers.set('accept', 'application/json');
-  if (init?.body) headers.set('content-type', 'application/json');
-  if (token) headers.set('authorization', `Bearer ${token}`);
-  const response = await fetch(path, { ...init, headers });
-  const payload = await response.json().catch(() => null) as (T & { error?: string }) | null;
-  if (!response.ok) throw new Error(payload?.error || 'This page activity is temporarily unavailable.');
-  if (!payload) throw new Error('This page activity is temporarily unavailable.');
-  return payload;
-}
-
 export function useMediaInteractions(target: MediaInteractionTarget) {
   const auth = useAuth();
   const key = targetKey(target);
@@ -133,7 +110,8 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
   useEffect(() => {
     setRecord(EMPTY_RECORD);
     void load();
-  }, [key, load]);
+    return () => { loadTokenRef.current += 1; };
+  }, [auth.user?.id, key, load]);
 
   const gateGuest = useCallback((action: PendingMediaAction['action']) => {
     const url = mediaDeepLink(target);

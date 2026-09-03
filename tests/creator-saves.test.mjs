@@ -120,10 +120,10 @@ test('saved library has distinct Projects and Creators collections with a privat
     '../../contexts/ServicesContext': { useServices: () => ({}) },
     '../../components/profile/ActivityCollectionPage': { ActivityCollectionPage: ({ kind, embedded }) => React.createElement('div', { 'data-collection': kind, 'data-embedded': embedded }) },
     '../../components/profile/CreatorAvatar': {}, '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null },
-    '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {}, '../../types/profile': {}, './useAccountQuery': {},
+    '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {}, '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': {},
   });
   const html = renderToStaticMarkup(React.createElement(pages.SavedPage, { onBack() {}, onOpenProject() {} }));
-  assert.match(html, /Projects/); assert.match(html, /Creators/);
+  assert.match(html, /Projects/); assert.match(html, /Pages/); assert.match(html, /Creators/);
   assert.match(html, /private library/); assert.match(html, /does not follow/);
   assert.match(html, /data-collection="save" data-embedded="true"/);
 });

@@ -12,6 +12,7 @@ import { InboxPanel } from '../../components/messages/InboxPanel';
 import { ProfileServiceError } from '../../types/profile';
 import type { Profile, ProjectLocation } from '../../types/domain';
 import { useAccountQuery } from './useAccountQuery';
+import { SavedPagesCollection } from './SavedPagesCollection';
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header gap-3 px-[var(--content-gutter)]">
@@ -23,16 +24,17 @@ function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }
 export function SavedPage({ onBack, onOpenProject }: { onBack: () => void; onOpenProject: (id: string, location?: ProjectLocation) => void }) {
   const auth = useAuth();
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'creators' ? 'creators' : 'projects';
+  const selectedTab = params.get('tab');
+  const tab = selectedTab === 'creators' || selectedTab === 'pages' ? selectedTab : 'projects';
   if (!auth.isAuthenticated) return null;
   return <section aria-label="Saved library">
     <PersonalHeader title="Saved" onBack={onBack} />
     <div className="px-[var(--content-gutter)] py-6">
       <p className="text-[13px] text-[var(--text-secondary)]">Your private library. Saving a creator does not follow them.</p>
       <div className="my-6 flex gap-2" role="group" aria-label="Saved collection">
-        {(['projects', 'creators'] as const).map((kind) => <button key={kind} type="button" aria-pressed={tab === kind} onClick={() => setParams(kind === 'creators' ? { tab: kind } : {})} className={`shape-compact px-4 py-2 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${tab === kind ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{kind === 'projects' ? 'Projects' : 'Creators'}</button>)}
+        {(['projects', 'pages', 'creators'] as const).map((kind) => <button key={kind} type="button" aria-pressed={tab === kind} onClick={() => setParams(kind === 'projects' ? {} : { tab: kind })} className={`shape-compact px-4 py-2 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${tab === kind ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'}`}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}
       </div>
-      {tab === 'projects' ? <ActivityCollectionPage key={auth.user?.id} embedded kind="save" profileName="Your library" isViewerOwnCollection onBack={onBack} onOpenProject={onOpenProject} /> : <SavedCreators key={auth.user?.id} />}
+      {tab === 'projects' ? <ActivityCollectionPage key={auth.user?.id} embedded kind="save" profileName="Your library" isViewerOwnCollection onBack={onBack} onOpenProject={onOpenProject} /> : tab === 'pages' ? <SavedPagesCollection key={auth.user?.id} /> : <SavedCreators key={auth.user?.id} />}
     </div>
   </section>;
 }
