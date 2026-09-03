@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
-import { loadPdfJs } from './PdfPage';
+import { loadPdfJs, pdfSourceOptions } from './PdfPage';
 import type { PdfDocument, PdfLoadingTask, PdfPageProxy } from './PdfPage';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { useSinglePageZoom } from './useSinglePageZoom';
@@ -364,7 +364,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument({ url: source });
+      loadingTask = pdfjs.getDocument(pdfSourceOptions(source));
       loadTimeout = window.setTimeout(() => {
         if (cancelled) {
           return;

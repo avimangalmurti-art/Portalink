@@ -11,6 +11,8 @@ import type {
 import { ProcessingServiceError, UploadServiceError } from '../../types/publishing';
 import { requireSupabase, requireSupabaseProjectUrl } from './client';
 import { PROJECT_MEDIA_BUCKET } from './contentServices';
+import { PART_BYTES } from '../../../public/portalink-media-core.js';
+import { ensureMultipartReader, MANIFEST_SUFFIX, multipartSource, multipartSpec, partPath, removeStoredMedia } from './multipartMedia';
 
 type ActiveUpload = {
   cancelRequested: boolean;
@@ -100,6 +102,9 @@ async function uploadFileResumably(input: {
   storagePath: string;
   completedBytes: number;
   totalBytes: number;
+  body?: Blob;
+  itemBytesCompleted?: number;
+  contentType?: string;
 }): Promise<void> {
   const client = requireSupabase();
   const { data, error } = await client.auth.getSession();
@@ -120,7 +125,7 @@ async function uploadFileResumably(input: {
       input.runtime.cancelCurrent = undefined;
       callback();
     };
-    const upload = new Upload(input.item.file, {
+    const upload = new Upload(input.body ?? input.item.file, {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
@@ -129,15 +134,17 @@ async function uploadFileResumably(input: {
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_BYTES,
+      fingerprint: async () => `portalink:${input.storagePath}`,
       metadata: {
         bucketName: PROJECT_MEDIA_BUCKET,
         objectName: input.storagePath,
-        contentType: input.item.mimeType || 'application/octet-stream',
+        contentType: input.contentType ?? (input.item.mimeType || 'application/octet-stream'),
         cacheControl: '3600',
       },
-      onProgress(bytesUploaded, bytesTotal) {
-        const itemFraction = bytesTotal > 0 ? bytesUploaded / bytesTotal : 0;
-        const operationBytes = input.completedBytes + bytesUploaded;
+      onProgress(bytesUploaded) {
+        const itemBytes = (input.itemBytesCompleted ?? 0) + bytesUploaded;
+        const itemFraction = input.item.sizeBytes > 0 ? itemBytes / input.item.sizeBytes : 0;
+        const operationBytes = input.completedBytes + itemBytes;
         input.operation.onProgress?.({
           uploadId: input.uploadId,
           fraction: input.totalBytes > 0 ? operationBytes / input.totalBytes : itemFraction,
@@ -181,6 +188,7 @@ async function performUpload(
   let sentBytes = 0;
 
   try {
+    if (input.media.some((item) => item.sizeBytes > PART_BYTES)) await ensureMultipartReader();
     for (let index = 0; index < input.media.length; index += 1) {
       if (runtime.cancelRequested) {
         return {
@@ -192,18 +200,42 @@ async function performUpload(
       }
 
       const item = input.media[index];
-      const storagePath = `${input.profileId}/${input.draftId}/${crypto.randomUUID()}-${safeFileName(item.fileName)}`;
+      const multipart = item.sizeBytes > PART_BYTES ? multipartSpec(item.sizeBytes) : undefined;
+      const storagePath = `${input.profileId}/${input.draftId}/${crypto.randomUUID()}-${safeFileName(item.fileName)}${multipart ? MANIFEST_SUFFIX : ''}`;
+      const metadata = multipart ? { ...item.metadata, multipart } : item.metadata;
+      // Track the path before sending any bytes, so failure/cancellation can also
+      // clean an unfinished logical file and all its already uploaded parts.
+      const stored: PersistedMedia = {
+        preparedId: item.id, objectId: storagePath, storagePath, sourceUrl: null,
+        fileName: item.fileName, mimeType: item.mimeType, sizeBytes: item.sizeBytes,
+        processingState: stateFor(item), metadata,
+      };
+      persisted.push(stored);
       try {
-        await uploadFileResumably({
-          uploadId,
-          operation: input,
-          runtime,
-          item,
-          itemIndex: index,
-          storagePath,
-          completedBytes: sentBytes,
-          totalBytes,
-        });
+        const base = { uploadId, operation: input, runtime, item, itemIndex: index, completedBytes: sentBytes, totalBytes };
+        if (multipart) {
+          for (let part = 0; part < multipart.partCount && !runtime.cancelRequested; part += 1) {
+            const offset = part * multipart.partBytes;
+            await uploadFileResumably({ ...base,
+              storagePath: partPath(storagePath, part),
+              body: item.file.slice(offset, Math.min(item.sizeBytes, offset + multipart.partBytes)),
+              itemBytesCompleted: offset, contentType: 'application/octet-stream',
+            });
+          }
+          if (!runtime.cancelRequested) {
+            const manifest = new Blob([JSON.stringify({ ...multipart, fileName: item.fileName, mimeType: item.mimeType })], { type: 'application/json' });
+            const { error } = await bucket.upload(storagePath, manifest, { contentType: 'application/json', upsert: false });
+            if (error) throw error;
+            stored.sourceUrl = await multipartSource(storagePath, multipart, item.fileName, item.mimeType);
+          }
+        } else {
+          await uploadFileResumably({ ...base, storagePath });
+          if (!runtime.cancelRequested) {
+            const signed = await bucket.createSignedUrl(storagePath, 60 * 60 * 6);
+            if (signed.error) throw signed.error;
+            stored.sourceUrl = signed.data.signedUrl;
+          }
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'The resumable upload failed.';
         const exceedsStorageAllowance = /maximum|too large|size limit|413|payload too large|entity too large/i.test(message);
@@ -226,40 +258,6 @@ async function performUpload(
         };
       }
 
-      const signed = await bucket.createSignedUrl(storagePath, 60 * 60 * 6);
-      if (signed.error) {
-        throw new UploadServiceError({
-          code: 'network',
-          message: `${item.fileName} was stored, but its viewing URL could not be created: ${signed.error.message}`,
-          persisted: [
-            ...persisted,
-            {
-              preparedId: item.id,
-              objectId: storagePath,
-              storagePath,
-              sourceUrl: null,
-              fileName: item.fileName,
-              mimeType: item.mimeType,
-              sizeBytes: item.sizeBytes,
-              processingState: stateFor(item),
-              metadata: item.metadata,
-            },
-          ],
-          cleanupRequired: true,
-        });
-      }
-
-      persisted.push({
-        preparedId: item.id,
-        objectId: storagePath,
-        storagePath,
-        sourceUrl: signed.data.signedUrl,
-        fileName: item.fileName,
-        mimeType: item.mimeType,
-        sizeBytes: item.sizeBytes,
-        processingState: stateFor(item),
-        metadata: item.metadata,
-      });
       sentBytes += item.sizeBytes;
       input.onProgress?.({
         uploadId,
@@ -320,11 +318,12 @@ export const supabaseMediaService: MediaService = {
   },
 
   async deleteMedia(objectId) {
-    const { error } = await requireSupabase().storage.from(PROJECT_MEDIA_BUCKET).remove([objectId]);
-    if (error) {
+    try {
+      await removeStoredMedia([objectId]);
+    } catch (error) {
       throw new UploadServiceError({
         code: 'network',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'Stored files could not be cleaned up.',
         persisted: [],
         cleanupRequired: true,
       });

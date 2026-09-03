@@ -20,6 +20,16 @@ export async function loadPdfJs(): Promise<PdfJs> {
   return pdfJsPromise;
 }
 
+export function pdfSourceOptions(source: string) {
+  const isLargeOriginal = source.includes('/__portalink_media/');
+  return {
+    url: source,
+    // Covers and page navigation request needed byte ranges, not the entire
+    // original. Local upload previews and existing small files are unchanged.
+    ...(isLargeOriginal ? { disableAutoFetch: true, disableStream: true, rangeChunkSize: 1024 * 1024 } : {}),
+  };
+}
+
 type PdfPageProps = {
   source: string;
   label: string;
@@ -81,7 +91,7 @@ export function PdfPage({
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument({ url: source });
+      loadingTask = pdfjs.getDocument(pdfSourceOptions(source));
       const document = await loadingTask.promise;
       onPageCountChange?.(document.numPages);
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));

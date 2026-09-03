@@ -188,6 +188,8 @@ export type ProjectAttachment = {
   order: number;
   /** Only what the renderer needs and the file actually told us. */
   metadata?: {
+    /** Logical original stored as bounded private objects, not separate assets. */
+    multipart?: { version: 1; sizeBytes: number; partBytes: number; partCount: number };
     durationSeconds?: number;
     pageCount?: number;
     widthPixels?: number;

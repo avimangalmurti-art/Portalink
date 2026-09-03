@@ -33,6 +33,7 @@ import type {
   UpdateProjectResult,
 } from '../../types/publishing';
 import { ProjectMutationError, PublishServiceError } from '../../types/publishing';
+import { multipartSource, readMultipartSpec, removeStoredMedia } from './multipartMedia';
 import { typefaces } from '../../data/typefaces';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 import { cities } from '../../data/cities';
@@ -186,6 +187,7 @@ function renderedPagePaths(value: unknown): string[] {
 function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachment['metadata'] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const candidate = value as {
+    multipart?: unknown;
     durationSeconds?: unknown;
     pageCount?: unknown;
     widthPixels?: unknown;
@@ -198,6 +200,8 @@ function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachmen
     renderedPages?: unknown;
   };
   const metadata: NonNullable<ProjectAttachment['metadata']> = {};
+  const multipart = readMultipartSpec(candidate.multipart);
+  if (multipart) metadata.multipart = multipart;
   if (typeof candidate.durationSeconds === 'number') metadata.durationSeconds = candidate.durationSeconds;
   if (typeof candidate.pageCount === 'number') metadata.pageCount = candidate.pageCount;
   if (typeof candidate.widthPixels === 'number') metadata.widthPixels = candidate.widthPixels;
@@ -290,7 +294,18 @@ async function hydrateProjects(
     ...renderedPagePaths(row.metadata),
   ]));
   const attachmentsByProject = new Map<string, ProjectAttachment[]>();
-  attachmentRows.forEach((row) => {
+  await Promise.all(attachmentRows.map(async (row) => {
+    const metadata = asMetadata(row.metadata, urls);
+    let sourceUrl = urls.get(row.storage_path) ?? null;
+    if (metadata?.multipart) {
+      try {
+        sourceUrl = await multipartSource(row.storage_path, metadata.multipart, row.file_name, row.mime_type);
+      } catch {
+        // An unavailable individual file must not prevent the profile/feed from
+        // loading, and its JSON manifest must never be shown as the original.
+        sourceUrl = null;
+      }
+    }
     const attachment: ProjectAttachment = {
       id: row.id,
       kind: row.kind as ProjectAttachment['kind'],
@@ -300,18 +315,19 @@ async function hydrateProjects(
       mimeType: row.mime_type,
       sizeBytes: row.size_bytes,
       typeLabel: row.type_label,
-      sourceUrl: urls.get(row.storage_path) ?? null,
+      sourceUrl,
       storagePath: row.storage_path,
       status: row.status as ProjectAttachment['status'],
       isCover: row.is_cover,
       order: row.position,
-      metadata: asMetadata(row.metadata, urls),
+      metadata,
     };
     attachmentsByProject.set(row.project_id, [
       ...(attachmentsByProject.get(row.project_id) ?? []),
       attachment,
     ]);
-  });
+  }));
+  attachmentsByProject.forEach((attachments) => attachments.sort((a, b) => a.order - b.order));
 
   const categoryLabels = new Map(categoryRows.map((row) => [row.id, row.label]));
   return new Map(projectRows.map((row) => {
@@ -947,15 +963,14 @@ export const supabaseProjectService: ProjectService = {
       removedStoragePaths?: string[];
     } | null;
     const removedStoragePaths = result?.removedStoragePaths ?? [];
-    const cleanup = removedStoragePaths.length > 0
-      ? await requireSupabase().storage.from(PROJECT_MEDIA_BUCKET).remove(removedStoragePaths)
-      : { error: null };
+    let cleanupFailed = false;
+    try { await removeStoredMedia(removedStoragePaths); } catch { cleanupFailed = true; }
     return {
       project: await this.getProject(input.projectId),
       mediaPersisted: true,
       sessionOnly: false,
       removedAttachmentIds: result?.removedAttachmentIds ?? [],
-      message: cleanup.error
+      message: cleanupFailed
         ? 'Your project was updated, but some removed files still need storage cleanup.'
         : 'Your project has been updated.',
     };
@@ -975,8 +990,7 @@ export const supabaseProjectService: ProjectService = {
     ]).filter((path): path is string => Boolean(path));
     let storageDeleted = paths.length === 0;
     if (paths.length > 0) {
-      const removal = await requireSupabase().storage.from(PROJECT_MEDIA_BUCKET).remove(paths);
-      storageDeleted = !removal.error;
+      try { await removeStoredMedia(paths); storageDeleted = true; } catch { storageDeleted = false; }
     }
     return {
       projectId,
