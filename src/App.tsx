@@ -39,6 +39,7 @@ import { useProfileOnboardingStatus } from './features/profile/useProfileOnboard
 import { ProfileOnboardingDialog } from './features/profile/ProfileOnboardingDialog';
 import { ProfileEditorDialog } from './features/profile/ProfileEditorDialog';
 import { PublishProjectDialog } from './features/publishing/PublishProjectDialog';
+import { PublishConfirmation } from './features/publishing/PublishConfirmation';
 import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
 import { useScreenTransition } from './app/useScreenTransition';
 import './app/screenTransitions.css';
@@ -478,6 +479,12 @@ export function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [publishConfirmation, setPublishConfirmation] = useState<{ projectId: string; message: string } | null>(null);
+  useEffect(() => {
+    if (!publishConfirmation) return;
+    const timer = window.setTimeout(() => setPublishConfirmation(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [publishConfirmation]);
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
   const [isGlobalCreatePending, setIsGlobalCreatePending] = useState(false);
   const [messageRecipientId, setMessageRecipientId] = useState<string | null>(null);
@@ -1187,15 +1194,23 @@ export function App() {
       <PublishProjectDialog isOpen={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
         setIsPublishOpen(false);
         setPublishTargetCategoryId(null);
-      }} onPublished={(projectId) => {
+      }} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
         setIsPublishOpen(false);
         setPublishTargetCategoryId(null);
+        setPublishConfirmation({
+          projectId: result.projectId,
+          message: result.mediaPersisted && !result.sessionOnly
+            ? `${title} published.`
+            : `${title} added for this session only. Reloading will clear it.`,
+        });
         // The new work opens where it landed, through the normal viewer.
-        if (projectId && auth.viewerProfileId && targetCategoryId) {
-          nav.project(auth.viewerProfileId, targetCategoryId, projectId);
+        if (result.projectId && auth.viewerProfileId && targetCategoryId) {
+          nav.project(auth.viewerProfileId, targetCategoryId, result.projectId);
         }
+        requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
       }} />
+      <PublishConfirmation message={publishConfirmation?.message ?? null} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
       <ProfileOnboardingDialog isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {

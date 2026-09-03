@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, CheckCircle2Icon, InfoIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, InfoIcon, XIcon } from 'lucide-react';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
 import { Button } from '../../components/ui/Button';
@@ -8,6 +8,7 @@ import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
 import { SUMMARY_MAX_LENGTH, TITLE_MAX_LENGTH } from './validation';
+import type { PublishResult } from '../../types/publishing';
 
 /**
  * Creating a project inside a category the signed-in account owns.
@@ -22,7 +23,7 @@ type PublishProjectDialogProps = {
   categoryId: string | null;
   categoryLabel: string;
   onClose: () => void;
-  onPublished: (projectId: string) => void;
+  onPublished: (result: PublishResult, title: string) => void;
 };
 export function PublishProjectDialog({
   isOpen,
@@ -37,7 +38,7 @@ export function PublishProjectDialog({
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const announcedProjectRef = useRef<string | null>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   const {
     step,
@@ -49,6 +50,7 @@ export function PublishProjectDialog({
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
+      announcedProjectRef.current = null;
     }
   }, [isOpen]);
 
@@ -89,11 +91,13 @@ export function PublishProjectDialog({
     return undefined;
   }, [isOpen, step, publishFlow.draft]);
   useEffect(() => {
-    // The completed result announces itself after the one-page form publishes.
-    if (step === 'done') {
-      stepHeadingRef.current?.focus();
-    }
-  }, [step]);
+    // Only a confirmed project result completes the flow. A finished transfer,
+    // cancelled upload, or failed publication must leave the form available.
+    const result = publishFlow.result;
+    if (!isOpen || step !== 'done' || !result?.projectId || announcedProjectRef.current === result.projectId) return;
+    announcedProjectRef.current = result.projectId;
+    onPublished(result, publishFlow.metadata.title.trim());
+  }, [isOpen, step, publishFlow.result, publishFlow.metadata.title, onPublished]);
   useEffect(() => {
     if (state === 'failed') {
       errorRef.current?.focus();
@@ -118,7 +122,7 @@ export function PublishProjectDialog({
     }
     document.getElementById('publish-add-files')?.focus();
   }, [publishFlow.isMediaMissing]);
-  if (!isOpen) {
+  if (!isOpen || step === 'done') {
     return null;
   }
   function requestClose() {
@@ -179,11 +183,11 @@ export function PublishProjectDialog({
       }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 id="publish-dialog-title" ref={stepHeadingRef} tabIndex={-1} className="text-[20px] font-semibold leading-tight focus:outline-none">
-                {step === 'done' ? publishFlow.result?.mediaPersisted ? 'Project published' : 'Published to this session' : 'New project'}
+              <h2 id="publish-dialog-title" className="text-[20px] font-semibold leading-tight">
+                New project
               </h2>
               <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-                {step === 'done' ? `${categoryLabel} · draft cleared` : `Adding to ${categoryLabel}`}
+                Adding to {categoryLabel}
               </p>
             </div>
             <button type="button" onClick={requestClose} disabled={isPublishing} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
@@ -197,17 +201,6 @@ export function PublishProjectDialog({
               <ErrorState description={publishFlow.draftError} />
             </div> : !publishFlow.draft ? <div className="mt-5">
               <LoadingState label="Starting a draft" />
-            </div> : step === 'done' ? <div className="mt-5 flex flex-col gap-4">
-              <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-2.5 text-[13px] leading-relaxed">
-                <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
-                <span>
-                  <strong className="font-semibold">{metadata.title.trim()}</strong> now appears in {categoryLabel}.
-                  {publishFlow.result && !publishFlow.result.mediaPersisted && ' Your files stayed on this device — no storage is connected yet, so this project is only here for the current session and a reload will clear it.'}
-                </span>
-              </div>
-              <div className="flex justify-end">
-                <Button variant="primary" size="lg" onClick={() => onPublished(publishFlow.result?.projectId ?? '')}>Done</Button>
-              </div>
             </div> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish) {
