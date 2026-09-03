@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
-import { SUMMARY_MAX_LENGTH, TITLE_MAX_LENGTH } from './validation';
+import { TITLE_MAX_LENGTH } from './validation';
 import type { PublishResult } from '../../types/publishing';
 
 /**
@@ -244,7 +244,7 @@ export function PublishProjectDialog({
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description (optional)" multiline value={metadata.summary} maxLength={SUMMARY_MAX_LENGTH} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
+                     <ProfileField id="publish-summary" label="Description (optional)" multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
                     {publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
                         <button type="button" onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">

@@ -31,7 +31,7 @@ function harness() {
       if (name === 'react') return stubReact;
       if (name === 'framer-motion') return { AnimatePresence: React.Fragment, motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
       if (name === './usePublishProject') return { usePublishProject: () => currentFlow };
-      if (name === './validation') return { TITLE_MAX_LENGTH: 80, SUMMARY_MAX_LENGTH: 220 };
+      if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
       return new Proxy({}, { get: (_, key) => key });
     },
     document: { addEventListener() {}, removeEventListener() {}, getElementById: () => null },
@@ -74,6 +74,16 @@ test('uploaded files alone do not close the publishing form', () => {
   const tree = h.render({ state: 'publishing', upload: { phase: 'uploaded' } });
   assert.ok(nodes(tree).some((node) => node.props?.role === 'dialog'));
   assert.equal(h.calls.length, 0);
+});
+
+test('publishing accepts the complete long description without an input cap', () => {
+  const summary = 'First paragraph — café 🌍\n\nSecond paragraph.\n'.repeat(2500);
+  const tree = harness().render({ metadata: { title: 'Long-form project', summary } });
+  const fields = nodes(tree);
+  const description = fields.find((node) => node.props?.id === 'publish-summary');
+  assert.equal(description.props.maxLength, undefined);
+  assert.equal(description.props.value, summary);
+  assert.equal(fields.find((node) => node.props?.id === 'publish-title').props.maxLength, 80);
 });
 
 test('upload and publication errors keep the dialog and recovery message', () => {

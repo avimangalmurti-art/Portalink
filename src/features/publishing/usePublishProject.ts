@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useMediaPreparation } from './useMediaPreparation';
 import { useMediaUpload } from './useMediaUpload';
-import { validateSummary, validateTitle } from './validation';
+import { validateTitle } from './validation';
 import type { Id } from '../../types/domain';
 import type { DraftMetadata, DraftState, ProjectDraft, PublishResult } from '../../types/publishing';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
@@ -144,7 +144,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const validate = useCallback(() => {
     const nextErrors = {
       title: validateTitle(metadata.title),
-      summary: validateSummary(metadata.summary)
+      // Descriptions are prose, not captions: do not impose a character cap.
+      summary: null
     };
     setFieldErrors(nextErrors);
     const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]) ?? null;

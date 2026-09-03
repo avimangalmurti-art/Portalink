@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
-import { SUMMARY_MAX_LENGTH, TITLE_MAX_LENGTH } from '../publishing/validation';
+import { TITLE_MAX_LENGTH } from '../publishing/validation';
 import type { ProjectManagement } from './useProjectManagement';
 
 /**
@@ -110,7 +110,7 @@ export function ProjectEditorDialog({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <form id="project-editor-form" noValidate onSubmit={handleSave} className="flex flex-col gap-4">
               <EditorField id="project-title" label="Title" value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} disabled={editor.isSaving} inputRef={titleRef} onChange={(value) => editor.setField('title', value)} />
-              <EditorField id="project-summary" label="Description" value={editor.metadata.summary} error={editor.fieldErrors.summary} maxLength={SUMMARY_MAX_LENGTH} multiline disabled={editor.isSaving} textareaRef={summaryRef} onChange={(value) => editor.setField('summary', value)} />
+              <EditorField id="project-summary" label="Description" value={editor.metadata.summary} error={editor.fieldErrors.summary} multiline disabled={editor.isSaving} textareaRef={summaryRef} onChange={(value) => editor.setField('summary', value)} />
 
               <section aria-labelledby="project-files-title" className="mt-1">
                 <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Files</h3>
