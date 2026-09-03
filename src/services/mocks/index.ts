@@ -459,15 +459,11 @@ export const mockProjectService: ProjectService = {
     if (design.pagesPerRow !== undefined && (!Number.isInteger(design.pagesPerRow) || design.pagesPerRow < MIN_PAGES_PER_ROW || design.pagesPerRow > MAX_PAGES_PER_ROW)) {
       throw new Error(`Pages per row must be between ${MIN_PAGES_PER_ROW} and ${MAX_PAGES_PER_ROW}.`);
     }
-    if (design.openingPage !== undefined && (!design.openingPage.attachmentId || !Number.isInteger(design.openingPage.pageNumber) || design.openingPage.pageNumber < 1 || design.openingPage.pageNumber > 10_000)) {
-      throw new Error('The opening page is not valid.');
-    }
     // Session-only, like the arrangement stores: nothing is persisted, and a
     // reload returns every project to the face it was published in.
     const next: ProjectDesign = {
       typefaceId: design.typefaceId,
-      ...(design.pagesPerRow ? { pagesPerRow: design.pagesPerRow } : {}),
-      ...(design.openingPage ? { openingPage: design.openingPage } : {})
+      ...(design.pagesPerRow ? { pagesPerRow: design.pagesPerRow } : {})
     };
     projectDesigns.set(projectId, next);
     return next;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
-import type { Id, ProjectDesign, ProjectOpeningPage } from '../../types/domain';
+import type { Id, ProjectDesign } from '../../types/domain';
 import { DEFAULT_PAGES_PER_ROW, normalizePagesPerRow } from './pageLayout';
 
 /**
@@ -22,10 +22,8 @@ export type ProjectTypographyState = {
   reload: () => void;
   /** The project's confirmed face, or the face a save is optimistically showing. */
   resolveTypefaceId: (projectId: Id | null) => string;
-  /** The opening page density saved with the project. */
+  /** The viewer's initial page density saved with the project. */
   resolvePagesPerRow: (projectId: Id | null, fallback?: number) => number;
-  /** The creator-authored public opening page, separate from viewer history. */
-  resolveOpeningPage: (projectId: Id | null, fallback?: ProjectOpeningPage) => ProjectOpeningPage | undefined;
   /** The project a save is currently in flight for. */
   savingProjectId: Id | null;
   saveError: string | null;
@@ -34,7 +32,6 @@ export type ProjectTypographyState = {
   dismissSaveError: () => void;
   setTypeface: (projectId: Id, typefaceId: string) => Promise<boolean>;
   setPagesPerRow: (projectId: Id, pagesPerRow: number) => Promise<boolean>;
-  setOpeningPage: (projectId: Id, openingPage: ProjectOpeningPage) => Promise<boolean>;
 };
 function messageFor(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -102,12 +99,6 @@ export function useProjectTypography(projectIds: Id[]): ProjectTypographyState {
       return fallback;
     }
     return designs[projectId]?.pagesPerRow ?? fallback;
-  }, [designs]);
-  const resolveOpeningPage = useCallback((projectId: Id | null, fallback?: ProjectOpeningPage) => {
-    if (!projectId) {
-      return fallback;
-    }
-    return designs[projectId]?.openingPage ?? fallback;
   }, [designs]);
   const setTypeface = useCallback(async (projectId: Id, typefaceId: string) => {
     if (isSavingRef.current) {
@@ -217,69 +208,17 @@ export function useProjectTypography(projectIds: Id[]): ProjectTypographyState {
       }
     }
   }, [designs, projectService]);
-  const setOpeningPage = useCallback(async (projectId: Id, openingPage: ProjectOpeningPage) => {
-    if (isSavingRef.current) {
-      return false;
-    }
-    isSavingRef.current = true;
-    const confirmed = designs[projectId];
-    const nextDesign: ProjectDesign = {
-      ...(confirmed ?? { typefaceId: DEFAULT_TYPEFACE_ID }),
-      openingPage
-    };
-    setDesigns((current) => ({
-      ...current,
-      [projectId]: nextDesign
-    }));
-    setSavingProjectId(projectId);
-    setSaveError(null);
-    setRetrySave(null);
-    try {
-      const saved = await projectService.updateProjectDesign(projectId, nextDesign);
-      if (isMountedRef.current) {
-        setDesigns((current) => ({
-          ...current,
-          [projectId]: saved
-        }));
-      }
-      return true;
-    } catch (caught) {
-      if (isMountedRef.current) {
-        setDesigns((current) => {
-          const next = { ...current };
-          if (confirmed) {
-            next[projectId] = confirmed;
-          } else {
-            delete next[projectId];
-          }
-          return next;
-        });
-        setSaveError(messageFor(caught, 'That opening page could not be saved.'));
-        setRetrySave(() => () => {
-          void setOpeningPage(projectId, openingPage);
-        });
-      }
-      return false;
-    } finally {
-      isSavingRef.current = false;
-      if (isMountedRef.current) {
-        setSavingProjectId(null);
-      }
-    }
-  }, [designs, projectService]);
   return useMemo(() => ({
     isLoading,
     loadError,
     reload,
     resolveTypefaceId,
     resolvePagesPerRow,
-    resolveOpeningPage,
     savingProjectId,
     saveError,
     retrySave,
     dismissSaveError: () => setSaveError(null),
     setTypeface,
-    setPagesPerRow,
-    setOpeningPage
-  }), [isLoading, loadError, reload, resolveTypefaceId, resolvePagesPerRow, resolveOpeningPage, savingProjectId, saveError, retrySave, setTypeface, setPagesPerRow, setOpeningPage]);
+    setPagesPerRow
+  }), [isLoading, loadError, reload, resolveTypefaceId, resolvePagesPerRow, savingProjectId, saveError, retrySave, setTypeface, setPagesPerRow]);
 }

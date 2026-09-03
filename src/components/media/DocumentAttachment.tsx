@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
 import { useSinglePageZoom } from './useSinglePageZoom';
-import type { ProjectAttachment, ProjectOpeningPage } from '../../types/domain';
+import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -36,9 +36,6 @@ export function DocumentAttachment({
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
-  openingPage,
-  openingPageRequest = 0,
-  useOpeningPageOnMount = false,
   pageViewToggleRequest = 0,
 
 
@@ -52,9 +49,6 @@ export function DocumentAttachment({
   showMediaInteractions?: boolean;
   isOwner?: boolean;
   memoryScope?: string;
-  openingPage?: ProjectOpeningPage;
-  openingPageRequest?: number;
-  useOpeningPageOnMount?: boolean;
   pageViewToggleRequest?: number;
   processing?: {
     state: 'processing' | 'processing-failed';
@@ -72,12 +66,8 @@ export function DocumentAttachment({
     renderedPages.length,
     attachment.metadata?.pageCount ?? 0
   );
-  const openingDocumentPageIndex = openingPage?.attachmentId === attachment.id
-    ? Math.max(0, Math.min(knownPageCount > 0 ? knownPageCount - 1 : openingPage.pageNumber - 1, openingPage.pageNumber - 1))
-    : null;
   const [hasFailed, setHasFailed] = useState(false);
   const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => deepLinkedDocumentPage(attachment.id)
-    ?? ((useOpeningPageOnMount || openingPageRequest > 0) ? openingDocumentPageIndex : null)
     ?? readViewerMemory(memoryKey).focusedPageNumber
     ?? null);
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
@@ -85,7 +75,6 @@ export function DocumentAttachment({
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
-  const handledOpeningPageRequestRef = useRef(openingPageRequest);
   const handlePdfFailure = useCallback(() => setHasFailed(true), []);
   useEffect(() => {
     if (knownPageCount > 0) {
@@ -99,26 +88,14 @@ export function DocumentAttachment({
       lastTouchRef.current = null;
       return;
     }
-    if (useOpeningPageOnMount && openingDocumentPageIndex !== null && openingDocumentPageIndex < renderedPages.length) {
-      setFocusedPageIndex(openingDocumentPageIndex);
-      lastTouchRef.current = null;
-      return;
-    }
     const rememberedPage = readViewerMemory(memoryKey).focusedPageNumber;
     setFocusedPageIndex(typeof rememberedPage === 'number' && rememberedPage >= 0 && rememberedPage < renderedPages.length ? rememberedPage : null);
     lastTouchRef.current = null;
-  }, [attachment.id, memoryKey, openingDocumentPageIndex, renderedPages.length, useOpeningPageOnMount]);
+  }, [attachment.id, memoryKey, renderedPages.length]);
   const focusPage = useCallback((index: number) => {
     setFocusedPageIndex(index);
     updateViewerMemory(memoryKey, { focusedPageNumber: index, lastFocusedPageNumber: index });
   }, [memoryKey]);
-  useEffect(() => {
-    if (openingPageRequest <= handledOpeningPageRequestRef.current) return;
-    handledOpeningPageRequestRef.current = openingPageRequest;
-    if (openingDocumentPageIndex !== null && openingDocumentPageIndex < renderedPages.length) {
-      focusPage(openingDocumentPageIndex);
-    }
-  }, [focusPage, openingDocumentPageIndex, openingPageRequest, renderedPages.length]);
   const exitFocus = useCallback(() => {
     setFocusedPageIndex((current) => {
       updateViewerMemory(memoryKey, { focusedPageNumber: null, ...(current !== null ? { lastFocusedPageNumber: current } : {}) });
@@ -252,7 +229,7 @@ export function DocumentAttachment({
             }} />}
           </li>)}
         </ol>
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} openingPage={openingPage} openingPageRequest={openingPageRequest} useOpeningPageOnMount={useOpeningPageOnMount} pageViewToggleRequest={pageViewToggleRequest} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}
