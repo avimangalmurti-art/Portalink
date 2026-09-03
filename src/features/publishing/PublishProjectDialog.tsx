@@ -165,7 +165,10 @@ export function PublishProjectDialog({
         requestClose();
       }
     }}>
-        <motion.section role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title" className="scrollbar-slim max-h-[92vh] w-full max-w-[980px] overflow-y-auto rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-6 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:p-7" initial={shouldReduceMotion ? {
+        <motion.section role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title" className="scrollbar-slim flex max-h-[calc(100dvh-32px)] flex-col overflow-y-auto rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-6 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:p-7" style={{
+        width: 'min(520px, calc(100vw - 32px), calc(100dvh - 80px))',
+        height: 'min(720px, calc(100dvh - 32px))'
+      }} initial={shouldReduceMotion ? {
         opacity: 0
       } : {
         opacity: 0,
@@ -261,9 +264,9 @@ export function PublishProjectDialog({
                   </span>
                 </div>}
 
-              {/* Choosing the work comes first; its public details sit beside it
-               on wide screens and follow it in the reading order everywhere. */}
-              {step === 'metadata' ? <div className="grid grid-cols-1 items-start gap-x-8 gap-y-4 lg:grid-cols-2">
+              {/* One portrait-oriented reading order at every viewport size:
+               files first, followed by every public detail and the action. */}
+              {step === 'metadata' ? <div className="flex flex-col gap-4">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
                   <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
