@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { createMemoryRouter } from 'react-router-dom';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 function load(path, imports = {}, globals = {}) {
@@ -153,17 +154,54 @@ test('images resolve by attachment identity after reordering; inaccessible or re
   assert.equal(presentation({ ...target, projectId: 'wrong' }, view), null);
 });
 
-test('Pages tab has its own collection and does not activate Projects or Creators', () => {
-  const pages = load('../src/features/library/PersonalPages.tsx', {
-    react: React, 'lucide-react': {}, 'react-router-dom': { useSearchParams: () => [new URLSearchParams('tab=pages'), () => {}] },
+function savedPageModule(useSearchParams) {
+  return load('../src/features/library/PersonalPages.tsx', {
+    react: React, 'lucide-react': {}, 'react-router-dom': { useSearchParams },
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },
-    '../../contexts/ServicesContext': {}, '../../components/profile/ActivityCollectionPage': {}, '../../components/profile/CreatorAvatar': {},
+    '../../contexts/ServicesContext': {}, '../../components/profile/ActivityCollectionPage': { ActivityCollectionPage: () => null }, '../../components/profile/CreatorAvatar': {},
     '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null }, '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {},
     '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': { SavedPagesCollection: () => React.createElement('section', { 'aria-label': 'Saved pages' }) },
   });
+}
+
+test('Pages tab has its own collection and does not activate Projects or Creators', () => {
+  const pages = savedPageModule(() => [new URLSearchParams('tab=pages'), () => {}]);
   const html = renderToStaticMarkup(React.createElement(pages.SavedPage, { onBack() {}, onOpenProject() {} }));
   assert.match(html, /aria-pressed="true"[^>]*>Pages<\/button>/);
   assert.match(html, /aria-label="Saved pages"/);
   assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
   assert.equal((html.match(/aria-pressed="false"/g) ?? []).length, 2);
+});
+
+function descendants(element) {
+  if (!React.isValidElement(element)) return [];
+  return [element, ...React.Children.toArray(element.props.children).flatMap(descendants)];
+}
+
+test('Saved tab handlers replace history, retain their URL selection, and leave in one Back step', async () => {
+  for (const origin of ['/p/creator', '/', '/portalink/san-francisco']) {
+    const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: [origin, '/saved'], initialIndex: 1 });
+    const pages = savedPageModule(() => [new URLSearchParams(router.state.location.search), (next, options) => {
+      assert.equal(options?.replace, true, 'every collection change must replace, not push');
+      return router.navigate(`?${new URLSearchParams(next)}`, options);
+    }]);
+    const render = () => pages.SavedPage({ onBack: () => router.navigate(-1), onOpenProject() {} });
+    try {
+      // Include repeat selection and returning to Projects, which clears ?tab.
+      for (const label of ['Pages', 'Creators', 'Projects', 'Projects', 'Pages']) {
+        const tab = descendants(render()).find((item) => item.type === 'button' && item.props.children === label);
+        assert.ok(tab, `${label} control exists`);
+        await tab.props.onClick();
+        assert.equal(router.state.location.pathname, '/saved');
+        assert.equal(new URLSearchParams(router.state.location.search).get('tab'), label === 'Projects' ? null : label.toLowerCase());
+        const selected = descendants(render()).find((item) => item.type === 'button' && item.props['aria-pressed']);
+        assert.equal(selected.props.children, label, 'selection is restored from the URL on a fresh render');
+      }
+      const header = React.Children.toArray(render().props.children)[0];
+      await header.props.onBack();
+      assert.equal(router.state.location.pathname, origin, 'Back returns to the actual entry screen, not a forced profile');
+      await router.navigate(1);
+      assert.equal(router.state.location.pathname + router.state.location.search, '/saved?tab=pages', 'Forward restores the last selected collection');
+    } finally { router.dispose(); }
+  }
 });
