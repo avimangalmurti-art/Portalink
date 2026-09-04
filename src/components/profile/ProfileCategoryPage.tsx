@@ -337,7 +337,7 @@ export function ProfileCategoryPage({
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
               <span aria-hidden="true" className="min-w-0 flex-1" />
-              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="flex min-w-[112px] max-w-[136px] flex-1 flex-col items-center justify-center gap-1 px-1" title="Set the number of pages viewers see in each row when they open this project">
+              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="relative flex h-full min-w-[112px] max-w-[136px] flex-1 items-center justify-center px-1" title="Set the number of pages viewers see in each row when they open this project">
                   <input
                     data-pages-per-row-slider=""
                     type="range"
@@ -354,7 +354,7 @@ export function ProfileCategoryPage({
                     aria-valuetext={`${pageLayoutDraft} ${pageLayoutDraft === 1 ? 'page' : 'pages'} per row`}
                     className="h-1 w-full cursor-pointer accent-[var(--accent-primary)] disabled:cursor-wait disabled:opacity-50"
                   />
-                  <span data-pages-per-row-label="" className="whitespace-nowrap text-[9px] font-medium leading-none tabular-nums text-[var(--text-secondary)]">Pages/row {pageLayoutDraft}</span>
+                  <span data-pages-per-row-label="" className="pointer-events-none absolute left-1/2 top-[calc(50%+11px)] -translate-x-1/2 whitespace-nowrap text-[8px] font-medium leading-none tabular-nums text-[var(--text-secondary)]">Pages/row {pageLayoutDraft}</span>
                 </label>}
               {sharedReadOnly && activePageCount !== null && activePageCount > 1 && <button data-shared-viewer-control="overview" data-borderless-control="" type="button" onClick={togglePageView} aria-label={isPageFocused ? 'Open page overview' : 'Return to selected page'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                   <InterfaceIcon icon={isPageFocused ? Grid2X2Icon : SquareIcon} weight="medium" />

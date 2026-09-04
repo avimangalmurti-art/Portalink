@@ -89,8 +89,9 @@ test('project header omits duplicate page totals but retains layout controls and
   assert.equal(attributes(path, 'data-shared-page-count').result.length, 0);
   assert.ok(!source.includes('activePageLabel'));
   assert.match(source, /Pages\/row \{pageLayoutDraft\}/);
+  assert.match(source, /<label className="[^"]*relative[^"]*h-full[^"]*items-center[^"]*"[^>]*>[\s\S]*data-pages-per-row-slider=""/);
   assert.match(source, /data-pages-per-row-slider=""[\s\S]*data-pages-per-row-label=""/);
-  assert.match(source, /data-pages-per-row-label="" className="[^"]*text-\[9px\][^"]*text-\[var\(--text-secondary\)\]/);
+  assert.match(source, /data-pages-per-row-label="" className="[^"]*absolute[^"]*top-\[calc\(50%\+11px\)\][^"]*text-\[8px\][^"]*text-\[var\(--text-secondary\)\]/);
   assert.match(source, /aria-label="Pages per row"/);
   assert.match(source, /min=\{MIN_PAGES_PER_ROW\}/);
   assert.match(source, /max=\{MAX_PAGES_PER_ROW\}/);
