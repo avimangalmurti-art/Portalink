@@ -16,8 +16,6 @@ type ProjectIndexListProps = {
   activeProjectId: string | null;
   /** Arranging and hiding work belongs to whoever owns the portfolio. */
   isOwner: boolean;
-  /** Only a complete custom-order list can safely write a drag arrangement. */
-  canReorder: boolean;
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -60,7 +58,6 @@ export function ProjectIndexList({
   pinnedIds,
   activeProjectId,
   isOwner,
-  canReorder,
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -136,11 +133,9 @@ export function ProjectIndexList({
         </>}
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-      {rest.length > 0 && canReorder ? <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="m-0 list-none space-y-1 p-0">
+      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="m-0 list-none space-y-1 p-0">
           {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable />)}
-        </Reorder.Group> : rest.length > 0 ? <ul className="m-0 list-none space-y-1 p-0">
-          {rest.map((project) => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}
-        </ul> : null}
+        </Reorder.Group>}
 
       {/* Hidden work sits under its own heading, dimmed, so the owner can see
          what is withheld without it reading as part of the published index. */}

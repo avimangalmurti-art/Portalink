@@ -16,8 +16,6 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAssetProcessing } from '../../features/media/useAssetProcessing';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
 import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
-import { applyProjectIndexControls, projectIndexCountLabel, type ProjectIndexFilter, type ProjectIndexSort } from '../../features/projects/projectIndexControls';
-import { useSavedProjectIds } from '../../features/projects/useSavedProjectIds';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -76,8 +74,6 @@ export function ProfileCategoryPage({
     viewportReserve: 360
   });
   const [query, setQuery] = useState('');
-  const [projectSort, setProjectSort] = useState<ProjectIndexSort>('custom');
-  const [projectFilter, setProjectFilter] = useState<ProjectIndexFilter>('all');
   /*
    * Arriving from discovery, the index starts closed: the viewer chose one piece
    * of work, not a portal to browse, so the work opens with the full width and
@@ -114,25 +110,13 @@ export function ProfileCategoryPage({
   const management = useProjectManagement(profile.id);
   const deletingProject = categoryProjects.find((project) => project.id === management.deletion.projectId) ?? null;
   const projects = useMemo(() => arrangement.arrange(categoryProjects, showsOwnerTools), [arrangement, categoryProjects, showsOwnerTools]);
-  const effectiveFilter: ProjectIndexFilter = showsOwnerTools
-    ? (projectFilter === 'visible' || projectFilter === 'hidden' ? projectFilter : 'all')
-    : viewerRole === 'visitor' && projectFilter === 'saved' ? 'saved' : 'all';
-  const savedProjects = useSavedProjectIds(effectiveFilter === 'saved');
-  useEffect(() => {
-    setQuery('');
-    setProjectSort('custom');
-    setProjectFilter('all');
-  }, [category.id, viewerRole]);
   const visibleProjects = useMemo(() => {
-    if (effectiveFilter === 'saved' && (savedProjects.loading || savedProjects.error)) return [];
-    return applyProjectIndexControls(projects, {
-      sort: projectSort,
-      filter: effectiveFilter,
-      query,
-      hiddenIds: showsOwnerTools ? arrangement.hiddenIds : [],
-      savedIds: savedProjects.ids,
-    });
-  }, [arrangement.hiddenIds, effectiveFilter, projectSort, projects, query, savedProjects.error, savedProjects.ids, savedProjects.loading, showsOwnerTools]);
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return projects;
+    }
+    return projects.filter((project) => `${project.title} ${project.summary}`.toLowerCase().includes(normalized));
+  }, [projects, query]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
   /**
    * Each project's own face, resolved from the record through the service rather
@@ -453,33 +437,12 @@ export function ProfileCategoryPage({
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </div>
-            <div className="pt-2" aria-label="Project index controls">
-              <p className="mb-1.5 px-1 text-[12px] tabular-nums text-[var(--text-tertiary)]">{projectIndexCountLabel(projects.length, savedProjects.loading ? projects.length : visibleProjects.length)}</p>
-              <div className={`grid gap-2 ${showsOwnerTools || viewerRole === 'visitor' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                <label className="flex min-w-0 flex-col gap-1"><span className="px-1 text-[12px] font-medium text-[var(--text-tertiary)]">Sort</span><select value={projectSort} onChange={(event) => setProjectSort(event.currentTarget.value as ProjectIndexSort)} aria-label="Sort projects" className="field-shell h-9 min-w-0 w-full rounded-[8px] bg-[var(--control-rest-surface)] px-2 text-[13px] text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                    <option value="custom">Custom order</option>
-                    <option value="newest">Newest</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="alphabetical">A–Z</option>
-                  </select></label>
-                {showsOwnerTools ? <label className="flex min-w-0 flex-col gap-1"><span className="px-1 text-[12px] font-medium text-[var(--text-tertiary)]">Filter</span><select value={effectiveFilter} onChange={(event) => setProjectFilter(event.currentTarget.value as ProjectIndexFilter)} aria-label="Filter projects" className="field-shell h-9 min-w-0 w-full rounded-[8px] bg-[var(--control-rest-surface)] px-2 text-[13px] text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                    <option value="all">All</option>
-                    <option value="visible">Visible</option>
-                    <option value="hidden">Hidden</option>
-                  </select></label> : viewerRole === 'visitor' ? <label className="flex min-w-0 flex-col gap-1"><span className="px-1 text-[12px] font-medium text-[var(--text-tertiary)]">Filter</span><select value={effectiveFilter} onChange={(event) => setProjectFilter(event.currentTarget.value as ProjectIndexFilter)} aria-label="Filter projects" className="field-shell h-9 min-w-0 w-full rounded-[8px] bg-[var(--control-rest-surface)] px-2 text-[13px] text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                    <option value="all">All</option>
-                    <option value="saved">Saved only</option>
-                  </select></label> : null}
-              </div>
-            </div>
           </div>}
 
         {!isIndexCollapsed && <nav aria-label={`${category.label} index`} className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-            <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} canReorder={showsOwnerTools && projectSort === 'custom' && effectiveFilter === 'all' && !query.trim()} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onReplaceFiles={showsOwnerTools ? management.editor.openFiles : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
+            <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onReplaceFiles={showsOwnerTools ? management.editor.openFiles : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
-            {effectiveFilter === 'saved' && savedProjects.loading && <p role="status" className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]">Loading saved projects…</p>}
-            {effectiveFilter === 'saved' && savedProjects.error && <div role="alert" className="px-2.5 py-6 text-[13px] text-[var(--text-secondary)]"><p>{savedProjects.error}</p><button type="button" onClick={savedProjects.retry} className="mt-2 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button></div>}
-            {!savedProjects.loading && !savedProjects.error && visibleProjects.length === 0 && (query.trim() || effectiveFilter !== 'all') && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">{query.trim() ? `No work in ${category.label} matches “${query.trim()}”.` : effectiveFilter === 'saved' ? `No saved projects in ${category.label}.` : effectiveFilter === 'hidden' ? `No hidden projects in ${category.label}.` : `No visible projects in ${category.label}.`}</p>}
+            {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
             {/* Owner-only surfaces. They act on the canonical record through the
              management boundary; the service refuses an unauthorised write on
              its own, because nothing offered here can be trusted by a backend. */}
