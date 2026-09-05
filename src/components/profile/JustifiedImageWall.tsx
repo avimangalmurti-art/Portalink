@@ -38,9 +38,11 @@ import { ZoomReadout } from '../ui/ZoomReadout';
  * within a row precisely BECAUSE the ratios differ. Nothing is cropped or
  * stretched to fit.
  *
- * A trailing row keeps the target height and ends naturally instead of being
- * enlarged or padded with content that is not part of the portfolio. DOM order
- * is source order throughout.
+ * A trailing row inherits the preceding row's height whenever its contents fit.
+ * That keeps the last projects from appearing visually less important merely
+ * because the collection does not divide evenly. If the inherited height would
+ * overflow, it is reduced only as far as needed. DOM order is source order
+ * throughout.
  */
 
 /** The gutter, on both axes. Tight enough to read as a wall rather than tiles. */
@@ -108,7 +110,14 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
     }
   });
   if (current.length > 0) {
-    const height = trailingRowHeight;
+    const ratioSum = current.reduce((total, entry) => total + entry.ratio, 0);
+    const available = width - GAP * (current.length - 1);
+    const precedingRowHeight = rows[rows.length - 1]?.height ?? trailingRowHeight;
+    const maximumFittingHeight = available / ratioSum;
+    // A short final row should carry the same visual weight as the projects
+    // directly above it. Preserve that height whenever it fits, and only scale
+    // down for unusually wide trailing content that would otherwise overflow.
+    const height = Math.min(precedingRowHeight, maximumFittingHeight);
     rows.push({
       height,
       justified: false,
