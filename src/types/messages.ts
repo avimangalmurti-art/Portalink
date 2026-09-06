@@ -60,7 +60,8 @@ export type ConversationSummary = {
   isDraft?: boolean;
 };
 
-export type MessagingPermission = 'requests' | 'following';
+/** `following` disables requests; followed/accepted people still have direct access. */
+export type MessagingPermission = 'requests' | 'followers' | 'following';
 
 export type MessagingPreferences = {
   permission: MessagingPermission;

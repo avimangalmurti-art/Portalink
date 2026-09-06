@@ -80,6 +80,7 @@ export function useMessaging({
     setActiveConversation((current) => {
       if (!current) return null;
       const refreshed = next.find((conversation) => conversation.id === current.id) ?? current;
+      if (refreshed.status === 'request' || current.status === 'request') confirmedReads.current.delete(refreshed.id);
       activeRef.current = refreshed;
       return refreshed;
     });
@@ -115,11 +116,15 @@ export function useMessaging({
   }, [applyConversationPage, messaging]);
 
   const markReadThrough = useCallback(async (conversationId: Id, thread: DirectMessage[]) => {
-    if (document.visibilityState !== 'visible' || activeRef.current?.id !== conversationId) return;
+    if (document.visibilityState !== 'visible' || activeRef.current?.id !== conversationId || activeRef.current.status === 'request') return;
+    const readingConversation = activeRef.current;
     const latestIncoming = [...thread].reverse().find((message) => message.senderProfileId !== auth.viewerProfileId && !message.id.startsWith('local-'));
     if (!latestIncoming || (confirmedReads.current.get(conversationId) ?? '') >= latestIncoming.createdAt) return;
     try {
       await messaging.markConversationRead(conversationId, latestIncoming.createdAt);
+      // A request/accept transition can turn this RPC into a no-op. Recheck on
+      // the new conversation state instead of caching a stale acknowledgment.
+      if (activeRef.current !== readingConversation) return;
       confirmedReads.current.set(conversationId, [confirmedReads.current.get(conversationId) ?? '', latestIncoming.createdAt].sort().at(-1) ?? latestIncoming.createdAt);
       const hasNewerIncoming = threadCache.current.get(conversationId)?.messages.some((message) => message.senderProfileId !== auth.viewerProfileId && message.createdAt > latestIncoming.createdAt);
       if (!hasNewerIncoming) setConversations((current) => current.map((item) => item.id === conversationId ? { ...item, isUnread: false } : item));
@@ -133,6 +138,7 @@ export function useMessaging({
     startingRequestVersion.current += 1;
     setStartingCreatorId(null);
     activeRef.current = conversation;
+    if (conversation.status === 'request') confirmedReads.current.delete(conversation.id);
     setActiveConversation(conversation);
     const cached = threadCache.current.get(conversation.id);
     setMessages(cached?.messages ?? []);
@@ -206,6 +212,10 @@ export function useMessaging({
     const conversation = activeRef.current;
     const trimmed = body.trim();
     if (!conversation || (!trimmed && attachments.length === 0)) return false;
+    if (conversation.status === 'request' && attachments.length > 0) {
+      setError('You can send one text-only invitation. Attachments are available after it’s accepted.');
+      return false;
+    }
     const localId = retryId ?? `local-${crypto.randomUUID()}`;
     const existingLocal = retryId ? threadCache.current.get(conversation.id)?.messages.find((message) => message.id === retryId) : null;
     const optimistic: DirectMessage = {
@@ -297,7 +307,7 @@ export function useMessaging({
 
   const toggleReaction = useCallback(async (messageId: Id, emoji: string) => {
     const conversationId = activeRef.current?.id;
-    if (!conversationId || messageId.startsWith('local-')) return false;
+    if (!conversationId || activeRef.current?.status === 'request' || messageId.startsWith('local-')) return false;
     setPendingMessageId(messageId);
     setError(null);
     try {
@@ -414,7 +424,7 @@ export function useMessaging({
 
   useEffect(() => {
     const conversationId = activeConversationId;
-    if (!conversationId) { setIsParticipantTyping(false); return undefined; }
+    if (!conversationId || activeConversation?.status === 'request') { setIsParticipantTyping(false); return undefined; }
     let expiry: number | undefined;
     const unsubscribe = messaging.subscribeToTyping(conversationId, (profileId, typing) => {
       if (profileId !== activeParticipantId) return;
@@ -430,12 +440,12 @@ export function useMessaging({
       setIsParticipantTyping(false);
       if (typingStopTimer.current !== null) window.clearTimeout(typingStopTimer.current);
     };
-  }, [activeConversationId, activeParticipantId, auth.viewerProfileId, messaging]);
+  }, [activeConversationId, activeParticipantId, activeConversation?.status, auth.viewerProfileId, messaging]);
 
   const broadcastTyping = useCallback((isTyping: boolean) => {
     const conversationId = activeRef.current?.id;
     const profileId = auth.viewerProfileId;
-    if (!conversationId || !profileId) return;
+    if (!conversationId || !profileId || activeRef.current?.status === 'request') return;
     if (isTyping !== isTypingBroadcastRef.current) {
       messaging.broadcastTyping(conversationId, profileId, isTyping);
       isTypingBroadcastRef.current = isTyping;

@@ -280,5 +280,106 @@ try {
     await db.query('select accept_direct_message_request($1)', [pending]);
     await db.query('select * from send_direct_message($1,$2)', [pending, 'After accepting']);
   });
+  const instagramControls = readFileSync(new URL('../supabase/migrations/202609060002_instagram_message_controls.sql', import.meta.url), 'utf8');
+  await db.exec('reset role');
+  await check('Instagram controls migration is repeatable and preserves saved audiences and conversations', async () => {
+    const before = (await db.query('select profile_id, permission from messaging_preferences order by profile_id')).rows;
+    const chats = (await db.query('select id, status, established_at, request_message_sent_at from direct_conversations order by id')).rows;
+    await db.exec(instagramControls);
+    await db.exec(instagramControls);
+    assert.deepEqual((await db.query('select profile_id, permission from messaging_preferences order by profile_id')).rows, before);
+    assert.deepEqual((await db.query('select id, status, established_at, request_message_sent_at from direct_conversations order by id')).rows, chats);
+    assert.equal(await scalar("select has_function_privilege('authenticated','public.resolve_direct_message_permission(uuid)','EXECUTE')"), false);
+  });
+  for (const n of [17, 18, 19, 20]) await db.query('insert into profiles(id,account_id,name) values ($1,$2,$3)', [profile(n), account(n), `Test ${n}`]);
+  let invitation;
+  await check('Your followers accepts only actual followers, and only as requests', async () => {
+    await asUser(18);
+    await db.query("insert into messaging_preferences(profile_id, permission) values ($1,'followers')", [profile(18)]);
+    await asUser(17);
+    await assert.rejects(db.query('select get_or_create_direct_conversation($1)', [profile(18)]), /messages unavailable/);
+    await db.exec('reset role');
+    await db.query("insert into profile_follows(follower_profile_id,target_profile_id,status) values($1,$2,'requested')", [profile(17), profile(18)]);
+    await asUser(17);
+    await assert.rejects(db.query('select get_or_create_direct_conversation($1)', [profile(18)]), /messages unavailable/);
+    await db.exec('reset role');
+    await db.query("update profile_follows set status='following' where follower_profile_id=$1 and target_profile_id=$2", [profile(17), profile(18)]);
+    await asUser(17);
+    invitation = await scalar('select get_or_create_direct_conversation($1)', [profile(18)]);
+    assert.equal(await scalar('select status from direct_conversations where id=$1', [invitation]), 'request');
+    await db.exec('reset role');
+    await db.query("update profile_follows set status='requested' where follower_profile_id=$1 and target_profile_id=$2", [profile(17), profile(18)]);
+    await asUser(17);
+    await assert.rejects(db.query('select * from send_direct_message($1,$2)', [invitation, 'Unfollowed after opening']), /messages unavailable/);
+    await db.exec('reset role');
+    await db.query("update profile_follows set status='following' where follower_profile_id=$1 and target_profile_id=$2", [profile(17), profile(18)]);
+  });
+  const mediaPath = `${profile(17)}/${invitation}/${profile(99)}/image.png`;
+  let invitationMessage;
+  await check('first invitations reject media at both Storage and RPC without consuming the invitation', async () => {
+    await asUser(17);
+    await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values ('message-media',$1)", [mediaPath]), /row-level security/);
+    await assert.rejects(db.query("select * from send_direct_message($1,$2,'[{}]'::jsonb)", [invitation, 'Image invitation']), /text-only invitation/);
+    assert.equal(await scalar('select request_message_sent_at from direct_conversations where id=$1', [invitation]), null);
+    invitationMessage = (await db.query('select * from send_direct_message($1,$2)', [invitation, 'Hello'])).rows[0];
+    await assert.rejects(db.query('select * from send_direct_message($1,$2)', [invitation, 'Again']), /awaiting response/);
+  });
+  await check('previewing requests never publishes a read receipt and legacy receipts remain private', async () => {
+    await asUser(18);
+    await db.query('select mark_direct_conversation_read($1,$2)', [invitation, invitationMessage.created_at]);
+    assert.equal(await scalar('select count(*)::int from direct_conversation_reads where conversation_id=$1', [invitation]), 0);
+    await db.exec('reset role');
+    await db.query('insert into direct_conversation_reads(conversation_id,profile_id,last_read_at) values ($1,$2,$3)', [invitation,profile(18),invitationMessage.created_at]);
+    await asUser(17);
+    assert.equal(await scalar('select count(*)::int from direct_conversation_reads where conversation_id=$1', [invitation]), 0);
+  });
+  await check('neither invitation participant can send or receive typing', async () => {
+    await db.exec('reset role');
+    await db.exec("insert into realtime.messages(extension) values ('broadcast')");
+    for (const viewer of [17,18]) {
+      await asUser(viewer);
+      await db.query("select set_config('realtime.topic',$1,false)", [`direct-typing:${invitation}`]);
+      assert.equal(await scalar('select count(*)::int from realtime.messages'), 0);
+      await assert.rejects(db.exec("insert into realtime.messages(extension) values ('broadcast')"), /row-level security/);
+      await assert.rejects(db.query("insert into direct_message_reactions(message_id,profile_id,emoji) values ($1,$2,'❤')", [invitationMessage.id,profile(viewer)]), /row-level security/);
+    }
+  });
+  await check('accepting enables attachments, receipts and typing without creating another conversation', async () => {
+    await asUser(18);
+    await db.query('select accept_direct_message_request($1)', [invitation]);
+    await db.query("update messaging_preferences set permission='following' where profile_id=$1", [profile(18)]);
+    await db.query('select mark_direct_conversation_read($1,$2)', [invitation,invitationMessage.created_at]);
+    await asUser(17);
+    assert.equal(await scalar('select count(*)::int from direct_conversation_reads where conversation_id=$1', [invitation]), 1);
+    await db.exec("insert into realtime.messages(extension) values ('broadcast')");
+    assert.ok(await scalar('select count(*)::int from realtime.messages') > 0);
+    await db.query("insert into storage.objects(bucket_id,name) values ('message-media',$1)", [mediaPath]);
+    const media = JSON.stringify([{id: profile(99),fileName:'image.png',mimeType:'image/png',sizeBytes:128,storagePath:mediaPath}]);
+    await db.query('select * from send_direct_message($1,$2,$3::jsonb)', [invitation,'Accepted image',media]);
+    await db.query("insert into direct_message_reactions(message_id,profile_id,emoji) values ($1,$2,'❤')", [invitationMessage.id,profile(17)]);
+    await asUser(19);
+    await db.query("select set_config('realtime.topic',$1,false)", [`direct-typing:${invitation}`]);
+    assert.equal(await scalar('select count(*)::int from realtime.messages'), 0);
+    assert.equal(await scalar('select count(*)::int from direct_conversation_reads where conversation_id=$1', [invitation]), 0);
+    await asUser(18);
+    await db.query('insert into direct_message_blocks(blocker_profile_id,blocked_profile_id) values($1,$2)', [profile(18),profile(17)]);
+    await asUser(17);
+    assert.equal(await scalar('select count(*)::int from direct_conversation_reads where conversation_id=$1', [invitation]), 0);
+    await assert.rejects(db.exec("insert into realtime.messages(extension) values ('broadcast')"), /row-level security/);
+  });
+  await check('No one disables requests but still allows people the recipient follows to message directly', async () => {
+    await asUser(20);
+    await db.query("insert into messaging_preferences(profile_id, permission) values ($1,'following')", [profile(20)]);
+    await db.exec('reset role');
+    await db.query("insert into profile_follows(follower_profile_id,target_profile_id,status) values($1,$2,'following')", [profile(19),profile(20)]);
+    await asUser(19);
+    await assert.rejects(db.query('select get_or_create_direct_conversation($1)', [profile(20)]), /messages unavailable/);
+    await db.exec('reset role');
+    await db.query("insert into profile_follows(follower_profile_id,target_profile_id,status) values($1,$2,'following')", [profile(20),profile(19)]);
+    await asUser(19);
+    const direct = await scalar('select get_or_create_direct_conversation($1)', [profile(20)]);
+    assert.equal(await scalar('select status from direct_conversations where id=$1', [direct]), 'active');
+    await db.query('select * from send_direct_message($1,$2)', [direct,'Direct message']);
+  });
   console.log(`${passed} database checks passed using synthetic local accounts.`);
 } finally { await db.close(); }

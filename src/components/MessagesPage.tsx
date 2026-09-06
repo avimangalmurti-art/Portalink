@@ -7,6 +7,7 @@ import { useMessaging } from '../features/messages/useMessaging';
 import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
+import { MessageControlsDialog } from './messages/MessageControlsDialog';
 import { ProfileAvatar } from './profile/ProfileAvatar';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
@@ -83,6 +84,7 @@ export function MessagesPage({
   const isAtBottomRef = useRef(true);
   const preserveScrollRef = useRef(false);
   const activeId = messaging.activeConversation?.id ?? null;
+  const isMessageRequest = messaging.activeConversation?.status === 'request';
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
   const attachments = activeId ? attachmentsByConversation[activeId] ?? [] : [];
@@ -124,6 +126,10 @@ export function MessagesPage({
     document.addEventListener('visibilitychange', markVisible);
     return () => document.removeEventListener('visibilitychange', markVisible);
   }, []);
+
+  useEffect(() => {
+    if (!isMessageRequest && isAtBottomRef.current) markReadRef.current();
+  }, [activeId, isMessageRequest]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -179,7 +185,7 @@ export function MessagesPage({
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (confirmation) setConfirmation(null);
       else if (isReportOpen) setIsReportOpen(false);
       else if (isConversationMenuOpen) setIsConversationMenuOpen(false);
@@ -212,7 +218,7 @@ export function MessagesPage({
     event.preventDefault();
     if (!activeId || (!draft.trim() && attachments.length === 0)) return;
     const body = draft;
-    const files = attachments;
+    const files = isMessageRequest ? [] : attachments;
     setDrafts((current) => ({ ...current, [activeId]: '' }));
     setAttachments([]);
     messaging.broadcastTyping(false);
@@ -259,7 +265,7 @@ export function MessagesPage({
           {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
         <div className="side-panel-control-row ml-auto shrink-0">
-          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-label="Message privacy" title="Message privacy" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
+          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message controls" title="Message controls" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
           <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
           </button>
@@ -284,22 +290,7 @@ export function MessagesPage({
         </div> : null}
       </header>
 
-      {isPrivacyOpen ? <div id="message-privacy-settings" className="max-h-[min(24rem,50dvh)] shrink-0 overflow-y-auto border-b border-[var(--hairline)] px-4 py-3">
-          <fieldset className="shape-container border border-[var(--hairline)] p-3">
-            <legend className="px-1 text-[14px] font-semibold text-[var(--text-secondary)]">Messages from people you don’t follow</legend>
-            <p className="px-2 text-[12px] text-[var(--text-tertiary)]">People you follow and accepted conversations go directly to Chats.</p>
-            <div className="mt-1 grid gap-1 sm:grid-cols-2">
-              {([
-                ['requests', 'Message requests', 'Review their first message before accepting a chat.'],
-                ['following', 'Don’t receive requests', 'People you don’t follow cannot start a new chat.'],
-              ] as const).map(([value, label, description]) => <label key={value} className="shape-compact flex cursor-pointer items-start gap-2 px-2 py-2 hover:bg-[var(--surface-hover)]">
-                  <input type="radio" name="message-permission" value={value} checked={messaging.preferences.permission === value} disabled={messaging.isSavingPreferences} onChange={() => void messaging.updatePermission(value)} className="mt-1 accent-[var(--accent-primary)]" />
-                  <span><span className="block text-[14px] font-semibold">{label}</span><span className="block text-[12px] leading-relaxed text-[var(--text-tertiary)]">{description}</span></span>
-                </label>)}
-            </div>
-          </fieldset>
-          {messaging.error ? <div className="mt-3 flex items-start justify-between gap-3 text-[14px] text-[var(--status-danger)]" role="alert"><span>{messaging.error}</span><button type="button" onClick={messaging.dismissError} className="shrink-0 font-semibold underline">Dismiss</button></div> : null}
-        </div> : null}
+      {isPrivacyOpen ? <MessageControlsDialog permission={messaging.preferences.permission} isSaving={messaging.isSavingPreferences} error={messaging.error} onChange={messaging.updatePermission} onClose={() => setIsPrivacyOpen(false)} /> : null}
 
       <div className="flex min-h-0 flex-1">
         <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
@@ -370,8 +361,8 @@ export function MessagesPage({
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Your first message goes to their Requests. You can continue chatting after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
-                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} participantReadAt={messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
+                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
+                <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
 
@@ -379,15 +370,15 @@ export function MessagesPage({
               {attachmentError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{attachmentError}</span><button type="button" onClick={() => setAttachmentError(null)} className="font-semibold underline">Dismiss</button></div> : null}
               {messaging.activeConversation.status === 'request' && !messaging.activeConversation.requestedByViewer ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4">
                   <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-4">
-                    <p className="text-[13px] text-[var(--text-secondary)]">Accept this request before replying.</p>
+                    <p className="text-[13px] text-[var(--text-secondary)]">Accept this message request? They won’t see that you’ve read it until you accept.</p>
                     <div className="flex flex-wrap gap-2"><button type="button" data-keep-color="" disabled={messaging.pendingAction !== null} onClick={() => setConfirmation('block')} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--status-danger)] hover:bg-[var(--surface-hover)] disabled:opacity-50">Block</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => void messaging.deleteRequest()} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-50">{messaging.pendingAction === 'delete-request' ? 'Deleting…' : 'Delete'}</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => { const requestId = activeId; void messaging.acceptRequest().then((accepted) => { if (accepted && activeIdRef.current === requestId) setConversationFilter('all'); }); }} className="shape-compact flex items-center gap-2 bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50"><InterfaceIcon icon={CheckIcon} />{messaging.pendingAction === 'accept' ? 'Accepting…' : 'Accept'}</button></div>
                   </div>
-                </div> : messaging.activeConversation.status === 'request' && messaging.activeConversation.requestedByViewer && (messaging.activeConversation.hasSentRequest || messaging.messages.some((message) => message.deliveryState !== 'failed')) ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4 text-center text-[13px] text-[var(--text-secondary)]">Waiting for {messaging.activeConversation.participant.name} to accept your request.</div> : <form onSubmit={submitMessage} className="shrink-0 bg-transparent p-3 sm:p-4">
-                {attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
+                </div> : messaging.activeConversation.status === 'request' && messaging.activeConversation.requestedByViewer && (messaging.activeConversation.hasSentRequest || messaging.messages.some((message) => message.deliveryState !== 'failed')) ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4 text-center text-[13px] text-[var(--text-secondary)]">Invitation sent. You can send more messages after {messaging.activeConversation.participant.name} accepts.</div> : <form onSubmit={submitMessage} className="shrink-0 bg-transparent p-3 sm:p-4">
+                {!isMessageRequest && attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
                     {attachments.map((file, index) => <li key={`${file.name}:${file.size}:${index}`} className="flex max-w-full items-center gap-2 rounded-full bg-[var(--surface-sunken)] px-3 py-1.5 text-[12px]"><InterfaceIcon icon={FileTextIcon} /><span className="max-w-48 truncate">{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="shape-compact flex h-6 w-6 items-center justify-center"><InterfaceIcon icon={XIcon} size="xs" /></button></li>)}
                   </ul> : null}
                 <div className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
-                  <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
+                  {!isMessageRequest ? <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
                     <span className="sr-only">Attach files</span><InterfaceIcon icon={PaperclipIcon} />
                     <input type="file" multiple className="sr-only" onChange={(event) => {
                       const selected = [...(event.target.files ?? [])];
@@ -402,14 +393,14 @@ export function MessagesPage({
                       });
                       event.currentTarget.value = '';
                     }} />
-                  </label>
+                  </label> : null}
                   <textarea ref={textareaRef} value={draft} onChange={(event) => updateDraft(event.target.value)} onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();
                     }
-                  }} rows={1} maxLength={4000} placeholder="Message" aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-                  <button type="submit" disabled={!draft.trim() && attachments.length === 0} aria-label="Send message" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+                  }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+                  <button type="submit" disabled={!draft.trim() && (isMessageRequest || attachments.length === 0)} aria-label="Send message" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
                   </button>
                 </div>
@@ -453,9 +444,10 @@ function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnT
     </>;
 }
 
-function MessageList({ messages, viewerProfileId, participantReadAt, pendingMessageId, onRetry, onEdit, onDelete, onReact }: {
+function MessageList({ messages, viewerProfileId, canInteract, participantReadAt, pendingMessageId, onRetry, onEdit, onDelete, onReact }: {
   messages: DirectMessage[];
   viewerProfileId: Id | null;
+  canInteract: boolean;
   participantReadAt: string | null;
   pendingMessageId: Id | null;
   onRetry: (id: Id) => Promise<boolean>;
@@ -490,11 +482,11 @@ function MessageList({ messages, viewerProfileId, participantReadAt, pendingMess
                   {message.editedAt ? <span className="opacity-70">Edited</span> : null}
                   {message.deliveryState === 'sending' ? <span className="opacity-75">Sending…</span> : null}
                   {message.deliveryState === 'failed' ? <button type="button" onClick={() => void onRetry(message.id)} className="font-semibold underline">Retry</button> : null}
-                  {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Read' : 'Sent'}</span> : null}
+                  {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Seen' : 'Sent'}</span> : null}
                 </span>
                 {!message.id.startsWith('local-') ? <div className="mt-2 flex flex-wrap items-center gap-1">
-                    {(message.reactions ?? []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
-                    {(['❤', '👏', '✨'] as const).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70">{emoji}</button>)}
+                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
+                    {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70">{emoji}</button>)}
                     {isMine ? <><button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body); }} aria-label="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={() => setDeleteId(message.id)} aria-label="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
                   </div> : null}
                 {deleteId === message.id ? <div className="mt-2 rounded-[9px] bg-black/10 p-2 text-[12px]"><p>Unsend this message for both people?</p><div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setDeleteId(null)} className="font-semibold underline">Cancel</button><button type="button" disabled={pendingMessageId === message.id} onClick={() => void onDelete(message.id).then((removed) => { if (removed) setDeleteId(null); })} className="font-semibold underline">Unsend</button></div></div> : null}

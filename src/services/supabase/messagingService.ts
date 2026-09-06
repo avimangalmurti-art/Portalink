@@ -59,6 +59,7 @@ function publicMessageError(error: { code?: string; message?: string } | null | 
   if (message.includes('messages unavailable')) return new Error('This person isn’t accepting message requests.');
   if (message.includes('awaiting response')) return new Error('Your request is waiting for this person to accept.');
   if (message.includes('accept request before replying')) return new Error('Accept this message request before replying.');
+  if (message.includes('text-only invitation')) return new Error('You can send one text-only invitation. Attachments are available after it’s accepted.');
   if (message.includes('permission') || message.includes('policy') || error?.code === '42501') return new Error('You do not have access to this conversation.');
   if (message.includes('network') || message.includes('fetch')) return new Error('Messages could not reach the network. Check your connection and try again.');
   return new Error(fallback);
@@ -163,7 +164,7 @@ async function readConversationSummaries(options: { conversationId?: string; con
     const latestIncomingAt = summaries.get(row.id)?.last_incoming_at;
     const participant = participants.get(otherId) ?? { id: otherId, name: 'Creator', handle: '', avatar: '' };
     const lastReadAt = readAt.get(`${row.id}:${viewerId}`) ?? null;
-    const participantReadAt = readAt.get(`${row.id}:${otherId}`) ?? null;
+    const participantReadAt = row.status === 'request' ? null : readAt.get(`${row.id}:${otherId}`) ?? null;
     const state = states.get(row.id);
     return {
       id: row.id,
@@ -297,6 +298,11 @@ export const supabaseMessagingService: MessagingService = {
     if (attachments.length > 5) throw new Error('Attach up to five files to one message.');
     if (attachments.some((file) => file.size > 25 * 1024 * 1024)) throw new Error('Each message attachment can be up to 25 MB.');
     const client = requireSupabase();
+    if (attachments.length > 0) {
+      const conversation = await this.getConversation(conversationId);
+      if (!conversation) throw new Error('This conversation is unavailable.');
+      if (conversation.status === 'request') throw new Error('You can send one text-only invitation. Attachments are available after it’s accepted.');
+    }
     const uploaded: Array<AttachmentRow> = [];
     try {
       for (const file of attachments) {
@@ -427,7 +433,7 @@ export const supabaseMessagingService: MessagingService = {
     const { data, error } = await requireSupabase().from('messaging_preferences').select('permission').eq('profile_id', profileId).maybeSingle();
     if (error && !isMissingMessagingUpgrade(error)) throw publicMessageError(error, 'Message privacy could not be loaded.');
     const permission = (data as { permission?: string } | null)?.permission;
-    return { permission: permission === 'following' || permission === 'nobody' ? 'following' : 'requests' };
+    return { permission: permission === 'followers' ? 'followers' : permission === 'following' || permission === 'nobody' ? 'following' : 'requests' };
   },
 
   async updatePreferences(preferences) {

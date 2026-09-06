@@ -228,6 +228,79 @@ test('deleting a request removes only that request even when another chat opens 
   hook.dispose();
 });
 
+test('requests publish no read, typing or reaction activity until acceptance', async () => {
+  const request = { ...a, status: 'request', requestedByViewer: false };
+  let current = request;
+  const typing = [];
+  const channels = [];
+  const reactions = [];
+  const { hook, reads } = setup({
+    listConversations: async () => ({ conversations: [current], nextOffset: null }),
+    listMessages: async () => ({ messages: [message('invitation')], before: null }),
+    subscribeToTyping: (id) => { channels.push(id); return () => {}; },
+    broadcastTyping: (...args) => typing.push(args),
+    toggleReaction: async (...args) => { reactions.push(args); return []; },
+    acceptRequest: async () => { current = { ...request, status: 'active' }; return current; },
+  });
+  await hook.flush();
+  await hook.value.openConversation(request);
+  await hook.flush();
+  hook.value.markVisibleMessagesRead();
+  hook.value.broadcastTyping(true);
+  assert.equal(await hook.value.toggleReaction('invitation', '❤'), false);
+  await hook.flush();
+  assert.equal(reads.length, 0);
+  assert.equal(typing.length, 0);
+  assert.equal(channels.length, 0);
+  assert.equal(reactions.length, 0);
+  await hook.value.acceptRequest();
+  await hook.flush();
+  hook.value.markVisibleMessagesRead();
+  hook.value.broadcastTyping(true);
+  await hook.value.toggleReaction('invitation', '❤');
+  await hook.flush();
+  assert.ok(reads.length > 0);
+  assert.equal(channels.length, 1);
+  assert.equal(typing[0][2], true);
+  assert.equal(reactions.length, 1);
+  hook.dispose();
+});
+
+test('a request cannot optimistically send files or broadcast sender typing', async () => {
+  const request = { ...a, status: 'request', requestedByViewer: true, isDraft: true };
+  const sent = [];
+  const typing = [];
+  const { hook } = setup({
+    listConversations: async () => ({ conversations: [request], nextOffset: null }),
+    sendMessage: async (...args) => { sent.push(args); return message('sent', 'a', 'viewer'); },
+    broadcastTyping: (...args) => typing.push(args),
+  });
+  await hook.flush();
+  await hook.value.openConversation(request);
+  await hook.flush();
+  hook.value.broadcastTyping(true);
+  assert.equal(await hook.value.sendMessage('Hello', [{ name: 'image.png' }]), false);
+  await hook.flush();
+  assert.equal(sent.length, 0);
+  assert.equal(typing.length, 0);
+  assert.equal(hook.value.messages.length, 0);
+  assert.match(hook.value.error, /text-only invitation/);
+  assert.equal(await hook.value.sendMessage('Hello'), true);
+  assert.equal(sent.length, 1);
+  hook.dispose();
+});
+
+test('the followers request audience persists through a settings refresh', async () => {
+  let saved;
+  const { hook } = setup({ updatePreferences: async (value) => { saved = value; return value; } });
+  await hook.flush();
+  assert.equal(await hook.value.updatePermission('followers'), true);
+  await hook.flush();
+  assert.equal(saved.permission, 'followers');
+  assert.equal(hook.value.preferences.permission, 'followers');
+  hook.dispose();
+});
+
 test('a failed privacy save restores the previous setting', async () => {
   const { hook } = setup({ updatePreferences: async () => { throw new Error('Could not save'); } });
   await hook.flush();
