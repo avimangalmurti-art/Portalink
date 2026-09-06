@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArchiveIcon, ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
+import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
 import type { Id } from '../types/domain';
@@ -13,7 +15,6 @@ import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePane
 
 type MessagesPageProps = {
   onBack: () => void;
-  onOpenCreator?: (creatorId: Id) => void;
   initialRecipientId?: Id | null;
   initialConversationId?: Id | null;
   onConversationChange?: (conversationId: Id | null, replace?: boolean) => void;
@@ -45,7 +46,6 @@ function readDrafts(key: string): Record<string, string> {
 
 export function MessagesPage({
   onBack,
-  onOpenCreator,
   initialRecipientId = null,
   initialConversationId = null,
   onConversationChange,
@@ -267,9 +267,9 @@ export function MessagesPage({
             <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
           </button>
           <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
-          {onOpenCreator ? <button type="button" onClick={() => { const participantId = messaging.activeConversation?.participant.id; if (participantId) onOpenCreator(participantId); }} className="shape-compact flex h-10 min-w-0 flex-1 items-center text-left focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <Link to={buildPath('profile', { profileId: messaging.activeConversation.participant.id })} className="shape-compact inline-flex h-10 min-w-0 flex-initial items-center text-left hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <RecipientIdentity conversation={messaging.activeConversation} />
-            </button> : <div className="flex min-w-0 flex-1 items-center"><RecipientIdentity conversation={messaging.activeConversation} /></div>}
+          </Link>
           <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
           <button type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
           {isConversationMenuOpen ? <div className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
