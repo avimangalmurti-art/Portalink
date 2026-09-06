@@ -73,7 +73,7 @@ export function NewChatPanel({
 
         {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
-            <ul>
+            <ul className="side-panel-content-inset side-panel-navigation-list">
               {people.map((person) => <li key={person.id}>
                   <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId)} onSelect={() => onSelectCreator(person.id)} />
                 </li>)}
@@ -95,7 +95,7 @@ function PersonRow({ person, isStarting, isDisabled, onSelect }: {
   isDisabled: boolean;
   onSelect: () => void;
 }) {
-  return <div className="side-panel-content-inset flex w-full items-center gap-3 py-3 hover:bg-[var(--surface-hover)]">
+  return <div data-selected={isStarting ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
       <ProfileAvatar name={person.name} avatar={person.avatar} />
       <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
       <span className="flex min-w-0 flex-1 flex-col">

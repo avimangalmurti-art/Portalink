@@ -301,15 +301,15 @@ export function MessagesPage({
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto border-t border-[var(--hairline)]">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}</div> : null}
                 {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
                 {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
                 {messaging.status === 'success' && visibleConversations.length === 0 ? <div className="side-panel-content-inset py-5"><EmptyState title={conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
-                <ul>
+                <ul className="side-panel-content-inset side-panel-navigation-list pb-2">
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
-                      <div className={`ps-list-btn side-panel-content-inset flex w-full items-center gap-3 border-b border-[var(--hairline)] py-3 hover:bg-[var(--surface-hover)] ${activeId === conversation.id ? 'bg-[var(--surface-selected)]' : ''}`}>
+                      <div data-selected={activeId === conversation.id ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
                         <ProfileAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} />
                         <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <span className="min-w-0 flex-1">
