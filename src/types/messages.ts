@@ -56,9 +56,11 @@ export type ConversationSummary = {
   hasSentRequest?: boolean;
   isMuted?: boolean;
   participantReadAt?: string | null;
+  /** An unsent draft is addressable, but is not an inbox conversation. */
+  isDraft?: boolean;
 };
 
-export type MessagingPermission = 'everyone' | 'requests' | 'following' | 'nobody';
+export type MessagingPermission = 'requests' | 'following';
 
 export type MessagingPreferences = {
   permission: MessagingPermission;

@@ -13,6 +13,7 @@ type ConversationRow = {
   status?: 'active' | 'request';
   initiator_profile_id?: string | null;
   request_message_sent_at?: string | null;
+  established_at?: string | null;
 };
 
 type ConversationStateRow = {
@@ -55,6 +56,9 @@ function publicMessageError(error: { code?: string; message?: string } | null | 
   const message = error?.message?.toLowerCase() ?? '';
   if (message.includes('rate') || error?.code === '429') return new Error('You are sending messages too quickly. Wait a moment, then try again.');
   if (message.includes('blocked')) return new Error('This conversation is not available.');
+  if (message.includes('messages unavailable')) return new Error('This person isn’t accepting message requests.');
+  if (message.includes('awaiting response')) return new Error('Your request is waiting for this person to accept.');
+  if (message.includes('accept request before replying')) return new Error('Accept this message request before replying.');
   if (message.includes('permission') || message.includes('policy') || error?.code === '42501') return new Error('You do not have access to this conversation.');
   if (message.includes('network') || message.includes('fetch')) return new Error('Messages could not reach the network. Check your connection and try again.');
   return new Error(fallback);
@@ -118,6 +122,7 @@ async function readConversationSummaries(options: { conversationId?: string; con
     .order('created_at', { ascending: false })
     .range(offset, offset + limit);
   if (options.conversationId) conversationQuery = conversationQuery.eq('id', options.conversationId);
+  else conversationQuery = conversationQuery.or('established_at.not.is.null,request_message_sent_at.not.is.null,last_message_at.not.is.null');
   if (options.conversationIds) conversationQuery = conversationQuery.in('id', options.conversationIds);
   const { data, error } = await conversationQuery;
   if (error) throw publicMessageError(error, 'Conversations could not be loaded.');
@@ -171,6 +176,7 @@ async function readConversationSummaries(options: { conversationId?: string; con
       hasSentRequest: Boolean(row.request_message_sent_at || (row.status === 'request' && latest)),
       isMuted: state?.is_muted ?? false,
       participantReadAt,
+      isDraft: !row.established_at && !row.request_message_sent_at && !latest && !row.last_message_at,
     };
   }).filter((conversation) => !blockedProfileIds.has(conversation.participant.id))
     .filter((conversation) => options.includeArchived || !states.get(conversation.id)?.archived_at);
@@ -183,9 +189,16 @@ export const supabaseMessagingService: MessagingService = {
   },
 
   async getConversation(conversationId) {
-    const result = await readConversationSummaries({ conversationId, includeArchived: true });
-    const [conversation] = result.conversations;
+    let result = await readConversationSummaries({ conversationId, includeArchived: true });
+    let [conversation] = result.conversations;
     if (!conversation) throw new Error('This conversation is no longer available.');
+    if (conversation.isDraft) {
+      const { error } = await requireSupabase().rpc('get_or_create_direct_conversation', { p_other_profile_id: conversation.participant.id });
+      if (error) throw publicMessageError(error, 'That conversation could not be started.');
+      result = await readConversationSummaries({ conversationId, includeArchived: true });
+      [conversation] = result.conversations;
+      if (!conversation) throw new Error('This conversation is no longer available.');
+    }
     return conversation;
   },
 
@@ -413,8 +426,8 @@ export const supabaseMessagingService: MessagingService = {
     const profileId = await viewerProfileId();
     const { data, error } = await requireSupabase().from('messaging_preferences').select('permission').eq('profile_id', profileId).maybeSingle();
     if (error && !isMissingMessagingUpgrade(error)) throw publicMessageError(error, 'Message privacy could not be loaded.');
-    const permission = (data as { permission?: MessagingPreferences['permission'] } | null)?.permission;
-    return { permission: permission === 'everyone' || permission === 'following' || permission === 'nobody' ? permission : 'requests' };
+    const permission = (data as { permission?: string } | null)?.permission;
+    return { permission: permission === 'following' || permission === 'nobody' ? 'following' : 'requests' };
   },
 
   async updatePreferences(preferences) {
@@ -428,6 +441,11 @@ export const supabaseMessagingService: MessagingService = {
     const { error } = await requireSupabase().rpc('accept_direct_message_request', { p_conversation_id: conversationId });
     if (error) throw publicMessageError(error, 'This message request could not be accepted.');
     return this.getConversation(conversationId);
+  },
+
+  async deleteRequest(conversationId) {
+    const { error } = await requireSupabase().rpc('delete_direct_message_request', { p_conversation_id: conversationId });
+    if (error) throw publicMessageError(error, 'This message request could not be deleted.');
   },
 
   async setMuted(conversationId, muted) {

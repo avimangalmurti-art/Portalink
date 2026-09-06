@@ -476,6 +476,8 @@ export interface MessagingService {
   getPreferences(): Promise<MessagingPreferences>;
   updatePreferences(preferences: MessagingPreferences): Promise<MessagingPreferences>;
   acceptRequest(conversationId: Id): Promise<ConversationSummary>;
+  /** Removes an incoming request from this inbox without deleting the sender's copy. */
+  deleteRequest(conversationId: Id): Promise<void>;
   setMuted(conversationId: Id, muted: boolean): Promise<void>;
   archiveConversation(conversationId: Id): Promise<void>;
   blockParticipant(conversationId: Id): Promise<void>;

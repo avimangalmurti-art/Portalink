@@ -53,7 +53,7 @@ export function useMessaging({
   const [isParticipantTyping, setIsParticipantTyping] = useState(false);
   const [preferences, setPreferences] = useState<MessagingPreferences>({ permission: 'requests' });
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'accept' | 'mute' | 'archive' | 'block' | 'report' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'accept' | 'delete-request' | 'mute' | 'archive' | 'block' | 'report' | null>(null);
   const [pendingMessageId, setPendingMessageId] = useState<Id | null>(null);
   const [error, setError] = useState<string | null>(null);
   const initialRecipientRef = useRef<string | null>(null);
@@ -75,7 +75,7 @@ export function useMessaging({
     setConversations((current) => {
       const combined = replace ? next : append ? [...current, ...next] : [...next, ...current.filter((item) => !next.some((entry) => entry.id === item.id))];
       const unique = [...new Map(combined.map((conversation) => [conversation.id, conversation])).values()];
-      return unique.sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''));
+      return unique.filter((conversation) => !conversation.isDraft).sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? ''));
     });
     setActiveConversation((current) => {
       if (!current) return null;
@@ -447,7 +447,7 @@ export function useMessaging({
     }, 1_200);
   }, [auth.viewerProfileId, messaging]);
 
-  const unreadCount = useMemo(() => conversations.filter((conversation) => conversation.isUnread).length, [conversations]);
+  const unreadCount = useMemo(() => conversations.filter((conversation) => conversation.isUnread && (conversation.status !== 'request' || conversation.requestedByViewer)).length, [conversations]);
   const requestCount = useMemo(() => conversations.filter((conversation) => conversation.status === 'request' && !conversation.requestedByViewer).length, [conversations]);
 
   const updatePermission = useCallback(async (permission: MessagingPermission) => {
@@ -458,6 +458,7 @@ export function useMessaging({
     setError(null);
     try {
       setPreferences(await messaging.updatePreferences(next));
+      await loadConversations({ background: true });
       return true;
     } catch (caught) {
       setPreferences(previous);
@@ -466,7 +467,7 @@ export function useMessaging({
     } finally {
       setIsSavingPreferences(false);
     }
-  }, [messaging, preferences]);
+  }, [loadConversations, messaging, preferences]);
 
   const acceptRequest = useCallback(async () => {
     const conversation = activeRef.current;
@@ -518,6 +519,21 @@ export function useMessaging({
       return true;
     } catch (caught) {
       if (activeRef.current?.id === conversation.id) setError(friendlyError(caught, 'This conversation could not be archived.'));
+      return false;
+    } finally { if (activeRef.current?.id === conversation.id || activeRef.current === null) setPendingAction(null); }
+  }, [messaging, removeActiveConversation]);
+
+  const deleteRequest = useCallback(async () => {
+    const conversation = activeRef.current;
+    if (!conversation || conversation.status !== 'request' || conversation.requestedByViewer) return false;
+    setPendingAction('delete-request');
+    setError(null);
+    try {
+      await messaging.deleteRequest(conversation.id);
+      removeActiveConversation(conversation.id);
+      return true;
+    } catch (caught) {
+      if (activeRef.current?.id === conversation.id) setError(friendlyError(caught, 'This message request could not be deleted.'));
       return false;
     } finally { if (activeRef.current?.id === conversation.id || activeRef.current === null) setPendingAction(null); }
   }, [messaging, removeActiveConversation]);
@@ -584,6 +600,7 @@ export function useMessaging({
     loadOlderMessages,
     updatePermission,
     acceptRequest,
+    deleteRequest,
     setMuted,
     archiveConversation,
     blockParticipant,

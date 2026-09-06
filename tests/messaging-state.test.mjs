@@ -181,3 +181,60 @@ test('signing out invalidates pending activity loads', async () => {
   assert.equal(hook.value.notifications.length, 0);
   hook.dispose();
 });
+
+test('opening an unsent draft never adds a contact to Chats, including after refresh', async () => {
+  const draft = { ...a, isDraft: true, status: 'request', requestedByViewer: true };
+  const { hook } = setup({ listConversations: async () => ({ conversations: [draft, b], nextOffset: null }), getOrCreateConversation: async () => draft });
+  await hook.flush();
+  await hook.value.startConversation('alice');
+  await hook.flush();
+  assert.equal(hook.value.activeConversation.id, 'a');
+  assert.deepEqual(Array.from(hook.value.conversations, (item) => item.id), ['b']);
+  hook.tick();
+  await hook.flush();
+  assert.deepEqual(Array.from(hook.value.conversations, (item) => item.id), ['b']);
+  hook.dispose();
+});
+
+test('incoming requests count separately from unread chats and acceptance updates the active thread', async () => {
+  const request = { ...a, status: 'request', requestedByViewer: false, isUnread: true };
+  const accepted = { ...request, status: 'active' };
+  const { hook } = setup({ listConversations: async () => ({ conversations: [request, { ...b, isUnread: true }], nextOffset: null }), acceptRequest: async () => accepted });
+  await hook.flush();
+  assert.equal(hook.value.unreadCount, 1);
+  assert.equal(hook.value.requestCount, 1);
+  await hook.value.openConversation(request);
+  await hook.value.acceptRequest();
+  await hook.flush();
+  assert.equal(hook.value.activeConversation.status, 'active');
+  assert.equal(hook.value.requestCount, 0);
+  assert.equal(hook.value.unreadCount, 2);
+  hook.dispose();
+});
+
+test('deleting a request removes only that request even when another chat opens meanwhile', async () => {
+  const deleted = deferred();
+  const request = { ...a, status: 'request', requestedByViewer: false };
+  const { hook } = setup({ listConversations: async () => ({ conversations: [request, b], nextOffset: null }), deleteRequest: () => deleted.promise });
+  await hook.flush();
+  await hook.value.openConversation(request);
+  const deleting = hook.value.deleteRequest();
+  await hook.value.openConversation(b);
+  deleted.resolve();
+  await deleting;
+  await hook.flush();
+  assert.equal(hook.value.activeConversation.id, 'b');
+  assert.deepEqual(Array.from(hook.value.conversations, (item) => item.id), ['b']);
+  hook.dispose();
+});
+
+test('a failed privacy save restores the previous setting', async () => {
+  const { hook } = setup({ updatePreferences: async () => { throw new Error('Could not save'); } });
+  await hook.flush();
+  assert.equal(await hook.value.updatePermission('following'), false);
+  await hook.flush();
+  assert.equal(hook.value.preferences.permission, 'requests');
+  assert.equal(hook.value.isSavingPreferences, false);
+  assert.equal(hook.value.error, 'Message privacy could not be saved.');
+  hook.dispose();
+});

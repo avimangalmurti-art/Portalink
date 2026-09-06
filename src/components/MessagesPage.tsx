@@ -193,8 +193,11 @@ export function MessagesPage({
   const visibleConversations = useMemo(() => {
     const source = query.trim() ? searchResults : messaging.conversations;
     return source.filter((conversation) => {
+      if (conversation.isDraft) return false;
+      const isIncomingRequest = conversation.status === 'request' && !conversation.requestedByViewer;
+      if (conversationFilter !== 'requests' && isIncomingRequest) return false;
       if (conversationFilter === 'unread' && !conversation.isUnread) return false;
-      if (conversationFilter === 'requests' && (conversation.status !== 'request' || conversation.requestedByViewer)) return false;
+      if (conversationFilter === 'requests' && !isIncomingRequest) return false;
       return true;
     });
   }, [conversationFilter, messaging.conversations, query, searchResults]);
@@ -283,13 +286,12 @@ export function MessagesPage({
 
       {isPrivacyOpen ? <div id="message-privacy-settings" className="max-h-[min(24rem,50dvh)] shrink-0 overflow-y-auto border-b border-[var(--hairline)] px-4 py-3">
           <fieldset className="shape-container border border-[var(--hairline)] p-3">
-            <legend className="px-1 text-[14px] font-semibold text-[var(--text-secondary)]">Who can message you</legend>
-            <div className="mt-1 grid gap-1 sm:grid-cols-2 xl:grid-cols-4">
+            <legend className="px-1 text-[14px] font-semibold text-[var(--text-secondary)]">Messages from people you don’t follow</legend>
+            <p className="px-2 text-[12px] text-[var(--text-tertiary)]">People you follow and accepted conversations go directly to Chats.</p>
+            <div className="mt-1 grid gap-1 sm:grid-cols-2">
               {([
-                ['everyone', 'Everyone', 'New conversations open immediately.'],
-                ['requests', 'Requests', 'People you do not follow require approval.'],
-                ['following', 'People you follow', 'Only creators you follow can begin a conversation.'],
-                ['nobody', 'Nobody', 'No new conversations. Existing ones remain available.'],
+                ['requests', 'Message requests', 'Review their first message before accepting a chat.'],
+                ['following', 'Don’t receive requests', 'People you don’t follow cannot start a new chat.'],
               ] as const).map(([value, label, description]) => <label key={value} className="shape-compact flex cursor-pointer items-start gap-2 px-2 py-2 hover:bg-[var(--surface-hover)]">
                   <input type="radio" name="message-permission" value={value} checked={messaging.preferences.permission === value} disabled={messaging.isSavingPreferences} onChange={() => void messaging.updatePermission(value)} className="mt-1 accent-[var(--accent-primary)]" />
                   <span><span className="block text-[14px] font-semibold">{label}</span><span className="block text-[12px] leading-relaxed text-[var(--text-tertiary)]">{description}</span></span>
@@ -315,7 +317,7 @@ export function MessagesPage({
                   <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
                 </label>
                 <div className="side-panel-filter-grid" role="group" aria-label="Conversation filter">
-                  <FilterChip label="All" isActive={conversationFilter === 'all'} onSelect={() => setConversationFilter('all')} />
+                  <FilterChip label="Chats" isActive={conversationFilter === 'all'} onSelect={() => setConversationFilter('all')} />
                   <FilterChip label="Unread" isActive={conversationFilter === 'unread'} onSelect={() => setConversationFilter('unread')} />
                   <FilterChip label={`Requests${messaging.requestCount ? ` ${messaging.requestCount}` : ''}`} isActive={conversationFilter === 'requests'} onSelect={() => setConversationFilter('requests')} />
                 </div>
@@ -368,7 +370,7 @@ export function MessagesPage({
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div className="mx-auto mt-10 max-w-[360px]"><EmptyState title={`Message ${messaging.activeConversation.participant.name}`} description="Only you and this creator can access this conversation in Portalink." /></div> : null}
+                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Your first message goes to their Requests. You can continue chatting after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
                 <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} participantReadAt={messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
@@ -376,9 +378,9 @@ export function MessagesPage({
               {messaging.error ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{messaging.error}</span><button type="button" onClick={messaging.dismissError} className="font-semibold underline">Dismiss</button></div> : null}
               {attachmentError ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--hairline)] px-4 py-2 text-[12px] text-[var(--status-danger)]" role="alert"><span>{attachmentError}</span><button type="button" onClick={() => setAttachmentError(null)} className="font-semibold underline">Dismiss</button></div> : null}
               {messaging.activeConversation.status === 'request' && !messaging.activeConversation.requestedByViewer ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4">
-                  <div className="mx-auto flex max-w-[760px] items-center justify-between gap-4">
+                  <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-4">
                     <p className="text-[13px] text-[var(--text-secondary)]">Accept this request before replying.</p>
-                    <div className="flex gap-2"><button type="button" data-keep-color="" onClick={() => setConfirmation('block')} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--status-danger)] hover:bg-[var(--surface-hover)]">Block</button><button type="button" disabled={messaging.pendingAction === 'accept'} onClick={() => void messaging.acceptRequest()} className="shape-compact flex items-center gap-2 bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50"><InterfaceIcon icon={CheckIcon} />{messaging.pendingAction === 'accept' ? 'Accepting…' : 'Accept'}</button></div>
+                    <div className="flex flex-wrap gap-2"><button type="button" data-keep-color="" disabled={messaging.pendingAction !== null} onClick={() => setConfirmation('block')} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--status-danger)] hover:bg-[var(--surface-hover)] disabled:opacity-50">Block</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => void messaging.deleteRequest()} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-50">{messaging.pendingAction === 'delete-request' ? 'Deleting…' : 'Delete'}</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => { const requestId = activeId; void messaging.acceptRequest().then((accepted) => { if (accepted && activeIdRef.current === requestId) setConversationFilter('all'); }); }} className="shape-compact flex items-center gap-2 bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50"><InterfaceIcon icon={CheckIcon} />{messaging.pendingAction === 'accept' ? 'Accepting…' : 'Accept'}</button></div>
                   </div>
                 </div> : messaging.activeConversation.status === 'request' && messaging.activeConversation.requestedByViewer && (messaging.activeConversation.hasSentRequest || messaging.messages.some((message) => message.deliveryState !== 'failed')) ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4 text-center text-[13px] text-[var(--text-secondary)]">Waiting for {messaging.activeConversation.participant.name} to accept your request.</div> : <form onSubmit={submitMessage} className="shrink-0 bg-transparent p-3 sm:p-4">
                 {attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">

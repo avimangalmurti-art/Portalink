@@ -1520,6 +1520,9 @@ export const mockMessagingService: MessagingService = {
   async acceptRequest() {
     throw new Error('Messaging needs a configured Supabase project.');
   },
+  async deleteRequest() {
+    throw new Error('Messaging needs a configured Supabase project.');
+  },
   async setMuted() {
     return resolve(undefined);
   },

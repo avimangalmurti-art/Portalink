@@ -4,7 +4,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const sql = readFileSync(join(root, 'supabase', 'migrations', '202609050001_production_messaging.sql'), 'utf8');
+const migrationName = process.argv[2] ?? '202609050001_production_messaging.sql';
+if (!/^\d+_[a-z_]+\.sql$/.test(migrationName)) throw new Error('Pass a migration filename from supabase/migrations.');
+const sql = readFileSync(join(root, 'supabase', 'migrations', migrationName), 'utf8');
 
 createServer((request, response) => {
   if (request.url !== '/migration') {
