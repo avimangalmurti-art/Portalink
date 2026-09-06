@@ -4308,16 +4308,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   gap: var(--side-panel-row-gap);
 }
 
-/* Contact highlights stay inside the same gutter as search and filter controls. */
+/* Only the selected contact is filled; keep its highlight inside the shared gutter. */
 .message-contact-row {
   border: 0;
   border-radius: var(--shape-compact);
-  background: var(--surface-sunken);
+  background: transparent;
   transition: background-color 150ms ease-out;
-}
-
-.message-contact-row:hover {
-  background: var(--control-hover-surface);
 }
 
 .message-contact-row[data-selected='true'] {
