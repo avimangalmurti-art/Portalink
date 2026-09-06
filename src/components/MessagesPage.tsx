@@ -244,7 +244,7 @@ export function MessagesPage({
   const showList = !activeId;
   return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="ps-panel-toolbar global-control-header shrink-0">
-        <div className="flex h-full min-w-0 w-full shrink-0 items-center gap-3 px-3 sm:px-4 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
+        <div className="flex h-full min-w-0 w-full shrink-0 items-center gap-3 px-3 sm:px-4 lg:w-[min(var(--messages-sidebar-width),46%)]">
         <button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button>
@@ -280,7 +280,8 @@ export function MessagesPage({
         </div> : null}
 
       <div className="flex min-h-0 flex-1">
-        <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
+        <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
+          <span aria-hidden="true" className="pointer-events-none absolute bottom-4 right-0 top-4 z-10 hidden w-px rounded-full bg-[var(--hairline-strong)] lg:block" />
           {isNewChatOpen ? <NewChatPanel
               onClose={() => { setIsNewChatOpen(false); messaging.dismissError(); }}
               startingCreatorId={messaging.startingCreatorId}
