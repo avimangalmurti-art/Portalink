@@ -59,7 +59,7 @@ export function EngagementBar({
    * read rather than glanced at. `rail` stacks the icon controls vertically when
    * the project rail is collapsed.
    */variant?: 'inline' | 'panel' | 'rail'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isRail = variant === 'rail';const shareColor = 'var(--engagement-share-selected)';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
-      <div className={isPanel ? `grid ${onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'flex flex-col items-center gap-1' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
+      <div className={isPanel ? `grid ${onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'side-panel-navigation-list items-center' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
         {ENGAGEMENT_KINDS.map((kind) => {const Icon = ICONS[kind];const labels = describeEngagement(kind);
           const isEngaged = engagement.isEngaged(kind);
           const isPending = engagement.isPending(kind);

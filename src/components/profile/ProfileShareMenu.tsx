@@ -79,7 +79,7 @@ export function ProfileShareMenu({ shareUrl }: ProfileShareMenuProps) {
 
   const label = copyState === 'copied' ? 'Link copied' : copyState === 'failed' ? 'Copy failed' : 'Copy public link';
   return <div>
-      <button type="button" data-semantic-action="share" data-copy-state={copyState} onClick={() => void copyLink()} aria-label={label} className={`inline-flex h-8 items-center gap-1.5 rounded-[8px] px-3 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${copyState === 'copied' ? 'border-0 bg-transparent text-[var(--accent-text)] shadow-none hover:bg-transparent' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)]'}`}>
+      <button type="button" data-semantic-action="share" data-copy-state={copyState} onClick={() => void copyLink()} aria-label={label} className={`side-panel-primary-control side-panel-control-row px-3 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${copyState === 'copied' ? 'border-0 bg-transparent text-[var(--accent-text)] shadow-none hover:bg-transparent' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)]'}`}>
         <InterfaceIcon icon={copyState === 'copied' ? CheckIcon : CopyIcon} size="sm" weight="medium" />
         <span aria-live="polite">{label}</span>
       </button>

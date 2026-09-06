@@ -349,12 +349,12 @@ function ProfileStats({
   followers: string | null;
   following: string | null;
 }) {
-  return <p className="flex items-center gap-4 text-[11px] leading-none text-[var(--text-secondary)]">
-      <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{projectCount}</span> {projectCount === 1 ? 'project' : 'projects'}</span>
+  return <p className="side-panel-control-row min-w-0 flex-wrap text-[11px] leading-none text-[var(--text-secondary)]">
+      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{projectCount}</span> {projectCount === 1 ? 'project' : 'projects'}</span>
       {/* Visual placeholder only. Portal membership is not modelled yet. */}
-      <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">0</span> portals</span>
-      <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{followers ?? '0'}</span> followers</span>
-      <span><span className="font-semibold tabular-nums text-[var(--text-primary)]">{following ?? '0'}</span> following</span>
+      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">0</span> portals</span>
+      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{followers ?? '0'}</span> followers</span>
+      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{following ?? '0'}</span> following</span>
     </p>;
 }
 
@@ -497,9 +497,9 @@ export function UserProfilePage({
       {/* The toolbar material creates its own stacking context. Keep that local
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
-      {!isSharedView && <header className="user-profile-canvas ps-panel-toolbar global-control-header relative z-20 w-full px-2">
-        <div className="flex h-full w-full items-center gap-4">
-          <button type="button" onClick={onBack} aria-label="Go back" className="shape-compact inline-flex h-7 w-7 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      {!isSharedView && <header className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
+        <div className="side-panel-control-row w-full min-w-0 flex-wrap">
+          <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
             </button>
           {/* Audience figures sit in the toolbar rather than the header below, so
@@ -515,7 +515,7 @@ export function UserProfilePage({
              list behind it cannot substantiate is worse than none. Zero is a
              real answer, so the control simply is not offered. */}
           {showsOwnerTools && visibility.isPrivate && followRequests.count > 0 && <div className="relative">
-              <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="flex h-7 items-center gap-1.5 rounded-full border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="side-panel-primary-control side-panel-control-row border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <UserPlusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span className="tabular-nums">{followRequests.count}</span>
                 <span>{followRequests.count === 1 ? 'request' : 'requests'}</span>
@@ -549,7 +549,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {/* Activity and owner controls read as one right-hand cluster. */}
-          <div className="ml-auto flex items-center gap-3">
+          <div className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
             {/* A signed-in visitor can follow. A guest is told plainly that this
                needs an account rather than being shown a control that silently
                fails, and reading the work stays open either way. */}
@@ -559,7 +559,7 @@ export function UserProfilePage({
                change is in flight it is disabled, so one press cannot become two
                requests, and the label keeps showing the last confirmed state
                rather than a state the service has not agreed to. */}
-            {showsFollow && follow && !follow.resolveError && <span className="inline-flex items-center gap-2">
+            {showsFollow && follow && !follow.resolveError && <span className="side-panel-control-row">
                 {/* Following is the SELECTED state, so it is the one that carries
                  the accent — the accent belongs to selected controls. It read
                  the other way round before, which meant the button was loudest
@@ -570,7 +570,7 @@ export function UserProfilePage({
                  rather than a granted one, so it stays neutral with a clock —
                  only a confirmed follow earns the accent — and pressing it
                  withdraws the request instead of asking a second time. */}
-                <button type="button" onClick={follow.onToggle} disabled={follow.isResolving || follow.isPending} aria-pressed={follow.isFollowing || follow.isRequested} aria-busy={follow.isPending || undefined} aria-label={follow.isFollowing ? `Unfollow ${displayName}` : follow.isRequested ? `Withdraw your follow request to ${displayName}` : visibility.isPrivate ? `Request to follow ${displayName}` : `Follow ${displayName}`} className={`flex h-7 items-center gap-1.5 rounded-full px-3.5 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 ${follow.isFollowing ? 'border border-transparent bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'}`}>
+                <button type="button" onClick={follow.onToggle} disabled={follow.isResolving || follow.isPending} aria-pressed={follow.isFollowing || follow.isRequested} aria-busy={follow.isPending || undefined} aria-label={follow.isFollowing ? `Unfollow ${displayName}` : follow.isRequested ? `Withdraw your follow request to ${displayName}` : visibility.isPrivate ? `Request to follow ${displayName}` : `Follow ${displayName}`} className={`side-panel-primary-control side-panel-control-row px-3.5 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 ${follow.isFollowing ? 'border border-transparent bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'}`}>
                   {follow.isRequested && !follow.isPending && <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                   {follow.isPending ? 'Working…' : follow.isFollowing ? 'Following' : follow.isRequested ? 'Requested' : visibility.isPrivate ? 'Request' : 'Follow'}
                 </button>
@@ -579,27 +579,27 @@ export function UserProfilePage({
                     {follow.onRetry && <button type="button" onClick={follow.onRetry} className="font-semibold text-[var(--text-primary)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
                   </span>}
               </span>}
-            {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="flex h-7 items-center rounded-full border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="side-panel-primary-control flex items-center border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Sign in to follow
               </button>}
             {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
-            {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="flex items-center gap-2">
+            {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="side-panel-control-row">
                 {ENGAGEMENT_KINDS.filter((kind) => kind !== 'save').map((kind) => {
               const Icon = ACTIVITY_ICONS[kind];
               const labels = describeActivityCollection(kind);
               const color = ACTIVITY_COLORS[kind];
-              return <button key={kind} type="button" data-semantic-action="engagement-collection" onClick={() => onOpenActivity(kind)} aria-label={`Open ${labels.title}`} title={labels.title} className="shape-compact inline-flex h-8 w-8 shrink-0 items-center justify-center border border-[var(--hairline-strong)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              return <button key={kind} type="button" data-semantic-action="engagement-collection" onClick={() => onOpenActivity(kind)} aria-label={`Open ${labels.title}`} title={labels.title} className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center border border-[var(--hairline-strong)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={Icon} size="sm" weight="medium" keepColor stroke={color} style={{ color }} />
                   </button>;
             })}
               </div> : null}
             {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} /> : null}
-            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} className="side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 Edit profile
               </button> : null}
             {showsOwnerTools ? <div ref={manageMenuRef} className="relative">
-                <button type="button" onClick={() => setIsManageOpen((open) => !open)} aria-expanded={isManageOpen} aria-haspopup="menu" className="inline-flex h-8 items-center gap-1.5 rounded-[8px] border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => setIsManageOpen((open) => !open)} aria-expanded={isManageOpen} aria-haspopup="menu" className="side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={Settings2Icon} size="sm" weight="medium" />
                   Manage
                   <InterfaceIcon icon={ChevronDownIcon} size="xs" weight="medium" className={`transition-transform duration-150 ${isManageOpen ? 'rotate-180' : ''}`} />

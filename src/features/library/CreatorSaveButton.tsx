@@ -42,7 +42,7 @@ function CreatorSaveControl({ profileId, name }: { profileId: string; name: stri
   }
   const label = state.error ? 'Retry loading creator bookmark' : isSaved ? `Unsave ${name}` : `Save ${name}`;
   return <span className="inline-flex flex-col items-start gap-1">
-    <button type="button" onClick={() => void toggle()} aria-label={label} title={isSaved ? 'Saved creator · private' : 'Save creator privately, without following'} aria-pressed={isSaved} aria-busy={pending || state.loading} disabled={pending || state.loading} className="shape-compact inline-flex h-8 w-8 items-center justify-center border border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+    <button type="button" onClick={() => void toggle()} aria-label={label} title={isSaved ? 'Saved creator · private' : 'Save creator privately, without following'} aria-pressed={isSaved} aria-busy={pending || state.loading} disabled={pending || state.loading} className="side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
       <InterfaceIcon icon={BookmarkIcon} size="sm" keepColor style={{ color: 'var(--engagement-save-selected)' }} fill={isSaved ? 'currentColor' : 'none'} />
     </button>
     {(error || state.error) && <span role="alert" className="max-w-[200px] text-[11px] text-[var(--status-danger)]">{error ?? state.error}</span>}

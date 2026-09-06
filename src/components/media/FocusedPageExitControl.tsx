@@ -18,7 +18,7 @@ export function FocusedPageExitControl({
     type="button"
     onClick={onExit}
     aria-label={label}
-    className="premium-viewer-exit-control absolute left-2 top-2 z-50 flex h-8 w-8 items-center justify-center rounded-full text-white"
+    className="premium-viewer-exit-control side-panel-compact-control absolute left-2 top-2 z-50 flex items-center justify-center text-white"
   >
       <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
     </button>;

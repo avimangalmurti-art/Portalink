@@ -136,8 +136,8 @@ export function AppDetailPage({
       ease: [0.23, 1, 0.32, 1]
     }}>
         {/* Compact top bar: close, what this is, who made it, existing actions. */}
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[var(--hairline)] px-3 sm:px-4">
-          <button ref={closeButtonRef} type="button" onClick={onBack} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <header className="global-control-header side-panel-content-inset shrink-0">
+          <button ref={closeButtonRef} type="button" onClick={onBack} aria-label="Close" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
           </button>
           <div className="flex min-w-0 flex-1 items-baseline gap-2.5">

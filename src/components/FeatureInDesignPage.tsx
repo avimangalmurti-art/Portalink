@@ -27,11 +27,11 @@ export function FeatureInDesignPage({
   const Icon = FEATURE_ICONS[feature];
   return (
     <div className="flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="ps-panel-toolbar global-control-header relative shrink-0 justify-between px-4 sm:px-6">
+      <header className="ps-panel-toolbar global-control-header side-panel-content-inset relative shrink-0 justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="ps-btn ps-btn-secondary inline-flex h-9 items-center justify-center gap-2 rounded-[10px] px-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          className="ps-btn ps-btn-secondary side-panel-primary-control side-panel-control-row justify-center px-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
           <InterfaceIcon icon={ArrowLeftIcon} size="sm" weight="medium" mirroredInRtl />
           Back

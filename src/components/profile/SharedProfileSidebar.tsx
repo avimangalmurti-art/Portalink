@@ -77,7 +77,7 @@ export function SharedProfileSidebar({
   const toggleLabel = isCollapsed ? 'Expand navigation' : 'Collapse navigation';
   return <aside data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={isCollapsed ? undefined : { width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-150 motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
       <div data-shared-navigation-header="" className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
-        <div data-shared-navigation-row="" className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'gap-1 px-2'}`}>
+        <div data-shared-navigation-row="" className={`flex h-full w-full min-w-0 flex-1 items-center ${isCollapsed ? 'justify-center' : 'side-panel-control-row'}`}>
           {!isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link> : null}
@@ -87,7 +87,7 @@ export function SharedProfileSidebar({
         </div>
       </div>
 
-      <nav id="shared-profile-portals" aria-label={`${profile.name} portals`} className={`min-h-0 flex-1 overflow-y-auto pb-3 pt-3 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+      <nav id="shared-profile-portals" aria-label={`${profile.name} portals`} className={`min-h-0 flex-1 overflow-y-auto py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
         {isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} title={`${profile.name} — Profile`} aria-current={activeCategoryId ? undefined : 'page'} className={`sidebar-rail-slot shape-compact mx-auto mb-2 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeCategoryId ? 'text-[var(--text-primary)] hover:text-[var(--accent-text)]' : 'text-[var(--accent-text)]'}`}>
             <InterfaceIcon icon={HomeIcon} weight="medium" />
           </Link> : null}
@@ -116,13 +116,13 @@ export function SharedProfileSidebar({
       </nav>
 
       <div data-shared-account-footer="" className={`relative z-40 shrink-0 py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
-        <div className={`relative flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'h-10 justify-between px-1'}`}>
+        <div className={`relative flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'h-10 justify-between'}`}>
           {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
-              <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row flex h-9 w-full items-center gap-2 rounded-[8px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
                 <span className="whitespace-nowrap leading-none">Create an account</span>
               </button>
-              <button type="button" role="menuitem" onClick={() => openAuth(onSignIn)} className="account-menu-row flex h-9 w-full items-center gap-2 rounded-[8px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" role="menuitem" onClick={() => openAuth(onSignIn)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={LogInIcon} size="sm" weight="medium" /></span>
                 <span className="whitespace-nowrap leading-none">Sign in</span>
               </button>

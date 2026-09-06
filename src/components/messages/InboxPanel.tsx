@@ -15,11 +15,11 @@ export function InboxPanel() {
   const activity = useNotifications();
   return <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto px-4 py-6 sm:px-6">
       <div className="mx-auto w-full max-w-[720px]">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 side-panel-control-row flex-wrap justify-between">
           <p className="text-[14px] text-[var(--text-secondary)]">{activity.unreadCount > 0 ? `${activity.unreadCount} unread` : 'You are up to date'}</p>
-          <div className="flex items-center gap-2">
-            {activity.unreadCount > 0 ? <button type="button" onClick={() => void activity.markAllRead()} disabled={activity.isMarkingAll} className="shape-compact px-3 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{activity.isMarkingAll ? 'Marking…' : 'Mark all read'}</button> : null}
-            <button type="button" onClick={activity.retry} disabled={activity.status === 'loading'} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Refresh</button>
+          <div className="side-panel-control-row">
+            {activity.unreadCount > 0 ? <button type="button" onClick={() => void activity.markAllRead()} disabled={activity.isMarkingAll} className="side-panel-primary-control px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{activity.isMarkingAll ? 'Marking…' : 'Mark all read'}</button> : null}
+            <button type="button" onClick={activity.retry} disabled={activity.status === 'loading'} className="side-panel-primary-control px-3 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Refresh</button>
           </div>
         </div>
         {activity.mutationError ? <p role="alert" className="mb-3 text-[13px] text-[var(--status-danger)]">{activity.mutationError}</p> : null}
@@ -37,7 +37,7 @@ export function InboxPanel() {
               return <li key={entry.id} className="flex items-start gap-3 py-3">
                   <span aria-hidden="true" className={`mt-2 h-2 w-2 shrink-0 rounded-full ${entry.isUnread ? 'bg-[var(--social-unread)]' : 'bg-transparent'}`} />
                   {entry.targetPath ? <Link to={entry.targetPath} onClick={() => { if (entry.isUnread) void activity.markRead(entry.id); }} className="shape-compact flex min-w-0 flex-1 flex-col px-2 py-1 hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{content}</Link> : <div className="flex min-w-0 flex-1 flex-col px-2 py-1">{content}</div>}
-                  {entry.isUnread ? <button type="button" disabled={activity.pendingIds.has(entry.id)} onClick={() => void activity.markRead(entry.id)} className="shape-compact shrink-0 px-2 py-1.5 text-[12px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{activity.pendingIds.has(entry.id) ? 'Marking…' : 'Mark read'}</button> : null}
+                  {entry.isUnread ? <button type="button" disabled={activity.pendingIds.has(entry.id)} onClick={() => void activity.markRead(entry.id)} className="side-panel-primary-control shrink-0 px-2 text-[12px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{activity.pendingIds.has(entry.id) ? 'Marking…' : 'Mark read'}</button> : null}
                 </li>;
             })}
           </ul> : null}

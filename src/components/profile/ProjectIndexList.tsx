@@ -83,7 +83,7 @@ export function ProjectIndexList({
     return <div>
         {pinned.length > 0 && <>
             <SectionHeading label="Pinned" icon={PinIcon} />
-            <ul className="m-0 list-none space-y-1 p-0">
+            <ul className="side-panel-navigation-list m-0 list-none p-0">
               {pinned.map((project) => <li key={project.id}>
                   <ProjectLink project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
                 </li>)}
@@ -91,7 +91,7 @@ export function ProjectIndexList({
           </>}
         {rest.length > 0 && <>
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-            <ul className="m-0 list-none space-y-1 p-0">
+            <ul className="side-panel-navigation-list m-0 list-none p-0">
               {rest.map((project) => <li key={project.id}>
                   <ProjectLink project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
                 </li>)}
@@ -125,7 +125,7 @@ export function ProjectIndexList({
   return <div>
       {pinned.length > 0 && <>
           <SectionHeading label="Pinned" icon={PinIcon} />
-          <ul className="m-0 list-none space-y-1 p-0">
+          <ul className="side-panel-navigation-list m-0 list-none p-0">
             {pinned.map((project) => <li key={project.id}>
                 <ProjectRow {...rowProps(project)} isDraggable={false} />
               </li>)}
@@ -133,7 +133,7 @@ export function ProjectIndexList({
         </>}
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="m-0 list-none space-y-1 p-0">
+      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="side-panel-navigation-list m-0 list-none p-0">
           {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable />)}
         </Reorder.Group>}
 
@@ -141,7 +141,7 @@ export function ProjectIndexList({
          what is withheld without it reading as part of the published index. */}
       {hidden.length > 0 && <>
           <SectionHeading label="Hidden" icon={EyeOffIcon} />
-          <ul className="m-0 list-none space-y-1 p-0">
+          <ul className="side-panel-navigation-list m-0 list-none p-0">
             {hidden.map((project) => <li key={project.id}>
                 <ProjectRow {...rowProps(project)} isDraggable={false} />
               </li>)}
@@ -261,7 +261,7 @@ function ProjectRow({
             {onEdit && <button type="button" role="menuitem" onClick={() => {
           onEdit();
           setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                 Edit details…
               </button>}
@@ -269,14 +269,14 @@ function ProjectRow({
             <button type="button" role="menuitem" onClick={() => {
           onTogglePinned();
           setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isPinned ? <PinOffIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <PinIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isPinned ? 'Unpin' : 'Pin'}
             </button>
             <button type="button" role="menuitem" onClick={() => {
           onToggleHidden();
           setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
             </button>
@@ -285,14 +285,14 @@ function ProjectRow({
             {onReplaceFiles && <button type="button" role="menuitem" onClick={() => {
           onReplaceFiles();
           setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={ReplaceIcon} size="sm" weight="medium" />
                 Replace files…
               </button>}
             {onDelete && <button type="button" role="menuitem" onClick={() => {
           onDelete();
           setIsMenuOpen(false);
-        }} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
                 Delete project…
               </button>}

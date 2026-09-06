@@ -39,8 +39,8 @@ export function ControlCenterPage({
   onBack
 }: ControlCenterPageProps) {
   return <div className="min-h-full w-full">
-      <header className="ps-panel-toolbar global-control-header w-full gap-2 px-[var(--content-gutter)]">
-        <button type="button" onClick={onBack} className="shape-capsule inline-flex h-8 items-center gap-1.5 px-2.5 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <header className="ps-panel-toolbar global-control-header side-panel-content-inset w-full">
+        <button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           Back
         </button>

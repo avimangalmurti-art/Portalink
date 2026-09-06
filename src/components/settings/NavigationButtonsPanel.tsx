@@ -96,7 +96,7 @@ export function NavigationButtonsPanel({
             <div
               role="radiogroup"
               aria-label="Interface control system grey"
-              className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
+              className="side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
               style={{ transition }}
             >
               {systemGrays.map((option) => {
@@ -111,7 +111,7 @@ export function NavigationButtonsPanel({
                     aria-label={option.label}
                     title={option.label}
                     onClick={() => onSystemGrayChange(option.id)}
-                    className="flex h-[46px] min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-md border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    className="side-panel-primary-control side-panel-control-row flex-1 justify-center border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     style={{
                       backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
                       borderColor: isSelected ? 'var(--hairline)' : 'transparent',
@@ -163,7 +163,7 @@ export function NavigationButtonsPanel({
               <div
                 role="radiogroup"
                 aria-label="Interface appearance"
-                className="flex w-full items-stretch gap-1 rounded-lg bg-[var(--surface-sunken)] p-[3px]"
+                className="side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
                 style={{ transition }}
               >
                 {appearanceOptions.map((option) => {
@@ -175,7 +175,7 @@ export function NavigationButtonsPanel({
                       role="radio"
                       aria-checked={isSelected}
                       onClick={() => onAppearanceModeChange(option.mode)}
-                      className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                      className="side-panel-primary-control side-panel-control-row flex-1 justify-center border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                       style={{
                         backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
                         borderColor: isSelected ? 'var(--hairline)' : 'transparent',
@@ -275,7 +275,7 @@ export function NavigationButtonsPanel({
                   resetResizablePanelLayout();
                   setLayoutWasReset(true);
                 }}
-                className="flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                className="side-panel-primary-control side-panel-control-row shrink-0 border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <InterfaceIcon icon={layoutWasReset ? CheckIcon : RotateCcwIcon} size="xs" weight="semibold" />
                 {layoutWasReset ? 'Reset' : 'Reset layout'}
@@ -321,7 +321,7 @@ function AccordionSection({
         aria-expanded={isOpen}
         aria-controls={contentId}
         onClick={onToggle}
-        className="flex min-h-[62px] w-full items-center gap-4 px-4 py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
+        className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold text-[var(--text-primary)]">{title}</span>

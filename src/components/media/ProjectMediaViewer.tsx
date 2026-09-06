@@ -107,7 +107,7 @@ export function ProjectMediaViewer({
     // signed-in engagement rail must never leak into the public presentation.
     id: readOnlyShare ? 'shared-project-details-standard' : 'project-response',
     defaultWidth: 440,
-    minWidth: 240,
+    minWidth: readOnlyShare ? 240 : 304,
     maxWidth: 440,
     viewportReserve: 420
   });
@@ -383,7 +383,7 @@ export function ProjectMediaViewer({
         {/* Images collapse to a single entry, because they are now read as pages
            of one piece — listing each of them here would offer a way to step
            through something that is already continuous. */}
-        {switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-t border-[var(--hairline)] px-4 py-2">
+        {switchable.length > 1 && <nav data-project-file-strip="" data-material="toolbar" aria-label={`${projectTitle} files`} className="side-panel-control-row side-panel-content-inset shrink-0 overflow-x-auto border-t border-[var(--hairline)] py-2">
           {switchable.map((attachment) => {
           const Icon = KIND_ICONS[attachment.kind];
           // Any image being shown means the whole image sequence is being shown,
@@ -392,7 +392,7 @@ export function ProjectMediaViewer({
           return <button key={attachment.id} type="button" onClick={() => {
             setActiveId(attachment.id);
             updateViewerMemory(viewerMemoryKey, { activeAttachmentId: attachment.id });
-          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`flex h-8 max-w-[220px] shrink-0 items-center gap-1.5 rounded-[8px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
+          }} aria-current={isActive ? 'true' : undefined} aria-label={`${attachment.displayName}, ${attachment.typeLabel}`} className={`side-panel-primary-control side-panel-control-row max-w-[220px] px-2.5 text-[13px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--surface-sunken)] font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)]'}`}>
                 <InterfaceIcon icon={Icon} size="sm" weight="medium" />
                 <span className="min-w-0 truncate">{attachment.displayName}</span>
               </button>;
@@ -410,7 +410,7 @@ export function ProjectMediaViewer({
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
       {readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" style={isRailOpen ? { ['--project-response-width' as string]: `${responseRailWidth.width}px` } : undefined} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[var(--project-response-width)]' : 'lg:w-[52px]'}`}>
-          <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'gap-1 px-2' : 'justify-center px-1.5'}`}>
+          <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
             </button>
@@ -421,7 +421,7 @@ export function ProjectMediaViewer({
                 <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
               </button>}
           </div>
-          {isRailOpen && sharedInfoPanel === 'project' && <div id="shared-project-detail-panel" className="flex flex-col gap-5 px-5 py-5">
+          {isRailOpen && sharedInfoPanel === 'project' && <div id="shared-project-detail-panel" className="side-panel-content-inset flex flex-col gap-4 py-2">
             <div>
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
             </div>
@@ -443,7 +443,7 @@ export function ProjectMediaViewer({
                 </dl>
               </div>}
           </div>}
-          {isRailOpen && sharedInfoPanel === 'verification' && <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="flex flex-col gap-5 px-5 py-5">
+          {isRailOpen && sharedInfoPanel === 'verification' && <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="side-panel-content-inset flex flex-col gap-4 py-2">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">AI verification</h3>
@@ -508,13 +508,13 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>}
-          {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={240} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
+          {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" style={isRailOpen ? { ['--project-response-width' as string]: `${responseRailWidth.width}px` } : undefined} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[var(--project-response-width)]' : 'lg:w-[52px]'}`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         {/* One row: the engagement controls and the control that hides them. The
            inline chip form is used here rather than the stacked panel, because a
-           row shared with a 36px button has height for one line, not two. */}
+           row shared with a 40px button has height for one line, not two. */}
         {/* Reading order: the control for the rail itself, then what the rail is
            showing, then the actions on the work. Broadest scope first. */}
         <div className={`ps-panel-toolbar global-control-header shrink-0 ${isRailOpen ? 'engagement-panel-toolbar px-2' : 'justify-center px-1.5'}`}>
@@ -546,7 +546,7 @@ export function ProjectMediaViewer({
         {/* Closed, the rail carries nothing but its own control: the engagement
            controls remain available as a vertical icon rail, while the thread
            and prose are removed rather than squeezed into unreadable fragments. */}
-        {isRailOpen && <div className="px-5 py-5">
+        {isRailOpen && <div className="side-panel-content-inset py-2">
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
             {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /> : <section className="flex flex-col gap-2.5">
@@ -559,7 +559,7 @@ export function ProjectMediaViewer({
           }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
-        {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={240} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
+        {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
     </div>;
 }

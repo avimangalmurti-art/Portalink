@@ -852,10 +852,10 @@ body {
   --cdx-dense-header-weight: 700;
   --cdx-dense-leading: 1.3;
   --cdx-header-leading: 1.2;
-  --cdx-dense-row-min: 2.25rem;
+  --cdx-dense-row-min: var(--sidebar-primary-control);
   --cdx-dense-row-md: 2.5rem;
   --cdx-dense-row-sm: 2rem;
-  --cdx-header-control: 2.25rem;
+  --cdx-header-control: var(--sidebar-primary-control);
   --cdx-dense-inline-padding: 0.75rem;
   --cdx-dense-gap: 0.375rem;
   /* One visible control family for primary navigation, appearance, and account. */
@@ -869,7 +869,7 @@ body {
   --side-panel-header-control: var(--cdx-header-control);
   --side-panel-compact-control: var(--sidebar-primary-control);
   --side-panel-content-inset: 0.5rem;
-  --side-panel-section-gap: 0.75rem;
+  --side-panel-section-gap: var(--side-panel-content-inset);
   /* The brand sits a clear step away from navigation, so it reads as the
      header of the rail rather than its first destination. */
   --rail-brand-gap: 8px;
@@ -2236,6 +2236,9 @@ button[data-portalink-tile],
    geometry. Controls stay on the same responsive centerline because alignment
    belongs to their containers, never to per-icon offsets. */
 .global-control-header {
+  --interface-icon-sm: 18px;
+  --interface-icon-md: 18px;
+  --interface-icon-lg: 18px;
   position: relative;
   display: flex;
   align-items: center;
@@ -2243,6 +2246,7 @@ button[data-portalink-tile],
   height: 64px;
   min-height: 64px;
   border-bottom: 0;
+  gap: var(--side-panel-row-gap);
 }
 
 /* Every navigation header uses the same inset hairline. Drawing it inside the
@@ -2266,8 +2270,9 @@ button[data-portalink-tile],
    matching outer space without changing any control's hit area. */
 .engagement-panel-toolbar {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0;
+  grid-template-columns: repeat(6, minmax(var(--sidebar-primary-control), 1fr));
+  overflow-x: auto;
+  gap: var(--side-panel-row-gap);
 }
 
 .engagement-panel-toolbar > button {
@@ -2287,18 +2292,24 @@ button[data-portalink-tile],
 .engagement-toolbar-actions [role='group'] {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0;
+  gap: var(--side-panel-row-gap);
 }
 
 .engagement-toolbar-actions [role='group'] > button {
   justify-self: center;
+  width: var(--sidebar-primary-control);
+  height: var(--sidebar-primary-control);
+  border-radius: var(--shape-compact);
 }
 
-/* Project names form a dense file list rather than navigation tiles. This local
-   override leaves every other side-panel row on the shared standard height. */
+.codex-shell [data-project-response-rail] .side-panel-navigation-list > button {
+  border-radius: var(--shape-compact);
+}
+
+/* Document links use the same full hit area as the main navigation. */
 .side-panel-row.project-index-row {
-  height: 1.625rem;
-  min-height: 1.625rem;
+  height: var(--sidebar-primary-control);
+  min-height: var(--sidebar-primary-control);
 }
 
 /* A collapsed sidebar header is still a horizontal header, even though the
@@ -3830,7 +3841,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   --codex-border: rgba(31, 31, 29, 0.105);
   --codex-border-strong: rgba(31, 31, 29, 0.17);
   --codex-shadow: 0 1px 2px rgba(31, 31, 29, 0.035), 0 8px 24px rgba(31, 31, 29, 0.045);
-  --codex-radius-control: 8px;
+  --codex-radius-control: var(--shape-compact);
   --codex-radius-panel: 12px;
 
   --surface-shell: var(--codex-shell-bg);
@@ -4286,11 +4297,26 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   padding-inline: var(--side-panel-content-inset);
 }
 
+.side-panel-control-row {
+  display: flex;
+  align-items: center;
+  gap: var(--side-panel-row-gap);
+}
+
+.side-panel-navigation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--side-panel-row-gap);
+}
+
 .codex-shell .side-panel-primary-control {
   box-sizing: border-box;
+  flex-shrink: 0;
   min-width: 0;
   height: var(--sidebar-primary-control);
   min-height: var(--sidebar-primary-control);
+  font-size: var(--cdx-dense-sm);
+  line-height: var(--cdx-dense-leading);
   border-radius: var(--shape-compact) !important;
 }
 
@@ -4300,14 +4326,26 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   gap: var(--cdx-dense-gap);
 }
 
+/* Keep every profile action reachable when the adjacent sidebar is widened. */
+.profile-navigation-header {
+  height: auto;
+  padding-block: calc((64px - var(--sidebar-primary-control)) / 2);
+}
+
+.profile-navigation-header .side-panel-primary-control {
+  white-space: nowrap;
+}
+
 .side-panel-header-control {
   height: var(--cdx-header-control);
   min-height: var(--cdx-header-control);
+  border-radius: var(--shape-compact);
 }
 
 .side-panel-header-icon {
   width: var(--cdx-header-control);
   min-width: var(--cdx-header-control);
+  flex-shrink: 0;
 }
 
 .side-panel-compact-control,
@@ -5065,15 +5103,27 @@ html[data-project-continuity]::view-transition-new(root) {
 /* A focused page can begin beside either the account navigation or the public
    navigation rail. Keep its exit control compact and inset from the actual
    artwork viewport in every mode, including device safe areas, so neither the
-   circle nor its hit target can sit beyond a clipped edge. */
+   control nor its hit target can sit beyond a clipped edge. */
+[data-premium-project-viewer] :is(.premium-viewer-page-control, .premium-viewer-exit-control) {
+  width: var(--sidebar-primary-control);
+  height: var(--sidebar-primary-control);
+  border-radius: var(--shape-compact);
+}
+
 [data-premium-project-viewer] .premium-viewer-exit-control {
-  top: max(0.5rem, env(safe-area-inset-top, 0px));
-  left: max(0.5rem, env(safe-area-inset-left, 0px));
-  width: 2rem;
-  height: 2rem;
+  top: max(var(--side-panel-content-inset), env(safe-area-inset-top, 0px));
+  left: max(var(--side-panel-content-inset), env(safe-area-inset-left, 0px));
   max-width: calc(100% - 1rem);
   max-height: calc(100% - 1rem);
   box-sizing: border-box;
+}
+
+[data-premium-project-viewer] .premium-viewer-page-control[data-side='previous'] {
+  left: max(var(--side-panel-content-inset), env(safe-area-inset-left, 0px));
+}
+
+[data-premium-project-viewer] .premium-viewer-page-control[data-side='next'] {
+  right: max(var(--side-panel-content-inset), env(safe-area-inset-right, 0px));
 }
 
 .premium-viewer-page-counter {
@@ -5144,7 +5194,8 @@ html[data-project-continuity]::view-transition-new(root) {
   backdrop-filter: blur(18px) saturate(135%);
 }
 
-.media-item-action {
+.codex-shell .media-item-action {
+  min-width: var(--sidebar-primary-control);
   transition: background-color 140ms ease, transform 140ms ease;
 }
 

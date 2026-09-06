@@ -46,14 +46,14 @@ export function MediaInteractionBar({
   return <div
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
+    className={`media-item-engagement absolute z-40 flex max-w-[calc(100%-16px)] gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar flex items-center gap-0.5 rounded-full p-1">
+    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar side-panel-control-row max-w-full overflow-x-auto rounded-[10px] p-1.5">
       {ACTIONS.map(({ kind, label, icon: Icon, color }) => {
         const engaged = activity.record.engaged[kind];
         const count = activity.record.counts[kind];
@@ -66,7 +66,7 @@ export function MediaInteractionBar({
           data-keep-color=""
           style={{ color }}
           onClick={() => activity.toggle(kind)}
-          className="media-item-action inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
+          className="media-item-action side-panel-primary-control side-panel-control-row min-w-10 justify-center px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
         >
           {activity.pendingKind === kind
             ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -81,7 +81,7 @@ export function MediaInteractionBar({
         data-keep-color=""
         style={{ color: 'var(--apple-purple)' }}
         onClick={() => setCommentsOpen((open) => !open)}
-        className="media-item-action inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-full px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action side-panel-primary-control side-panel-control-row min-w-10 justify-center px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-purple)" />
         {activity.record.comments.length > 0 ? <span className="text-[10px] font-semibold tabular-nums">{activity.record.comments.length}</span> : null}
@@ -93,7 +93,7 @@ export function MediaInteractionBar({
         data-keep-color=""
         style={{ color: 'var(--engagement-share-selected)' }}
         onClick={() => void activity.share()}
-        className="media-item-action inline-flex h-8 w-8 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'var(--engagement-share-selected)' : 'none'} stroke="var(--engagement-share-selected)" />
       </button>

@@ -244,7 +244,7 @@ export function MessagesPage({
   const showList = !activeId;
   return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="ps-panel-toolbar global-control-header shrink-0">
-        <div className="side-panel-content-inset flex h-full min-w-0 w-full shrink-0 items-center gap-3 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
+        <div className="side-panel-content-inset side-panel-control-row h-full min-w-0 w-full shrink-0 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
         <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button>
@@ -252,7 +252,7 @@ export function MessagesPage({
           <h1 id="messages-heading" className="truncate text-[16px] font-semibold">Messages</h1>
           {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        <div className="side-panel-control-row ml-auto shrink-0">
           <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-label="Message privacy" title="Message privacy" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
           <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
@@ -338,8 +338,8 @@ export function MessagesPage({
 
         <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col bg-[var(--surface-sunken)] lg:flex`}>
           {messaging.activeConversation ? <>
-              <div className="relative flex h-14 shrink-0 items-center gap-2 bg-[var(--surface-canvas)] px-3 sm:px-4">
-                <button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+              <div className="side-panel-primary-control side-panel-control-row side-panel-content-inset relative my-2 shrink-0 bg-[var(--surface-canvas)]">
+                <button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
                   <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
                 </button>
                 <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
@@ -347,7 +347,7 @@ export function MessagesPage({
                     <RecipientIdentity conversation={messaging.activeConversation} />
                   </button> : <div className="flex min-w-0 items-center gap-2.5"><RecipientIdentity conversation={messaging.activeConversation} /></div>}
                 <span className="ml-auto text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
-                <button type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="shape-compact flex h-9 w-9 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+                <button type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
                 {isConversationMenuOpen ? <div className="absolute right-3 top-12 z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
                     <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
                     <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('archive'); }} />
@@ -507,7 +507,7 @@ function FilterChip({ label, isActive, onSelect }: { label: string; isActive: bo
 }
 
 function ConversationMenuButton({ icon, label, danger = false, onClick }: { icon: InterfaceIconSource; label: string; danger?: boolean; onClick: () => void }) {
-  return <button type="button" role="menuitem" onClick={onClick} className={`shape-compact flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] font-medium hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${danger ? 'text-[var(--status-danger)]' : 'text-[var(--text-primary)]'}`}><InterfaceIcon icon={icon} /><span>{label}</span></button>;
+  return <button type="button" role="menuitem" onClick={onClick} className={`side-panel-primary-control side-panel-control-row w-full px-3 text-left text-[13px] font-medium hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${danger ? 'text-[var(--status-danger)]' : 'text-[var(--text-primary)]'}`}><InterfaceIcon icon={icon} /><span>{label}</span></button>;
 }
 
 function MessageAttachmentView({ attachment }: { attachment: MessageAttachment }) {

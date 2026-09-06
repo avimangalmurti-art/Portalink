@@ -980,10 +980,10 @@ export function Sidebar({
         <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'side-panel-content-inset'}`}>
           {/* Collapsed, the rail owns the rhythm: brand, then destinations, all
              on one axis with one gap. Expanded, this is the header row. */}
-          <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-2 px-1'}`}>
+          <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-1.5'}`}>
             {isSidebarCollapsed && sidebarToggle}
             {!isSidebarCollapsed && <span className="cdx-dense-label min-w-0 flex-1 px-1 text-[12px] font-semibold text-[var(--text-primary)]">Portalink Networks</span>}
-            {!isSidebarCollapsed && <div className="ml-auto flex min-w-0 shrink items-center gap-0.5">
+            {!isSidebarCollapsed && <div className="side-panel-control-row ml-auto min-w-0 shrink">
               {/* A spinning record marks the live session the viewer has joined. */}
               {liveShow && <button type="button" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`} title={`Live — ${liveShow}`} data-static-icon="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center focus:outline-none">
                   <Disc3Icon data-keep-color="" className="h-4 w-4" aria-hidden="true" style={{

@@ -168,7 +168,7 @@ function Composer({
         {/* Disabled while a request is in flight, so one press cannot become two. */}
         {/* The same 8px the field above it carries, so the two read as one
            composer rather than a pill parked under a panel. */}
-        <button type="submit" disabled={state.isSubmitting} className="flex h-7 items-center rounded-[8px] bg-[var(--accent-primary)] px-3 text-[11px] font-semibold text-[var(--accent-foreground)] transition-colors hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
+        <button type="submit" disabled={state.isSubmitting} className="side-panel-primary-control flex items-center bg-[var(--accent-primary)] px-3 text-[11px] font-semibold text-[var(--accent-foreground)] transition-colors hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
           {state.isSubmitting ? 'Posting…' : submitLabel}
         </button>
         {onCancel && <button type="button" onClick={onCancel} disabled={state.isSubmitting} className="text-[11px] font-semibold text-[var(--text-secondary)] underline focus:outline-none disabled:opacity-60">Cancel</button>}

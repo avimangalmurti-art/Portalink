@@ -318,8 +318,8 @@ export function ProfileCategoryPage({
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
-        {onReturnToDiscovery && <div className={`flex shrink-0 items-center pt-3 ${isIndexCollapsed ? 'justify-center px-1.5' : 'px-3'}`}>
-            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`flex h-8 items-center rounded-[8px] text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-9 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
+        {onReturnToDiscovery && <div className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
+            <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
             </button>
@@ -330,14 +330,14 @@ export function ProfileCategoryPage({
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
-            <div data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="flex h-full min-w-0 flex-1 items-center gap-1 px-2">
+            <div data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </button>
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
               <span aria-hidden="true" className="min-w-0 flex-1" />
-              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="relative flex h-full min-w-[112px] max-w-[136px] flex-1 items-center justify-center px-1" title="Set the number of pages viewers see in each row when they open this project">
+              {showsOwnerTools && activePageCount !== null && activePageCount > 1 && <label className="relative flex h-full min-w-[104px] max-w-[136px] flex-1 items-center justify-center px-1" title="Set the number of pages viewers see in each row when they open this project">
                   <input
                     data-pages-per-row-slider=""
                     type="range"
@@ -433,14 +433,14 @@ export function ProfileCategoryPage({
 
         {/* Filters the index that is already loaded. It reaches no service, so it
            cannot disagree with what the rows show. */}
-        {!isIndexCollapsed && <div className="side-panel-section-spacing shrink-0 px-2">
-            <div className="field-shell text-control-shell group flex h-10 items-center gap-2 rounded-[8px] px-3">
+        {!isIndexCollapsed && <div className="side-panel-control-stack side-panel-content-inset shrink-0">
+            <div className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects" aria-label={`Search projects in ${category.label}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </div>
           </div>}
 
-        {!isIndexCollapsed && <nav aria-label={`${category.label} index`} className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+        {!isIndexCollapsed && <nav aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
             <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onReplaceFiles={showsOwnerTools ? management.editor.openFiles : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
             {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}

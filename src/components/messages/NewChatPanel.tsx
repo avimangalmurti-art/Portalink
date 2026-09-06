@@ -45,7 +45,7 @@ export function NewChatPanel({
 
   return <div className="flex min-h-0 flex-1 flex-col" aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
       <div className="side-panel-control-stack side-panel-content-inset shrink-0">
-      <div className="side-panel-primary-control flex items-center gap-2">
+      <div className="side-panel-primary-control side-panel-control-row">
         <button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" mirroredInRtl />
         </button>

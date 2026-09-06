@@ -132,16 +132,16 @@ export function PdfViewer({
       {/* A reading toolbar, not an identity bar: the title is gone — the portal
          sidebar already names the work — and what remains is the page readout and
          the display-size control, which report and change this document. */}
-      <header data-material="toolbar" className="flex h-[68px] shrink-0 items-center justify-end gap-4 border-b border-[var(--hairline)] bg-[var(--surface-canvas)] px-6">
+      <header data-material="toolbar" className="global-control-header side-panel-content-inset shrink-0 justify-end bg-[var(--surface-canvas)]">
         <p aria-live="polite" className="shrink-0 text-[13px] tabular-nums text-[var(--text-tertiary)]">
           Page {hoveredPage ?? currentPage} of {pageCount}
         </p>
-        <div className="flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] bg-[var(--surface-sunken)] px-1.5">
-          <button type="button" onClick={() => adjustZoom(-ZOOM_STEP)} aria-label="Show smaller" disabled={zoom <= MIN_ZOOM} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <div className="side-panel-header-control side-panel-control-row min-w-0 bg-[var(--surface-sunken)] px-1.5">
+          <button type="button" onClick={() => adjustZoom(-ZOOM_STEP)} aria-label="Show smaller" disabled={zoom <= MIN_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MinusIcon} size="sm" weight="medium" />
           </button>
-          <input type="range" min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Display size" className="zoom-range h-1 w-24 cursor-pointer" />
-          <button type="button" onClick={() => adjustZoom(ZOOM_STEP)} aria-label="Show larger" disabled={zoom >= MAX_ZOOM} className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <input type="range" min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label="Display size" className="zoom-range h-1 w-24 min-w-8 flex-1 cursor-pointer" />
+          <button type="button" onClick={() => adjustZoom(ZOOM_STEP)} aria-label="Show larger" disabled={zoom >= MAX_ZOOM} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] disabled:opacity-35 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
           </button>
         </div>
