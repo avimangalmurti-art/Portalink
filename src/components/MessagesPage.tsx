@@ -5,7 +5,7 @@ import { useMessaging } from '../features/messages/useMessaging';
 import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
-import { CreatorAvatar } from './profile/CreatorAvatar';
+import { ProfileAvatar } from './profile/ProfileAvatar';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from './ui/StateViews';
@@ -308,8 +308,9 @@ export function MessagesPage({
                 {messaging.status === 'success' && visibleConversations.length === 0 ? <div className="p-5"><EmptyState title={conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul>
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
-                      <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className={`ps-list-btn flex w-full items-center gap-3 border-b border-[var(--hairline)] px-4 py-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${activeId === conversation.id ? 'bg-[var(--surface-selected)]' : ''}`}>
-                        <CreatorAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} className="h-11 w-11 text-[14px]" />
+                      <div className={`ps-list-btn flex w-full items-center gap-3 border-b border-[var(--hairline)] px-4 py-3 hover:bg-[var(--surface-hover)] ${activeId === conversation.id ? 'bg-[var(--surface-selected)]' : ''}`}>
+                        <ProfileAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} />
+                        <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <span className="min-w-0 flex-1">
                           <span className="flex items-baseline justify-between gap-2">
                             <span className={`truncate text-[14px] ${conversation.isUnread ? 'font-bold' : 'font-semibold'}`}>{conversation.participant.name}</span>
@@ -322,7 +323,8 @@ export function MessagesPage({
                             {conversation.isUnread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-unread)]"><span className="sr-only">Unread</span></span> : null}
                           </span>
                         </span>
-                      </button>
+                        </button>
+                      </div>
                     </li>)}
                 </ul>
                 {messaging.nextConversationOffset !== null && !query.trim() ? <div className="p-4">
@@ -339,6 +341,7 @@ export function MessagesPage({
                 <button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
                   <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
                 </button>
+                <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
                 {onOpenCreator ? <button type="button" onClick={() => { const participantId = messaging.activeConversation?.participant.id; if (participantId) onOpenCreator(participantId); }} className="shape-compact flex min-w-0 items-center gap-2.5 px-1 text-left focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <RecipientIdentity conversation={messaging.activeConversation} />
                   </button> : <div className="flex min-w-0 items-center gap-2.5"><RecipientIdentity conversation={messaging.activeConversation} /></div>}
@@ -440,7 +443,6 @@ export function MessagesPage({
 
 function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnType<typeof useMessaging>['activeConversation']> }) {
   return <>
-      <CreatorAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} className="h-8 w-8 shrink-0 text-[11px]" />
       <span className="min-w-0">
         <span className="block truncate text-[14px] font-semibold">{conversation.participant.name}</span>
         <span className="block truncate text-[12px] text-[var(--text-secondary)]">{conversation.participant.handle}</span>

@@ -6,7 +6,7 @@ type CreatorAvatarProps = {
   avatar?: string | null;
   className?: string;
   fallbackClassName?: string;
-  shape?: 'circle' | 'compact';
+  shape?: 'circle' | 'compact' | 'squircle';
 };
 
 /**
@@ -25,7 +25,7 @@ export function CreatorAvatar({
   useEffect(() => setImageFailed(false), [avatar]);
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('') || '?';
   const showsImage = Boolean(avatar) && !imageFailed;
-  const shapeClassName = shape === 'compact' ? 'shape-compact' : 'rounded-full';
+  const shapeClassName = shape === 'squircle' ? 'squircle' : shape === 'compact' ? 'shape-compact' : 'rounded-full';
 
   return <span aria-hidden="true" className={`relative flex shrink-0 overflow-hidden ${shapeClassName} ${className}`}>
       {showsImage ? <ResponsiveImage src={avatar ?? ''} decorative width={128} height={128} sizes="128px" onError={() => setImageFailed(true)} className="h-full w-full object-cover" /> : <span className={`flex h-full w-full items-center justify-center ${shapeClassName} text-[0.7em] font-semibold ring-1 ring-inset ${fallbackClassName}`}>{initials}</span>}

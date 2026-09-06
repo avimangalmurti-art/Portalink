@@ -16,12 +16,11 @@ import { projectContinuityStyle } from '../utils/projectContinuity';
 import { ProjectCover } from './media/ProjectCover';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { ResponsiveImage } from './ui/ResponsiveImage';
-import { CreatorAvatar } from './profile/CreatorAvatar';
+import { ProfileAvatar } from './profile/ProfileAvatar';
 import { mergeProfileLinks } from '../features/profile/profileLinks';
 import { ProfileShareMenu } from './profile/ProfileShareMenu';
 import { ProjectHoverDetails } from './profile/ProjectHoverDetails';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
-import { ModalPortal } from './ui/ModalPortal';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
 
@@ -319,19 +318,15 @@ function readStat(profile: Profile, label: string): string | null {
 function ProfileIdentityAndLinks({
   profile,
   displayName,
-  links,
-  onAvatarOpen
+  links
 }: {
   profile: Profile;
   displayName: string;
   links: ProfileLink[];
-  onAvatarOpen?: () => void;
 }) {
   return <div className="flex w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
       <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-        {onAvatarOpen ? <button type="button" onClick={onAvatarOpen} aria-haspopup="dialog" aria-label={`View ${displayName}'s profile image`} className="shape-compact flex h-10 w-10 shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <CreatorAvatar name={displayName} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />
-          </button> : <CreatorAvatar name={displayName} avatar={profile.avatar} shape="compact" className="h-10 w-10 text-[12px]" />}
+        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} />
         <div className="flex min-w-0 flex-col justify-center">
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
@@ -377,7 +372,6 @@ export function UserProfilePage({
   onOpenActivity
 }: UserProfilePageProps) {
   const [columnsPerRow, setColumnsPerRow] = useState(readProfileDensity);
-  const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
   // This page renders portfolio media from canonical projects and nothing else.
   // It used to keep its own list of picked image files as object URLs and show
   // them as tiles beside the real work — a second, parallel way for media to
@@ -428,17 +422,6 @@ export function UserProfilePage({
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [isManageOpen]);
-  useEffect(() => {
-    if (!isAvatarPreviewOpen) return undefined;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setIsAvatarPreviewOpen(false);
-      }
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [isAvatarPreviewOpen]);
   // Read straight off the record, so the figure states how much work exists
   // rather than how many tiles happen to be rendered below it.
   const projectCount = profile.projects.length;
@@ -506,7 +489,7 @@ export function UserProfilePage({
   return <div className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
-            <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} onAvatarOpen={profile.avatar ? () => setIsAvatarPreviewOpen(true) : undefined} />
+            <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
           </section>
         </header>}
       {/* One 8px rhythm through the strip, and it shares the content column's
@@ -703,7 +686,7 @@ export function UserProfilePage({
            remainder and spread across it. A fixed column split could not do
            both, because the name's width is set by the name. */}
         <section ref={headerRef} aria-label={`${displayName} information`} className="relative pb-3 text-left">
-          <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} onAvatarOpen={profile.avatar ? () => setIsAvatarPreviewOpen(true) : undefined} />
+          <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
         </section>
 
         
@@ -738,23 +721,6 @@ export function UserProfilePage({
         } : undefined} />
           </div>}
       </main>
-      {isAvatarPreviewOpen && profile.avatar ? <ModalPortal><div role="dialog" aria-modal="true" aria-labelledby="profile-avatar-preview-title" data-avatar-preview-scrim="" className="modal-scrim fixed inset-0 z-[90] flex cursor-pointer items-center justify-center overflow-y-auto p-6" onClick={() => setIsAvatarPreviewOpen(false)}>
-          <figure data-avatar-preview="" className="m-0 flex max-w-full flex-col items-center" style={{
-          maxHeight: 'calc(100dvh - 48px)'
-        }}>
-            <div className="squircle relative overflow-hidden bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]" style={{
-            width: 'clamp(260px, 64vw, 420px)',
-            height: 'clamp(260px, 64vw, 420px)'
-          }}>
-              <ResponsiveImage src={profile.avatar} alt={`${displayName} profile image`} priority width={840} height={840} sizes="(min-width: 800px) 420px, 64vw" className="block h-full w-full object-cover" />
-            </div>
-            <figcaption id="profile-avatar-preview-title" className="mt-4 break-words px-2 pb-1 text-center font-sans text-large font-medium leading-tight tracking-[-0.02em] text-[var(--text-primary)]" style={{
-            maxWidth: 'min(84vw, 520px)'
-          }}>
-              {displayName}
-            </figcaption>
-          </figure>
-        </div></ModalPortal> : null}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
     </div>;
 }

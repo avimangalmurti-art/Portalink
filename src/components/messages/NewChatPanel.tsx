@@ -3,7 +3,7 @@ import { ArrowLeftIcon, SearchIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDirectory } from '../../features/messages/useDirectory';
 import type { MessageParticipant } from '../../types/messages';
-import { CreatorAvatar } from '../profile/CreatorAvatar';
+import { ProfileAvatar } from '../profile/ProfileAvatar';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 
@@ -94,12 +94,14 @@ function PersonRow({ person, isStarting, isDisabled, onSelect }: {
   isDisabled: boolean;
   onSelect: () => void;
 }) {
-  return <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
-      <CreatorAvatar name={person.name} avatar={person.avatar} className="h-10 w-10 shrink-0 text-[13px]" />
+  return <div className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-[var(--surface-hover)]">
+      <ProfileAvatar name={person.name} avatar={person.avatar} />
+      <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[14px] font-medium text-[var(--text-primary)]">{person.name}</span>
         <span className="truncate text-[12px] text-[var(--text-tertiary)]">{person.handle}</span>
       </span>
       {isStarting ? <span className="text-[12px] text-[var(--text-secondary)]" role="status">Opening…</span> : null}
-    </button>;
+      </button>
+    </div>;
 }
