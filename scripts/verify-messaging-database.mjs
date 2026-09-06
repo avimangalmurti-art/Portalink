@@ -45,12 +45,29 @@ try {
     grant select, insert on realtime.messages to authenticated;
     create publication supabase_realtime;
   `);
+  // Production Supabase creates public tables with broad default ACLs.
+  // Reproduce those grants for both the legacy tables and this migration.
+  await db.exec('alter default privileges in schema public grant all on tables to anon, authenticated');
   const old = readFileSync(new URL('../supabase/migrations/202608230003_product_loop_messages.sql', import.meta.url), 'utf8');
   await db.exec(old.slice(old.indexOf('create table public.direct_conversations'), old.indexOf('-- The original durable publisher')));
   const migration = readFileSync(new URL('../supabase/migrations/202609050001_production_messaging.sql', import.meta.url), 'utf8');
   await check('migration applies to the existing messaging schema and can safely be reapplied', async () => {
     await db.exec(migration);
     await db.exec(migration);
+  });
+  await check('default browser grants cannot bypass guarded sends, column edits or RLS with TRUNCATE', async () => {
+    for (const role of ['anon', 'authenticated']) {
+      const exposed = await db.query(`select c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
+        where n.nspname='public' and c.relkind='r' and (c.relname like 'direct_%' or c.relname='messaging_preferences')
+          and has_table_privilege($1,c.oid,'TRUNCATE')`, [role]);
+      assert.equal(exposed.rows.length, 0, `${role} can truncate messaging tables`);
+      for (const column of ['id','conversation_id','sender_profile_id','created_at']) {
+        assert.equal(await scalar("select has_column_privilege($1,'public.direct_messages',$2,'UPDATE')", [role,column]), false);
+      }
+      assert.equal(await scalar("select has_table_privilege($1,'public.direct_messages','INSERT')", [role]), false);
+    }
+    assert.equal(await scalar("select has_column_privilege('authenticated','public.direct_messages','body','UPDATE')"), true);
+    assert.equal(await scalar("select has_table_privilege('authenticated','public.direct_messages','UPDATE')"), false);
   });
   for (const n of [1, 2, 3]) await db.query('insert into profiles(id,account_id,name) values ($1,$2,$3)', [profile(n), account(n), `Test ${n}`]);
   await asUser(1);

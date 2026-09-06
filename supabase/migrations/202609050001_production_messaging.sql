@@ -410,6 +410,20 @@ begin
 end;
 $$;
 
+-- Supabase default ACLs may grant ALL to both browser roles. RLS does not
+-- constrain TRUNCATE, and a column grant cannot narrow table-wide UPDATE.
+-- Reset the messaging tables' browser privileges before granting only the
+-- operations implemented by their policies and guarded RPCs.
+revoke all on public.direct_conversations, public.direct_messages,
+  public.direct_conversation_reads, public.messaging_preferences,
+  public.direct_conversation_states, public.direct_message_blocks,
+  public.direct_message_reports, public.direct_message_send_events,
+  public.direct_message_attachments, public.direct_message_reactions
+  from public, anon, authenticated;
+revoke all (id, conversation_id, sender_profile_id, body, created_at, edited_at)
+  on public.direct_messages from public, anon, authenticated;
+grant select on public.direct_conversations, public.direct_messages,
+  public.direct_conversation_reads to authenticated;
 grant select, insert, update on public.messaging_preferences to authenticated;
 grant select, insert, update on public.direct_conversation_states to authenticated;
 grant select, insert, delete on public.direct_message_blocks to authenticated;
