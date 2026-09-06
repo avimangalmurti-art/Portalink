@@ -1459,22 +1459,77 @@ export const mockNotificationService: NotificationService = {
   },
   async markRead() {
     return resolve(undefined);
+  },
+  async markAllRead() {
+    return resolve(undefined);
+  },
+  subscribeToNotifications() {
+    return () => undefined;
   }
 };
 export const mockMessagingService: MessagingService = {
   async listConversations() {
-    return resolve([]);
+    return resolve({ conversations: [], nextOffset: null });
   },
   async getOrCreateConversation() {
     throw new Error('Messaging needs a configured Supabase project.');
   },
+  async getConversation() {
+    throw new Error('Messaging needs a configured Supabase project.');
+  },
   async listMessages() {
+    return resolve({ messages: [], before: null });
+  },
+  async searchConversations() {
+    return resolve([]);
+  },
+  async searchRecipients() {
     return resolve([]);
   },
   async sendMessage() {
     throw new Error('Messaging needs a configured Supabase project.');
   },
+  async editMessage() {
+    throw new Error('Messaging needs a configured Supabase project.');
+  },
+  async deleteMessage() {
+    return resolve(undefined);
+  },
+  async toggleReaction() {
+    return resolve([]);
+  },
   async markConversationRead() {
+    return resolve(undefined);
+  },
+  subscribeToMessages() {
+    return () => undefined;
+  },
+  subscribeToConversationChanges() {
+    return () => undefined;
+  },
+  subscribeToTyping() {
+    return () => undefined;
+  },
+  broadcastTyping() { return undefined; },
+  async getPreferences() {
+    return resolve({ permission: 'requests' as const });
+  },
+  async updatePreferences(preferences) {
+    return resolve(preferences);
+  },
+  async acceptRequest() {
+    throw new Error('Messaging needs a configured Supabase project.');
+  },
+  async setMuted() {
+    return resolve(undefined);
+  },
+  async archiveConversation() {
+    return resolve(undefined);
+  },
+  async blockParticipant() {
+    return resolve(undefined);
+  },
+  async reportConversation() {
     return resolve(undefined);
   },
 };

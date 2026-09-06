@@ -68,6 +68,8 @@ export type AppRoute = {
   kind: 'studio';
 } | {
   kind: 'messages';
+  conversationId?: Id;
+  recipientId?: Id;
 } | {
   kind: 'saved';
 } | {
@@ -195,8 +197,13 @@ function parse(pathname: string, search: string): AppRoute {
     };
   }
   if (matchPath(routes.messages.path, pathname)) {
+    const params = new URLSearchParams(search);
+    const conversationId = params.get('conversation')?.trim() || undefined;
+    const recipientId = params.get('recipient')?.trim() || undefined;
     return {
-      kind: 'messages'
+      kind: 'messages',
+      ...(conversationId ? { conversationId } : {}),
+      ...(recipientId ? { recipientId } : {}),
     };
   }
   if (matchPath(routes.saved.path, pathname)) return { kind: 'saved' };
@@ -329,7 +336,12 @@ export function useRouteNavigator() {
     portals: () => navigate(routes.portals.path),
     insights: () => navigate(routes.insights.path),
     studio: () => navigate(routes.studio.path),
-    messages: () => navigate(routes.messages.path),
+    messages: (conversationId?: Id, replace = false, recipientId?: Id) => {
+      const params = new URLSearchParams();
+      if (conversationId) params.set('conversation', conversationId);
+      if (recipientId) params.set('recipient', recipientId);
+      navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace });
+    },
     controlCenter: () => navigate(routes.controlCenter.path),
     /** Browser history owns Back. Nothing reconstructs the trail by hand. */
     back: () => navigate(-1),

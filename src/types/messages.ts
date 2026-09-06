@@ -7,12 +7,42 @@ export type MessageParticipant = {
   avatar: string;
 };
 
+export type MessageAttachment = {
+  id: Id;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
+};
+
+export type MessageReaction = {
+  emoji: string;
+  count: number;
+  isMine: boolean;
+};
+
 export type DirectMessage = {
   id: Id;
   conversationId: Id;
   senderProfileId: Id;
   body: string;
   createdAt: string;
+  /** Client-only delivery state. Stored messages omit it and therefore read as sent. */
+  deliveryState?: 'sending' | 'failed' | 'sent';
+  attachments?: MessageAttachment[];
+  reactions?: MessageReaction[];
+  editedAt?: string | null;
+};
+
+export type MessageCursor = {
+  createdAt: string;
+  id: Id;
+};
+
+export type MessagePage = {
+  messages: DirectMessage[];
+  /** The next request asks for records older than this exact message. */
+  before: MessageCursor | null;
 };
 
 export type ConversationSummary = {
@@ -21,6 +51,22 @@ export type ConversationSummary = {
   lastMessage: string | null;
   lastMessageAt: string | null;
   isUnread: boolean;
+  status?: 'active' | 'request';
+  requestedByViewer?: boolean;
+  hasSentRequest?: boolean;
+  isMuted?: boolean;
+  participantReadAt?: string | null;
+};
+
+export type MessagingPermission = 'everyone' | 'requests' | 'following' | 'nobody';
+
+export type MessagingPreferences = {
+  permission: MessagingPermission;
+};
+
+export type ConversationPage = {
+  conversations: ConversationSummary[];
+  nextOffset: number | null;
 };
 
 export type ConversationThread = {

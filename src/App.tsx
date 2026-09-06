@@ -491,7 +491,6 @@ export function App() {
   }, [publishConfirmation]);
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
   const [isGlobalCreatePending, setIsGlobalCreatePending] = useState(false);
-  const [messageRecipientId, setMessageRecipientId] = useState<string | null>(null);
   // The page scrolls only when the viewer scrolls it. Nothing moves because
   // somebody stopped moving.
   const mainContentRef = useRef<HTMLElement>(null);
@@ -650,8 +649,7 @@ export function App() {
       return;
     }
     if (intent.kind === 'messages') {
-      setMessageRecipientId(intent.recipientProfileId ?? null);
-      nav.messages();
+      nav.messages(undefined, false, intent.recipientProfileId);
       return;
     }
     // `my-profile` is the only intent that resolves through the authenticated
@@ -916,8 +914,7 @@ export function App() {
       setIsOnboardingOpen(true);
       return;
     }
-    setMessageRecipientId(recipientProfileId ?? null);
-    nav.messages();
+    nav.messages(undefined, false, recipientProfileId);
   }
   function navigateTo(destination: NavigationDestination) {
     // A record label is an editorial destination, not a creator profile: it never
@@ -1081,7 +1078,7 @@ export function App() {
         management.dismissFailure();
         setAttemptedIconName(null);
         setIconPickerCategoryId(null);
-      }} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} /> : isMessagesOpen ? <MessagesPage onBack={() => nav.back()} initialRecipientId={messageRecipientId} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
+      }} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} /> : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
         const target = discoveryReturn.path;

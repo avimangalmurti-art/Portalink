@@ -21,7 +21,7 @@ import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from
 import type { GeographicBounds, GeographicLod, GeographicResult } from '../types/geography';
 import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode } from '../types/discovery';
 import type { ReportingPeriodId } from '../data/studioAnalytics';
-import type { ConversationSummary, DirectMessage } from '../types/messages';
+import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
 
 /**
@@ -443,6 +443,8 @@ export interface EngagementService {
 export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
   markRead(notificationId: Id): Promise<void>;
+  markAllRead(): Promise<void>;
+  subscribeToNotifications(onChange: () => void): () => void;
 }
 /** Private bookmarks; identity comes from the session, never an argument. */
 export interface CreatorSaveService {
@@ -453,11 +455,30 @@ export interface CreatorSaveService {
 }
 /** Private, durable one-to-one conversations between creator profiles. */
 export interface MessagingService {
-  listConversations(): Promise<ConversationSummary[]>;
+  listConversations(options?: { offset?: number; limit?: number }): Promise<ConversationPage>;
+  getConversation(conversationId: Id): Promise<ConversationSummary>;
   getOrCreateConversation(otherProfileId: Id): Promise<ConversationSummary>;
-  listMessages(conversationId: Id): Promise<DirectMessage[]>;
-  sendMessage(conversationId: Id, body: string): Promise<DirectMessage>;
-  markConversationRead(conversationId: Id): Promise<void>;
+  listMessages(conversationId: Id, options?: { before?: MessageCursor | null; limit?: number }): Promise<MessagePage>;
+  searchConversations(query: string, options?: { limit?: number }): Promise<ConversationSummary[]>;
+  searchRecipients(query: string, options?: { offset?: number; limit?: number }): Promise<MessageParticipant[]>;
+  sendMessage(conversationId: Id, body: string, attachments?: File[]): Promise<DirectMessage>;
+  editMessage(messageId: Id, body: string): Promise<DirectMessage>;
+  deleteMessage(messageId: Id): Promise<void>;
+  toggleReaction(messageId: Id, emoji: string): Promise<MessageReaction[]>;
+  /** Marks only messages through the supplied server-authored timestamp as read. */
+  markConversationRead(conversationId: Id, throughCreatedAt: string): Promise<void>;
+  /** Supabase Realtime when available; callers retain a refresh fallback. */
+  subscribeToMessages(conversationId: Id, onMessage: (message: DirectMessage) => void, onStatus?: (connected: boolean) => void, onRefresh?: () => void): () => void;
+  subscribeToConversationChanges(onChange: () => void): () => void;
+  subscribeToTyping(conversationId: Id, onTyping: (profileId: Id, isTyping: boolean) => void): () => void;
+  broadcastTyping(conversationId: Id, profileId: Id, isTyping: boolean): void;
+  getPreferences(): Promise<MessagingPreferences>;
+  updatePreferences(preferences: MessagingPreferences): Promise<MessagingPreferences>;
+  acceptRequest(conversationId: Id): Promise<ConversationSummary>;
+  setMuted(conversationId: Id, muted: boolean): Promise<void>;
+  archiveConversation(conversationId: Id): Promise<void>;
+  blockParticipant(conversationId: Id): Promise<void>;
+  reportConversation(conversationId: Id, reason: string): Promise<void>;
 }
 export interface LiveService {
   listLocations(): Promise<Location[]>;

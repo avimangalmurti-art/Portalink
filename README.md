@@ -65,6 +65,7 @@ enforce access.
 ```sh
 npm run typecheck
 npm run lint
+node --test tests/*.test.mjs
 npm run build
 ```
 
@@ -80,5 +81,15 @@ private profiles, publishing/editing/deleting projects, discovery, search,
 follows, comments, likes/saves/reposts, and an inbox of activity notifications.
 
 PDF page previews are produced asynchronously from the stored original. Direct
-messaging, group chat, live audio, non-PDF media transcodes, AI generation, and
-commerce are intentionally not part of this first release.
+messaging supports paginated history, private attachments, message requests,
+editing/unsending, reactions, read receipts, typing, mute/archive, blocking and
+reporting. Apply `202609050001_production_messaging.sql` before deploying this
+messaging release. Group chat, live audio, non-PDF media transcodes, AI generation,
+and commerce remain outside this release.
+
+For an isolated database check, install `@electric-sql/pglite` in a temporary
+directory, set `PGLITE_MODULE_PATH` to that installation's `dist/index.js`, and run
+`node scripts/verify-messaging-database.mjs`. It applies the real messaging
+migrations against synthetic accounts in memory and checks permissions, request
+limits, receipts, blocking, attachment access and throttling. It does not access
+the live database or validate the hosted Realtime transport.

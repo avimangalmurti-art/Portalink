@@ -1,65 +1,69 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
-import { useProfileData } from '../../contexts/ProfileDataContext';
-import type { AsyncStatus, FeedCreator } from '../../types/domain';
+import type { AsyncStatus } from '../../types/domain';
+import type { MessageParticipant } from '../../types/messages';
 
-/**
- * The people a new conversation could be addressed to.
- *
- * There is no contacts service, and inventing one would mean inventing people.
- * So this reads the accounts the discovery service already publishes — real
- * profiles, resolved through the existing service boundary — rather than a
- * second directory of its own. When a messaging service arrives with a genuine
- * contact list, this hook is the single place that changes.
- */
 export type DirectoryState = {
   status: AsyncStatus;
-  people: FeedCreator[];
+  people: MessageParticipant[];
   error: string | null;
+  hasMore: boolean;
   retry: () => void;
+  loadMore: () => Promise<void>;
 };
-export function useDirectory(): DirectoryState {
-  const {
-    discovery
-  } = useServices();
-  const {
-    revision
-  } = useProfileData();
+
+/** Server-backed recipient search; names and usernames use the same canonical profile rows. */
+export function useDirectory(query: string): DirectoryState {
+  const { messaging } = useServices();
   const [status, setStatus] = useState<AsyncStatus>('idle');
-  const [people, setPeople] = useState<FeedCreator[]>([]);
+  const [people, setPeople] = useState<MessageParticipant[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const request = useRef(0);
+  const normalized = query.trim();
+
   useEffect(() => {
-    let isCurrent = true;
+    const version = ++request.current;
+    const timer = window.setTimeout(() => {
+      setStatus('loading');
+      setError(null);
+      void messaging.searchRecipients(normalized, { limit: 30 }).then((next) => {
+        if (version !== request.current) return;
+        setPeople(next);
+        setHasMore(next.length === 30);
+        setStatus('success');
+      }).catch(() => {
+        if (version !== request.current) return;
+        setPeople([]);
+        setHasMore(false);
+        setError('Creators could not be searched. Check the connection and try again.');
+        setStatus('error');
+      });
+    }, normalized ? 220 : 0);
+    return () => window.clearTimeout(timer);
+  }, [attempt, messaging, normalized]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || status === 'loading') return;
     setStatus('loading');
-    setError(null);
-    discovery.listAccountsToExplore().then((next) => {
-      if (!isCurrent) {
-        return;
-      }
-      setPeople(next);
+    try {
+      const next = await messaging.searchRecipients(normalized, { offset: people.length, limit: 30 });
+      setPeople((current) => [...new Map([...current, ...next].map((person) => [person.id, person])).values()]);
+      setHasMore(next.length === 30);
       setStatus('success');
-    }).catch((caught) => {
-      if (!isCurrent) {
-        return;
-      }
-      // Nothing is substituted on failure: an address book that guesses who
-      // exists is worse than one that says it could not be read.
-      setPeople([]);
-      setError(caught instanceof Error ? caught.message : 'People could not be loaded.');
+    } catch {
+      setError('More creators could not be loaded. Please try again.');
       setStatus('error');
-    });
-    return () => {
-      isCurrent = false;
-    };
-  }, [discovery, revision, attempt]);
-  const retry = useCallback(() => {
-    setAttempt((count) => count + 1);
-  }, []);
+    }
+  }, [hasMore, messaging, normalized, people.length, status]);
+
   return {
     status,
     people,
     error,
-    retry
+    hasMore,
+    retry: () => setAttempt((count) => count + 1),
+    loadMore,
   };
 }

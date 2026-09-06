@@ -1,114 +1,103 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeftIcon, SearchIcon } from 'lucide-react';
-import { InterfaceIcon } from '../ui/InterfaceIcon';
-import { useDirectory } from '../../features/messages/useDirectory';
 import { useAuth } from '../../contexts/AuthContext';
-import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
-import type { FeedCreator } from '../../types/domain';
+import { useDirectory } from '../../features/messages/useDirectory';
+import type { MessageParticipant } from '../../types/messages';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
+
 type NewChatPanelProps = {
   onClose: () => void;
   onSelectCreator: (creatorId: string) => void;
-  isStarting?: boolean;
+  startingCreatorId?: string | null;
+  startError?: string | null;
+  onDismissError?: () => void;
 };
 
-/**
- * Choosing who a new conversation is with.
- *
- * The people listed are real accounts, read through the existing discovery
- * boundary — no invented contacts, and no avatars claimed for profiles whose
- * canonical record carries none, so each person is identified by a monogram of
- * their own initial instead.
- */
+/** A complete, server-searched recipient directory rather than a discovery sample. */
 export function NewChatPanel({
   onClose,
   onSelectCreator,
-  isStarting = false
+  startingCreatorId = null,
+  startError = null,
+  onDismissError,
 }: NewChatPanelProps) {
-  const directory = useDirectory();
   const auth = useAuth();
   const [query, setQuery] = useState('');
-  // Filtering happens over what has already loaded, so the list and the count
-  // can never disagree with each other.
+  const directory = useDirectory(query);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
   const groups = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    // The disabled self-message row already represents the viewer. Do not list
-    // the same account again as though it were another available recipient.
-    const otherPeople = directory.people.filter((person) => person.id !== auth.viewerProfileId);
-    const matched = term ? otherPeople.filter((person) => person.name.toLowerCase().includes(term) || person.kind.toLowerCase().includes(term)) : otherPeople;
-    const sorted = [...matched].sort((a, b) => a.name.localeCompare(b.name));
-    const byLetter = new Map<string, FeedCreator[]>();
+    const sorted = directory.people
+      .filter((person) => person.id !== auth.viewerProfileId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const byLetter = new Map<string, MessageParticipant[]>();
     for (const person of sorted) {
-      // A name that does not start with a letter groups under "#" rather than
-      // being dropped from the index.
       const initial = person.name.charAt(0).toUpperCase();
       const letter = /[A-Z]/.test(initial) ? initial : '#';
-      const bucket = byLetter.get(letter);
-      if (bucket) {
-        bucket.push(person);
-      } else {
-        byLetter.set(letter, [person]);
-      }
+      byLetter.set(letter, [...(byLetter.get(letter) ?? []), person]);
     }
     return [...byLetter.entries()];
-  }, [auth.viewerProfileId, directory.people, query]);
-  return <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center gap-3 px-4 pb-3 pt-4">
-        <button type="button" onClick={onClose} aria-label="Back to messages" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+  }, [auth.viewerProfileId, directory.people]);
+
+  return <div className="flex min-h-0 flex-1 flex-col" aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
+      <div className="flex h-14 shrink-0 items-center gap-2 px-3">
+        <button type="button" onClick={onClose} aria-label="Back to messages" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" mirroredInRtl />
         </button>
-        <h2 className="min-w-0 truncate text-medium font-semibold text-[var(--text-primary)]">Find a creator</h2>
+        <h2 className="min-w-0 truncate text-[16px] font-semibold text-[var(--text-primary)]">New message</h2>
       </div>
 
       <div className="shrink-0 px-4 pb-3">
-        <div className="text-control-shell group flex h-10 items-center gap-2.5 rounded-[8px] px-3.5">
-          <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)]" />
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name or username" aria-label="Search creators" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] leading-none text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-        </div>
+        <label className="text-control-shell group flex h-11 items-center gap-2.5 rounded-[9px] px-3.5">
+          <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
+          <span className="sr-only">Search by name or username</span>
+          <input ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+        </label>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-6">
-        <div>
-          {directory.status === 'loading' ? <div className="px-4 py-6"><LoadingState label="Loading creators" /></div> : null}
-          {directory.status === 'error' ? <div className="px-4 py-6"><ErrorState title="Unable to load creators" description={directory.error ?? 'Check the connection, then try again.'} onRetry={directory.retry} /></div> : null}
-          {directory.status === 'success' && groups.length === 0 ? <div className="px-4 py-6">
-              <EmptyState title="No creators found" description={query.trim() ? 'Try another name or username.' : 'No other creator profiles are available.'} />
-            </div> : null}
+      {startError ? <div className="mx-4 mb-3 flex items-start justify-between gap-3 rounded-[9px] bg-[color-mix(in_srgb,var(--status-danger)_12%,transparent)] px-3 py-2 text-[13px] text-[var(--status-danger)]" role="alert">
+          <span>{startError}</span>
+          <button type="button" onClick={onDismissError} className="shrink-0 font-semibold underline">Dismiss</button>
+        </div> : null}
 
-          {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter}`}>
-              <h3 id={`new-chat-group-${letter}`} className="px-4 pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
-              <ul>
-                {people.map((person) => <li key={person.id}>
-                    <PersonRow name={person.name} avatar={person.avatar} detail={person.kind} isDisabled={isStarting} onSelect={() => onSelectCreator(person.id)} />
-                  </li>)}
-              </ul>
-            </section>)}
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto pb-6">
+        {directory.status === 'loading' && directory.people.length === 0 ? <div className="px-4 py-6"><LoadingState label="Searching creators" /></div> : null}
+        {directory.status === 'error' && directory.people.length === 0 ? <div className="px-4 py-6"><ErrorState title="Unable to search creators" description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
+        {directory.status === 'success' && groups.length === 0 ? <div className="px-4 py-6"><EmptyState title="No creators found" description={query.trim() ? 'Try another name or username.' : 'No other public creator profiles are available.'} /></div> : null}
+
+        {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
+            <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="px-4 pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
+            <ul>
+              {people.map((person) => <li key={person.id}>
+                  <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId)} onSelect={() => onSelectCreator(person.id)} />
+                </li>)}
+            </ul>
+          </section>)}
+
+        {directory.hasMore ? <div className="px-4 pt-4">
+            <button type="button" disabled={directory.status === 'loading'} onClick={() => void directory.loadMore()} className="shape-compact w-full px-4 py-2.5 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+              {directory.status === 'loading' ? 'Loading…' : 'Show more creators'}
+            </button>
+          </div> : null}
       </div>
     </div>;
 }
 
-/**
- * One person. The canonical profile image leads when one exists; initials are
- * reserved for profiles that genuinely have no usable image.
- */
-function PersonRow({
-  name,
-  avatar,
-  detail,
-  isDisabled = false,
-  onSelect
-
-
-
-
-
-}: {name: string;avatar?: string;detail?: string;isDisabled?: boolean;onSelect?: () => void;}) {
-  return <button type="button" disabled={isDisabled || !onSelect} onClick={onSelect} aria-label={onSelect ? `Message ${name}` : name} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:hover:bg-transparent">
-      <CreatorAvatar name={name} avatar={avatar} className="h-10 w-10 text-[13px]" />
-      <span className="flex min-w-0 flex-col">
-        <span className={`min-w-0 truncate text-[13px] font-medium ${isDisabled ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>{name}</span>
-        {detail && <span className="min-w-0 truncate text-[12px] text-[var(--text-tertiary)]">{detail}</span>}
+function PersonRow({ person, isStarting, isDisabled, onSelect }: {
+  person: MessageParticipant;
+  isStarting: boolean;
+  isDisabled: boolean;
+  onSelect: () => void;
+}) {
+  return <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
+      <CreatorAvatar name={person.name} avatar={person.avatar} className="h-10 w-10 shrink-0 text-[13px]" />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[14px] font-medium text-[var(--text-primary)]">{person.name}</span>
+        <span className="truncate text-[12px] text-[var(--text-tertiary)]">{person.handle}</span>
       </span>
+      {isStarting ? <span className="text-[12px] text-[var(--text-secondary)]" role="status">Opening…</span> : null}
     </button>;
 }

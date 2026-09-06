@@ -296,16 +296,38 @@ export const supabaseNotificationService: NotificationService = {
     const { data, error } = await requireSupabase().from('notifications').select('*')
       .eq('account_id', accountId).order('created_at', { ascending: false }).limit(100);
     if (error) throw new Error(error.message);
-    return ((data ?? []) as unknown as Array<{ id: string; body: string; created_at: string; read_at: string | null }>).map((row) => ({
+    return ((data ?? []) as unknown as Array<{ id: string; body: string; created_at: string; read_at: string | null; kind?: string | null; target_path?: string | null; actor_profile_id?: string | null }>).map((row) => ({
       id: row.id,
       body: row.body,
       timestamp: row.created_at,
       isUnread: row.read_at === null,
+      kind: row.kind === 'message' || row.kind === 'reply' || row.kind === 'follow' ? row.kind : 'system',
+      targetPath: row.target_path ?? null,
+      actorProfileId: row.actor_profile_id ?? null,
     }));
   },
   async markRead(notificationId) {
     const { error } = await requireSupabase().from('notifications')
       .update({ read_at: new Date().toISOString() }).eq('id', notificationId);
     if (error) throw new Error(error.message);
+  },
+  async markAllRead() {
+    const accountId = await currentAccountId(true);
+    const { error } = await requireSupabase().from('notifications')
+      .update({ read_at: new Date().toISOString() }).eq('account_id', accountId).is('read_at', null);
+    if (error) throw new Error(error.message);
+  },
+  subscribeToNotifications(onChange) {
+    const client = requireSupabase();
+    let stopped = false;
+    let remove: (() => void) | null = null;
+    void client.auth.getUser().then(({ data }) => {
+      if (stopped || !data.user) return;
+      const channel = client.channel(`notifications:${data.user.id}:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `account_id=eq.${data.user.id}` }, () => onChange())
+        .subscribe();
+      remove = () => { void client.removeChannel(channel); };
+    });
+    return () => { stopped = true; remove?.(); };
   },
 };

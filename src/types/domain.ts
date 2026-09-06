@@ -389,6 +389,9 @@ export type Notification = {
   body: string;
   timestamp: string;
   isUnread: boolean;
+  kind?: 'message' | 'reply' | 'follow' | 'system';
+  targetPath?: string | null;
+  actorProfileId?: Id | null;
 };
 
 /* ── Live / locations ───────────────────────────────────────────────────── */
