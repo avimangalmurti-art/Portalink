@@ -242,8 +242,9 @@ export function MessagesPage({
   }
 
   const showList = !activeId;
-  return <section aria-labelledby="messages-heading" className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header className="ps-panel-toolbar global-control-header shrink-0 gap-3 px-3 sm:px-4">
+  return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+      <header className="ps-panel-toolbar global-control-header shrink-0">
+        <div className="flex h-full min-w-0 w-full shrink-0 items-center gap-3 px-3 sm:px-4 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
         <button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button>
@@ -253,10 +254,10 @@ export function MessagesPage({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-label="Message privacy" title="Message privacy" className="shape-compact flex h-9 w-9 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
-          <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="shape-compact flex h-9 w-9 items-center justify-center gap-2 text-[14px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:w-auto sm:px-3">
+          <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="shape-compact flex h-9 w-9 items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
-            <span className="hidden sm:inline">New message</span>
           </button>
+        </div>
         </div>
       </header>
 
@@ -279,7 +280,7 @@ export function MessagesPage({
         </div> : null}
 
       <div className="flex min-h-0 flex-1">
-        <aside data-resizable-panel="" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
+        <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
           {isNewChatOpen ? <NewChatPanel
               onClose={() => { setIsNewChatOpen(false); messaging.dismissError(); }}
               startingCreatorId={messaging.startingCreatorId}
