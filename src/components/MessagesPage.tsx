@@ -412,7 +412,6 @@ export function MessagesPage({
                   </button>
                 </div>
                 <p className="sr-only" aria-live="polite">{messaging.isSending ? 'Sending message' : ''}</p>
-                <p className="mx-auto mt-1 max-w-[760px] px-3 text-[12px] text-[var(--text-tertiary)]">Enter to send · Shift + Enter for a new line · up to 5 attachments, 25 MB each</p>
               </form>}
             </> : <div className="flex flex-1 items-center justify-center px-6 py-10">
               <div className="max-w-[320px] text-center">
