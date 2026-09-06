@@ -318,7 +318,7 @@ export function MessagesPage({
                             {conversation.lastMessageAt ? <time dateTime={conversation.lastMessageAt} className="shrink-0 text-[11px] text-[var(--text-tertiary)]">{messageTime(conversation.lastMessageAt)}</time> : null}
                           </span>
                           <span className={`mt-0.5 flex items-center gap-2 text-[12px] ${conversation.isUnread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
-                          <span className="min-w-0 flex-1 truncate">{conversation.lastMessage ?? conversation.participant.handle}</span>
+                          <span className="min-w-0 flex-1 truncate">{conversation.lastMessage ?? 'No messages yet'}</span>
                             {conversation.status === 'request' ? <span className="shrink-0 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-text)]">{conversation.requestedByViewer ? 'Pending' : 'Request'}</span> : null}
                             {conversation.isMuted ? <InterfaceIcon icon={VolumeXIcon} className="shrink-0 text-[var(--text-tertiary)]" /> : null}
                             {conversation.isUnread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-unread)]"><span className="sr-only">Unread</span></span> : null}
@@ -446,7 +446,6 @@ function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnT
   return <>
       <span className="min-w-0">
         <span className="block truncate text-[14px] font-semibold">{conversation.participant.name}</span>
-        <span className="block truncate text-[12px] text-[var(--text-secondary)]">{conversation.participant.handle}</span>
       </span>
     </>;
 }
