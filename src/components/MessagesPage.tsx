@@ -288,7 +288,6 @@ export function MessagesPage({
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
               <div className="shrink-0 space-y-3 px-4 py-4">
-                <h2 className="text-[14px] font-semibold">Conversations</h2>
                 <label className="text-control-shell group flex h-10 items-center gap-2.5 rounded-[8px] px-3.5">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>
