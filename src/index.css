@@ -868,6 +868,7 @@ body {
   --side-panel-row-gap: var(--cdx-dense-gap);
   --side-panel-header-control: var(--cdx-header-control);
   --side-panel-compact-control: var(--sidebar-primary-control);
+  --side-panel-content-inset: 0.5rem;
   --side-panel-section-gap: 0.75rem;
   /* The brand sits a clear step away from navigation, so it reads as the
      header of the rail rather than its first destination. */
@@ -909,7 +910,7 @@ body {
 .sidebar-network-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  column-gap: var(--cdx-dense-gap);
+  gap: var(--cdx-dense-gap);
 }
 
 /* Portfolio reads as an integrated sidebar section rather than a large card:
@@ -3992,7 +3993,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell .sidebar-surface .ps-nav-grid {
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: var(--side-panel-content-inset) 0;
 }
 
 .codex-shell .sidebar-surface .nav-button,
@@ -4272,6 +4273,31 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .side-panel-row {
   height: auto;
   min-height: var(--cdx-dense-row-min);
+}
+
+/* Navigation and messaging start on the same two rows beneath their headers. */
+.side-panel-control-stack {
+  display: grid;
+  gap: var(--cdx-dense-gap);
+  padding-block: var(--side-panel-content-inset);
+}
+
+.side-panel-content-inset {
+  padding-inline: var(--side-panel-content-inset);
+}
+
+.codex-shell .side-panel-primary-control {
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--sidebar-primary-control);
+  min-height: var(--sidebar-primary-control);
+  border-radius: var(--shape-compact) !important;
+}
+
+.side-panel-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--cdx-dense-gap);
 }
 
 .side-panel-header-control {

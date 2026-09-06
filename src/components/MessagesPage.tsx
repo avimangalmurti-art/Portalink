@@ -244,8 +244,8 @@ export function MessagesPage({
   const showList = !activeId;
   return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="ps-panel-toolbar global-control-header shrink-0">
-        <div className="flex h-full min-w-0 w-full shrink-0 items-center gap-3 px-3 sm:px-4 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
-        <button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+        <div className="side-panel-content-inset flex h-full min-w-0 w-full shrink-0 items-center gap-3 lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]">
+        <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button>
         <div className="flex min-w-0 items-baseline gap-2">
@@ -253,8 +253,8 @@ export function MessagesPage({
           {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-label="Message privacy" title="Message privacy" className="shape-compact flex h-9 w-9 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
-          <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="shape-compact flex h-9 w-9 items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-label="Message privacy" title="Message privacy" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
+          <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
           </button>
         </div>
@@ -288,13 +288,13 @@ export function MessagesPage({
               onDismissError={messaging.dismissError}
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
-              <div className="shrink-0 space-y-3 px-4 py-4">
-                <label className="text-control-shell group flex h-10 items-center gap-2.5 rounded-[8px] px-3.5">
+              <div className="side-panel-control-stack side-panel-content-inset shrink-0">
+                <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>
                   <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
                 </label>
-                <div className="flex gap-1.5" role="group" aria-label="Conversation filter">
+                <div className="side-panel-filter-grid" role="group" aria-label="Conversation filter">
                   <FilterChip label="All" isActive={conversationFilter === 'all'} onSelect={() => setConversationFilter('all')} />
                   <FilterChip label="Unread" isActive={conversationFilter === 'unread'} onSelect={() => setConversationFilter('unread')} />
                   <FilterChip label={`Requests${messaging.requestCount ? ` ${messaging.requestCount}` : ''}`} isActive={conversationFilter === 'requests'} onSelect={() => setConversationFilter('requests')} />
@@ -302,14 +302,14 @@ export function MessagesPage({
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto border-t border-[var(--hairline)]">
-                {isSearching ? <div className="px-4 pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
-                {searchError ? <div className="mx-4 mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}</div> : null}
-                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="p-5"><LoadingState label="Loading conversations" /></div> : null}
-                {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="p-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
-                {messaging.status === 'success' && visibleConversations.length === 0 ? <div className="p-5"><EmptyState title={conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
+                {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
+                {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}</div> : null}
+                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
+                {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
+                {messaging.status === 'success' && visibleConversations.length === 0 ? <div className="side-panel-content-inset py-5"><EmptyState title={conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul>
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
-                      <div className={`ps-list-btn flex w-full items-center gap-3 border-b border-[var(--hairline)] px-4 py-3 hover:bg-[var(--surface-hover)] ${activeId === conversation.id ? 'bg-[var(--surface-selected)]' : ''}`}>
+                      <div className={`ps-list-btn side-panel-content-inset flex w-full items-center gap-3 border-b border-[var(--hairline)] py-3 hover:bg-[var(--surface-hover)] ${activeId === conversation.id ? 'bg-[var(--surface-selected)]' : ''}`}>
                         <ProfileAvatar name={conversation.participant.name} avatar={conversation.participant.avatar} />
                         <button type="button" onClick={() => void messaging.openConversation(conversation)} aria-current={activeId === conversation.id ? 'true' : undefined} className="flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                         <span className="min-w-0 flex-1">
@@ -328,8 +328,8 @@ export function MessagesPage({
                       </div>
                     </li>)}
                 </ul>
-                {messaging.nextConversationOffset !== null && !query.trim() ? <div className="p-4">
-                    <button type="button" disabled={messaging.isLoadingMoreConversations} onClick={() => void messaging.loadMoreConversations()} className="shape-compact w-full px-4 py-2.5 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingMoreConversations ? 'Loading…' : 'Show more conversations'}</button>
+                {messaging.nextConversationOffset !== null && !query.trim() ? <div className="side-panel-content-inset py-4">
+                    <button type="button" disabled={messaging.isLoadingMoreConversations} onClick={() => void messaging.loadMoreConversations()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingMoreConversations ? 'Loading…' : 'Show more conversations'}</button>
                   </div> : null}
               </div>
             </>}
@@ -503,7 +503,7 @@ function MessageList({ messages, viewerProfileId, participantReadAt, pendingMess
 }
 
 function FilterChip({ label, isActive, onSelect }: { label: string; isActive: boolean; onSelect: () => void }) {
-  return <button type="button" aria-pressed={isActive} onClick={onSelect} className={`ps-nav-item rounded-full px-3 py-1.5 text-[12px] font-semibold focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--accent-text)]'}`}>{label}</button>;
+  return <button type="button" aria-pressed={isActive} title={label} onClick={onSelect} className={`ps-nav-item side-panel-primary-control flex w-full items-center justify-center px-1.5 text-[14px] font-semibold focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--accent-text)]'}`}><span className="truncate">{label}</span></button>;
 }
 
 function ConversationMenuButton({ icon, label, danger = false, onClick }: { icon: InterfaceIconSource; label: string; danger?: boolean; onClick: () => void }) {

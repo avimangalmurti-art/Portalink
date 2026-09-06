@@ -44,21 +44,22 @@ export function NewChatPanel({
   }, [auth.viewerProfileId, directory.people]);
 
   return <div className="flex min-h-0 flex-1 flex-col" aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3">
-        <button type="button" onClick={onClose} aria-label="Back to messages" className="shape-compact flex h-9 w-9 shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <div className="side-panel-control-stack side-panel-content-inset shrink-0">
+      <div className="side-panel-primary-control flex items-center gap-2">
+        <button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" mirroredInRtl />
         </button>
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-[var(--text-primary)]">New message</h2>
       </div>
 
-      <div className="shrink-0 px-4 pb-3">
-        <label className="text-control-shell group flex h-11 items-center gap-2.5 rounded-[9px] px-3.5">
+        <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
           <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
           <span className="sr-only">Search by name or username</span>
           <input ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
         </label>
-        <p className="mt-3 text-[14px] font-medium text-[var(--text-secondary)]">{isSearching ? 'Search results' : 'People you follow'}</p>
       </div>
+
+      <p className="side-panel-content-inset py-3 text-[14px] font-medium text-[var(--text-secondary)]">{isSearching ? 'Search results' : 'People you follow'}</p>
 
       {startError ? <div className="mx-4 mb-3 flex items-start justify-between gap-3 rounded-[9px] bg-[color-mix(in_srgb,var(--status-danger)_12%,transparent)] px-3 py-2 text-[13px] text-[var(--status-danger)]" role="alert">
           <span>{startError}</span>
@@ -66,12 +67,12 @@ export function NewChatPanel({
         </div> : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto pb-6">
-        {directory.status === 'loading' && directory.people.length === 0 ? <div className="px-4 py-6"><LoadingState label={isSearching ? 'Searching creators' : 'Loading people you follow'} /></div> : null}
-        {directory.status === 'error' && directory.people.length === 0 ? <div className="px-4 py-6"><ErrorState title={isSearching ? 'Unable to search creators' : 'Unable to load people you follow'} description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
-        {directory.status === 'success' && groups.length === 0 ? <div className="px-4 py-6"><EmptyState title={isSearching ? 'No creators found' : 'No followed creators to show'} description={isSearching ? 'Try another name or username.' : 'Search by name or username to find someone to message.'} /></div> : null}
+        {directory.status === 'loading' && directory.people.length === 0 ? <div className="side-panel-content-inset py-6"><LoadingState label={isSearching ? 'Searching creators' : 'Loading people you follow'} /></div> : null}
+        {directory.status === 'error' && directory.people.length === 0 ? <div className="side-panel-content-inset py-6"><ErrorState title={isSearching ? 'Unable to search creators' : 'Unable to load people you follow'} description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
+        {directory.status === 'success' && groups.length === 0 ? <div className="side-panel-content-inset py-6"><EmptyState title={isSearching ? 'No creators found' : 'No followed creators to show'} description={isSearching ? 'Try another name or username.' : 'Search by name or username to find someone to message.'} /></div> : null}
 
         {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
-            <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="px-4 pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
+            <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
             <ul>
               {people.map((person) => <li key={person.id}>
                   <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId)} onSelect={() => onSelectCreator(person.id)} />
@@ -79,8 +80,8 @@ export function NewChatPanel({
             </ul>
           </section>)}
 
-        {directory.hasMore ? <div className="px-4 pt-4">
-            <button type="button" disabled={directory.status === 'loading'} onClick={() => void directory.loadMore()} className="shape-compact w-full px-4 py-2.5 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
+        {directory.hasMore ? <div className="side-panel-content-inset pt-4">
+            <button type="button" disabled={directory.status === 'loading'} onClick={() => void directory.loadMore()} className="side-panel-primary-control w-full justify-center px-3 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">
               {directory.status === 'loading' ? 'Loading…' : 'Show more creators'}
             </button>
           </div> : null}
@@ -94,7 +95,7 @@ function PersonRow({ person, isStarting, isDisabled, onSelect }: {
   isDisabled: boolean;
   onSelect: () => void;
 }) {
-  return <div className="flex w-full items-center gap-3 px-4 py-2.5 hover:bg-[var(--surface-hover)]">
+  return <div className="side-panel-content-inset flex w-full items-center gap-3 py-3 hover:bg-[var(--surface-hover)]">
       <ProfileAvatar name={person.name} avatar={person.avatar} />
       <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
       <span className="flex min-w-0 flex-1 flex-col">

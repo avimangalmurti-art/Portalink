@@ -977,7 +977,7 @@ export function Sidebar({
            not fit inside a padded 52px column, and the overflow was pushing every
            mark off the rail's axis. With the padding gone the tile centres in the
            column, which is the sidebar's own centre. */}
-        <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'px-2'}`}>
+        <div data-material="navigation" className={`ps-panel sidebar-surface relative z-10 flex h-full min-h-0 flex-col overflow-hidden border-r pb-2 ${isSidebarCollapsed ? 'px-0' : 'side-panel-content-inset'}`}>
           {/* Collapsed, the rail owns the rhythm: brand, then destinations, all
              on one axis with one gap. Expanded, this is the header row. */}
           <div className={`global-control-header shrink-0 ${isSidebarCollapsed ? 'sidebar-rail sidebar-rail-brand justify-center' : 'justify-between gap-2 px-1'}`}>
@@ -1038,9 +1038,9 @@ export function Sidebar({
                   </button>}
               </nav>
             </> : <>
-          <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Navigation and work">
-            <nav className="ps-nav-grid shrink-0 px-1 py-1" aria-label="Main destinations">
-              <div className="sidebar-network-grid w-full gap-y-1.5">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Navigation and work">
+            <nav className="ps-nav-grid side-panel-control-stack shrink-0" aria-label="Main destinations">
+              <div className="sidebar-network-grid w-full">
                 <div role="group" aria-label="Main navigation row one" className="contents">
                   <PortalNetworkTile />
                   <NavTile label="Insights" icon={BarChart3Icon} isActive={isInsightsActive} activeClassName="" ariaLabel="Open Insights" title="Insights" href={buildPath('insights')} />
@@ -1061,7 +1061,7 @@ export function Sidebar({
                  rather than as another navigation item. */}
             {/* No confirmed profile means no portfolio: the section is absent
                  rather than carrying a heading with nothing truthful behind it. */}
-            {viewedProfile && <div className="mt-2 flex min-h-0 flex-col">
+            {viewedProfile && <div className="flex min-h-0 flex-col">
               {/* The heading names whose portals are being browsed. Ownership is
                    resolved from the authenticated viewer upstream, so "My" can
                    never be inferred merely from whichever route is open. */}
