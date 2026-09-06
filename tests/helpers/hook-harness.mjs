@@ -12,6 +12,7 @@ export function deferred() {
 export function hookHarness(file, exportName, services, auth, initialOptions = {}) {
   const slots = [];
   const intervals = new Map();
+  const timeouts = new Map();
   let cursor = 0, dirty = true, result, options = initialOptions, timer = 0;
   let effects = [];
   const same = (left, right) => left && right && left.length === right.length && left.every((value, i) => Object.is(value, right[i]));
@@ -48,7 +49,9 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     exports, crypto, URL, console, document,
     window: {
       setInterval(fn) { intervals.set(++timer, fn); return timer; },
-      clearInterval(id) { intervals.delete(id); }, setTimeout() { return ++timer; }, clearTimeout() {},
+      clearInterval(id) { intervals.delete(id); },
+      setTimeout(fn) { timeouts.set(++timer, fn); return timer; },
+      clearTimeout(id) { timeouts.delete(id); },
     },
     require(name) {
       if (name === 'react') return react;
@@ -68,6 +71,7 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     document,
     async flush() { for (let i = 0; i < 25; i++) { if (dirty) render(); await Promise.resolve(); } return result; },
     tick() { for (const fn of [...intervals.values()]) fn(); },
+    runTimeouts() { const pending = [...timeouts.values()]; timeouts.clear(); for (const fn of pending) fn(); },
     options(next) { options = next; dirty = true; },
     rerender() { dirty = true; },
     dispose() { for (const slot of slots) slot?.cleanup?.(); },

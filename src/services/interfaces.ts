@@ -460,6 +460,7 @@ export interface MessagingService {
   getOrCreateConversation(otherProfileId: Id): Promise<ConversationSummary>;
   listMessages(conversationId: Id, options?: { before?: MessageCursor | null; limit?: number }): Promise<MessagePage>;
   searchConversations(query: string, options?: { limit?: number }): Promise<ConversationSummary[]>;
+  /** Empty queries list people the viewer follows; name/username searches include other visible profiles. */
   searchRecipients(query: string, options?: { offset?: number; limit?: number }): Promise<MessageParticipant[]>;
   sendMessage(conversationId: Id, body: string, attachments?: File[]): Promise<DirectMessage>;
   editMessage(messageId: Id, body: string): Promise<DirectMessage>;

@@ -249,13 +249,21 @@ export const supabaseMessagingService: MessagingService = {
   },
 
   async searchRecipients(search, options = {}) {
-    await viewerProfileId();
-    const term = search.trim().replace(/[^\p{L}\p{N}\s_.-]/gu, ' ').replace(/\s+/g, ' ').slice(0, 80);
+    const viewerId = await viewerProfileId();
+    const term = search.trim().replace(/[^\p{L}\p{N}\s_.-]/gu, ' ').replace(/\s+/g, ' ').slice(0, 80).trim();
+    if (search.trim() && !term) return [];
     const offset = Math.max(0, options.offset ?? 0);
     const limit = Math.min(50, Math.max(1, options.limit ?? 30));
-    let query = requireSupabase().from('profiles')
-      .select('id,name,handle,avatar_url')
+    const client = requireSupabase();
+    const recipients = term
+      ? client.from('profiles').select('id,name,handle,avatar_url')
+      : client.from('profiles')
+        .select('id,name,handle,avatar_url,following:profile_follows!profile_follows_target_profile_id_fkey!inner(target_profile_id)')
+        .eq('following.follower_profile_id', viewerId).eq('following.status', 'following');
+    let query = recipients
+      .neq('id', viewerId)
       .order('name', { ascending: true })
+      .order('id', { ascending: true })
       .range(offset, offset + limit - 1);
     if (term) query = query.or(`name.ilike.%${term}%,handle.ilike.%${term}%`);
     const { data, error } = await query;

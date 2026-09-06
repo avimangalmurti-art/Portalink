@@ -15,7 +15,7 @@ type NewChatPanelProps = {
   onDismissError?: () => void;
 };
 
-/** A complete, server-searched recipient directory rather than a discovery sample. */
+/** Starts with followed people and expands to visible profiles when searching. */
 export function NewChatPanel({
   onClose,
   onSelectCreator,
@@ -26,6 +26,7 @@ export function NewChatPanel({
   const auth = useAuth();
   const [query, setQuery] = useState('');
   const directory = useDirectory(query);
+  const isSearching = Boolean(query.trim());
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -56,6 +57,7 @@ export function NewChatPanel({
           <span className="sr-only">Search by name or username</span>
           <input ref={inputRef} type="search" value={query} onChange={(event) => { setQuery(event.target.value); onDismissError?.(); }} placeholder="Name or username" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
         </label>
+        <p className="mt-3 text-[14px] font-medium text-[var(--text-secondary)]">{isSearching ? 'Search results' : 'People you follow'}</p>
       </div>
 
       {startError ? <div className="mx-4 mb-3 flex items-start justify-between gap-3 rounded-[9px] bg-[color-mix(in_srgb,var(--status-danger)_12%,transparent)] px-3 py-2 text-[13px] text-[var(--status-danger)]" role="alert">
@@ -64,9 +66,9 @@ export function NewChatPanel({
         </div> : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto pb-6">
-        {directory.status === 'loading' && directory.people.length === 0 ? <div className="px-4 py-6"><LoadingState label="Searching creators" /></div> : null}
-        {directory.status === 'error' && directory.people.length === 0 ? <div className="px-4 py-6"><ErrorState title="Unable to search creators" description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
-        {directory.status === 'success' && groups.length === 0 ? <div className="px-4 py-6"><EmptyState title="No creators found" description={query.trim() ? 'Try another name or username.' : 'No other public creator profiles are available.'} /></div> : null}
+        {directory.status === 'loading' && directory.people.length === 0 ? <div className="px-4 py-6"><LoadingState label={isSearching ? 'Searching creators' : 'Loading people you follow'} /></div> : null}
+        {directory.status === 'error' && directory.people.length === 0 ? <div className="px-4 py-6"><ErrorState title={isSearching ? 'Unable to search creators' : 'Unable to load people you follow'} description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
+        {directory.status === 'success' && groups.length === 0 ? <div className="px-4 py-6"><EmptyState title={isSearching ? 'No creators found' : 'No followed creators to show'} description={isSearching ? 'Try another name or username.' : 'Search by name or username to find someone to message.'} /></div> : null}
 
         {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="px-4 pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
