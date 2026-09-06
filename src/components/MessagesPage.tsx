@@ -336,19 +336,19 @@ export function MessagesPage({
           <ResizablePanelHandle desktopOnly side="right" value={conversationListWidth.width} min={280} max={440} onResize={conversationListWidth.updateWidth} onResizeEnd={conversationListWidth.commitWidth} onReset={conversationListWidth.resetWidth} label="Resize conversation list. Double-click to restore its default width." />
         </aside>
 
-        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col bg-[var(--surface-sunken)] lg:flex`}>
+        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-sunken)] lg:flex`}>
           {messaging.activeConversation ? <>
-              <div className="side-panel-primary-control side-panel-control-row side-panel-content-inset relative my-2 shrink-0 bg-[var(--surface-canvas)]">
+              <div className="side-panel-content-inset relative m-[var(--side-panel-content-inset)] flex min-w-0 shrink-0 items-center gap-3 rounded-[var(--shape-compact)] bg-[var(--surface-canvas)] py-[var(--side-panel-content-inset)]">
                 <button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
                   <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
                 </button>
                 <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
-                {onOpenCreator ? <button type="button" onClick={() => { const participantId = messaging.activeConversation?.participant.id; if (participantId) onOpenCreator(participantId); }} className="shape-compact flex min-w-0 items-center gap-2.5 px-1 text-left focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                {onOpenCreator ? <button type="button" onClick={() => { const participantId = messaging.activeConversation?.participant.id; if (participantId) onOpenCreator(participantId); }} className="shape-compact flex min-w-0 flex-1 self-stretch items-center text-left focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <RecipientIdentity conversation={messaging.activeConversation} />
-                  </button> : <div className="flex min-w-0 items-center gap-2.5"><RecipientIdentity conversation={messaging.activeConversation} /></div>}
-                <span className="ml-auto text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
+                  </button> : <div className="flex min-w-0 flex-1 items-center"><RecipientIdentity conversation={messaging.activeConversation} /></div>}
+                <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
                 <button type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
-                {isConversationMenuOpen ? <div className="absolute right-3 top-12 z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
+                {isConversationMenuOpen ? <div className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
                     <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
                     <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('archive'); }} />
                     <ConversationMenuButton icon={FlagIcon} label="Report conversation" onClick={() => { setIsConversationMenuOpen(false); setIsReportOpen(true); setReportSent(false); }} />
