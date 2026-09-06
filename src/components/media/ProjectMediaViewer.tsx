@@ -13,7 +13,7 @@ import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
-import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
+import { ResizablePanelHandle, type useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 const KIND_ICONS: Record<MediaKind, LucideIcon> = {
   image: ImageIcon,
   video: PlayIcon,
@@ -70,6 +70,8 @@ function formatPublishedDate(value?: string): string | null {
  * model, a photograph, and a rider, and each is presented for what it is.
  */
 export function ProjectMediaViewer({
+  responseRailWidth,
+  singlePanel,
   projectId,
   projectTitle,
   projectSummary,
@@ -100,17 +102,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
-  const responseRailWidth = useResizablePanelWidth({
-    // The public-link information rail is independently resizable, but its
-    // baseline is always the maximum standard width. A width chosen in the
-    // signed-in engagement rail must never leak into the public presentation.
-    id: readOnlyShare ? 'shared-project-details-standard' : 'project-response',
-    defaultWidth: 440,
-    minWidth: readOnlyShare ? 240 : 304,
-    maxWidth: 440,
-    viewportReserve: 420
-  });
+}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -356,8 +348,8 @@ export function ProjectMediaViewer({
    */
   return <div data-premium-project-viewer="" data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive) setAreControlsVisible(false);
-  }} className="flex h-full min-h-0 w-full flex-col lg:flex-row">
-      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+  }} className="flex h-full min-h-0 w-full flex-row">
+      <div style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {isImmersive && <div role="status" aria-live="polite" className="premium-viewer-hud pointer-events-none absolute left-1/2 top-3 z-30 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-medium text-white">
             Scroll to browse · Pinch or Ctrl/Cmd + wheel to zoom
           </div>}
@@ -409,7 +401,7 @@ export function ProjectMediaViewer({
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
-      {readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" style={isRailOpen ? { ['--project-response-width' as string]: `${responseRailWidth.width}px` } : undefined} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[var(--project-response-width)]' : 'lg:w-[52px]'}`}>
+      {readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
               {isRailOpen ? <InterfaceIcon icon={PanelRightCloseIcon} size="lg" weight="medium" mirroredInRtl /> : <InterfaceIcon icon={PanelRightOpenIcon} size="lg" weight="medium" mirroredInRtl />}
@@ -508,8 +500,8 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>}
-          {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
-        </aside> : <aside data-resizable-panel="" data-project-response-rail="" style={isRailOpen ? { ['--project-response-width' as string]: `${responseRailWidth.width}px` } : undefined} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex w-full shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none lg:flex-none lg:border-l lg:border-t-0 ${isRailOpen ? 'lg:w-[var(--project-response-width)]' : 'lg:w-[52px]'}`}>
+          {isRailOpen && !singlePanel && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
+        </aside> : <aside data-resizable-panel="" data-project-response-rail="" style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
         {/* One row: the engagement controls and the control that hides them. The
@@ -559,7 +551,7 @@ export function ProjectMediaViewer({
           }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
-        {isRailOpen && <ResizablePanelHandle desktopOnly side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
+        {isRailOpen && !singlePanel && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
     </div>;
 }

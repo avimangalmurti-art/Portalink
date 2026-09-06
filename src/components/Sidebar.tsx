@@ -1,3 +1,4 @@
+import { useCompactNavigation } from '../hooks/useCompactNavigation';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
@@ -728,7 +729,7 @@ export function Sidebar({
   onLeaveShow,
   management,
   onChangeCategoryIcon,
-  isCollapsed: isSidebarCollapsed,
+  isCollapsed: preferredSidebarCollapsed,
   onCollapsedChange,
   onNavigate,
   onProfileOpen,
@@ -746,6 +747,8 @@ export function Sidebar({
   onCategorySelect,
   isOwnerMode
 }: SidebarProps) {
+  const compactNavigation = useCompactNavigation(preferredSidebarCollapsed, onCollapsedChange);
+  const isSidebarCollapsed = compactNavigation.collapsed;
   const mainSidebarWidth = useResizablePanelWidth({
     id: 'main-navigation',
     defaultWidth: 360,
@@ -912,28 +915,11 @@ export function Sidebar({
     void commitDraftCategoryOrder(nextIds);
   }
   const [isPlaylistsOpen, setIsPlaylistsOpen] = useState(false);
-  // A resizable macOS window keeps the full sidebar until it no longer fits.
-  // At compact width it collapses to the same rail instead of squeezing the
-  // content into an unusable sliver. Expanding becomes available again as soon
-  // as the window crosses the threshold.
-  useEffect(() => {
-    const compactWindow = window.matchMedia('(max-width: 639px)');
-    const sync = () => {
-      if (!compactWindow.matches) {
-        return;
-      }
-      if (!isSidebarCollapsed) {
-        onCollapsedChange(true);
-      }
-    };
-    sync();
-    compactWindow.addEventListener('change', sync);
-    return () => compactWindow.removeEventListener('change', sync);
-  }, [isSidebarCollapsed, onCollapsedChange]);
   function toggleCollapsed() {
-    onCollapsedChange(!isSidebarCollapsed);
+    compactNavigation.toggle();
   }
   function handleNavigate(destination: NavigationDestination) {
+    compactNavigation.closeCompact();
     onNavigate(destination);
   }
   // Exactly one sidebar target reads as selected. Resolving it once, in

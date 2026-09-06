@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { createPortal } from 'react-dom';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { GripVerticalIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
@@ -117,6 +118,14 @@ export function ProfileLinksEditor({
     setIconQuery('');
   }, [links, selectedId]);
 
+  const iconDialogRef = useRef<HTMLElement>(null);
+  useModalFocus(isChoosingIcon && links.some((link) => link.id === selectedId), iconDialogRef, () => setIsChoosingIcon(false));
+  useEffect(() => {
+    if (!isChoosingIcon) return;
+    const frame = requestAnimationFrame(() => iconDialogRef.current?.querySelector<HTMLInputElement>('input')?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [isChoosingIcon]);
+
   const selected = links.find((link) => link.id === selectedId) ?? null;
   const DraftIcon = getCategoryIcon(draftIconName);
   const draftIconOption = profileLinkIconOptions.find((option) => option.name === draftIconName) ?? null;
@@ -183,7 +192,7 @@ export function ProfileLinksEditor({
       <div role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setIsChoosingIcon(false);
       }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-        <section role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
+        <section ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
@@ -210,7 +219,7 @@ export function ProfileLinksEditor({
             <label className="text-control-shell mt-5 flex h-11 items-center gap-2 rounded-[10px] px-3">
               <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
               <span className="sr-only">Search link icons</span>
-              <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} autoFocus placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+              <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </label>
 
             <div role="radiogroup" aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">

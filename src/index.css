@@ -19,10 +19,9 @@
 
 /* ═══════════════════════════════════════════════════════════════════════
    0. GLOBAL TYPOGRAPHY SYSTEM
-   Three fluid sizes only — large, medium, small — used across every page,
-   component and breakpoint. Hierarchy is built with weight, colour,
-   spacing and line height, never with additional sizes.
-   Utilities: text-large / text-medium / text-small (see tailwind.config.js)
+   Legacy aliases initialize here; the semantic type roles below define the
+   effective interface, metadata, conversational and title scales. Dense
+   navigation has its own explicit role overrides.
    ═══════════════════════════════════════════════════════════════════════ */
 :root {
   /* Headings run 24px up to 32px with the viewport; body is a fixed 16px and
@@ -3807,13 +3806,13 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    keep their contrast-safe foregrounds, while full-colour identity objects opt
    out through the existing data-keep-color contract. */
 @media (hover: hover) and (pointer: fine) {
-  body button:not(:disabled):not([data-keep-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover {
+  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover {
     color: var(--accent-text) !important;
   }
 
-  body button:not(:disabled):not([data-keep-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover > span:not([data-keep-color]),
-  body button:not(:disabled):not([data-keep-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon-frame]:not([data-keep-color]),
-  body button:not(:disabled):not([data-keep-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon]:not([data-keep-color]) {
+  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover > span:not([data-keep-color]),
+  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon-frame]:not([data-keep-color]),
+  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon]:not([data-keep-color]) {
     color: var(--accent-text) !important;
   }
 }
@@ -4032,7 +4031,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell .sidebar-surface .nav-button[aria-current='page'] svg,
 .codex-shell.accent-theme .sidebar-surface .nav-button[aria-current='page'] svg {
-  color: var(--accent-primary) !important;
+  color: var(--control-selected-text) !important;
 }
 
 .codex-shell :is(.sidebar-surface, .shared-profile-sidebar) .sidebar-pill-row,
@@ -4552,6 +4551,13 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   outline: none !important;
 }
 
+/* Validation owns the field edge even while the separate focus ring is active.
+   Shell classes also occur directly on multiline controls. */
+.codex-shell.accent-theme
+  :is(.text-control, .text-control-shell, .field-shell.text-control-shell):is([aria-invalid='true'], :has(:is(input, textarea)[aria-invalid='true'])) {
+  border-color: var(--status-danger) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .text-control,
   .text-control-shell,
@@ -4573,7 +4579,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .codex-shell
-  :where(button, [role='button']):is([aria-current='page'], [aria-current='true'], [aria-selected='true'])
+  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-']):not([data-semantic-action]):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'])
   :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
   color: var(--control-selected-text) !important;
 }

@@ -9,6 +9,7 @@ import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useProfileEditor } from './useProfileEditor';
 import { ProfileLinksEditor } from './ProfileLinksEditor';
 import { LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
+import { useModalFocus } from '../../hooks/useModalFocus';
 
 /**
  * The owner's identity editor.
@@ -38,21 +39,10 @@ export function ProfileEditorDialog({
   const shouldReduceMotion = useReducedMotion();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   // The profile editor is lightweight and reversible until Save. Dismissal is
   // immediate; reopening reads the canonical saved profile again.
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape') {
-        return;
-      }
-      onClose();
-    }
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [isOpen, onClose]);
+  useModalFocus(isOpen, dialogRef, onClose);
   useEffect(() => {
     if (isOpen && editor.phase === 'editing') {
       const frame = requestAnimationFrame(() => firstFieldRef.current?.focus());
@@ -99,7 +89,7 @@ export function ProfileEditorDialog({
         onClose();
       }
     }}>
-        <motion.section role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="profile-editor-dialog flex max-h-[calc(100dvh-24px)] w-full max-w-[820px] flex-col overflow-hidden rounded-[18px] text-[var(--text-primary)]" initial={shouldReduceMotion ? {
+        <motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="profile-editor-dialog flex max-h-[calc(100dvh-24px)] w-full max-w-[820px] flex-col overflow-hidden rounded-[18px] text-[var(--text-primary)]" initial={shouldReduceMotion ? {
         opacity: 0
       } : {
         opacity: 0,

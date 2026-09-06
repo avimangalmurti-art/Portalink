@@ -33,6 +33,7 @@ function harness() {
   const { SharedProfileSidebar } = compile('../src/components/profile/SharedProfileSidebar.tsx', (name) => {
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
+    if (name.endsWith('/useCompactNavigation')) return { useCompactNavigation: (collapsed, change) => ({ collapsed, toggle: () => change(!collapsed), closeCompact() {} }) };
     if (name === './categoryIcons') return { getCategoryIcon: (name) => `portal-icon-${name}` };
     if (name === '../ui/ResizablePanelHandle') return {
       ResizablePanelHandle: 'resize-handle',

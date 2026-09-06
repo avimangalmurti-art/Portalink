@@ -1,3 +1,4 @@
+import { useCompactNavigation } from '../../hooks/useCompactNavigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { HomeIcon, LogInIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -46,7 +47,9 @@ export function SharedProfileSidebar({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // This is the public viewer's visit, not the owner's saved workspace layout.
   // Keep the maximum-width default and preserve the choice between shared routes.
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [preferredCollapsed, setIsCollapsed] = useState(false);
+  const compactNavigation = useCompactNavigation(preferredCollapsed, setIsCollapsed);
+  const isCollapsed = compactNavigation.collapsed;
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -81,7 +84,7 @@ export function SharedProfileSidebar({
           {!isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link> : null}
-          <button type="button" onClick={() => { setIsSettingsOpen(false); setIsCollapsed((value) => !value); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" onClick={() => { setIsSettingsOpen(false); compactNavigation.toggle(); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={isCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
           </button>
         </div>
@@ -101,7 +104,7 @@ export function SharedProfileSidebar({
           const Icon = getCategoryIcon(category.iconName);
           const isActive = category.id === activeCategoryId;
           return <li key={category.id} className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] list-none ${isCollapsed ? 'w-10 shrink-0' : 'w-full'}`}>
-                <button type="button" data-category-row="" onClick={() => onOpenCategory(category.id)} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[180ms] ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
+                <button type="button" data-category-row="" onClick={() => { compactNavigation.closeCompact(); onOpenCategory(category.id); }} aria-label={category.label} title={category.label} aria-current={isActive ? 'page' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[180ms] ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isCollapsed ? 'justify-center' : ''} ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
                   <span aria-hidden="true" data-icon-tile="" className="flex h-4 w-6 shrink-0 items-center justify-center">
                     <InterfaceIcon icon={Icon} weight="medium" />
                   </span>

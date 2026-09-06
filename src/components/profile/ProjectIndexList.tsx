@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
 import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, ReplaceIcon, Trash2Icon } from 'lucide-react';
 // Canonical domain model, not the seed module's parallel copy.
@@ -212,18 +214,50 @@ function ProjectRow({
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<ReturnType<typeof positionAnchoredMenu> | null>(null);
+  const positionMenu = useCallback(() => {
+    if (!triggerRef.current || !menuRef.current) return;
+    const panel = menuRef.current;
+    setPosition(positionAnchoredMenu(triggerRef.current.getBoundingClientRect(), panel.offsetWidth, panel.scrollHeight + panel.offsetHeight - panel.clientHeight, window.innerWidth, window.innerHeight));
+  }, []);
+  useLayoutEffect(() => {
+    if (!isMenuOpen) { setPosition(null); return; }
+    positionMenu();
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    const observer = new ResizeObserver(positionMenu);
+    if (menuRef.current) observer.observe(menuRef.current);
+    window.addEventListener('resize', positionMenu);
+    window.addEventListener('scroll', positionMenu, true);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
+    };
+  }, [isMenuOpen, positionMenu]);
   useEffect(() => {
     if (!isMenuOpen) {
       return;
     }
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element;
-      if (!rowRef.current?.contains(target) && !target.closest('[data-typography-popover]')) {
+      if (!rowRef.current?.contains(target) && !menuRef.current?.contains(target) && !target.closest('[data-typography-popover]')) {
         setIsMenuOpen(false);
       }
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.querySelector('[data-typography-popover]')) return;
+      event.preventDefault();
+      setIsMenuOpen(false);
+      triggerRef.current?.focus();
+    };
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [isMenuOpen]);
   const body = <div ref={rowRef} className="relative">
       <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
@@ -239,14 +273,14 @@ function ProjectRow({
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
         <div className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button ref={triggerRef} type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
         </div>
       </div>
 
-      <AnimatePresence>
-        {isMenuOpen && <motion.div role="menu" initial={{
+      {createPortal(<AnimatePresence>
+        {isMenuOpen && <motion.div ref={menuRef} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
         opacity: 0,
         y: -4
       }} animate={{
@@ -257,8 +291,9 @@ function ProjectRow({
         y: -4
       }} transition={{
         duration: 0.14
-      }} className="absolute right-1 top-[calc(100%-2px)] z-30 w-48 rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
+      }} className="fixed z-[45] w-48 max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
             {onEdit && <button type="button" role="menuitem" onClick={() => {
+          triggerRef.current?.focus();
           onEdit();
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -283,13 +318,15 @@ function ProjectRow({
             {/* These act on the published record itself, through the project
              management boundary — not on a local copy of it. */}
             {onReplaceFiles && <button type="button" role="menuitem" onClick={() => {
+          triggerRef.current?.focus();
           onReplaceFiles();
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={ReplaceIcon} size="sm" weight="medium" />
                 Replace files…
               </button>}
-            {onDelete && <button type="button" role="menuitem" onClick={() => {
+            {onDelete && <button type="button" data-keep-color="" role="menuitem" onClick={() => {
+          triggerRef.current?.focus();
           onDelete();
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -297,7 +334,7 @@ function ProjectRow({
                 Delete project…
               </button>}
           </motion.div>}
-      </AnimatePresence>
+      </AnimatePresence>, document.querySelector<HTMLElement>('.app-shell') ?? document.body)}
     </div>;
   if (!isDraggable) {
     return body;

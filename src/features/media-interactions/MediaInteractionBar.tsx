@@ -143,7 +143,7 @@ export function MediaInteractionBar({
             aria-label={`Comment on ${presentedTarget.label}`}
             className="min-h-8 min-w-0 flex-1 resize-none bg-transparent text-[11px] leading-relaxed text-white outline-none placeholder:text-white/35"
           />
-          <button type="submit" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
+          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
             {activity.isPostingComment ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <InterfaceIcon icon={SendIcon} size="sm" weight="medium" />}
           </button>
         </div>

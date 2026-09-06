@@ -1,0 +1,185 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import vm from 'node:vm';
+import ts from 'typescript';
+
+function compile(path, globals = {}) {
+  const exports = {};
+  const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
+  }).outputText;
+  vm.runInNewContext(code, { exports, require: () => ({}), ...globals });
+  return exports;
+}
+const { allocateProjectPanels: allocate } = compile('../src/utils/projectPanelLayout.ts');
+const { positionAnchoredMenu: position } = compile('../src/utils/anchoredMenu.ts');
+
+test('shared panel allocation preserves work and restores wide preferences', () => {
+  const wide = allocate(1400, true, true, 420, 440, 304, null, null);
+  assert.deepEqual([wide.indexWidth, wide.responseWidth, wide.workWidth], [420, 440, 540]);
+  for (const width of [327, 664, 780, 844, 1000, 1180]) {
+    for (const minimum of [240, 304]) {
+      for (const priority of ['index', 'response']) {
+        const result = allocate(width, true, true, 420, 440, minimum, priority, null);
+        assert.equal(result.indexWidth + result.responseWidth + result.workWidth, width);
+        assert.ok(result.workWidth >= Math.min(320, width - 104));
+        if (result.indexOpen) assert.ok(result.indexWidth >= 220);
+        if (result.responseOpen) assert.ok(result.responseWidth >= minimum);
+      }
+    }
+  }
+  assert.deepEqual(allocate(1400, true, true, 420, 440, 304, null, null), wide);
+});
+
+test('compact panels can be opened, closed, and safely lose their project', () => {
+  for (const panel of ['index', 'response']) {
+    const result = allocate(327, true, true, 420, 440, 304, panel, panel);
+    assert.equal(result.singlePanel, panel);
+    assert.equal(result[panel + 'Width'], 327);
+    assert.equal(result.workWidth, 0);
+  }
+  const closed = allocate(327, true, false, 420, 440, 304, 'response', null);
+  assert.equal(closed.singlePanel, null);
+  assert.ok(closed.workWidth > 0);
+  const removed = allocate(327, true, true, 420, 440, 304, 'response', 'response', false);
+  assert.equal(removed.responseWidth, 0);
+  assert.equal(removed.indexWidth, 52);
+  assert.equal(removed.workWidth, 275);
+});
+
+test('resizing a compressed panel follows the requested direction and respects work space', () => {
+  for (const panel of ['index', 'response']) {
+    const initial = allocate(1000, true, true, 320, 340, 304, panel, null);
+    const requested = initial[panel + 'Width'] + 12;
+    const next = allocate(1000, true, true, panel === 'index' ? requested : 320,
+      panel === 'response' ? requested : 340, 304, panel, null);
+    assert.equal(next[panel + 'Width'], requested);
+    assert.ok(next.workWidth >= 320);
+  }
+});
+
+test('menus flip at the lower edge and remain inside short or narrow viewports', () => {
+  const anchor = { right: 790, top: 540, bottom: 580 };
+  const result = position(anchor, 192, 242, 800, 600);
+  assert.equal(result.top, 292);
+  assert.ok(result.left + 192 <= 792);
+  const short = position({ right: 190, top: 90, bottom: 130 }, 192, 420, 200, 180);
+  assert.equal(short.maxHeight, 164);
+  assert.equal(short.top, 8);
+  assert.equal(short.left, 8);
+});
+
+function focusEnvironment() {
+  const listeners = new Map();
+  const document = {
+    activeElement: null,
+    addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, new Set()); listeners.get(name).add(fn); },
+    removeEventListener(name, fn) { listeners.get(name)?.delete(fn); },
+  };
+  function dispatch(name, event) { for (const listener of [...listeners.get(name) ?? []]) listener(event); }
+  class Element {
+    constructor(parent = null, modal = false) {
+      this.parent = parent; this.modal = modal; this.children = []; this.isConnected = true;
+      this.disabled = false; this.hidden = false; this.visibility = 'visible'; this.tabIndex = 0;
+      parent?.children.push(this);
+    }
+    contains(other) { return other === this || this.children.some((child) => child.contains(other)); }
+    closest(selector) {
+      if (selector.includes('role=')) return this.modal ? this : this.parent?.closest(selector) ?? null;
+      return this.hidden ? this : this.parent?.closest(selector) ?? null;
+    }
+    matches(selector) { return selector === ':disabled' && this.disabled; }
+    getClientRects() { return this.hidden ? [] : [{}]; }
+    querySelectorAll() { return this.children.flatMap((child) => [child, ...child.querySelectorAll()]); }
+    focus() {
+      if (this.disabled || this.hidden || this.visibility === 'hidden') return;
+      document.activeElement = this; dispatch('focusin', { target: this });
+    }
+  }
+  const { containModalFocus } = compile('../src/hooks/useModalFocus.ts', {
+    document, HTMLElement: Element, getComputedStyle: (element) => ({ visibility: element.visibility }),
+  });
+  return { document, Element, containModalFocus, key(key, shiftKey = false) {
+    const event = { key, shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} };
+    dispatch('keydown', event); return event;
+  } };
+}
+
+test('only the top modal handles Escape and Tab; closing returns to its opener', () => {
+  const env = focusEnvironment();
+  const opener = new env.Element(); opener.focus();
+  const parent = new env.Element(null, true); parent.tabIndex = -1;
+  const first = new env.Element(parent); const last = new env.Element(parent);
+  let parentEscapes = 0, childEscapes = 0;
+  const closeParent = env.containModalFocus(parent, () => parentEscapes++);
+  last.focus(); env.key('Tab'); assert.equal(env.document.activeElement, first);
+  first.focus(); env.key('Tab', true); assert.equal(env.document.activeElement, last);
+  const child = new env.Element(null, true); child.tabIndex = -1;
+  const childFirst = new env.Element(child);
+  const closeChild = env.containModalFocus(child, () => childEscapes++);
+  env.key('Tab'); assert.equal(env.document.activeElement, childFirst);
+  first.focus(); assert.equal(env.document.activeElement, childFirst);
+  env.key('Escape'); assert.equal(childEscapes, 1); assert.equal(parentEscapes, 0);
+  closeChild(); assert.equal(env.document.activeElement, last);
+  closeParent(); assert.equal(env.document.activeElement, opener);
+});
+
+test('a newly disabled or hidden focused control cannot release modal focus', () => {
+  const env = focusEnvironment(); const background = new env.Element(); background.focus();
+  const dialog = new env.Element(null, true); dialog.tabIndex = -1;
+  const first = new env.Element(dialog); const last = new env.Element(dialog);
+  const close = env.containModalFocus(dialog, () => {});
+  last.focus(); last.disabled = true; background.focus();
+  assert.equal(env.document.activeElement, first);
+  first.visibility = 'hidden'; background.focus();
+  assert.equal(env.document.activeElement, dialog);
+  env.key('Tab'); assert.equal(env.document.activeElement, dialog);
+  close();
+});
+
+test('project editor Escape uses existing dirty and transfer safeguards', () => {
+  for (const state of [{}, { isDirty: true }, { isDirty: true, isSaving: true }, { isTransferring: true }, { cleaning: true }]) {
+    let escape, closed = 0; const changes = [];
+    const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+      useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
+    const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if (name === 'react') return react;
+      if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, callback) => { escape = callback; } };
+      return new Proxy({}, { get: (_, key) => key });
+    } });
+    ProjectEditorDialog({ management: { editor: { projectId: 'project', phase: 'loading', addedMedia: {},
+      upload: { isCleaningUp: state.cleaning }, close() { closed++; }, ...state } } });
+    escape();
+    const blocked = state.isSaving || state.isTransferring || state.cleaning;
+    assert.equal(closed, !blocked && !state.isDirty ? 1 : 0);
+    assert.equal(changes.includes(true), Boolean(!blocked && state.isDirty));
+  }
+});
+
+test('compact navigation returns to work on route changes without saving a collapse', () => {
+  let cursor = 0, effects = [], preferred = false, location = { pathname: '/one', search: '' };
+  const slots = [], changes = [];
+  const media = { matches: false, addEventListener(_name, fn) { this.update = fn; }, removeEventListener() {} };
+  const { useCompactNavigation } = compile('../src/hooks/useCompactNavigation.ts', {
+    window: { matchMedia: () => media },
+    require(name) {
+      if (name === 'react-router-dom') return { useLocation: () => location };
+      return {
+        useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial };
+          return [slots[i].value, (next) => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next; }]; },
+        useEffect(effect, deps) { const i = cursor++; if (!slots[i] || deps.some((value, n) => value !== slots[i].deps[n])) {
+          slots[i]?.cleanup?.(); slots[i] = { deps }; effects.push(() => { slots[i].cleanup = effect(); });
+        } },
+      };
+    },
+  });
+  const render = () => { cursor = 0; effects = []; const result = useCompactNavigation(preferred, (next) => { preferred = next; changes.push(next); }); effects.forEach((effect) => effect()); return result; };
+  render(); assert.equal(render().collapsed, false);
+  media.matches = true; media.update(); assert.equal(render().collapsed, true);
+  render().toggle(); assert.equal(render().collapsed, false);
+  location = { pathname: '/messages', search: '' }; render(); assert.equal(render().collapsed, true);
+  media.matches = false; media.update(); assert.equal(render().collapsed, false);
+  assert.deepEqual(changes, []);
+  render().toggle(); assert.equal(render().collapsed, true); assert.deepEqual(changes, [true]);
+});

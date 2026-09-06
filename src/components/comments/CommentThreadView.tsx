@@ -105,7 +105,7 @@ function CommentRow({
               Delete this {isReply ? 'reply' : 'comment'}?{!isReply ? ' Its replies go with it.' : ''}
             </p>
             <div className="mt-1.5 flex items-center gap-2.5">
-              <button type="button" onClick={comments.confirmDelete} disabled={deletion?.isDeleting} className="text-[11px] font-semibold text-[var(--status-danger)] underline focus:outline-none disabled:opacity-60">
+              <button type="button" data-keep-color="" onClick={comments.confirmDelete} disabled={deletion?.isDeleting} className="text-[11px] font-semibold text-[var(--status-danger)] underline focus:outline-none disabled:opacity-60">
                 {deletion?.isDeleting ? 'Deleting…' : 'Delete'}
               </button>
               <button type="button" onClick={comments.cancelDelete} disabled={deletion?.isDeleting} className="text-[11px] font-semibold text-[var(--text-secondary)] underline focus:outline-none disabled:opacity-60">Keep</button>

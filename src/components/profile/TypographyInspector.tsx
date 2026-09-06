@@ -85,7 +85,9 @@ export function TypographyInspector({
     }
     function closeOnEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        event.preventDefault();
         setIsOpen(false);
+        containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
       }
     }
     document.addEventListener('pointerdown', closeOnOutsideTap);
@@ -120,11 +122,11 @@ export function TypographyInspector({
       left: 0,
       top: 0,
       visibility: 'hidden'
-    }} className="fixed z-[120] w-[min(330px,calc(100vw-16px))] overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-elevated)]">
-          <div className="border-b border-[var(--hairline)] px-3.5 py-3">
+    }} className="fixed z-[120] flex max-h-[calc(100dvh-16px)] w-[min(330px,calc(100vw-16px))] flex-col overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] shadow-[var(--shadow-elevated)]">
+          <div className="shrink-0 border-b border-[var(--hairline)] px-3.5 py-3">
             <h2 className="text-small font-bold text-[var(--text-primary)]">Typography</h2>
           </div>
-          <div className="scrollbar-slim max-h-[380px] overflow-y-auto p-2">
+          <div className="scrollbar-slim min-h-0 max-h-[380px] overflow-y-auto p-2">
             <TypefaceOption label="System Default" description="Matches the Portalink interface font" isSelected={typefaceId === DEFAULT_TYPEFACE_ID} onSelect={() => selectTypeface(DEFAULT_TYPEFACE_ID)} />
             {typefaceCategories.map((category) => <section key={category} className="mt-2">
                 {/* Category headings stay in the interface font. */}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, InfoIcon, Loader2Icon, StarIcon, XIcon } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { TITLE_MAX_LENGTH } from '../publishing/validation';
@@ -32,21 +33,24 @@ export function ProjectEditorDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const summaryRef = useRef<HTMLTextAreaElement>(null);
-  const openerRef = useRef<Element | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
   useEffect(() => {
-    if (isOpen) {
-      openerRef.current = document.activeElement;
+    if (!isOpen) setIsConfirmingDiscard(false);
+  }, [isOpen]);
+  const isLocked = editor.isSaving || editor.isTransferring;
+  const requestClose = () => {
+    if (isLocked || upload.isCleaningUp) return;
+    if (editor.isDirty) {
+      setIsConfirmingDiscard(true);
       return;
     }
-    // Preparation is cleared by the boundary, which also runs orphan cleanup.
-    setIsConfirmingDiscard(false);
-    (openerRef.current as HTMLElement | null)?.focus?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- focus restoration on close only.
-  }, [isOpen]);
+    void editor.close();
+  };
+  useModalFocus(isOpen, dialogRef, requestClose);
   useEffect(() => {
     if (editor.phase === 'editing') {
-      requestAnimationFrame(() => {
+      const frame = requestAnimationFrame(() => {
         if (editor.mode === 'files') {
           document.getElementById('project-replacement-files')?.focus();
           return;
@@ -56,11 +60,12 @@ export function ProjectEditorDialog({
           return;
         }
         if (editor.mode === 'cover') {
-          document.querySelector<HTMLButtonElement>('[data-project-cover-choice]')?.focus();
+          dialogRef.current?.querySelector<HTMLButtonElement>('[data-project-cover-choice]')?.focus();
           return;
         }
         titleRef.current?.focus();
       });
+      return () => cancelAnimationFrame(frame);
     }
   }, [editor.mode, editor.phase]);
   if (!isOpen) {
@@ -80,23 +85,15 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  const isLocked = editor.isSaving || editor.isTransferring;
   const editorHeading = editor.mode === 'files' ? 'Replace project files' : editor.mode === 'description' ? 'Edit description' : editor.mode === 'cover' ? 'Edit cover' : 'Edit project';
   const editorDescription = editor.mode === 'files' ? 'Choose the corrected files, remove the versions they replace, then save.' : editor.mode === 'description' ? 'Update the description shown with this project.' : editor.mode === 'cover' ? 'Choose which published file represents this project.' : 'Everything here is part of the published record.';
-  const requestClose = () => {
-    if (editor.isDirty) {
-      setIsConfirmingDiscard(true);
-      return;
-    }
-    void editor.close();
-  };
   return <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" onClick={(event) => {
     // A transfer in progress is never silently abandoned by a stray click.
     if (event.target === event.currentTarget && !isLocked) {
       requestClose();
     }
   }}>
-      <div role="dialog" aria-modal="true" aria-labelledby="project-editor-title" className="flex max-h-full w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="project-editor-title" className="flex max-h-full w-full max-w-[640px] flex-col overflow-hidden rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
         <header className="flex shrink-0 items-start gap-3 border-b border-[var(--hairline)] px-5 py-4">
           <div className="min-w-0 flex-1">
             <h2 id="project-editor-title" className="text-[17px] font-semibold text-[var(--text-primary)]">{editorHeading}</h2>

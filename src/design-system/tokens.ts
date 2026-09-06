@@ -102,9 +102,10 @@ export const studioColor = {
   }
 } as const;
 
-/** 4-based spacing family. Use these steps, not arbitrary values. */
+/** Content uses a 4px family; compact navigation pairs a 6px gap with an 8px inset. */
 export const space = {
   '2xs': 4,
+  navigationGap: 6,
   xs: 8,
   sm: 12,
   md: 16,
@@ -113,12 +114,14 @@ export const space = {
   '2xl': 48
 } as const;
 
-/** Container 12–16px, controls 8–10px. Pills only where semantically right. */
+/** Effective shell roles. Fields, navigation, overlays and content have distinct shapes. */
 export const radius = {
-  control: 8,
+  control: 10,
+  field: 8,
   controlLarge: 10,
-  card: 12,
-  panel: 16,
+  card: 18,
+  inset: 13,
+  panel: 12,
   pill: 9999
 } as const;
 
@@ -156,7 +159,8 @@ export const elevation = {
   overlay: '0 18px 48px rgba(0,0,0,0.34)'
 } as const;
 
-/** Motion: short, ease-out, and always suppressible. */
+/** Geographic/content motion. Chrome uses --motion-fast/base/slow (120/180/260ms).
+ * Both families are short, ease-out and suppressible; their roles differ. */
 export const motion = {
   duration: {
     press: 140,
@@ -168,4 +172,14 @@ export const motion = {
     standard: 'cubic-bezier(0.23, 1, 0.32, 1)',
     out: 'ease-out'
   }
+} as const;
+
+/** Navigation geometry is distinct from smaller inline/editing controls. */
+export const navigation = {
+  control: 40,
+  header: 64,
+  glyph: 18,
+  inset: 8,
+  gap: 6,
+  collapsedPanel: 52
 } as const;
