@@ -84,7 +84,7 @@ export function NavigationButtonsPanel({
         Configure the interface and navigation controls.
       </p>
 
-      <div className="mt-5 space-y-2.5">
+      <div className="mt-6 space-y-4">
         <AccordionSection
           id="system-grey-settings"
           title="System grey"
@@ -312,8 +312,8 @@ function AccordionSection({
     <section
       className={`overflow-hidden rounded-[12px] border transition-[border-color,background-color] duration-150 ${
         isOpen
-          ? 'border-[var(--hairline-strong)] bg-[var(--surface-sunken)]'
-          : 'border-[var(--hairline)] bg-transparent hover:border-[var(--hairline-strong)]'
+          ? 'border-[var(--hairline)] bg-[var(--surface-inset)]'
+          : 'border-transparent bg-[var(--surface-inset)]'
       }`}
     >
       <button
@@ -324,18 +324,18 @@ function AccordionSection({
         className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-semibold text-[var(--text-primary)]">{title}</span>
+          <span className="block text-[14px] font-medium text-[var(--text-primary)]">{title}</span>
           <span className="mt-0.5 block truncate text-[12px] text-[var(--text-tertiary)]">{summary}</span>
         </span>
         <InterfaceIcon
           icon={ChevronDownIcon}
           size="sm"
-          weight="semibold"
+          weight="regular"
           className={`shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
       {isOpen && (
-        <div id={contentId} className="border-t border-[var(--hairline)] bg-[var(--surface-raised)] p-2 sm:p-3">
+        <div id={contentId} className="p-2 sm:p-3">
           {children}
         </div>
       )}
@@ -345,8 +345,8 @@ function AccordionSection({
 
 function SettingsGroup({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
-    <section className="min-w-0 rounded-[11px] border border-transparent p-3 transition-[border-color] duration-150 hover:border-[var(--hairline-strong)]">
-      <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.055em] text-[var(--text-tertiary)]">
+    <section className="min-w-0 p-3">
+      <h3 className="mb-3 text-[14px] font-medium text-[var(--text-secondary)]">
         {title}
       </h3>
       {children}

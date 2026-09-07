@@ -48,7 +48,7 @@ export function ControlCenterPage({
       </header>
 
       <div className="px-[var(--content-gutter)] py-4">
-        <section aria-label="Appearance settings" className="ps-panel w-full max-w-[920px] rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-2">
+        <section aria-label="Appearance settings" className="w-full max-w-[920px] p-2">
           <NavigationButtonsPanel theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={onAppearanceModeChange} systemGray={systemGray} onSystemGrayChange={onSystemGrayChange} accentColor={accentColor} onAccentColorChange={onAccentColorChange} highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange} />
         </section>
       </div>

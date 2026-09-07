@@ -122,6 +122,7 @@ export const radius = {
   card: 18,
   inset: 13,
   panel: 12,
+  dialog: 18,
   pill: 9999
 } as const;
 

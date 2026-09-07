@@ -73,12 +73,12 @@ function ReorderableProfileLinkRow({
           <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
         <div className="min-w-0">
-          <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Name</label>
+          <label htmlFor={`profile-link-label-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">Name</label>
           <input id={`profile-link-label-${link.id}`} value={link.label} onChange={(event) => updateDestination({ label: event.target.value })} maxLength={PROFILE_LINK_LABEL_MAX_LENGTH} disabled={disabled} placeholder="Instagram" aria-invalid={errors.label ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] font-medium text-[var(--text-primary)]" />
           {errors.label ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.label}</p> : null}
         </div>
         <div className="col-span-2 col-start-3 min-w-0 sm:col-span-1 sm:col-start-auto">
-          <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">URL</label>
+          <label htmlFor={`profile-link-url-${link.id}`} className="mb-1.5 block text-[12px] font-medium text-[var(--text-secondary)]">URL</label>
           <input id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
           {errors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
         </div>
@@ -182,7 +182,7 @@ export function ProfileLinksEditor({
             onRemove(link.id);
             setPendingRemovalId(null);
           }} />)}
-        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} className="flex h-20 items-center justify-center gap-2 rounded-[12px] border border-dashed border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} className="flex min-h-10 self-start items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-normal text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={LinkIcon} size="sm" weight="medium" />
           Add your first link
         </button>}
@@ -234,11 +234,11 @@ export function ProfileLinksEditor({
             {filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">
-            <button type="button" onClick={() => setIsChoosingIcon(false)} className="h-9 flex-1 rounded-[10px] bg-[var(--surface-sunken)] text-[13px] font-semibold transition-colors duration-150 hover:bg-[var(--surface-pressed)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">
+            <button type="button" onClick={() => setIsChoosingIcon(false)} className="h-10 shrink-0 rounded-[10px] px-4 text-[14px] font-normal transition-colors duration-150 hover:bg-[var(--surface-pressed)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Cancel
             </button>
-            <button type="button" disabled={!draftIconOption} onClick={() => draftIconOption && chooseIcon(draftIconOption)} className="h-9 flex-1 rounded-[10px] bg-[var(--accent-primary)] text-[13px] font-semibold text-[var(--accent-foreground)] transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+            <button type="button" disabled={!draftIconOption} onClick={() => draftIconOption && chooseIcon(draftIconOption)} className="h-10 shrink-0 rounded-[10px] bg-[var(--accent-primary)] px-4 text-[14px] font-medium text-[var(--accent-foreground)] transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
               Done
             </button>
           </div>

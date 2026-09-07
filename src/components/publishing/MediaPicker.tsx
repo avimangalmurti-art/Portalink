@@ -336,7 +336,7 @@ function AssetRow({
     if (!Number.isNaN(from) && from !== index) {
       onReorder(from, index);
     }
-  }} className="relative flex items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-inset)] p-2">
+  }} className="relative flex items-center gap-2.5 rounded-[10px] border border-transparent bg-[var(--surface-inset)] p-2">
       {/* Reorder: drag, or arrow keys for anyone not using a pointer. */}
       <span aria-hidden="true" className={`shrink-0 text-[var(--text-tertiary)] ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}`}>
         <GripVerticalIcon className="h-4 w-4" />

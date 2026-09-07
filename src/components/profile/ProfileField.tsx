@@ -66,7 +66,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
   // the whole field the viewer sees, not to the bare text box inside it.
   const shellClass = 'input-shell text-control-shell flex items-center gap-1 rounded-[8px] px-3';
   return <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="flex items-baseline gap-1.5 text-[13px] font-semibold text-[var(--text-primary)]">
+      <label htmlFor={id} className="flex items-baseline gap-1.5 text-[14px] font-medium text-[var(--text-primary)]">
         {label}
         {optional && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Optional</span>}
         {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Required</span>}

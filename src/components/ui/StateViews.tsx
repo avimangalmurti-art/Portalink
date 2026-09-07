@@ -23,8 +23,8 @@ export function EmptyState({
 
 
 }: {title: string;description?: string;action?: {label: string;onClick: () => void;};}) {
-  return <div className="flex min-h-[200px] flex-col items-center justify-center rounded-[12px] border border-dashed border-[var(--hairline-strong)] px-6 py-8 text-center">
-      <p className="type-title-2 font-semibold text-[var(--text-primary)]">{title}</p>
+  return <div className="flex min-h-[200px] flex-col items-center justify-center px-6 py-8 text-center">
+      <p className="type-title-2 font-medium text-[var(--text-primary)]">{title}</p>
       {description && <p className="type-body mt-1 max-w-[46ch] text-[var(--text-secondary)]">{description}</p>}
       {action && <div className="mt-3">
           <Button variant="secondary" onClick={action.onClick}>{action.label}</Button>

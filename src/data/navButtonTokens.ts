@@ -167,6 +167,18 @@ function neighbourGray(id: string, steps: number, appearance: NavAppearance): st
   return resolveSystemGray(systemGrays[target].id, appearance);
 }
 
+/** Choose ink against each actual surface; adjacent grays can cross light/dark. */
+function controlInk(surface: string, highContrast: boolean): string {
+  const dark = highContrast ? '#000000' : '#171717';
+  const light = highContrast ? '#FFFFFF' : '#F5F5F3';
+  const background = luminance(surface);
+  const contrast = (ink: string) => {
+    const foreground = luminance(ink);
+    return (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05);
+  };
+  return contrast(dark) > contrast(light) ? dark : light;
+}
+
 /**
  * Resolves the neutral control design tokens for the current appearance,
  * accent, and accessibility preferences. Navigation keeps its historical token
@@ -206,22 +218,25 @@ export function resolveNavButtonTokens(appearance: NavAppearance, _accent: strin
     tokens.hover = neighbourGray(systemGrayId, 1, appearance);
     tokens.pressed = neighbourGray(systemGrayId, 2, appearance);
     tokens.selected = onLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.14)';
-    tokens.text = onLight ? '#1C1C1E' : '#F2F2F7';
-    tokens.icon = onLight ? '#48484A' : '#C7C7CC';
-    tokens.border = onLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)';
+    tokens.text = controlInk(grayBackground, highContrast);
+    tokens.icon = tokens.text;
+    tokens.border = highContrast
+      ? (tokens.text === '#000000' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.45)')
+      : (onLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.12)');
   }
+  const hoverText = grayBackground ? controlInk(tokens.hover, highContrast) : tokens.text;
+  const pressedText = grayBackground ? controlInk(tokens.pressed, highContrast) : tokens.text;
   return {
     '--nav-button-background': tokens.background,
     '--nav-button-background-hover': tokens.hover,
     '--nav-button-background-pressed': tokens.pressed,
     '--nav-button-background-selected': tokens.selected,
     '--nav-button-text': tokens.text,
-    // Hover previews the same accent that selection commits to, so the label
-    // and glyph respond as one control rather than as separate layers.
-    '--nav-button-text-hover': 'var(--accent-text)',
+    // Hover is neutral; the chosen accent continues to identify selection.
+    '--nav-button-text-hover': hoverText,
     '--nav-button-text-selected': 'var(--accent-text)',
     '--nav-button-icon': tokens.icon,
-    '--nav-button-icon-hover': 'var(--accent-text)',
+    '--nav-button-icon-hover': hoverText,
     '--nav-button-icon-selected': 'var(--accent-text)',
     '--nav-button-border': tokens.border,
     '--nav-button-border-selected': tokens.border,
@@ -236,7 +251,8 @@ export function resolveNavButtonTokens(appearance: NavAppearance, _accent: strin
     '--control-text': tokens.text,
     '--control-icon': tokens.icon,
     '--control-border': tokens.border,
-    '--control-hover-text': 'var(--accent-text)',
+    '--control-hover-text': hoverText,
+    '--control-pressed-text': pressedText,
     '--control-selected-text': 'var(--accent-text)'
   };
 }

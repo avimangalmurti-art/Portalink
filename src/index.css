@@ -847,8 +847,8 @@ body {
   --cdx-dense-xs: 0.75rem;
   --cdx-dense-header: 0.75rem;
   --cdx-panel-title: 0.9375rem;
-  --cdx-dense-weight: 500;
-  --cdx-dense-header-weight: 700;
+  --cdx-dense-weight: 400;
+  --cdx-dense-header-weight: 600;
   --cdx-dense-leading: 1.3;
   --cdx-header-leading: 1.2;
   --cdx-dense-row-min: var(--sidebar-primary-control);
@@ -1350,7 +1350,7 @@ button[data-portalink-tile],
   .accent-theme button.shape-container:hover,
   .accent-theme button.shape-capsule:hover,
   .accent-theme [role='menu'] button:hover {
-    box-shadow: inset 0 0 0 1px var(--text-primary) !important;
+    box-shadow: inset 0 0 0 1px var(--hairline) !important;
     border-radius: 10px !important;
   }
 }
@@ -2416,11 +2416,9 @@ button[data-portalink-tile],
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .ps-nav-item:not(:disabled):hover,
-  .ps-list-btn:not(:disabled):hover,
-  .ps-btn-secondary:not(:disabled):hover {
-    background-color: var(--ps-control-hover) !important;
-    color: var(--accent-text) !important;
+  :is(.ps-nav-item, .ps-list-btn, .ps-btn-secondary):not(:disabled):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):hover {
+    background-color: var(--control-hover-surface) !important;
+    color: var(--control-hover-text) !important;
   }
 }
 /* Inputs */
@@ -3800,23 +3798,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
 }
 
-/* ── Unified button hover ink ───────────────────────────────────────────────
-   Neutral controls preview the chosen accent as one object: the button's text
-   and its interface glyph change together. Filled primary/destructive actions
-   keep their contrast-safe foregrounds, while full-colour identity objects opt
-   out through the existing data-keep-color contract. */
-@media (hover: hover) and (pointer: fine) {
-  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover {
-    color: var(--accent-text) !important;
-  }
-
-  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover > span:not([data-keep-color]),
-  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon-frame]:not([data-keep-color]),
-  body button:not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([class*="bg-[var(--accent-primary)]"]):not([class*="bg-[var(--status-danger)]"]):not([class*="bg-[var(--status-success)]"]):not([class*="bg-[var(--studio-accent)]"]):not([class*="bg-black"]):not([class*="bg-white"]):hover [data-interface-icon]:not([data-keep-color]) {
-    color: var(--accent-text) !important;
-  }
-}
-
 /* ═══════════════════════════════════════════════════════════════════════
    CODEX-INSPIRED DESKTOP SHELL
 
@@ -3830,10 +3811,10 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell {
   --codex-workspace-inset: 6px;
   --codex-workspace-border-width: 1px;
-  --codex-shell-bg: #f1f0ed;
-  --codex-sidebar-bg: #f1f0ed;
-  --codex-workspace-bg: #fbfbfa;
-  --codex-panel-bg: #f7f7f5;
+  --codex-shell-bg: #f1f1ef;
+  --codex-sidebar-bg: #f1f1ef;
+  --codex-workspace-bg: #fafaf9;
+  --codex-panel-bg: #f4f4f2;
   --codex-control-bg: rgba(31, 31, 29, 0.055);
   --codex-control-hover: rgba(31, 31, 29, 0.075);
   --codex-control-active: rgba(31, 31, 29, 0.095);
@@ -3842,10 +3823,18 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   --codex-shadow: 0 1px 2px rgba(31, 31, 29, 0.035), 0 8px 24px rgba(31, 31, 29, 0.045);
   --codex-radius-control: var(--shape-compact);
   --codex-radius-panel: 12px;
+  --codex-radius-dialog: 18px;
+  --codex-shadow-menu: 0 4px 10px rgba(0, 0, 0, 0.06), 0 12px 28px rgba(0, 0, 0, 0.08);
+  --codex-shadow-dialog: 0 8px 24px rgba(0, 0, 0, 0.08), 0 24px 60px rgba(0, 0, 0, 0.12);
+  --interface-icon-stroke-regular: 1.5;
+  --interface-icon-stroke-medium: 1.75;
+  --interface-icon-stroke-semibold: 2;
 
   --surface-shell: var(--codex-shell-bg);
   --surface-canvas: var(--codex-workspace-bg);
   --surface-raised: #ffffff;
+  --surface-inset: #f3f3f1;
+  --surface-overlay: #ffffff;
   --surface-sunken: var(--codex-control-bg);
   --surface-hover: var(--codex-control-hover);
   --surface-pressed: var(--codex-control-active);
@@ -3869,26 +3858,60 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .codex-shell.theme-dark {
-  --codex-shell-bg: #191918;
-  --codex-sidebar-bg: #20201f;
-  --codex-workspace-bg: #1f1f1e;
-  --codex-panel-bg: #242423;
+  --codex-shell-bg: #181818;
+  --codex-sidebar-bg: #212120;
+  --codex-workspace-bg: #181818;
+  --codex-panel-bg: #202020;
   --codex-control-bg: rgba(255, 255, 255, 0.055);
   --codex-control-hover: rgba(255, 255, 255, 0.085);
   --codex-control-active: rgba(255, 255, 255, 0.12);
-  --codex-border: rgba(255, 255, 255, 0.095);
-  --codex-border-strong: rgba(255, 255, 255, 0.155);
-  --codex-shadow: 0 1px 2px rgba(0, 0, 0, 0.18), 0 10px 28px rgba(0, 0, 0, 0.18);
+  --codex-border: rgba(255, 255, 255, 0.085);
+  --codex-border-strong: rgba(255, 255, 255, 0.16);
+  --codex-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --codex-shadow-menu: 0 4px 12px rgba(0, 0, 0, 0.2), 0 12px 28px rgba(0, 0, 0, 0.22);
+  --codex-shadow-dialog: 0 8px 24px rgba(0, 0, 0, 0.22), 0 24px 60px rgba(0, 0, 0, 0.28);
 
-  --surface-raised: #292928;
-  --label-primary: #ececea;
-  --label-secondary: #aaa9a4;
-  --label-tertiary: #85847f;
+  --surface-raised: #2c2c2b;
+  --surface-inset: #252524;
+  --surface-overlay: #30302f;
+  --label-primary: #eeeeec;
+  --label-secondary: #b5b5b0;
+  --label-tertiary: #9a9a95;
   --text-primary: var(--label-primary);
   --text-secondary: var(--label-secondary);
   --text-tertiary: var(--label-tertiary);
   --background-primary: var(--codex-workspace-bg);
   --background-secondary: var(--codex-panel-bg);
+}
+
+/* Accessibility strengthens the same roles after the normal shell palette. */
+.codex-shell.high-contrast {
+  --codex-border: var(--border-strong);
+  --codex-border-strong: var(--border-strong);
+  --cdx-dense-weight: 500;
+  --interface-icon-stroke-regular: 1.75;
+  --interface-icon-stroke-medium: 2;
+  --interface-icon-stroke-semibold: 2.25;
+}
+.codex-shell.high-contrast.theme-dark {
+  --label-secondary: #ffffff;
+  --label-tertiary: #ddddda;
+}
+.codex-shell.high-contrast.theme-light {
+  --label-secondary: #292929;
+  --label-tertiary: #484848;
+}
+@media (prefers-contrast: more) {
+  .codex-shell:is(.theme-light, .theme-dark) {
+    --codex-border: var(--text-secondary);
+    --codex-border-strong: var(--text-primary);
+    --cdx-dense-weight: 500;
+    --interface-icon-stroke-regular: 1.75;
+    --interface-icon-stroke-medium: 2;
+    --interface-icon-stroke-semibold: 2.25;
+  }
+  .codex-shell.theme-dark { --label-secondary: #ffffff; --label-tertiary: #ddddda; }
+  .codex-shell.theme-light { --label-secondary: #292929; --label-tertiary: #484848; }
 }
 
 /* Window architecture: the sidebar is persistent; the changing detail area is
@@ -4128,10 +4151,33 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background: var(--control-rest-surface);
 }
 
-.codex-shell :is([role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox']) {
+.codex-shell .ps-btn-ghost {
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.codex-shell.accent-theme :is([role='dialog'], [role='alertdialog'], [role='menu'], [role='listbox'], [role='tooltip']):not([data-material='content']) {
+  background: var(--surface-overlay) !important;
   border-color: var(--codex-border-strong) !important;
   border-radius: var(--codex-radius-panel) !important;
-  box-shadow: var(--codex-shadow) !important;
+  box-shadow: var(--codex-shadow-menu) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.codex-shell.accent-theme :is([role='dialog'], [role='alertdialog'])[aria-modal='true']:not([data-material='content']) {
+  border-radius: var(--codex-radius-dialog) !important;
+  box-shadow: var(--codex-shadow-dialog) !important;
+}
+.codex-shell.accent-theme [role='tooltip']:not([data-material='content']) {
+  border-radius: var(--codex-radius-control) !important;
+}
+.codex-shell :is([role='menu'], [role='listbox']) {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.codex-shell [role='menu'] :is([role='menuitem'], [role='menuitemcheckbox'], [role='menuitemradio']) {
+  font-weight: 400;
 }
 
 /* Home becomes part of the same desktop workspace. Portalink's actual world
@@ -4470,7 +4516,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .text-control-shell,
 .field-shell.text-control-shell {
   border: 1px solid var(--border-default) !important;
-  background-color: var(--surface-default) !important;
+  background-color: var(--surface-inset) !important;
   color: var(--text-primary);
   transition:
     border-color 150ms ease-out,
@@ -4522,7 +4568,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell.accent-theme
   :is(.text-control, .text-control-shell, .field-shell.text-control-shell) {
   border: 1px solid var(--border-default) !important;
-  background-color: var(--surface-default) !important;
+  background-color: var(--surface-inset) !important;
 }
 
 .codex-shell.accent-theme .text-control,
@@ -4569,33 +4615,60 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    selection, success, warning, danger, primary accent actions, and brand marks
    are never repainted by this layer. */
 .codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-'])
+  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-'])
   :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
-  color: var(--control-icon) !important;
+  color: inherit !important;
 }
 
 .codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-']):not([data-semantic-action]):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'])
+  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([data-semantic-action]):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'])
   :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
   color: var(--control-selected-text) !important;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
+    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
     background-color: var(--control-hover-surface) !important;
+    color: var(--control-hover-text) !important;
   }
 
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-']):hover
+    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover
     :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
-    color: var(--control-hover-text) !important;
+    color: inherit !important;
   }
 }
 
 .codex-shell
-  :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='bg-[var(--studio-']):active {
+  :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):active {
   background-color: var(--control-pressed-surface) !important;
+  color: var(--control-pressed-text) !important;
+}
+
+/* Navigation rests on its parent surface. The saved gray still tints it, but
+   does not turn each destination into a separate card. Keep 40px hit targets. */
+#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
+  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']) {
+  background: color-mix(in srgb, var(--control-rest-surface) 12%, transparent) !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+}
+#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
+  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page'])
+  :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
+  color: var(--text-secondary) !important;
+}
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
+    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover {
+    background: color-mix(in srgb, var(--control-hover-surface) 30%, var(--codex-sidebar-bg)) !important;
+  }
+  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
+    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover
+    :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
+    color: var(--text-primary) !important;
+  }
 }
 
 /* A selected Portal in the signed-in navigation is ink-only. This override
@@ -4902,9 +4975,8 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
 }
 
-/* The profile editor is a focused workspace rather than a large floating
-   sheet. Its glass surface preserves context, while the two quiet inset
-   sections make identity and destinations easy to scan. */
+/* Profile sections share the dialog surface; link rows group by tone while
+   the actual fields retain their own input and validation boundaries. */
 .profile-editor-dialog {
   background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
@@ -4916,15 +4988,13 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .profile-editor-dialog [data-profile-editor-section] {
-  background: color-mix(in srgb, var(--surface-sunken) 62%, transparent);
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--text-primary) 6%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
 
 .profile-editor-dialog .profile-link-editor-row {
-  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--text-primary) 6%, transparent);
+  background: var(--surface-inset);
+  box-shadow: none;
 }
 
 .profile-editor-footer {
