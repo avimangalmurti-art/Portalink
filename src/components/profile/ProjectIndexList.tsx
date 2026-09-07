@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
-import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, ReplaceIcon, Trash2Icon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, PencilIcon, PinIcon, PinOffIcon, Trash2Icon } from 'lucide-react';
 // Canonical domain model, not the seed module's parallel copy.
 import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -24,8 +24,6 @@ type ProjectIndexListProps = {
   onSelect: (projectId: string) => void;
   /** Owner-only: opens the real editor for this project's published record. */
   onEdit?: (projectId: string) => void;
-  /** Owner-only: opens the editor directly at the file replacement controls. */
-  onReplaceFiles?: (projectId: string) => void;
   /** Owner-only: changes the selected project's published typeface. */
   onTypefaceChange?: (projectId: string, typefaceId: string) => void;
   /** Owner-only: asks for the destructive confirmation. Never deletes directly. */
@@ -65,7 +63,6 @@ export function ProjectIndexList({
   onTogglePinned,
   onSelect,
   onEdit,
-  onReplaceFiles,
   onTypefaceChange,
   onDelete,
 }: ProjectIndexListProps) {
@@ -120,7 +117,6 @@ export function ProjectIndexList({
     onTogglePinned: () => onTogglePinned(project.id),
     onSelect: () => onSelect(project.id),
     onEdit: onEdit ? () => onEdit(project.id) : undefined,
-    onReplaceFiles: onReplaceFiles ? () => onReplaceFiles(project.id) : undefined,
     onTypefaceChange: onTypefaceChange ? (typefaceId: string) => onTypefaceChange(project.id, typefaceId) : undefined,
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
@@ -194,7 +190,6 @@ function ProjectRow({
   onTogglePinned,
   onSelect,
   onEdit,
-  onReplaceFiles,
   onTypefaceChange,
   onDelete,
 
@@ -210,7 +205,7 @@ function ProjectRow({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onReplaceFiles?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -298,7 +293,7 @@ function ProjectRow({
           setIsMenuOpen(false);
         }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
-                Edit details…
+                Edit project…
               </button>}
             {onTypefaceChange && <TypographyInspector typefaceId={typefaceId} triggerVariant="menu" onTypefaceChange={onTypefaceChange} onSelectComplete={() => setIsMenuOpen(false)} />}
             <button type="button" role="menuitem" onClick={() => {
@@ -317,14 +312,6 @@ function ProjectRow({
             </button>
             {/* These act on the published record itself, through the project
              management boundary — not on a local copy of it. */}
-            {onReplaceFiles && <button type="button" role="menuitem" onClick={() => {
-          triggerRef.current?.focus();
-          onReplaceFiles();
-          setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <InterfaceIcon icon={ReplaceIcon} size="sm" weight="medium" />
-                Replace files…
-              </button>}
             {onDelete && <button type="button" data-keep-color="" role="menuitem" onClick={() => {
           triggerRef.current?.focus();
           onDelete();

@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, InfoIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, InfoIcon } from 'lucide-react';
+import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
 import { Button } from '../../components/ui/Button';
-import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
@@ -34,7 +33,6 @@ export function PublishProjectDialog({
   onPublished
 }: PublishProjectDialogProps) {
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel);
-  const shouldReduceMotion = useReducedMotion();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -54,28 +52,6 @@ export function PublishProjectDialog({
     }
   }, [isOpen]);
 
-  // Escape asks first, and never interrupts a publish in flight.
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key !== 'Escape' || isPublishing) {
-        return;
-      }
-      // An upload in progress is never abandoned by a keystroke.
-      if (publishFlow.hasUploadInFlight) {
-        return;
-      }
-      if (isDirty && step !== 'done') {
-        setIsConfirmingDiscard(true);
-        return;
-      }
-      onClose();
-    }
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [isOpen, isDirty, isPublishing, step, onClose, publishFlow.hasUploadInFlight]);
   // A refused upload takes focus, because it needs a decision: retry the same
   // files, or go back and change them.
   useEffect(() => {
@@ -146,55 +122,14 @@ export function PublishProjectDialog({
     fieldErrors,
     setField
   } = publishFlow;
-  return <AnimatePresence>
-      <motion.div className="modal-scrim fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-8 sm:items-center" initial={{
-      opacity: 0
-    }} animate={{
-      opacity: 1
-    }} exit={{
-      opacity: 0
-    }} transition={{
-      duration: shouldReduceMotion ? 0 : 0.18,
-      ease: [0.22, 1, 0.36, 1]
-    }} onPointerDown={(event) => {
-      if (event.target === event.currentTarget) {
-        requestClose();
-      }
-    }}>
-        <motion.section role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title" className="scrollbar-slim flex max-h-[calc(100dvh-32px)] flex-col overflow-y-auto rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-6 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:p-7" style={{
-        width: 'min(520px, calc(100vw - 32px), calc(100dvh - 80px))',
-        height: 'min(720px, calc(100dvh - 32px))'
-      }} initial={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.985
-      }} animate={{
-        opacity: 1,
-        scale: 1
-      }} exit={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.99
-      }} transition={{
-        duration: shouldReduceMotion ? 0 : 0.18,
-        ease: [0.22, 1, 0.36, 1]
-      }}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 id="publish-dialog-title" className="text-[20px] font-semibold leading-tight">
-                New project
-              </h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-                Adding to {categoryLabel}
-              </p>
-            </div>
-            <button type="button" onClick={requestClose} disabled={isPublishing} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
-              <InterfaceIcon icon={XIcon} weight="medium" />
-            </button>
-          </div>
-
+  return <ProjectFormDialog title="New project" titleId="publish-dialog-title" description={<>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isPublishing || publishFlow.hasUploadInFlight || publishFlow.isDiscarding} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+    publishFlow.dismissDiscardError();
+    setIsConfirmingDiscard(false);
+  }} onDiscard={async () => {
+    if (!await publishFlow.discard()) return;
+    setIsConfirmingDiscard(false);
+    onClose();
+  }} /> : null}>
           {!publishFlow.isOwner ? <div className="mt-5">
               <ErrorState description="Only the owner of this profile can publish work here." />
             </div> : publishFlow.draftError ? <div className="mt-5">
@@ -244,7 +179,7 @@ export function PublishProjectDialog({
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description (optional)" multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
+                     <ProfileField id="publish-summary" label="Description" required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
                     {publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
                         <button type="button" onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -267,36 +202,5 @@ export function PublishProjectDialog({
               <InfoIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Prototype publishing. {publishFlow.media.capability.reason} Published work is cleared on reload.
             </p>}
-        </motion.section>
-
-        {isConfirmingDiscard && <div role="alertdialog" aria-modal="true" aria-labelledby="discard-draft-title" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/50 px-4">
-            <div className="w-full max-w-[340px] rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)]">
-              <h3 id="discard-draft-title" className="text-[16px] font-semibold leading-tight">Discard this draft?</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">Your details and selected files will be lost.</p>
-              {/* A refused discard is reported as refused. The flow used to close
-               regardless, telling the creator their draft was thrown away when
-               the service had rejected it. */}
-              {publishFlow.discardError && <p role="alert" className="mt-3 flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed">
-                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{publishFlow.discardError} Your draft is still here, exactly as you left it.</span>
-                </p>}
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <Button variant="secondary" disabled={publishFlow.isDiscarding} onClick={() => {
-              publishFlow.dismissDiscardError();
-              setIsConfirmingDiscard(false);
-            }}>Keep editing</Button>
-                <Button variant="danger" isLoading={publishFlow.isDiscarding} disabled={publishFlow.isDiscarding} onClick={async () => {
-              // Only leave once the service has actually discarded it.
-              const didDiscard = await publishFlow.discard();
-              if (!didDiscard) {
-                return;
-              }
-              setIsConfirmingDiscard(false);
-              onClose();
-            }}>{publishFlow.discardError ? 'Try again' : 'Discard draft'}</Button>
-              </div>
-            </div>
-          </div>}
-      </motion.div>
-    </AnimatePresence>;
+    </ProjectFormDialog>;
 }

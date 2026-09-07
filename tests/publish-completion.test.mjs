@@ -72,7 +72,7 @@ test('confirmed publication removes the entire modal and announces once', () => 
 test('uploaded files alone do not close the publishing form', () => {
   const h = harness();
   const tree = h.render({ state: 'publishing', upload: { phase: 'uploaded' } });
-  assert.ok(nodes(tree).some((node) => node.props?.role === 'dialog'));
+  assert.equal(tree.props.titleId, 'publish-dialog-title');
   assert.equal(h.calls.length, 0);
 });
 
@@ -93,7 +93,7 @@ test('upload and publication errors keep the dialog and recovery message', () =>
   ]) {
     const h = harness();
     const tree = h.render({ state: 'failed', ...failure });
-    assert.ok(nodes(tree).some((node) => node.props?.role === 'dialog'));
+    assert.equal(tree.props.titleId, 'publish-dialog-title');
     assert.ok(nodes(tree).some((node) => node.props?.role === 'alert'));
     assert.equal(h.calls.length, 0);
   }

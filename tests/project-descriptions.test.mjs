@@ -51,6 +51,7 @@ test('both create and edit description fields have no maximum length', () => {
     const field = find(file, (n) => ts.isJsxSelfClosingElement(n) && n.attributes.properties.some((p) =>
       ts.isJsxAttribute(p) && p.name.getText(file) === 'id' && p.initializer?.text === id));
     assert.ok(!field.attributes.properties.some((p) => p.name?.getText(file) === 'maxLength'));
+    assert.ok(field.attributes.properties.some((p) => p.name?.getText(file) === 'required'), 'Description labels must agree with the existing save/publish requirement');
   }
 });
 

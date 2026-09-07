@@ -140,21 +140,67 @@ test('a newly disabled or hidden focused control cannot release modal focus', ()
 
 test('project editor Escape uses existing dirty and transfer safeguards', () => {
   for (const state of [{}, { isDirty: true }, { isDirty: true, isSaving: true }, { isTransferring: true }, { cleaning: true }]) {
-    let escape, closed = 0; const changes = [];
+    let closed = 0; const changes = [];
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
       useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
     const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
       if (name === 'react') return react;
-      if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, callback) => { escape = callback; } };
       return new Proxy({}, { get: (_, key) => key });
     } });
-    ProjectEditorDialog({ management: { editor: { projectId: 'project', phase: 'loading', addedMedia: {},
+    const dialog = ProjectEditorDialog({ management: { editor: { projectId: 'project', phase: 'loading', addedMedia: {}, attachmentEdits: [], originalAttachments: [],
       upload: { isCleaningUp: state.cleaning }, close() { closed++; }, ...state } } });
-    escape();
+    dialog.props.onClose();
     const blocked = state.isSaving || state.isTransferring || state.cleaning;
     assert.equal(closed, !blocked && !state.isDirty ? 1 : 0);
     assert.equal(changes.includes(true), Boolean(!blocked && state.isDirty));
   }
+});
+
+test('shared project dialog sends all dismissal paths through the same transfer lock', () => {
+  for (const closeDisabled of [false, true]) {
+    let escape, closed = 0;
+    const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }), useRef: () => ({ current: null }) };
+    const { ProjectFormDialog } = compile('../src/components/publishing/ProjectFormDialog.tsx', { React: react, require(name) {
+      if (name === 'react') return react;
+      if (name === 'framer-motion') return { motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
+      if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, fn) => { escape = fn; } };
+      return new Proxy({}, { get: (_, key) => key });
+    } });
+    const tree = ProjectFormDialog({ title: 'Project', titleId: 'project-title', closeDisabled, onClose: () => closed++, children: 'Fields' });
+    const backdrop = tree.props.children[0];
+    const section = backdrop.props.children[0];
+    const close = section.props.children[0].props.children[1];
+    assert.equal(section.props.role, 'dialog');
+    assert.equal(close.props.disabled, closeDisabled);
+    close.props.onClick();
+    backdrop.props.onPointerDown({ target: backdrop, currentTarget: backdrop });
+    escape();
+    assert.equal(closed, closeDisabled ? 0 : 3);
+    backdrop.props.onPointerDown({ target: section, currentTarget: backdrop });
+    assert.equal(closed, closeDisabled ? 0 : 3);
+  }
+});
+
+test('editing keeps Save associated with the form so Enter uses the normal save path', async () => {
+  let saved = 0, prevented = false;
+  const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
+    useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, () => {}] };
+  const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+    if (name === 'react') return react;
+    return new Proxy({}, { get: (_, key) => key });
+  } });
+  const tree = ProjectEditorDialog({ management: { editor: {
+    projectId: 'project', phase: 'editing', attachmentEdits: [], originalAttachments: [],
+    metadata: { title: 'Project', summary: 'Description' }, fieldErrors: {}, isDirty: true,
+    addedMedia: { items: [], capability: { isAvailable: true } }, upload: {}, save: async () => { saved++; },
+  } } });
+  const nodes = (value) => Array.isArray(value) ? value.flatMap(nodes) : value && typeof value === 'object' ? [value, ...nodes(value.props?.children)] : [];
+  const form = nodes(tree).find((node) => node.type === 'form');
+  assert.ok(nodes(form).some((node) => node.type === 'Button' && node.props.type === 'submit' && !node.props.disabled));
+  form.props.onSubmit({ preventDefault() { prevented = true; } });
+  await Promise.resolve();
+  assert.equal(prevented, true);
+  assert.equal(saved, 1);
 });
 
 test('compact navigation returns to work on route changes without saving a collapse', () => {

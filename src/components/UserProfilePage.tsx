@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, ImageIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, ReplaceIcon, Settings2Icon, UserPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -222,8 +222,7 @@ function ProfileProjectTile({
   showEngagementMetrics,
   descriptionEditor,
   onEditDescription,
-  onEditCover,
-  onReplaceFiles
+  onEditProject
 }: {
   project: Project;
   onOpen: () => void;
@@ -231,12 +230,11 @@ function ProfileProjectTile({
   showEngagementMetrics: boolean;
   descriptionEditor?: InlineDescriptionEditor;
   onEditDescription?: () => void;
-  onEditCover?: () => void;
-  onReplaceFiles?: () => void;
+  onEditProject?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
-  const hasOwnerActions = Boolean(onEditDescription || onEditCover || onReplaceFiles);
+  const hasOwnerActions = Boolean(onEditDescription || onEditProject);
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -293,13 +291,9 @@ function ProfileProjectTile({
                     <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                     Edit description…
                   </button> : null}
-                {onEditCover ? <button type="button" role="menuitem" onClick={() => runAction(onEditCover)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
-                    <InterfaceIcon icon={ImageIcon} size="sm" weight="medium" />
-                    Edit cover…
-                  </button> : null}
-                {onReplaceFiles ? <button type="button" role="menuitem" onClick={() => runAction(onReplaceFiles)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
-                    <InterfaceIcon icon={ReplaceIcon} size="sm" weight="medium" />
-                    Replace files…
+                {onEditProject ? <button type="button" role="menuitem" onClick={() => runAction(onEditProject)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                    <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
+                    Edit project…
                   </button> : null}
               </span> : null}
           </span> : undefined}
@@ -468,8 +462,7 @@ export function UserProfilePage({
               onCancel: () => { void projectManagement.editor.close(); }
             } : undefined}
             onEditDescription={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'description') : undefined}
-            onEditCover={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
-            onReplaceFiles={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.openFiles(project.id) : undefined}
+            onEditProject={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id) : undefined}
           />
         </div>
   })), [orderedCardProjects, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
