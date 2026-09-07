@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -222,7 +222,8 @@ function ProfileProjectTile({
   showEngagementMetrics,
   descriptionEditor,
   onEditDescription,
-  onEditProject
+  onEditProject,
+  onRepositionPreview
 }: {
   project: Project;
   onOpen: () => void;
@@ -231,10 +232,11 @@ function ProfileProjectTile({
   descriptionEditor?: InlineDescriptionEditor;
   onEditDescription?: () => void;
   onEditProject?: () => void;
+  onRepositionPreview?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
-  const hasOwnerActions = Boolean(onEditDescription || onEditProject);
+  const hasOwnerActions = Boolean(onEditDescription || onEditProject || onRepositionPreview);
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -287,6 +289,10 @@ function ProfileProjectTile({
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />
             </button>
             {isMenuOpen ? <span role="menu" aria-label={`Edit ${project.title}`} className="shape-compact absolute bottom-[calc(100%+6px)] right-0 z-40 flex w-48 flex-col overflow-hidden border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[var(--shadow-pop)]">
+                {onRepositionPreview ? <button type="button" role="menuitem" onClick={() => runAction(onRepositionPreview)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                    <InterfaceIcon icon={MoveIcon} size="sm" weight="medium" />
+                    Reposition preview…
+                  </button> : null}
                 {onEditDescription ? <button type="button" role="menuitem" onClick={() => runAction(onEditDescription)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                     Edit description…
@@ -463,6 +469,7 @@ export function UserProfilePage({
             } : undefined}
             onEditDescription={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'description') : undefined}
             onEditProject={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id) : undefined}
+            onRepositionPreview={project.cover && showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
           />
         </div>
   })), [orderedCardProjects, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);

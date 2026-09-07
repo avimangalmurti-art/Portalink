@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, Loader2Icon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
-import { ImageRepositionDialog } from '../../components/media/ImageRepositionDialog';
+import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
-import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
@@ -82,6 +81,21 @@ export function ProjectEditorDialog({
   if (!isOpen) {
     return null;
   }
+  // A card's Reposition action is one transaction; only confirmed Save
+  // writes to the project. Closing or cancelling leaves the existing crop.
+  if (editor.mode === 'cover') {
+    if (editor.phase !== 'loading' && editor.phase !== 'load-failed' && coverSource?.sourceUrl && ['image', 'document', 'video'].includes(coverSource.kind) && coverEdit) {
+      return <ProjectCoverRepositionDialog key={`${editor.projectId}:${coverSource.id}`} source={coverSource.sourceUrl} kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : 'image'} pageNumber={coverSource.metadata?.coverPageNumber} alt={editor.metadata.title} aspectRatio={editor.previewAspectRatio} frame={coverEdit.coverFrame} onClose={() => { void editor.close(); }} onSave={async ({ frame }) => {
+        const outcome = await editor.save({ attachmentId: coverSource.id, frame });
+        if (outcome === 'failed') throw new Error('The preview could not be saved. Your adjustments are still here; try Save again.');
+        if (outcome) throw new Error(`Add a project ${outcome === 'summary' ? 'description' : 'title'} in Edit project before saving this preview.`);
+        await editor.close();
+      }} />;
+    }
+    return <ProjectFormDialog title="Reposition project preview" titleId="project-preview-editor-title" onClose={() => { void editor.close(); }}>
+      <div className="py-5">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />}</div>
+    </ProjectFormDialog>;
+  }
   const canAddFiles = added.capability?.isAvailable === true;
   const focusField = (key: 'title' | 'summary') => {
     requestAnimationFrame(() => document.getElementById(`project-${key}`)?.focus());
@@ -106,11 +120,11 @@ export function ProjectEditorDialog({
                 </div>
                 <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">To replace a file, add the new version and remove the old one before saving.</p>
                 {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="w-full space-y-2">
-                  {coverSource.kind === 'image' ? <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition cover</Button></div> : null}
+                  <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition preview</Button></div>
                   <div className="relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]" style={{ aspectRatio: coverPreviewRatio }}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></div>
                 </div> : null}
-                {repositionSource?.kind === 'image' && repositionSource.sourceUrl && repositionEdit ? <ImageRepositionDialog key={repositionSource.id} title="Reposition project cover" source={repositionSource.sourceUrl} alt={repositionEdit.displayName} aspectRatio={16 / 9} initialPosition={normalizeProjectCoverFrame(repositionEdit.coverFrame)} outputWidth={1920} onClose={() => setRepositionId(null)} onSave={({ position, crop }) => {
-                  editor.setCoverFrame(repositionSource.id, { ...position, crop, aspectRatio: 16 / 9 });
+                {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
+                  editor.setCoverFrame(repositionSource.id, frame);
                   setRepositionId(null);
                 }} /> : null}
                 <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[180px] list-none flex-col gap-1.5 overflow-y-auto p-0">

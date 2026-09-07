@@ -47,7 +47,7 @@ export function ProjectCover({
     : undefined;
   const safeRatio = aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const content = kind === 'document'
-    ? <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className="h-full w-full" />
+    ? <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" />
     : kind === 'video'
       ? <video
           src={source}

@@ -36,6 +36,8 @@ type PdfPageProps = {
   pageNumber?: number;
   onPageCountChange?: (pageCount: number) => void;
   className?: string;
+  fit?: 'contain' | 'cover';
+  objectPosition?: string;
 };
 
 /**
@@ -49,7 +51,9 @@ export function PdfPage({
   label,
   pageNumber = 1,
   onPageCountChange,
-  className = ''
+  className = '',
+  fit = 'contain',
+  objectPosition
 }: PdfPageProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -156,7 +160,7 @@ export function PdfPage({
     const baseViewport = page.getViewport({ scale: 1 });
     const widthScale = containerBounds.width / baseViewport.width;
     const heightScale = containerBounds.height / baseViewport.height;
-    const fitScale = Math.min(widthScale, heightScale);
+    const fitScale = fit === 'cover' ? Math.max(widthScale, heightScale) : Math.min(widthScale, heightScale);
 
     if (!Number.isFinite(fitScale) || fitScale <= 0) {
       return undefined;
@@ -190,14 +194,14 @@ export function PdfPage({
       cancelled = true;
       renderTask.cancel();
     };
-  }, [layoutRevision, page]);
+  }, [fit, layoutRevision, page]);
 
   return <div ref={hostRef} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative bg-white ${className}`}>
       {status !== 'ready' && <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
           <FileTextIcon className="h-6 w-6" />
         </span>}
       <div className="pdf-page-wrapper">
-        <canvas ref={canvasRef} className={`pdf-page-canvas ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`} />
+        <canvas ref={canvasRef} style={fit === 'cover' ? { width: '100%', height: '100%', objectFit: 'cover', objectPosition } : undefined} className={`pdf-page-canvas ${status === 'ready' ? 'opacity-100' : 'opacity-0'}`} />
       </div>
       {status === 'failed' && <span className="sr-only">PDF preview unavailable</span>}
     </div>;

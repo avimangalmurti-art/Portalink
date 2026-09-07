@@ -70,6 +70,10 @@ test('new crop metadata survives normalization while legacy project ratios stay 
   near(saved.crop.width,crop.width);
   near(saved.aspectRatio,16/9);
   assert.equal(presentation.getProjectAspectRatio({coverAspectRatio:1.5,coverFrame:saved}),16/9);
+  assert.equal(presentation.getProjectAspectRatio({coverKind:'document',coverOrientation:'portrait',coverFrame:saved}),16/9);
+  assert.equal(presentation.getProjectAspectRatio({pageCount:8,coverOrientation:'portrait',coverFrame:saved}),16/9);
+  assert.equal(presentation.getProjectAspectRatio({coverKind:'document',coverOrientation:'portrait'}),1/1.414);
+  assert.equal(presentation.getProjectAspectRatio({coverKind:'document',coverOrientation:'landscape',coverFrame:{aspectRatio:Infinity}}),1.414);
   assert.equal(presentation.getProjectAspectRatio({coverAspectRatio:1.5}),1.5);
   assert.equal(frame.normalizeProjectCoverFrame({x:Infinity,y:-10,zoom:20}).zoom,3);
   assert.equal(frame.normalizeProjectCoverFrame({x:.5,y:.5,zoom:1,crop:{x:2,y:0,width:1,height:1,zoom:1}}).crop,undefined);

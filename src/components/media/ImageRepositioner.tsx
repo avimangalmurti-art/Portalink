@@ -80,7 +80,11 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
       if (next) { next.onload = null; next.onerror = null; }
       if (ownedUrl) URL.revokeObjectURL(ownedUrl);
     };
-  }, [source, ratio, startEditing, loadAttempt]);
+  }, [source, startEditing, loadAttempt]);
+
+  // A new viewport shape changes crop geometry, not the source or the user's
+  // current framing. End any drag without resetting their zoom/position.
+  useEffect(() => { drag.current = null; }, [ratio]);
 
   const update = (next: ImagePosition) => { positionRef.current = next; setPosition(next); };
   useEffect(() => {

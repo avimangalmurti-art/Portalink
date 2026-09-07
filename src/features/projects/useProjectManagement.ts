@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
+import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { validateTitle } from '../publishing/validation';
 import { useMediaPreparation } from '../publishing/useMediaPreparation';
 import { useMediaUpload } from '../publishing/useMediaUpload';
@@ -90,6 +91,7 @@ export function useProjectManagement(profileId: Id | null) {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<MetadataFieldKey, string>>>({});
   const [attachmentEdits, setAttachmentEdits] = useState<ProjectAttachmentEdit[]>([]);
   const [originalAttachments, setOriginalAttachments] = useState<ProjectAttachment[]>([]);
+  const [previewAspectRatio, setPreviewAspectRatio] = useState(16 / 9);
   const [saveFailure, setSaveFailure] = useState<ProjectMutationFailure | null>(null);
   const [saveResult, setSaveResult] = useState<UpdateProjectResult | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export function useProjectManagement(profileId: Id | null) {
     isMountedRef.current = false;
   }, []);
   const hydrate = useCallback((project: Project) => {
+    setPreviewAspectRatio(getProjectAspectRatio(project));
     const nextMetadata = {
       title: project.title,
       summary: project.summary
@@ -299,14 +302,22 @@ export function useProjectManagement(profileId: Id | null) {
    * Existing attachments are referenced by id and never re-sent, so they stay
    * valid throughout — and untouched until this update commits.
    */
-  const save = useCallback(async (): Promise<MetadataFieldKey | 'failed' | null> => {
+  const save = useCallback(async (coverUpdate?: { attachmentId: Id; frame: ProjectCoverFrame }): Promise<MetadataFieldKey | 'failed' | null> => {
     if (!editingProjectId || !profileId || isSavingRef.current || upload.isBusy) {
+      if (coverUpdate) throw new Error('The project is not ready to save this preview. Try again shortly.');
       return null;
     }
     const invalid = validate();
     if (invalid) {
       return invalid;
     }
+    if (coverUpdate && !attachmentEdits.some((attachment) => attachment.id === coverUpdate.attachmentId && attachment.isCover)) {
+      throw new Error('The project preview has changed. Close this editor and try again.');
+    }
+    // Direct Save must include the new crop in this request, without waiting
+    // for a state update and accidentally persisting the previous frame.
+    const editsForSave = coverUpdate ? attachmentEdits.map((attachment) => attachment.id === coverUpdate.attachmentId
+      ? { ...attachment, coverFrame: normalizeProjectCoverFrame(coverUpdate.frame) } : attachment) : attachmentEdits;
     const hasAdded = addedMedia.items.length > 0;
     if (attachmentEdits.length === 0 && !hasAdded) {
       setSaveFailure({
@@ -348,7 +359,7 @@ export function useProjectManagement(profileId: Id | null) {
             title: metadata.title.trim(),
             summary: metadata.summary.trim()
           },
-          attachments: attachmentEdits,
+          attachments: editsForSave,
           addedAttachments,
           addedMedia: sessionMedia
         });
@@ -475,6 +486,7 @@ export function useProjectManagement(profileId: Id | null) {
       fieldErrors,
       attachmentEdits,
       originalAttachments,
+      previewAspectRatio,
       loadError,
       failure: saveFailure,
       result: saveResult,
@@ -516,6 +528,6 @@ export function useProjectManagement(profileId: Id | null) {
       cancel: cancelDelete,
       confirm: confirmDelete
     }
-  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setMetadataField, upload]);
+  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setMetadataField, upload]);
 }
 export type ProjectManagement = ReturnType<typeof useProjectManagement>;

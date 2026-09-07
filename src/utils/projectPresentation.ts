@@ -16,13 +16,13 @@ import type { Project } from '../types/domain';
 export function getProjectAspectRatio(project: Project): number {
   const isDocument = project.coverKind === 'document' || typeof project.pageCount === 'number' && project.pageCount > 1;
   const cropRatio = project.coverFrame?.aspectRatio;
-  if (!isDocument && cropRatio && Number.isFinite(cropRatio) && cropRatio > 0) return cropRatio;
+  if (cropRatio && Number.isFinite(cropRatio) && cropRatio > 0) return cropRatio;
   if (!isDocument && project.coverAspectRatio && Number.isFinite(project.coverAspectRatio) && project.coverAspectRatio > 0) {
     return project.coverAspectRatio;
   }
   const orientation = project.coverOrientation ?? 'square';
   if (isDocument) {
-    // Paper keeps its own ratio rather than the cover image's crop.
+    // Without a saved preview crop, paper keeps its original presentation.
     return orientation === 'landscape' ? 1.414 : 1 / 1.414;
   }
   if (orientation === 'portrait') {

@@ -80,6 +80,18 @@ test('failed export keeps the crop editable and never invokes Save', async () =>
   editor.dispose();
 });
 
+test('changing preview shape preserves unsaved zoom and exports the new aspect ratio', async () => {
+  const saves=[]; const editor=editorHarness({aspectRatio:1,onSave:(result)=>saves.push(result)});
+  await editor.flush(); editor.zoom(2.4); await editor.flush();
+  editor.options({aspectRatio:16/9}); await editor.flush();
+  assert.equal(editor.find((node)=>node.type==='input').props.value,2.4);
+  editor.button('Save').props.onClick(); await editor.flush();
+  assert.equal(saves.length,1);
+  const {crop,sourceSize}=saves[0];
+  assert.ok(Math.abs(crop.width*sourceSize.width/(crop.height*sourceSize.height)-16/9)<1e-9);
+  editor.dispose();
+});
+
 test('an export finishing after source replacement cannot save the previous image', async () => {
   const saves=[];const editor=editorHarness({onSave:(result)=>saves.push(result)});
   await editor.flush();editor.holdExport();editor.button('Save').props.onClick();await editor.flush();
@@ -115,15 +127,17 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
     if(name.endsWith('/InterfaceIcon'))return {InterfaceIcon:'Icon'};
     if(name.endsWith('/ModalPortal'))return {ModalPortal:'Portal'};
     if(name==='./ImageRepositioner')return {ImageRepositioner:'Editor'};
+    if(name.endsWith('/StateViews'))return {LoadingState:'Loading',ErrorState:'Error'};
     throw Error(name);
   }});
-  const render=()=>{cursor=0;return exports.ImageRepositionDialog({title:'Cover',onClose:()=>closed++,source:'image.jpg',alt:'Cover',onSave(){}}).props.children;};
+  const render=()=>{cursor=0;return exports.ImageRepositionDialog({title:'Cover',onClose:()=>closed++,source:'image.jpg',alt:'Cover',controls:'Shape',onSave(){}}).props.children;};
   let backdrop=render();let dialog=backdrop.props.children;
-  const child=dialog.props.children[1].props.children;
+  const child=dialog.props.children[1].props.children.props.children[1];
   child.props.onSavingChange(true);
   backdrop=render();dialog=backdrop.props.children;
   const close=dialog.props.children[0].props.children[1];
   assert.equal(close.props.disabled,true);
+  assert.equal(dialog.props.children[1].props.children.props.children[0].props.disabled,true);
   close.props.onClick();backdrop.props.onMouseDown({target:backdrop,currentTarget:backdrop});escape();assert.equal(closed,0);
   child.props.onSavingChange(false);backdrop=render();
   escape();assert.equal(closed,1);

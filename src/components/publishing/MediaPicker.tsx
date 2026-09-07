@@ -11,8 +11,7 @@ import { PdfPage } from '../media/PdfPage';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
 import { ProjectCover } from '../media/ProjectCover';
-import { ImageRepositionDialog } from '../media/ImageRepositionDialog';
-import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
+import { ProjectCoverRepositionDialog } from '../media/ProjectCoverRepositionDialog';
 
 /**
  * Project files — the universal asset list.
@@ -166,8 +165,8 @@ export function MediaPicker({
     replaceRef.current?.click();
   };
   return <section aria-labelledby="publish-files-label" className="flex flex-col gap-2">
-      {repositionItem?.family === 'image' && repositionItem.previewUrl ? <ImageRepositionDialog key={repositionItem.id} title="Reposition project cover" source={repositionItem.file} alt={repositionItem.displayTitle} aspectRatio={16 / 9} initialPosition={normalizeProjectCoverFrame(repositionItem.metadata?.coverFrame)} outputWidth={1920} onClose={() => setRepositionId(null)} onSave={({ position, crop }) => {
-        media.setCoverFrame(repositionItem.id, { ...position, crop, aspectRatio: 16 / 9 });
+      {repositionItem?.previewUrl && ['image', 'document', 'video'].includes(repositionItem.family) ? <ProjectCoverRepositionDialog key={repositionItem.id} source={repositionItem.file} kind={repositionItem.family === 'document' ? 'document' : repositionItem.family === 'video' ? 'video' : 'image'} pageNumber={repositionItem.metadata?.coverPageNumber} alt={repositionItem.displayTitle} aspectRatio={4 / 3} frame={repositionItem.metadata?.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
+        media.setCoverFrame(repositionItem.id, frame);
         setRepositionId(null);
       }} /> : null}
       <div className="flex items-center justify-between gap-3">
@@ -205,7 +204,7 @@ export function MediaPicker({
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
         </div> : <div className="flex flex-col gap-2">
-          {previewItem?.family === 'image' && previewItem.previewUrl ? <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(previewItem.id)}>Reposition cover</Button></div> : null}
+          {previewItem?.previewUrl && ['image', 'document', 'video'].includes(previewItem.family) ? <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(previewItem.id)}>Reposition preview</Button></div> : null}
           <div aria-label={`Cover preview of ${previewItem?.displayTitle ?? 'selected file'}, page ${absolutePreviewPage} of ${totalPreviewPages}`} style={{ aspectRatio: previewItem?.metadata?.coverFrame?.aspectRatio ?? 4 / 3 }} className="relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]">
             <ProjectCover source={previewItem?.previewUrl} alt={`Cover preview of ${previewItem?.fileName ?? 'selected file'}`} kind={previewItem?.family === 'document' ? 'document' : previewItem?.family === 'video' ? 'video' : undefined} pageNumber={previewPageNumber} onDocumentPageCountChange={handleDocumentPageCount} fit={previewItem?.metadata?.coverFrame ? "cover" : "contain"} frame={previewItem?.metadata?.coverFrame} aspectRatio={previewItem?.metadata?.widthPixels && previewItem.metadata.heightPixels ? previewItem.metadata.widthPixels / previewItem.metadata.heightPixels : 4 / 3} sizes="440px" priority />
             <button type="button" aria-label="Previous cover page" disabled={isLocked || !hasPreviousPreview} onClick={showPreviousPreview} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
