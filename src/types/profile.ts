@@ -12,6 +12,7 @@
  */
 
 import type { Id, Profile } from './domain';
+import type { RelativeImageCrop } from './imageCrop';
 
 /** Where an authenticated account stands in relation to owning a profile. */
 export type ProfileOnboardingStatus =
@@ -40,6 +41,9 @@ export type PreparedAvatar = {
   isPersisted: false;
   widthPixels?: number;
   heightPixels?: number;
+  /** Original retained locally so reopening Reposition does not crop an already cropped bitmap. */
+  originalSource?: File | string;
+  crop?: RelativeImageCrop;
 };
 
 /** Why a chosen file was rejected before it was ever sent anywhere. */

@@ -49,7 +49,7 @@ export type AvatarSelection = {
    * nothing to warn about.
    */
   storageNotice: string | null;
-  select: (file: File | null) => void;
+  select: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => void;
   clear: () => void;
 };
 
@@ -92,7 +92,7 @@ export function useAvatarSelection(): AvatarSelection {
     previousUrlRef.current = next?.previewUrl ?? null;
     setAvatar(next);
   }, []);
-  const select = useCallback((file: File | null) => {
+  const select = useCallback((file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => {
     if (!file) {
       return;
     }
@@ -108,6 +108,7 @@ export function useAvatarSelection(): AvatarSelection {
       setError(null);
       const previewUrl = URL.createObjectURL(file);
       replacePreview({
+        ...crop,
         file,
         previewUrl,
         fileName: file.name,

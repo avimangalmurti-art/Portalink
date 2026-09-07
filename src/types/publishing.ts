@@ -1,4 +1,4 @@
-import type { Id, ProjectAttachment, ProjectMediaKind } from './domain';
+import type { Id, ProjectAttachment, ProjectCoverFrame, ProjectMediaKind } from './domain';
 
 /**
  * Publishing domain models.
@@ -364,6 +364,8 @@ export type PublishResult = {
  * deliberately absent — an edit form must not be able to rewrite them.
  */
 export type ProjectAttachmentEdit = {
+  /** Presentation-only crop; original file and other metadata remain unchanged. */
+  coverFrame?: ProjectCoverFrame;
   /** The stable attachment/object id. Never a positional index. */
   id: Id;
   displayName: string;

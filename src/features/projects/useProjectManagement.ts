@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
+import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { validateTitle } from '../publishing/validation';
 import { useMediaPreparation } from '../publishing/useMediaPreparation';
 import { useMediaUpload } from '../publishing/useMediaUpload';
 import { ProjectMutationError } from '../../types/publishing';
-import type { Id, Project, ProjectAttachment } from '../../types/domain';
+import type { Id, Project, ProjectAttachment, ProjectCoverFrame } from '../../types/domain';
 import type { DeleteProjectResult, DraftMetadata, PersistedAttachment, ProjectAttachmentEdit, ProjectMutationErrorCode, UpdateProjectResult } from '../../types/publishing';
 
 /**
@@ -113,7 +114,8 @@ export function useProjectManagement(profileId: Id | null) {
       id: attachment.id,
       displayName: attachment.displayName,
       order: index,
-      isCover: attachment.isCover
+      isCover: attachment.isCover,
+      coverFrame: attachment.metadata?.coverFrame
     })));
   }, []);
   const load = useCallback((projectId: Id) => {
@@ -210,6 +212,12 @@ export function useProjectManagement(profileId: Id | null) {
       isCover: edit.id === attachmentId
     })));
   }, []);
+  const setCoverFrame = useCallback((attachmentId: Id, frame: ProjectCoverFrame) => {
+    setAttachmentEdits((current) => current.map((edit) => edit.id === attachmentId ? { ...edit, coverFrame: normalizeProjectCoverFrame(frame) } : edit));
+    setSaveResult(null);
+    setSaveFailure(null);
+    setEditorPhase('editing');
+  }, []);
   const moveAttachment = useCallback((attachmentId: Id, direction: -1 | 1) => {
     setAttachmentEdits((current) => {
       const index = current.findIndex((edit) => edit.id === attachmentId);
@@ -241,7 +249,8 @@ export function useProjectManagement(profileId: Id | null) {
       id: attachment.id,
       displayName: attachment.displayName,
       order: index,
-      isCover: attachment.isCover
+      isCover: attachment.isCover,
+      coverFrame: attachment.metadata?.coverFrame
     })));
   }, [originalAttachments]);
   const isDirty = useMemo(() => {
@@ -249,11 +258,12 @@ export function useProjectManagement(profileId: Id | null) {
       id: attachment.id,
       displayName: attachment.displayName,
       order: index,
-      isCover: attachment.isCover
+      isCover: attachment.isCover,
+      coverFrame: attachment.metadata?.coverFrame
     }));
     const attachmentsChanged = originalEdits.length !== attachmentEdits.length || originalEdits.some((original, index) => {
       const current = attachmentEdits[index];
-      return !current || current.id !== original.id || current.displayName !== original.displayName || current.order !== original.order || current.isCover !== original.isCover;
+      return !current || current.id !== original.id || current.displayName !== original.displayName || current.order !== original.order || current.isCover !== original.isCover || JSON.stringify(normalizeProjectCoverFrame(current.coverFrame)) !== JSON.stringify(normalizeProjectCoverFrame(original.coverFrame));
     });
     return metadata.title.trim() !== originalMetadata.title.trim() || metadata.summary.trim() !== originalMetadata.summary.trim() || attachmentsChanged || addedMedia.items.length > 0;
   }, [addedMedia.items.length, attachmentEdits, metadata, originalAttachments, originalMetadata]);
@@ -480,6 +490,7 @@ export function useProjectManagement(profileId: Id | null) {
       setField: setMetadataField,
       setAttachmentTitle,
       setCover,
+      setCoverFrame,
       moveAttachment,
       removeAttachment,
       restoreAttachments,
@@ -505,6 +516,6 @@ export function useProjectManagement(profileId: Id | null) {
       cancel: cancelDelete,
       confirm: confirmDelete
     }
-  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setMetadataField, upload]);
+  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setMetadataField, upload]);
 }
 export type ProjectManagement = ReturnType<typeof useProjectManagement>;

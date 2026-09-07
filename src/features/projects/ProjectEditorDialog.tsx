@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, InfoIcon, Loader2Icon, StarIcon, XIcon } from 'lucide-react';
+import { ImageRepositionDialog } from '../../components/media/ImageRepositionDialog';
+import { ProjectCover } from '../../components/media/ProjectCover';
+import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -26,6 +29,14 @@ export function ProjectEditorDialog({
     editor
   } = management;
   const isOpen = editor.projectId !== null;
+  const [repositionId, setRepositionId] = useState<string | null>(null);
+  const coverEdit = editor.attachmentEdits.find((item) => item.isCover);
+  const coverSource = editor.originalAttachments.find((item) => item.id === coverEdit?.id);
+  const coverPreviewRatio = coverEdit?.coverFrame?.aspectRatio ?? coverSource?.metadata?.aspectRatio ??
+    (coverSource?.metadata?.widthPixels && coverSource.metadata.heightPixels ? coverSource.metadata.widthPixels / coverSource.metadata.heightPixels : 1);
+  const repositionSource = editor.originalAttachments.find((item) => item.id === repositionId);
+  const repositionEdit = editor.attachmentEdits.find((item) => item.id === repositionId);
+  useEffect(() => setRepositionId(null), [editor.projectId]);
   // Preparation AND transport are owned by the management boundary. This dialog
   // only reads their state and calls their callbacks; it never touches a service.
   const added = editor.addedMedia;
@@ -112,6 +123,14 @@ export function ProjectEditorDialog({
               <section aria-labelledby="project-files-title" className="mt-1">
                 <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Files</h3>
                 <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">{editor.mode === 'files' ? 'Select one or more corrected files below, remove the old versions from this list, and keep the exact order and cover you want.' : 'Their titles, their order, and which one is the cover. Removing a file here only takes it out of this edit — the published project keeps it until you save.'}</p>
+                {coverSource?.kind === 'image' && coverSource.sourceUrl ? <div className="mx-auto my-3 w-full max-w-[400px] space-y-2">
+                  <div className="overflow-hidden rounded-[10px] bg-[var(--surface-sunken)]" style={{ aspectRatio: coverPreviewRatio }}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" frame={coverEdit?.coverFrame} /></div>
+                  <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition cover</Button></div>
+                </div> : null}
+                {repositionSource?.kind === 'image' && repositionSource.sourceUrl && repositionEdit ? <ImageRepositionDialog key={repositionSource.id} title="Reposition project cover" source={repositionSource.sourceUrl} alt={repositionEdit.displayName} aspectRatio={16 / 9} initialPosition={normalizeProjectCoverFrame(repositionEdit.coverFrame)} outputWidth={1920} onClose={() => setRepositionId(null)} onSave={({ position, crop }) => {
+                  editor.setCoverFrame(repositionSource.id, { ...position, crop, aspectRatio: 16 / 9 });
+                  setRepositionId(null);
+                }} /> : null}
                 <ul className="mt-2.5 m-0 flex list-none flex-col gap-1.5 p-0">
                   {editor.attachmentEdits.map((edit, index) => {
                 const source = editor.originalAttachments.find((attachment) => attachment.id === edit.id);

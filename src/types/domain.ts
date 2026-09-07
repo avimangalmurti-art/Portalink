@@ -161,6 +161,10 @@ export type ProjectCoverFrame = {
   x: number;
   y: number;
   zoom: number;
+  /** Explicit viewport ratio for newly positioned image covers; absent on legacy covers. */
+  aspectRatio?: number;
+  /** Exported source-relative rectangle, separate from the object-position x/y above. */
+  crop?: import('./imageCrop').RelativeImageCrop;
 };
 
 /**

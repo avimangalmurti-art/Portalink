@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { AlertCircleIcon, ImageIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import type { PreparedAvatar } from '../../types/profile';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
+import { ImageRepositionDialog } from '../media/ImageRepositionDialog';
 
 /**
  * Choose → validate → preview → replace → remove. Presentation only.
@@ -26,7 +27,7 @@ export type AvatarPickerProps = {
    * outcome of its own.
    */
   storageNotice?: string | null;
-  onSelect: (file: File | null) => void;
+  onSelect: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => void;
   onClear: () => void;
 };
 export function AvatarPicker({
@@ -42,6 +43,8 @@ export function AvatarPicker({
   onClear
 }: AvatarPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [repositioning, setRepositioning] = useState(false);
+  const source = pending?.originalSource ?? pending?.file ?? currentUrl;
   const dimensions = pending?.widthPixels && pending.heightPixels ? {
     widthPixels: pending.widthPixels,
     heightPixels: pending.heightPixels
@@ -65,6 +68,7 @@ export function AvatarPicker({
           <Button variant="secondary" size="sm" disabled={disabled} onClick={() => inputRef.current?.click()}>
             {pending || currentUrl ? 'Replace' : 'Choose image'}
           </Button>
+          {source ? <Button variant="ghost" size="sm" disabled={disabled} onClick={() => setRepositioning(true)}>Reposition</Button> : null}
           {pending && <Button variant="ghost" size="sm" disabled={disabled} onClick={onClear}>Remove</Button>}
         </div>
       </div>
@@ -78,5 +82,11 @@ export function AvatarPicker({
           <AlertCircleIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {error}
         </p>}
+      {repositioning && source ? <ImageRepositionDialog title="Reposition profile picture" source={source} alt="Profile picture" shape="square" initialCrop={pending?.crop} outputWidth={512} mimeType="image/webp" onClose={() => setRepositioning(false)} onSave={({ blob, crop }) => {
+        const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+        const file = new File([blob], `profile-picture.${extension}`, { type: blob.type });
+        onSelect(file, { originalSource: source, crop });
+        setRepositioning(false);
+      }} /> : null}
     </div>;
 }

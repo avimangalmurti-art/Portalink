@@ -674,6 +674,7 @@ export const mockProjectService: ProjectService = {
         ...attachment,
         // Only what an edit is allowed to change. The file, its storage
         // reference, kind, and processing state are untouched.
+        metadata: edit.coverFrame ? { ...attachment.metadata, coverFrame: edit.coverFrame } : attachment.metadata,
         displayName: edit.displayName.trim() || attachment.displayName,
         isCover: edit.isCover
       };
