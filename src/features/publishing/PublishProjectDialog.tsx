@@ -3,6 +3,7 @@ import { AlertCircleIcon, InfoIcon } from 'lucide-react';
 import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
+import { CoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
 import { Button } from '../../components/ui/Button';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
@@ -179,6 +180,7 @@ export function PublishProjectDialog({
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
                   <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
+                  <CoverFilmstrip media={media} disabled={isPublishing || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
                   <section className="project-form-details" aria-labelledby="publish-details-label">
                     <h3 id="publish-details-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project details</h3>
                     {/* Everything a visitor will see is entered here. Nothing is

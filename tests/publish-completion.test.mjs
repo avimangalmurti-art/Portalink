@@ -76,6 +76,19 @@ test('uploaded files alone do not close the publishing form', () => {
   assert.equal(h.calls.length, 0);
 });
 
+test('cover framing stays locked while uploading and after files are stored', () => {
+  for (const upload of [
+    { phase: 'uploading', isBusy: true },
+    { phase: 'cancelling', isBusy: true },
+    { phase: 'uploaded', isBusy: false },
+  ]) {
+    const tree = harness().render({ state: 'editing', upload });
+    assert.equal(nodes(tree).find((node) => node.type === 'CoverFilmstrip').props.disabled, true);
+  }
+  const tree = harness().render({ upload: { phase: 'idle', isBusy: false } });
+  assert.equal(nodes(tree).find((node) => node.type === 'CoverFilmstrip').props.disabled, false);
+});
+
 test('disabled Publish explains the missing detail, then clears the helper when ready', () => {
   for (const [title, summary, expected] of [
     ['  ', '', 'Add a title to publish.'],

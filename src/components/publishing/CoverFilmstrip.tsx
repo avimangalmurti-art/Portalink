@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FileIcon, RotateCcwIcon } from 'lucide-react';
+import { FileIcon, MoveIcon, RotateCcwIcon } from 'lucide-react';
 import type { PreparedMedia } from '../../types/publishing';
 import type { ProjectCoverFrame } from '../../types/domain';
 import type { ImageSize } from '../../types/imageCrop';
@@ -78,12 +78,13 @@ function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, 
   return <div ref={host} className="cover-filmstrip-item">
     <div className="cover-filmstrip-slot">
       <button {...crop} type="button" disabled={disabled} aria-label={`${selected ? 'Cover: ' : 'Use as cover: '}${label}`} aria-pressed={selected}
-        aria-describedby={selected ? 'cover-crop-help' : undefined} onClick={onSelect}
+        aria-describedby={selected ? 'cover-crop-help' : undefined} title={editable ? 'Drag to reposition · Scroll to zoom' : undefined} onClick={onSelect}
         className={`cover-filmstrip-thumbnail shape-compact relative block overflow-hidden border bg-[var(--surface-sunken)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${selected ? 'border-[var(--accent-color)] ring-2 ring-[var(--accent-color)]' : 'border-[var(--hairline-strong)] hover:border-[var(--text-tertiary)]'}`}
         style={{ '--thumbnail-ratio': ratio, aspectRatio: ratio, touchAction: editable ? 'none' : 'pan-x', cursor: editable ? 'grab' : 'pointer' } as React.CSSProperties}>
         {source ? <img key={attempt} src={source} alt="" draggable={false} loading={selected ? 'eager' : 'lazy'} onLoad={(event) => { const image = event.currentTarget; setSize(preview.size ?? { width: image.naturalWidth, height: image.naturalHeight }); }} onError={() => { setSize(null); setPreview({ error: 'Preview unavailable' }); }}
           className={`pointer-events-none h-full w-full select-none ${selected ? 'object-cover' : 'object-contain'}`} style={selected ? imagePositionStyle(frame) : undefined} /> : <span className="flex h-full min-h-12 items-center justify-center text-[var(--text-tertiary)]"><FileIcon className="h-6 w-6" aria-hidden="true" /></span>}
         {selected ? <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--surface-media-control)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--media-control-text)]">Cover</span> : null}
+        {editable ? <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-[5px] bg-[var(--surface-media-control)] text-[var(--media-control-text)] opacity-80"><MoveIcon className="h-3.5 w-3.5" /></span> : null}
       </button>
     </div>
     <p className="truncate text-center text-[12px] text-[var(--text-secondary)]" title={label}>{item.family === 'document' ? `Page ${page}` : item.displayTitle}</p>
@@ -143,7 +144,8 @@ export function CoverFilmstrip({ media, disabled }: { media: MediaPreparation; d
   const eligible = media.items.filter((item) => canBeCover(item.family, item.capability));
   if (!eligible.length) return null;
   const editable = Boolean(size && cover?.previewUrl && ['image', 'document', 'video'].includes(cover.family));
-  return <div className="cover-filmstrip">
+  return <section className="cover-filmstrip rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-2" aria-labelledby="publish-cover-label">
+    <h3 id="publish-cover-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Cover</h3>
     <div className="cover-filmstrip-track scrollbar-slim" role="group" aria-label="Choose a project cover">
       {eligible.map((item) => <FileThumbnails key={item.id} item={item} media={media} render={(number, pdf) => {
         const selected = item.id === cover?.id && number === page;
@@ -155,17 +157,20 @@ export function CoverFilmstrip({ media, disabled }: { media: MediaPreparation; d
           }} />;
       }} />)}
     </div>
-    <p id="cover-crop-help" className="text-[12px] text-[var(--text-secondary)]">Drag cover to crop · Scroll to zoom<span className="sr-only">. You can also use arrow keys to reposition the selected cover.</span></p>
-    <label className="flex items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">Cover shape
-      <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
+    <p id="cover-crop-help" className="sr-only">Drag or use arrow keys to reposition the selected cover. Scroll to zoom.</p>
+    <div className="cover-panel-controls border-t border-[var(--hairline)] pt-2">
+    <label className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">Cover shape
+      <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 w-full min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
         {[{ value: 1, label: 'Square · 1:1' }, { value: 4 / 3, label: 'Landscape · 4:3' }, { value: 16 / 9, label: 'Wide · 16:9' }, { value: 3 / 4, label: 'Portrait · 3:4' }, { value: frame.aspectRatio, label: 'Current shape' }].filter((item, index, all) => all.findIndex((other) => Math.abs(other.value - item.value) < .00001) === index).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select>
     </label>
-    <div className="flex items-center gap-2 text-[13px] text-[var(--text-secondary)]">
-      <label htmlFor="cover-zoom">Zoom</label>
+    <div className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">
+      <div className="flex items-center justify-between gap-2"><label htmlFor="cover-zoom">Zoom</label><output htmlFor="cover-zoom" className="tabular-nums">{Math.round(frame.zoom * 100)}%</output></div>
+      <div className="flex min-w-0 items-center gap-1">
       <input id="cover-zoom" type="range" min="1" max="3" step=".01" value={frame.zoom} disabled={disabled || !editable} className="h-8 min-w-0 flex-1 accent-[var(--accent-color)]" onChange={(event) => { if (size) { const next = zoomImage(frame, size, frame.aspectRatio, Number(event.target.value)); change({ ...next, aspectRatio: frame.aspectRatio, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }} />
-      <output htmlFor="cover-zoom" className="w-10 text-right tabular-nums">{Math.round(frame.zoom * 100)}%</output>
-      <button type="button" aria-label="Reset cover crop" disabled={disabled || !editable} className="shape-compact flex h-8 w-8 items-center justify-center hover:bg-[var(--surface-hover)] disabled:opacity-40" onClick={() => { if (size) { const next = { x: .5, y: .5, zoom: 1, aspectRatio: frame.aspectRatio }; change({ ...next, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }}><RotateCcwIcon className="h-4 w-4" aria-hidden="true" /></button>
+      <button type="button" aria-label="Reset cover crop" title="Reset cover crop" disabled={disabled || !editable} className="shape-compact flex h-8 w-8 shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40" onClick={() => { if (size) { const next = { x: .5, y: .5, zoom: 1, aspectRatio: frame.aspectRatio }; change({ ...next, crop: cropFromPosition(size, frame.aspectRatio, next) }); } }}><RotateCcwIcon className="h-4 w-4" aria-hidden="true" /></button>
+      </div>
     </div>
-  </div>;
+    </div>
+  </section>;
 }

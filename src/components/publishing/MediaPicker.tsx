@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, Trash2Icon, VideoIcon } from 'lucide-react';
+import { AlertCircleIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -9,7 +9,7 @@ import type { MediaUpload } from '../../features/publishing/useMediaUpload';
 import type { AssetFamily, PreparedMedia, UploadItemState } from '../../types/publishing';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
-import { CoverFilmstrip } from './CoverFilmstrip';
+import { ProjectFilesMenu } from './ProjectFilesMenu';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
@@ -62,6 +62,9 @@ export function MediaPicker({
   const replaceTargetRef = useRef<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showsFormats, setShowsFormats] = useState(false);
+  const fileOptionsRef = useRef<HTMLButtonElement>(null);
+  const requirementsRef = useRef<HTMLDivElement>(null);
+  const removeConfirmationRef = useRef<HTMLDivElement>(null);
   const {
     items,
     error,
@@ -69,6 +72,16 @@ export function MediaPicker({
     capability,
   } = media;
   const [isRemovingAll, setIsRemovingAll] = useState(false);
+  useEffect(() => {
+    if (!showsFormats) return;
+    const frame = requestAnimationFrame(() => requirementsRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [showsFormats]);
+  useEffect(() => {
+    if (!isRemovingAll) return;
+    const frame = requestAnimationFrame(() => removeConfirmationRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [isRemovingAll]);
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -77,17 +90,17 @@ export function MediaPicker({
     replaceTargetRef.current = mediaId;
     replaceRef.current?.click();
   };
-  return <section aria-labelledby="publish-files-label" className="project-form-media">
+  return <section aria-labelledby="publish-files-label" className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
       <div className="flex items-center justify-between gap-3">
         <h3 id="publish-files-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
-        {items.length > 0 && <div className="flex items-center gap-1"><Button variant="ghost" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}>
-            <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
-            Add
-          </Button><button type="button" aria-label="Remove all project files" title="Remove all files" disabled={isLocked} onClick={() => setIsRemovingAll(true)} className="shape-compact flex h-8 w-8 items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] disabled:opacity-40"><InterfaceIcon icon={Trash2Icon} /></button></div>}
+        <div className="flex items-center gap-1">
+          {items.length > 0 && <Button variant="secondary" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>}
+          <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} />
+        </div>
       </div>
-      {isRemovingAll && <div role="group" aria-label="Confirm removing all files" className="rounded-[10px] border border-[var(--hairline-strong)] p-2.5">
+      {isRemovingAll && <div ref={removeConfirmationRef} tabIndex={-1} role="group" aria-label="Confirm removing all files" className="rounded-[10px] border border-[var(--hairline-strong)] p-2.5 outline-none">
         <p className="text-[13px] text-[var(--text-primary)]">Remove all files from this draft?</p>
-        <div className="mt-2 flex justify-end gap-2"><Button size="sm" disabled={isLocked} onClick={() => setIsRemovingAll(false)}>Keep files</Button><Button size="sm" variant="danger" disabled={isLocked} onClick={() => { media.clear(); setIsRemovingAll(false); }}>Remove all</Button></div>
+        <div className="mt-2 flex justify-end gap-2"><Button size="sm" disabled={isLocked} onClick={() => { setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Keep files</Button><Button size="sm" variant="danger" disabled={isLocked} onClick={() => { media.clear(); setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Remove all</Button></div>
       </div>}
 
       {/* One hidden input for adding, one for replacing a specific row. */}
@@ -117,7 +130,6 @@ export function MediaPicker({
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
         </div> : <div className="project-media-selection">
-          <CoverFilmstrip media={media} disabled={isLocked} />
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
         phase: upload.phase,
@@ -127,15 +139,8 @@ export function MediaPicker({
           </ul>
         </div>}
 
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <button type="button" onClick={() => setShowsFormats((open) => !open)} aria-expanded={showsFormats} className="flex items-center gap-1 text-[12px] text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
-          File requirements
-          <ChevronDownIcon className={`h-3 w-3 transition-transform duration-150 motion-reduce:transition-none ${showsFormats ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </button>
-
-      </div>
-
-      {showsFormats && <div className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3">
+      {showsFormats && <div ref={requirementsRef} tabIndex={-1} role="group" aria-label="File requirements" className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3 outline-none">
+        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[12px] font-semibold text-[var(--text-secondary)]">File requirements</p><button type="button" aria-label="Close file requirements" onClick={() => { setShowsFormats(false); fileOptionsRef.current?.focus(); }} className="shape-compact flex h-6 w-6 items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><XIcon className="h-3.5 w-3.5" aria-hidden="true" /></button></div>
         <p className="mb-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">File size follows your current storage allowance. Large files upload in resumable parts. For sharp full-screen covers, use images at least 1600 px on the longest edge. Original files and their embedded colour profiles are preserved.</p>
         <dl className="m-0 grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12px] leading-relaxed sm:grid-cols-2">
           {supportedFormatGroups.map((group) => <div key={group.title} className="min-w-0">
