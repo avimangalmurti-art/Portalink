@@ -265,7 +265,7 @@ export function MessagesPage({
           {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
         <div className="side-panel-control-row ml-auto shrink-0">
-          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message controls" title="Message controls" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
+          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message settings" title="Message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
           <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
           </button>
