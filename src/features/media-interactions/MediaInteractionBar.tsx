@@ -2,6 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
+import { mediaToolbarLayout } from './mediaToolbarLayout';
+import { useMediaPageSize } from './useMediaPageSize';
+
+const countFormatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
+const displayCount = (count: number) => count > 0 ? countFormatter.format(count) : '';
 
 const ACTIONS: Array<{
   kind: MediaEngagementKind;
@@ -35,6 +40,9 @@ export function MediaInteractionBar({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const { ref: engagementRef, pageWidth, hostWidth } = useMediaPageSize();
+  const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
+  const layout = mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts);
 
   useEffect(() => {
     if (activity.commentResumeToken === 0) return;
@@ -44,47 +52,55 @@ export function MediaInteractionBar({
 
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
+    ref={engagementRef}
     data-media-interaction=""
     data-open={commentsOpen ? 'true' : undefined}
-    className={`media-item-engagement absolute z-40 flex max-w-[calc(100%-16px)] gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
+    className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
+    style={{ maxWidth: `calc(100% - ${placement === 'focused' ? 16 : 8}px)` }}
     onPointerDown={stop}
     onPointerUp={stop}
     onClick={stop}
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar side-panel-control-row max-w-full overflow-x-auto rounded-[10px] p-1.5">
-      {ACTIONS.map(({ kind, label, icon: Icon, color }) => {
+    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar" style={{
+      width: layout.width,
+      '--media-action-unit': `${layout.unit}px`,
+      gridTemplateColumns: layout.slots.map((slot) => `${slot}fr`).join(' ')
+    } as React.CSSProperties}>
+      {ACTIONS.map(({ kind, label, icon: Icon, color }, index) => {
         const engaged = activity.record.engaged[kind];
         const count = activity.record.counts[kind];
         return <button
           key={kind}
           type="button"
           aria-pressed={engaged}
-          aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}`}
+          aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}${count > 0 ? ` (${count})` : ''}`}
+          title={`${label}: ${count}`}
           disabled={activity.pendingKind === kind}
           data-keep-color=""
           style={{ color }}
           onClick={() => activity.toggle(kind)}
-          className="media-item-action side-panel-primary-control side-panel-control-row min-w-10 justify-center px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
+          className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
         >
           {activity.pendingKind === kind
-            ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            ? <Loader2Icon className="media-item-action-loader animate-spin motion-reduce:animate-none" aria-hidden="true" />
             : <InterfaceIcon icon={Icon} size="sm" weight="regular" keepColor fill={engaged ? color : 'none'} stroke={color} />}
-          {count > 0 ? <span className="text-[10px] font-semibold tabular-nums">{count}</span> : null}
+          {count > 0 ? <span className="media-item-action-count font-semibold tabular-nums">{counts[index]}</span> : null}
         </button>;
       })}
       <button
         type="button"
         aria-expanded={commentsOpen}
-        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}`}
+        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}${counts[3] ? ` (${activity.record.comments.length})` : ''}`}
+        title={`Comments: ${activity.record.comments.length}`}
         data-keep-color=""
         style={{ color: 'var(--apple-purple)' }}
         onClick={() => setCommentsOpen((open) => !open)}
-        className="media-item-action side-panel-primary-control side-panel-control-row min-w-10 justify-center px-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-purple)" />
-        {activity.record.comments.length > 0 ? <span className="text-[10px] font-semibold tabular-nums">{activity.record.comments.length}</span> : null}
+        {counts[3] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[3]}</span> : null}
       </button>
       <button
         type="button"
@@ -93,7 +109,7 @@ export function MediaInteractionBar({
         data-keep-color=""
         style={{ color: 'var(--engagement-share-selected)' }}
         onClick={() => void activity.share()}
-        className="media-item-action side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'var(--engagement-share-selected)' : 'none'} stroke="var(--engagement-share-selected)" />
       </button>

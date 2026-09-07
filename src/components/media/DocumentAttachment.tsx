@@ -211,6 +211,7 @@ export function DocumentAttachment({
             }
           }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
+              data-media-page-surface=""
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
               width={page.width}

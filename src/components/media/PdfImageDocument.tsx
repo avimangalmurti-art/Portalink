@@ -271,6 +271,7 @@ function PdfImagePage({
       </button>
     </span> : null}
     <canvas
+      data-media-page-surface=""
       ref={canvasRef}
       aria-hidden="true"
       className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
