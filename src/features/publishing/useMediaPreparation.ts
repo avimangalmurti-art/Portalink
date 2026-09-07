@@ -190,7 +190,13 @@ export function useMediaPreparation() {
       })));
     });
   }, []);
-  const setCoverPage = useCallback((mediaId: string, pageNumber: number, pageCount?: number) => {
+  const setPageCount = useCallback((mediaId: string, pageCount: number) => {
+    if (!Number.isInteger(pageCount) || pageCount < 1) return;
+    setItems((current) => current.map((item) => item.id !== mediaId || item.metadata?.pageCount === pageCount ? item : {
+      ...item, metadata: { ...item.metadata, pageCount },
+    }));
+  }, []);
+  const setCoverPage = useCallback((mediaId: string, pageNumber: number, pageCount?: number, frame?: ProjectCoverFrame) => {
     const safePageCount = pageCount && Number.isInteger(pageCount) && pageCount > 0 ? pageCount : undefined;
     const safePageNumber = Math.max(1, Math.min(Math.round(pageNumber), safePageCount ?? Number.MAX_SAFE_INTEGER));
     setItems((current) => {
@@ -199,9 +205,12 @@ export function useMediaPreparation() {
         return current;
       }
       const nextPageCount = safePageCount ?? target.metadata?.pageCount;
+      const changedPage = (target.metadata?.coverPageNumber ?? 1) !== safePageNumber;
+      const coverFrame = frame ?? (changedPage ? { x: .5, y: .5, zoom: 1, aspectRatio: target.metadata?.coverFrame?.aspectRatio ?? 4 / 3 } : target.metadata?.coverFrame);
       const isUnchanged = current.every((item) => item.isCover === (item.id === mediaId))
         && target.metadata?.coverPageNumber === safePageNumber
-        && target.metadata?.pageCount === nextPageCount;
+        && target.metadata?.pageCount === nextPageCount
+        && target.metadata?.coverFrame === coverFrame;
       if (isUnchanged) {
         return current;
       }
@@ -212,6 +221,7 @@ export function useMediaPreparation() {
           ...item.metadata,
           ...(nextPageCount ? { pageCount: nextPageCount } : {}),
           coverPageNumber: safePageNumber,
+          coverFrame,
         },
       } : {
         ...item,
@@ -219,8 +229,8 @@ export function useMediaPreparation() {
       }));
     });
   }, []);
-  const setCoverFrame = useCallback((mediaId: string, coverFrame: ProjectCoverFrame) => {
-    setItems((current) => current.map((item) => item.id === mediaId ? {
+  const setCoverFrame = useCallback((mediaId: string, coverFrame: ProjectCoverFrame, pageNumber?: number) => {
+    setItems((current) => current.map((item) => item.id === mediaId && (pageNumber === undefined || (item.isCover && (item.metadata?.coverPageNumber ?? 1) === pageNumber)) ? {
       ...item,
       metadata: {
         ...item.metadata,
@@ -258,6 +268,7 @@ export function useMediaPreparation() {
     clear,
     reorder,
     setCover,
+    setPageCount,
     setCoverPage,
     setCoverFrame,
     rename,

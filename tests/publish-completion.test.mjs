@@ -43,7 +43,7 @@ function harness() {
   function render(changes = {}, propChanges = {}) {
     currentFlow = {
       step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {},
-      media: {}, metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
+      media: { items: [] }, metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
       inferredRelevance: {}, upload: {}, publish: {}, ...changes,
     };
     cursor = 0;
@@ -74,6 +74,21 @@ test('uploaded files alone do not close the publishing form', () => {
   const tree = h.render({ state: 'publishing', upload: { phase: 'uploaded' } });
   assert.equal(tree.props.titleId, 'publish-dialog-title');
   assert.equal(h.calls.length, 0);
+});
+
+test('disabled Publish explains the missing detail, then clears the helper when ready', () => {
+  for (const [title, summary, expected] of [
+    ['  ', '', 'Add a title to publish.'],
+    ['My project', '  ', 'Add a description to publish.'],
+  ]) {
+    const tree = harness().render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
+    assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
+    assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
+  }
+  const tree = harness().render({ metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
+  assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
+  assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
+  assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));
 });
 
 test('publishing accepts the complete long description without an input cap', () => {

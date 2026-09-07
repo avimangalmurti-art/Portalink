@@ -122,6 +122,11 @@ export function PublishProjectDialog({
     fieldErrors,
     setField
   } = publishFlow;
+  const publishHint = !metadata.title.trim() ? 'Add a title to publish.'
+    : !metadata.summary.trim() ? 'Add a description to publish.'
+    : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
+    : !media.items.length ? 'Add a file to publish.'
+    : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
   return <ProjectFormDialog title="New project" titleId="publish-dialog-title" description={<>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isPublishing || publishFlow.hasUploadInFlight || publishFlow.isDiscarding} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
@@ -174,7 +179,8 @@ export function PublishProjectDialog({
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
                   <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
-                  <div className="project-form-details">
+                  <section className="project-form-details" aria-labelledby="publish-details-label">
+                    <h3 id="publish-details-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project details</h3>
                     {/* Everything a visitor will see is entered here. Nothing is
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
@@ -186,10 +192,11 @@ export function PublishProjectDialog({
                           {publishFlow.ignoreInferredLocation ? 'Use the place mentioned in the project' : 'This project is not location-specific'}
                         </button>
                       </div> : null}
-                  </div>
+                  </section>
                 </div>
 
-              <div className="project-form-actions flex items-center justify-end gap-2">
+              <div className="project-form-actions flex flex-col items-end gap-1.5">
+                {publishHint ? <p role="status" className="text-[12px] text-[var(--text-secondary)]">{publishHint}</p> : null}
                 <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
                   {isPublishing ? 'Publishing…' : 'Publish'}
                 </Button>

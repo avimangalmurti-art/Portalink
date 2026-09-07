@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, Trash2Icon, VideoIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -7,12 +7,9 @@ import { canBeCover, processingLabel, supportedFormatGroups } from '../../featur
 import type { MediaPreparation } from '../../features/publishing/useMediaPreparation';
 import type { MediaUpload } from '../../features/publishing/useMediaUpload';
 import type { AssetFamily, PreparedMedia, UploadItemState } from '../../types/publishing';
-import { PdfPage } from '../media/PdfPage';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
-import { ProjectCover } from '../media/ProjectCover';
-import { ProjectCoverRepositionDialog } from '../media/ProjectCoverRepositionDialog';
-import { ProjectPreviewFrame } from './ProjectPreviewFrame';
+import { CoverFilmstrip } from './CoverFilmstrip';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
@@ -44,9 +41,6 @@ const FAMILY_ICONS: Record<AssetFamily, typeof FileIcon> = {
   code: CodeIcon,
   archive: FileIcon
 };
-function previewPageCountFor(item: PreparedMedia): number {
-  return item.family === 'document' ? Math.max(1, item.metadata?.pageCount ?? 1) : 1;
-}
 type MediaPickerProps = {
   media: MediaPreparation;
   /**
@@ -73,93 +67,8 @@ export function MediaPicker({
     error,
     state,
     capability,
-    setCoverPage,
   } = media;
-  const [repositionId, setRepositionId] = useState<string | null>(null);
-  const repositionItem = items.find((item) => item.id === repositionId);
-  const [previewItemId, setPreviewItemId] = useState<string | null>(null);
-  const [previewPageNumber, setPreviewPageNumber] = useState(1);
-  const previewItem = items.find((item) => item.id === previewItemId) ?? items[0] ?? null;
-  const activePreviewItemId = previewItem?.id ?? null;
-  const activePreviewFamily = previewItem?.family ?? null;
-  const activePreviewStoredPageCount = previewItem?.metadata?.pageCount;
-  const previewItemIndex = previewItem ? items.findIndex((item) => item.id === previewItem.id) : -1;
-  const previewPageCount = previewItem ? previewPageCountFor(previewItem) : 1;
-  const totalPreviewPages = items.reduce((total, item) => total + previewPageCountFor(item), 0);
-  const absolutePreviewPage = previewItemIndex < 0
-    ? 0
-    : items.slice(0, previewItemIndex).reduce((total, item) => total + previewPageCountFor(item), 0) + previewPageNumber;
-  const hasPreviousPreview = previewItemIndex > 0 || previewPageNumber > 1;
-  const hasNextPreview = previewItemIndex >= 0
-    && (previewPageNumber < previewPageCount || previewItemIndex < items.length - 1);
-
-  useEffect(() => {
-    if (items.length === 0) {
-      setPreviewItemId(null);
-      setPreviewPageNumber(1);
-      return;
-    }
-    if (!previewItemId || !items.some((item) => item.id === previewItemId)) {
-      setPreviewItemId(items[0].id);
-      setPreviewPageNumber(1);
-    }
-  }, [items, previewItemId]);
-
-  useEffect(() => {
-    if (!activePreviewItemId) {
-      return;
-    }
-    const safePage = Math.min(previewPageNumber, activePreviewStoredPageCount ?? 1);
-    if (safePage !== previewPageNumber) {
-      setPreviewPageNumber(safePage);
-    }
-    setCoverPage(activePreviewItemId, safePage, activePreviewStoredPageCount);
-  }, [activePreviewItemId, activePreviewStoredPageCount, previewPageNumber, setCoverPage]);
-
-  const showPreview = useCallback((itemIndex: number, pageNumber: number) => {
-    const item = items[itemIndex];
-    if (!item) {
-      return;
-    }
-    const safePage = Math.max(1, Math.min(pageNumber, previewPageCountFor(item)));
-    setPreviewItemId(item.id);
-    setPreviewPageNumber(safePage);
-    setCoverPage(item.id, safePage, item.metadata?.pageCount);
-  }, [items, setCoverPage]);
-
-  const showPreviousPreview = () => {
-    if (!previewItem || !hasPreviousPreview) {
-      return;
-    }
-    if (previewPageNumber > 1) {
-      showPreview(previewItemIndex, previewPageNumber - 1);
-      return;
-    }
-    const previousIndex = previewItemIndex - 1;
-    showPreview(previousIndex, previewPageCountFor(items[previousIndex]));
-  };
-
-  const showNextPreview = () => {
-    if (!previewItem || !hasNextPreview) {
-      return;
-    }
-    if (previewPageNumber < previewPageCount) {
-      showPreview(previewItemIndex, previewPageNumber + 1);
-      return;
-    }
-    showPreview(previewItemIndex + 1, 1);
-  };
-
-  const handleDocumentPageCount = useCallback((pageCount: number) => {
-    if (!activePreviewItemId || activePreviewFamily !== 'document') {
-      return;
-    }
-    const safePage = Math.min(previewPageNumber, pageCount);
-    if (safePage !== previewPageNumber) {
-      setPreviewPageNumber(safePage);
-    }
-    setCoverPage(activePreviewItemId, safePage, pageCount);
-  }, [activePreviewFamily, activePreviewItemId, previewPageNumber, setCoverPage]);
+  const [isRemovingAll, setIsRemovingAll] = useState(false);
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -169,17 +78,17 @@ export function MediaPicker({
     replaceRef.current?.click();
   };
   return <section aria-labelledby="publish-files-label" className="project-form-media">
-      {repositionItem?.previewUrl && ['image', 'document', 'video'].includes(repositionItem.family) ? <ProjectCoverRepositionDialog key={repositionItem.id} source={repositionItem.file} kind={repositionItem.family === 'document' ? 'document' : repositionItem.family === 'video' ? 'video' : 'image'} pageNumber={repositionItem.metadata?.coverPageNumber} alt={repositionItem.displayTitle} aspectRatio={4 / 3} frame={repositionItem.metadata?.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
-        media.setCoverFrame(repositionItem.id, frame);
-        setRepositionId(null);
-      }} /> : null}
       <div className="flex items-center justify-between gap-3">
         <h3 id="publish-files-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
-        {items.length > 0 && <Button variant="ghost" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}>
+        {items.length > 0 && <div className="flex items-center gap-1"><Button variant="ghost" size="sm" disabled={isLocked || media.isFull} onClick={() => addRef.current?.click()}>
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Add
-          </Button>}
+          </Button><button type="button" aria-label="Remove all project files" title="Remove all files" disabled={isLocked} onClick={() => setIsRemovingAll(true)} className="shape-compact flex h-8 w-8 items-center justify-center text-[var(--text-tertiary)] hover:bg-[var(--surface-hover)] disabled:opacity-40"><InterfaceIcon icon={Trash2Icon} /></button></div>}
       </div>
+      {isRemovingAll && <div role="group" aria-label="Confirm removing all files" className="rounded-[10px] border border-[var(--hairline-strong)] p-2.5">
+        <p className="text-[13px] text-[var(--text-primary)]">Remove all files from this draft?</p>
+        <div className="mt-2 flex justify-end gap-2"><Button size="sm" disabled={isLocked} onClick={() => setIsRemovingAll(false)}>Keep files</Button><Button size="sm" variant="danger" disabled={isLocked} onClick={() => { media.clear(); setIsRemovingAll(false); }}>Remove all</Button></div>
+      </div>}
 
       {/* One hidden input for adding, one for replacing a specific row. */}
       <input ref={addRef} type="file" multiple className="sr-only" aria-labelledby="publish-files-label" disabled={disabled} onChange={(event) => {
@@ -208,24 +117,13 @@ export function MediaPicker({
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
         </div> : <div className="project-media-selection">
-          {previewItem?.previewUrl && ['image', 'document', 'video'].includes(previewItem.family) ? <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(previewItem.id)}>Reposition preview</Button></div> : null}
-          <ProjectPreviewFrame label={`Cover preview of ${previewItem?.displayTitle ?? 'selected file'}, page ${absolutePreviewPage} of ${totalPreviewPages}`} aspectRatio={previewItem?.metadata?.coverFrame?.aspectRatio ?? 4 / 3} controls={<>
-            <button type="button" aria-label="Previous cover page" disabled={isLocked || !hasPreviousPreview} onClick={showPreviousPreview} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
-              <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <button type="button" aria-label="Next cover page" disabled={isLocked || !hasNextPreview} onClick={showNextPreview} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
-              <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
-            </button>
-            <span className="shape-compact pointer-events-none absolute bottom-2 left-2 bg-[var(--surface-media-control)] px-2 py-1 text-[10px] font-semibold text-[var(--media-control-text)] shadow-sm">Cover · {absolutePreviewPage} of {totalPreviewPages}</span>
-          </>}>
-            <ProjectCover source={previewItem?.previewUrl} alt={`Cover preview of ${previewItem?.fileName ?? 'selected file'}`} kind={previewItem?.family === 'document' ? 'document' : previewItem?.family === 'video' ? 'video' : undefined} pageNumber={previewPageNumber} onDocumentPageCountChange={handleDocumentPageCount} fit={previewItem?.metadata?.coverFrame ? "cover" : "contain"} frame={previewItem?.metadata?.coverFrame} aspectRatio={previewItem?.metadata?.widthPixels && previewItem.metadata.heightPixels ? previewItem.metadata.widthPixels / previewItem.metadata.heightPixels : 4 / 3} sizes="440px" priority />
-          </ProjectPreviewFrame>
+          <CoverFilmstrip media={media} disabled={isLocked} />
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
         item: upload.itemProgress[item.id] ?? null
-      } : null} onReorder={media.reorder} onSetCover={() => showPreview(index, item.metadata?.coverPageNumber ?? 1)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
+      } : null} onReorder={media.reorder} onSetCover={() => media.setCoverPage(item.id, item.metadata?.coverPageNumber ?? 1, item.metadata?.pageCount)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
           </ul>
         </div>}
 
@@ -234,9 +132,7 @@ export function MediaPicker({
           File requirements
           <ChevronDownIcon className={`h-3 w-3 transition-transform duration-150 motion-reduce:transition-none ${showsFormats ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
-        {items.length > 0 && <button type="button" disabled={isLocked} onClick={media.clear} className="text-[12px] text-[var(--text-tertiary)] transition-colors duration-150 hover:text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
-            Remove all
-          </button>}
+
       </div>
 
       {showsFormats && <div className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3">
@@ -443,14 +339,13 @@ function AssetRow({
       <button type="button" disabled={disabled || index === 0} onClick={() => onReorder(index, index - 1)} aria-label={`Move ${asset.displayTitle} earlier`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Up</button>
       <button type="button" disabled={disabled || index === total - 1} onClick={() => onReorder(index, index + 1)} aria-label={`Move ${asset.displayTitle} later`} className="sr-only focus:not-sr-only focus:relative focus:rounded-[6px] focus:px-1.5 focus:py-1 focus:text-[12px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Down</button>
 
-      {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} alt={`Local preview of ${asset.fileName}`} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : asset.previewUrl && asset.family === 'document' ? <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[7px]"><PdfPage source={asset.previewUrl} label={`Local preview of ${asset.fileName}`} /></span> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
+      {asset.previewUrl && asset.family === 'image' ? <ResponsiveImage src={asset.previewUrl} alt={`Local preview of ${asset.fileName}`} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
           <Icon className="h-4 w-4" />
         </span>}
 
       <div className="min-w-0 flex-1">
         <p className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[13px] font-medium text-[var(--text-primary)]" title={asset.displayTitle}>{asset.displayTitle}</span>
-          {asset.isCover && <span className="shrink-0 rounded-[5px] bg-[var(--surface-sunken)] px-1.5 py-[1px] text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--text-secondary)]">Cover</span>}
         </p>
         <p className="truncate text-[12px] text-[var(--text-secondary)]">
           {asset.typeLabel} · {formatFileSize(asset.sizeBytes)}
