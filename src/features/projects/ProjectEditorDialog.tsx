@@ -3,6 +3,7 @@ import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, I
 import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
+import { ProjectPreviewFrame } from '../../components/publishing/ProjectPreviewFrame';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -93,7 +94,7 @@ export function ProjectEditorDialog({
       }} />;
     }
     return <ProjectFormDialog title="Reposition project preview" titleId="project-preview-editor-title" onClose={() => { void editor.close(); }}>
-      <div className="py-5">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />}</div>
+      <div className="project-form-content scrollbar-slim">{editor.phase === 'loading' ? <LoadingState label="Loading project preview…" /> : editor.phase === 'load-failed' ? <ErrorState title="The preview could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <ErrorState title="No cover preview is available" description="Choose a cover file in Edit project first." />}</div>
     </ProjectFormDialog>;
   }
   const canAddFiles = added.capability?.isAvailable === true;
@@ -111,23 +112,23 @@ export function ProjectEditorDialog({
   return <ProjectFormDialog title="Edit project" titleId="project-editor-title" description="Update your project’s files and details." dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
-        <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="mt-5 flex shrink-0 flex-col gap-4">
+        <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
-              <section aria-labelledby="project-files-title" className="flex flex-col gap-2">
+              <section aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
                 <div className="flex items-center justify-between gap-3">
                   <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
                   <Button id="project-replacement-files" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLocked || added.isFull}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>
                 </div>
-                <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">To replace a file, add the new version and remove the old one before saving.</p>
-                {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="w-full space-y-2">
+                <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">To replace a file, add the new version and remove the old one.</p>
+                {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="project-media-selection">
                   <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition preview</Button></div>
-                  <div className="relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]" style={{ aspectRatio: coverPreviewRatio }}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></div>
+                  <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>
                 </div> : null}
                 {repositionSource?.sourceUrl && ['image', 'document', 'video'].includes(repositionSource.kind) && repositionEdit ? <ProjectCoverRepositionDialog key={repositionSource.id} source={repositionSource.sourceUrl} kind={repositionSource.kind === 'document' ? 'document' : repositionSource.kind === 'video' ? 'video' : 'image'} pageNumber={repositionSource.metadata?.coverPageNumber} alt={repositionEdit.displayName} aspectRatio={coverPreviewRatio} frame={repositionEdit.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
                   editor.setCoverFrame(repositionSource.id, frame);
                   setRepositionId(null);
                 }} /> : null}
-                <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[180px] list-none flex-col gap-1.5 overflow-y-auto p-0">
+                <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
                   {editor.attachmentEdits.map((edit, index) => {
                 const source = editor.originalAttachments.find((attachment) => attachment.id === edit.id);
                 return <li key={edit.id} className="relative flex items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-inset)] p-2">
@@ -161,12 +162,12 @@ export function ProjectEditorDialog({
 
                 {/* Adding files goes through the existing preparation and transport
                  path, and says plainly when that path is unavailable. */}
-                <div className="mt-3">
+                <div className="project-edit-transfer">
                   <input ref={fileInputRef} type="file" multiple className="sr-only" onChange={(event) => {
                 added.select(event.target.files);
                 event.target.value = '';
               }} />
-                  {added.items.length > 0 && <ul className="mt-2 m-0 flex list-none flex-col gap-1 p-0">
+                  {added.items.length > 0 && <ul className="project-media-list scrollbar-slim mt-2 m-0 flex list-none flex-col gap-1 p-0">
                       {added.items.map((item) => {
                   const itemState = upload.itemProgress[item.id];
                   return <li key={item.id} className="flex items-center gap-2 rounded-[8px] bg-[var(--surface-sunken)] px-2.5 py-1.5 text-[12px] text-[var(--text-secondary)]">
@@ -223,11 +224,13 @@ export function ProjectEditorDialog({
                     </p>}
                 </div>
               </section>
+              <div className="project-form-details">
               <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
               <ProfileField id="project-summary" label="Description" required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
+              </div>
             </>}
 
-        <footer className="flex shrink-0 flex-col gap-2">
+        <footer className="project-form-actions flex flex-col gap-2">
           {/* A failed save keeps everything entered, and offers the same attempt. */}
           {editor.failure && <p role="alert" className="flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
               <AlertCircleIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />

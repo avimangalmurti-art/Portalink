@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, BoxIcon, CheckIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -12,6 +12,10 @@ import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { imageDimensionsLabel, imageResolutionNotice } from '../../utils/imageMetadata';
 import { ProjectCover } from '../media/ProjectCover';
 import { ProjectCoverRepositionDialog } from '../media/ProjectCoverRepositionDialog';
+import { ProjectPreviewFrame } from './ProjectPreviewFrame';
+import { ModalPortal } from '../ui/ModalPortal';
+import { useModalFocus } from '../../hooks/useModalFocus';
+import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 
 /**
  * Project files — the universal asset list.
@@ -164,7 +168,7 @@ export function MediaPicker({
     replaceTargetRef.current = mediaId;
     replaceRef.current?.click();
   };
-  return <section aria-labelledby="publish-files-label" className="flex flex-col gap-2">
+  return <section aria-labelledby="publish-files-label" className="project-form-media">
       {repositionItem?.previewUrl && ['image', 'document', 'video'].includes(repositionItem.family) ? <ProjectCoverRepositionDialog key={repositionItem.id} source={repositionItem.file} kind={repositionItem.family === 'document' ? 'document' : repositionItem.family === 'video' ? 'video' : 'image'} pageNumber={repositionItem.metadata?.coverPageNumber} alt={repositionItem.displayTitle} aspectRatio={4 / 3} frame={repositionItem.metadata?.coverFrame} onClose={() => setRepositionId(null)} onSave={({ frame }) => {
         media.setCoverFrame(repositionItem.id, frame);
         setRepositionId(null);
@@ -197,16 +201,15 @@ export function MediaPicker({
       if (!disabled) {
         media.select(event.dataTransfer.files);
       }
-    }} className={`flex flex-col items-center gap-2 rounded-[12px] border px-4 py-7 text-center transition-colors duration-150 motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
+    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-150 motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
           <Button id="publish-add-files" variant="secondary" size="sm" disabled={disabled} onClick={() => addRef.current?.click()}>
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
           </Button>
           <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
-        </div> : <div className="flex flex-col gap-2">
+        </div> : <div className="project-media-selection">
           {previewItem?.previewUrl && ['image', 'document', 'video'].includes(previewItem.family) ? <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(previewItem.id)}>Reposition preview</Button></div> : null}
-          <div aria-label={`Cover preview of ${previewItem?.displayTitle ?? 'selected file'}, page ${absolutePreviewPage} of ${totalPreviewPages}`} style={{ aspectRatio: previewItem?.metadata?.coverFrame?.aspectRatio ?? 4 / 3 }} className="relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)]">
-            <ProjectCover source={previewItem?.previewUrl} alt={`Cover preview of ${previewItem?.fileName ?? 'selected file'}`} kind={previewItem?.family === 'document' ? 'document' : previewItem?.family === 'video' ? 'video' : undefined} pageNumber={previewPageNumber} onDocumentPageCountChange={handleDocumentPageCount} fit={previewItem?.metadata?.coverFrame ? "cover" : "contain"} frame={previewItem?.metadata?.coverFrame} aspectRatio={previewItem?.metadata?.widthPixels && previewItem.metadata.heightPixels ? previewItem.metadata.widthPixels / previewItem.metadata.heightPixels : 4 / 3} sizes="440px" priority />
+          <ProjectPreviewFrame label={`Cover preview of ${previewItem?.displayTitle ?? 'selected file'}, page ${absolutePreviewPage} of ${totalPreviewPages}`} aspectRatio={previewItem?.metadata?.coverFrame?.aspectRatio ?? 4 / 3} controls={<>
             <button type="button" aria-label="Previous cover page" disabled={isLocked || !hasPreviousPreview} onClick={showPreviousPreview} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-[var(--surface-media-control)] text-[var(--media-control-text)] shadow-md transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-30 motion-reduce:transition-none">
               <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -214,8 +217,10 @@ export function MediaPicker({
               <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
             </button>
             <span className="shape-compact pointer-events-none absolute bottom-2 left-2 bg-[var(--surface-media-control)] px-2 py-1 text-[10px] font-semibold text-[var(--media-control-text)] shadow-sm">Cover · {absolutePreviewPage} of {totalPreviewPages}</span>
-          </div>
-          <ul aria-label="Project files, in presentation order" className="scrollbar-slim m-0 flex max-h-[180px] list-none flex-col gap-1.5 overflow-y-auto p-0">
+          </>}>
+            <ProjectCover source={previewItem?.previewUrl} alt={`Cover preview of ${previewItem?.fileName ?? 'selected file'}`} kind={previewItem?.family === 'document' ? 'document' : previewItem?.family === 'video' ? 'video' : undefined} pageNumber={previewPageNumber} onDocumentPageCountChange={handleDocumentPageCount} fit={previewItem?.metadata?.coverFrame ? "cover" : "contain"} frame={previewItem?.metadata?.coverFrame} aspectRatio={previewItem?.metadata?.widthPixels && previewItem.metadata.heightPixels ? previewItem.metadata.widthPixels / previewItem.metadata.heightPixels : 4 / 3} sizes="440px" priority />
+          </ProjectPreviewFrame>
+          <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
@@ -371,6 +376,34 @@ function AssetRow({
 }: {asset: PreparedMedia;index: number;total: number;disabled: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLLIElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [menuPosition, setMenuPosition] = useState<ReturnType<typeof positionAnchoredMenu> | null>(null);
+  useModalFocus(isMenuOpen, menuRef, () => setIsMenuOpen(false));
+  useLayoutEffect(() => {
+    if (!isMenuOpen) return;
+    const position = () => {
+      const trigger = triggerRef.current;
+      const menu = menuRef.current;
+      if (!trigger || !menu) return;
+      const viewport = window.visualViewport;
+      const offsetTop = viewport?.offsetTop ?? 0;
+      const anchor = trigger.getBoundingClientRect();
+      const next = positionAnchoredMenu({ right: anchor.right, top: anchor.top - offsetTop, bottom: anchor.bottom - offsetTop }, menu.offsetWidth, menu.scrollHeight, viewport?.width ?? window.innerWidth, viewport?.height ?? window.innerHeight);
+      setMenuPosition({ ...next, top: next.top + offsetTop });
+    };
+    position();
+    window.addEventListener('resize', position);
+    window.addEventListener('scroll', position, true);
+    window.visualViewport?.addEventListener('resize', position);
+    window.visualViewport?.addEventListener('scroll', position);
+    return () => {
+      window.removeEventListener('resize', position);
+      window.removeEventListener('scroll', position, true);
+      window.visualViewport?.removeEventListener('resize', position);
+      window.visualViewport?.removeEventListener('scroll', position);
+    };
+  }, [isMenuOpen]);
   const Icon = FAMILY_ICONS[asset.family] ?? FileIcon;
   const status = processingLabel(asset.processingState);
   const transportState = transportLabel(transport?.phase, transport?.item ?? null);
@@ -386,7 +419,7 @@ function AssetRow({
       return undefined;
     }
     const close = (event: MouseEvent) => {
-      if (!rowRef.current?.contains(event.target as Node)) {
+      if (!rowRef.current?.contains(event.target as Node) && !menuRef.current?.contains(event.target as Node)) {
         setIsMenuOpen(false);
       }
     };
@@ -437,10 +470,10 @@ function AssetRow({
       </div>
 
       <div className="shrink-0">
-        <button type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
           <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
         </button>
-        {isMenuOpen && <div role="menu" className="absolute right-2 top-[calc(100%-6px)] z-20 w-[184px] overflow-hidden rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)]">
+        {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={`Options for ${asset.displayTitle}`} style={menuPosition ?? { visibility: 'hidden' }} className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
             {/* Only actions that make sense for this asset. */}
             {coverEligible && !asset.isCover && <MenuAction label="Set as cover" onSelect={() => {
           onSetCover();
@@ -461,7 +494,7 @@ function AssetRow({
           setIsMenuOpen(false);
           onRemove();
         }} />
-          </div>}
+          </div></ModalPortal>}
       </div>
     </li>;
 }

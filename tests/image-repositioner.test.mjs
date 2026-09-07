@@ -124,6 +124,8 @@ test('dialog guards X, backdrop and Escape for the entire Save', () => {
     if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
     if(name==='lucide-react')return {XIcon:'X'};
     if(name.endsWith('/useModalFocus'))return {useModalFocus:(_open,_ref,fn)=>{escape=fn;}};
+    if(name.endsWith('/useDialogViewport'))return {useDialogViewport:()=>({current:null})};
+    if(name.endsWith('.css'))return {};
     if(name.endsWith('/InterfaceIcon'))return {InterfaceIcon:'Icon'};
     if(name.endsWith('/ModalPortal'))return {ModalPortal:'Portal'};
     if(name==='./ImageRepositioner')return {ImageRepositioner:'Editor'};

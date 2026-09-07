@@ -151,13 +151,13 @@ export function ImageRepositioner({ source, alt, aspectRatio = 16 / 9, shape = '
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   };
 
-  return <div className="min-w-0 space-y-4" onKeyDown={(event) => {
+  return <div className="image-repositioner min-w-0" onKeyDown={(event) => {
     if (event.key === 'Escape' && editing) { event.preventDefault(); event.stopPropagation(); cancel(); }
   }}>
-    <div className="relative isolate overflow-hidden rounded-[12px] bg-[var(--surface-sunken)] p-5 sm:p-8">
+    <div className="image-reposition-stage relative isolate overflow-hidden rounded-[12px] bg-[var(--surface-sunken)]">
       <div ref={viewportRef} role={editing ? 'group' : undefined} aria-label={editing ? `Reposition ${alt}` : undefined} aria-describedby={editing ? instructionsId : undefined} tabIndex={canEdit ? 0 : undefined}
-        style={{ aspectRatio: ratio, borderRadius: radius, touchAction: canEdit ? 'none' : 'auto', cursor: canEdit ? 'grab' : 'default', overflow: editing ? 'visible' : 'hidden' }}
-        className="relative mx-auto w-full max-w-[600px] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+        style={{ '--crop-ratio': ratio, aspectRatio: ratio, borderRadius: radius, touchAction: canEdit ? 'none' : 'auto', cursor: canEdit ? 'grab' : 'default', overflow: editing ? 'visible' : 'hidden' } as React.CSSProperties}
+        className="image-reposition-viewport relative mx-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         onPointerDown={(event) => {
           if (!canEdit || !event.isPrimary || event.button !== 0) return;
           event.preventDefault();

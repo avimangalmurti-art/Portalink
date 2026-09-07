@@ -1,0 +1,130 @@
+/* The preview takes the space left by readable, vertically stacked controls. */
+.project-form-overlay,
+.image-reposition-overlay {
+  --dialog-inset: clamp(8px, calc(var(--dialog-viewport-height, 100dvh) * 0.016), 20px);
+  --dialog-gap: clamp(6px, calc(var(--dialog-viewport-height, 100dvh) * 0.012), 12px);
+  position: fixed;
+  inset: var(--dialog-viewport-top, 0px) 0 auto;
+  height: var(--dialog-viewport-height, 100dvh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--dialog-inset);
+}
+
+.project-form-dialog,
+.image-reposition-dialog {
+  min-height: 0;
+  max-height: 100%;
+  width: min(560px, 100%);
+  height: min(820px, 100%);
+  overflow: hidden;
+}
+
+.project-form-dialog {
+  padding: clamp(12px, calc(var(--dialog-viewport-height, 100dvh) * 0.025), 24px);
+  gap: var(--dialog-gap);
+}
+
+.project-form-heading { flex: 0 0 auto; }
+.project-form-heading > div { min-width: 0; }
+.project-form-heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.project-form-content,
+.project-form-fields,
+.project-form-media,
+.project-media-selection,
+.project-form-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dialog-gap);
+  min-width: 0;
+}
+
+.project-form-content {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.project-form-content > *,
+.project-form-media > * { flex-shrink: 0; }
+.project-form-fields { flex: 1 0 auto; }
+.project-form-media { flex: 1 0 auto; min-height: min-content; }
+.project-media-selection { flex: 1 0 auto; min-height: min-content; }
+.project-media-selection > * { flex-shrink: 0; }
+.project-media-dropzone { flex: 1; min-height: 100px; }
+
+.project-preview-space {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 1 0 60px;
+  min-height: 60px;
+  container-type: size;
+}
+
+.project-preview-frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh * var(--preview-ratio)));
+  max-width: 100%;
+}
+
+.project-media-list {
+  flex: 0 0 auto;
+  max-height: clamp(58px, calc(var(--dialog-viewport-height, 100dvh) * 0.12), 100px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.project-media-list > li { flex-shrink: 0; }
+.project-edit-transfer { margin-top: 0; }
+.project-form-details { flex: 0 0 auto; }
+.project-form-details > div { gap: 4px; }
+.project-form-details textarea {
+  height: clamp(56px, calc(var(--dialog-viewport-height, 100dvh) * 0.1), 84px);
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.project-form-actions { flex: 0 0 auto; margin-top: auto; }
+
+/* Crop controls get their space first; a portrait image cannot push zoom below the fold. */
+.image-reposition-dialog { width: min(600px, 100%); height: min(740px, 100%); }
+.image-reposition-dialog > header { padding: 10px 16px; }
+.image-reposition-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--dialog-gap);
+  min-height: 0;
+  overflow-y: auto;
+  padding: clamp(12px, calc(var(--dialog-viewport-height, 100dvh) * 0.02), 20px);
+}
+.image-reposition-body > fieldset { flex: 0 0 auto; }
+.image-repositioner {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--dialog-gap, 12px);
+  min-height: min-content;
+}
+.image-repositioner > * { flex-shrink: 0; }
+.image-reposition-stage {
+  display: grid;
+  flex: 1 0 112px;
+  place-items: center;
+  min-height: 112px;
+  container-type: size;
+  padding: clamp(12px, calc(var(--dialog-viewport-height, 100dvh) * 0.025), 24px);
+}
+.image-reposition-viewport {
+  width: min(100cqw, calc(100cqh * var(--crop-ratio)));
+  max-width: 600px;
+}
+
+/* Only unusually short screens, large text, or expanded errors need the fallback scroll. */
+@media (max-height: 540px) {
+  .project-form-dialog { padding: 12px; }
+}

@@ -130,18 +130,18 @@ export function PublishProjectDialog({
     setIsConfirmingDiscard(false);
     onClose();
   }} /> : null}>
-          {!publishFlow.isOwner ? <div className="mt-5">
+          {!publishFlow.isOwner ? <div className="project-form-content scrollbar-slim">
               <ErrorState description="Only the owner of this profile can publish work here." />
-            </div> : publishFlow.draftError ? <div className="mt-5">
+            </div> : publishFlow.draftError ? <div className="project-form-content scrollbar-slim">
               <ErrorState description={publishFlow.draftError} />
-            </div> : !publishFlow.draft ? <div className="mt-5">
+            </div> : !publishFlow.draft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
             </div> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish) {
             void publishFlow.publish.run();
           }
-        }} noValidate className="mt-5 flex flex-col gap-4">
+        }} noValidate className="project-form-content scrollbar-slim">
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately
                separate from a publish failure, because the recovery differs. */}
@@ -170,11 +170,11 @@ export function PublishProjectDialog({
 
               {/* One portrait-oriented reading order at every viewport size:
                files first, followed by every public detail and the action. */}
-              <div className="flex flex-col gap-4">
+              <div className="project-form-fields">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
                   <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
-                  <div className="flex min-w-0 flex-col gap-4">
+                  <div className="project-form-details">
                     {/* Everything a visitor will see is entered here. Nothing is
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
@@ -189,7 +189,7 @@ export function PublishProjectDialog({
                   </div>
                 </div>
 
-              <div className="flex items-center justify-end gap-2">
+              <div className="project-form-actions flex items-center justify-end gap-2">
                 <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
                   {isPublishing ? 'Publishing…' : 'Publish'}
                 </Button>

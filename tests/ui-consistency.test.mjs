@@ -164,6 +164,7 @@ test('shared project dialog sends all dismissal paths through the same transfer 
       if (name === 'react') return react;
       if (name === 'framer-motion') return { motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
       if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, fn) => { escape = fn; } };
+      if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => ({ current: null }) };
       return new Proxy({}, { get: (_, key) => key });
     } });
     const tree = ProjectFormDialog({ title: 'Project', titleId: 'project-title', closeDisabled, onClose: () => closed++, children: 'Fields' });

@@ -47,7 +47,7 @@ export function ProjectCoverRepositionDialog({ source, kind = 'image', pageNumbe
   ].filter((item, index, all) => all.findIndex((other) => Math.abs(other.value - item.value) < 0.00001) === index);
   return <ImageRepositionDialog title="Reposition project preview" source={isImage ? source : prepared ?? ''} alt={alt} aspectRatio={ratio} initialPosition={initialFrame} outputWidth={1920}
     preparing={!isImage && !prepared} preparationError={error} onRetryPreparation={() => setAttempt((value) => value + 1)} onClose={onClose}
-    controls={<label className="mb-4 flex items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">Preview shape
+    controls={<label className="flex items-center justify-between gap-3 text-[13px] text-[var(--text-secondary)]">Preview shape
       <select aria-label="Project preview shape" value={ratio} onChange={(event) => setRatio(Number(event.target.value))} className="text-control h-9 min-w-0 rounded-[8px] px-2 text-[13px] text-[var(--text-primary)]">
         {ratios.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
       </select>
