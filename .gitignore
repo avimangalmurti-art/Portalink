@@ -29,3 +29,7 @@ dist-ssr
 .vercel
 .env*
 !.env.example
+
+# Local GitHub scaffold and CLI cache
+/Portalink/
+supabase/.temp/

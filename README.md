@@ -1,6 +1,6 @@
-# portalinknetworks
+# Portalink
 
-portalinknetworks is a creator portfolio and discovery site. This repository can run in
+Portalink Networks is a creator portfolio and discovery site. This repository can run in
 two modes:
 
 - A local development build can use the original in-memory design prototype by
