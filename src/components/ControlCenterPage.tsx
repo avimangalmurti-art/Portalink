@@ -20,6 +20,9 @@ type ControlCenterPageProps = {
   reduceTranslucency: boolean;
   onReduceTranslucencyChange: (enabled: boolean) => void;
   onBack: () => void;
+  appearanceSaving?: boolean;
+  appearanceError?: string | null;
+  onRetryAppearance?: () => void;
 };
 
 /**
@@ -37,7 +40,10 @@ export function ControlCenterPage({
   onHighContrastChange,
   reduceTranslucency,
   onReduceTranslucencyChange,
-  onBack
+  onBack,
+  appearanceSaving,
+  appearanceError,
+  onRetryAppearance
 }: ControlCenterPageProps) {
   const auth = useAuth();
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -52,6 +58,7 @@ export function ControlCenterPage({
 
       <div className="px-[var(--content-gutter)] py-4">
         <section aria-label="Appearance settings" className="w-full max-w-[920px] space-y-4 p-2">
+          {appearanceError ? <p role="alert" className="text-small text-[var(--text-secondary)]">{appearanceError} <button type="button" onClick={onRetryAppearance} className="text-[var(--accent-text)]">Try again</button></p> : appearanceSaving ? <p role="status" className="text-small text-[var(--text-secondary)]">Saving website colors…</p> : null}
           <NavigationButtonsPanel theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={onAppearanceModeChange} systemGray={systemGray} onSystemGrayChange={onSystemGrayChange} accentColor={accentColor} onAccentColorChange={onAccentColorChange} highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange} />
           {auth.isAuthenticated && <section aria-labelledby="account-settings-title" className="rounded-[15px] border border-[var(--hairline)] bg-[var(--surface-raised)] px-[23px] py-[18px]">
             <h2 id="account-settings-title" className="text-[19px] font-semibold leading-tight text-[var(--text-primary)]">Account</h2>

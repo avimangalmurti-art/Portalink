@@ -22,7 +22,7 @@ function CompanyWordmark({ title }: { title: string }) {
 type AccentExperienceProps = {
   theme: AppearanceTheme;
   accentColor: string;
-  onAccentColorChange: (color: string) => void;
+  onAccentColorChange?: (color: string) => void;
   disabled?: boolean;
   compact?: boolean;
 };
@@ -36,6 +36,8 @@ function AccentExperience({
   compact = false
 }: AccentExperienceProps) {
   const activeAccent = findNavAccent(accentColor);
+  // A creator's public website keeps its branding throughout sign-in.
+  if (!onAccentColorChange) return null;
 
   return <fieldset className={compact ? 'w-full' : 'rounded-[11px] bg-[var(--surface-sunken)] px-3 py-3'}>
       <legend className="sr-only">{compact ? 'Accent colors' : 'Choose your starting accent color'}</legend>

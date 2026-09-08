@@ -52,6 +52,7 @@ import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { createProfileHandle } from '../../utils/profileHandle';
+import { normalizePublicAppearance } from '../../utils/publicAppearance';
 
 export const PROJECT_MEDIA_BUCKET = 'project-media';
 export const AVATAR_BUCKET = 'avatars';
@@ -70,6 +71,7 @@ type ProfileRow = {
   social_links: unknown;
   links: unknown;
   is_private: boolean;
+  public_appearance?: unknown;
 };
 
 type CategoryRow = {
@@ -443,6 +445,7 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
       })),
     projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
+    publicAppearance: normalizePublicAppearance(row.public_appearance),
     };
   });
 }
@@ -590,9 +593,14 @@ export const supabaseProfileService: ProfileService = {
     if (input.links !== undefined) update.links = input.links;
     if (input.socialLinks !== undefined) update.social_links = input.socialLinks;
     if (input.isPrivate !== undefined) update.is_private = input.isPrivate;
+    if (input.publicAppearance !== undefined) {
+      const appearance = normalizePublicAppearance(input.publicAppearance);
+      if (!appearance) throw new ProfileServiceError('invalid_input', 'Choose a valid appearance.');
+      update.public_appearance = appearance;
+    }
     if (input.avatar) update.avatar_url = await uploadAvatar(authData.user.id, input.avatar);
     if (Object.keys(update).length === 0) return current;
-    const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId);
+    const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.user.id).select('id').single();
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
   },

@@ -2167,14 +2167,14 @@ button[data-portalink-tile],
    Buttons and button-like controls in every navigation/engagement panel use
    the same flex alignment contract. Width, hierarchy-specific height, spacing,
    and appearance remain owned by their components; vertical centering does not. */
-:where(.sidebar-surface, .ps-panel, .side-panel-popover) :where(button, [role='button']) {
+:where(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) :where(button, [role='button']) {
   display: inline-flex;
   align-items: center;
   box-sizing: border-box;
   vertical-align: middle;
 }
 
-:where(.sidebar-surface, .ps-panel, .side-panel-popover) :where(button, [role='button']) > svg {
+:where(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) :where(button, [role='button']) > svg {
   align-self: center;
   flex: 0 0 auto;
 }
@@ -3970,12 +3970,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background: var(--codex-sidebar-bg);
 }
 
-/* Public presentation uses every available pixel beside its navigation. The
-   desktop workspace inset remains a signed-in application convention only. */
-.codex-shell.shared-portalink-shell .codex-workspace {
-  padding: 0;
-}
-
 .codex-shell #app-viewport {
   overflow: hidden;
   border: var(--codex-workspace-border-width) solid var(--codex-border);
@@ -3991,27 +3985,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell .app-screen-layer > main {
   background: var(--codex-workspace-bg) !important;
-}
-
-/* A public Portalink is an edge-to-edge presentation surface, not a private
-   desktop workspace card. Remove only the shared display frame's rounding;
-   controls and content inside it retain their own intentional geometry. */
-.codex-shell.shared-portalink-shell #app-viewport,
-.codex-shell.shared-portalink-shell .app-screen-layer,
-.codex-shell.shared-portalink-shell .app-screen-layer > main {
-  border-radius: 0 !important;
-}
-.codex-shell.shared-portalink-shell #app-viewport,
-.codex-shell.shared-portalink-shell > aside.shared-profile-sidebar {
-  border: 0 !important;
-  box-shadow: none !important;
-}
-.codex-shell.shared-portalink-shell [data-shared-navigation-panel],
-.codex-shell.shared-portalink-shell [data-shared-navigation-panel] > .ps-panel-toolbar,
-.codex-shell.shared-portalink-shell > aside.shared-profile-sidebar > .global-control-header,
-.codex-shell.shared-portalink-shell > aside.shared-profile-sidebar > div:last-child {
-  border: 0 !important;
-  box-shadow: none !important;
 }
 
 .codex-shell.accent-theme > main,
@@ -4274,7 +4247,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 /* The live side-panel implementation is deliberately last in the stylesheet:
    product-theme compatibility rules above may restyle colour and shape, but
    none may silently expand the dense geometry or restore truncation. */
-:where(.sidebar-surface, .ps-panel, .side-panel-popover) {
+:where(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) {
   --interface-icon-sm: 16px;
   --interface-icon-md: 16px;
   --interface-icon-lg: 18px;
@@ -4283,13 +4256,14 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   line-height: var(--cdx-dense-leading);
 }
 
-:where(.sidebar-surface, .ps-panel, .side-panel-popover)
+:where(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover)
   :where(button, [role='button'], input, textarea, select, label) {
   font-size: var(--cdx-dense-sm);
   font-weight: var(--cdx-dense-weight);
   line-height: var(--cdx-dense-leading);
 }
 
+.codex-shell .shared-profile-sidebar :is(button, [role='button'], input, textarea, select, label),
 .codex-shell .sidebar-surface :is(button, [role='button'], input, textarea, select, label),
 .codex-shell .ps-panel :is(button, [role='button'], input, textarea, select, label),
 .codex-shell .side-panel-popover :is(button, [role='button'], input, textarea, select, label) {
@@ -4299,26 +4273,27 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .codex-shell
-  :is(.sidebar-surface, .ps-panel, .side-panel-popover)
+  :is(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover)
   :is(button, [role='button'])
   :where(span:not([data-interface-icon-frame])) {
   font-size: inherit;
   line-height: inherit;
 }
 
-:where(.sidebar-surface, .ps-panel, .side-panel-popover)
+:where(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover)
   :where(.ps-heading, .cdx-dense-header) {
   font-size: var(--cdx-dense-header);
   font-weight: var(--cdx-dense-header-weight);
   line-height: var(--cdx-header-leading);
 }
 
-.codex-shell :is(.sidebar-surface, .ps-panel, .side-panel-popover) :is(.ps-heading, .cdx-dense-header) {
+.codex-shell :is(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) :is(.ps-heading, .cdx-dense-header) {
   font-size: var(--cdx-dense-header) !important;
   font-weight: var(--cdx-dense-header-weight) !important;
   line-height: var(--cdx-header-leading) !important;
 }
 
+.codex-shell .shared-profile-sidebar :is(h2, h3),
 .codex-shell .sidebar-surface :is(h2, h3),
 .codex-shell main aside.ps-panel :is(h2, h3),
 .codex-shell main > .ps-panel :is(h2, h3),
@@ -4328,14 +4303,14 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   line-height: var(--cdx-header-leading) !important;
 }
 
-.codex-shell :is(.sidebar-surface, .ps-panel, .side-panel-popover) .cdx-panel-title {
+.codex-shell :is(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) .cdx-panel-title {
   font-size: var(--cdx-panel-title) !important;
   font-weight: 600 !important;
   line-height: 1.25 !important;
 }
 
 /* Conversational input remains body copy, not UI chrome. */
-.codex-shell :is(.sidebar-surface, .ps-panel, .side-panel-popover) .type-chat-body {
+.codex-shell :is(.sidebar-surface, .shared-profile-sidebar, .ps-panel, .side-panel-popover) .type-chat-body {
   font-size: 1rem !important;
   font-weight: 400 !important;
   line-height: 1.5 !important;
@@ -4530,6 +4505,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   padding-inline: var(--cdx-dense-inline-padding) !important;
 }
 
+.codex-shell .shared-profile-sidebar .nav-button.sidebar-primary-control,
 .codex-shell .sidebar-surface .nav-button.sidebar-primary-control,
 .codex-shell.accent-theme .sidebar-surface .nav-button.sidebar-primary-control,
 .codex-shell .sidebar-starfield .sidebar-surface .nav-button.sidebar-primary-control {
@@ -4808,16 +4784,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   color: var(--accent-text) !important;
 }
 
-/* The left navigation on a copied public-profile URL is an open rail. Its
-   selected Portal is identified by accent ink only; the generic ps-list rules
-   must not restore a grey rounded block, inset edge, or panel divider. */
-#root .codex-shell.shared-portalink-shell > aside.shared-profile-sidebar,
-#root .codex-shell.shared-portalink-shell > aside.shared-profile-sidebar > .global-control-header,
-#root .codex-shell.shared-portalink-shell > aside.shared-profile-sidebar > nav,
-#root .codex-shell.shared-portalink-shell > aside.shared-profile-sidebar > div:last-child {
-  border: 0 !important;
-  box-shadow: none !important;
-}
 #root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row],
 #root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:hover,
 #root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page'],
@@ -4842,20 +4808,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   outline-offset: -2px;
 }
 
-/* The public project index applies selection to a wrapper around its button.
-   Keep that wrapper open as well, otherwise the button is transparent but a
-   rounded grey block still shows behind it. */
-#root .codex-shell.shared-portalink-shell [data-shared-navigation-panel]
-  .project-index-row.active,
-#root .codex-shell.shared-portalink-shell [data-shared-navigation-panel]
-  .project-index-row.active:hover {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
 /* Portal row overflow controls keep a quiet fill on hover, never the generic
    sidebar button outline. The keyboard-only focus ring remains untouched. */
 @media (hover: hover) and (pointer: fine) {
@@ -4866,18 +4818,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
 }
 
-/* One geometry contract for all three public navigation headers, expanded or
-   collapsed. Public workspace borders are removed, so its left sidebar must
-   not retain the signed-in shell's one-pixel top compensation. */
 .codex-shell.shared-portalink-shell {
   --shared-header-height: 64px;
   --shared-header-control: 40px;
   --shared-header-glyph: 18px;
 }
 
-.codex-shell.shared-portalink-shell > aside.sidebar-starfield.shared-profile-sidebar {
-  padding-top: 0;
-}
 
 .codex-shell.shared-portalink-shell [data-shared-navigation-header] {
   display: flex;

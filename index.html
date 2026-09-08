@@ -74,8 +74,10 @@
         const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
         let resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         if (window.location.pathname.startsWith('/share/')) {
+          resolved = systemDark ? 'dark' : 'light';
           try {
-            const sharedTheme = window.localStorage.getItem('portalink.sharedAppearance');
+            const profileId = window.location.pathname.split('/')[2];
+            const sharedTheme = window.localStorage.getItem(`portalink.publicTheme.${profileId}`);
             if (sharedTheme === 'light' || sharedTheme === 'dark') resolved = sharedTheme;
           } catch {
             // The resolved system appearance remains the public-link fallback.

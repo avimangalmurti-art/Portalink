@@ -71,6 +71,7 @@ type UserProfilePageProps = {
   onEditProfile?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
+  onBeforeShare?: () => Promise<void>;
   /** Removes application navigation from the public shared profile surface. */
   isSharedView?: boolean;
   /** Creates a category under the title the owner supplies. */
@@ -384,6 +385,7 @@ export function UserProfilePage({
   onOpenProject,
   onEditProfile,
   shareUrl,
+  onBeforeShare,
   isSharedView = false,
   onAddCategory,
   onOpenActivity
@@ -620,7 +622,7 @@ export function UserProfilePage({
                   </button>;
             })}
               </div> : null}
-            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} /> : null}
+            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} /> : null}
             {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} className="side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 Edit profile

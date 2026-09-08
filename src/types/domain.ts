@@ -31,6 +31,12 @@ export type ProfileLink = {
   iconName?: string;
 };
 
+export type PublicAppearance = {
+  accentColor: string;
+  systemGray: string;
+  mode: 'light' | 'dark' | 'auto';
+};
+
 /** A creator's public identity plus the portfolio structure they own. */
 export type Profile = {
   id: Id;
@@ -56,6 +62,8 @@ export type Profile = {
    * publish and search — a client cannot make a record private by hiding it.
    */
   isPrivate?: boolean;
+  /** Creator branding shared by every public URL; null until first saved. */
+  publicAppearance?: PublicAppearance | null;
 };
 /**
  * Editing an existing profile. Deliberately the same identity fields
@@ -63,7 +71,7 @@ export type Profile = {
  * profile editing reuses one validation vocabulary rather than growing a second
  * model. `avatar` is a prepared, not-yet-uploaded file.
  */
-export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate'>> & {
+export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance'>> & {
   /** Normalized without the leading "@"; uniqueness is re-checked on write. */
   handle?: string;
   avatar?: import('./profile').PreparedAvatar;

@@ -99,7 +99,7 @@ export function SharedProfileSidebar({
             <InterfaceIcon icon={HomeIcon} weight="medium" />
           </Link> : null}
         <h2 className={isCollapsed ? 'sr-only' : 'relative my-2 flex h-7 w-full shrink-0 items-center'}>
-          <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-[14px] font-semibold text-[var(--text-tertiary)]">
+          <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-inherit text-[var(--text-tertiary)]">
             Portals
           </span>
         </h2>
@@ -122,8 +122,8 @@ export function SharedProfileSidebar({
         </ul>
       </nav>
 
-      <div data-shared-account-footer="" className={`relative z-40 shrink-0 py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
-        <div className={`relative flex items-center ${isCollapsed ? 'flex-col gap-1.5' : 'h-10 justify-between'}`}>
+      <div data-shared-account-footer="" className={`relative z-40 shrink-0 border-t border-[var(--hairline)] py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+        <div className={`relative items-center ${isCollapsed ? 'flex flex-col gap-1.5' : 'grid grid-cols-2 gap-[var(--side-panel-row-gap)]'}`}>
           {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
               <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
@@ -134,10 +134,10 @@ export function SharedProfileSidebar({
                 <span className="whitespace-nowrap leading-none">Sign in</span>
               </button>
             </div> : null}
-          <button ref={settingsTriggerRef} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button ref={settingsTriggerRef} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className={`nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
           </button>
-          <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-system-color="" className="shared-profile-theme-toggle side-panel-compact-control shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-system-color="" className={`shared-profile-theme-toggle nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
           </button>
         </div>

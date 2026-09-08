@@ -41,7 +41,8 @@ export function ApplicationBootstrap() {
   const [hasMinimumSplashTimeElapsed, setHasMinimumSplashTimeElapsed] = useState(false);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = readSharedViewerProfileId();
-  const lockedSharedProfileId = auth.isAuthenticated ? null : sessionSharedProfileId ?? routeSharedProfileId;
+  // A newly opened public URL is authoritative, even after visiting another creator.
+  const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -55,7 +56,7 @@ export function ApplicationBootstrap() {
     try {
       if (auth.isAuthenticated) {
         window.sessionStorage.removeItem(SHARED_VIEWER_PROFILE_KEY);
-      } else if (routeSharedProfileId && !sessionSharedProfileId) {
+      } else if (routeSharedProfileId && routeSharedProfileId !== sessionSharedProfileId) {
         window.sessionStorage.setItem(SHARED_VIEWER_PROFILE_KEY, routeSharedProfileId);
       }
     } catch {

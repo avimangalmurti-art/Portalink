@@ -25,7 +25,7 @@ import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
 import { resolveMacTokens } from './utils/macTokens';
-import { readAccentColor, readAppearanceMode, readContrastMode, readHighContrast, readIconColor, readLanguage, readNavSystemGray, readReduceTranslucency, resolveAppearance, writeAccentColor, writeAppearanceMode, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
+import { readContrastMode, readHighContrast, readIconColor, readLanguage, readReduceTranslucency, resolveAppearance, writeAccentColor, writeAppearanceMode, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
 import { useScreenInit } from './useScreenInit.js';
 import { useFollows } from './features/follows/useFollows';
 import { useLiveSessions } from './features/live/useLiveSessions';
@@ -48,15 +48,14 @@ import { buildPath } from './app/routes';
 import { beginProjectContinuity, isProjectContinuityActive } from './utils/projectContinuity';
 import { canAccessProfile } from './domain/contentPlacement';
 import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
+import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
+import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
 const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
 const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
 const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
-const SHARED_PORTALINK_ACCENT = '#0A84FF';
-const SHARED_PORTALINK_SYSTEM_GRAY = 'gray6';
-const SHARED_PORTALINK_THEME_KEY = 'portalink.sharedAppearance';
 const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
 
 function readMainSidebarCollapsed(): boolean {
@@ -77,25 +76,6 @@ function writeMainSidebarCollapsed(isCollapsed: boolean): void {
   }
 }
 
-function readSharedPortalinkTheme(): AppearanceTheme {
-  try {
-    const storedTheme = window.localStorage.getItem(SHARED_PORTALINK_THEME_KEY);
-    if (storedTheme === 'light' || storedTheme === 'dark') {
-      return storedTheme;
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  } catch {
-    return 'light';
-  }
-}
-
-function writeSharedPortalinkTheme(theme: AppearanceTheme): void {
-  try {
-    window.localStorage.setItem(SHARED_PORTALINK_THEME_KEY, theme);
-  } catch {
-    // A private browsing session can still use the in-memory public theme.
-  }
-}
 /**
  * The one mapping from a canonical project to the detail viewer's view model.
  *
@@ -141,6 +121,15 @@ export function App() {
   const route = useAppRoute();
   const nav = useRouteNavigator();
   const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject';
+  const auth = useAuth();
+  const creatorAppearance = useCreatorAppearance(auth.viewerProfileId, !isSharedRoute);
+  const { accentColor, systemGray: navSystemGray, mode: appearanceMode } = creatorAppearance.appearance;
+  const setAccentColor = (value: string) => creatorAppearance.choose({ accentColor: value });
+  const setNavSystemGray = (value: string) => creatorAppearance.choose({ systemGray: value });
+  const setAppearanceMode = (value: StoredAppearanceMode) => creatorAppearance.choose({ mode: value });
+  const sharedProfileId = isSharedRoute ? route.profileId : null;
+  const sharedAppearanceQuery = useProfileQuery(sharedProfileId);
+  const publicAppearance = sharedAppearanceQuery.profile?.publicAppearance ?? DEFAULT_PUBLIC_APPEARANCE;
   const {
     pathname,
     search
@@ -151,29 +140,30 @@ export function App() {
   // the product opens with. Out of the box, appearance follows the operating
   // system; accessibility enhancements remain opt-in here and also respond to
   // the corresponding system media features in CSS. A stored preference wins.
-  const [accentColor, setAccentColor] = useState(() => readAccentColor('#0A84FF'));
   // Navigation-button accessibility preferences live at the root so the real
   // navigation components resolve them instantly.
   const [highContrast, setHighContrast] = useState(() => readHighContrast(false));
   const [reduceTranslucency, setReduceTranslucency] = useState(() => readReduceTranslucency(false));
-  const [appearanceMode, setAppearanceMode] = useState<StoredAppearanceMode>(() => readAppearanceMode('auto'));
   // The navigation buttons' system gray. Held by id, so the one choice resolves
   // to its light or dark value as the appearance changes. System Gray 1 is the
   // default — the base of the ladder, identical in both appearances.
-  const [navSystemGray, setNavSystemGray] = useState(() => readNavSystemGray('gray6'));
   const [contrastMode, setContrastMode] = useState<StoredContrastMode>(() => readContrastMode('default'));
   const [iconColor, setIconColor] = useState<StoredIconColor>(() => readIconColor('default'));
   const [language, setLanguage] = useState<StoredLanguage>(() => readLanguage('auto'));
-  // Public links have their own standard appearance. The choice belongs to the
-  // person viewing a shared Portalink and never reads from or writes to the
-  // signed-in profile's Control Center preference.
-  const [sharedPortalinkTheme, setSharedPortalinkTheme] = useState<AppearanceTheme>(readSharedPortalinkTheme);
+  // Creator branding is durable; visitor light/dark choices are local to each site.
+  const [visitorThemes, setVisitorThemes] = useState<Record<string, AppearanceTheme>>({});
+  const visitorTheme = sharedProfileId ? visitorThemes[sharedProfileId] ?? readVisitorTheme(sharedProfileId) : null;
+  const setSharedPortalinkTheme = (value: AppearanceTheme) => {
+    if (!sharedProfileId) return;
+    writeVisitorTheme(sharedProfileId, value);
+    setVisitorThemes(themes => ({ ...themes, [sharedProfileId]: value }));
+  };
   const theme = resolveAppearance(appearanceMode);
-  const interfaceTheme = isSharedRoute ? sharedPortalinkTheme : theme;
-  const interfaceHighContrast = isSharedRoute ? false : highContrast;
-  const interfaceReduceTranslucency = isSharedRoute ? false : reduceTranslucency;
-  const interfaceNavSystemGray = isSharedRoute ? SHARED_PORTALINK_SYSTEM_GRAY : navSystemGray;
-  const interfaceAccentColor = isSharedRoute ? SHARED_PORTALINK_ACCENT : accentColor;
+  const interfaceTheme = isSharedRoute ? resolvePublicTheme(publicAppearance, visitorTheme) : theme;
+  const interfaceHighContrast = highContrast;
+  const interfaceReduceTranslucency = reduceTranslucency;
+  const interfaceNavSystemGray = isSharedRoute ? publicAppearance.systemGray : navSystemGray;
+  const interfaceAccentColor = isSharedRoute ? publicAppearance.accentColor : accentColor;
   // Typography belongs to the project, so the shell holds none of it: the face is
   // carried on the project's own design setting and read through
   // `useProjectTypography` by the surface that presents the work.
@@ -221,7 +211,7 @@ export function App() {
   // System Automatic keeps following the operating system while the app runs.
   const [, forceSystemSync] = useState(0);
   useEffect(() => {
-    if (appearanceMode !== 'auto' || typeof window === 'undefined' || !window.matchMedia) {
+    if (typeof window === 'undefined' || !window.matchMedia) {
       return undefined;
     }
     const query = window.matchMedia('(prefers-color-scheme: dark)');
@@ -245,11 +235,6 @@ export function App() {
     document.body.classList.toggle('high-contrast', interfaceHighContrast);
     document.body.classList.toggle('reduce-translucency', interfaceReduceTranslucency);
   }, [interfaceTheme, interfaceHighContrast, interfaceReduceTranslucency]);
-  useEffect(() => {
-    if (isSharedRoute) {
-      writeSharedPortalinkTheme(sharedPortalinkTheme);
-    }
-  }, [isSharedRoute, sharedPortalinkTheme]);
   useEffect(() => {
     writeAccentColor(accentColor);
   }, [accentColor]);
@@ -356,7 +341,6 @@ export function App() {
     }, 250);
   }
   // The one session source of truth for the whole application.
-  const auth = useAuth();
   // Sign in is shown over Home as a first-arrival experience. Collapse the
   // navigation visually while it is open, without overwriting the person's
   // saved sidebar preference; closing the dialog restores their own layout.
@@ -1083,7 +1067,7 @@ export function App() {
   const screenAriaLabel = personalScreen ?? inDesignFeature ?? (isMessagesOpen ? 'Messages' : isSearchOpen ? 'Search and browse' : activeCategory ? `${viewedProfile?.name ?? 'Portfolio'} · ${activeCategory.label}${isSharedRoute ? ' · shared read-only view' : ''}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfile ? `${viewedProfile.name} profile${isSharedRoute ? ' · shared read-only view' : ''}` : selectedApp ? `${selectedApp.name} details` : `${activeDestination} content`);
   const screenContent = <div className={`feed-starfield min-h-full ${activeCategory || isMessagesOpen || isSearchOpen || isFeedView ? 'h-full' : ''}`}>
       <React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
-      {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isControlCenterOpen ? <ControlCenterPage theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={() => nav.back()} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
+      {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isControlCenterOpen ? <ControlCenterPage appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={() => nav.back()} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
       }} onBack={() => {
@@ -1097,7 +1081,7 @@ export function App() {
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
         nav.to(target, false, viewTransition);
-      } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
+      } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute ? undefined : {
         isFollowing: follows.isFollowing,
@@ -1197,7 +1181,7 @@ export function App() {
       </InteractionSafePresence>
 
       {/* The auth surface is application-level: any control can request it. */}
-      <AuthDialog theme={theme} accentColor={accentColor} onAccentColorChange={setAccentColor} />
+      <AuthDialog theme={interfaceTheme} accentColor={interfaceAccentColor} onAccentColorChange={isSharedRoute ? undefined : setAccentColor} />
 
       {/* Editing is owner-only: it can only ever target the viewer's own id. */}
       <ProfileEditorDialog isOpen={isProfileEditorOpen && isOwnerMode} profileId={auth.viewerProfileId} onClose={() => setIsProfileEditorOpen(false)} onSaved={() => setIsProfileEditorOpen(false)} />

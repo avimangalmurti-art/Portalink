@@ -36,6 +36,8 @@ type ProfileDataContextValue = {
   peekProfile: (profileId: Id) => Profile | null;
   /** Called by the profile, category, and publishing features after a write. */
   invalidateProfiles: () => void;
+  /** Replace a profile with a confirmed service result without a loading flash. */
+  cacheProfile: (profile: Profile) => void;
   revision: number;
 };
 const ProfileDataContext = createContext<ProfileDataContextValue | null>(null);
@@ -58,6 +60,12 @@ export function ProfileDataProvider({
     cacheRef.current.clear();
     inFlightRef.current.clear();
     setRevision((current) => current + 1);
+  }, []);
+  const cacheProfile = useCallback((profile: Profile) => {
+    cacheGenerationRef.current += 1;
+    inFlightRef.current.clear();
+    cacheRef.current.set(profile.id, profile);
+    setRevision(current => current + 1);
   }, []);
   const fetchProfile = useCallback(async (profileId: Id) => {
     const cached = cacheRef.current.get(profileId);
@@ -98,8 +106,9 @@ export function ProfileDataProvider({
     fetchProfile,
     peekProfile,
     invalidateProfiles,
+    cacheProfile,
     revision
-  }), [fetchProfile, peekProfile, invalidateProfiles, revision]);
+  }), [fetchProfile, peekProfile, invalidateProfiles, cacheProfile, revision]);
   return <ProfileDataContext.Provider value={value}>{children}</ProfileDataContext.Provider>;
 }
 export function useProfileData(): ProfileDataContextValue {
