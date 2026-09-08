@@ -4383,6 +4383,80 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   white-space: nowrap;
 }
 
+/* Profile collections use the same content canvas as projects. Each name sits
+   outside its translucent squircle; the collection adapts to the actual panel
+   width, including when the adjacent navigation is resized. */
+.profile-collection {
+  container-type: inline-size;
+  padding: 12px 8px;
+}
+.profile-collection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.profile-collection-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border-radius: var(--shape-compact);
+  color: var(--text-primary);
+  text-align: center;
+}
+.profile-collection-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 80px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--surface-raised) 65%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  backdrop-filter: blur(16px) saturate(120%);
+  transition: background-color 150ms ease-out;
+}
+.profile-collection-name {
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+@media (hover: hover) and (pointer: fine) {
+  .profile-collection-link:hover .profile-collection-tile {
+    background: color-mix(in srgb, var(--surface-hover) 80%, transparent);
+  }
+}
+.reduce-translucency .profile-collection-tile {
+  background: var(--surface-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.reduce-translucency .profile-collection-link:hover .profile-collection-tile {
+  background: var(--surface-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-collection-tile { transition: none; }
+}
+@container (min-width: 320px) { .profile-collection-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (min-width: 420px) { .profile-collection-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@container (min-width: 560px) { .profile-collection-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
+@container (min-width: 640px) { .profile-collection-grid { grid-template-columns: repeat(9, minmax(0, 1fr)); } }
+
+#root .codex-shell .profile-count-control {
+  background: transparent !important;
+  border: 0;
+  box-shadow: none;
+  color: var(--text-secondary) !important;
+}
+#root .codex-shell .profile-count-control[aria-pressed='true'] {
+  color: var(--accent-text) !important;
+}
+
 .side-panel-header-control {
   height: var(--cdx-header-control);
   min-height: var(--cdx-header-control);

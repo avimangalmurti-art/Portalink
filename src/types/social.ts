@@ -9,6 +9,13 @@
  * `network` and `unknown` are worth attempting again.
  */
 export type SocialErrorCode = 'unauthenticated' | 'not_found' | 'permission_denied' | 'network' | 'unknown';
+export type ProfileConnectionKind = 'followers' | 'following';
+export type ProfileConnection = { profileId: string; name: string; avatar: string };
+export type ProfileConnectionPage = {
+  items: ProfileConnection[];
+  total: number;
+  nextOffset: number | null;
+};
 export class SocialServiceError extends Error {
   readonly code: SocialErrorCode;
   constructor(code: SocialErrorCode, message: string) {

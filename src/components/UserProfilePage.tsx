@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
@@ -23,6 +24,8 @@ import { ProjectHoverDetails } from './profile/ProjectHoverDetails';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
+import { useProfileConnections } from '../features/follows/useProfileConnections';
+import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 
 /**
  * A creator's profile overview.
@@ -340,22 +343,36 @@ function ProfileIdentityAndLinks({
     </div>;
 }
 
+type ProfileContentView = 'projects' | 'portals' | 'followers' | 'following';
+
 function ProfileStats({
   projectCount,
+  portalCount,
   followers,
-  following
+  following,
+  activeView,
+  onSelect,
+  disabled
 }: {
   projectCount: number;
+  portalCount: number;
   followers: string | null;
   following: string | null;
+  activeView: ProfileContentView;
+  onSelect: (view: ProfileContentView) => void;
+  disabled: boolean;
 }) {
-  return <p className="side-panel-control-row min-w-0 flex-wrap text-[11px] leading-none text-[var(--text-secondary)]">
-      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{projectCount}</span> {projectCount === 1 ? 'project' : 'projects'}</span>
-      {/* Visual placeholder only. Portal membership is not modelled yet. */}
-      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">0</span> portals</span>
-      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{followers ?? '0'}</span> followers</span>
-      <span className="whitespace-nowrap"><span className="font-semibold tabular-nums text-[var(--text-primary)]">{following ?? '0'}</span> following</span>
-    </p>;
+  const views = [
+    { id: 'projects', count: projectCount, label: projectCount === 1 ? 'project' : 'projects' },
+    { id: 'portals', count: portalCount, label: portalCount === 1 ? 'portal' : 'portals' },
+    { id: 'followers', count: followers ?? '0', label: 'followers' },
+    { id: 'following', count: following ?? '0', label: 'following' },
+  ] as const;
+  return <div role="group" aria-label="Profile content" className="side-panel-control-row min-w-0 flex-wrap text-[12px] leading-none text-[var(--text-secondary)]">
+    {views.map((view) => <button key={view.id} type="button" aria-pressed={activeView === view.id} aria-controls="profile-content" disabled={disabled} onClick={() => onSelect(view.id)} className="profile-count-control side-panel-primary-control shape-compact whitespace-nowrap px-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45">
+      <span className="font-semibold tabular-nums">{view.count}</span> {view.label}
+    </button>)}
+  </div>;
 }
 
 export function UserProfilePage({
@@ -372,6 +389,15 @@ export function UserProfilePage({
   onOpenActivity
 }: UserProfilePageProps) {
   const [columnsPerRow, setColumnsPerRow] = useState(readProfileDensity);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedView = searchParams.get('view');
+  const activeView: ProfileContentView = !isSharedView && (requestedView === 'portals' || requestedView === 'followers' || requestedView === 'following') ? requestedView : 'projects';
+  const setActiveView = (view: ProfileContentView) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    if (view === 'projects') next.delete('view');
+    else next.set('view', view);
+    return next;
+  }, { replace: true });
   // This page renders portfolio media from canonical projects and nothing else.
   // It used to keep its own list of picked image files as object URLs and show
   // them as tiles beside the real work — a second, parallel way for media to
@@ -392,6 +418,7 @@ export function UserProfilePage({
    * profile — never while looking at someone else's.
    */
   const followRequests = useFollowRequests();
+  const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
@@ -473,8 +500,8 @@ export function UserProfilePage({
           />
         </div>
   })), [orderedCardProjects, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
-  const followers = readStat(profile, 'Followers');
-  const following = readStat(profile, 'Following');
+  const followers = connections.counts.followers?.toLocaleString() ?? readStat(profile, 'Followers');
+  const following = connections.counts.following?.toLocaleString() ?? readStat(profile, 'Following');
   // Every region of the page — toolbar, identity, and wall — now sits on the
   // same 8px edge, so their left and right boundaries agree and the page uses
   // the whole area rather than holding a margin the wall no longer keeps.
@@ -507,7 +534,7 @@ export function UserProfilePage({
              the record — a profile carrying no figure shows none rather than a
              fabricated zero — and they are shown to every viewer, because an
              audience count is part of how a creator presents themselves. */}
-          <ProfileStats projectCount={projectCount} followers={followers} following={following} />
+          <ProfileStats projectCount={projectCount} portalCount={profile.categories.length} followers={followers} following={following} activeView={activeView} onSelect={setActiveView} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} />
           {/* Pending requests sit with the audience figures, because that is what
              they are about to change — and only the creator being asked ever
              sees them. The count is the service's own answer: nothing is shown
@@ -611,6 +638,7 @@ export function UserProfilePage({
                     </div>
                     <button type="button" role="menuitem" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
                   projectOrder.reset();
+                  setActiveView('projects');
                   setIsReorderingProjects(true);
                   setIsManageOpen(false);
                 }} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
@@ -700,8 +728,8 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main className="w-full flex-1 px-2 pb-8 pt-1" aria-labelledby="preview-title">
-        {imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{
+      <main id="profile-content" className="w-full flex-1 px-2 pb-8 pt-1" aria-label={`${displayName} ${activeView}`}>
+        {activeView !== 'projects' ? <ProfileCollectionGrid profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{
         maxWidth: gridWidth ? `${gridWidth}px` : undefined
       }}>
             {/* Equal-width columns left dead space: a row took the height of its

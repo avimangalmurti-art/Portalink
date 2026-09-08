@@ -364,6 +364,8 @@ export interface SearchService {
  *    UI never has to compute the new count itself.
  */
 export interface SocialService {
+  /** Confirmed connections only; the service enforces who can read the list. */
+  listProfileConnections(profileId: Id, kind: import('../types/social').ProfileConnectionKind, offset?: number): Promise<import('../types/social').ProfileConnectionPage>;
   getFollowState(profileId: Id): Promise<FollowState>;
   followProfile(profileId: Id): Promise<FollowState>;
   unfollowProfile(profileId: Id): Promise<FollowState>;

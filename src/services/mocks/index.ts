@@ -1067,6 +1067,19 @@ function requireFollowTarget(profileId: Id, action: string): {
   };
 }
 export const mockSocialService: SocialService = {
+  async listProfileConnections(profileId, kind, offset = 0) {
+    const viewer = requireOwnProfile();
+    if (viewer.profileId !== profileId) throw new SocialServiceError('permission_denied', 'Only the profile owner can view this list.');
+    const ids = kind === 'following' ? [...followsFor(viewer.accountId)] : [...followsByAccount.entries()]
+      .filter(([, targets]) => targets.has(profileId))
+      .map(([accountId]) => accountProfileIds.get(accountId) ?? followRequests.find((request) => request.requesterAccountId === accountId)?.requesterProfileId);
+    const people = ids.flatMap((id) => {
+      const person = profiles.find((candidate) => candidate.id === id);
+      return person ? [{ profileId: person.id, name: person.name, avatar: person.avatar }] : [];
+    }).sort((a, b) => a.profileId.localeCompare(b.profileId));
+    const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    return resolve({ items: people.slice(start, start + 54), total: people.length, nextOffset: start + 54 < people.length ? start + 54 : null }, 0);
+  },
   async getFollowState(profileId) {
     // Open to guests: the answer for someone with no account is "you do not".
     const follower = currentFollower();
@@ -1157,6 +1170,7 @@ export const mockSocialService: SocialService = {
     // Consumed, then granted: the edge belongs to the account that ASKED, so
     // approving makes them a follower of this profile rather than the reverse.
     const [record] = followRequests.splice(index, 1);
+    accountProfileIds.set(record.requesterAccountId, record.requesterProfileId);
     followsFor(record.requesterAccountId).add(profileId);
     return resolve(describeRequestsFor(profileId));
   },

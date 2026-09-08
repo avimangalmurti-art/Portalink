@@ -62,6 +62,35 @@ async function followState(profileId: string): Promise<FollowState> {
 }
 
 export const supabaseSocialService: SocialService = {
+  async listProfileConnections(profileId, kind, offset = 0) {
+    const ownerId = await currentProfileId(false);
+    if (ownerId !== profileId) throw new SocialServiceError('permission_denied', 'Only the profile owner can view this list.');
+    const start = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    const pageSize = 54;
+    const incoming = kind === 'followers';
+    const personColumn = incoming ? 'follower_profile_id' : 'target_profile_id';
+    const subjectColumn = incoming ? 'target_profile_id' : 'follower_profile_id';
+    const client = requireSupabase();
+    const edges = await client.from('profile_follows').select(personColumn, { count: 'exact' })
+      .eq(subjectColumn, profileId).eq('status', 'following')
+      .order('created_at', { ascending: false }).order(personColumn, { ascending: true })
+      .range(start, start + pageSize - 1);
+    if (edges.error) throw new SocialServiceError('network', 'Couldn’t load this list. Please try again.');
+    const ids = ((edges.data ?? []) as unknown as Array<Record<string, string>>).map((row) => row[personColumn]);
+    const total = edges.count ?? 0;
+    if (ids.length === 0) return { items: [], total, nextOffset: null };
+    const people = await client.from('profiles').select('id,name,avatar_url').in('id', ids);
+    if (people.error) throw new SocialServiceError('network', 'Couldn’t load these profiles. Please try again.');
+    const byId = new Map(((people.data ?? []) as unknown as Array<{ id: string; name: string; avatar_url: string }>).map((person) => [person.id, person]));
+    return {
+      items: ids.flatMap((id) => {
+        const person = byId.get(id);
+        return person ? [{ profileId: person.id, name: person.name, avatar: person.avatar_url }] : [];
+      }),
+      total,
+      nextOffset: start + ids.length < total ? start + ids.length : null,
+    };
+  },
   getFollowState: followState,
 
   async followProfile(profileId) {

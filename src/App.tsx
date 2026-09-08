@@ -1085,7 +1085,7 @@ export function App() {
         const viewTransition = activeProjectId ? beginProjectContinuity(activeProjectId, 'return') : false;
         setDiscoveryReturn(null);
         nav.to(target, false, viewTransition);
-      } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
+      } : undefined} /> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} viewerRole={viewerRole} isSharedView={isSharedRoute} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute ? undefined : {
         isFollowing: follows.isFollowing,
