@@ -99,14 +99,14 @@ test('footer utilities have real routes and selected states in both sidebar size
   const component = source.slice(start, end).replace('function PersonalFooterLinks', 'export function PersonalFooterLinks');
   const code = ts.transpileModule(component, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, React, BellIcon: icons.BellIcon, BookmarkIcon: icons.BookmarkIcon, buildPath: routes.buildPath,
+  vm.runInNewContext(code, { exports, React, BellIcon: icons.BellIcon, BarChart3Icon: icons.BarChart3Icon, buildPath: routes.buildPath,
     Link: ({ to, ...props }) => React.createElement('a', { ...props, href: to }), InterfaceIcon: () => React.createElement('svg') });
   for (const collapsed of [true, false]) {
-    const html = renderToStaticMarkup(React.createElement(exports.PersonalFooterLinks, { collapsed, activityActive: true, savedActive: false }));
+    const html = renderToStaticMarkup(React.createElement(exports.PersonalFooterLinks, { collapsed, activityActive: false, insightsActive: true }));
     assert.match(html, /href="\/notifications"/);
-    assert.match(html, /href="\/saved"/);
+    assert.match(html, /href="\/insights"/);
     assert.match(html, /aria-label="Open Activity"/);
-    assert.match(html, /aria-label="Open Saved"/);
+    assert.match(html, /aria-label="Open Insights"/);
     assert.equal((html.match(/aria-current="page"/g) ?? []).length, 1);
   }
   assert.equal((source.match(/isAuthenticated && <PersonalFooterLinks/g) ?? []).length, 2);
