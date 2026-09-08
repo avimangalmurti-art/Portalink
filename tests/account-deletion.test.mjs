@@ -262,7 +262,7 @@ test('Appearance starts fully collapsed, opens manually and resets on a fresh vi
   const visit = () => component('src/components/settings/NavigationButtonsPanel.tsx', 'NavigationButtonsPanel', { theme: 'dark', appearanceMode: 'dark', accentColor: '#ff375f' });
   const render = visit();
   const accordions = () => nodes(render()).filter((node) => node.props?.onToggle && 'isOpen' in node.props);
-  assert.equal(accordions().length, 3);
+  assert.equal(accordions().length, 2);
   assert.ok(accordions().every((node) => node.props.isOpen === false));
   accordions()[1].props.onToggle();
   assert.equal(accordions()[1].props.isOpen, true);

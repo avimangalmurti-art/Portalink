@@ -26,7 +26,7 @@ const appearanceOptions: ReadonlyArray<{ mode: StoredAppearanceMode; label: stri
   { mode: 'dark', label: 'Dark' }
 ];
 
-type AppearanceSection = 'system-grey' | 'appearance' | 'layout';
+type AppearanceSection = 'system-grey' | 'appearance';
 
 // Swatches are samples of the colour being chosen, rather than application
 // chrome, so their literal colour intentionally sits outside the semantic
@@ -256,19 +256,7 @@ export function NavigationButtonsPanel({
           </div>
         </AccordionSection>
 
-        <AccordionSection
-          id="layout-settings"
-          title="Layout"
-          summary={layoutWasReset ? 'Maximum sidebar widths restored' : 'Maximum-width baseline · resizable'}
-          isOpen={openSection === 'layout'}
-          onToggle={() => setOpenSection((current) => (current === 'layout' ? null : 'layout'))}
-        >
-          <SettingsGroup title="Sidebar layout">
-            <div className="flex min-h-[52px] items-center justify-between gap-5">
-              <span className="min-w-0">
-                <span className="block text-[13px] font-medium text-[var(--text-primary)]">Sidebar widths</span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-[var(--text-tertiary)]">Restore every resizable sidebar to its maximum standard width.</span>
-              </span>
+        <div className="flex items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -278,14 +266,10 @@ export function NavigationButtonsPanel({
                 className="side-panel-primary-control side-panel-control-row shrink-0 border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 text-[12px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
               >
                 <InterfaceIcon icon={layoutWasReset ? CheckIcon : RotateCcwIcon} size="xs" weight="semibold" />
-                {layoutWasReset ? 'Reset' : 'Reset layout'}
+                Reset layout
               </button>
-            </div>
-            <p role="status" aria-live="polite" className="mt-2 min-h-[18px] text-[12px] text-[var(--text-tertiary)]">
-              {layoutWasReset ? 'Maximum sidebar widths restored.' : 'Double-click any resize edge to return that sidebar to its maximum width.'}
-            </p>
-          </SettingsGroup>
-        </AccordionSection>
+          <span role="status" aria-live="polite" className="sr-only">{layoutWasReset ? 'Layout reset.' : ''}</span>
+        </div>
       </div>
     </section>
   );
