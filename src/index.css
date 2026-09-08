@@ -4353,6 +4353,11 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   padding-block: var(--side-panel-content-inset);
 }
 
+/* Search is row one; the first project continues the main navigation's row gap. */
+.project-index-search.side-panel-control-stack {
+  padding-block-end: var(--side-panel-row-gap);
+}
+
 .side-panel-content-inset {
   padding-inline: var(--side-panel-content-inset);
 }
