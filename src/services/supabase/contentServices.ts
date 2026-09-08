@@ -51,6 +51,7 @@ import {
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
+import { createProfileHandle } from '../../utils/profileHandle';
 
 export const PROJECT_MEDIA_BUCKET = 'project-media';
 export const AVATAR_BUCKET = 'avatars';
@@ -260,7 +261,7 @@ function asDesign(value: unknown): ProjectDesign | undefined {
 }
 
 function throwProfileError(error: { code?: string; message: string }, fallback: string): never {
-  if (error.code === '23505' || error.message.toLowerCase().includes('profiles_handle')) {
+  if (error.code === '23505' && error.message.includes('profiles_handle_key')) {
     throw new ProfileServiceError('handle_taken', 'That handle is already taken.');
   }
   if (error.code === '42501') {
@@ -540,30 +541,41 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async createProfile(accountId, input): Promise<CreateProfileResult> {
-    const handle = normalizeHandle(input.handle);
-    if (!handle || !input.name.trim() || !input.headline.trim()) {
-      throw new ProfileServiceError('invalid_input', 'A valid handle, name, and headline are required.');
+    const automaticHandle = input.handle === undefined;
+    let handle = automaticHandle ? createProfileHandle(input.name) : normalizeHandle(input.handle ?? '');
+    if (!handle || !input.name.trim()) {
+      throw new ProfileServiceError('invalid_input', 'Enter a profile name before continuing.');
     }
     const avatarUrl = await uploadAvatar(accountId, input.avatar);
-    const { data, error } = await requireSupabase()
-      .from('profiles')
-      .insert({
-        account_id: accountId,
-        name: input.name.trim(),
-        handle,
-        headline: input.headline.trim(),
-        location: input.location?.trim() ?? '',
-        avatar_url: avatarUrl,
-      })
-      .select('id')
-      .single();
-    if (error) throwProfileError(error, 'Your creator profile could not be created.');
-    const row = data as unknown as { id: string };
-    return {
-      profile: await this.getProfile(row.id),
-      accountId,
-      avatarPersisted: Boolean(input.avatar && avatarUrl),
-    };
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { data, error } = await requireSupabase()
+        .from('profiles')
+        .insert({
+          account_id: accountId,
+          name: input.name.trim(),
+          handle,
+          headline: input.headline?.trim() ?? '',
+          location: input.location?.trim() ?? '',
+          avatar_url: avatarUrl,
+        })
+        .select('id')
+        .single();
+      if (error?.code === '23505' && automaticHandle && error.message.includes('profiles_handle_key') && attempt < 2) {
+        handle = createProfileHandle(input.name);
+        continue;
+      }
+      if (error?.code === '23505' && error.message.includes('profiles_account_id_key')) {
+        throw new ProfileServiceError('invalid_input', 'This account already has a profile. Open your profile to continue.');
+      }
+      if (error) throwProfileError(error, 'Your creator profile could not be created.');
+      const row = data as unknown as { id: string };
+      return {
+        profile: await this.getProfile(row.id),
+        accountId,
+        avatarPersisted: Boolean(input.avatar && avatarUrl),
+      };
+    }
+    throw new ProfileServiceError('network', 'Your profile could not be created. Please try again.');
   },
 
   async updateProfile(profileId, input) {

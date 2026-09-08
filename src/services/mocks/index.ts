@@ -36,6 +36,7 @@ import { CategoryMutationError, ProfileServiceError } from '../../types/profile'
 import { ProcessingServiceError, ProjectMutationError, PublishServiceError, UploadServiceError } from '../../types/publishing';
 import type { DeleteProjectResult, ProjectDraft, PublishProjectInput, PublishResult, UpdateProjectInput, UpdateProjectResult } from '../../types/publishing';
 import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../../types/profile';
+import { createProfileHandle } from '../../utils/profileHandle';
 import { deriveInitials, normalizeHandle } from '../../features/profile/validation';
 import { buildUserContentSphere, rankDiscoverProjects, rankHomeProjects } from '../../domain/discovery/ranking';
 import { creatorLocationMatches, decideProjectPlacement } from '../../domain/contentPlacement';
@@ -156,7 +157,7 @@ export const mockProfileService: ProfileService = {
   },
   async createProfile(accountId, input: CreateProfileInput): Promise<CreateProfileResult> {
     await resolve(undefined, 620);
-    const handle = normalizeHandle(input.handle);
+    const handle = input.handle === undefined ? createProfileHandle(input.name) : normalizeHandle(input.handle);
     if (!handle) {
       throw new ProfileServiceError('invalid_handle', 'Choose a handle before continuing.');
     }
@@ -164,14 +165,14 @@ export const mockProfileService: ProfileService = {
     if (isHandleTaken(handle)) {
       throw new ProfileServiceError('handle_taken', 'That handle was taken while you were filling this in. Choose another.');
     }
-    if (!input.name.trim() || !input.headline.trim()) {
-      throw new ProfileServiceError('invalid_input', 'A name and headline are required.');
+    if (!input.name.trim()) {
+      throw new ProfileServiceError('invalid_input', 'A profile name is required.');
     }
     const profile: Profile = {
       id: `profile-${handle}`,
       name: input.name.trim(),
       handle: `@${handle}`,
-      headline: input.headline.trim(),
+      headline: input.headline?.trim() ?? '',
       location: input.location?.trim() ?? '',
       initials: deriveInitials(input.name),
       // No storage backend exists, so the chosen file is never given a URL.
