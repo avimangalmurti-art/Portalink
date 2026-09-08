@@ -182,7 +182,7 @@ function PersonalFooterLinks({ collapsed, activityActive, savedActive }: {collap
   return <>{([
     ['Activity', 'notifications', BellIcon, activityActive],
     ['Saved', 'saved', BookmarkIcon, savedActive],
-  ] as const).map(([label, route, icon, active]) => <Link key={route} to={buildPath(route)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`${collapsed ? 'sidebar-rail-slot' : 'side-panel-compact-control mx-auto'} nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={icon} size="sm" weight="medium" /></Link>)}</>;
+  ] as const).map(([label, route, icon, active]) => <Link key={route} to={buildPath(route)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={icon} size="sm" weight="medium" /></Link>)}</>;
 }
 
 function AccountMenuTrigger({
@@ -313,8 +313,8 @@ function AccountMenuTrigger({
 
   const shownName = isAuthenticated ? accountName?.trim() || 'Portalink member' : 'Welcome to Portalink';
   const triggerClassName = collapsed
-    ? 'sidebar-rail-slot shape-compact flex items-center justify-center transition-colors focus:outline-none'
-    : 'side-panel-compact-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none';
+    ? 'nav-button sidebar-rail-slot shape-compact flex items-center justify-center transition-colors focus:outline-none'
+    : 'nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none';
 
   return <>
       <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
@@ -1124,13 +1124,13 @@ export function Sidebar({
             {isSidebarCollapsed ? <>
               <AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
               {isAuthenticated && <PersonalFooterLinks collapsed activityActive={isActivityActive} savedActive={isSavedActive} />}
-              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
               </button>
             </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
                 <AccountMenuTrigger collapsed={false} accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
                 {isAuthenticated && <PersonalFooterLinks collapsed={false} activityActive={isActivityActive} savedActive={isSavedActive} />}
-                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="side-panel-compact-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
                 </button>
               </div>}

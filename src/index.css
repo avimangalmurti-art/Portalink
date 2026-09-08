@@ -1342,18 +1342,9 @@ button[data-portalink-tile],
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
-/* Navigation and tool buttons get a hover outline that follows their own
-   rounded geometry. Portfolio rows are excluded — they use a fill instead. */
-@media (hover: hover) and (pointer: fine) {
-  .accent-theme .sidebar-surface button:not([data-profile-row] button):not(.sidebar-pill-row):not([data-wave-trigger]):hover,
-  .accent-theme button.shape-compact:not([data-borderless-control]):hover,
-  .accent-theme button.shape-container:hover,
-  .accent-theme button.shape-capsule:hover,
-  .accent-theme [role='menu'] button:hover {
-    box-shadow: inset 0 0 0 1px var(--hairline) !important;
-    border-radius: 10px !important;
-  }
-}
+/* Buttons communicate hover and press through their surface and ink. Do not
+   add an inset edge or change their corners while the pointer is over them;
+   keyboard focus is handled separately by :focus-visible. */
 /* Content uses its existing edge for hover, strengthening that one line rather
    than stacking a second outline above it. */
 @media (hover: hover) and (pointer: fine) {
@@ -1892,9 +1883,6 @@ button[data-portalink-tile],
   .sidebar-starfield .sidebar-surface [data-category-row]:not([aria-current='page']):hover {
     background-color: rgba(255, 255, 255, 0.08) !important;
   }
-  .accent-theme .sidebar-starfield .sidebar-surface button:not([data-profile-row] button):not(.sidebar-pill-row):not([data-wave-trigger]):hover {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28) !important;
-  }
 }
 /* Primary navigation tiles: the chosen system gray at rest, accent when
    selected. The surface and its ink both come from the nav-button tokens — the
@@ -1955,9 +1943,6 @@ button[data-portalink-tile],
   .theme-light .sidebar-starfield .sidebar-surface [data-profile-row]:not([aria-current='page']):hover,
   .theme-light .sidebar-starfield .sidebar-surface [data-category-row]:not([aria-current='page']):hover {
     background-color: rgba(0, 0, 0, 0.06) !important;
-  }
-  .theme-light.accent-theme .sidebar-starfield .sidebar-surface button:not([data-profile-row] button):not(.sidebar-pill-row):not([data-wave-trigger]):hover {
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2) !important;
   }
 }
 .theme-light .sidebar-starfield .sidebar-surface {
