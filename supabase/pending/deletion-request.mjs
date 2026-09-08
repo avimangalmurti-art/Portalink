@@ -17,7 +17,12 @@ export function createDeletionHandler(admin, { enabled = false } = {}) {
     // Never trust a submitted accountId. Recovery actions remain callable when
     // new requests are disabled, so an emergency stop cannot prevent cancel.
     const result = await admin.rpc(name, { p_account_id: data.user.id });
-    if (result.error) return response(409, { message: body.action === 'cancel' ? 'Cancellation is unavailable because permanent deletion has started.' : 'The request could not be completed. No new deletion was started.' });
+    if (result.error) {
+      const started = body.action === 'cancel' && result.error.message?.includes('permanent deletion has started');
+      return response(started ? 409 : 503, { message: started
+        ? 'Cancellation is unavailable because permanent deletion has started.'
+        : 'The request could not be confirmed. Check your deletion status before trying again.' });
+    }
     return response(200, { ...result.data, message: body.action === 'request' ? 'Deletion is scheduled in 48 hours. You can cancel before permanent deletion starts.' : body.action === 'cancel' ? 'Deletion cancelled. Your account and content are restored.' : '' });
   };
 }

@@ -78,3 +78,13 @@ test('request handler trusts verified identity, requires confirmation, allows re
  assert.equal(r.status,200);assert.equal((await r.json()).isDeleted,false);
  assert.deepEqual(calls.at(-1),['request_account_deletion',{p_account_id:'verified-owner'}]);
 });
+
+test('an uncertain request or cancel response never falsely reports that nothing happened',async()=>{
+ const admin={auth:{getUser:async()=>({data:{user:{id:'owner',email:'owner@example.test'}}})},rpc:async()=>({error:{message:'network response lost'}})};
+ const handler=createDeletionHandler(admin,{enabled:true});
+ for(const action of ['request','cancel']){
+  const response=await handler(new Request('https://example.test',{method:'POST',headers:{authorization:'Bearer test'},body:JSON.stringify({action,confirmation:'owner@example.test'})}));
+  assert.equal(response.status,503);
+  assert.match((await response.json()).message,/Check your deletion status/);
+ }
+});
