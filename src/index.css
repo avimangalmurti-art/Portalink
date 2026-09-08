@@ -4393,6 +4393,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   white-space: nowrap;
 }
 
+/* The profile portrait spans both navigation rows, including their shared gap. */
+.profile-identity-avatar {
+  width: calc(var(--sidebar-primary-control) + var(--side-panel-row-gap) + var(--sidebar-primary-control));
+  height: calc(var(--sidebar-primary-control) + var(--side-panel-row-gap) + var(--sidebar-primary-control));
+}
+
 /* Profile collections use the same content canvas as projects. Each name sits
    outside its translucent squircle; the collection adapts to the actual panel
    width, including when the adjacent navigation is resized. */

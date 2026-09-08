@@ -328,9 +328,9 @@ function ProfileIdentityAndLinks({
   displayName: string;
   links: ProfileLink[];
 }) {
-  return <div className="flex w-full min-w-0 flex-wrap items-center gap-x-6 gap-y-3">
-      <div className="flex min-w-0 shrink-0 items-center gap-2.5">
-        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} />
+  return <div className="flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
+      <div className="flex min-w-0 max-w-full items-center gap-2.5">
+        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" />
         <div className="flex min-w-0 flex-col justify-center">
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
@@ -338,7 +338,7 @@ function ProfileIdentityAndLinks({
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
         </div>
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 self-center">
         {links.length > 0 ? <PlatformGrid links={links} profileName={displayName} /> : null}
       </div>
     </div>;
@@ -704,7 +704,7 @@ export function UserProfilePage({
           </div>
         </section> : null}
 
-      {!isSharedView && <div className="w-full px-2 pt-3">
+      {!isSharedView && <div className="w-full px-2 pt-[var(--side-panel-content-inset)]">
         {/* Three regions, read left to right: who → where else they are → what the
            work amounts to. They only sit side by side once there is room; below
            that the same order stacks. */}

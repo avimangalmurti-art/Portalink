@@ -3,13 +3,13 @@ import { CreatorAvatar } from './CreatorAvatar';
 import { ModalPortal } from '../ui/ModalPortal';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 
-/** The standard 40px profile identity and its full-size image preview. */
-export function ProfileAvatar({ name, avatar }: { name: string; avatar?: string | null }) {
+/** Compact identities share a preview with the larger profile-page avatar. */
+export function ProfileAvatar({ name, avatar, size = 'compact' }: { name: string; avatar?: string | null; size?: 'compact' | 'profile' }) {
   const [isOpen, setIsOpen] = useState(false);
-  const thumbnail = <CreatorAvatar name={name} avatar={avatar} shape="squircle" className="h-10 w-10 text-[12px]" />;
+  const thumbnail = <CreatorAvatar name={name} avatar={avatar} shape="squircle" className={`h-full w-full ${size === 'profile' ? 'text-[24px]' : 'text-[12px]'}`} />;
 
   return <>
-      <button type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-expanded={isOpen} aria-label={`View ${name}'s profile image`} className="shape-squircle-compact flex h-10 w-10 shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <button type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-expanded={isOpen} aria-label={`View ${name}'s profile image`} className={`${size === 'profile' ? 'profile-identity-avatar shape-squircle' : 'h-10 w-10 shape-squircle-compact'} flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
           {thumbnail}
         </button>
       {isOpen ? <ProfileAvatarPreview name={name} avatar={avatar} onClose={() => setIsOpen(false)} /> : null}
