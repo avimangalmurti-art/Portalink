@@ -406,7 +406,7 @@ textarea {
   --surface-selected: var(--fill-secondary);
   --surface-inverse: #000000;
   --surface-inverse-text: #ffffff;
-  --surface-overlay: rgba(255, 255, 255, 0.9);
+  --surface-overlay: rgba(255, 255, 255, var(--interface-glass-alpha, 0.9));
   --surface-media-control: rgba(20, 20, 22, 0.72);
   --media-control-text: #ffffff;
   --hairline: var(--separator);
@@ -491,7 +491,7 @@ textarea {
   --surface-selected: var(--fill-primary);
   --surface-inverse: #ffffff;
   --surface-inverse-text: #000000;
-  --surface-overlay: rgba(38, 38, 38, 0.92);
+  --surface-overlay: rgba(38, 38, 38, var(--interface-glass-alpha, 0.92));
   --surface-media-control: rgba(12, 12, 14, 0.76);
   --media-control-text: #ffffff;
   --hairline: var(--separator);
@@ -631,6 +631,15 @@ textarea {
 }
 /* ── Reduce Translucency ────────────────────────────────────────────────────
    Same geometry, same hierarchy: only the surface stops being see-through. */
+.reduce-translucency {
+  /* Only interface glass consumes these switches. Content, scrims, borders,
+     shadows, semantic tints and visibility animations keep their own alpha. */
+  --interface-glass-opacity: 100%;
+  --interface-glass-alpha: 1;
+  --material-regular: var(--surface-raised);
+  --material-thick: var(--surface-raised);
+  --material-clear: #141416;
+}
 .reduce-translucency.theme-light {
   --surface-translucent: #ffffff;
   --scrim: rgba(24, 24, 27, 0.62);
@@ -644,6 +653,10 @@ textarea {
   -webkit-backdrop-filter: none !important;
 }
 @media (prefers-reduced-transparency: reduce) {
+  :root {
+    --interface-glass-opacity: 100%;
+    --interface-glass-alpha: 1;
+  }
   .theme-light {
     --surface-translucent: #ffffff;
     --scrim: rgba(24, 24, 27, 0.62);
@@ -670,7 +683,7 @@ textarea {
   --surface-sunken: rgba(9, 9, 11, 0.05);
   --surface-inset: rgba(9, 9, 11, 0.1);
   --surface-pressed: rgba(9, 9, 11, 0.1);
-  --surface-overlay: rgba(255, 255, 255, 0.9);
+  --surface-overlay: rgba(255, 255, 255, var(--interface-glass-alpha, 0.9));
   --surface-hover: rgba(9, 9, 11, 0.045);
   --surface-selected: #ebebed;
   --surface-placeholder: #e6e6e8;
@@ -722,7 +735,7 @@ html[data-appearance='dark'] {
   --surface-sunken: rgba(255, 255, 255, 0.05);
   --surface-inset: rgba(255, 255, 255, 0.1);
   --surface-pressed: rgba(255, 255, 255, 0.1);
-  --surface-overlay: rgba(38, 38, 38, 0.92);
+  --surface-overlay: rgba(38, 38, 38, var(--interface-glass-alpha, 0.92));
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-selected: rgba(255, 255, 255, 0.1);
   --surface-placeholder: rgba(255, 255, 255, 0.1);
@@ -2671,8 +2684,8 @@ select:focus-visible {
 }
 /* Anything modal pushes the page behind it out of focus, so attention lands on
    the surface in front. One rule covers every dialog, sheet, and menu scrim:
-   a full-bleed layer carrying a scrim tint. Reduce Translucency clears the
-   blur globally and leaves the tint doing the work. */
+   a full-bleed layer carrying a scrim tint. Explicit modal scrims retain their
+   background blur while Reduce Translucency makes interface glass solid. */
 .accent-theme [class*='fixed'][class*='inset-0'][class*='bg-black/'],
 .accent-theme [class*='fixed'][class*='inset-0'][class*='bg-white/'] {
   backdrop-filter: blur(18px) saturate(115%);
@@ -3428,10 +3441,10 @@ html body .accent-theme .sidebar-starfield .sidebar-surface [data-globe-toggle]:
   --layout-readable-measure: 68ch;
 
   /* Material names describe purpose, not apparent colour. */
-  --material-regular: color-mix(in srgb, var(--surface-raised) 78%, transparent);
-  --material-thick: color-mix(in srgb, var(--surface-raised) 92%, transparent);
-  --material-clear: rgba(20, 20, 22, 0.62);
-  --material-navigation: color-mix(in srgb, var(--sky-bg, var(--surface-canvas)) 74%, transparent);
+  --material-regular: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent);
+  --material-thick: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 92%), transparent);
+  --material-clear: rgba(20, 20, 22, var(--interface-glass-alpha, 0.62));
+  --material-navigation: color-mix(in srgb, var(--sky-bg, var(--surface-canvas)) var(--interface-glass-opacity, 74%), transparent);
   --material-border: color-mix(in srgb, var(--text-primary) 16%, transparent);
   --material-blur-regular: blur(24px) saturate(125%);
   --material-blur-clear: blur(18px) saturate(135%);
@@ -3695,7 +3708,7 @@ body > [role='tooltip']:not([data-material='content']) {
 .accent-theme [data-material='content'][aria-label='AI Studio'] {
   background-color: var(--studio-panel-c) !important;
 }
-.reduce-translucency [data-material]:not([data-material='content']),
+.reduce-translucency [data-material]:not([data-material='content']):not([data-material='media-control']):not([data-material='media-overlay']),
 .reduce-translucency [role='menu'],
 .reduce-translucency [role='listbox'],
 .reduce-translucency [role='tooltip'],
@@ -3720,8 +3733,15 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .reduce-translucency .sidebar-starfield .sidebar-surface[data-material='navigation'] {
   background-color: var(--sky-bg) !important;
 }
+.reduce-translucency [data-material='media-control'] {
+  /* White-foreground media controls retain their permanent dark material. */
+  background-color: #141416 !important;
+}
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  [data-material]:not([data-material='content']),
+  [data-material]:not([data-material='content']):not([data-material='media-control']):not([data-material='media-overlay']),
+  body > [role='menu']:not([data-material='content']),
+  body > [role='listbox']:not([data-material='content']),
+  body > [role='tooltip']:not([data-material='content']),
   .accent-theme [role='menu'],
   .accent-theme [role='listbox'],
   .accent-theme [role='tooltip'],
@@ -3733,6 +3753,16 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   }
   .sidebar-starfield .sidebar-surface[data-material='navigation'] {
     background-color: var(--sky-bg) !important;
+  }
+  [data-material='media-control'] {
+    background-color: #141416 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  [data-material='media-overlay'] {
+    background-color: #121214 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
 }
 
@@ -4087,7 +4117,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell .ps-panel-toolbar,
 .codex-shell [data-material='toolbar'] {
-  background: color-mix(in srgb, var(--codex-workspace-bg) 92%, transparent) !important;
+  background: color-mix(in srgb, var(--codex-workspace-bg) var(--interface-glass-opacity, 92%), transparent) !important;
   border-color: var(--codex-border) !important;
   -webkit-backdrop-filter: blur(18px) saturate(110%);
   backdrop-filter: blur(18px) saturate(110%);
@@ -4415,7 +4445,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   width: min(100%, 80px);
   aspect-ratio: 1;
   overflow: hidden;
-  background: color-mix(in srgb, var(--surface-raised) 65%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 65%), transparent);
   -webkit-backdrop-filter: blur(16px) saturate(120%);
   backdrop-filter: blur(16px) saturate(120%);
   transition: background-color 150ms ease-out;
@@ -4437,7 +4467,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   backdrop-filter: none;
 }
 .reduce-translucency .profile-collection-link:hover .profile-collection-tile {
-  background: var(--surface-hover);
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised));
+}
+@media (prefers-reduced-transparency: reduce) {
+  .profile-collection-link:hover .profile-collection-tile {
+    background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised));
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .profile-collection-tile { transition: none; }
@@ -4979,7 +5014,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    application to reach Appearance. It follows the current appearance while
    retaining the soft, integrated glass quality of the reference menu. */
 .account-menu-popover {
-  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 90%), transparent);
   border: 0;
   box-shadow:
     0 18px 48px rgba(0, 0, 0, 0.32),
@@ -4990,18 +5025,18 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .account-menu-popover.theme-dark {
-  background: rgba(62, 62, 65, 0.92);
+  background: rgba(62, 62, 65, var(--interface-glass-alpha, 0.92));
 }
 
 .account-menu-popover.theme-light {
-  background: rgba(246, 246, 248, 0.92);
+  background: rgba(246, 246, 248, var(--interface-glass-alpha, 0.92));
 }
 
 /* The signed-out public menu is anchored to the gear rather than floating over
    the Join action. Its smaller, quieter glass surface keeps the pink invitation
    as the dominant call to action while preserving clear menu contrast. */
 .codex-shell.shared-portalink-shell [data-shared-account-menu] {
-  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 72%), transparent);
   border: 0;
   box-shadow:
     0 10px 26px rgba(0, 0, 0, 0.16),
@@ -5037,7 +5072,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 /* Profile sections share the dialog surface; link rows group by tone while
    the actual fields retain their own input and validation boundaries. */
 .profile-editor-dialog {
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 88%), transparent);
   border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
   box-shadow:
     0 28px 80px rgba(0, 0, 0, 0.28),
@@ -5057,7 +5092,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .profile-editor-footer {
-  background: color-mix(in srgb, var(--surface-raised) 78%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent);
   -webkit-backdrop-filter: blur(20px) saturate(120%);
   backdrop-filter: blur(20px) saturate(120%);
 }
@@ -5180,7 +5215,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 [data-premium-project-viewer] [data-project-response-rail] {
-  background: color-mix(in srgb, var(--surface-raised) 76%, transparent) !important;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
   border-color: transparent !important;
   box-shadow: -16px 0 34px -30px rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(22px) saturate(125%);
@@ -5188,7 +5223,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 [data-premium-project-viewer] [data-project-file-strip] {
-  background: color-mix(in srgb, var(--surface-raised) 72%, transparent);
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 72%), transparent);
   border-color: transparent !important;
   box-shadow: 0 -14px 30px -30px rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(18px) saturate(120%);
@@ -5246,7 +5281,7 @@ html[data-project-continuity]::view-transition-new(root) {
 .premium-viewer-page-control,
 .premium-viewer-exit-control,
 .premium-viewer-page-counter {
-  background: rgba(18, 18, 20, 0.66);
+  background: rgba(18, 18, 20, var(--interface-glass-alpha, 0.66));
   box-shadow: 0 7px 22px rgba(0, 0, 0, 0.24);
   -webkit-backdrop-filter: blur(18px) saturate(135%);
   backdrop-filter: blur(18px) saturate(135%);
@@ -5294,13 +5329,13 @@ html[data-project-continuity]::view-transition-new(root) {
 
 .premium-viewer-page-control:hover:not(:disabled),
 .premium-viewer-exit-control:hover:not(:disabled) {
-  background: rgba(34, 34, 38, 0.82);
+  background: rgba(34, 34, 38, var(--interface-glass-alpha, 0.82));
 }
 
 .premium-viewer-hud {
   opacity: 0;
   transform: translate(-50%, -4px);
-  background: rgba(18, 18, 20, 0.72);
+  background: rgba(18, 18, 20, var(--interface-glass-alpha, 0.72));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
   -webkit-backdrop-filter: blur(18px) saturate(135%);
   backdrop-filter: blur(18px) saturate(135%);
@@ -5346,7 +5381,7 @@ html[data-project-continuity]::view-transition-new(root) {
   gap: calc(4 * var(--media-action-unit));
   padding: calc(6 * var(--media-action-unit));
   border-radius: calc(10 * var(--media-action-unit));
-  background: rgba(18, 18, 20, 0.74);
+  background: rgba(18, 18, 20, var(--interface-glass-alpha, 0.74));
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
   -webkit-backdrop-filter: blur(18px) saturate(135%);
   backdrop-filter: blur(18px) saturate(135%);
@@ -5391,7 +5426,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .media-comments-popover {
-  background: rgba(18, 18, 20, 0.88);
+  background: rgba(18, 18, 20, var(--interface-glass-alpha, 0.88));
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
   -webkit-backdrop-filter: blur(24px) saturate(135%);
@@ -5400,7 +5435,7 @@ html[data-project-continuity]::view-transition-new(root) {
 
 @media (hover: none) {
   .media-item-engagement {
-    opacity: 0.82;
+    opacity: var(--interface-glass-alpha, 0.82);
     pointer-events: auto;
     transform: none;
   }

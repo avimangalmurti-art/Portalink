@@ -63,7 +63,7 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-material="toolbar" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar" style={{
+    <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
       gridTemplateColumns: layout.slots.map((slot) => `${slot}fr`).join(' ')
