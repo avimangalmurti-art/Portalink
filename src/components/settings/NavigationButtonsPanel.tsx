@@ -52,7 +52,7 @@ export function NavigationButtonsPanel({
   onReduceTranslucencyChange
 }: NavigationButtonsPanelProps) {
   const [layoutWasReset, setLayoutWasReset] = useState(false);
-  const [openSection, setOpenSection] = useState<AppearanceSection | null>('appearance');
+  const [openSection, setOpenSection] = useState<AppearanceSection | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const activeAccent = findNavAccent(accentColor);
   const activeAppearance = appearanceOptions.find((option) => option.mode === appearanceMode)?.label ?? 'System';

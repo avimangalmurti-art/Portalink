@@ -1,0 +1,4 @@
+project_id = "Portalink"
+
+[functions.delete-account]
+verify_jwt = true

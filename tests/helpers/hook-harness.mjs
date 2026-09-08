@@ -57,6 +57,14 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
       if (name === 'react') return react;
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
+      if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth')) {
+        const nested = {};
+        const path = name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : '../../src/types/auth.ts';
+        vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
+          compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+        }).outputText, { exports: nested, require: () => react });
+        return nested;
+      }
       throw new Error(`Unexpected dependency: ${name}`);
     },
   });

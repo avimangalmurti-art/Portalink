@@ -51,6 +51,13 @@ Supabase configuration intentionally keeps the app in prototype mode.
    ```
 
    Set `VITE_ENABLE_ACCOUNT_DELETION=true` only after that command succeeds.
+   The control appears under **Appearance → Account** for signed-in users and
+   requires their full email address. The function validates the session again,
+   removes account-owned uploads and PDF outputs, and deletes the Auth user
+   through the existing database cascades. Those cascades also remove whole
+   conversations (including both participants' attachments) and comment replies;
+   the confirmation lists these consequences. Storage and Auth are separate
+   operations, so a failed deletion can require retrying after partial cleanup.
 
 6. Build and deploy the long-running PDF worker in `workers/pdf_processor`.
    Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only in that worker's

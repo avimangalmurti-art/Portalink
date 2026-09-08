@@ -44,6 +44,8 @@ type AuthContextValue = {
    */
   signIn: (input: SignInInput) => Promise<AuthSession | null>;
   signOut: () => Promise<boolean>;
+  /** Clear UI identity only after the service confirms permanent deletion. */
+  completeAccountDeletion: () => void;
   /**
    * Links a newly created profile to this account. Called by the profile
    * feature after `ProfileService.createProfile` succeeds — never speculatively.
@@ -218,6 +220,15 @@ export function AuthProvider({
     setSession(next);
     setPhase('authenticated');
   }, [auth]);
+  const completeAccountDeletion = useCallback(() => {
+    setSession(null);
+    setPhase('unauthenticated');
+    setError(null);
+    setRememberedEmail('');
+    setPendingView(null);
+    setGateMessage(null);
+    pendingIntentRef.current = null;
+  }, []);
   const requestAuth = useCallback((view: AuthView = 'signIn') => {
     // Switching between sheets keeps the gate's wording; opening the sheet
     // directly (from Account settings, say) has no destination to explain.
@@ -268,6 +279,7 @@ export function AuthProvider({
     retryInitialize: () => setInitializeAttempt((attempt) => attempt + 1),
     signIn,
     signOut,
+    completeAccountDeletion,
     linkProfile,
     pendingView,
     requestAuth,
@@ -277,7 +289,7 @@ export function AuthProvider({
     consumePendingIntent,
     rememberedEmail,
     rememberEmail: setRememberedEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, linkProfile, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
+  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

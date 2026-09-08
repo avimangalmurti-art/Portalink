@@ -27,6 +27,9 @@ const isRealPublishableKey =
   publishableKey.length > 20 && !publishableKey.includes('YOUR_');
 
 export const isSupabaseConfigured = isRealProjectUrl && isRealPublishableKey;
+// Keep the SDK's existing namespace explicit so confirmed account deletion can
+// clear only this application's session if the SDK cannot finish local logout.
+const authStorageKey = isRealProjectUrl ? `sb-${new URL(projectUrl).hostname.split('.')[0]}-auth-token` : '';
 
 if (isProductionRuntime && !isSupabaseConfigured) {
   throw new Error(
@@ -37,12 +40,20 @@ if (isProductionRuntime && !isSupabaseConfigured) {
 export const supabase = isSupabaseConfigured
   ? createClient(projectUrl, publishableKey, {
       auth: {
+        storageKey: authStorageKey,
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
     })
   : null;
+
+export function clearDeletedAccountStorage(): void {
+  if (!authStorageKey || typeof window === 'undefined') return;
+  for (const key of [authStorageKey, `${authStorageKey}-user`, `${authStorageKey}-code-verifier`]) {
+    window.localStorage.removeItem(key);
+  }
+}
 
 export function requireSupabase() {
   if (!supabase) {

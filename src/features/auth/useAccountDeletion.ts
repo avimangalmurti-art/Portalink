@@ -36,6 +36,8 @@ export function useAccountDeletion({
   // Guards the boundary itself, so a fast double submit cannot send two
   // destructive requests even if a control briefly re-enables.
   const isDeletingRef = useRef(false);
+  const isConfirmationMatched = Boolean(accountEmail?.trim()) && confirmation.trim().toLowerCase() === accountEmail?.trim().toLowerCase();
+  const canSubmit = capability?.isAvailable === true && Boolean(accountId) && isConfirmationMatched;
   const loadCapability = useAsyncAction(async () => {
     setCapability(await auth.getAccountDeletionCapability());
   });
@@ -46,10 +48,7 @@ export function useAccountDeletion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const action = useAsyncAction(async () => {
-    if (!accountId || !accountEmail) {
-      throw new Error('Sign in again before deleting this account.');
-    }
-    if (isDeletingRef.current) {
+    if (!canSubmit || !accountId || isDeletingRef.current || result?.isDeleted) {
       return;
     }
     setError(null);
@@ -85,8 +84,8 @@ export function useAccountDeletion({
   });
 
   /** True only when the typed confirmation exactly matches the account email. */
-  const isConfirmationMatched = accountEmail !== null && confirmation.trim().toLowerCase() === accountEmail.trim().toLowerCase();
   const submit = useCallback(() => {
+    if (!capability?.isAvailable || !accountId || isDeletingRef.current || result?.isDeleted) return false;
     if (!isConfirmationMatched) {
       // Stated on the field rather than silently refusing.
       setFieldError(`Type ${accountEmail ?? 'your email address'} exactly to confirm.`);
@@ -95,7 +94,7 @@ export function useAccountDeletion({
     setFieldError(null);
     void action.run();
     return true;
-  }, [isConfirmationMatched, accountEmail, action]);
+  }, [isConfirmationMatched, accountEmail, accountId, capability, action, result]);
   return {
     capability,
     /** True while the capability is still being read. */
@@ -109,12 +108,13 @@ export function useAccountDeletion({
     }, []),
     fieldError,
     isConfirmationMatched,
+    canSubmit,
     isDeleting: action.isLoading,
     hasFailed: action.status === 'error',
     error,
     result,
     submit,
-    retry: () => void action.run(),
+    retry: submit,
     reset: useCallback(() => {
       setConfirmation('');
       setFieldError(null);
