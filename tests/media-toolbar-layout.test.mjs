@@ -53,6 +53,20 @@ test('counts, padding, gaps and all five buttons stay inside every tested row', 
   }
 });
 
+test('an adjacent page counter gets space without enlarging the engagement controls', () => {
+  for (const hostWidth of [160, 240, 320, 800]) {
+    for (const pageWidth of [80, 240, 1200]) {
+      const reservedWidth = Math.min(97, (hostWidth - 24) * 0.4) + 8;
+      const normal = mediaToolbarLayout(pageWidth, hostWidth, 8, ['99', '1.2K', '', '999']);
+      const inline = mediaToolbarLayout(pageWidth, hostWidth, 8, ['99', '1.2K', '', '999'], reservedWidth);
+      assert.ok(inline.width > 0);
+      assert.ok(inline.width <= normal.width);
+      assert.ok(inline.width + reservedWidth + 16 <= hostWidth);
+      assert.ok(Math.abs((inline.slots.reduce((sum, slot) => sum + slot, 0) + 28) * inline.unit - inline.width) < 0.0001);
+    }
+  }
+});
+
 test('page measurement follows lazy images, zoom, replacement and cleanup without observing popup images', () => {
   let layoutEffect, cleanup, resize, mutation, surface = null;
   let state = { pageWidth: 0, hostWidth: 0 };

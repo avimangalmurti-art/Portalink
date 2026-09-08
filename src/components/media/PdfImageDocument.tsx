@@ -280,7 +280,7 @@ function PdfImagePage({
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
       } : undefined}
     />
-    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} isOwner={isOwner} target={{
+    {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} pageCount={document.numPages} isOwner={isOwner} target={{
       projectId,
       attachmentId,
       pageIndex: pageNumber - 1,
@@ -463,7 +463,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         {focusedPageNumber < pageCount ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
           <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
         </button> : null}
-        <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageNumber} / {pageCount}</span>
+        {!showMediaInteractions && <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageNumber} / {pageCount}</span>}
       </> : null}
     {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />

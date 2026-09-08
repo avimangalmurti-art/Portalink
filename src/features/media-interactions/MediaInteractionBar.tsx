@@ -22,10 +22,13 @@ const ACTIONS: Array<{
 export function MediaInteractionBar({
   target,
   placement = 'page',
+  pageCount,
   isOwner = false
 }: {
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
+  /** The focused attachment's total, separate from its engagement counts. */
+  pageCount?: number;
   /** Derived from authenticated profile ownership, never navigation history. */
   isOwner?: boolean;
 }) {
@@ -42,7 +45,10 @@ export function MediaInteractionBar({
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const { ref: engagementRef, pageWidth, hostWidth } = useMediaPageSize();
   const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
-  const layout = mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts);
+  const counter = placement === 'focused' && pageCount && pageCount > 1
+    ? `${target.pageIndex + 1} / ${pageCount}` : null;
+  const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
+  const layout = mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts, counter ? counterWidth + 8 : 0);
 
   useEffect(() => {
     if (activity.commentResumeToken === 0) return;
@@ -63,7 +69,8 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar" style={{
+    <div data-media-controls-row="" className="flex max-w-full items-center gap-2">
+    <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
       gridTemplateColumns: layout.slots.map((slot) => `${slot}fr`).join(' ')
@@ -113,6 +120,9 @@ export function MediaInteractionBar({
       >
         <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'var(--engagement-share-selected)' : 'none'} stroke="var(--engagement-share-selected)" />
       </button>
+    </div>
+
+    {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 
     {commentsOpen ? <section aria-label={`Comments for ${presentedTarget.label}`} className="media-comments-popover w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-[14px] text-left">
