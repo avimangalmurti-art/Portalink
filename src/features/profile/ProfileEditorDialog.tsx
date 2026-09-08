@@ -146,7 +146,6 @@ export function ProfileEditorDialog({
               <section data-profile-editor-section="identity" aria-labelledby="profile-identity-heading" className="flex min-w-0 flex-col gap-4 rounded-[14px] p-4">
               <div>
                 <h3 id="profile-identity-heading" className="text-[14px] font-semibold text-[var(--text-primary)]">Profile identity</h3>
-                <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">The essential details viewers see first.</p>
               </div>
               {/* The profile picture is edited here, with the identity it
                belongs to. It rides along on the same save as the fields
