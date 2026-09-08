@@ -143,10 +143,7 @@ export function ProfileEditorDialog({
                 </div>}
 
               <div className="grid min-h-0 grid-cols-1 gap-5 md:grid-cols-[minmax(220px,0.78fr)_minmax(360px,1.55fr)] md:gap-6">
-              <section data-profile-editor-section="identity" aria-labelledby="profile-identity-heading" className="flex min-w-0 flex-col gap-4 rounded-[14px] p-4">
-              <div>
-                <h3 id="profile-identity-heading" className="text-[14px] font-semibold text-[var(--text-primary)]">Profile identity</h3>
-              </div>
+              <section data-profile-editor-section="identity" aria-label="Profile details" className="flex min-w-0 flex-col gap-4 rounded-[14px] p-4">
               {/* The profile picture is edited here, with the identity it
                belongs to. It rides along on the same save as the fields
                below, so nothing is written until the creator saves — and a
