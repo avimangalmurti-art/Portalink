@@ -5,8 +5,8 @@ import { requireSupabase } from './client';
 
 type ConversationRow = {
   id: string;
-  participant_one_profile_id: string;
-  participant_two_profile_id: string;
+  participant_one_profile_id: string | null;
+  participant_two_profile_id: string | null;
   last_message_at: string | null;
   created_at: string;
   edited_at?: string | null;
@@ -25,7 +25,8 @@ type ConversationStateRow = {
 type MessageRow = {
   id: string;
   conversation_id: string;
-  sender_profile_id: string;
+  sender_profile_id: string | null;
+  removed_at?: string | null;
   body: string;
   created_at: string;
   edited_at?: string | null;
@@ -37,7 +38,8 @@ type AttachmentRow = {
   file_name: string;
   mime_type: string;
   size_bytes: number;
-  storage_path: string;
+  storage_path: string | null;
+  removed_at?: string | null;
 };
 
 type ReactionRow = { message_id: string; profile_id: string; emoji: string };
@@ -75,7 +77,8 @@ function directMessage(row: MessageRow, attachments: MessageAttachment[] = [], r
     id: row.id,
     conversationId: row.conversation_id,
     senderProfileId: row.sender_profile_id,
-    body: row.body,
+    body: row.removed_at ? 'Message removed' : row.body,
+    isRemoved: Boolean(row.removed_at),
     createdAt: row.created_at,
     attachments,
     reactions,
@@ -87,12 +90,13 @@ async function hydrateMessages(rows: MessageRow[], viewerId: string): Promise<Di
   if (rows.length === 0) return [];
   const client = requireSupabase();
   const [result, reactionResult] = await Promise.all([
-    client.from('direct_message_attachments').select('id,message_id,file_name,mime_type,size_bytes,storage_path').in('message_id', rows.map((row) => row.id)),
+    client.from('direct_message_attachments').select('*').in('message_id', rows.map((row) => row.id)),
     client.from('direct_message_reactions').select('message_id,profile_id,emoji').in('message_id', rows.map((row) => row.id)),
   ]);
   if (result.error && !isMissingMessagingUpgrade(result.error)) throw publicMessageError(result.error, 'Message attachments could not be loaded.');
   if (reactionResult.error && !isMissingMessagingUpgrade(reactionResult.error)) throw publicMessageError(reactionResult.error, 'Message reactions could not be loaded.');
-  const attachmentRows = (result.error ? [] : result.data ?? []) as AttachmentRow[];
+  const attachmentRows = ((result.error ? [] : result.data ?? []) as AttachmentRow[])
+    .filter((row): row is AttachmentRow & { storage_path: string } => Boolean(row.storage_path) && !row.removed_at);
   const signed = attachmentRows.length > 0
     ? await client.storage.from('message-media').createSignedUrls(attachmentRows.map((row) => row.storage_path), 60 * 60)
     : { data: [], error: null };
@@ -132,13 +136,13 @@ async function readConversationSummaries(options: { conversationId?: string; con
   const rows = fetchedRows.slice(0, limit);
   if (rows.length === 0) return { conversations: [], nextOffset: null };
 
-  const otherIds = rows.map((row) => row.participant_one_profile_id === viewerId ? row.participant_two_profile_id : row.participant_one_profile_id);
+  const otherIds = rows.map((row) => row.participant_one_profile_id === viewerId ? row.participant_two_profile_id : row.participant_one_profile_id).filter((id): id is string => id !== null);
   const conversationIds = rows.map((row) => row.id);
   const [profilesResult, readsResult, statesResult, blocksResult, summariesResult] = await Promise.all([
-    requireSupabase().from('profiles').select('id,name,handle,avatar_url').in('id', otherIds),
+    otherIds.length ? requireSupabase().from('profiles').select('id,name,handle,avatar_url').in('id', otherIds) : Promise.resolve({ data: [], error: null }),
     requireSupabase().from('direct_conversation_reads').select('conversation_id,profile_id,last_read_at').in('conversation_id', conversationIds),
     requireSupabase().from('direct_conversation_states').select('conversation_id,is_muted,archived_at').eq('profile_id', viewerId).in('conversation_id', conversationIds),
-    requireSupabase().from('direct_message_blocks').select('blocked_profile_id').eq('blocker_profile_id', viewerId).in('blocked_profile_id', otherIds),
+    otherIds.length ? requireSupabase().from('direct_message_blocks').select('blocked_profile_id').eq('blocker_profile_id', viewerId).in('blocked_profile_id', otherIds) : Promise.resolve({ data: [], error: null }),
     requireSupabase().rpc('direct_conversation_message_summaries', { p_conversation_ids: conversationIds }),
   ]);
   if (profilesResult.error) throw publicMessageError(profilesResult.error, 'Conversation participants could not be loaded.');
@@ -162,7 +166,9 @@ async function readConversationSummaries(options: { conversationId?: string; con
     const otherId = row.participant_one_profile_id === viewerId ? row.participant_two_profile_id : row.participant_one_profile_id;
     const latest = summaries.get(row.id)?.last_message ?? null;
     const latestIncomingAt = summaries.get(row.id)?.last_incoming_at;
-    const participant = participants.get(otherId) ?? { id: otherId, name: 'Creator', handle: '', avatar: '' };
+    const participant: MessageParticipant = otherId === null
+      ? { id: null, name: 'Deleted User', handle: '', avatar: '', isDeleted: true }
+      : participants.get(otherId) ?? { id: otherId, name: 'Creator', handle: '', avatar: '' };
     const lastReadAt = readAt.get(`${row.id}:${viewerId}`) ?? null;
     const participantReadAt = row.status === 'request' ? null : readAt.get(`${row.id}:${otherId}`) ?? null;
     const state = states.get(row.id);
@@ -179,7 +185,7 @@ async function readConversationSummaries(options: { conversationId?: string; con
       participantReadAt,
       isDraft: !row.established_at && !row.request_message_sent_at && !latest && !row.last_message_at,
     };
-  }).filter((conversation) => !blockedProfileIds.has(conversation.participant.id))
+  }).filter((conversation) => !conversation.participant.id || !blockedProfileIds.has(conversation.participant.id))
     .filter((conversation) => options.includeArchived || !states.get(conversation.id)?.archived_at);
   return { conversations, nextOffset: hasMore ? offset + rows.length : null };
 }
@@ -193,7 +199,7 @@ export const supabaseMessagingService: MessagingService = {
     let result = await readConversationSummaries({ conversationId, includeArchived: true });
     let [conversation] = result.conversations;
     if (!conversation) throw new Error('This conversation is no longer available.');
-    if (conversation.isDraft) {
+    if (conversation.isDraft && conversation.participant.id) {
       const { error } = await requireSupabase().rpc('get_or_create_direct_conversation', { p_other_profile_id: conversation.participant.id });
       if (error) throw publicMessageError(error, 'That conversation could not be started.');
       result = await readConversationSummaries({ conversationId, includeArchived: true });
@@ -300,10 +306,10 @@ export const supabaseMessagingService: MessagingService = {
     const client = requireSupabase();
     if (attachments.length > 0) {
       const conversation = await this.getConversation(conversationId);
-      if (!conversation) throw new Error('This conversation is unavailable.');
+      if (!conversation || !conversation.participant.id) throw new Error('This conversation is unavailable.');
       if (conversation.status === 'request') throw new Error('You can send one text-only invitation. Attachments are available after it’s accepted.');
     }
-    const uploaded: Array<AttachmentRow> = [];
+    const uploaded: Array<AttachmentRow & { storage_path: string }> = [];
     try {
       for (const file of attachments) {
         const id = crypto.randomUUID();

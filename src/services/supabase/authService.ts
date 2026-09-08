@@ -7,7 +7,7 @@ import type {
   AuthSession,
   AuthUser,
 } from '../../types/auth';
-import { accountDeletionEnabled, clearDeletedAccountStorage, requireSupabase } from './client';
+import { accountDeletionEnabled, requireSupabase } from './client';
 
 let recoverySession: AuthRecoverySession | null = null;
 
@@ -232,13 +232,13 @@ export const supabaseAuthService: AuthService = {
           removes: [
             'Your account and sign-in credentials',
             'Your creator profile, categories, projects, and uploaded files',
-            'Your follows, comments and their replies, and saved activity',
-            'Your conversations and their attachments, for both participants',
+            'Your follows and saved activity',
+            'Your own message content and attachments; shared chats and other people’s messages remain',
           ],
         }
       : {
           isAvailable: false,
-          reason: 'Account deletion is temporarily unavailable. Please try again later.',
+          reason: 'Account deletion is temporarily disabled while we update how shared conversations are preserved. Your account and files have not been changed.',
           removes: [],
         };
   },
@@ -252,28 +252,31 @@ export const supabaseAuthService: AuthService = {
       throw new AuthServiceError('confirmation_mismatch', 'That does not match the email address on this account.');
     }
     const { data, error } = await requireSupabase().functions.invoke('delete-account', {
-      body: { confirmation: input.confirmation },
+      body: { action: 'request', confirmation: input.confirmation },
     });
     if (error) {
       const response = error.context instanceof Response ? error.context : null;
       const details = response ? await response.clone().json().catch(() => null) as { message?: string } | null : null;
       const code = response?.status === 400 ? 'confirmation_mismatch' : response?.status === 401 ? 'reauthentication_required' : 'network';
-      throw new AuthServiceError(code, details?.message ?? 'Deletion could not be completed. Some files may already have been removed. Please try again.');
+      throw new AuthServiceError(code, details?.message ?? 'The deletion request could not be confirmed. Check its status before trying again.');
     }
-    const result = data as { isDeleted?: boolean; message?: string } | null;
-    if (result?.isDeleted !== true) {
-      throw new AuthServiceError('network', result?.message ?? 'Deletion could not be confirmed. Please try again.');
-    }
-    // Auth deletion is already committed. Logout errors cannot turn it into a
-    // failed deletion; the dialog also clears the application's auth state.
-    try {
-      const { error: signOutError } = await requireSupabase().auth.signOut({ scope: 'local' });
-      if (signOutError) clearDeletedAccountStorage();
-    } catch {
-      try { clearDeletedAccountStorage(); } catch { /* Browser storage may be unavailable. */ }
-    }
-    recoverySession = null;
-    return { isDeleted: true, message: result.message ?? 'Your account has been deleted.' };
+    const result = data as { status?: string; deleteAfter?: string; message?: string } | null;
+    if (result?.status !== 'pending' || !result.deleteAfter) throw new AuthServiceError('network', 'Check your deletion status before trying again.');
+    return { isDeleted: false, status: 'pending', deleteAfter: result.deleteAfter, message: result.message ?? 'Deletion scheduled. You can cancel before permanent deletion starts.' };
+  },
+
+  async getAccountDeletionStatus() {
+    const { data, error } = await requireSupabase().functions.invoke('delete-account', { body: { action: 'status' } });
+    if (error) throw new AuthServiceError('deletion_unavailable', 'Deletion status is currently unavailable.');
+    if (!data?.status) return null;
+    if (!['pending', 'processing', 'completed'].includes(data.status)) return null;
+    return { isDeleted: false, status: data.status, deleteAfter: data.deleteAfter, message: data.status === 'pending' ? 'Deletion is scheduled. You can cancel before permanent deletion starts.' : 'Permanent deletion has started.' };
+  },
+
+  async cancelAccountDeletion() {
+    const { data, error } = await requireSupabase().functions.invoke('delete-account', { body: { action: 'cancel' } });
+    if (error || data?.status !== 'cancelled') throw new AuthServiceError('network', 'Cancellation could not be confirmed. Check your deletion status.');
+    return { isDeleted: false, status: 'cancelled', message: 'Deletion cancelled. Your account and content are restored.' };
   },
 
   async getAccountSecurityCapability() {

@@ -16,6 +16,10 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
   const shouldReduceMotion = useReducedMotion();
   const deletion = useAccountDeletion({ accountEmail: auth.user?.email ?? null, accountId: auth.user?.id ?? null });
   const completeAccountDeletion = auth.completeAccountDeletion;
+  const refreshDeletionStatus = deletion.refreshStatus;
+  useEffect(() => {
+    if (isOpen && auth.user?.id) void refreshDeletionStatus();
+  }, [isOpen, auth.user?.id, refreshDeletionStatus]);
   useEffect(() => {
     if (deletion.result?.isDeleted) completeAccountDeletion();
   }, [deletion.result?.isDeleted, completeAccountDeletion]);
@@ -35,16 +39,19 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
         <div className="flex items-center justify-between gap-3">
           <h2 id="delete-account-title" className="flex items-center gap-2 text-[20px] font-semibold leading-tight">
             <AlertTriangleIcon className="h-5 w-5 shrink-0 text-[var(--status-danger)]" aria-hidden="true" />
-            {deletion.result?.isDeleted ? 'Account deleted' : 'Delete account'}
+            {deletion.result?.isDeleted ? 'Account deleted' : deletion.result?.status === 'pending' ? 'Deletion scheduled' : 'Delete account'}
           </h2>
           <Button variant="ghost" size="lg" onClick={close} disabled={deletion.isDeleting} aria-label="Close"><InterfaceIcon icon={XIcon} /></Button>
         </div>
         {deletion.result ? <div className="mt-4 space-y-5">
           <p id="delete-account-description" role="status" className="text-[14px] leading-relaxed text-[var(--text-secondary)]">{deletion.result.message}</p>
+          {deletion.result.deleteAfter ? <p className="text-[13px] text-[var(--text-secondary)]">Permanent deletion can start after {new Date(deletion.result.deleteAfter).toLocaleString()}.</p> : null}
+          {deletion.result.status === 'pending' ? <Button onClick={() => void deletion.cancel()}>Cancel deletion</Button> : null}
+          {deletion.error ? <p role="alert" className="text-[13px] text-[var(--status-danger)]">{deletion.error.message}</p> : null}
           <div className="flex justify-end"><Button size="lg" onClick={close}>Close</Button></div>
         </div> : <>
           <p id="delete-account-description" className="mt-4 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-            Permanently delete <span className="break-all font-medium text-[var(--text-primary)]">{auth.user?.email}</span> and its Portalink content. This cannot be undone.
+            You have 48 hours to cancel. After that, your profile, projects, and your own uploaded files are removed. Shared conversations and other participants’ messages and attachments stay available to them. Your messages are marked as removed and attributed to Deleted User.
           </p>
           {deletion.isCheckingCapability ? <p role="status" className="mt-4 flex items-center gap-2 text-[13px] text-[var(--text-secondary)]"><Loader2Icon className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Checking availability…</p>
           : deletion.capabilityError ? <p role="alert" className="mt-4 text-[13px] text-[var(--text-secondary)]">We couldn’t check account deletion. Close this window and try again.</p>
@@ -57,7 +64,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
               {deletion.hasFailed && deletion.error?.code !== 'confirmation_mismatch' && <p role="alert" className="text-[13px] leading-relaxed text-[var(--status-danger)]">{deletion.error?.message}</p>}
               <div className="flex flex-wrap justify-end gap-2">
                 <Button size="lg" onClick={close} disabled={deletion.isDeleting}>Cancel</Button>
-                <Button type="submit" variant="danger" size="lg" isLoading={deletion.isDeleting} disabled={!deletion.canSubmit}>{deletion.isDeleting ? 'Deleting…' : 'Delete permanently'}</Button>
+                <Button type="submit" variant="danger" size="lg" isLoading={deletion.isDeleting} disabled={!deletion.canSubmit}>{deletion.isDeleting ? 'Scheduling…' : 'Schedule deletion'}</Button>
               </div>
             </form>
           </> : <div className="mt-4 space-y-5">

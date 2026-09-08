@@ -187,9 +187,8 @@ export type AccountDeletionCapability = {
 };
 
 /**
- * Deleting an account is authenticated and irreversible, so it carries an
- * explicit confirmation the person had to type. A real implementation also
- * re-authenticates; that belongs to the implementation, not to this shape.
+ * Requesting account deletion requires explicit confirmation. The request is
+ * reversible during grace; permanent cleanup runs separately afterward.
  */
 export type DeleteAccountInput = {
   /** The account being deleted, so an implementation never infers it. */
@@ -205,6 +204,8 @@ export type DeleteAccountInput = {
  */
 export type DeleteAccountResult = {
   isDeleted: boolean;
+  status?: 'pending' | 'processing' | 'cancelled' | 'completed';
+  deleteAfter?: string;
   message: string;
 };
 

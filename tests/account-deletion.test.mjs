@@ -11,137 +11,17 @@ const compile = (path) => ts.transpileModule(readFileSync(new URL(`../${path}`, 
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
 }).outputText;
 
-function endpoint(options = {}) {
-  const events = [];
-  const files = options.files ?? {
-    'project-media/profile-a': [{ id: 'original', name: 'original.pdf' }],
-    'project-media/posts/project-a': [{ id: null, name: 'pages' }],
-    'project-media/posts/project-a/pages': [{ id: 'render', name: 'page_1.webp' }],
-    'message-media/profile-a': [{ id: 'upload', name: 'unsent.png' }],
-    'avatars/account-a': [{ id: 'avatar', name: 'avatar.webp' }],
-  };
-  const tables = {
-    projects: [{ id: 'project-a' }],
-    direct_conversations: [{ id: 'chat-a' }],
-    direct_message_attachments: [{ storage_path: 'profile-b/chat-a/received.png' }],
-  };
-  const admin = {
-    auth: {
-      getUser: async (token) => {
-        events.push(['verify', token]);
-        return { data: { user: options.invalidUser ? null : { id: 'account-a', email: options.noEmail ? '' : 'owner@example.com' } }, error: null };
-      },
-      admin: { deleteUser: async (id) => { events.push(['deleteUser', id]); return { error: options.deleteError }; } },
-    },
-    from(table) {
-      let deleting = false;
-      const query = {
-        delete() { deleting = true; return query; },
-        select() { return query; },
-        eq(key, value) { events.push(['eq', table, key, value]); return query; },
-        or(value) { events.push(['or', table, value]); return query; },
-        in(key, value) { events.push(['in', table, key, Array.from(value)]); return query; },
-        order() { return query; },
-        then(resolve) { if (deleting) events.push(['cancelJobs', table]); return Promise.resolve({ error: options.cancelError ? { message: 'unavailable' } : null }).then(resolve); },
-        async range(start, end) { return { data: (tables[table] ?? []).slice(start, end + 1), error: options.queryError === table ? { message: 'unavailable' } : null }; },
-        async maybeSingle() { return { data: options.noProfile ? null : { id: 'profile-a' }, error: options.queryError === table ? { message: 'unavailable' } : null }; },
-      };
-      return query;
-    },
-    storage: { from: (bucket) => ({
-      async list(prefix, { offset, limit }) {
-        events.push(['list', bucket, prefix, offset]);
-        return { data: (files[`${bucket}/${prefix}`] ?? []).slice(offset, offset + limit), error: options.listError ? { message: 'unavailable' } : null };
-      },
-      async remove(paths) { events.push(['remove', bucket, Array.from(paths)]); return { error: options.removeError ? { message: 'unavailable' } : null }; },
-    }) },
-  };
+test('production endpoint is unconditionally disabled without constructing clients or touching data', async () => {
   let handler;
   vm.runInNewContext(compile('supabase/functions/delete-account/index.ts'), {
-    exports: {}, Response, Deno: { env: { get: () => 'configured' }, serve: (fn) => { handler = fn; } },
-    require: () => ({ createClient: () => admin }),
+    exports: {}, Response, Deno: { serve: fn => { handler = fn; } },
+    require: () => { throw new Error('Disabled endpoint must not import a client'); },
   });
-  return {
-    events,
-    request: (body = { confirmation: 'owner@example.com', accountId: 'someone-else' }, method = 'POST', auth = 'Bearer valid-user-token') => handler(new Request('https://example.test/delete-account', {
-      method, headers: auth ? { Authorization: auth } : {},
-      ...(['GET', 'OPTIONS'].includes(method) ? {} : { body: typeof body === 'string' ? body : JSON.stringify(body) }),
-    })),
-  };
-}
-const mutations = (h) => h.events.filter(([event]) => ['remove', 'deleteUser', 'cancelJobs'].includes(event));
-
-test('deletion refuses unsupported methods, absent/invalid identity and malformed confirmation without mutations', async () => {
-  for (const [options, body, method, auth, status] of [
-    [{}, {}, 'GET', undefined, 405], [{}, {}, 'POST', '', 401],
-    [{ invalidUser: true }, {}, 'POST', undefined, 401],
-    [{}, '{bad-json', 'POST', undefined, 400], [{}, null, 'POST', undefined, 400],
-    [{}, { confirmation: 123 }, 'POST', undefined, 400],
-    [{}, { confirmation: 'other@example.com' }, 'POST', undefined, 400],
-    [{ noEmail: true }, { confirmation: '' }, 'POST', undefined, 400],
-  ]) {
-    const h = endpoint(options);
-    assert.equal((await h.request(body, method, auth)).status, status);
-    assert.equal(mutations(h).length, 0);
+  for (const body of [{}, { action: 'request', confirmation: 'owner@example.test' }]) {
+    const result=await handler(new Request('https://example.test/delete-account',{method:'POST',body:JSON.stringify(body)}));
+    assert.equal(result.status,503); assert.equal((await result.json()).isDeleted,false);
   }
-});
-
-test('ownership or asset-discovery errors stop before any destructive operation', async () => {
-  for (const options of [{ queryError: 'profiles' }, { queryError: 'projects' }, { queryError: 'direct_conversations' }, { queryError: 'direct_message_attachments' }, { listError: true }]) {
-    const h = endpoint(options);
-    const result = await h.request();
-    assert.equal(result.status, 500);
-    assert.equal((await result.json()).isDeleted, false);
-    assert.equal(mutations(h).length, 0);
-  }
-});
-
-test('server uses verified identity and cleans originals, PDF pages, avatars and both sides of removed chats', async () => {
-  const h = endpoint();
-  const result = await h.request({ confirmation: ' OWNER@EXAMPLE.COM ', accountId: 'someone-else' });
-  assert.equal((await result.json()).isDeleted, true);
-  assert.deepEqual(h.events.at(-1), ['deleteUser', 'account-a']);
-  assert.ok(h.events.some((event) => JSON.stringify(event) === JSON.stringify(['eq', 'profiles', 'account_id', 'account-a'])));
-  const removed = h.events.filter(([event]) => event === 'remove').flatMap(([, bucket, paths]) => paths.map((path) => `${bucket}/${path}`));
-  assert.deepEqual(removed.sort(), [
-    'avatars/account-a/avatar.webp', 'message-media/profile-a/unsent.png',
-    'message-media/profile-b/chat-a/received.png', 'project-media/posts/project-a/pages/page_1.webp',
-    'project-media/profile-a/original.pdf',
-  ].sort());
-});
-
-test('storage pagination covers more than 1000 files and removals stay in bounded batches', async () => {
-  const h = endpoint({ files: { 'project-media/profile-a': Array.from({ length: 1103 }, (_, i) => ({ id: String(i), name: `file-${i}.png` })) } });
-  assert.equal((await h.request()).status, 200);
-  const removed = h.events.filter(([event, bucket]) => event === 'remove' && bucket === 'project-media');
-  assert.equal(new Set(removed.flatMap(([, , paths]) => paths)).size, 1103);
-  assert.ok(removed.every(([, , paths]) => paths.length <= 100));
-});
-
-test('storage failure prevents Auth deletion and truthfully reports potentially partial cleanup', async () => {
-  const h = endpoint({ removeError: true });
-  const result = await h.request();
-  assert.equal(result.status, 500);
-  assert.match((await result.json()).message, /Some files may already/);
-  assert.equal(h.events.some(([event]) => event === 'deleteUser'), false);
-});
-
-test('PDF jobs stop before the final scan, and their cancellation failure stops account deletion', async () => {
-  const h = endpoint();
-  await h.request();
-  const cancelledAt = h.events.findIndex(([event]) => event === 'cancelJobs');
-  const finalScanAt = h.events.findLastIndex(([event, bucket, prefix]) => event === 'list' && bucket === 'project-media' && prefix === 'posts/project-a');
-  assert.ok(cancelledAt > 0 && finalScanAt > cancelledAt);
-  assert.ok(h.events.findIndex(([event]) => event === 'remove') > finalScanAt);
-  const failed = endpoint({ cancelError: true });
-  assert.equal((await failed.request()).status, 500);
-  assert.equal(failed.events.some(([event]) => event === 'deleteUser' || event === 'remove'), false);
-});
-
-test('an account without a creator profile can still delete its avatar and login', async () => {
-  const h = endpoint({ noProfile: true });
-  assert.equal((await h.request()).status, 200);
-  assert.deepEqual(mutations(h), [['remove', 'avatars', ['account-a/avatar.webp']], ['deleteUser', 'account-a']]);
+  assert.equal((await handler(new Request('https://example.test/delete-account',{method:'OPTIONS'}))).status,200);
 });
 
 function authService(client, enabled = true) {
@@ -155,21 +35,17 @@ function authService(client, enabled = true) {
   } });
   return exports.supabaseAuthService;
 }
-test('client rejects mismatched accounts and clears the local session only after confirmed deletion', async () => {
-  const calls = [];
-  const client = { auth: {
-    getUser: async () => ({ data: { user: { id: 'account-a', email: 'owner@example.com' } }, error: null }),
-    signOut: async ({ scope }) => { calls.push(scope); return { error: null }; },
-  }, functions: { invoke: async () => { calls.push('delete'); return { data: { isDeleted: true }, error: null }; } } };
-  const service = authService(client);
-  await assert.rejects(service.deleteAccount({ accountId: 'someone-else', confirmation: 'owner@example.com' }));
-  assert.deepEqual(calls, []);
-  assert.equal((await service.deleteAccount({ accountId: 'account-a', confirmation: 'owner@example.com' })).isDeleted, true);
-  assert.deepEqual(calls, ['delete', 'local']);
-  calls.length = 0;
-  await assert.rejects(authService(client, false).deleteAccount({ accountId: 'account-a', confirmation: 'owner@example.com' }));
-  assert.deepEqual(calls, []);
+test('client schedules only its verified account and keeps the session for cancellation', async () => {
+ const calls=[];
+ const client={auth:{getUser:async()=>({data:{user:{id:'a',email:'owner@example.test'}}}),signOut:async()=>{throw Error('Must keep session');}},functions:{invoke:async(name,options)=>{calls.push(options.body);return {data:{status:'pending',deleteAfter:'2030-01-03T00:00:00Z'}};}}};
+ await assert.rejects(authService(client).deleteAccount({accountId:'other',confirmation:'owner@example.test'}));
+ assert.equal(calls.length,0);
+ const result=await authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'});
+ assert.equal(result.isDeleted,false);assert.equal(result.status,'pending');assert.equal(calls[0].action,'request');
+ await assert.rejects(authService(client,false).deleteAccount({accountId:'a',confirmation:'owner@example.test'}));
+ assert.equal(calls.length,1);
 });
+
 test('client keeps server error details and does not sign out on a failed deletion', async () => {
   let signedOut = false;
   const service = authService({ auth: {
@@ -178,18 +54,6 @@ test('client keeps server error details and does not sign out on a failed deleti
   }, functions: { invoke: async () => ({ error: { context: Response.json({ message: 'Sign in again.' }, { status: 401 }) } }) } });
   await assert.rejects(service.deleteAccount({ accountId: 'a', confirmation: 'owner@example.com' }), (error) => error.code === 'reauthentication_required' && error.message === 'Sign in again.');
   assert.equal(signedOut, false);
-});
-
-test('logout errors clear app-owned storage without misreporting a committed deletion as failed', async () => {
-  for (const thrown of [true, false]) {
-    let cleared = false;
-    const service = authService({ auth: {
-      getUser: async () => ({ data: { user: { id: 'a', email: 'owner@example.com' } } }),
-      signOut: async () => { if (thrown) throw new Error('offline'); return { error: new Error('offline') }; },
-    }, clearStorage: () => { cleared = true; }, functions: { invoke: async () => ({ data: { isDeleted: true } }) } });
-    assert.equal((await service.deleteAccount({ accountId: 'a', confirmation: 'owner@example.com' })).isDeleted, true);
-    assert.equal(cleared, true);
-  }
 });
 
 test('confirmation cannot bypass unavailable capability or submit the deletion twice', async () => {
@@ -232,6 +96,18 @@ test('retry revalidates confirmation, and reset clears previously typed consent'
   h.value.reset();
   assert.equal(h.value.confirmation, '');
   assert.equal(h.value.canSubmit, false);
+  h.dispose();
+});
+
+test('pending deletion survives closing the dialog and can be cancelled with new requests disabled', async () => {
+  const h=hookHarness(new URL('../src/features/auth/useAccountDeletion.ts',import.meta.url),'useAccountDeletion',{auth:{
+    getAccountDeletionCapability:async()=>({isAvailable:false,removes:[]}),
+    getAccountDeletionStatus:async()=>({isDeleted:false,status:'pending',deleteAfter:'2030-01-03',message:'Scheduled'}),
+    cancelAccountDeletion:async()=>({isDeleted:false,status:'cancelled',message:'Restored'}),
+  }},{},{accountId:'a',accountEmail:'owner@example.test'});
+  await h.flush();await h.value.refreshStatus();await h.flush();
+  h.value.reset();await h.flush();assert.equal(h.value.result.status,'pending');assert.equal(h.value.canSubmit,false);
+  await h.value.cancel();await h.flush();assert.equal(h.value.result.status,'cancelled');assert.equal(h.value.result.isDeleted,false);
   h.dispose();
 });
 

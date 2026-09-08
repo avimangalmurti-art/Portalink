@@ -41,6 +41,12 @@ export function useAccountDeletion({
   const loadCapability = useAsyncAction(async () => {
     setCapability(await auth.getAccountDeletionCapability());
   });
+  const refreshStatus = useCallback(async () => {
+    if (auth.getAccountDeletionStatus) {
+      const pending = await auth.getAccountDeletionStatus().catch(() => null);
+      if (pending) setResult(pending);
+    }
+  }, [auth]);
   useEffect(() => {
     void loadCapability.run();
     // Read once per mount: the capability describes the implementation, not the
@@ -48,7 +54,7 @@ export function useAccountDeletion({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const action = useAsyncAction(async () => {
-    if (!canSubmit || !accountId || isDeletingRef.current || result?.isDeleted) {
+    if (!canSubmit || !accountId || isDeletingRef.current || result?.isDeleted || result?.status === 'pending' || result?.status === 'processing') {
       return;
     }
     setError(null);
@@ -85,7 +91,7 @@ export function useAccountDeletion({
 
   /** True only when the typed confirmation exactly matches the account email. */
   const submit = useCallback(() => {
-    if (!capability?.isAvailable || !accountId || isDeletingRef.current || result?.isDeleted) return false;
+    if (!capability?.isAvailable || !accountId || isDeletingRef.current || result?.isDeleted || result?.status === 'pending' || result?.status === 'processing') return false;
     if (!isConfirmationMatched) {
       // Stated on the field rather than silently refusing.
       setFieldError(`Type ${accountEmail ?? 'your email address'} exactly to confirm.`);
@@ -113,13 +119,22 @@ export function useAccountDeletion({
     hasFailed: action.status === 'error',
     error,
     result,
+    refreshStatus,
     submit,
+    cancel: async () => {
+      if (!auth.cancelAccountDeletion || result?.status !== 'pending' || isDeletingRef.current) return;
+      isDeletingRef.current = true;
+      setError(null);
+      try { setResult(await auth.cancelAccountDeletion()); }
+      catch (caught) { setError(toAuthError(caught)); }
+      finally { isDeletingRef.current = false; }
+    },
     retry: submit,
     reset: useCallback(() => {
       setConfirmation('');
       setFieldError(null);
       setError(null);
-      setResult(null);
+      setResult((current) => current?.status === 'pending' || current?.status === 'processing' ? current : null);
       action.reset();
     }, [action])
   };

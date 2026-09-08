@@ -59,9 +59,8 @@ export interface AuthService {
    */
   getAccountDeletionCapability(): Promise<AccountDeletionCapability>;
   /**
-   * Permanently deletes the signed-in account. Irreversible, authenticated, and
-   * server-side: a real implementation re-authenticates, deletes the auth user
-   * together with its owned rows and storage objects, and ends the session.
+   * Requests reversible deletion with a 48-hour grace period. Never signs out
+   * or reports an immediate deletion. Permanent cleanup is a separate worker.
    *
    * Throws `AuthServiceError` with `confirmation_mismatch` when the typed
    * confirmation does not match, or `deletion_unavailable` when no backend can
@@ -69,6 +68,8 @@ export interface AuthService {
    * genuinely removed.
    */
   deleteAccount(input: DeleteAccountInput): Promise<DeleteAccountResult>;
+  getAccountDeletionStatus?(): Promise<DeleteAccountResult | null>;
+  cancelAccountDeletion?(): Promise<DeleteAccountResult>;
   /**
    * What this implementation can actually do to an authenticated account's
    * credentials. Read before any security control is offered, so the product never

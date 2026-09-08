@@ -1,7 +1,8 @@
 import type { Id } from './domain';
 
 export type MessageParticipant = {
-  id: Id;
+  id: Id | null;
+  isDeleted?: boolean;
   name: string;
   handle: string;
   avatar: string;
@@ -24,7 +25,8 @@ export type MessageReaction = {
 export type DirectMessage = {
   id: Id;
   conversationId: Id;
-  senderProfileId: Id;
+  senderProfileId: Id | null;
+  isRemoved?: boolean;
   body: string;
   createdAt: string;
   /** Client-only delivery state. Stored messages omit it and therefore read as sent. */

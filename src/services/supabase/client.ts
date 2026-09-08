@@ -73,5 +73,6 @@ export function requireSupabaseProjectUrl(): string {
   return projectUrl;
 }
 
-export const accountDeletionEnabled =
-  import.meta.env.VITE_ENABLE_ACCOUNT_DELETION?.trim().toLowerCase() === 'true';
+// Release lock: do not restore the environment flag until the replacement
+// shared-content rules and delayed deletion flow have been reviewed.
+export const accountDeletionEnabled = false;

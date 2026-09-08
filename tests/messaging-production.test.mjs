@@ -88,3 +88,25 @@ test('an unavailable sending RPC fails closed without inserting a message direct
   await assert.rejects(supabaseMessagingService.sendMessage('thread', 'Hello'), /being updated/);
   assert.equal(inserts, 0);
 });
+
+test('deleted participants remain readable and removed attachments never receive signed URLs', async () => {
+  const signed=[];
+  const removed={id:'removed',conversation_id:'chat',sender_profile_id:null,body:'old cached body',removed_at:'2026-09-01T00:00:00Z',created_at:'2026-09-01T00:00:00Z'};
+  const surviving={id:'surviving',conversation_id:'chat',sender_profile_id:'viewer',body:'Still here',created_at:'2026-09-01T00:00:01Z'};
+  const tables={
+    direct_conversations:[{id:'chat',participant_one_profile_id:null,participant_two_profile_id:'viewer',status:'active',established_at:'2026-01-01'}],
+    direct_messages:[surviving,removed],
+    direct_message_attachments:[{id:'old',message_id:'removed',storage_path:null,removed_at:'2026-09-01'},{id:'kept',message_id:'surviving',storage_path:'viewer/chat/kept.png',file_name:'kept.png',mime_type:'image/png',size_bytes:10}],
+  };
+  const client={auth:{getUser:async()=>({data:{user:{id:'account'}}})},from(table){
+    const q={select(){return q;},eq(){return q;},or(){return q;},order(){return q;},range(){return q;},limit(){return q;},in(_key,values){assert.ok(values.every(v=>v!==null));return q;},single:async()=>({data:{id:'viewer'}}),then:resolve=>Promise.resolve({data:tables[table]??[],error:null}).then(resolve)};
+    return q;
+  },rpc:async()=>({data:[{conversation_id:'chat',last_message:surviving,last_incoming_at:removed.created_at}]}),storage:{from:()=>({createSignedUrls:async paths=>{signed.push(...paths);return {data:paths.map(path=>({path,signedUrl:'https://example.test/kept'}))};}})}};
+  const {supabaseMessagingService}=compile('../src/services/supabase/messagingService.ts',()=>({requireSupabase:()=>client}));
+  const conversation=(await supabaseMessagingService.listConversations()).conversations[0];
+  assert.equal(conversation.participant.name,'Deleted User');assert.equal(conversation.participant.id,null);assert.equal(conversation.participant.isDeleted,true);
+  const page=await supabaseMessagingService.listMessages('chat');
+  assert.equal(page.messages.find(m=>m.id==='removed').body,'Message removed');
+  assert.equal(page.messages.find(m=>m.id==='removed').attachments.length,0);
+  assert.deepEqual(signed,['viewer/chat/kept.png']);
+});

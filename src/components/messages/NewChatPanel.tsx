@@ -75,7 +75,7 @@ export function NewChatPanel({
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
             <ul className="side-panel-content-inset side-panel-navigation-list">
               {people.map((person) => <li key={person.id}>
-                  <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId)} onSelect={() => onSelectCreator(person.id)} />
+                  <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
                 </li>)}
             </ul>
           </section>)}
