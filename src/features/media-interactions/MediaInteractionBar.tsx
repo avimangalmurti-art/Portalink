@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
 import { mediaToolbarLayout } from './mediaToolbarLayout';
 import { useMediaPageSize } from './useMediaPageSize';
+import { MediaCommentsPopover } from './MediaCommentsPopover';
 
 const countFormatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const displayCount = (count: number) => count > 0 ? countFormatter.format(count) : '';
@@ -43,12 +44,20 @@ export function MediaInteractionBar({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const commentsTriggerRef = useRef<HTMLButtonElement>(null);
+  const commentsId = useId();
+  const closeComments = useCallback(() => setCommentsOpen(false), []);
   const { ref: engagementRef, pageWidth, hostWidth } = useMediaPageSize();
   const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
   const counter = placement === 'focused' && pageCount && pageCount > 1
     ? `${target.pageIndex + 1} / ${pageCount}` : null;
   const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
   const layout = mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts, counter ? counterWidth + 8 : 0);
+
+  useEffect(() => {
+    setCommentsOpen(false);
+    setCommentBody('');
+  }, [target.projectId, target.attachmentId, target.pageIndex]);
 
   useEffect(() => {
     if (activity.commentResumeToken === 0) return;
@@ -97,13 +106,22 @@ export function MediaInteractionBar({
         </button>;
       })}
       <button
+        ref={commentsTriggerRef}
         type="button"
         aria-expanded={commentsOpen}
+        aria-controls={commentsOpen ? commentsId : undefined}
         aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}${counts[3] ? ` (${activity.record.comments.length})` : ''}`}
         title={`Comments: ${activity.record.comments.length}`}
         data-keep-color=""
         style={{ color: 'var(--apple-purple)' }}
         onClick={() => setCommentsOpen((open) => !open)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && commentsOpen) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeComments();
+          }
+        }}
         className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-purple)" />
@@ -125,7 +143,7 @@ export function MediaInteractionBar({
     {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 
-    {commentsOpen ? <section aria-label={`Comments for ${presentedTarget.label}`} className="media-comments-popover w-[min(320px,calc(100vw-32px))] overflow-hidden rounded-[14px] text-left">
+    {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
       <header className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
@@ -133,7 +151,7 @@ export function MediaInteractionBar({
         </div>
         {activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
-      <div className="scrollbar-overlay max-h-48 overflow-y-auto px-3.5 py-2.5">
+      {activity.record.comments.length > 0 || !isOwner ? <div className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
         {activity.record.comments.length === 0 && !activity.isLoading && !isOwner ? <p className="py-4 text-center text-[11px] leading-relaxed text-white/55">Be the first to respond to this page.</p> : null}
         <ul className="m-0 list-none space-y-3 p-0">
           {activity.record.comments.map((comment) => <li key={comment.id} className="group/comment">
@@ -153,8 +171,8 @@ export function MediaInteractionBar({
             </div>
           </li>)}
         </ul>
-      </div>
-      <form className="border-t border-white/10 p-2.5" onSubmit={async (event) => {
+      </div> : null}
+      <form className="p-2.5" onSubmit={async (event) => {
         event.preventDefault();
         if (await activity.postComment(commentBody)) setCommentBody('');
       }}>
@@ -178,6 +196,6 @@ export function MediaInteractionBar({
           <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button>
         </p> : null}
       </form>
-    </section> : null}
+    </MediaCommentsPopover> : null}
   </div>;
 }
