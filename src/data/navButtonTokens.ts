@@ -66,11 +66,6 @@ export const navAccents: NavAccent[] = [{
   light: '#A550D8',
   dark: '#BF5AF2'
 }, {
-  id: 'brown',
-  label: 'Brown',
-  light: '#A2845E',
-  dark: '#AC8E68'
-}, {
   id: 'graphite',
   label: 'Graphite',
   light: '#58616B',
@@ -81,9 +76,11 @@ export const navAccents: NavAccent[] = [{
   light: '#C98A8A',
   dark: '#D9A3A3'
 }];
+// Existing saved appearances keep their color; Brown is no longer selectable.
+const legacyBrownAccent: NavAccent = { id: 'brown', label: 'Brown', light: '#A2845E', dark: '#AC8E68' };
 export function findNavAccent(color: string): NavAccent {
   const match = color.toLowerCase();
-  return navAccents.find((accent) => accent.light.toLowerCase() === match || accent.dark.toLowerCase() === match) ?? navAccents[0];
+  return [...navAccents, legacyBrownAccent].find((accent) => accent.light.toLowerCase() === match || accent.dark.toLowerCase() === match) ?? navAccents[0];
 }
 export type SystemGray = {
   id: string;

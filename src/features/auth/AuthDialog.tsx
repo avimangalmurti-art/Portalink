@@ -45,7 +45,7 @@ function AccentExperience({
           <p className="text-[13px] font-semibold text-[var(--text-primary)]">Make it yours</p>
           <p className="mt-0.5 text-[12px] leading-snug text-[var(--text-secondary)]">Choose a starting color. Portalink changes instantly.</p>
         </>}
-      <div role="radiogroup" aria-label="Starting accent color" className={`${compact ? 'justify-center gap-1.5' : 'mt-2.5 gap-1'} flex flex-wrap`}>
+      <div role="radiogroup" aria-label="Starting accent color" className={`${compact ? 'mx-auto max-w-xs gap-1.5' : 'mt-2.5 gap-1'} grid grid-cols-6 justify-items-center`}>
         {navAccents.map((option) => {
           const swatch = theme === 'dark' ? option.dark : option.light;
           const isSelected = option.id === activeAccent.id;
@@ -59,11 +59,11 @@ function AccentExperience({
               data-keep-color=""
               disabled={disabled}
               onClick={() => onAccentColorChange(swatch)}
-              className={`${compact ? 'shape-squircle-compact h-10 w-10' : 'h-8 w-8 rounded-full'} flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45`}
+              className={`${compact ? 'shape-squircle-compact aspect-square max-w-10' : 'h-8 max-w-8 rounded-full'} flex w-full min-w-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45`}
             >
               <span
                 data-system-color=""
-                className={`${compact ? 'shape-squircle-compact h-10 w-10' : 'h-5 w-5 rounded-full'} flex items-center justify-center transition-transform duration-150 motion-reduce:transition-none`}
+                className={`${compact ? 'shape-squircle-compact w-full' : 'w-5 max-w-full rounded-full'} flex aspect-square items-center justify-center transition-transform duration-150 motion-reduce:transition-none`}
                 style={{
                   backgroundColor: swatch,
                   transform: isSelected && !compact ? 'scale(1.08)' : 'scale(1)',

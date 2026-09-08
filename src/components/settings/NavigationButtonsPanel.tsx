@@ -196,7 +196,7 @@ export function NavigationButtonsPanel({
             </SettingsGroup>
 
             <SettingsGroup title="Accent color">
-              <div role="radiogroup" aria-label="Accent color" className="-ml-1.5 flex flex-wrap items-center">
+              <div role="radiogroup" aria-label="Accent color" className="grid grid-cols-6 justify-items-center gap-1">
                 {navAccents.map((option) => {
                   const swatch = theme === 'dark' ? option.dark : option.light;
                   const isSelected = option.id === activeAccent.id;
@@ -209,11 +209,11 @@ export function NavigationButtonsPanel({
                       aria-label={option.label}
                       title={option.label}
                       onClick={() => onAccentColorChange(swatch)}
-                      className="flex h-9 w-9 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                      className="flex h-9 w-full min-w-0 max-w-9 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                     >
                       <span
                         data-system-color=""
-                        className="flex h-6 w-6 items-center justify-center rounded-full"
+                        className="flex aspect-square w-6 max-w-full items-center justify-center rounded-full"
                         style={{
                           ...swatchSurface(swatch),
                           boxShadow: isSelected
