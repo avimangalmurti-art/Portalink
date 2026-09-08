@@ -8,6 +8,7 @@ import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
 import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
+import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
@@ -35,19 +36,22 @@ export function SharedProfileSidebar({
   onCreateAccount
 }: SharedProfileSidebarProps) {
   const sharedSidebarWidth = useResizablePanelWidth({
-    // A copied public link has its own maximum-width baseline. Its viewer-side
-    // resize choice must not inherit a narrower navigation width saved by an
-    // earlier implementation or by the signed-in workspace.
+    // Public viewing keeps its own resize choice, with the same navigation default.
     id: 'shared-profile-navigation-standard',
-    defaultWidth: 360,
+    defaultWidth: panelLayoutDefaults.navigation,
     minWidth: 180,
     maxWidth: 360,
     viewportReserve: 320
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // This is the public viewer's visit, not the owner's saved workspace layout.
-  // Keep the maximum-width default and preserve the choice between shared routes.
+  // Preserve the choice between shared routes.
   const [preferredCollapsed, setIsCollapsed] = useState(false);
+  useEffect(() => {
+    const reset = () => setIsCollapsed(false);
+    window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+    return () => window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+  }, []);
   const compactNavigation = useCompactNavigation(preferredCollapsed, setIsCollapsed);
   const isCollapsed = compactNavigation.collapsed;
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);

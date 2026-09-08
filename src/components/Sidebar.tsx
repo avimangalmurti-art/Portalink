@@ -21,6 +21,7 @@ import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
 import { CreatorAvatar } from './profile/CreatorAvatar';
 import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePanelHandle';
+import { panelLayoutDefaults } from '../utils/panelLayoutDefaults';
 type NavItem = {
   label: NavigationDestination;
   displayLabel: string;
@@ -751,7 +752,7 @@ export function Sidebar({
   const isSidebarCollapsed = compactNavigation.collapsed;
   const mainSidebarWidth = useResizablePanelWidth({
     id: 'main-navigation',
-    defaultWidth: 360,
+    defaultWidth: panelLayoutDefaults.navigation,
     minWidth: 184,
     maxWidth: 360,
     viewportReserve: 340

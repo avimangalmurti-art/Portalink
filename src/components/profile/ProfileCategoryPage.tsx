@@ -18,6 +18,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAssetProcessing } from '../../features/media/useAssetProcessing';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
 import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
+import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -67,22 +68,29 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   const projectIndexWidth = useResizablePanelWidth({
     // Public copies keep a separate preference from the signed-in workspace.
-    // This makes their first/default layout the full standard width instead of
-    // inheriting a compressed project index from another viewing context.
     id: sharedReadOnly ? 'shared-project-index-standard' : 'project-index',
-    defaultWidth: 420,
+    defaultWidth: panelLayoutDefaults.projectIndex,
     minWidth: 220,
     maxWidth: 420,
     viewportReserve: 360
   });
   const responseRailWidth = useResizablePanelWidth({
     id: sharedReadOnly ? 'shared-project-details-standard' : 'project-response',
-    defaultWidth: 440, minWidth: sharedReadOnly ? 240 : 304, maxWidth: 440, viewportReserve: 420
+    defaultWidth: sharedReadOnly ? panelLayoutDefaults.sharedDetails : panelLayoutDefaults.engagement,
+    minWidth: sharedReadOnly ? 240 : 304, maxWidth: 440, viewportReserve: 420
   });
   const workspace = useElementSize<HTMLDivElement>();
   const projectPresentationRef = workspace.ref;
   const [lastOpened, setLastOpened] = useState<ProjectPanel | null>(null);
   const [compactPanel, setCompactPanel] = useState<ProjectPanel | null>(null);
+  useEffect(() => {
+    const reset = () => {
+      setCompactPanel(null);
+      setLastOpened(null);
+    };
+    window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+    return () => window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+  }, []);
   const onSelectProject = useCallback((id: string | null, replace?: boolean) => {
     setCompactPanel(null);
     selectProject(id, replace);

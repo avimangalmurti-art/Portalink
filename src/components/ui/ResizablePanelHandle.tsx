@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 
 const STORAGE_PREFIX = 'portalink.layout.panel.';
-const STORAGE_REVISION_KEY = 'portalink.layout.panel-revision';
-const STORAGE_REVISION = 'maximum-defaults-v1';
-const RESET_EVENT = 'portalink:reset-panel-widths';
 
 type ResizablePanelOptions = {
   id: string;
@@ -18,28 +16,14 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
-/**
- * The maximum-width layout is the platform baseline. Clear widths saved by the
- * previous midpoint-default layout once, then continue respecting any widths
- * the viewer deliberately chooses under the new baseline.
- */
-function migrateStoredPanelWidths(): void {
-  if (typeof window === 'undefined') return;
-  if (window.localStorage.getItem(STORAGE_REVISION_KEY) === STORAGE_REVISION) return;
-  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
-    const key = window.localStorage.key(index);
-    if (key?.startsWith(STORAGE_PREFIX)) window.localStorage.removeItem(key);
-  }
-  window.localStorage.setItem(STORAGE_REVISION_KEY, STORAGE_REVISION);
-}
-
 function readStoredWidth(key: string, fallback: number, min: number, max: number): number {
   if (typeof window === 'undefined') return fallback;
-  migrateStoredPanelWidths();
+  // Default changes never erase a deliberate resize. Reset layout explicitly
+  // clears saved sizes; missing preferences immediately use the current default.
   const rawStoredWidth = window.localStorage.getItem(key);
   // `Number(null)` is 0. Treating a missing preference as a number therefore
   // sent panels mounted after a global reset to their minimum width instead of
-  // the maximum-width platform default supplied as `fallback`.
+  // the panel's default supplied as `fallback`.
   if (rawStoredWidth === null) return fallback;
   const stored = Number(rawStoredWidth);
   return Number.isFinite(stored) ? clamp(stored, min, max) : fallback;
@@ -52,7 +36,7 @@ export function resetResizablePanelLayout(): void {
     const key = window.localStorage.key(index);
     if (key?.startsWith(STORAGE_PREFIX)) window.localStorage.removeItem(key);
   }
-  window.dispatchEvent(new Event(RESET_EVENT));
+  window.dispatchEvent(new Event(PANEL_LAYOUT_RESET_EVENT));
 }
 
 /**
@@ -79,10 +63,10 @@ export function useResizablePanelWidth({
     const handleResize = () => setViewportWidth(window.innerWidth);
     const handleReset = () => setPreferredWidth(defaultWidth);
     window.addEventListener('resize', handleResize, { passive: true });
-    window.addEventListener(RESET_EVENT, handleReset);
+    window.addEventListener(PANEL_LAYOUT_RESET_EVENT, handleReset);
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener(RESET_EVENT, handleReset);
+      window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, handleReset);
     };
   }, [defaultWidth]);
 

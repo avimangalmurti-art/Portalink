@@ -14,13 +14,14 @@ function compile(path, require) {
   return exports;
 }
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
+const layoutDefaults = compile('../src/utils/panelLayoutDefaults.ts', () => ({}));
 
 // Render the real component and exercise its handlers without creating users,
 // changing live data, or requiring a browser. Only hooks and external UI are stubbed.
 function harness() {
   const state = [];
   let cursor = 0;
-  let width = 360;
+  let width;
   const calls = [];
   const react = { ...React,
     useState(initial) {
@@ -33,11 +34,15 @@ function harness() {
   const { SharedProfileSidebar } = compile('../src/components/profile/SharedProfileSidebar.tsx', (name) => {
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
+    if (name === '../../utils/panelLayoutDefaults') return layoutDefaults;
     if (name.endsWith('/useCompactNavigation')) return { useCompactNavigation: (collapsed, change) => ({ collapsed, toggle: () => change(!collapsed), closeCompact() {} }) };
     if (name === './categoryIcons') return { getCategoryIcon: (name) => `portal-icon-${name}` };
     if (name === '../ui/ResizablePanelHandle') return {
       ResizablePanelHandle: 'resize-handle',
-      useResizablePanelWidth: () => ({ width, updateWidth(value) { width = value; }, commitWidth() {}, resetWidth() { width = 360; } }),
+      useResizablePanelWidth: ({ defaultWidth }) => {
+        width ??= defaultWidth;
+        return { width, updateWidth(value) { width = value; }, commitWidth() {}, resetWidth() { width = defaultWidth; } };
+      },
     };
     return new Proxy({}, { get: (_, key) => key });
   });
@@ -59,9 +64,9 @@ const toggle = (tree) => nodes(tree).find((node) => node.props?.['data-sidebar-t
 const portals = (tree) => nodes(tree).filter((node) => node.props?.['data-category-row'] !== undefined);
 const home = (tree) => nodes(tree).find((node) => node.props?.['data-shared-profile-home'] !== undefined);
 
-test('public navigation starts expanded at maximum width with the creator name and collapse control', () => {
+test('public navigation starts expanded at the compact standard width with the creator name and collapse control', () => {
   const tree = harness().render();
-  assert.equal(tree.props.style.width, '360px');
+  assert.equal(tree.props.style.width, '280px');
   assert.equal(toggle(tree).props['aria-expanded'], true);
   assert.equal(toggle(tree).props['aria-label'], 'Collapse navigation');
   assert.equal(home(tree).props.to, '/share/creator');

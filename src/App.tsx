@@ -47,6 +47,7 @@ import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
 import { beginProjectContinuity, isProjectContinuityActive } from './utils/projectContinuity';
 import { canAccessProfile } from './domain/contentPlacement';
+import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
@@ -61,9 +62,9 @@ const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
 function readMainSidebarCollapsed(): boolean {
   try {
     const stored = window.localStorage.getItem(MAIN_SIDEBAR_COLLAPSED_KEY);
-    return stored === null ? true : stored === 'true';
+    return stored === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -425,6 +426,17 @@ export function App() {
   // explicit choices while that person browses the shared Portalink.
   const [isSharedProjectIndexCollapsed, setIsSharedProjectIndexCollapsed] = useState(false);
   const [isSharedProjectDescriptionOpen, setIsSharedProjectDescriptionOpen] = useState(true);
+  useEffect(() => {
+    const reset = () => {
+      setIsSidebarCollapsed(false);
+      setIsProjectIndexCollapsed(false);
+      setIsProjectEngagementOpen(false);
+      setIsSharedProjectIndexCollapsed(false);
+      setIsSharedProjectDescriptionOpen(true);
+    };
+    window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+    return () => window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
+  }, []);
   const hasEnteredDiscoveryProjectRef = useRef(false);
   useEffect(() => {
     if (!discoveryReturn) {
