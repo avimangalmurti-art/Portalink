@@ -193,10 +193,11 @@ function SortableWallCard({
     className={`min-w-0 ${isReordering ? 'will-change-transform' : ''} ${isDragging ? 'z-30 opacity-90 drop-shadow-[0_16px_30px_rgba(0,0,0,0.32)]' : ''}`}
     style={{
       flex: rowJustified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
-      height: item.height,
+      '--project-cover-height': `${item.height}px`,
+      alignSelf: 'flex-start',
       transform: CSS.Transform.toString(visualTransform),
       transition: shouldReduceMotion ? undefined : transition,
-    }}
+    } as React.CSSProperties}
   >
       <div
         ref={isReordering ? setActivatorNodeRef : undefined}
@@ -205,13 +206,13 @@ function SortableWallCard({
         aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
         aria-label={isReordering ? `Project ${itemIndex + 1} of ${itemCount}; drag to reorder` : undefined}
         onKeyDown={isReordering ? handleKeyDown : undefined}
-        className={`h-full w-full min-w-0 ${isReordering ? 'cursor-grab touch-none rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
+        className={`w-full min-w-0 ${isReordering ? 'cursor-grab touch-none rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
       >
-        <div className={`relative h-full w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
+        <div className={`relative w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
           animationDelay: `${itemIndex % 5 * -75}ms`,
           animationDuration: `${620 + itemIndex % 4 * 55}ms`
         } : undefined}>
-          <div className={isReordering ? 'pointer-events-none h-full w-full select-none' : 'h-full w-full'}>
+          <div className={isReordering ? 'pointer-events-none w-full select-none' : 'w-full'}>
             {item.content}
           </div>
           {isReordering ? <span aria-hidden="true" className="pointer-events-none absolute right-2 top-2 z-30 inline-flex h-7 items-center gap-1 rounded-full bg-[var(--surface-raised)] px-2 text-[10px] font-semibold tabular-nums text-[var(--accent-text)] shadow-[var(--shadow-pop)]">

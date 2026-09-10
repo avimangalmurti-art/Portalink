@@ -1,97 +1,57 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
 import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { Id } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
-const compactCountFormatter = new Intl.NumberFormat(undefined, {
-  notation: 'compact',
-  maximumFractionDigits: 1
-});
-
-function formatEngagementCount(count: number | null): string {
-  return count === null ? '—' : compactCountFormatter.format(count);
-}
-
+const formatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
+const formatCount = (count: number | null) => count === null ? '—' : formatter.format(count);
 const METRICS = [
   { kind: 'like' as const, label: 'likes', icon: HeartIcon, color: 'var(--engagement-like-selected)' },
   { kind: 'save' as const, label: 'bookmarks', icon: BookmarkIcon, color: 'var(--engagement-save-selected)' },
-  { kind: 'repost' as const, label: 'reposts', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' }
+  { kind: 'repost' as const, label: 'reposts', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' },
 ];
 
-/**
- * The one hover/focus presentation shared by profile and Home project covers.
- * It contains read-only canonical totals; engagement itself still happens only
- * in the project viewer.
- */
-export function ProjectHoverDetails({
-  projectId,
-  summary,
-  className = '',
-  bottomInset,
-  footerEnd,
-  showEngagementMetrics = true,
-  onOpen,
-  onOpenComments
-}: {
-  projectId: Id;
+/** Only the description occupies the original artwork frame. */
+export function ProjectHoverDetails({ summary, className = '', onOpen, href }: {
   summary: string;
   className?: string;
-  /** Space reserved for a persistent overlay owned by the card surface. */
-  bottomInset?: number;
-  /** Optional card-owned control sharing the engagement footer's centerline. */
-  footerEnd?: React.ReactNode;
-  /** Public shared profiles keep the hover focused on the work description. */
-  showEngagementMetrics?: boolean;
-  /** Profile cards place this overlay beside their open button, so it forwards clicks. */
-  onOpen?: () => void;
-  /** Opens the project directly into its conversation rail. */
-  onOpenComments?: () => void;
+  onOpen?: (event: React.MouseEvent<HTMLElement>) => void;
+  href?: string;
 }) {
+  const props = {
+    'data-project-hover-description': '', onClick: onOpen,
+    className: 'project-hover-scrollbar block h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-[1.45] text-[var(--accent-text)]',
+  };
+  return <div className={`absolute inset-0 bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${className}`}>
+    {href ? <Link to={href} tabIndex={-1} {...props}>{summary}</Link> : <div {...props}>{summary}</div>}
+  </div>;
+}
+
+/** The same canonical counts, rendered in the card's attached extension. */
+export function ProjectPreviewMetrics({ projectId, onOpenComments }: { projectId: Id; onOpenComments?: () => void }) {
   const engagement = useProjectEngagement(projectId);
   const comments = useProjectComments(onOpenComments ? projectId : null);
-  const hasFooter = showEngagementMetrics || Boolean(footerEnd);
   const commentCount = comments.phase === 'ready' ? comments.totalCount : null;
+  return <PreviewMetrics counts={{ like: engagement.count('like'), save: engagement.count('save'), repost: engagement.count('repost') }} commentCount={commentCount} onOpenComments={onOpenComments} />;
+}
 
-  return (
-    <span
-      className={`absolute inset-0 grid bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${footerEnd ? 'overflow-visible' : 'overflow-hidden'} ${hasFooter ? 'grid-rows-[minmax(0,1fr)_auto] gap-3' : 'grid-rows-[minmax(0,1fr)]'} ${className}`}
-      style={bottomInset === undefined ? undefined : { paddingBottom: bottomInset }}
-    >
-      {/* Let wheel and two-finger scrolling chain to the profile/feed when the
-          description fits or reaches either edge. Containment here traps the
-          page scroll across almost the entire project-card hit area. */}
-      <span
-        data-project-hover-description=""
-        onClick={onOpen}
-        className="project-hover-scrollbar pointer-events-none block min-h-0 min-w-0 overflow-y-auto overscroll-y-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-[1.45] text-[var(--accent-text)] group-hover:pointer-events-auto group-focus-within:pointer-events-auto"
-      >
-        {summary}
-      </span>
-      {hasFooter ? <span className="flex min-w-0 items-center gap-2 border-t border-[var(--control-border)] pt-2 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
-          {showEngagementMetrics ? <>
-              {METRICS.map(({ kind, label, icon, color }) => (
-                <span key={kind} className="inline-flex min-w-0 items-center gap-1" title={`${formatEngagementCount(engagement.count(kind))} ${label}`}>
-                  <InterfaceIcon icon={icon} size="xs" weight="medium" keepColor stroke={color} style={{ color }} />
-                  <span>{formatEngagementCount(engagement.count(kind))}</span>
-                </span>
-              ))}
-              {onOpenComments ? <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenComments();
-                }}
-                aria-label={`Open comments${commentCount === null ? '' : ` (${commentCount})`}`}
-                className="pointer-events-auto inline-flex min-w-0 items-center gap-1 rounded-[5px] text-[var(--control-icon)] transition-colors duration-150 hover:text-[var(--apple-purple)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-              >
-                <InterfaceIcon icon={MessageCircleIcon} size="xs" weight="medium" keepColor stroke="var(--apple-purple)" style={{ color: 'var(--apple-purple)' }} />
-                <span>{formatEngagementCount(commentCount)}</span>
-              </button> : null}
-            </> : null}
-          {footerEnd ? <span className="pointer-events-auto relative ml-auto inline-flex shrink-0 items-center">{footerEnd}</span> : null}
-        </span> : null}
-    </span>
-  );
+export function PreviewMetrics({ counts, commentCount, onOpenComments }: {
+  counts: Record<'like' | 'save' | 'repost', number | null>;
+  commentCount: number | null;
+  onOpenComments?: () => void;
+}) {
+  return <div data-project-preview-metrics="" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
+    {METRICS.map(({ kind, label, icon, color }) => <span key={kind} className="inline-flex items-center gap-1" title={`${formatCount(counts[kind])} ${label}`}>
+      <InterfaceIcon icon={icon} size="xs" weight="medium" keepColor stroke={color} style={{ color }} />
+      <span>{formatCount(counts[kind])}</span>
+    </span>)}
+    {onOpenComments && <button type="button" onClick={(event) => { event.stopPropagation(); onOpenComments(); }} aria-label={`Open comments${commentCount === null ? '' : ` (${commentCount})`}`}
+      className="inline-flex items-center gap-1 rounded-[5px] text-[var(--control-icon)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      <InterfaceIcon icon={MessageCircleIcon} size="xs" weight="medium" keepColor stroke="var(--apple-purple)" style={{ color: 'var(--apple-purple)' }} />
+      <span>{formatCount(commentCount)}</span>
+    </button>}
+  </div>;
 }

@@ -1,5 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { ProjectPreviewCard } from '../../components/profile/ProjectPreviewCard';
+import { PreviewMetrics } from '../../components/profile/ProjectHoverDetails';
+import { mediaInteractionRequest } from '../media-interactions/mediaInteractionRequest';
 import { BookmarkIcon } from 'lucide-react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAccountQuery } from './useAccountQuery';
@@ -42,6 +45,7 @@ export function SavedPagesCollection() {
 }
 
 function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageTarget; presentation: ReturnType<typeof savedPagePresentation>; onRemoved: () => void }) {
+  const navigate = useNavigate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   async function remove() {
@@ -51,14 +55,32 @@ function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageT
     catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not remove this saved page.'); }
     finally { setPending(false); }
   }
-  return <li className="min-w-0">
-    {presentation ? <Link to={presentation.href} aria-label={`Open ${presentation.label} of ${presentation.view.project.title}`} className="card-hover-outline content-corner-frame shape-container relative block aspect-[4/3] w-full overflow-hidden bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-      <ProjectCover source={presentation.source} kind={presentation.kind} pageNumber={presentation.pageNumber} fit="contain" alt={`${presentation.label} of ${presentation.view.project.title}`} aspectRatio={presentation.aspectRatio} className="h-full w-full" sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />
-    </Link> : <div className="shape-container flex aspect-[4/3] items-center justify-center border border-[var(--hairline)] p-5 text-center text-[13px] text-[var(--text-secondary)]">This page was removed or is no longer shared with you.</div>}
-    <div className="mt-2 flex items-start gap-2">
-      <div className="min-w-0 flex-1"><p className="text-[13px] font-semibold">{presentation?.label ?? 'Page unavailable'}</p>{presentation && <><p className="truncate text-[13px]" title={presentation.view.project.title}>{presentation.view.project.title}</p><p className="truncate text-[12px] text-[var(--text-secondary)]">{presentation.view.creator.name}</p></>}</div>
-      <button type="button" onClick={() => void remove()} disabled={pending} aria-label={`Remove ${presentation ? `${presentation.label} of ${presentation.view.project.title}` : 'unavailable page'} from Saved`} title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" style={{ color: 'var(--engagement-save-selected)' }} /></button>
-    </div>
+  return <li className="min-w-0 self-start">
+    {presentation ? <ProjectPreviewCard project={presentation.view.project} creator={presentation.view.creator}
+      label={`Open ${presentation.label} of ${presentation.view.project.title}`} onOpen={() => navigate(presentation.href)}
+      href={presentation.href}
+      aspectRatio={4 / 3} showEngagementMetrics={false}
+      metrics={<SavedPageMetrics target={target} label={presentation.label} onOpen={() => navigate(presentation.href)} />}
+      footerEnd={<button type="button" onClick={() => void remove()} disabled={pending} aria-label={`Remove ${presentation ? `${presentation.label} of ${presentation.view.project.title}` : 'unavailable page'} from Saved`} title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" style={{ color: 'var(--engagement-save-selected)' }} /></button>}
+      cover={<ProjectCover source={presentation.source} kind={presentation.kind} pageNumber={presentation.pageNumber} fit="contain" alt={`${presentation.label} of ${presentation.view.project.title}`} aspectRatio={presentation.aspectRatio} className="h-full w-full" sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />} />
+      : <div className="shape-container border border-[var(--hairline)] p-5 text-center text-[13px] text-[var(--text-secondary)]">
+        <p>This page was removed or is no longer shared with you.</p>
+        <button type="button" onClick={() => void remove()} disabled={pending} aria-label="Remove unavailable page from Saved" title="Remove saved page" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} size="sm" keepColor fill="currentColor" style={{ color: 'var(--engagement-save-selected)' }} /></button>
+      </div>}
     {error && <p role="alert" className="mt-2 text-[12px] text-[var(--status-danger)]">{error}</p>}
   </li>;
+}
+
+function SavedPageMetrics({ target, label, onOpen }: { target: SavedPageTarget; label: string; onOpen: () => void }) {
+  // Reading a preview must not consume/replay the viewer's pending actions.
+  const query = useCallback(() => mediaInteractionRequest<{
+    counts: Record<'like' | 'save' | 'repost', number>;
+    comments: unknown[];
+  }>(`/api/media-interactions?${new URLSearchParams({ projectId: target.projectId, attachmentId: target.attachmentId, pageIndex: String(target.pageIndex) })}`), [target.projectId, target.attachmentId, target.pageIndex]);
+  const activity = useAccountQuery(query);
+  const record = !activity.loading && !activity.error ? activity.data : null;
+  return <div className="flex min-w-0 flex-col gap-1">
+    <span className="text-[11px] font-semibold">{label}</span>
+    <PreviewMetrics counts={record?.counts ?? { like: null, save: null, repost: null }} commentCount={record?.comments.length ?? null} onOpenComments={onOpen} />
+  </div>;
 }

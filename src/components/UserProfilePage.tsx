@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { buildPath } from '../app/routes';
 import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
@@ -13,14 +14,12 @@ import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import type { Profile, ProfileLink, Project } from '../types/domain';
 import { canAuthor, needsAccount, type ViewerRole } from '../types/viewer';
 import { getProjectAspectRatio } from '../utils/projectPresentation';
-import { projectContinuityStyle } from '../utils/projectContinuity';
-import { ProjectCover } from './media/ProjectCover';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { ResponsiveImage } from './ui/ResponsiveImage';
 import { ProfileAvatar } from './profile/ProfileAvatar';
 import { mergeProfileLinks } from '../features/profile/profileLinks';
 import { ProfileShareMenu } from './profile/ProfileShareMenu';
-import { ProjectHoverDetails } from './profile/ProjectHoverDetails';
+import { ProjectPreviewCard } from './profile/ProjectPreviewCard';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
@@ -221,6 +220,9 @@ function ProfileDescriptionEditor({
  */
 function ProfileProjectTile({
   project,
+  creator,
+  isSharedView,
+  disabled,
   onOpen,
   onOpenComments,
   showEngagementMetrics,
@@ -230,6 +232,9 @@ function ProfileProjectTile({
   onRepositionPreview
 }: {
   project: Project;
+  creator: Pick<Profile, 'id' | 'name' | 'avatar'>;
+  isSharedView: boolean;
+  disabled: boolean;
   onOpen: () => void;
   onOpenComments?: () => void;
   showEngagementMetrics: boolean;
@@ -263,32 +268,13 @@ function ProfileProjectTile({
     action?.();
   };
 
-  return (
-    <div className="content-corner-group group relative h-full w-full">
-      <button
-        type="button"
-        data-project-continuity-surface=""
-        data-project-continuity-id={project.id}
-        style={projectContinuityStyle(project.id)}
-        onClick={onOpen}
-        aria-label={`Open ${project.title}`}
-        title={project.title}
-        className="content-corner-frame relative block h-full w-full cursor-pointer overflow-hidden rounded-[8px] bg-[var(--surface-sunken)] text-left ring-1 ring-inset ring-[var(--hairline)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
-      >
-        <span className="absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
-          <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw" />
-        </span>
-
-      </button>
-
-      <ProjectHoverDetails
-        projectId={project.id}
-        summary={project.summary}
-        showEngagementMetrics={showEngagementMetrics}
-        onOpen={onOpen}
-        onOpenComments={onOpenComments}
-        className="content-corner-frame pointer-events-none rounded-[8px] opacity-0 ring-1 ring-inset ring-transparent group-hover:opacity-100 group-hover:ring-[var(--hairline-strong)] group-focus-within:opacity-100 group-focus-within:ring-[var(--focus-ring)]"
-        footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className={`relative inline-flex items-center transition-opacity duration-150 motion-reduce:transition-none ${isMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100'}`}>
+  return <ProjectPreviewCard project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+      onCollapse={() => setIsMenuOpen(false)}
+      disabled={disabled || Boolean(descriptionEditor)} showEngagementMetrics={showEngagementMetrics}
+      creatorHref={isSharedView ? buildPath('sharedProfile', { profileId: creator.id }) : buildPath('profile', { profileId: creator.id })}
+      sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw"
+      editor={descriptionEditor ? <ProfileDescriptionEditor projectTitle={project.title} editor={descriptionEditor} /> : undefined}
+        footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className="relative inline-flex items-center">
             <button type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />
             </button>
@@ -307,11 +293,7 @@ function ProfileProjectTile({
                   </button> : null}
               </span> : null}
           </span> : undefined}
-      />
-
-      {descriptionEditor ? <ProfileDescriptionEditor projectTitle={project.title} editor={descriptionEditor} /> : null}
-    </div>
-  );
+    />;
 }
 
 /** Reads one labelled figure off the record. Absent means absent — never zero-by-invention. */
@@ -476,9 +458,12 @@ export function UserProfilePage({
   const imageryCells: WallItem[] = useMemo(() => orderedCardProjects.map((project) => ({
     key: project.id,
     ratio: getProjectAspectRatio(project),
-    content: <div className="relative h-full w-full">
+    content: <div className="relative w-full">
           <ProfileProjectTile
             project={project}
+            creator={profile}
+            isSharedView={isSharedView}
+            disabled={isReorderingProjects}
             onOpen={() => onOpenProject(project.id, project.categoryId)}
             onOpenComments={!isSharedView ? () => onOpenProject(project.id, project.categoryId, { openComments: true }) : undefined}
             showEngagementMetrics={!isSharedView}
@@ -501,7 +486,7 @@ export function UserProfilePage({
             onRepositionPreview={project.cover && showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
           />
         </div>
-  })), [orderedCardProjects, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
+  })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
   const followers = connections.counts.followers?.toLocaleString() ?? readStat(profile, 'Followers');
   const following = connections.counts.following?.toLocaleString() ?? readStat(profile, 'Following');
   // Every region of the page — toolbar, identity, and wall — now sits on the

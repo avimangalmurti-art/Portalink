@@ -38,6 +38,7 @@ export function EngagementBar({
   engagement,
   projectTitle,
   size = 'default',
+  showCounts = false,
   variant = 'inline',
   isShared = false,
   onShare
@@ -52,7 +53,7 @@ export function EngagementBar({
 
 
 
-}: {engagement: ProjectEngagementLifecycle;projectTitle: string;size?: 'default' | 'compact'; /**
+}: {engagement: ProjectEngagementLifecycle;projectTitle: string;size?: 'default' | 'compact';showCounts?: boolean; /**
    * `inline` packs the three controls into a row of chips, for a card.
    * `panel` gives each one its own column — glyph and total on one line, the word
    * beneath — for the project rail, where there is width and the counts are being
@@ -108,8 +109,9 @@ export function EngagementBar({
            */
           return <button key={kind} type="button" data-semantic-action="engagement" onClick={() => engagement.toggle(kind)} disabled={isPending || engagement.isResolving || engagement.resolveError !== null} aria-pressed={isEngaged} title={isEngaged ? labels.state : labels.action} aria-label={`${isEngaged ? labels.undo : labels.action}: ${projectTitle}`} data-keep-color={isEngaged ? '' : undefined} style={isEngaged ? {
             color: engagedColor
-          } : undefined} className={`side-panel-compact-control flex items-center justify-center rounded-[8px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${isRail ? 'h-10 w-10' : 'w-8'} ${tone}`}>
+          } : undefined} className={`side-panel-compact-control flex items-center justify-center gap-1 rounded-[8px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${isRail ? 'h-10 w-10' : showCounts ? 'min-w-8 px-1' : 'w-8'} ${tone}`}>
               <InterfaceIcon icon={Icon} size={interfaceIconSize} weight="regular" keepColor fill={paint.fill} stroke={paint.stroke} />
+              {showCounts && total !== null && <span className="text-[11px] font-semibold tabular-nums">{new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(total)}</span>}
             </button>;
         })}
         {onShare && (isPanel ? <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{

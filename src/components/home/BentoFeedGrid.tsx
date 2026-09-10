@@ -1,4 +1,6 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { layoutBento, type BentoPosition } from '../../utils/bentoLayout';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
@@ -93,6 +95,17 @@ export function BentoFeedGrid({
    * stretched — only the tight vertical packing is lost.
    */
   const canPack = typeof ResizeObserver !== 'undefined';
+  const [measurements, setMeasurements] = useState<Record<string, { height: number; base: number }>>({});
+  const measure = useCallback((key: string, height: number, base: number) => {
+    setMeasurements((current) => current[key] && Math.abs(current[key].height - height) < 0.5 && Math.abs(current[key].base - base) < 0.5
+      ? current : { ...current, [key]: { height, base } });
+  }, []);
+  const positions = canPack && items.every((item) => measurements[item.key]) ? layoutBento(items.map((item) => ({
+    key: item.key,
+    span: Math.max(1, Math.min(item.span(columns), columns)),
+    baseRows: Math.ceil((measurements[item.key].base + GAP) / ROW_UNIT),
+    rows: Math.ceil((measurements[item.key].height + GAP) / ROW_UNIT),
+  })), columns) : null;
   return <div ref={view.ref} className="relative w-full">
       <ZoomReadout view={view} />
       <div ref={ref} style={{
@@ -115,13 +128,16 @@ export function BentoFeedGrid({
         alignItems: 'start'
       })
     }}>
-      {items.map((item) => <BentoCell key={item.key} span={Math.max(1, Math.min(item.span(columns), columns))} canPack={canPack}>
+      {items.map((item) => <BentoCell key={item.key} cellKey={item.key} span={Math.max(1, Math.min(item.span(columns), columns))} canPack={canPack} position={positions?.get(item.key)} onMeasure={measure}>
           {item.content}
         </BentoCell>)}
       </div>
     </div>;
 }
 function BentoCell({
+  cellKey,
+  position,
+  onMeasure,
   span,
   canPack,
   children
@@ -129,8 +145,9 @@ function BentoCell({
 
 
 
-}: {span: number;canPack: boolean;children: React.ReactNode;}) {
+}: {cellKey: string; position?: BentoPosition; onMeasure: (key: string, height: number, base: number) => void; span: number;canPack: boolean;children: React.ReactNode;}) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
   // Transient presentation state only: measured, never persisted, never written
   // back to a project.
   const [height, setHeight] = useState(0);
@@ -140,8 +157,9 @@ function BentoCell({
     const element = contentRef.current;
     if (element) {
       setHeight(element.getBoundingClientRect().height);
+      onMeasure(cellKey, element.getBoundingClientRect().height, element.querySelector('[data-packing-base]')?.getBoundingClientRect().height ?? element.getBoundingClientRect().height);
     }
-  }, [span]);
+  }, [span, cellKey, onMeasure]);
   useEffect(() => {
     const element = contentRef.current;
     if (!element || typeof ResizeObserver === 'undefined') {
@@ -154,19 +172,20 @@ function BentoCell({
       }
       const next = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
       setHeight((current) => Math.abs(current - next) < 0.5 ? current : next);
+      onMeasure(cellKey, next, element.querySelector('[data-packing-base]')?.getBoundingClientRect().height ?? next);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [cellKey, onMeasure]);
   // The gutter is claimed as part of the span, which is why the grid itself runs
   // no row gap: a cell owns its own trailing space.
   const rows = canPack && height > 0 ? Math.ceil((height + GAP) / ROW_UNIT) : null;
-  return <div className="min-w-0" style={{
-    gridColumn: `span ${span}`,
-    ...(rows ? {
+  return <motion.div layout={reduceMotion ? false : 'position'} transition={{ layout: { duration: 0.18, ease: [0.2, 0.8, 0.2, 1] } }} className="min-w-0 self-start" style={{
+    gridColumn: position ? `${position.column + 1} / span ${span}` : `span ${span}`,
+    ...(position ? { gridRow: `${position.row + 1} / span ${position.rows}` } : rows ? {
       gridRow: `span ${rows}`
     } : {})
   }}>
       <div ref={contentRef} className="min-w-0">{children}</div>
-    </div>;
+    </motion.div>;
 }

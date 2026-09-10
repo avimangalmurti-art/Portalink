@@ -1,4 +1,5 @@
 import React from 'react';
+import { ProjectPreviewCard } from './ProjectPreviewCard';
 import { ArrowLeftIcon, BookmarkIcon, HeartIcon, Repeat2Icon } from 'lucide-react';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import { EngagementBar } from '../../features/engagement/EngagementBar';
@@ -7,11 +8,7 @@ import { useProjectEngagement } from '../../features/engagement/useProjectEngage
 import { describeActivityCollection } from '../../types/engagement';
 import type { EngagementKind } from '../../types/engagement';
 import type { ProjectLocation, ProjectView } from '../../types/domain';
-import { CreatorAvatar } from './CreatorAvatar';
-import { ProjectCover } from '../media/ProjectCover';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
-import { getProjectAspectRatio } from '../../utils/projectPresentation';
-import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { useAuth } from '../../contexts/AuthContext';
 
 /**
@@ -111,18 +108,10 @@ function ActivityCard({
 
 }: {item: ProjectView;onOpen: () => void;}) {
   const engagement = useProjectEngagement(item.project.id);
-  return <li className="flex min-w-0 flex-col">
-      <button type="button" data-project-continuity-surface="" data-project-continuity-id={item.project.id} style={{ ...projectContinuityStyle(item.project.id), aspectRatio: item.project.coverFrame?.aspectRatio ?? 4 / 3 }} onClick={onOpen} aria-label={`Open ${item.project.title}`} className="card-hover-outline content-corner-frame shape-container relative block w-full overflow-hidden bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-        <ProjectCover source={item.project.cover} alt={item.project.coverAlt} kind={item.project.coverKind} frame={item.project.coverFrame} pageNumber={item.project.coverPageNumber} aspectRatio={getProjectAspectRatio(item.project)} sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />
-      </button>
-      <div className="mt-2 min-w-0">
-        <p className="truncate text-[13px] font-semibold text-[var(--text-primary)]">{item.project.title}</p>
-        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[12px] text-[var(--text-secondary)]"><CreatorAvatar name={item.creator.name} avatar={item.creator.avatar} className="h-5 w-5 text-[9px]" />{item.creator.name}</p>
-      </div>
-      {/* The same shared state the feed card and the viewer use: withdrawing here
-         drops this entry from the collection with no reload. */}
-      <div className="mt-1.5">
-        <EngagementBar engagement={engagement} projectTitle={item.project.title} size="compact" />
-      </div>
-    </li>;
+  return <li className="min-w-0 self-start">
+    <ProjectPreviewCard project={item.project} creator={item.creator} onOpen={onOpen}
+      sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw"
+      aspectRatio={item.project.coverFrame?.aspectRatio ?? 4 / 3}
+      metrics={<EngagementBar engagement={engagement} projectTitle={item.project.title} size="compact" showCounts />} />
+  </li>;
 }

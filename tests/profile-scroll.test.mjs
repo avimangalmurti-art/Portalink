@@ -18,7 +18,7 @@ function nodes(tree) {
   return [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
 
-const { ProjectHoverDetails } = compile('../src/components/profile/ProjectHoverDetails.tsx', (name) => {
+const { ProjectHoverDetails, PreviewMetrics } = compile('../src/components/profile/ProjectHoverDetails.tsx', (name) => {
   if (name === 'react') return React;
   if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ count: () => 0 }) };
   if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({ phase: 'ready', totalCount: 0 }) };
@@ -54,8 +54,10 @@ test('project and comment clicks remain intact after removing scroll containment
   const tree = ProjectHoverDetails({ projectId: 'project', summary: 'Summary',
     onOpen: () => calls.push('project'), onOpenComments: () => calls.push('comments') });
   nodes(tree).find((node) => node.props?.['data-project-hover-description'] !== undefined).props.onClick();
+  const extension = PreviewMetrics({ counts: { like: 0, save: 0, repost: 0 }, commentCount: 0, onOpenComments: () => calls.push('comments') });
   let stopped = false;
-  nodes(tree).find((node) => node.props?.['aria-label'] === 'Open comments (0)').props.onClick({ stopPropagation() { stopped = true; } });
+  assert.equal(nodes(tree).some((node) => node.props?.['data-project-preview-metrics'] !== undefined), false);
+  nodes(extension).find((node) => node.props?.['aria-label'] === 'Open comments (0)').props.onClick({ stopPropagation() { stopped = true; } });
   assert.deepEqual(calls, ['project', 'comments']);
   assert.equal(stopped, true);
 });

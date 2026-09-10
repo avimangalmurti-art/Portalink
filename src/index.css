@@ -1183,6 +1183,41 @@ button[data-portalink-tile],
 .feed-card__preview {
   background-color: var(--surface-placeholder);
 }
+/* One work preview: a fixed artwork frame, text in that frame, and an attached
+   extension in normal flow. Only the extension changes the measured height. */
+.project-preview-card { isolation: isolate; }
+.project-preview-card[data-expanded='true'] { z-index: 2; }
+.project-card-frame,
+.project-preview-artwork,
+.project-preview-description { border-radius: 8px; }
+.project-preview-description {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.project-preview-image,
+.project-preview-description { transition: opacity 150ms var(--ease-standard); }
+.project-preview-card[data-expanded='true'] .project-card-frame,
+.project-preview-card[data-expanded='true'] .project-preview-artwork,
+.project-preview-card[data-expanded='true'] .project-preview-description { border-radius: 0; }
+.project-preview-card[data-expanded='true'] .project-preview-image { opacity: 0; }
+.project-preview-card[data-expanded='true'] .project-preview-description {
+  opacity: 1;
+  pointer-events: auto;
+}
+.project-preview-extension {
+  height: 0;
+  opacity: 0;
+  background: var(--control-rest-surface);
+  color: var(--control-text);
+}
+.project-preview-extension[aria-hidden='true'] { pointer-events: none; }
+.project-preview-extension-content { border-top: 1px solid var(--control-border); }
+#root .codex-shell .project-preview-creator { background: transparent; border: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .project-preview-image,
+  .project-preview-description { transition: none; }
+}
 /* Creator attribution belongs to the card's hover state. Opacity keeps the
    control in the keyboard tab order; pointer-events prevents the invisible
    overlay from intercepting the project's primary click target at rest. */
