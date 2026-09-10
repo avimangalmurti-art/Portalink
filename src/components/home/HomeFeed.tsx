@@ -121,7 +121,7 @@ export function HomeFeed({
     writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
   }, [scrollMemoryKey]);
 
-  return <div className="feed-starfield relative flex h-full w-full flex-col">
+  return <div data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
         ref={autoScrollRef}
         onScroll={rememberScroll}

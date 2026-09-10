@@ -256,6 +256,8 @@
 
 #root .codex-shell[data-presentation='mobile'] .app-screen-layer > main {
   scroll-padding-block: var(--mobile-content-safe-top) var(--mobile-content-safe-bottom);
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-screen-scroll='page'] {
@@ -268,6 +270,17 @@
 #root .codex-shell[data-presentation='mobile'] [data-feed-scroll-content] {
   padding-top: calc(12px + var(--mobile-content-safe-top));
   padding-bottom: var(--mobile-content-safe-bottom);
+}
+
+/* Artwork can paint behind the status area from the first frame. Empty/error
+   states keep their safe inset; City keeps its separate navigation header. */
+#root .codex-shell[data-presentation='mobile'] [data-feed-artwork-edge] > .feed-edge-fade {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-feed-artwork-edge] [data-feed-scroll-content] {
+  padding-top: 0;
 }
 
 /* City feeds sit below a safe header; their content needs no second top inset. */
