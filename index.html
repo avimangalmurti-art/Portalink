@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/portalink-favicon.png" />
-    <link rel="apple-touch-icon" href="/image.png" />
+    <link rel="apple-touch-icon" href="/portalink-favicon.png" />
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
@@ -24,40 +24,17 @@
         min-height: 100dvh;
         place-items: center;
         overflow: hidden;
-        background-color: #ffffff;
+        background-color: #f5eaf4;
         background-image: none;
         color: #000000;
       }
 
-      html[data-appearance='dark'] #portalink-preboot {
-        background-color: #000000;
-        color: #ffffff;
-      }
-
-      .portalink-preboot-lockup {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-
       #portalink-preboot img {
-        width: clamp(108px, 18vmin, 148px);
-        max-width: 48vw;
+        display: block;
+        width: min(100vw, 100dvh, 576px);
+        max-height: 100dvh;
         height: auto;
-      }
-
-      html[data-appearance='dark'] #portalink-preboot img {
-        filter: invert(1);
-      }
-
-      .portalink-preboot-wordmark {
-        margin: 12px 0 0;
-        font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 1;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
+        object-fit: contain;
       }
 
     </style>
@@ -102,13 +79,9 @@
   </head>
   <body>
     <div id="root">
-      <!-- First paint matches React's theme-aware lockup, preventing a blank or
-           opposite-theme frame while the application bundle starts. -->
+      <!-- The original video's first frame also covers startup before React. -->
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
-        <div class="portalink-preboot-lockup">
-        <img src="/portalink-splash-character.png" alt="" aria-hidden="true" width="222" height="372" />
-        <p class="portalink-preboot-wordmark">Portalink Networks</p>
-        </div>
+        <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
       </div>
     </div>
     <script type="module" src="/src/index.tsx"></script>

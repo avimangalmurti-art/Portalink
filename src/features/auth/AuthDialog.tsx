@@ -77,7 +77,7 @@ function ViewLink({
   onSelect,
   disabled = false
 }: {label: string;onSelect: () => void;disabled?: boolean;}) {
-  return <button type="button" disabled={disabled} onClick={onSelect} className="disabled:opacity-50 rounded-[6px] text-[13px] font-semibold text-[var(--accent-text)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+  return <button type="button" disabled={disabled} onClick={onSelect} className="account-welcome-view-link disabled:opacity-50 rounded-[6px] text-[13px] font-semibold text-[var(--accent-text)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
       {label}
     </button>;
 }

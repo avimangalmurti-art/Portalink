@@ -8,10 +8,10 @@
   "theme_color": "#0b0c0f",
   "icons": [
     {
-      "src": "/image.png",
+      "src": "/portalink-favicon.png",
       "sizes": "1254x1254",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

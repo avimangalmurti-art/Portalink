@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { XIcon, CheckIcon } from 'lucide-react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeftIcon, XIcon, CheckIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { findNavAccent, isLightSurface, navAccents } from '../../data/navButtonTokens';
 import { resolveAccentTokens } from '../../utils/accentTokens';
 import { Button } from '../ui/Button';
 import { AppearanceSwitch } from '../ui/AppearanceSwitch';
+import { usePresentation } from '../../presentation/usePresentation';
 
 export type AccountAppearanceProps = {
   accentColor: string;
@@ -25,7 +26,11 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
   children: React.ReactNode | ((requestLeave: (action: () => void) => void) => React.ReactNode);
 }) {
   const viewportRef = useDialogViewport();
+  const isMobile = usePresentation() === 'mobile';
+  const mobileRef = useRef(isMobile);
+  mobileRef.current = isMobile;
   const sheetRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const confirmationRef = useRef<HTMLDivElement>(null);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
@@ -39,7 +44,26 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
     if (pendingLeave) setPendingLeave(null);
     else dismiss();
   });
-  useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [title]);
+  useLayoutEffect(() => {
+    if (!mobileRef.current) return;
+    // Show the whole welcome screen before paint, including when the browser
+    // restores a previously focused field. Never reset focus on keyboard resize.
+    const showWelcome = () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.matches('input, textarea, [contenteditable="true"]')) active.blur();
+      if (contentRef.current) contentRef.current.scrollTop = 0;
+      headingRef.current?.focus({ preventScroll: true });
+    };
+    showWelcome();
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && mobileRef.current) showWelcome();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, [title]);
+  useEffect(() => {
+    if (!mobileRef.current) headingRef.current?.focus({ preventScroll: true });
+  }, [title]);
   useEffect(() => {
     if (!pendingLeave) return;
     confirmationRef.current?.scrollIntoView({ block: 'nearest' });
@@ -52,9 +76,9 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
     <section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} aria-busy={busy} data-welcome-contrast={highContrast} data-welcome-solid={reduceTranslucency}
       className="auth-signin-vanta account-welcome-card flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border p-5 text-[var(--text-primary)] outline-none sm:p-7"
       style={resolveAccentTokens(accentColor, 'dark')}>
-      <button type="button" aria-label="Close" disabled={busy} onClick={dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40"><XIcon size={18} aria-hidden="true" /></button>
-      <div className="scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
-        <header className="mb-5 text-center">
+      <button type="button" aria-label={isMobile ? 'Back' : 'Close'} disabled={busy} onClick={dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40">{isMobile ? <><ArrowLeftIcon size={20} aria-hidden="true" /><span>Back</span></> : <XIcon size={18} aria-hidden="true" />}</button>
+      <div ref={contentRef} className="account-welcome-content scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
+        <header className="account-welcome-heading mb-5 text-center">
           <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
           <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
         </header>

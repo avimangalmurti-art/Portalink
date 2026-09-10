@@ -99,39 +99,21 @@ body,
   height: 100%;
 }
 
-/* Startup uses the viewer's resolved appearance from index.html, so a dark
-   workspace never flashes white before React mounts. */
+/* Preserve the supplied splash artwork in both themes, including its backdrop. */
 .portalink-splash {
-  --portalink-splash-bg: #ffffff;
-  --portalink-splash-fg: #000000;
-  color: var(--portalink-splash-fg);
-  background-color: var(--portalink-splash-bg);
+  background-color: #f5eaf4;
   background-image: none;
   contain: strict;
   isolation: isolate;
   will-change: opacity;
 }
 
-.portalink-splash-lockup {
-  will-change: opacity, transform;
-}
-
-html[data-appearance='dark'] .portalink-splash {
-  --portalink-splash-bg: #000000;
-  --portalink-splash-fg: #ffffff;
-}
-
-.portalink-splash-character {
-  filter: none;
-}
-
-html[data-appearance='dark'] .portalink-splash-character {
-  filter: invert(1);
-}
-
-.portalink-splash-wordmark {
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  color: var(--portalink-splash-fg);
+.portalink-splash-media {
+  display: block;
+  width: min(100vw, 100dvh, 576px);
+  height: auto;
+  max-height: 100dvh;
+  object-fit: contain;
 }
 
 /* Sensible defaults so any new page or component inherits the system. */

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
@@ -8,7 +8,6 @@ import { buildPath, routes } from './routes';
 import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
-const MINIMUM_SPLASH_MS = 420;
 
 function sharedProfileIdFromPath(pathname: string): string | null {
   const project = matchPath(routes.sharedProject.path, pathname);
@@ -31,26 +30,23 @@ function readSharedViewerProfileId(): string | null {
 
 /**
  * Session restoration is the application's real startup readiness boundary.
- * A short branded first frame prevents a flash while session restoration runs.
- * The application mounts behind it as soon as authentication is ready, and the
- * splash then crossfades away instead of adding a fixed one-second delay.
+ * The short startup clip and session restoration run together. The application
+ * mounts as soon as authentication is ready, then the splash crossfades once.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
   const { pathname } = useLocation();
-  const [hasMinimumSplashTimeElapsed, setHasMinimumSplashTimeElapsed] = useState(false);
+  const [hasSplashMediaCompleted, setHasSplashMediaCompleted] = useState(false);
+  const [hasStartupCompleted, setHasStartupCompleted] = useState(false);
+  const completeSplashMedia = useCallback(() => setHasSplashMediaCompleted(true), []);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setHasMinimumSplashTimeElapsed(true);
-    }, MINIMUM_SPLASH_MS);
-
-    return () => window.clearTimeout(timeoutId);
-  }, []);
+    if (!auth.isInitializing && hasSplashMediaCompleted) setHasStartupCompleted(true);
+  }, [auth.isInitializing, hasSplashMediaCompleted]);
 
   useEffect(() => {
     try {
@@ -65,21 +61,17 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, routeSharedProfileId, sessionSharedProfileId]);
 
-  if (!auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId) {
-    return <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId })} />;
-  }
-
-  const shouldShowSplash = auth.isInitializing || !hasMinimumSplashTimeElapsed;
+  const shouldRedirect = !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
 
   return <>
-      {!auth.isInitializing ? <App /> : null}
+      {shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App /> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {shouldShowSplash ? <PortalinkSplashLoader key="portalink-splash" /> : null}
+        {!hasStartupCompleted || auth.isInitializing ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplashMedia} stillOnly={hasStartupCompleted} /> : null}
       </AnimatePresence>
     </>;
 }
