@@ -144,8 +144,8 @@
   width: 56px;
   height: 100%;
   min-height: 0;
-  background: var(--codex-sidebar-bg);
-  border-right: 1px solid var(--hairline);
+  background: transparent !important;
+  border: 0;
   touch-action: pan-y;
   transition: width 180ms ease, padding 180ms ease;
 }
@@ -159,7 +159,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll {
   display: flex;
-  flex: 1 1 0%;
+  flex: 0 1 auto;
   min-height: 0;
   flex-direction: column;
   align-items: center;
@@ -167,7 +167,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset)) 4px var(--mobile-dock-clearance);
+  margin: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset) - 4px) 2px var(--mobile-dock-clearance);
+  padding: 4px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -181,18 +182,10 @@
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--control-rest-surface) 25%, var(--codex-sidebar-bg)) !important;
-  color: var(--text-secondary) !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) [data-interface-icon-frame] {
   --interface-icon-size: 24px;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-nav-destination[aria-current='page'] {
-  color: var(--accent-text) !important;
-  background: var(--control-selected-surface) !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-nav-destination:disabled {
@@ -239,13 +232,17 @@
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: 2px;
+  pointer-events: auto;
+}
+
+/* One glass capsule material for vertical and horizontal navigation. */
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
   border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised) 78%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
-  pointer-events: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
@@ -256,15 +253,32 @@
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 999px;
-  background: transparent !important;
-  color: var(--text-primary) !important;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination) {
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  box-shadow: var(--mobile-navigation-item-shadow, none) !important;
+  transform: none !important;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination)[aria-current='page'] {
   background: var(--surface-raised) !important;
   color: var(--accent-text) !important;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 14%);
+  box-shadow: var(--mobile-navigation-item-shadow, 0 1px 4px rgb(0 0 0 / 14%)) !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination):not(:disabled):hover {
+    background: var(--surface-raised) !important;
+    box-shadow: var(--mobile-navigation-item-shadow, 0 1px 4px rgb(0 0 0 / 14%)) !important;
+  }
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination):not(:disabled):active {
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-dock-profile) {
@@ -307,7 +321,7 @@
 }
 
 /* Links and buttons share their destination's theme and selected color. */
-#root .codex-shell[data-presentation='mobile'] .mobile-nav-destination svg {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-nav-destination, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a) svg {
   color: inherit !important;
 }
 
@@ -589,18 +603,27 @@
   outline-offset: -3px;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile):where(.reduce-translucency *) {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile):where(.reduce-translucency *) {
   background: var(--surface-raised) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock:where(.reduce-translucency *) {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock):where(.reduce-translucency *) {
   background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised)) !important;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-navigation-dock, .mobile-navigation-opener):where(.high-contrast *) {
-  box-shadow: inset 0 0 0 1px var(--text-primary);
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
+    background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised)) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-navigation-dock, .mobile-dock-destination, .mobile-navigation-opener):where(.high-contrast *) {
+  --mobile-navigation-item-shadow: inset 0 0 0 1px var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--text-primary) !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-profile:where(.high-contrast *) {
@@ -608,7 +631,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation-opener svg) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation-opener svg, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination) {
     transition: none;
   }
 }
