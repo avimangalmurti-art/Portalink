@@ -46,7 +46,7 @@ import { ZoomReadout } from '../ui/ZoomReadout';
  */
 
 /** The gutter, on both axes. Tight enough to read as a wall rather than tiles. */
-const GAP = 8;
+const GAP = 4;
 const MIN_COLUMNS = 3;
 const MAX_COLUMNS = 9;
 const MIN_READABLE_CARD_WIDTH = 112;

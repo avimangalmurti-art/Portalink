@@ -107,6 +107,8 @@ function component(file, name, props, overrides = {}) {
     if (dependency === 'react') return react;
     if (dependency === 'react/jsx-runtime') return jsxRuntime;
     if (dependency === 'framer-motion') return { useReducedMotion: () => true, AnimatePresence: 'AnimatePresence', motion: { div: 'div', section: 'section' } };
+    if (dependency.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: 'account', isEmailVerified: true } }) };
+    if (dependency.endsWith('/publicAppearance')) return { DEFAULT_PUBLIC_APPEARANCE: { accentColor: '#0A84FF', systemGray: 'gray6', mode: 'auto' } };
     if (dependency.endsWith('/validation')) return validation;
     if (dependency.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (dependency.endsWith('/useProfileOnboarding')) return overrides;
@@ -120,7 +122,7 @@ const find = (tree, predicate) => nodes(tree).find(predicate);
 
 test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
   let submitted;
-  const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, onDismiss() {}, onComplete() {} }, {
+  const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete() {} }, {
     useAvatarSelection: () => ({ avatar: null, error: null, select() {}, clear() {} }),
     useCreateProfile: () => ({ status: 'idle', isLoading: false, run: async (input) => { submitted = input; } }),
   });

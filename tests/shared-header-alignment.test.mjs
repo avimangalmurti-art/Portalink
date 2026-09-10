@@ -11,7 +11,7 @@ const scope = '.codex-shell.shared-portalink-shell';
 function declarations(selector) {
   const result = {};
   css.walkRules((rule) => {
-    if (rule.selector.replace(/\s+/g, ' ').trim() !== selector) return;
+    if (!rule.selectors.some((candidate) => candidate.replace(/\s+/g, ' ').trim() === selector)) return;
     rule.walkDecls((declaration) => { result[declaration.prop] = declaration.value; });
   });
   return result;
@@ -101,9 +101,9 @@ test('project header omits duplicate page totals but retains layout controls and
   assert.equal(Object.keys(declarations(`${scope} [data-shared-page-count]`)).length, 0);
 });
 
-test('public sidebar has no stray top inset and details header stays anchored during scrolling', () => {
-  const sidebar = declarations(`${scope} > aside.sidebar-starfield.shared-profile-sidebar`);
-  assert.equal(sidebar['padding-top'], '0');
+test('public sidebar aligns with the workspace inset and details header stays anchored during scrolling', () => {
+  const sidebar = declarations('.codex-shell > aside.sidebar-starfield.shared-profile-sidebar');
+  assert.equal(sidebar['padding-top'], 'calc(var(--codex-workspace-inset) + var(--codex-workspace-border-width))');
   const details = declarations(`${scope} [data-project-response-rail] > [data-shared-navigation-header]`);
   assert.equal(details.position, 'sticky');
   assert.equal(details.top, '0');

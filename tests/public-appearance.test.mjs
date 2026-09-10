@@ -185,3 +185,19 @@ test('an older failed save does not leave an error after the latest choice saves
   await latest;
   assert.equal((await h.settle()).saveError, null);
 });
+
+test('a welcome-screen color choice survives sign-in without changing a public creator website', async () => {
+  const h = hookHarness();
+  h.navigate(null);
+  h.choose({accentColor: B.accentColor});
+  await h.render().flush();
+  assert.equal(h.writes.length, 0);
+  const result = h.navigate('returning-creator');
+  assert.deepEqual(plain(result.appearance), {...A, accentColor: B.accentColor});
+  await result.flush();
+  assert.deepEqual(h.writes[0], ['returning-creator', {...A, accentColor: B.accentColor}]);
+  h.navigate('returning-creator', false);
+  h.choose({accentColor: A.accentColor});
+  await h.render().flush();
+  assert.equal(h.writes.length, 1);
+});

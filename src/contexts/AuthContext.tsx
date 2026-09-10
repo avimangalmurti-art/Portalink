@@ -38,6 +38,8 @@ type AuthContextValue = {
   clearError: () => void;
   /** Re-reads the session after a failed initialization. */
   retryInitialize: () => void;
+  /** Refresh identity after signup/recovery without remounting the application. */
+  refreshSession: (expectedAccountId?: string) => Promise<boolean>;
   /**
    * Resolves with the committed session, so a caller never has to read
    * `viewerProfileId` from a render that has not happened yet. On success the
@@ -107,6 +109,8 @@ export function AuthProvider({
   } = useServices();
   const [phase, setPhase] = useState<AuthPhase>('initializing');
   const [session, setSession] = useState<AuthSession | null>(null);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const [error, setError] = useState<AuthError | null>(null);
   const [pendingView, setPendingView] = useState<AuthView | null>(() => isPasswordRecoveryReturn(window.location.href) ? 'resetPassword' : null);
   // Mirrors `pendingView` so callbacks can read it without re-creating.
@@ -140,6 +144,7 @@ export function AuthProvider({
         setGateMessage(null);
       }
       if (!next) hasPresentedRecoveryRef.current = false;
+      sessionRef.current = next;
       setSession(next);
       setPhase(next ? 'authenticated' : 'unauthenticated');
     };
@@ -190,6 +195,7 @@ export function AuthProvider({
       // cancellation and drops the pending destination, and React has not
       // re-rendered yet at the moment an awaiting caller would run.
       isAuthenticatedRef.current = true;
+      sessionRef.current = next;
       setSession(next);
       setPhase('authenticated');
       // Focus must not return to the Sign in button that no longer applies;
@@ -213,6 +219,7 @@ export function AuthProvider({
     setError(null);
     try {
       await auth.signOut();
+      sessionRef.current = null;
       setSession(null);
       setPhase('unauthenticated');
       // The address belonged to the session that just ended.
@@ -226,11 +233,35 @@ export function AuthProvider({
     }
   }, [auth]);
   const linkProfile = useCallback(async (profileId: Id) => {
+    const expectedAccount = session?.user.id;
     const next = await auth.attachProfile(profileId);
+    if (!expectedAccount || sessionRef.current?.user.id !== expectedAccount || next.user.id !== expectedAccount || next.user.profileId !== profileId) throw new Error('Sign in to this account to finish setup.');
+    sessionRef.current = next;
     setSession(next);
     setPhase('authenticated');
+  }, [auth, session?.user.id]);
+  const refreshSession = useCallback(async (expectedAccountId?: string) => {
+    const startingSession = sessionRef.current;
+    const startingAccount = startingSession?.user.id;
+    try {
+      const next = await auth.getSession();
+      const currentAccount = sessionRef.current?.user.id;
+      if (expectedAccountId && next?.user.id !== expectedAccountId) return false;
+      if (currentAccount !== startingAccount && currentAccount !== next?.user.id) return false;
+      if (sessionRef.current !== startingSession && sessionRef.current?.user.profileId !== next?.user.profileId) return false;
+      sessionRef.current = next;
+      isAuthenticatedRef.current = Boolean(next);
+      setSession(next);
+      setPhase(next ? 'authenticated' : 'unauthenticated');
+      return true;
+    } catch {
+      // A refresh failure must not turn an already completed signup/password
+      // update into a retry of that mutation. Existing session events can retry.
+      return false;
+    }
   }, [auth]);
   const completeAccountDeletion = useCallback(() => {
+    sessionRef.current = null;
     setSession(null);
     setPhase('unauthenticated');
     setError(null);
@@ -289,6 +320,7 @@ export function AuthProvider({
     error,
     clearError: () => setError(null),
     retryInitialize: () => setInitializeAttempt((attempt) => attempt + 1),
+    refreshSession,
     signIn,
     signOut,
     completeAccountDeletion,
@@ -301,7 +333,7 @@ export function AuthProvider({
     consumePendingIntent,
     rememberedEmail,
     rememberEmail: setRememberedEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
+  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

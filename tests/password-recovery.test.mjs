@@ -15,6 +15,7 @@ function load(path, imports = {}, globals = {}) {
   return exports;
 }
 const authTypes = load('../src/types/auth.ts');
+const registration = load('../src/features/auth/registration.ts', { '../profile/validation': load('../src/features/profile/validation.ts') });
 const { createPasswordRecoveryTracker } = load('../src/services/supabase/passwordRecovery.ts');
 const returns = load('../src/utils/passwordRecoveryReturn.ts');
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -100,7 +101,7 @@ function serviceHarness({ callbackFailed = false } = {}) {
     },
   };
   const { supabaseAuthService: auth } = load('../src/services/supabase/authService.ts', {
-    '../../types/auth': authTypes,
+    '../../types/auth': authTypes, '../../features/auth/registration': registration,
     './client': { requireSupabase: () => provider, passwordRecovery: tracker, recoveryCallbackFailed: callbackFailed, accountDeletionEnabled: false,
       createPasswordRecoveryClient: () => {
         let bound;
@@ -205,10 +206,12 @@ function hookRuntime() {
 }
 
 test('recovery lookup runs once across rerenders, settles, and allows a new password to save', async () => {
-  const hooks = hookRuntime(); let resolve, lookups = 0, updates = 0;
+  const hooks = hookRuntime(); let resolve, lookups = 0, updates = 0, refreshes = 0;
   const auth = { getRecoverySession() { lookups++; return new Promise((done) => { resolve = done; }); }, async updatePassword() { updates++; } };
   const asyncAction = load('../src/hooks/useAsyncAction.ts', { react: hooks.react });
   const { usePasswordUpdate } = load('../src/features/auth/useAuthFlows.ts', {
+    './registration': { saveRegistrationAvatar() { throw new Error('Recovery must not save registration data'); } },
+    '../../contexts/AuthContext': { useAuth: () => ({ refreshSession: async () => { refreshes++; return false; } }) },
     react: hooks.react, '../../contexts/ServicesContext': { useServices: () => ({ auth }) }, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,
   });
   const render = () => hooks.render(() => {
@@ -228,6 +231,7 @@ test('recovery lookup runs once across rerenders, settles, and allows a new pass
   assert.equal(update.isComplete, true);
   assert.equal(updates, 1);
   assert.equal(lookups, 1);
+  assert.equal(refreshes, 1); // A failed identity refresh never retries the successful password mutation.
 });
 
 test('auth startup opens verified recovery and preserves expired-link UI instead of sign-in', async () => {

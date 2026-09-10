@@ -494,13 +494,18 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
   return projectIds.map((id) => viewsById.get(id)).filter((view): view is ProjectView => Boolean(view));
 }
 
-async function uploadAvatar(accountId: string, input: CreateProfileInput['avatar']): Promise<string> {
+async function uploadAvatar(accountId: string, input: CreateProfileInput['avatar'], creationKey?: string): Promise<string> {
   if (!input) return '';
-  const path = `${accountId}/${crypto.randomUUID()}-${safeFileName(input.fileName)}`;
+  const stableKey = creationKey && /^[a-f0-9-]{36}$/i.test(creationKey) ? creationKey : null;
+  // A retry reuses identical bytes; a different selection cannot overwrite a
+  // profile another tab has already completed with the same registration id.
+  const digest = stableKey ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await input.file.arrayBuffer())))
+    .map(byte => byte.toString(16).padStart(2, '0')).join('') : null;
+  const path = stableKey ? `${accountId}/registration-${stableKey}-${digest}` : `${accountId}/${crypto.randomUUID()}-${safeFileName(input.fileName)}`;
   const bucket = requireSupabase().storage.from(AVATAR_BUCKET);
   const { error } = await bucket.upload(path, input.file, {
     contentType: input.file.type || 'application/octet-stream',
-    upsert: false,
+    upsert: Boolean(stableKey),
   });
   if (error) throw new ProfileServiceError('network', `Your avatar could not be uploaded: ${error.message}`);
   return bucket.getPublicUrl(path).data.publicUrl;
@@ -549,7 +554,7 @@ export const supabaseProfileService: ProfileService = {
     if (!handle || !input.name.trim()) {
       throw new ProfileServiceError('invalid_input', 'Enter a profile name before continuing.');
     }
-    const avatarUrl = await uploadAvatar(accountId, input.avatar);
+    const avatarUrl = await uploadAvatar(accountId, input.avatar, input.creationKey);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const { data, error } = await requireSupabase()
         .from('profiles')
@@ -560,6 +565,7 @@ export const supabaseProfileService: ProfileService = {
           headline: input.headline?.trim() ?? '',
           location: input.location?.trim() ?? '',
           avatar_url: avatarUrl,
+          ...(input.publicAppearance ? { public_appearance: normalizePublicAppearance(input.publicAppearance) } : {}),
         })
         .select('id')
         .single();

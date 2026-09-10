@@ -4,6 +4,7 @@ import { CheckIcon, ChevronDownIcon, RotateCcwIcon } from 'lucide-react';
 import { findNavAccent, findSystemGray, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
 import type { AppearanceTheme, StoredAppearanceMode } from '../../utils/appearancePreferences';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { resetResizablePanelLayout } from '../ui/ResizablePanelHandle';
 
 type NavigationButtonsPanelProps = {
@@ -364,32 +365,7 @@ function SwitchRow({
         <span className="block text-[13px] font-medium text-[var(--text-primary)]">{label}</span>
         <span className="mt-0.5 block text-[12px] text-[var(--text-tertiary)]">{description}</span>
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={isOn}
-        aria-label={label}
-        onClick={onToggle}
-        data-system-color=""
-        className="relative h-6 w-10 shrink-0 rounded-full border focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-        style={{
-          backgroundColor: isOn ? accent : 'var(--surface-placeholder)',
-          borderColor: isOn ? 'transparent' : 'var(--hairline)',
-          transition
-        }}
-      >
-        <span
-          aria-hidden="true"
-          className="absolute top-1/2 h-[18px] w-[18px] rounded-full"
-          style={{
-            backgroundColor: isOn ? 'var(--accent-foreground)' : 'var(--text-primary)',
-            left: isOn ? 19 : 2,
-            transform: 'translateY(-50%)',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            transition: transition === 'none' ? 'none' : 'left 160ms cubic-bezier(0.25, 0.9, 0.35, 1)'
-          }}
-        />
-      </button>
+      <AppearanceSwitch label={label} isOn={isOn} onToggle={onToggle} accent={accent} transition={transition} />
     </div>
   );
 }

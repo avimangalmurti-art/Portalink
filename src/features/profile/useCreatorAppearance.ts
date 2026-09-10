@@ -17,6 +17,7 @@ export function useCreatorAppearance(profileId: string | null, enabled: boolean)
   const savedKey = useRef('');
   const pendingWrites = useRef(new Map<string, number>());
   const earlyChoices = useRef(new Map<string, Partial<PublicAppearance>>());
+  const guestChoice = useRef<Partial<PublicAppearance> | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>();
@@ -31,8 +32,9 @@ export function useCreatorAppearance(profileId: string | null, enabled: boolean)
     if (!profileId) { setReadyProfileId(null); savedKey.current = ''; setSaving(false); setSaveError(null); return; }
     if (!enabled || readyProfileId === profileId || query.status !== 'ready' || !query.profile) return;
     const saved = normalizePublicAppearance(query.profile.publicAppearance);
-    const early = earlyChoices.current.get(profileId);
+    const early = { ...guestChoice.current, ...earlyChoices.current.get(profileId) };
     setAppearance(value => ({ ...(saved ?? value), ...early }));
+    guestChoice.current = null;
     earlyChoices.current.delete(profileId);
     savedKey.current = saved ? JSON.stringify([profileId, saved]) : '';
     setSaveError(null);
@@ -74,7 +76,8 @@ export function useCreatorAppearance(profileId: string | null, enabled: boolean)
   const choose = useCallback((patch: Partial<PublicAppearance>) => {
     const state = current.current;
     if (!normalizePublicAppearance({ ...state.appearance, ...patch })) return;
-    if (state.enabled && state.profileId && state.readyProfileId !== state.profileId) {
+    if (!state.profileId) guestChoice.current = { ...guestChoice.current, ...patch };
+    if (state.profileId && (!state.enabled || state.readyProfileId !== state.profileId)) {
       earlyChoices.current.set(state.profileId, { ...earlyChoices.current.get(state.profileId), ...patch });
     }
     setAppearance(value => normalizePublicAppearance({ ...value, ...patch }) ?? value);

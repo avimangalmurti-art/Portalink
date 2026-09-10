@@ -1,209 +1,42 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, CheckCircle2Icon, CheckIcon, Loader2Icon } from 'lucide-react';
+import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { AuthView } from '../../contexts/AuthContext';
 import { AuthField } from '../../components/auth/AuthField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
-import { InteractionSafePresence } from '../../components/ui/InteractionSafePresence';
-import { findNavAccent, isLightSurface, navAccents } from '../../data/navButtonTokens';
-import type { AppearanceTheme } from '../../utils/appearancePreferences';
+import { AvatarPicker } from '../../components/profile/AvatarPicker';
+import { ProfileField } from '../../components/profile/ProfileField';
+import { useAvatarSelection } from '../profile/useProfileOnboarding';
+import { validateProfileName, validateLocation, NAME_MAX_LENGTH, LOCATION_MAX_LENGTH } from '../profile/validation';
+import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
 import { usePasswordReset, usePasswordUpdate, useSignUp } from './useAuthFlows';
 import { validateEmail, validateNewPassword, validatePasswordConfirmation, validateRequiredPassword } from './validation';
 
-function CompanyWordmark({ title }: { title: string }) {
-  return <div className="w-full">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--text-tertiary)]">Portalink</p>
-      <h1 className="mt-1 text-[24px] font-semibold tracking-[-0.02em] text-[var(--text-primary)]">{title}</h1>
-    </div>;
-}
-
-type AccentExperienceProps = {
-  theme: AppearanceTheme;
-  accentColor: string;
-  onAccentColorChange?: (color: string) => void;
-  disabled?: boolean;
-  compact?: boolean;
-};
-
-/** The first piece of Portalink a new person gets to make their own. */
-function AccentExperience({
-  theme,
-  accentColor,
-  onAccentColorChange,
-  disabled = false,
-  compact = false
-}: AccentExperienceProps) {
-  const activeAccent = findNavAccent(accentColor);
-  // A creator's public website keeps its branding throughout sign-in.
-  if (!onAccentColorChange) return null;
-
-  return <fieldset className={compact ? 'w-full' : 'rounded-[11px] bg-[var(--surface-sunken)] px-3 py-3'}>
-      <legend className="sr-only">{compact ? 'Accent colors' : 'Choose your starting accent color'}</legend>
-      {!compact && <>
-          <p className="text-[13px] font-semibold text-[var(--text-primary)]">Make it yours</p>
-          <p className="mt-0.5 text-[12px] leading-snug text-[var(--text-secondary)]">Choose a starting color. Portalink changes instantly.</p>
-        </>}
-      <div role="radiogroup" aria-label="Starting accent color" className={`${compact ? 'mx-auto max-w-xs gap-1.5' : 'mt-2.5 gap-1'} grid grid-cols-6 justify-items-center`}>
-        {navAccents.map((option) => {
-          const swatch = theme === 'dark' ? option.dark : option.light;
-          const isSelected = option.id === activeAccent.id;
-          return <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              aria-label={option.label}
-              title={option.label}
-              data-keep-color=""
-              disabled={disabled}
-              onClick={() => onAccentColorChange(swatch)}
-              className={`${compact ? 'shape-squircle-compact aspect-square max-w-10' : 'h-8 max-w-8 rounded-full'} flex w-full min-w-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45`}
-            >
-              <span
-                data-system-color=""
-                className={`${compact ? 'shape-squircle-compact w-full' : 'w-5 max-w-full rounded-full'} flex aspect-square items-center justify-center transition-transform duration-150 motion-reduce:transition-none`}
-                style={{
-                  backgroundColor: swatch,
-                  transform: isSelected && !compact ? 'scale(1.08)' : 'scale(1)',
-                  boxShadow: isSelected
-                    ? '0 0 0 2px var(--surface-raised), 0 0 0 3.5px var(--text-primary)'
-                    : `inset 0 0 0 1px ${theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.10)'}`
-                }}
-              >
-                {isSelected && <InterfaceIcon icon={CheckIcon} size="xs" weight="semibold" keepColor style={{ color: isLightSurface(swatch) ? '#1C1C1E' : '#FFFFFF' }} />}
-              </span>
-            </button>;
-        })}
-      </div>
-    </fieldset>;
-}
-
-/**
- * The auth surface: sign in, sign up, forgot password, and reset password.
- *
- * This container owns form state and calls the auth feature hooks; every backend
- * concern lives behind `AuthService`. It renders only while
- * `pendingView` is set, closes on Escape or the backdrop, and returns focus to
- * whatever opened it (handled by the provider).
- */
 const titles: Record<AuthView, string> = {
-  signIn: 'Sign in',
-  signUp: 'Create an account',
-  forgotPassword: 'Reset your password',
-  resetPassword: 'Set a new password'
+  signIn: 'Sign in', signUp: 'Create your account',
+  forgotPassword: 'Reset your password', resetPassword: 'Set a new password',
 };
-export function AuthDialog({
-  theme,
-  accentColor,
-  onAccentColorChange
-}: AccentExperienceProps) {
-  const auth = useAuth();
-  const view = auth.pendingView;
-  const shouldReduceMotion = useReducedMotion();
-  const firstFieldRef = useRef<HTMLInputElement>(null);
-  const sheetRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    if (!view) {
-      return undefined;
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      // A request in flight cannot be dismissed out from under itself.
-      if (event.key === 'Escape' && auth.phase !== 'authenticating') {
-        auth.closeAuth();
-      }
-    }
-    document.addEventListener('keydown', closeOnEscape);
-    return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [view, auth]);
-  // A modal dialog keeps focus inside itself: tabbing past either end wraps,
-  // rather than landing on the page behind the scrim.
-  useEffect(() => {
-    if (!view) {
-      return undefined;
-    }
-    function trapFocus(event: KeyboardEvent) {
-      if (event.key !== 'Tab' || !sheetRef.current) {
-        return;
-      }
-      const focusable = Array.from(sheetRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])')).filter((element) => element.offsetParent !== null);
-      if (focusable.length === 0) {
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const active = document.activeElement;
-      if (event.shiftKey && (active === first || !sheetRef.current.contains(active))) {
-        event.preventDefault();
-        last.focus();
-        return;
-      }
-      if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener('keydown', trapFocus);
-    return () => document.removeEventListener('keydown', trapFocus);
-  }, [view]);
-  useEffect(() => {
-    if (view) {
-      // Opening a sheet puts the caret in its first field.
-      const frame = requestAnimationFrame(() => firstFieldRef.current?.focus());
-      return () => cancelAnimationFrame(frame);
-    }
-    return undefined;
-  }, [view]);
-  return <InteractionSafePresence isPresent={Boolean(view)}>
-      {view && <motion.div className={`modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-black/55 px-4 py-8 ${view === 'signIn' ? 'auth-signin-experience' : ''}`} initial={{
-      opacity: 0
-    }} animate={{
-      opacity: 1
-    }} exit={{
-      opacity: 0
-    }} transition={{
-      duration: shouldReduceMotion ? 0 : 0.18,
-      ease: [0.22, 1, 0.36, 1]
-    }} onPointerDown={(event) => {
-      if (event.target === event.currentTarget && auth.phase !== 'authenticating') {
-        auth.closeAuth();
-      }
-    }}>
-          <motion.section ref={sheetRef} role="dialog" aria-modal="true" aria-label={titles[view]} className={`auth-compact flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-7 text-[var(--text-primary)] shadow-[var(--shadow-modal)] sm:p-8 ${view === 'signIn' ? 'auth-signin-vanta' : ''}`} initial={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.985
-      }} animate={{
-        opacity: 1,
-        scale: 1
-      }} exit={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.99
-      }} transition={{
-        duration: shouldReduceMotion ? 0 : 0.18,
-        ease: [0.22, 1, 0.36, 1]
-      }}>
-            
 
-            {/* The square is sized so no view needs to scroll; the overflow rule
-             stays as a safety net for a narrow viewport, where the square
-             shrinks with the width. */}
-            {/* The sheet takes its height from this content, so nothing needs to
-             stretch or scroll. The overflow rule stays as a safety net for a
-             short viewport. */}
-            <div className="scrollbar-slim flex min-h-0 flex-col overflow-y-auto">
-              {view === 'signIn' && <SignInForm firstFieldRef={firstFieldRef} theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} />}
-              {view === 'signUp' && <SignUpForm firstFieldRef={firstFieldRef} theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} />}
-              {view === 'forgotPassword' && <ForgotPasswordForm firstFieldRef={firstFieldRef} />}
-              {view === 'resetPassword' && <ResetPasswordForm firstFieldRef={firstFieldRef} />}
-            </div>
-          </motion.section>
-      </motion.div>}
-    </InteractionSafePresence>;
+export function AuthDialog(props: AccountAppearanceProps) {
+  const auth = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+  if (!auth.pendingView) return null;
+  const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
+  return <AccountWelcomeSurface {...props} title={titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+    {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
+    {auth.pendingView === 'signUp' && <SignUpForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
+    {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
+    {auth.pendingView === 'resetPassword' && <ResetPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
+    </>}
+  </AccountWelcomeSurface>;
+}
+
+function useFormActivity(busy: boolean, { onBusyChange, onDirtyChange }: FormProps, dirty = false) {
+  useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
+  useEffect(() => { onDirtyChange(dirty); return () => onDirtyChange(false); }, [dirty, onDirtyChange]);
 }
 
 /** Failure banner: icon, sentence, and an optional way to try again. */
@@ -241,24 +74,21 @@ function FormSuccess({
 /** A quiet control for moving between the auth views. */
 function ViewLink({
   label,
-  onSelect
-
-
-
-}: {label: string;onSelect: () => void;}) {
-  return <button type="button" onClick={onSelect} className="rounded-[6px] text-[13px] font-semibold text-[var(--accent-text)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+  onSelect,
+  disabled = false
+}: {label: string;onSelect: () => void;disabled?: boolean;}) {
+  return <button type="button" disabled={disabled} onClick={onSelect} className="disabled:opacity-50 rounded-[6px] text-[13px] font-semibold text-[var(--accent-text)] underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
       {label}
     </button>;
 }
 type FormProps = {
   firstFieldRef: React.RefObject<HTMLInputElement>;
+  onBusyChange: (value: boolean) => void;
+  onDirtyChange: (value: boolean) => void;
+  onViewChange: (view: AuthView) => void;
 };
-function SignInForm({
-  firstFieldRef,
-  theme,
-  accentColor,
-  onAccentColorChange
-}: FormProps & AccentExperienceProps) {
+function SignInForm(props: FormProps) {
+  const { firstFieldRef } = props;
   const auth = useAuth();
   // Preserve an address the person already entered during this auth journey,
   // but never prefill development fixtures into a production sign-in form.
@@ -269,6 +99,7 @@ function SignInForm({
     password?: string | null;
   }>({});
   const isSubmitting = auth.phase === 'authenticating';
+  useFormActivity(isSubmitting, props);
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (isSubmitting) {
@@ -294,9 +125,7 @@ function SignInForm({
      pinning to the bottom is gone — so the form sits centred in the space
      between the sheet's edges. */
   return <form onSubmit={submit} noValidate className="flex flex-col justify-center gap-4">
-      <h1 className="w-full whitespace-nowrap text-center text-[clamp(24px,8vw,38px)] font-semibold leading-none tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
       {auth.error && <FormError message={auth.error.message} />}
-      <AccentExperience compact theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} disabled={isSubmitting} />
       <AuthField ref={firstFieldRef} id="auth-signin-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={isSubmitting} onChange={(value) => {
       setEmail(value);
       auth.rememberEmail(value);
@@ -316,51 +145,61 @@ function SignInForm({
         {isSubmitting ? 'Signing in…' : 'Sign in'}
       </Button>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ViewLink label="Forgot password?" onSelect={() => auth.requestAuth('forgotPassword')} />
-        <ViewLink label="Create an account" onSelect={() => auth.requestAuth('signUp')} />
+        <ViewLink disabled={isSubmitting} label="Forgot password?" onSelect={() => props.onViewChange('forgotPassword')} />
+        <ViewLink disabled={isSubmitting} label="Create an account" onSelect={() => props.onViewChange('signUp')} />
       </div>
     </form>;
 }
-function SignUpForm({
-  firstFieldRef,
-  theme,
-  accentColor,
-  onAccentColorChange
-}: FormProps & AccentExperienceProps) {
+function SignUpForm(props: FormProps & { accentColor: string }) {
+  const { firstFieldRef } = props;
   const auth = useAuth();
   const signUp = useSignUp();
+  const avatar = useAvatarSelection();
+  const registrationId = useRef(crypto.randomUUID());
+  const submittingRef = useRef(false);
+  const [name, setName] = useState('');
+  const [location, setLocation] = useState('');
   const [email, setEmail] = useState(auth.rememberedEmail);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
-  // Verification is required, so success never means "signed in".
+  useFormActivity(signUp.isLoading, props, !signUp.result && Boolean(name || location || avatar.avatar || password));
+
+  // Confirmation and an immediate session are distinct provider outcomes.
   if (signUp.result) {
     return <div className="flex flex-col gap-4">
-        <FormSuccess title="Confirm your email" description={`An account was created for ${signUp.result.email}. It stays inactive until the address is confirmed, so you are not signed in yet.`} />
-        <Button variant="secondary" size="lg" fullWidth onClick={() => auth.requestAuth('signIn')}>Back to sign in</Button>
+        <FormSuccess title={signUp.result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={signUp.result.requiresEmailVerification ? `Open the confirmation link sent to ${signUp.result.email} to finish creating your account and profile.` : "Your account is ready. We’re finishing your profile."} />
+        {signUp.result.requiresEmailVerification && <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>}
       </div>;
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (signUp.isLoading) {
+    if (signUp.isLoading || submittingRef.current) {
       return;
     }
     const nextErrors = {
+      name: validateProfileName(name),
+      location: validateLocation(location),
       email: validateEmail(email),
       password: validateNewPassword(password),
       confirmation: validatePasswordConfirmation(password, confirmation)
     };
     setFieldErrors(nextErrors);
-    if (nextErrors.email || nextErrors.password || nextErrors.confirmation) {
+    if (Object.values(nextErrors).some(Boolean) || avatar.error) {
       return;
     }
-    await signUp.submit(email, password);
+    submittingRef.current = true;
+    try {
+      await signUp.submit(email, password, { version: 1, id: registrationId.current,
+        name: name.trim(), location: location.trim(), accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar) }, avatar.avatar);
+    } finally { submittingRef.current = false; }
   }
   return <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <CompanyWordmark title="Create an account" />
-      {signUp.error && <FormError message={signUp.error.message} onRetry={() => void signUp.retry()} />}
-      <AccentExperience theme={theme} accentColor={accentColor} onAccentColorChange={onAccentColorChange} disabled={signUp.isLoading} />
+      {signUp.error && <FormError message={signUp.error.message} />}
+      <AvatarPicker presentation="featured" labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
+      <ProfileField id="auth-signup-name" label="Profile name" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
+      <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
       <AuthField ref={firstFieldRef} id="auth-signup-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={signUp.isLoading} onChange={(value) => {
       setEmail(value);
       auth.rememberEmail(value);
@@ -386,22 +225,22 @@ function SignUpForm({
       <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
         {signUp.isLoading ? 'Creating account…' : 'Create account'}
       </Button>
-      <ViewLink label="Already have an account? Sign in" onSelect={() => auth.requestAuth('signIn')} />
+      <ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} />
     </form>;
 }
-function ForgotPasswordForm({
-  firstFieldRef
-}: FormProps) {
+function ForgotPasswordForm(props: FormProps) {
+  const { firstFieldRef } = props;
   const auth = useAuth();
   const reset = usePasswordReset();
+  useFormActivity(reset.isLoading, props);
   // Arriving here from a failed sign-in should not mean retyping the address.
   const [email, setEmail] = useState(auth.rememberedEmail);
   const [fieldError, setFieldError] = useState<string | null>(null);
   if (reset.result) {
     return <div className="flex flex-col gap-4">
         <FormSuccess title={reset.result.deliveryConfirmed ? 'Check your email' : 'Request received'} description={reset.result.message} />
-        {!reset.result.deliveryConfirmed && <Button variant="primary" size="lg" fullWidth onClick={() => auth.requestAuth('resetPassword')}>Continue to set a new password</Button>}
-        <ViewLink label="Back to sign in" onSelect={() => auth.requestAuth('signIn')} />
+        {!reset.result.deliveryConfirmed && <Button variant="primary" size="lg" fullWidth onClick={() => props.onViewChange('resetPassword')}>Continue to set a new password</Button>}
+        <ViewLink disabled={reset.isLoading} label="Back to sign in" onSelect={() => props.onViewChange('signIn')} />
       </div>;
   }
   async function submit(event: React.FormEvent) {
@@ -429,14 +268,14 @@ function ForgotPasswordForm({
       <Button type="submit" variant="primary" size="lg" fullWidth isLoading={reset.isLoading}>
         {reset.isLoading ? 'Sending…' : 'Send reset link'}
       </Button>
-      <ViewLink label="Back to sign in" onSelect={() => auth.requestAuth('signIn')} />
+      <ViewLink disabled={reset.isLoading} label="Back to sign in" onSelect={() => props.onViewChange('signIn')} />
     </form>;
 }
-function ResetPasswordForm({
-  firstFieldRef
-}: FormProps) {
+function ResetPasswordForm(props: FormProps) {
+  const { firstFieldRef } = props;
   const auth = useAuth();
   const update = usePasswordUpdate();
+  useFormActivity(update.isLoading, props);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
@@ -448,7 +287,7 @@ function ResetPasswordForm({
   if (update.isComplete) {
     return <div className="flex flex-col gap-4">
         <FormSuccess title="Password updated" description="Your new password is saved." />
-        <Button variant="primary" size="lg" fullWidth onClick={() => auth.isAuthenticated ? auth.closeAuth() : auth.requestAuth('signIn')}>{auth.isAuthenticated ? 'Continue' : 'Back to sign in'}</Button>
+        <Button variant="primary" size="lg" fullWidth disabled={update.isLoading} onClick={() => auth.isAuthenticated ? auth.closeAuth() : props.onViewChange('signIn')}>{auth.isAuthenticated ? 'Continue' : 'Back to sign in'}</Button>
       </div>;
   }
   // Resolving the recovery context is itself a request, so it gets its own state
@@ -465,7 +304,7 @@ function ResetPasswordForm({
   if (update.recoveryStatus === 'error') {
     return <div className="flex flex-col gap-4">
       <FormError message={update.error?.message ?? 'Your recovery link could not be checked.'} onRetry={() => void update.loadRecovery()} />
-      <ViewLink label="Request a new reset link" onSelect={() => auth.requestAuth('forgotPassword')} />
+      <ViewLink disabled={update.isLoading} label="Request a new reset link" onSelect={() => props.onViewChange('forgotPassword')} />
     </div>;
   }
   async function submit(event: React.FormEvent) {
@@ -506,6 +345,6 @@ function ResetPasswordForm({
       <Button type="submit" variant="primary" size="lg" fullWidth isLoading={update.isLoading} disabled={isRecoveryMissing}>
         {update.isLoading ? 'Updating…' : 'Update password'}
       </Button>
-      <ViewLink label={isRecoveryMissing ? 'Request a new recovery link' : 'Back to sign in'} onSelect={() => auth.requestAuth(isRecoveryMissing ? 'forgotPassword' : 'signIn')} />
+      <ViewLink disabled={update.isLoading} label={isRecoveryMissing ? 'Request a new recovery link' : 'Back to sign in'} onSelect={() => props.onViewChange(isRecoveryMissing ? 'forgotPassword' : 'signIn')} />
     </form>;
 }

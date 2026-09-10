@@ -1,0 +1,88 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { XIcon, CheckIcon } from 'lucide-react';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useModalFocus } from '../../hooks/useModalFocus';
+import { findNavAccent, isLightSurface, navAccents } from '../../data/navButtonTokens';
+import { resolveAccentTokens } from '../../utils/accentTokens';
+import { Button } from '../ui/Button';
+import { AppearanceSwitch } from '../ui/AppearanceSwitch';
+
+export type AccountAppearanceProps = {
+  accentColor: string;
+  onAccentColorChange: (color: string) => void;
+  highContrast: boolean;
+  onHighContrastChange: (enabled: boolean) => void;
+  reduceTranslucency: boolean;
+  onReduceTranslucencyChange: (enabled: boolean) => void;
+};
+
+/** One welcome scene for every step of the account journey. */
+export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
+  title: string;
+  busy?: boolean;
+  dirty?: boolean;
+  onDismiss: () => void;
+  children: React.ReactNode | ((requestLeave: (action: () => void) => void) => React.ReactNode);
+}) {
+  const viewportRef = useDialogViewport();
+  const sheetRef = useRef<HTMLElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
+  const requestLeave = (action: () => void) => {
+    if (busy) return;
+    if (dirty) setPendingLeave(() => action);
+    else action();
+  };
+  const dismiss = () => requestLeave(onDismiss);
+  useModalFocus(true, sheetRef, () => {
+    if (pendingLeave) setPendingLeave(null);
+    else dismiss();
+  });
+  useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, [title]);
+  useEffect(() => {
+    if (!pendingLeave) return;
+    confirmationRef.current?.scrollIntoView({ block: 'nearest' });
+    confirmationRef.current?.querySelector('button')?.focus();
+  }, [pendingLeave]);
+  const selected = findNavAccent(accentColor);
+  return <div ref={viewportRef} className="modal-scrim auth-signin-experience account-welcome-overlay fixed inset-x-0 z-[80] flex items-center justify-center p-4" style={{
+    top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)',
+  }} onPointerDown={event => { if (event.target === event.currentTarget) dismiss(); }}>
+    <section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} aria-busy={busy} data-welcome-contrast={highContrast} data-welcome-solid={reduceTranslucency}
+      className="auth-signin-vanta account-welcome-card flex max-h-full w-full max-w-[560px] flex-col rounded-[14px] border p-5 text-[var(--text-primary)] outline-none sm:p-7"
+      style={resolveAccentTokens(accentColor, 'dark')}>
+      <button type="button" aria-label="Close" disabled={busy} onClick={dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40"><XIcon size={18} aria-hidden="true" /></button>
+      <div className="scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
+        <header className="mb-5 text-center">
+          <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
+          <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
+        </header>
+        <div className="account-welcome-appearance mb-5">
+          <div role="radiogroup" aria-label="Accent color" className="account-welcome-colors">
+            {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} aria-label={option.label} title={option.label}
+              disabled={busy} data-keep-color="" onClick={() => onAccentColorChange(option.dark)} className="account-welcome-swatch relative flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              <span className="squircle absolute inset-0" style={{ backgroundColor: option.dark }} />
+              {selected.id === option.id && <CheckIcon className="relative" size={18} aria-hidden="true" style={{ color: isLightSurface(option.dark) ? '#1c1c1e' : '#fff' }} />}
+            </button>)}
+          </div>
+          <div className="account-welcome-switches">
+            <div className="account-welcome-switch-row">
+              <span>High Contrast</span>
+              <AppearanceSwitch label="High Contrast" isOn={highContrast} onToggle={() => onHighContrastChange(!highContrast)} />
+            </div>
+            <div className="account-welcome-switch-row">
+              <span>Reduce Translucency</span>
+              <AppearanceSwitch label="Reduce Translucency" isOn={reduceTranslucency} onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)} />
+            </div>
+          </div>
+        </div>
+        {pendingLeave && <div ref={confirmationRef} role="alertdialog" aria-label="Discard account details" className="mb-4 rounded-xl bg-[var(--surface-sunken)] p-3">
+          <p className="text-sm">Discard your changes?</p>
+          <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => { setPendingLeave(null); headingRef.current?.focus(); }}>Keep editing</Button><Button size="sm" variant="danger" disabled={busy} onClick={() => { if (busy) return; const leave = pendingLeave; setPendingLeave(null); leave(); }}>Discard</Button></div>
+        </div>}
+        <div hidden={Boolean(pendingLeave)}>{typeof children === 'function' ? children(requestLeave) : children}</div>
+      </div>
+    </section>
+  </div>;
+}

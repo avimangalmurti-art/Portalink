@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
+import { useAuth } from '../../contexts/AuthContext';
+import { saveRegistrationAvatar, type RegistrationProfile } from './registration';
+import type { PreparedAvatar } from '../../types/profile';
 import { toAuthError } from '../../types/auth';
 import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUpResult } from '../../types/auth';
 
@@ -14,18 +17,26 @@ import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUp
  */
 
 export function useSignUp() {
+  const session = useAuth();
   const {
     auth
   } = useServices();
   const [result, setResult] = useState<SignUpResult | null>(null);
   const [error, setError] = useState<AuthError | null>(null);
-  const action = useAsyncAction(async (email: string, password: string) => {
+  const action = useAsyncAction(async (email: string, password: string, registration?: RegistrationProfile, avatar: PreparedAvatar | null = null) => {
     setError(null);
     try {
-      setResult(await auth.signUp({
+      if (registration) {
+        try { await saveRegistrationAvatar(registration.id, avatar); }
+        catch { throw new Error('Your profile image could not be kept for email confirmation. Try again or remove the image.'); }
+      }
+      const next = await auth.signUp({
         email,
-        password
-      }));
+        password,
+        registration
+      });
+      setResult(next);
+      if (next.session) await session.refreshSession(next.session.user.id);
     } catch (caught) {
       setError(toAuthError(caught));
       throw caught;
@@ -36,7 +47,7 @@ export function useSignUp() {
     error,
     status: action.status,
     isLoading: action.isLoading,
-    submit: (email: string, password: string) => action.run(email, password),
+    submit: (email: string, password: string, registration?: RegistrationProfile, avatar?: PreparedAvatar | null) => action.run(email, password, registration, avatar),
     retry: action.retry,
     reset: useCallback(() => {
       setResult(null);
@@ -77,6 +88,7 @@ export function usePasswordReset() {
   };
 }
 export function usePasswordUpdate() {
+  const session = useAuth();
   const {
     auth
   } = useServices();
@@ -100,6 +112,7 @@ export function usePasswordUpdate() {
         password
       });
       setIsComplete(true);
+      await session.refreshSession();
     } catch (caught) {
       setError(toAuthError(caught));
       throw caught;

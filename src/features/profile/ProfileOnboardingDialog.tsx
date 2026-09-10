@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, CheckCircle2Icon, XIcon } from 'lucide-react';
-import { useModalFocus } from '../../hooks/useModalFocus';
+import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
+import { readRegistrationAvatar, removeRegistrationAvatar } from '../auth/registration';
+import { DEFAULT_PUBLIC_APPEARANCE } from '../../utils/publicAppearance';
+import type { PreparedAvatar } from '../../types/profile';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { Button } from '../../components/ui/Button';
-import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useAvatarSelection, useCreateProfile } from './useProfileOnboarding';
 import { validateLocation, validateProfileName, LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
 
@@ -18,7 +20,7 @@ import { validateLocation, validateProfileName, LOCATION_MAX_LENGTH, NAME_MAX_LE
  * Postgres insert and a real Storage upload replace the implementation without
  * touching this component.
  */
-type ProfileOnboardingDialogProps = {
+type ProfileOnboardingDialogProps = AccountAppearanceProps & {
   isOpen: boolean;
   onDismiss: () => void;
   onComplete: (profileId: string) => void;
@@ -28,35 +30,66 @@ export function ProfileOnboardingDialog({
   isOpen,
   onDismiss,
   onComplete,
-  completionActionLabel = 'Open profile'
+  completionActionLabel = 'Open profile',
+  accentColor,
+  onAccentColorChange,
+  highContrast,
+  onHighContrastChange,
+  reduceTranslucency,
+  onReduceTranslucencyChange
 }: ProfileOnboardingDialogProps) {
-  const shouldReduceMotion = useReducedMotion();
+  const auth = useAuth();
+  const registration = useRef(auth.user?.registration).current;
+  const [draftLoading, setDraftLoading] = useState(Boolean(registration));
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
+  const autoStarted = useRef(false);
+  const completed = useRef(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const avatar = useAvatarSelection();
   const create = useCreateProfile();
-  const [name, setName] = useState('');
-  const [location, setLocation] = useState('');
+  const selectAvatar = avatar.select;
+  const [name, setName] = useState(registration?.name ?? '');
+  const [location, setLocation] = useState(registration?.location ?? '');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-  const [isConfirmingDismiss, setIsConfirmingDismiss] = useState(false);
-  const sheetRef = useRef<HTMLElement>(null);
   const isDirty = Boolean(name || location || avatar.avatar);
   const isSubmittingRef = useRef(false);
-  /**
-   * Leaving is only immediate when there is nothing to lose. Once details have
-   * been entered, abandoning is confirmed first, and a creation in flight cannot
-   * be dismissed out from under itself.
-   */
-  function requestDismiss() {
-    if (create.isLoading) {
-      return;
-    }
-    if (isDirty && create.status !== 'success') {
-      setIsConfirmingDismiss(true);
-      return;
-    }
-    onDismiss();
-  }
-  useModalFocus(isOpen, sheetRef, requestDismiss);
+  const createRef = useRef(create.run);
+  createRef.current = create.run;
+  useEffect(() => {
+    if (!isOpen || !registration || autoStarted.current) return;
+    let current = true;
+    const restore = async () => {
+      await Promise.resolve();
+      if (!current) return;
+      let pending: PreparedAvatar | undefined;
+      if (registration.hasAvatar) {
+        const saved = await readRegistrationAvatar(registration.id).catch(() => null);
+        if (!current) return;
+        if (!saved) {
+          setDraftNotice('Choose your profile image again, or continue without one.');
+          setDraftLoading(false);
+          return;
+        }
+        selectAvatar(saved.file, { originalSource: saved.originalSource, crop: saved.crop });
+        pending = { file: saved.file, previewUrl: '', fileName: saved.file.name,
+          sizeBytes: saved.file.size, isPersisted: false, originalSource: saved.originalSource, crop: saved.crop };
+      }
+      if (!current) return;
+      autoStarted.current = true;
+      setDraftLoading(false);
+      await createRef.current({ name: registration.name, location: registration.location,
+        avatar: pending, creationKey: registration.id,
+        publicAppearance: { ...DEFAULT_PUBLIC_APPEARANCE, accentColor: registration.accentColor } });
+    };
+    void restore();
+    return () => { current = false; };
+  }, [isOpen, registration, selectAvatar]);
+  useEffect(() => {
+    if (!registration || create.status !== 'success' || !create.createdProfile || completed.current) return;
+    completed.current = true;
+    void removeRegistrationAvatar(registration.id);
+    onComplete(create.createdProfile.id);
+  }, [registration, create.status, create.createdProfile, onComplete]);
   useEffect(() => {
     // A submission failure takes focus, so it is never missed.
     if (create.status === 'error') {
@@ -66,7 +99,7 @@ export function ProfileOnboardingDialog({
   if (!isOpen) {
     return null;
   }
-  const isSubmitting = create.isLoading;
+  const isSubmitting = create.isLoading || draftLoading;
   const isComplete = create.status === 'success' && create.createdProfile !== null;
   const canSubmit = !isSubmitting;
   async function submit(event: React.FormEvent) {
@@ -79,7 +112,7 @@ export function ProfileOnboardingDialog({
       location: validateLocation(location)
     };
     setFieldErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean)) {
+    if (Object.values(nextErrors).some(Boolean) || avatar.error) {
       return;
     }
     if (isSubmittingRef.current) {
@@ -91,64 +124,20 @@ export function ProfileOnboardingDialog({
       await create.run({
         name,
         location: location.trim() || undefined,
-        avatar: avatar.avatar ?? undefined
+        avatar: avatar.avatar ?? undefined,
+        creationKey: registration?.id,
+        publicAppearance: { ...DEFAULT_PUBLIC_APPEARANCE, accentColor }
       });
     } finally {
       // Released on failure too, so Try again works without reopening the flow.
       isSubmittingRef.current = false;
     }
   }
-  return <AnimatePresence>
-      <motion.div className="modal-scrim fixed inset-0 z-[80] flex items-center justify-center bg-black/55 p-4" initial={{
-      opacity: 0
-    }} animate={{
-      opacity: 1
-    }} exit={{
-      opacity: 0
-    }} transition={{
-      duration: shouldReduceMotion ? 0 : 0.18,
-      ease: [0.22, 1, 0.36, 1]
-    }} onPointerDown={(event) => {
-      if (event.target === event.currentTarget) {
-        requestDismiss();
-      }
-    }}>
-        <motion.section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="onboarding-title" className="max-h-[calc(100dvh-2rem)] w-full max-w-[460px] overflow-y-auto rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-6 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] sm:p-7 outline-none" initial={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.985
-      }} animate={{
-        opacity: 1,
-        scale: 1
-      }} exit={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.99
-      }} transition={{
-        duration: shouldReduceMotion ? 0 : 0.18,
-        ease: [0.22, 1, 0.36, 1]
-      }}>
-          <div className="flex items-start justify-between gap-3">
-            <h2 id="onboarding-title" className="text-[20px] font-semibold leading-tight">{isComplete ? 'Profile ready' : 'Create a profile'}</h2>
-            <button type="button" onClick={requestDismiss} disabled={create.isLoading} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40 motion-reduce:transition-none">
-              <InterfaceIcon icon={XIcon} weight="medium" />
-            </button>
-          </div>
-
-          {/* Entered details are never discarded silently. */}
-          {isConfirmingDismiss && <div role="alertdialog" aria-label="Discard profile details" className="mt-4 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3.5 py-3">
-              <p className="text-[13px] leading-relaxed">Discard what you have entered? Your profile will not be created.</p>
-              <div className="mt-3 flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setIsConfirmingDismiss(false)}>Keep editing</Button>
-                <Button variant="danger" size="sm" onClick={() => {
-              setIsConfirmingDismiss(false);
-              onDismiss();
-            }}>Discard</Button>
-              </div>
-            </div>}
-
+  return <AccountWelcomeSurface title={isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
+    highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
+    busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>
+          {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
+          {draftNotice && <p role="status" className="mb-4 text-sm text-[var(--text-secondary)]">{draftNotice}</p>}
           {isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
               <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
                 <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
@@ -165,7 +154,7 @@ export function ProfileOnboardingDialog({
                   Your chosen picture was previewed only and was not uploaded. {avatar.storageNotice}
                 </p>}
               <Button variant="primary" size="lg" fullWidth onClick={() => onComplete(create.createdProfile!.id)}>{completionActionLabel}</Button>
-            </div> : <form onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
+            </div> : (draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
 
               {create.status === 'error' && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
                   <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
@@ -194,11 +183,9 @@ export function ProfileOnboardingDialog({
           }} />
 
               <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting} disabled={!canSubmit}>
-                {isSubmitting ? 'Creating profile…' : 'Create profile'}
+                {isSubmitting ? 'Finishing setup…' : 'Finish setup'}
               </Button>
             </form>}
 
-        </motion.section>
-      </motion.div>
-    </AnimatePresence>;
+    </AccountWelcomeSurface>;
 }

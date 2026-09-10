@@ -1,0 +1,15 @@
+/* WEB frame: preserve the existing desktop geometry and shared appearance tokens.
+   Keep every selector scoped; :where adds no specificity to the existing rules. */
+.codex-shell:where([data-presentation='web']) .codex-workspace {
+  min-height: 0;
+  padding: var(--codex-workspace-inset) var(--codex-workspace-inset) var(--codex-workspace-inset) 0;
+  background: var(--codex-sidebar-bg);
+}
+
+.codex-shell:where([data-presentation='web']) #app-viewport {
+  overflow: hidden;
+  border: var(--codex-workspace-border-width) solid var(--codex-border);
+  border-radius: var(--codex-radius-panel);
+  background: var(--codex-workspace-bg);
+  box-shadow: var(--codex-shadow);
+}

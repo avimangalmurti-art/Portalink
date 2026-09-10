@@ -8,6 +8,7 @@ import type {
 } from '../../types/auth';
 import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
+import { readRegistrationProfile } from '../../features/auth/registration';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -63,6 +64,7 @@ async function toAuthSession(session: Session | null): Promise<AuthSession | nul
     displayName,
     initials: initialsFor(displayName),
     isEmailVerified: Boolean(user.email_confirmed_at),
+    registration: identity.profileId ? undefined : readRegistrationProfile(user.user_metadata?.portalink_registration),
   };
 
   return { user: mapped, isPrototype: false, isPasswordRecovery: Boolean(passwordRecovery.read(session)) };
@@ -181,7 +183,8 @@ export const supabaseAuthService: AuthService = {
     const { data, error } = await client.auth.signUp({
       email,
       password: input.password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin,
+        data: input.registration ? { portalink_registration: readRegistrationProfile(input.registration) } : undefined },
     });
     if (error) {
       throw authFailure(error, 'Account creation failed.');
@@ -240,20 +243,13 @@ export const supabaseAuthService: AuthService = {
 
   async attachProfile(profileId) {
     const client = requireSupabase();
-    const { data: profileData, error: profileError } = await client
-      .from('profiles')
-      .select('name')
-      .eq('id', profileId)
-      .single();
-    if (profileError) throw authFailure(profileError, 'The creator profile could not be linked.');
-    const profile = profileData as unknown as { name: string };
-    const { error } = await client.auth.updateUser({
-      data: { profile_id: profileId, display_name: profile.name },
-    });
-    if (error) throw authFailure(error, 'The creator profile could not be linked.');
+    const owner = await currentProviderUser();
+    // The profile's account_id is already authoritative. Re-read it instead of
+    // writing redundant metadata through a potentially changed auth session.
     const { data: sessionData } = await client.auth.getSession();
     const mapped = await toAuthSession(sessionData.session);
-    if (!mapped) {
+    const { data: currentData } = await client.auth.getSession();
+    if (!mapped || mapped.user.id !== owner.id || mapped.user.profileId !== profileId || currentData.session?.user.id !== owner.id) {
       throw new AuthServiceError('reauthentication_required', 'Sign in again to finish linking your profile.');
     }
     return mapped;

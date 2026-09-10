@@ -24,7 +24,7 @@ import { ZoomReadout } from '../ui/ZoomReadout';
  */
 
 /** The gutter, on both axes. Tight enough to read as a wall rather than tiles. */
-const GAP = 8;
+const GAP = 4;
 /** The row quantum. Small enough that a card's real height rounds invisibly. */
 const ROW_UNIT = 4;
 export type BentoCellItem = {

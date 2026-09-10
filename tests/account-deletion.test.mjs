@@ -30,6 +30,7 @@ function authService(client, enabled = true) {
   const exports = {};
   vm.runInNewContext(compile('src/services/supabase/authService.ts'), { exports, Response, require(name) {
     if (name === './client') return { accountDeletionEnabled: enabled, requireSupabase: () => client, clearDeletedAccountStorage: () => client.clearStorage?.() };
+    if (name.endsWith('/features/auth/registration')) return { readRegistrationProfile: () => undefined };
     if (name.endsWith('/types/auth')) return authTypes;
     if (name.endsWith('/utils/passwordRecoveryReturn')) return {};
     throw new Error(name);

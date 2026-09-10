@@ -50,6 +50,8 @@ import { canAccessProfile } from './domain/contentPlacement';
 import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
+import { canResumeRegistration } from './features/auth/registration';
+import { AppPresentation } from './presentation/AppPresentation';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
@@ -344,7 +346,7 @@ export function App() {
   // Sign in is shown over Home as a first-arrival experience. Collapse the
   // navigation visually while it is open, without overwriting the person's
   // saved sidebar preference; closing the dialog restores their own layout.
-  const isSignInExperienceOpen = auth.pendingView === 'signIn';
+  const isSignInExperienceOpen = auth.pendingView !== null;
   const hasHandledDirectAuthViewRef = useRef(false);
   useEffect(() => {
     if (hasHandledDirectAuthViewRef.current) {
@@ -477,6 +479,20 @@ export function App() {
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const resumedRegistration = useRef<string | null>(null);
+  useEffect(() => {
+    if (!auth.isAuthenticated) {
+      resumedRegistration.current = null;
+      if (auth.phase === 'unauthenticated') setIsOnboardingOpen(false);
+      return;
+    }
+    const id = auth.user?.registration?.id;
+    if (!id || resumedRegistration.current === id || !canResumeRegistration(auth.session, auth.pendingView)) return;
+    resumedRegistration.current = id;
+    deferredIntentRef.current = auth.consumePendingIntent() ?? deferredIntentRef.current;
+    setIsOnboardingOpen(true);
+    if (auth.pendingView) auth.closeAuth();
+  }, [auth]);
   const [isProfileEditorOpen, setIsProfileEditorOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [publishConfirmation, setPublishConfirmation] = useState<{ projectId: string; message: string } | null>(null);
@@ -711,7 +727,7 @@ export function App() {
     // Creating a profile comes first, but the destination is not lost with it:
     // it waits and is honoured once onboarding finishes.
     if (onboardingStatus === 'required') {
-      deferredIntentRef.current = intent;
+      deferredIntentRef.current = intent ?? deferredIntentRef.current;
       setIsOnboardingOpen(true);
       return;
     }
@@ -906,7 +922,7 @@ export function App() {
       return;
     }
     if (onboardingStatus === 'required') {
-      deferredIntentRef.current = intent;
+      deferredIntentRef.current = intent ?? deferredIntentRef.current;
       setIsOnboardingOpen(true);
       return;
     }
@@ -1140,7 +1156,7 @@ export function App() {
    * that could not follow the appearance setting; `--mac-label-primary` does,
    * inverting with `.theme-dark` on this same element.
    */
-  return <div data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
       {isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={setSharedPortalinkTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSignIn={() => auth.requestAuth('signIn')} onCreateAccount={() => auth.requestAuth('signUp')} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />}
 
       {/* Every surface renders in the interface face. Creator typography is
@@ -1181,7 +1197,7 @@ export function App() {
       </InteractionSafePresence>
 
       {/* The auth surface is application-level: any control can request it. */}
-      <AuthDialog theme={interfaceTheme} accentColor={interfaceAccentColor} onAccentColorChange={isSharedRoute ? undefined : setAccentColor} />
+      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <AuthDialog accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} />}
 
       {/* Editing is owner-only: it can only ever target the viewer's own id. */}
       <ProfileEditorDialog isOpen={isProfileEditorOpen && isOwnerMode} profileId={auth.viewerProfileId} onClose={() => setIsProfileEditorOpen(false)} onSaved={() => setIsProfileEditorOpen(false)} />
@@ -1210,7 +1226,7 @@ export function App() {
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
-      <ProfileOnboardingDialog isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
+      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <ProfileOnboardingDialog key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
         setIsOnboardingOpen(false);
         // Abandoning onboarding abandons the journey it interrupted.
         deferredIntentRef.current = null;
@@ -1225,9 +1241,9 @@ export function App() {
           return;
         }
         openProfile(profileId);
-      }} />
+      }} />}
 
-    </div>;
+    </AppPresentation>;
 }
 function isEditorialDestination(destination: NavigationDestination) {
   return destination === 'Today' || destination === 'Games' || destination === 'Apps' || destination === 'Arcade' || (portfolioCategories as readonly string[]).includes(destination);

@@ -6,6 +6,7 @@ import { normalizeHandle } from './validation';
 import type { AvatarRejectionCode, CreateProfileInput, HandleCheckStatus, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
 import type { Profile } from '../../types/domain';
 import { readImageDimensions } from '../../utils/imageMetadata';
+import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registration';
 
 /**
  * The onboarding feature boundary.
@@ -242,9 +243,7 @@ export function useHandleAvailability(): HandleCheck {
 
 /** Creating the profile, and linking it to the account for this session. */
 export function useCreateProfile() {
-  const {
-    profiles
-  } = useServices();
+  const services = useServices();
   const auth = useAuth();
   const [createdProfile, setCreatedProfile] = useState<Profile | null>(null);
   const [avatarPersisted, setAvatarPersisted] = useState(false);
@@ -253,7 +252,8 @@ export function useCreateProfile() {
     if (!accountId) {
       throw new Error('Sign in before creating a profile.');
     }
-    const result = await profiles.createProfile(accountId, input);
+    if (input.creationKey) await saveRegistrationAvatar(input.creationKey, input.avatar ?? null);
+    const result = await createOrResumeProfile(services, accountId, input);
     // Only now does the account own a profile.
     await auth.linkProfile(result.profile.id);
     setCreatedProfile(result.profile);

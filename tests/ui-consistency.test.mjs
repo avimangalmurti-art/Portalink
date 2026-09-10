@@ -204,14 +204,13 @@ test('editing keeps Save associated with the form so Enter uses the normal save 
   assert.equal(saved, 1);
 });
 
-test('compact navigation returns to work on route changes without saving a collapse', () => {
-  let cursor = 0, effects = [], preferred = false, location = { pathname: '/one', search: '' };
+for (const initialPreference of [false, true]) test(`compact navigation preserves desktop preference ${initialPreference} across routes and presentations`, () => {
+  let cursor = 0, effects = [], preferred = initialPreference, location = { pathname: '/one', search: '' }, presentation = 'web';
   const slots = [], changes = [];
-  const media = { matches: false, addEventListener(_name, fn) { this.update = fn; }, removeEventListener() {} };
   const { useCompactNavigation } = compile('../src/hooks/useCompactNavigation.ts', {
-    window: { matchMedia: () => media },
     require(name) {
       if (name === 'react-router-dom') return { useLocation: () => location };
+      if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
       return {
         useState(initial) { const i = cursor++; slots[i] ??= { value: typeof initial === 'function' ? initial() : initial };
           return [slots[i].value, (next) => { slots[i].value = typeof next === 'function' ? next(slots[i].value) : next; }]; },
@@ -222,11 +221,14 @@ test('compact navigation returns to work on route changes without saving a colla
     },
   });
   const render = () => { cursor = 0; effects = []; const result = useCompactNavigation(preferred, (next) => { preferred = next; changes.push(next); }); effects.forEach((effect) => effect()); return result; };
-  render(); assert.equal(render().collapsed, false);
-  media.matches = true; media.update(); assert.equal(render().collapsed, true);
+  render(); assert.equal(render().collapsed, initialPreference);
+  presentation = 'mobile'; render(); assert.equal(render().collapsed, true);
   render().toggle(); assert.equal(render().collapsed, false);
   location = { pathname: '/messages', search: '' }; render(); assert.equal(render().collapsed, true);
-  media.matches = false; media.update(); assert.equal(render().collapsed, false);
+  render().toggle(); assert.equal(render().collapsed, false);
+  presentation = 'web'; render(); assert.equal(render().collapsed, initialPreference);
+  presentation = 'mobile'; render(); assert.equal(render().collapsed, true);
+  presentation = 'web'; render(); assert.equal(render().collapsed, initialPreference);
   assert.deepEqual(changes, []);
-  render().toggle(); assert.equal(render().collapsed, true); assert.deepEqual(changes, [true]);
+  render().toggle(); assert.equal(render().collapsed, !initialPreference); assert.deepEqual(changes, [!initialPreference]);
 });

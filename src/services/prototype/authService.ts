@@ -137,7 +137,8 @@ export const prototypeAuthService: AuthService = {
   },
   async signUp({
     email,
-    password
+    password,
+    registration
   }: SignUpInput): Promise<SignUpResult> {
     await settle(null);
     const key = normalise(email);
@@ -158,7 +159,8 @@ export const prototypeAuthService: AuthService = {
         profileId: '',
         displayName: key.split('@')[0],
         initials: key.slice(0, 2).toUpperCase(),
-        isEmailVerified: false
+        isEmailVerified: false,
+        registration
       }
     });
     return {

@@ -1,0 +1,15 @@
+/* MOBILE starts with the existing compact frame, independently editable here.
+   This is not a decision about future mobile navigation or feature availability. */
+.codex-shell:where([data-presentation='mobile']) .codex-workspace {
+  min-height: 0;
+  padding: 0;
+  background: var(--codex-sidebar-bg);
+}
+
+.codex-shell:where([data-presentation='mobile']) #app-viewport {
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: var(--codex-workspace-bg);
+  box-shadow: none;
+}

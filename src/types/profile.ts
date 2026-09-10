@@ -58,6 +58,9 @@ export type CreateProfileInput = {
   location?: string;
   /** Transient; the transport for this is not implemented in the prototype. */
   avatar?: PreparedAvatar;
+  /** Stable registration key for retry-safe initial avatar uploads. */
+  creationKey?: string;
+  publicAppearance?: import('./domain').PublicAppearance;
 };
 
 /** The lifecycle of one handle-availability check. */

@@ -22,6 +22,8 @@ export type AuthUser = {
   initials: string;
   /** False until the account has confirmed its address. */
   isEmailVerified: boolean;
+  /** Validated registration input to finish after email confirmation. */
+  registration?: import('../features/auth/registration').RegistrationProfile;
 };
 
 /**
@@ -141,6 +143,7 @@ export type SignInInput = {
 export type SignUpInput = {
   email: string;
   password: string;
+  registration?: import('../features/auth/registration').RegistrationProfile;
 };
 
 /**
