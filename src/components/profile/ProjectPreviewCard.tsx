@@ -32,7 +32,7 @@ type Props = {
   aspectRatio?: number;
 };
 
-/** Artwork never changes size; its attached extension participates in layout. */
+/** Artwork stays fixed; the extension overlays on WEB and grows the MOBILE row. */
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {

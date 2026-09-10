@@ -13,3 +13,19 @@
   background: var(--codex-workspace-bg);
   box-shadow: var(--codex-shadow);
 }
+
+/* Desktop previews unfold over the next card, without changing row geometry. */
+.codex-shell:where([data-presentation='web']) .project-preview-extension {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 1;
+  box-shadow: 0 10px 20px rgb(0 0 0 / 16%);
+}
+
+/* Raise the packing wrapper too: motion/DnD transforms can form a stacking
+   context outside the card. MOBILE keeps its existing in-flow extension. */
+.codex-shell:where([data-presentation='web']) [data-project-preview-cell]:has(.project-preview-card[data-expanded='true']) {
+  position: relative;
+  z-index: 3;
+}

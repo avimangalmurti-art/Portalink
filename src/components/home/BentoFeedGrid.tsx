@@ -180,7 +180,7 @@ function BentoCell({
   // The gutter is claimed as part of the span, which is why the grid itself runs
   // no row gap: a cell owns its own trailing space.
   const rows = canPack && height > 0 ? Math.ceil((height + GAP) / ROW_UNIT) : null;
-  return <motion.div layout={reduceMotion ? false : 'position'} transition={{ layout: { duration: 0.18, ease: [0.2, 0.8, 0.2, 1] } }} className="min-w-0 self-start" style={{
+  return <motion.div data-project-preview-cell="" layout={reduceMotion ? false : 'position'} transition={{ layout: { duration: 0.18, ease: [0.2, 0.8, 0.2, 1] } }} className="min-w-0 self-start" style={{
     gridColumn: position ? `${position.column + 1} / span ${span}` : `span ${span}`,
     ...(position ? { gridRow: `${position.row + 1} / span ${position.rows}` } : rows ? {
       gridRow: `span ${rows}`

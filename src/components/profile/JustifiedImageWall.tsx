@@ -191,6 +191,7 @@ function SortableWallCard({
   return <div
     ref={setNodeRef}
     role="listitem"
+    data-project-preview-cell=""
     className={`min-w-0 ${isReordering ? 'will-change-transform' : ''} ${isDragging ? 'z-30 opacity-90 drop-shadow-[0_16px_30px_rgba(0,0,0,0.32)]' : ''}`}
     style={{
       flex: rowJustified ? `1 1 ${item.width}px` : `0 0 ${item.width}px`,
