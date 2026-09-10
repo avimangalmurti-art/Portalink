@@ -69,8 +69,8 @@ export function HomeFeed({
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
   const persistFrameRef = useRef(0);
 
-  // Choose Home's columns from the full phone canvas. The actual wall still
-  // measures its narrower space and scales the same rows when the rail opens.
+  // Choose Home's columns from the full phone canvas. Floating navigation never
+  // changes this capacity or the content width measured by the wall.
   useLayoutEffect(() => {
     if (!isMobile || locationId) { setMobileCapacityWidth(undefined); return; }
     const scroller = autoScrollRef.current;

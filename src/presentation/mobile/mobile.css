@@ -11,10 +11,13 @@
   --mobile-sidebar-header: 64px;
   --mobile-sidebar-content-inset: 8px;
   --mobile-dock-size: clamp(48px, 14vw, 56px);
+  --mobile-navigation-inset-start: max(12px, env(safe-area-inset-left, 0px));
+  --mobile-navigation-inset-end: max(12px, env(safe-area-inset-right, 0px));
+  --mobile-navigation-frame-width: 420px;
 }
 
 /* Reserve the floating control's clearance only where this navigation exists. */
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation ~ .codex-workspace) {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-layer, .mobile-navigation-layer ~ .codex-workspace) {
   --mobile-dock-clearance: calc(var(--mobile-dock-size) + 8px + max(12px, var(--safe-area-bottom)));
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
@@ -135,26 +138,37 @@
   font-size: 14px;
 }
 
-/* A scrollable phone rail can leave the canvas completely. WEB keeps its panels. */
+/* Both navigation forms live outside the content's layout in one fixed layer. */
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer {
+  position: fixed;
+  z-index: 45;
+  inset-block: 0;
+  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
+  max-width: var(--mobile-navigation-frame-width);
+  margin-inline: auto;
+  pointer-events: none;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation {
-  position: relative;
+  position: absolute;
+  inset-block: 0;
+  /* Both controls use the same frame, so their centers always stay aligned. */
+  inset-inline-start: calc((var(--mobile-dock-size) - 56px) / 2);
   display: flex;
-  flex: 0 0 auto;
   flex-direction: column;
   width: 56px;
-  height: 100%;
   min-height: 0;
   background: transparent !important;
   border: 0;
+  pointer-events: none;
   touch-action: pan-y;
-  transition: width 180ms ease, padding 180ms ease;
+  transform: translateX(0);
+  transition: transform 180ms ease;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] {
-  width: 0;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
+  visibility: hidden;
+  transform: translateX(calc(-100% - var(--mobile-navigation-inset-start)));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll {
@@ -169,6 +183,7 @@
   overscroll-behavior-y: contain;
   margin: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset) - 4px) 2px var(--mobile-dock-clearance);
   padding: 4px;
+  pointer-events: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -198,16 +213,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
-  position: fixed;
-  z-index: 45;
+  position: absolute;
+  z-index: 1;
   display: grid;
   grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr) var(--mobile-dock-size);
   align-items: center;
   gap: 8px;
-  inset-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px));
+  inset-inline: 0;
   bottom: max(12px, var(--safe-area-bottom));
-  max-width: 420px;
-  margin-inline: auto;
   pointer-events: none;
   touch-action: pan-y;
 }
@@ -325,8 +338,8 @@
   color: inherit !important;
 }
 
-/* A dock must never compete with a modal decision or immersive media controls. */
-#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true'], [data-immersive='true']) *) {
+/* Floating navigation yields to modal decisions and immersive media controls. */
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true'], [data-immersive='true']) *) {
   visibility: hidden;
 }
 

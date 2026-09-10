@@ -127,7 +127,7 @@ function navigationHarness() {
       focused.push('toggle');
     } };
     frames.splice(0).forEach(fn => fn());
-    return { rail, railItems, railToggle, floating, dock, toggle, group, appearance: railItems[0] ? exports.Destination(railItems[0].props) : null, profile: exports.Destination(profile.props), focused };
+    return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: railItems[0] ? exports.Destination(railItems[0].props) : null, profile: exports.Destination(profile.props), focused };
   }
   return { render, icons };
 }
@@ -159,6 +159,9 @@ test('sidebar and dock alternate around one persistent toggle without moving foc
   assert.equal(ui.dock.props.hidden, true);
   assert.equal(ui.railToggle, null);
   const toggleRef = ui.toggle.ref;
+  const layerType = ui.layer.type;
+  assert.equal(layerType, 'div');
+  assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals']);
@@ -169,6 +172,10 @@ test('sidebar and dock alternate around one persistent toggle without moving foc
     assert.equal(ui.dock.props.hidden, !expectedHidden);
     assert.equal(ui.railToggle, null);
     assert.equal(ui.toggle.ref, toggleRef);
+    assert.equal(ui.layer.type, layerType);
+    assert.equal(ui.layer.props.className, 'mobile-navigation-layer');
+    assert.equal(ui.layer.props.hidden, undefined);
+    assert.equal(ui.layer.props.animate, undefined);
     assert.equal(ui.floating.type, 'div');
     assert.equal(ui.floating.props.animate, undefined);
     assert.equal(ui.floating.props.hidden, undefined);

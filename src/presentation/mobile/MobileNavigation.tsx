@@ -65,7 +65,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     { label: 'Search', icon: SearchIcon, disabled: true },
     profile,
   ];
-  return <>
+  return <div className="mobile-navigation-layer" data-mobile-navigation-layer="">
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
@@ -85,5 +85,5 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
         <Destination item={profile} variant="profile" />
       </motion.nav>
     </div>
-  </>;
+  </div>;
 }
