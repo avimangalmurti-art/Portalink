@@ -1,14 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { ArrowLeftIcon, BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
+import { useRouteNavigator } from '../../app/useAppRoute';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
-type Item = { label: string; icon: InterfaceIconSource; href?: string; action?: () => void; active?: boolean; disabled?: boolean };
+type Item = { label: string; icon: InterfaceIconSource; href?: string; action?: () => void; active?: boolean; disabled?: boolean; mirroredInRtl?: boolean };
 type Props = {
   settings: React.ReactNode;
   theme: AppearanceTheme;
@@ -28,7 +29,7 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
     'aria-current': item.active ? 'page' as const : undefined,
     title: item.disabled ? `${item.label} is not available yet` : item.label,
   };
-  const content = <InterfaceIcon icon={item.icon} weight="medium" />;
+  const content = <InterfaceIcon icon={item.icon} weight="medium" mirroredInRtl={item.mirroredInRtl} />;
   return item.href && !item.disabled
     ? <Link {...shared} to={item.href}>{content}</Link>
     : <button {...shared} type="button" disabled={item.disabled} onClick={() => item.action?.()}>{content}</button>;
@@ -36,9 +37,10 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
 
 /** The phone rail has its own visibility, without writing the WEB width/choice. */
 export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(true);
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
+  const nav = useRouteNavigator();
   const toggle = useRef<HTMLButtonElement>(null);
   function setNavigationHidden(next: boolean) {
     setHidden(next);
@@ -69,6 +71,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
+          <Destination item={{ label: 'Back', icon: ArrowLeftIcon, action: nav.back, mirroredInRtl: true }} />
           <Destination item={{ label: theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance', icon: theme === 'dark' ? SunIcon : MoonIcon, action: () => onThemeChange(theme === 'dark' ? 'light' : 'dark') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
