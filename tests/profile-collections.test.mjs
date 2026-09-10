@@ -156,6 +156,7 @@ function profileHarness(search = '') {
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => ({ isMobile: false }) };
     if (name.endsWith('/viewer')) return { canAuthor: (role) => role === 'owner', needsAccount: (role) => role === 'guest' };
     if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };

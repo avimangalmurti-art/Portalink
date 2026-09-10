@@ -160,8 +160,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  /* Keep destination rows aligned with the neighboring sidebars' header inset. */
-  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-header) + var(--mobile-sidebar-content-inset)) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
+  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset)) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -221,7 +220,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: 2px;
@@ -434,6 +433,74 @@
 
 #root .codex-shell[data-presentation='mobile'] .codex-workspace:has(> [data-session-status]) #app-viewport {
   --mobile-content-safe-top: 0px;
+}
+
+/* The profile header owns the safe inset so it stays covered while scrolling.
+   The artwork still uses the app's original, single scroll container. */
+#root .codex-shell[data-presentation='mobile'] [data-screen-scroll='page']:has(> [data-profile-page]) {
+  padding-top: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-header-region {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex-shrink: 0;
+  isolation: isolate;
+  overflow: visible;
+  padding-top: var(--mobile-content-safe-top);
+}
+
+/* Only the decorative glass is masked. Menus, links and the avatar remain
+   crisp and can extend beyond the header without being clipped. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -20px;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--codex-workspace-bg);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+    background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+  }
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-header-region > header {
+  background: transparent !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:where(.high-contrast *)::before {
+  background: var(--codex-workspace-bg);
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:where(.reduce-translucency *)::before {
+  bottom: 0;
+  background: var(--codex-workspace-bg);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+    bottom: 0;
+    background: var(--codex-workspace-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header {

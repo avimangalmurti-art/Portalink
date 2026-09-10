@@ -1,16 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BellIcon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, PanelLeftCloseIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BellIcon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PanelLeftCloseIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
 import { motion, useReducedMotion } from 'framer-motion';
+import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
 type Item = { label: string; icon: InterfaceIconSource; href?: string; action?: () => void; active?: boolean; disabled?: boolean };
 type Props = {
   settings: React.ReactNode;
-  onAppearance: () => void;
+  theme: AppearanceTheme;
+  onThemeChange: (theme: AppearanceTheme) => void;
   onPortalink: () => void;
   onMessages: () => void;
   onProfile: () => void;
@@ -33,7 +35,7 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
 }
 
 /** The phone rail has its own visibility, without writing the WEB width/choice. */
-export function MobileNavigation({ settings, onAppearance, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
+export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
   const [hidden, setHidden] = useState(false);
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
@@ -65,7 +67,7 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
-          <Destination item={{ label: 'Appearance', icon: SunIcon, action: onAppearance, active: pathname === buildPath('controlCenter') }} />
+          <Destination item={{ label: theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance', icon: theme === 'dark' ? SunIcon : MoonIcon, action: () => onThemeChange(theme === 'dark' ? 'light' : 'dark') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
           <button ref={railToggle} type="button" className="mobile-navigation-toggle mobile-nav-destination nav-button shape-compact" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" /></button>
@@ -76,7 +78,7 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
     <motion.nav hidden={!hidden} className="mobile-floating-navigation" aria-label="Quick navigation" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} {...dockSwipe}>
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={PlusIcon} /></button>
       <div className="mobile-navigation-dock">
-        {[messages, portals, studio, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
+        {[messages, portals, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
       </div>
       <Destination item={profile} variant="profile" />
     </motion.nav>

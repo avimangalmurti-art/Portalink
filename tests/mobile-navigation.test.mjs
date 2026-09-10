@@ -85,6 +85,7 @@ function navigationHarness() {
   const slots = [];
   const frames = [];
   const focused = [];
+  const icons = { SunIcon: () => null, MoonIcon: () => null };
   let railRef;
   let cursor = 0;
   const react = {
@@ -104,6 +105,7 @@ function navigationHarness() {
     exports, requestAnimationFrame: fn => frames.push(fn),
     require: name => {
       if (name === 'react') return react;
+      if (name === 'lucide-react') return icons;
       if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname: '/' }) };
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
@@ -113,7 +115,7 @@ function navigationHarness() {
   });
   function render(props = {}) {
     cursor = 0;
-    const tree = exports.MobileNavigation({ settings: null, onAppearance() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
+    const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, dock] = React.Children.toArray(tree.props.children);
     const [toggle, group, profile] = React.Children.toArray(dock.props.children);
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
@@ -133,10 +135,31 @@ function navigationHarness() {
       } };
     } else if (railRef) railRef.current = null;
     frames.splice(0).forEach(fn => fn());
-    return { rail, railItems, railToggle, dock, toggle, group, profile: exports.Destination(profile.props), focused };
+    return { rail, railItems, railToggle, dock, toggle, group, appearance: railItems[0] ? exports.Destination(railItems[0].props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render };
+  return { render, icons };
 }
+
+test('the mobile appearance control switches the shared theme both ways and updates its icon and label', () => {
+  const h = navigationHarness();
+  let theme = 'dark';
+  const changes = [];
+  const onThemeChange = next => { theme = next; changes.push(next); };
+  for (const [label, icon, next] of [
+    ['Switch to light appearance', h.icons.SunIcon, 'light'],
+    ['Switch to dark appearance', h.icons.MoonIcon, 'dark'],
+  ]) {
+    const ui = h.render({ theme, onThemeChange });
+    assert.equal(ui.appearance.type, 'button');
+    assert.equal(ui.appearance.props['aria-label'], label);
+    assert.equal(ui.appearance.props.title, label);
+    assert.equal(ui.appearance.props.children.props.icon, icon);
+    assert.equal(ui.appearance.props['aria-current'], undefined);
+    ui.appearance.props.onClick({ type: 'click' });
+    assert.equal(theme, next);
+  }
+  assert.deepEqual(changes, ['light', 'dark']);
+});
 
 test('sidebar and dock alternate, transferring focus to the visible navigation control', () => {
   const h = navigationHarness();
@@ -146,8 +169,9 @@ test('sidebar and dock alternate, transferring focus to the visible navigation c
   const closeIndex = ui.railItems.indexOf(ui.railToggle);
   assert.equal(ui.railItems[closeIndex - 1].props.item.label, 'Profile');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Studio', 'Home']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals', 'Studio']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals']);
+  assert.equal(ui.railItems.some(child => child.props.item?.label === 'Studio'), true);
   for (const expectedHidden of [true, false, true, false]) {
     (ui.railToggle ?? ui.toggle).props.onClick(); ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], expectedHidden);

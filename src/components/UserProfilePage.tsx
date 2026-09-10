@@ -503,10 +503,10 @@ export function UserProfilePage({
   // whatever width the shell currently has.
   const fitsInOneRow = imageryCells.length < columnsPerRow;
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
-  // One continuous document: the toolbar, identity, divider, and grid all sit in
-  // normal flow inside the app shell's single scroll container. Nothing here
-  // pins, and nothing scrolls independently.
-  return <div className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+  // Keep one app-shell scroller. Mobile pins the identity and its optional tools;
+  // the display-contents wrapper preserves the existing desktop document flow.
+  return <div data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+      <div className="profile-header-region contents">
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
             <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
@@ -663,6 +663,7 @@ export function UserProfilePage({
         </div>
       </header>}
 
+      </div>
       {/* Naming the category and choosing its mark happens before the record is
          created, so an abandoned attempt leaves nothing behind. */}
       {isAddingCategory && onAddCategory && <NewCategoryDialog onCancel={() => setIsAddingCategory(false)} onCreate={(label, iconName) => {

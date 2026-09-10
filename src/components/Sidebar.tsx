@@ -953,7 +953,7 @@ export function Sidebar({
       {isSidebarCollapsed ? <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
     </button>;
   if (isMobile) return <MobileNavigation
-    onAppearance={onControlCenterOpen} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
+    theme={theme} onThemeChange={onThemeChange} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
     onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive}
     settings={<AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />}
     liveControl={liveShow ? <button type="button" className="mobile-nav-destination nav-button shape-compact" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`}><InterfaceIcon icon={Disc3Icon} /></button> : undefined}
