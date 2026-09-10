@@ -40,7 +40,8 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
   const toggle = useRef<HTMLButtonElement>(null);
   const railToggle = useRef<HTMLButtonElement>(null);
   function close() { setHidden(true); requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true })); }
-  function open() { setHidden(false); requestAnimationFrame(() => railToggle.current?.focus({ preventScroll: true })); }
+  // The close control sits after Profile; let the rail reveal it on short screens.
+  function open() { setHidden(false); requestAnimationFrame(() => railToggle.current?.focus({ preventScroll: false })); }
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
@@ -63,11 +64,11 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
   return <>
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
-        <button ref={railToggle} type="button" className="mobile-navigation-toggle" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} /></button>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
           <Destination item={{ label: 'Appearance', icon: SunIcon, action: onAppearance, active: pathname === buildPath('controlCenter') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
+          <button ref={railToggle} type="button" className="mobile-navigation-toggle mobile-nav-destination nav-button shape-compact" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" /></button>
           {liveControl}
         </nav>
       </>}

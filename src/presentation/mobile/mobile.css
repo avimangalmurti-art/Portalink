@@ -150,16 +150,6 @@
   overflow: hidden;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-toggle {
-  display: grid;
-  place-items: center;
-  flex: 0 0 var(--mobile-sidebar-control);
-  width: var(--mobile-sidebar-control);
-  margin: calc(var(--safe-area-top) + (var(--mobile-sidebar-header) - var(--mobile-sidebar-control)) / 2) auto calc((var(--mobile-sidebar-header) - var(--mobile-sidebar-control)) / 2);
-  color: var(--text-secondary);
-  background: transparent;
-}
-
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll {
   display: flex;
   flex: 1 1 0%;
@@ -170,7 +160,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: var(--mobile-sidebar-content-inset) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
+  /* Keep destination rows aligned with the neighboring sidebars' header inset. */
+  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-header) + var(--mobile-sidebar-content-inset)) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -187,6 +178,10 @@
   border-radius: 12px;
   background: color-mix(in srgb, var(--control-rest-surface) 25%, var(--codex-sidebar-bg)) !important;
   color: var(--text-secondary) !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) [data-interface-icon-frame] {
+  --interface-icon-size: 24px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-nav-destination[aria-current='page'] {

@@ -116,7 +116,9 @@ function navigationHarness() {
     const tree = exports.MobileNavigation({ settings: null, onAppearance() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, dock] = React.Children.toArray(tree.props.children);
     const [toggle, group, profile] = React.Children.toArray(dock.props.children);
-    const railToggle = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
+    const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
+    const railItems = railNav ? React.Children.toArray(railNav.props.children) : [];
+    const railToggle = railItems.find(child => child.props['aria-controls'] === rail.props.id) ?? null;
     toggle.ref.current = { focus(options) {
       assert.equal(dock.props.hidden, false, 'focus must never land in the hidden dock');
       assert.equal(options.preventScroll, true);
@@ -126,12 +128,12 @@ function navigationHarness() {
       railRef = railToggle.ref;
       railRef.current = { focus(options) {
         assert.equal(rail.props['data-hidden'], false);
-        assert.equal(options.preventScroll, true);
+        assert.equal(options.preventScroll, false, 'the close control must be brought into view on short screens');
         focused.push('rail');
       } };
     } else if (railRef) railRef.current = null;
     frames.splice(0).forEach(fn => fn());
-    return { rail, railToggle, dock, toggle, group, profile: exports.Destination(profile.props), focused };
+    return { rail, railItems, railToggle, dock, toggle, group, profile: exports.Destination(profile.props), focused };
   }
   return { render };
 }
@@ -141,6 +143,8 @@ test('sidebar and dock alternate, transferring focus to the visible navigation c
   let ui = h.render();
   assert.equal(ui.dock.props.hidden, true);
   assert.equal(ui.railToggle.props['aria-expanded'], 'true');
+  const closeIndex = ui.railItems.indexOf(ui.railToggle);
+  assert.equal(ui.railItems[closeIndex - 1].props.item.label, 'Profile');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Studio', 'Home']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals', 'Studio']);
