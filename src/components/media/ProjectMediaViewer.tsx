@@ -528,7 +528,7 @@ export function ProjectMediaViewer({
             </div>}
         </div>
 
-        {!isRailOpen && <div className="flex flex-1 justify-center py-2">
+        {!isRailOpen && <div data-project-rail-actions="" className="flex flex-1 justify-center py-2">
             <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
           </div>}
 

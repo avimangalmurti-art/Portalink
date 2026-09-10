@@ -26,7 +26,7 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
     'aria-current': item.active ? 'page' as const : undefined,
     title: item.disabled ? `${item.label} is not available yet` : item.label,
   };
-  const content = <><InterfaceIcon icon={item.icon} weight="medium" />{variant === 'dock' && <span>{item.label}</span>}</>;
+  const content = <InterfaceIcon icon={item.icon} weight="medium" />;
   return item.href && !item.disabled
     ? <Link {...shared} to={item.href}>{content}</Link>
     : <button {...shared} type="button" disabled={item.disabled} onClick={() => item.action?.()}>{content}</button>;

@@ -353,7 +353,7 @@ export function ProfileCategoryPage({
   return <div ref={projectPresentationRef} data-project-presentation="" className="flex h-full w-full bg-transparent">
       {/* Local document navigation: related to the global sidebar, but one tonal
          step lighter and divided by a single hairline rather than a card. */}
-      <div data-resizable-panel="" data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
+      <div data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
            empty, darker band above the controls. */}
@@ -366,7 +366,7 @@ export function ProfileCategoryPage({
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
-        {onReturnToDiscovery && <div className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
+        {onReturnToDiscovery && <div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
             <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
@@ -488,7 +488,7 @@ export function ProfileCategoryPage({
             </div>
           </div>}
 
-        {!isIndexCollapsed && <nav aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
+        {!isIndexCollapsed && <nav data-project-index-list="" aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
             <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
             {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
