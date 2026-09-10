@@ -110,6 +110,7 @@ function navigationHarness(pathname = '/') {
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
       if (name === '../../app/routes') return { buildPath: name => paths[name] };
+      if (name === './MobileBackNavigation') return { useMobileBack: fallback => fallback };
       if (name === '../../app/useAppRoute') return { useRouteNavigator: () => ({ back: (...args) => backCalls.push(args) }) };
       return new Proxy({}, { get: () => () => null });
     },

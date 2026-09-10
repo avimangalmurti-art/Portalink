@@ -1,3 +1,4 @@
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React from 'react';
 import { AlertCircleIcon, ArrowLeftIcon, CheckIcon, Loader2Icon } from 'lucide-react';
 import { categoryIconNames, getCategoryIcon } from './categoryIcons';
@@ -32,10 +33,10 @@ export function IconPickerPage({
 }: IconPickerPageProps) {
   return <div className="min-h-full w-full bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
-        <button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <ScreenBack action={onBack}><button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           Back
-        </button>
+        </button></ScreenBack>
         <span className="min-w-0">
           <h1 className="truncate text-large font-bold tracking-tight text-[var(--text-primary)]">Change icon</h1>
           <p className="truncate text-small text-[var(--text-secondary)]">{categoryLabel}</p>

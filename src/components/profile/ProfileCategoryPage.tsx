@@ -1,3 +1,4 @@
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
@@ -366,12 +367,12 @@ export function ProfileCategoryPage({
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
-        {onReturnToDiscovery && <div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
+        {onReturnToDiscovery && <ScreenBack><div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
             <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
             </button>
-          </div>}
+          </div></ScreenBack>}
 
         {isIndexCollapsed ? !onReturnToDiscovery && <div data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="global-control-header shrink-0 justify-center px-1.5">
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">

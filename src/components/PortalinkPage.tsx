@@ -1,3 +1,4 @@
+import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SearchIcon } from 'lucide-react';
 import { cities, type City } from '../data/cities';
@@ -138,9 +139,9 @@ export function PortalinkPage({
   return <div className="relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
-      <div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
+      <ScreenBack><div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
         <WorldViewToggle onToggle={onBack} />
-      </div>
+      </div></ScreenBack>
 
       {/* Starfield backdrop. */}
       <div aria-hidden="true" className="portalink-stars pointer-events-none absolute inset-0" />

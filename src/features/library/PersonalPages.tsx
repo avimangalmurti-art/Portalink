@@ -1,3 +1,4 @@
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useCallback, useState } from 'react';
 import { ArrowLeftIcon, BookmarkIcon } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -16,7 +17,7 @@ import { SavedPagesCollection } from './SavedPagesCollection';
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
-    <button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
+    <ScreenBack><button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>
     <h1 className="text-medium font-semibold text-[var(--text-primary)]">{title}</h1>
   </header>;
 }

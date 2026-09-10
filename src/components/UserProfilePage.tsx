@@ -1,3 +1,4 @@
+import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
 import { useSearchParams } from 'react-router-dom';
@@ -558,9 +559,9 @@ export function UserProfilePage({
       </div>}
       {!isSharedView && (!isMobile || isMobileToolsOpen) && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <ScreenBack><button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
-            </button>
+            </button></ScreenBack>
           {/* Audience figures sit in the toolbar rather than the header below, so
              the header's fact area stays about the work itself. They read from
              the record — a profile carrying no figure shows none rather than a

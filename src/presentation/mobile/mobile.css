@@ -551,6 +551,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-options {
   display: grid;
   place-items: center;
+  align-self: center;
   flex: 0 0 44px;
   min-height: 44px;
   border-radius: 12px;

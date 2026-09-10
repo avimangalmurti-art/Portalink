@@ -1,3 +1,5 @@
+import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
+import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArchiveIcon, ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
@@ -59,7 +61,13 @@ export function MessagesPage({
     viewportReserve: 720,
   });
   const auth = useAuth();
-  const messaging = useMessaging({ initialRecipientId, initialConversationId, onConversationChange });
+  const isMobile = usePresentation() === 'mobile';
+  const messaging = useMessaging({
+    initialRecipientId, initialConversationId,
+    // Mobile thread selection is a step within Messages. Returning to the list
+    // must not leave duplicate list/thread entries in the browser's Back trail.
+    onConversationChange: (id, replace) => onConversationChange?.(id, isMobile ? true : replace),
+  });
   const [isNewChatOpen, setIsNewChatOpen] = useState(Boolean(initialRecipientId));
   const [conversationFilter, setConversationFilter] = useState<'all' | 'unread' | 'requests'>('all');
   const [query, setQuery] = useState('');
@@ -253,13 +261,24 @@ export function MessagesPage({
     setIsNewChatOpen(true);
   }
 
+  function goBackFromMessages() {
+    if (isNewChatOpen) {
+      setIsNewChatOpen(false);
+      messaging.closeConversation(); // Also cancels a pending conversation start.
+    } else if (activeId || initialConversationId) {
+      messaging.closeConversation();
+    } else {
+      onBack();
+    }
+  }
+
   const showList = !activeId;
   return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
-        <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+        <ScreenBack action={goBackFromMessages}><button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
-        </button>
+        </button></ScreenBack>
         <div className="flex min-w-0 items-baseline gap-2">
           <h1 id="messages-heading" className="truncate text-[16px] font-semibold">Messages</h1>
           {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
@@ -272,9 +291,9 @@ export function MessagesPage({
         </div>
         </div>
         {messaging.activeConversation ? <div className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
-          <button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+          <ScreenBack><button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
             <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
-          </button>
+          </button></ScreenBack>
           <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
           {messaging.activeConversation.participant.id ? <Link to={buildPath('profile', { profileId: messaging.activeConversation.participant.id })} className="shape-compact inline-flex h-10 min-w-0 flex-initial items-center text-left hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <RecipientIdentity conversation={messaging.activeConversation} />

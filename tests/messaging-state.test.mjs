@@ -29,6 +29,23 @@ function setup(overrides = {}, options = {}) {
   return { hook, messaging, subscriptions, reads };
 }
 
+test('leaving New message cancels a pending start without reopening its conversation', async () => {
+  const pending = deferred();
+  const routes = [];
+  const { hook } = setup({ getOrCreateConversation: () => pending.promise }, { onConversationChange: (...args) => routes.push(args) });
+  await hook.flush();
+  const starting = hook.value.startConversation('alice');
+  await hook.flush();
+  hook.value.closeConversation();
+  pending.resolve(a);
+  assert.equal(await starting, false);
+  await hook.flush();
+  assert.equal(hook.value.activeConversation, null);
+  assert.equal(hook.value.startingCreatorId, null);
+  assert.deepEqual(routes, [[null, true]]);
+  hook.dispose();
+});
+
 test('a delayed conversation load cannot replace a newer thread', async () => {
   const first = deferred();
   const { hook } = setup({ listMessages: (id) => id === 'a' ? first.promise : Promise.resolve({ messages: [message('b1', 'b', 'bob')], before: null }) });

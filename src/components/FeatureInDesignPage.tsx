@@ -1,3 +1,4 @@
+import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React from 'react';
 import { ArrowLeftIcon, BarChart3Icon, WarehouseIcon } from 'lucide-react';
 import { InterfaceIcon } from './ui/InterfaceIcon';
@@ -28,16 +29,16 @@ export function FeatureInDesignPage({
   return (
     <div className="flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header className="ps-panel-toolbar global-control-header side-panel-content-inset relative shrink-0 justify-between">
-        <button
+        <ScreenBack><button
           type="button"
           onClick={onBack}
           className="ps-btn ps-btn-secondary side-panel-primary-control side-panel-control-row justify-center px-2 text-[14px] font-medium text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
           <InterfaceIcon icon={ArrowLeftIcon} size="sm" weight="medium" mirroredInRtl />
           Back
-        </button>
+        </button></ScreenBack>
         <h1 className="absolute left-1/2 -translate-x-1/2 text-[14px] font-semibold">{feature}</h1>
-        <span className="text-[12px] text-[var(--text-tertiary)]">In development</span>
+        <span className="ml-auto text-[12px] text-[var(--text-tertiary)]">In development</span>
       </header>
 
       <main className="flex min-h-0 flex-1 items-center justify-center px-6 py-10">

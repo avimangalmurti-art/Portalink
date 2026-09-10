@@ -53,6 +53,7 @@ import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
 import { canResumeRegistration } from './features/auth/registration';
 import { AppPresentation } from './presentation/AppPresentation';
+import { MobileBackProvider, MobileBackScope } from './presentation/mobile/MobileBackNavigation';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
@@ -1142,6 +1143,7 @@ export function App() {
    * inverting with `.theme-dark` on this same element.
    */
   return <AppPresentation data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+      <MobileBackProvider onBack={nav.back}>
       {isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={setSharedPortalinkTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSignIn={() => auth.requestAuth('signIn')} onCreateAccount={() => auth.requestAuth('signUp')} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />}
 
       {/* Every surface renders in the interface face. Creator typography is
@@ -1171,7 +1173,9 @@ export function App() {
           }
         }}>
             <main ref={layer.screenKey === screenTransitionKey ? mainContentRef : undefined} tabIndex={-1} onScroll={layer.screenKey === screenTransitionKey ? handleMainScroll : undefined} className={layer.snapshot.mainClassName} aria-label={layer.snapshot.ariaLabel}>
-              {layer.snapshot.content}
+              <MobileBackScope active={layer.screenKey === screenTransitionKey} enabled={!isSharedRoute}>
+                {layer.snapshot.content}
+              </MobileBackScope>
             </main>
           </div>)}
       </div>
@@ -1228,6 +1232,7 @@ export function App() {
         openProfile(profileId);
       }} />}
 
+      </MobileBackProvider>
     </AppPresentation>;
 }
 function isEditorialDestination(destination: NavigationDestination) {
