@@ -156,6 +156,8 @@
   inset-inline-start: calc((var(--mobile-dock-size) - 56px) / 2);
   display: flex;
   flex-direction: column;
+  /* The existing bottom clearance leaves the dock's same 8px toggle gap. */
+  justify-content: flex-end;
   width: 56px;
   min-height: 0;
   background: transparent !important;
@@ -252,9 +254,9 @@
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
   border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised) 78%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised) 57%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
@@ -304,10 +306,10 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--surface-raised) 90%, transparent) !important;
+  background: color-mix(in srgb, var(--surface-raised) 70%, transparent) !important;
   color: var(--text-primary) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
   pointer-events: auto;
 }
@@ -627,10 +629,13 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
-    background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised)) !important;
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile) {
+    background: var(--surface-raised) !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
+    background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised)) !important;
   }
 }
 
