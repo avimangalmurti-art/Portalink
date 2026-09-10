@@ -264,7 +264,7 @@ function ProfileProjectTile({
   };
 
   return (
-    <div className="group relative h-full w-full">
+    <div className="content-corner-group group relative h-full w-full">
       <button
         type="button"
         data-project-continuity-surface=""
@@ -273,7 +273,7 @@ function ProfileProjectTile({
         onClick={onOpen}
         aria-label={`Open ${project.title}`}
         title={project.title}
-        className="relative block h-full w-full cursor-pointer overflow-hidden rounded-[8px] bg-[var(--surface-sunken)] text-left ring-1 ring-inset ring-[var(--hairline)] transition-[border-radius] duration-150 group-hover:rounded-none group-focus-within:rounded-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none"
+        className="content-corner-frame relative block h-full w-full cursor-pointer overflow-hidden rounded-[8px] bg-[var(--surface-sunken)] text-left ring-1 ring-inset ring-[var(--hairline)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
       >
         <span className="absolute inset-0 block transition-opacity duration-150 group-hover:opacity-0 group-focus-within:opacity-0 motion-reduce:transition-none">
           <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw" />
@@ -287,7 +287,7 @@ function ProfileProjectTile({
         showEngagementMetrics={showEngagementMetrics}
         onOpen={onOpen}
         onOpenComments={onOpenComments}
-        className="pointer-events-none rounded-[8px] opacity-0 ring-1 ring-inset ring-transparent transition-[opacity,box-shadow,border-radius] duration-150 group-hover:rounded-none group-hover:opacity-100 group-hover:ring-[var(--hairline-strong)] group-focus-within:rounded-none group-focus-within:opacity-100 group-focus-within:ring-[var(--focus-ring)] motion-reduce:transition-none"
+        className="content-corner-frame pointer-events-none rounded-[8px] opacity-0 ring-1 ring-inset ring-transparent group-hover:opacity-100 group-hover:ring-[var(--hairline-strong)] group-focus-within:opacity-100 group-focus-within:ring-[var(--focus-ring)]"
         footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className={`relative inline-flex items-center transition-opacity duration-150 motion-reduce:transition-none ${isMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100'}`}>
             <button type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />

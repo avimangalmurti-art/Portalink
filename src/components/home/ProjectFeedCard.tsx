@@ -37,7 +37,7 @@ export function ProjectFeedCard({
   return (
     // The card shell remains stable; only the cover frame exchanges artwork for
     // the same hover details used by a creator's profile wall.
-    <article className="feed-card individual-content-outline group relative min-w-0 overflow-hidden">
+    <article className="feed-card content-corner-frame individual-content-outline group relative min-w-0 overflow-hidden">
       <button type="button" onPointerEnter={() => onWarmCreator?.(creator.id)} onPointerDown={() => onWarmCreator?.(creator.id)} onFocus={() => onWarmCreator?.(creator.id)} onClick={openProject} aria-label={`Open ${project.title} by ${creator.name}`} className="block w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
         {/* Real source imagery, shown at the ratio the file itself implies. */}
         <span data-project-continuity-surface="" data-project-continuity-id={project.id} className="feed-card__preview relative block w-full overflow-hidden" style={{

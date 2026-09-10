@@ -1236,7 +1236,6 @@ button[data-portalink-tile],
        pointer happens to be resting. */
     background-color: var(--card-hover-surface) !important;
     border-color: var(--hairline-strong, rgba(128, 128, 128, 0.45)) !important;
-    border-radius: 0 !important;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16) !important;
   }
 }
@@ -1396,6 +1395,32 @@ button[data-portalink-tile],
     border-color var(--motion-fast) var(--ease-standard),
     color var(--motion-fast) var(--ease-standard),
     transform var(--motion-fast) var(--ease-standard);
+}
+/* Work keeps its existing idle radius and becomes sharp on interaction. Keep
+   hover ungated to match the cover details revealed by touch browsers' hover
+   state; :active also gives immediate feedback when a tap does not focus.
+   Profile cover/details are siblings: shape them together without clipping
+   their owner menus. Other cards clip their entire stack in one frame. */
+#root .codex-shell .content-corner-frame {
+  transition: border-radius 150ms var(--ease-standard),
+    opacity 150ms var(--ease-standard),
+    box-shadow 150ms var(--ease-standard),
+    background-color 160ms var(--ease-standard),
+    border-color 160ms var(--ease-standard);
+}
+#root .codex-shell .content-corner-frame:is(:hover, :active, :focus-within),
+#root .codex-shell .content-corner-group:is(:hover, :active, :focus-within) > .content-corner-frame {
+  border-radius: 0;
+}
+/* A short tap must not finish before the corner transition is visible. */
+#root .codex-shell .content-corner-frame:active,
+#root .codex-shell .content-corner-group:active > .content-corner-frame {
+  transition-duration: 0s;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell .content-corner-frame {
+    transition: none;
+  }
 }
 @media (hover: hover) and (pointer: fine) {
   .accent-theme button.shape-compact:not([data-borderless-control]):not(:disabled):hover,
@@ -1761,15 +1786,12 @@ button[data-portalink-tile],
 .theme-light .feed-starfield .feed-card [data-creator-link]:focus-visible span {
   color: var(--accent-text, #005bb5) !important;
 }
-/* Hover and focus change only the clipping radius, never the card's measured
-   width, height, or border thickness. The entire cover/detail stack is clipped
-   by the parent, matching the profile-wall interaction without causing reflow. */
+/* Surface feedback accompanies the shared content-corner-frame interaction. */
 @media (hover: hover) and (pointer: fine) {
   .feed-starfield .feed-card:hover,
   .accent-theme .feed-starfield .feed-card:hover {
     background-color: var(--feed-card-hover) !important;
     border-color: var(--feed-card-border) !important;
-    border-radius: 0 !important;
   }
   .feed-starfield [data-profile-module]:hover,
   .accent-theme .feed-starfield [data-profile-module]:hover {
@@ -1783,7 +1805,6 @@ button[data-portalink-tile],
 .accent-theme .feed-starfield .feed-card:focus-within {
   background-color: var(--feed-card-hover) !important;
   border-color: var(--feed-card-border) !important;
-  border-radius: 0 !important;
   box-shadow: 0 0 0 2px var(--focus-ring) !important;
 }
 .feed-starfield [data-profile-module]:focus-within,

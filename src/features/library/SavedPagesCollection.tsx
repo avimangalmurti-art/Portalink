@@ -52,7 +52,7 @@ function SavedPageCard({ target, presentation, onRemoved }: { target: SavedPageT
     finally { setPending(false); }
   }
   return <li className="min-w-0">
-    {presentation ? <Link to={presentation.href} aria-label={`Open ${presentation.label} of ${presentation.view.project.title}`} className="card-hover-outline shape-container relative block aspect-[4/3] w-full overflow-hidden bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+    {presentation ? <Link to={presentation.href} aria-label={`Open ${presentation.label} of ${presentation.view.project.title}`} className="card-hover-outline content-corner-frame shape-container relative block aspect-[4/3] w-full overflow-hidden bg-[var(--surface-sunken)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
       <ProjectCover source={presentation.source} kind={presentation.kind} pageNumber={presentation.pageNumber} fit="contain" alt={`${presentation.label} of ${presentation.view.project.title}`} aspectRatio={presentation.aspectRatio} className="h-full w-full" sizes="(min-width: 1280px) 30vw, (min-width: 640px) 46vw, 92vw" />
     </Link> : <div className="shape-container flex aspect-[4/3] items-center justify-center border border-[var(--hairline)] p-5 text-center text-[13px] text-[var(--text-secondary)]">This page was removed or is no longer shared with you.</div>}
     <div className="mt-2 flex items-start gap-2">
