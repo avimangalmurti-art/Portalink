@@ -81,7 +81,7 @@ test('destination callbacks never receive the click event as a message recipient
   assert.deepEqual(args, []);
 });
 
-function navigationHarness() {
+function navigationHarness(pathname = '/') {
   const slots = [];
   const frames = [];
   const focused = [];
@@ -97,7 +97,7 @@ function navigationHarness() {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, { exports: swipe, require: () => react });
   const exports = {};
-  const paths = { home: '/', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/appearance' };
+  const paths = { home: '/', portals: '/portals', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/appearance' };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText + '\nexports.Destination = Destination;', {
@@ -105,7 +105,7 @@ function navigationHarness() {
     require: name => {
       if (name === 'react') return react;
       if (name === 'lucide-react') return icons;
-      if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname: '/' }) };
+      if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname }) };
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
       if (name === '../../app/routes') return { buildPath: name => paths[name] };
@@ -129,7 +129,7 @@ function navigationHarness() {
     frames.splice(0).forEach(fn => fn());
     return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: railItems[0] ? exports.Destination(railItems[0].props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render, icons };
+  return { render, icons, destination: element => exports.Destination(element.props) };
 }
 
 test('the mobile appearance control switches the shared theme both ways and updates its icon and label', () => {
@@ -164,7 +164,7 @@ test('sidebar and dock alternate around one persistent toggle without moving foc
   assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), []);
   assert.equal(ui.railItems.some(child => child.props.item?.label === 'Studio'), true);
   for (const expectedHidden of [true, false, true, false]) {
     ui.toggle.props.onClick(); ui = h.render();
@@ -184,6 +184,27 @@ test('sidebar and dock alternate around one persistent toggle without moving foc
     assert.equal(ui.toggle.props['aria-label'], expectedHidden ? 'Show navigation' : 'Hide navigation');
   }
   assert.deepEqual(ui.focused, ['toggle', 'toggle', 'toggle', 'toggle']);
+});
+
+test('Portals is an enabled link in both mobile navigation forms and reflects the current route', () => {
+  for (const pathname of ['/', '/portals']) {
+    const h = navigationHarness(pathname);
+    let ui = h.render();
+    const railPortals = ui.railItems.find(child => child.props.item?.label === 'Portals');
+    ui.toggle.props.onClick();
+    ui = h.render();
+    assert.equal(ui.dock.props.hidden, false);
+    const dockPortals = React.Children.toArray(ui.group.props.children).find(child => child.props.item.label === 'Portals');
+    for (const element of [railPortals, dockPortals]) {
+      const link = h.destination(element);
+      assert.equal(link.type, 'a');
+      assert.equal(link.props.to, '/portals');
+      assert.equal(link.props.disabled, undefined);
+      assert.equal(link.props['aria-label'], 'Portals');
+      assert.equal(link.props.title, 'Portals');
+      assert.equal(link.props['aria-current'], pathname === '/portals' ? 'page' : undefined);
+    }
+  }
 });
 
 test('rail and dock swipes alternate navigation without activating destinations underneath', () => {

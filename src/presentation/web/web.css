@@ -24,7 +24,7 @@
 }
 
 /* Raise the packing wrapper too: motion/DnD transforms can form a stacking
-   context outside the card. MOBILE keeps its existing in-flow extension. */
+   context outside the card. */
 .codex-shell:where([data-presentation='web']) [data-project-preview-cell]:has(.project-preview-card[data-expanded='true']) {
   position: relative;
   z-index: 3;

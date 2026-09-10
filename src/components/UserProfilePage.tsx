@@ -308,11 +308,13 @@ function readStat(profile: Profile, label: string): string | null {
 function ProfileIdentityAndLinks({
   profile,
   displayName,
-  links
+  links,
+  showLinks = true
 }: {
   profile: Profile;
   displayName: string;
   links: ProfileLink[];
+  showLinks?: boolean;
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
@@ -324,9 +326,9 @@ function ProfileIdentityAndLinks({
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
         </div>
       </div>
-      <div className="min-w-0 flex-1 self-center">
+      {showLinks && <div className="min-w-0 flex-1 self-center">
         {links.length > 0 ? <PlatformGrid links={links} profileName={displayName} /> : null}
-      </div>
+      </div>}
     </div>;
 }
 
@@ -545,7 +547,7 @@ export function UserProfilePage({
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
       {!isSharedView && isMobile && <header className="mobile-profile-header">
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} />
         {isReorderingProjects ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
@@ -606,7 +608,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {/* Activity and owner controls read as one right-hand cluster. */}
-          <div className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
+          <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
             {/* A signed-in visitor can follow. A guest is told plainly that this
                needs an account rather than being shown a control that silently
                fails, and reading the work stays open either way. */}
@@ -640,26 +642,26 @@ export function UserProfilePage({
                 Sign in to follow
               </button>}
             {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
-            {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="side-panel-control-row">
+            {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="profile-action-engagement side-panel-control-row">
                 {ENGAGEMENT_KINDS.filter((kind) => kind !== 'save').map((kind) => {
               const Icon = ACTIVITY_ICONS[kind];
               const labels = describeActivityCollection(kind);
               const color = ACTIVITY_COLORS[kind];
-              return <button key={kind} type="button" data-semantic-action="engagement-collection" onClick={() => onOpenActivity(kind)} aria-label={`Open ${labels.title}`} title={labels.title} className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center border border-[var(--hairline-strong)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              return <button key={kind} type="button" data-semantic-action="engagement-collection" onClick={() => onOpenActivity(kind)} aria-label={`Open ${labels.title}`} title={labels.title} className="profile-action-button side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center border border-[var(--hairline-strong)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={Icon} size="sm" weight="medium" keepColor stroke={color} style={{ color }} />
                   </button>;
             })}
               </div> : null}
-            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} /> : null}
-            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} className="side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} compact={isMobile} /> : null}
+            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
-                Edit profile
+                <span className={isMobile ? 'sr-only' : undefined}>Edit profile</span>
               </button> : null}
             {showsOwnerTools ? <div ref={manageMenuRef} className="relative">
-                <button type="button" onClick={() => setIsManageOpen((open) => !open)} aria-expanded={isManageOpen} aria-haspopup="menu" className="side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => setIsManageOpen((open) => !open)} aria-label="Manage profile" title={isMobile ? 'Manage profile' : undefined} aria-expanded={isManageOpen} aria-haspopup="menu" className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={Settings2Icon} size="sm" weight="medium" />
-                  Manage
-                  <InterfaceIcon icon={ChevronDownIcon} size="xs" weight="medium" className={`transition-transform duration-150 ${isManageOpen ? 'rotate-180' : ''}`} />
+                  <span className={isMobile ? 'sr-only' : undefined}>Manage</span>
+                  {!isMobile && <InterfaceIcon icon={ChevronDownIcon} size="xs" weight="medium" className={`transition-transform duration-150 ${isManageOpen ? 'rotate-180' : ''}`} />}
                 </button>
                 {isManageOpen ? <div role="menu" aria-label="Profile management" className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-pop)]">
                     <div className="flex min-h-10 items-center gap-3 rounded-[8px] px-2.5">
@@ -693,6 +695,9 @@ export function UserProfilePage({
                   </div> : null}
               </div> : null}
           </div>
+          {isMobile && profileLinks.length > 0 && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
+            <PlatformGrid links={profileLinks} profileName={displayName} />
+          </div>}
         </div>
       </header>}
 

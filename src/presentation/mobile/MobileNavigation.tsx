@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BellIcon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
@@ -49,20 +49,20 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
-  const portals: Item = { label: 'Portals', icon: PortalRingIcon, disabled: true };
+  const portals: Item = { label: 'Portals', icon: PortalRingIcon, href: buildPath('portals'), active: pathname === buildPath('portals') };
   const studio: Item = { label: 'Studio', icon: WarehouseIcon, disabled: true };
   const profile: Item = { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive };
   const home: Item = { label: 'Home', icon: HomeIcon, href: buildPath('home'), active: pathname === buildPath('home') };
   const items: Item[] = [
-    portals, studio,
-    { label: 'Portalink', icon: SatelliteDishIcon, action: onPortalink, active: pathname.startsWith('/portalink') },
-    messages,
-    { label: 'Bookmarks', icon: BookmarkIcon, href: buildPath('saved'), active: pathname === buildPath('saved') },
-    { label: 'Videos', icon: PlayIcon, disabled: true },
-    { ...home, label: 'Posts' },
-    { label: 'Notifications', icon: BellIcon, href: buildPath('notifications'), active: pathname === buildPath('notifications') },
     { label: 'Analytics', icon: BarChart3Icon, href: buildPath('insights'), active: pathname === buildPath('insights') },
+    { label: 'Bookmarks', icon: BookmarkIcon, href: buildPath('saved'), active: pathname === buildPath('saved') },
+    { label: 'Portalink', icon: SatelliteDishIcon, action: onPortalink, active: pathname.startsWith('/portalink') },
     { label: 'Search', icon: SearchIcon, disabled: true },
+    { label: 'Videos', icon: PlayIcon, disabled: true },
+    studio,
+    messages,
+    portals,
+    home,
     profile,
   ];
   return <div className="mobile-navigation-layer" data-mobile-navigation-layer="">

@@ -13,6 +13,7 @@ function compile(path, imports, globals = {}) {
   return exports;
 }
 const socialTypes = compile('../src/types/social.ts', () => ({}));
+const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
 const placeholder = new Proxy({}, { get: (_, key) => key });
 function nodes(tree) {
@@ -172,13 +173,14 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [], counts: {}, loading: false, error: null, nextOffset: null }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
-    if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => [] };
+    if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => options.links ?? [] };
+    if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
   }, { URLSearchParams, window: { localStorage: { getItem: () => null } } });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
   return { navigation, projectOrder, outside: () => outside, search: () => params.toString(), render: () => {
     cursor = 0;
-    return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {} });
+    return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props });
   } };
 }
 
@@ -207,6 +209,48 @@ test('count controls replace the project area, report real Portal count, and res
 
 const reorderProjects = [{ id: 'a', cover: 'a.png' }, { id: 'b', cover: 'b.png' }];
 const wall = tree => nodes(tree).find(node => node.type === 'JustifiedImageWall');
+test('mobile profile links appear below the action row only while Profile options is open', () => {
+  const links = [{ label: 'Website', href: 'https://example.com', iconName: 'globe' }];
+  for (const viewerRole of ['owner', 'visitor']) {
+    const h = profileHarness('', { presentation: 'mobile', viewerRole, links,
+      props: { onOpenActivity() {}, onEditProfile() {}, shareUrl: 'https://example.com/share/owner' } });
+    let tree = h.render();
+    const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+    assert.equal(nodes(identity.type(identity.props)).some(node => node.type === 'PlatformGrid'), false);
+    assert.equal(nodes(tree).some(node => node.type === 'PlatformGrid'), false);
+    const toggle = () => nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
+    assert.equal(toggle().props['aria-expanded'], false);
+    toggle().props.onClick();
+    tree = h.render();
+    assert.equal(toggle().props['aria-expanded'], true);
+    const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
+    const children = React.Children.toArray(tools.props.children.props.children);
+    const linkRow = children.find(node => node.props?.['data-mobile-profile-links'] !== undefined);
+    assert.equal(children.at(-1), linkRow);
+    assert.equal(linkRow.props.children.type, 'PlatformGrid');
+    assert.equal(linkRow.props.children.props.links, links);
+    if (viewerRole === 'owner') {
+      const actions = children.find(node => node.props?.['data-profile-owner-actions'] !== undefined);
+      assert.ok(children.indexOf(actions) < children.indexOf(linkRow));
+    }
+    toggle().props.onClick();
+    tree = h.render();
+    assert.equal(nodes(tree).some(node => node.type === 'PlatformGrid'), false);
+    assert.equal(nodes(tree).some(node => node.props?.id === 'profile-navigation-tools'), false);
+  }
+});
+
+test('WEB and shared public profiles retain their existing visible identity links', () => {
+  const links = [{ label: 'Website', href: 'https://example.com' }];
+  for (const options of [{ presentation: 'web' }, { presentation: 'mobile', isSharedView: true }]) {
+    const tree = profileHarness('', { ...options, links }).render();
+    const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+    const grid = nodes(identity.type(identity.props)).find(node => node.type === 'PlatformGrid');
+    assert.equal(grid.props.links, links);
+    assert.equal(nodes(tree).some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
+  }
+});
+
 test('only the mobile owner overview offers hold-to-reorder, excluding public links and other views', () => {
   const owner = profileHarness('', { presentation: 'mobile', projects: reorderProjects });
   assert.equal(typeof wall(owner.render()).props.reorderMode.onStart, 'function');

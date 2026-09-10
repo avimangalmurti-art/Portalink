@@ -558,6 +558,52 @@
   color: var(--text-secondary);
 }
 
+/* Five owner actions share one row, with two slots for Like and Repost. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(44px, 1fr);
+  flex-basis: 100%;
+  width: 100%;
+  gap: 4px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] > * {
+  min-width: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] > .profile-action-engagement {
+  display: grid;
+  grid-column: span 2;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: inherit;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] .profile-action-button {
+  width: 100%;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] .profile-share-error {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-pop);
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
   display: grid;
   flex: 0 0 auto;
@@ -575,6 +621,21 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* Match WEB previews: the footer overlays the next card without growing its row. */
+#root .codex-shell[data-presentation='mobile'] .project-preview-extension {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 1;
+  box-shadow: 0 10px 20px rgb(0 0 0 / 16%);
+}
+
+/* Lift the packing cell as well, above neighbouring motion/DnD stacking contexts. */
+#root .codex-shell[data-presentation='mobile'] [data-project-preview-cell]:has(.project-preview-card[data-expanded='true']) {
+  position: relative;
+  z-index: 3;
 }
 
 /* Public profiles have no engagement footer. Keep the card's base rounded

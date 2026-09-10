@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CheckIcon, CopyIcon } from 'lucide-react';
+import { CheckIcon, CircleAlertIcon, CopyIcon, Loader2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 type ProfileShareMenuProps = {
   shareUrl: string;
   onBeforeCopy?: () => Promise<void>;
+  compact?: boolean;
 };
 
 function copyWithDocumentFallback(value: string) {
@@ -51,7 +52,7 @@ async function copyPublicLink(value: string) {
   copyWithDocumentFallback(value);
 }
 
-export function ProfileShareMenu({ shareUrl, onBeforeCopy }: ProfileShareMenuProps) {
+export function ProfileShareMenu({ shareUrl, onBeforeCopy, compact = false }: ProfileShareMenuProps) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const resetTimerRef = useRef<number | null>(null);
   const [isPreparing, setIsPreparing] = useState(false);
@@ -88,11 +89,12 @@ export function ProfileShareMenu({ shareUrl, onBeforeCopy }: ProfileShareMenuPro
   }
 
   const label = isPreparing ? 'Preparing link…' : copyState === 'copied' ? 'Link copied' : copyState === 'failed' ? 'Copy failed' : 'Copy public link';
+  const icon = compact && isPreparing ? Loader2Icon : compact && copyState === 'failed' ? CircleAlertIcon : copyState === 'copied' ? CheckIcon : CopyIcon;
   return <div>
-      <button type="button" data-semantic-action="share" data-copy-state={copyState} disabled={isPreparing} aria-busy={isPreparing} onClick={() => void copyLink()} aria-label={label} className={`side-panel-primary-control side-panel-control-row px-3 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${copyState === 'copied' ? 'border-0 bg-transparent text-[var(--accent-text)] shadow-none hover:bg-transparent' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)]'}`}>
-        <InterfaceIcon icon={copyState === 'copied' ? CheckIcon : CopyIcon} size="sm" weight="medium" />
-        <span aria-live="polite">{label}</span>
+      <button type="button" data-semantic-action="share" data-copy-state={copyState} disabled={isPreparing} aria-busy={isPreparing} onClick={() => void copyLink()} aria-label={label} title={compact ? label : undefined} className={`profile-action-button side-panel-primary-control side-panel-control-row px-3 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${copyState === 'copied' ? 'border-0 bg-transparent text-[var(--accent-text)] shadow-none hover:bg-transparent' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)]'}`}>
+        <InterfaceIcon icon={icon} size="sm" weight="medium" className={compact && isPreparing ? 'animate-spin' : undefined} />
+        <span aria-live="polite" className={compact ? 'sr-only' : undefined}>{label}</span>
       </button>
-      {error ? <p role="alert" className="mt-1 text-small text-[var(--text-secondary)]">{error}</p> : null}
+      {error ? <p role="alert" className="profile-share-error mt-1 text-small text-[var(--text-secondary)]">{error}</p> : null}
     </div>;
 }

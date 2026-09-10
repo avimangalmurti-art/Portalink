@@ -33,7 +33,7 @@ type Props = {
   aspectRatio?: number;
 };
 
-/** Artwork stays fixed; the extension overlays on WEB and grows the MOBILE row. */
+/** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
