@@ -132,7 +132,7 @@ export function PdfViewer({
       {/* A reading toolbar, not an identity bar: the title is gone — the portal
          sidebar already names the work — and what remains is the page readout and
          the display-size control, which report and change this document. */}
-      <header data-material="toolbar" className="global-control-header side-panel-content-inset shrink-0 justify-end bg-[var(--surface-canvas)]">
+      <header data-mobile-safe-header="" data-material="toolbar" className="global-control-header side-panel-content-inset shrink-0 justify-end bg-[var(--surface-canvas)]">
         <p aria-live="polite" className="shrink-0 text-[13px] tabular-nums text-[var(--text-tertiary)]">
           Page {hoveredPage ?? currentPage} of {pageCount}
         </p>
@@ -147,7 +147,7 @@ export function PdfViewer({
         </div>
       </header>
 
-      <div ref={scrollRef} onScroll={handleScroll} className="scrollbar-slim min-h-0 flex-1 overflow-auto overscroll-contain p-8" style={{
+      <div data-mobile-scroll-end="" ref={scrollRef} onScroll={handleScroll} className="scrollbar-slim min-h-0 flex-1 overflow-auto overscroll-contain p-8" style={{
       touchAction: 'pan-x pan-y'
     }}>
         <ol role="list" className="mx-auto flex flex-wrap items-start justify-start" style={{

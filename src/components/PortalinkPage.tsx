@@ -138,7 +138,7 @@ export function PortalinkPage({
   return <div className="relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
-      <div className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
+      <div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
         <WorldViewToggle onToggle={onBack} />
       </div>
 
@@ -309,7 +309,7 @@ export function PortalinkPage({
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}
-      <div className="relative z-10 shrink-0">
+      <div data-mobile-scroll-end="" className="relative z-10 shrink-0">
         <BroadcastTicker live={live} />
       </div>
     </div>;

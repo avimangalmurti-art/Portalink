@@ -1,5 +1,13 @@
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
+#root .codex-shell[data-presentation='mobile'] {
+  /* Let the canvas reach both display edges. Insets belong to controls and
+     scroll-content ends, never to the viewport that clips the entire screen. */
+  padding-block: 0;
+  --mobile-content-safe-top: var(--safe-area-top);
+  --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance, 0px));
+}
+
 .codex-shell:where([data-presentation='mobile']) .codex-workspace {
   min-height: 0;
   padding: 0;
@@ -129,7 +137,7 @@
   place-items: center;
   flex: 0 0 48px;
   width: 48px;
-  margin: 0 auto 4px;
+  margin: var(--safe-area-top) auto 4px;
   color: var(--text-secondary);
   background: transparent;
 }
@@ -144,7 +152,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: 0 4px 8px;
+  padding: 0 4px max(8px, var(--safe-area-bottom));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -181,7 +189,7 @@
   position: fixed;
   z-index: 45;
   inset-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px));
-  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  bottom: max(12px, var(--safe-area-bottom));
   max-width: 380px;
   margin-inline: auto;
   pointer-events: none;
@@ -241,23 +249,60 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace {
-  /* 60px dock + 12px bottom offset + 4px breathing room. The shell already
-     reserves the bottom safe area; do not reserve that inset a second time. */
-  --mobile-dock-clearance: 76px;
+  /* Dock height + breathing room + its actual viewport-relative offset. */
+  --mobile-dock-clearance: calc(64px + max(12px, var(--safe-area-bottom)));
+  --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace main {
-  scroll-padding-bottom: var(--mobile-dock-clearance);
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main {
+  scroll-padding-block: var(--mobile-content-safe-top) var(--mobile-content-safe-bottom);
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace .app-screen-layer > main > :first-child:not(:has([data-feed-scroll-content])) {
-  padding-bottom: var(--mobile-dock-clearance);
+#root .codex-shell[data-presentation='mobile'] [data-screen-scroll='page'] {
+  padding-top: var(--mobile-content-safe-top);
+  padding-bottom: var(--mobile-content-safe-bottom);
 }
 
 /* Home and city feeds own an inner scroller. Keep its viewport full-height;
    only the end of its scrolling content needs clearance beneath the dock. */
 #root .codex-shell[data-presentation='mobile'] [data-feed-scroll-content] {
-  padding-bottom: var(--mobile-dock-clearance, 0px);
+  padding-top: calc(12px + var(--mobile-content-safe-top));
+  padding-bottom: var(--mobile-content-safe-bottom);
+}
+
+/* City feeds sit below a safe header; their content needs no second top inset. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-safe-header] ~ * [data-feed-scroll-content] {
+  padding-top: 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] :is([data-mobile-safe-header], .shared-profile-sidebar > .global-control-header, [data-project-presentation] > [data-resizable-panel] > .global-control-header, [data-project-response-rail] > .global-control-header) {
+  height: calc(64px + var(--mobile-content-safe-top));
+  min-height: calc(64px + var(--mobile-content-safe-top));
+  padding-top: var(--mobile-content-safe-top);
+}
+
+#root .codex-shell[data-presentation='mobile'] :is([data-mobile-scroll-end], [data-project-response-rail], [data-project-presentation] > [data-resizable-panel] > nav, [data-project-stage] .premium-media-mode-enter.overflow-y-auto, [data-project-stage] ol.scrollbar-overlay) {
+  padding-bottom: max(16px, var(--mobile-content-safe-bottom));
+}
+
+#root .codex-shell[data-presentation='mobile'] #messages-thread-panel {
+  padding-bottom: var(--mobile-content-safe-bottom);
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-file-strip] {
+  padding-bottom: max(8px, var(--mobile-content-safe-bottom));
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-shared-account-footer] {
+  padding-bottom: max(8px, var(--safe-area-bottom));
+}
+
+#root .codex-shell[data-presentation='mobile'] .codex-workspace > [data-session-status] {
+  padding-top: calc(10px + var(--safe-area-top));
+}
+
+#root .codex-shell[data-presentation='mobile'] .codex-workspace:has(> [data-session-status]) #app-viewport {
+  --mobile-content-safe-top: 0px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header {

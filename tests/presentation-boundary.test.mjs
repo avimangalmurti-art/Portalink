@@ -117,9 +117,9 @@ test('every platform CSS selector is scoped, including nested rules and selector
     root.walkRules((rule) => {
       rules++;
       for (const selector of rule.selectors) {
-        // Specific account overrides may include #root to beat the shared
-        // dialog rules, but must still remain behind the presentation boundary.
-        const boundary = new RegExp(`^(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\]) `);
+        // Frame rules can target the scoped host itself; descendant rules and
+        // specific account overrides must stay behind the same boundary.
+        const boundary = new RegExp(`^(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?: |$)`);
         assert.match(selector, boundary);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }

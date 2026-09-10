@@ -24,7 +24,7 @@ export function CityContentPage({
   // A Portalink network page, so the stars are drawn here rather than by the feed
   // it hosts — the same feed on Home carries no sky of its own.
   return <div className="portalink-stars relative flex h-full w-full flex-col bg-[var(--surface-canvas)]">
-      <div className="ps-panel-toolbar global-control-header side-panel-content-inset shrink-0">
+      <div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header side-panel-content-inset shrink-0">
         <button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-3 text-small font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           Back

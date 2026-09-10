@@ -24,7 +24,7 @@ export function SessionStatusBanner({
 }: {onCreateProfile: () => void;}) {
   const auth = useAuth();
   if (auth.isSessionUnavailable) {
-    return <div role="alert" className="flex items-start gap-2 border-b border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
+    return <div data-session-status="" role="alert" className="flex items-start gap-2 border-b border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
         <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           {auth.error?.message ?? 'Your session could not be checked.'} Until it can be read, you are browsing as a visitor.
@@ -33,7 +33,7 @@ export function SessionStatusBanner({
       </div>;
   }
   if (auth.needsProfileSetup) {
-    return <div role="status" className="flex items-start gap-2 border-b border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
+    return <div data-session-status="" role="status" className="flex items-start gap-2 border-b border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-[var(--content-gutter)] py-2.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
         <UserPlusIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           You are signed in as <span className="font-semibold">{auth.user?.email}</span>, but you do not have a creator profile yet.

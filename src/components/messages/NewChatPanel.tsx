@@ -66,7 +66,7 @@ export function NewChatPanel({
           <button type="button" onClick={onDismissError} className="shrink-0 font-semibold underline">Dismiss</button>
         </div> : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto pb-6">
+      <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto pb-6">
         {directory.status === 'loading' && directory.people.length === 0 ? <div className="side-panel-content-inset py-6"><LoadingState label={isSearching ? 'Searching creators' : 'Loading people you follow'} /></div> : null}
         {directory.status === 'error' && directory.people.length === 0 ? <div className="side-panel-content-inset py-6"><ErrorState title={isSearching ? 'Unable to search creators' : 'Unable to load people you follow'} description={directory.error ?? undefined} onRetry={directory.retry} /></div> : null}
         {directory.status === 'success' && groups.length === 0 ? <div className="side-panel-content-inset py-6"><EmptyState title={isSearching ? 'No creators found' : 'No followed creators to show'} description={isSearching ? 'Try another name or username.' : 'Search by name or username to find someone to message.'} /></div> : null}
