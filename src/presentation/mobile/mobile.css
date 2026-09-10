@@ -152,7 +152,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: 0 4px max(8px, var(--safe-area-bottom));
+  padding: 0 4px calc(64px + max(12px, var(--safe-area-bottom)));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -186,11 +186,16 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
+  --mobile-dock-size: clamp(48px, 14vw, 56px);
   position: fixed;
   z-index: 45;
+  display: grid;
+  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr) var(--mobile-dock-size);
+  align-items: center;
+  gap: 8px;
   inset-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px));
   bottom: max(12px, var(--safe-area-bottom));
-  max-width: 380px;
+  max-width: 420px;
   margin-inline: auto;
   pointer-events: none;
   touch-action: pan-y;
@@ -198,49 +203,85 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: 44px repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  padding: 5px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 32px;
-  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  height: var(--mobile-dock-size);
+  padding: 2px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised) 78%);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 4px 20px rgb(0 0 0 / 18%);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   pointer-events: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
   display: flex;
   min-width: 0;
-  min-height: 48px;
+  min-height: 44px;
+  height: calc(var(--mobile-dock-size) - 4px);
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 4px 2px;
+  gap: 2px;
+  padding: 2px 0;
   border: 0;
-  border-radius: 25px;
+  border-radius: 999px;
   background: transparent !important;
-  color: var(--text-primary);
-  font-size: 11px;
+  color: var(--text-primary) !important;
+  font-size: 10px;
   line-height: 1.2;
   font-weight: 600;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener {
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
+  background: var(--surface-raised) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 14%);
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-dock-profile) {
   display: grid;
   place-items: center;
-  width: 44px;
-  min-height: 48px;
-  align-self: stretch;
+  width: var(--mobile-dock-size);
+  height: var(--mobile-dock-size);
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-inline-end: 1px solid var(--hairline);
-  border-radius: 24px 0 0 24px;
-  background: transparent !important;
-  color: var(--text-primary);
-  box-shadow: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-raised) 90%, transparent) !important;
+  color: var(--text-primary) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
   pointer-events: auto;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener [data-interface-icon-frame] {
+  --interface-icon-size: 26px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener svg {
+  transition: transform 180ms ease;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener[aria-expanded='true'] svg {
+  transform: rotate(45deg);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-profile.mobile-nav-destination {
+  background: var(--accent-primary) !important;
+  color: var(--accent-foreground) !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-profile [data-interface-icon-frame] {
+  --interface-icon-size: 24px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation .mobile-nav-destination svg {
+  color: inherit !important;
 }
 
 /* A dock must never compete with a modal decision or immersive media controls. */
@@ -248,7 +289,7 @@
   visibility: hidden;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation ~ .codex-workspace {
   /* Dock height + breathing room + its actual viewport-relative offset. */
   --mobile-dock-clearance: calc(64px + max(12px, var(--safe-area-bottom)));
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
@@ -376,18 +417,26 @@
   outline-offset: -3px;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock:where(.reduce-translucency *) {
-  background: var(--surface-raised);
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-dock, .mobile-navigation-opener):where(.reduce-translucency *) {
+  background: var(--surface-raised) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-navigation-dock):where(.high-contrast *) {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock:where(.reduce-translucency *) {
+  background: color-mix(in srgb, var(--text-primary) 12%, var(--surface-raised)) !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-navigation-dock, .mobile-navigation-opener):where(.high-contrast *) {
   box-shadow: inset 0 0 0 1px var(--text-primary);
 }
 
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-profile:where(.high-contrast *) {
+  box-shadow: inset 0 0 0 1px var(--accent-foreground);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] .mobile-navigation {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation-opener svg) {
     transition: none;
   }
 }
