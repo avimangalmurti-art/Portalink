@@ -48,7 +48,7 @@ function compile(path, imports, globals) {
 }
 function loader({ reduced = false, stillOnly = false, blocked = false } = {}) {
   const h = hooks();
-  let completed = 0, plays = 0, pauses = 0;
+  let completed = 0, plays = 0, pauses = 0, exitDuration = 0;
   const video = { play() { plays++; return blocked ? Promise.reject(Error('autoplay blocked')) : Promise.resolve(); }, pause() { pauses++; } };
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
@@ -57,10 +57,12 @@ function loader({ reduced = false, stillOnly = false, blocked = false } = {}) {
   return { ...h,
     render() {
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly }));
+      exitDuration = tree.props.transition.duration;
       if (tree.props.children.type === 'video') tree.props.children.ref.current = video;
       h.flush(); return tree.props.children;
     },
     get completed() { return completed; }, get plays() { return plays; }, get pauses() { return pauses; },
+    get exitDuration() { return exitDuration; },
   };
 }
 
@@ -75,10 +77,10 @@ test('splash plays inline and muted once, then reports completion only once', ()
   h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.pauses, 1);
 });
 
-test('a slow or stalled video can add no more than three seconds to startup', () => {
+test('the splash presentation and exit fade share a 1.2-second startup budget', () => {
   const h = loader(); h.render();
   const timer = [...h.timers.values()][0];
-  assert.equal(timer.delay, 3000); timer.fn();
+  assert.equal(timer.delay + h.exitDuration * 1000, 1200); timer.fn();
   assert.equal(h.completed, 1);
   h.unmount();
 });
