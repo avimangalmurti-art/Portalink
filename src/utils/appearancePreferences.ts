@@ -14,6 +14,9 @@ export type StoredIconColor = 'default' | 'black' | 'white' | 'gray';
 export type StoredLanguage = 'auto' | 'en' | 'es' | 'fr' | 'de';
 
 const MODE_KEY = 'portalinknetworks.appearanceMode';
+// The old key was also populated from account branding. Start device appearance
+// in System mode rather than migrating an indistinguishable account override.
+export const DEVICE_APPEARANCE_MODE_KEY = 'portalinknetworks.deviceAppearanceMode';
 const ACCENT_KEY = 'portalinknetworks.accentColor';
 const CONTRAST_KEY = 'portalinknetworks.contrastMode';
 const ICON_COLOR_KEY = 'portalinknetworks.iconColor';
@@ -44,6 +47,15 @@ export function readAppearanceMode(fallback: StoredAppearanceMode): StoredAppear
 
 export function writeAppearanceMode(mode: StoredAppearanceMode): void {
   write(MODE_KEY, mode);
+}
+
+export function readDeviceAppearanceMode(): StoredAppearanceMode {
+  const stored = read(DEVICE_APPEARANCE_MODE_KEY);
+  return stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : 'auto';
+}
+
+export function writeDeviceAppearanceMode(mode: StoredAppearanceMode): void {
+  write(DEVICE_APPEARANCE_MODE_KEY, mode);
 }
 
 // 'auto' resolves against the platform at read time.

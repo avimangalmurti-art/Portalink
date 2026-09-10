@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
 import { BentoFeedGrid } from './BentoFeedGrid';
@@ -64,9 +64,29 @@ export function HomeFeed({
   const isMobile = usePresentation() === 'mobile';
   const feed = useFeed(locationId);
   const autoScrollRef = useRef<HTMLDivElement>(null);
+  const [mobileCapacityWidth, setMobileCapacityWidth] = useState<number>();
   const hasRestoredScrollRef = useRef(false);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
   const persistFrameRef = useRef(0);
+
+  // Choose Home's columns from the full phone canvas. The actual wall still
+  // measures its narrower space and scales the same rows when the rail opens.
+  useLayoutEffect(() => {
+    if (!isMobile || locationId) { setMobileCapacityWidth(undefined); return; }
+    const scroller = autoScrollRef.current;
+    const canvas = scroller?.closest<HTMLElement>('[data-presentation="mobile"]');
+    if (!scroller || !canvas) return;
+    const measure = () => {
+      const style = getComputedStyle(scroller);
+      const inset = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      setMobileCapacityWidth(Math.max(0, canvas.clientWidth - inset));
+    };
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure);
+    observer?.observe(canvas);
+    window.addEventListener('resize', measure);
+    measure();
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [isMobile, locationId]);
 
   const projects = useMemo(() => {
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
@@ -155,6 +175,7 @@ export function HomeFeed({
               ? <JustifiedImageWall
                   label="Home projects"
                   columns={3}
+                  columnCapacityWidth={!locationId ? mobileCapacityWidth : undefined}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
                     ratio: getProjectAspectRatio(projects[index].project),

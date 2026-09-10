@@ -24,6 +24,7 @@ import { ProjectPreviewCard } from './profile/ProjectPreviewCard';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
+import { useReorderOutsideTap } from '../features/profile/useReorderOutsideTap';
 import { useProfileConnections } from '../features/follows/useProfileConnections';
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 
@@ -394,6 +395,8 @@ export function UserProfilePage({
   const showsOwnerTools = canAuthor(viewerRole);
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
   const [isReorderingProjects, setIsReorderingProjects] = useState(false);
+  const profilePageRef = useRef<HTMLDivElement>(null);
+  const finishingReorder = useRef(false);
   /*
    * Public or private, written through the profile service. The state shown is
    * always the confirmed one — nothing flips ahead of the service agreeing.
@@ -461,6 +464,30 @@ export function UserProfilePage({
       .map((projectId) => projectsById.get(projectId))
       .filter((project): project is Project => Boolean(project));
   }, [cardProjects, projectOrder.order]);
+  const canHoldToReorder = isMobile && showsOwnerTools && !isSharedView && activeView === 'projects'
+    && orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
+  const startReordering = () => {
+    projectOrder.reset();
+    setIsReorderingProjects(true);
+    setIsMobileToolsOpen(false);
+    setIsManageOpen(false);
+  };
+  const finishReordering = async () => {
+    if (finishingReorder.current || projectOrder.isSaving) return;
+    finishingReorder.current = true;
+    try {
+      const saved = await (projectOrder.saveError ? projectOrder.retry() : projectOrder.commit());
+      if (saved) setIsReorderingProjects(false);
+    } finally {
+      finishingReorder.current = false;
+    }
+  };
+  const cancelReordering = () => {
+    projectOrder.reset();
+    projectOrder.dismissError();
+    setIsReorderingProjects(false);
+  };
+  useReorderOutsideTap(isMobile && showsOwnerTools && !isSharedView && isReorderingProjects, profilePageRef, () => { void finishReordering(); });
   const imageryCells: WallItem[] = useMemo(() => orderedCardProjects.map((project) => ({
     key: project.id,
     ratio: getProjectAspectRatio(project),
@@ -505,7 +532,7 @@ export function UserProfilePage({
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
   // Keep one app-shell scroller. Mobile pins the identity and its optional tools;
   // the display-contents wrapper preserves the existing desktop document flow.
-  return <div data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+  return <div ref={profilePageRef} data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
       <div className="profile-header-region contents">
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
@@ -519,8 +546,14 @@ export function UserProfilePage({
           cover later content instead of letting its icon buttons paint through. */}
       {!isSharedView && isMobile && <header className="mobile-profile-header">
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
-        <button type="button" className="mobile-profile-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+        {isReorderingProjects ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
+          <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
+          <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
+        </div> : <button type="button" className="mobile-profile-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>}
+      {isMobile && isReorderingProjects && <div data-profile-reorder-controls="" className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">
+        <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Drag to move. Tap outside the cards to save.'}</p>
+      </div>}
       {!isSharedView && (!isMobile || isMobileToolsOpen) && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -671,7 +704,7 @@ export function UserProfilePage({
       setIsAddingCategory(false);
     }} />}
 
-      {isReorderingProjects && showsOwnerTools && !isSharedView ? <section aria-label="Reorder projects" className="mx-2 mt-3 flex flex-wrap items-center gap-3 rounded-[12px] bg-[var(--surface-raised)] px-3 py-2.5 shadow-[var(--shadow-pop)] ring-1 ring-inset ring-[var(--hairline)]">
+      {!isMobile && isReorderingProjects && showsOwnerTools && !isSharedView ? <section aria-label="Reorder projects" className="mx-2 mt-3 flex flex-wrap items-center gap-3 rounded-[12px] bg-[var(--surface-raised)] px-3 py-2.5 shadow-[var(--shadow-pop)] ring-1 ring-inset ring-[var(--hairline)]">
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--accent-soft)] text-[var(--accent-text)]">
             <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
           </span>
@@ -739,9 +772,10 @@ export function UserProfilePage({
              Each published image is also the direct entrance to the project it
              represents; the image itself remains visually unchanged at rest.
              A short trailing row ends naturally. */}
-            <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects ? {
-          enabled: true,
+            <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects || canHoldToReorder ? {
+          enabled: isReorderingProjects,
           disabled: projectOrder.isSaving,
+          onStart: canHoldToReorder ? startReordering : undefined,
           onMove: projectOrder.move,
           onMoveByOffset: projectOrder.moveByOffset
         } : undefined} />

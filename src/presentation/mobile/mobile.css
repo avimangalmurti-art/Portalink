@@ -10,6 +10,13 @@
   --mobile-sidebar-gap: 4px;
   --mobile-sidebar-header: 64px;
   --mobile-sidebar-content-inset: 8px;
+  --mobile-dock-size: clamp(48px, 14vw, 56px);
+}
+
+/* Reserve the floating control's clearance only where this navigation exists. */
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation ~ .codex-workspace) {
+  --mobile-dock-clearance: calc(var(--mobile-dock-size) + 8px + max(12px, var(--safe-area-bottom)));
+  --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
 /* Neighboring phone rails share control sizes, header centers and row spacing. */
@@ -160,7 +167,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset)) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
+  padding: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset)) 4px var(--mobile-dock-clearance);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -198,7 +205,6 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
-  --mobile-dock-size: clamp(48px, 14vw, 56px);
   position: fixed;
   z-index: 45;
   display: grid;
@@ -213,8 +219,17 @@
   touch-action: pan-y;
 }
 
+/* The toggle stays in the first grid cell; only the destinations animate. */
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
+  grid-column: 2 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--mobile-dock-size);
+  align-items: center;
+  gap: 8px;
+}
+
 /* Only one set of destinations is visible and keyboard-accessible at a time. */
-#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[hidden] {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links[hidden] {
   display: none;
 }
 
@@ -299,12 +314,6 @@
 /* A dock must never compete with a modal decision or immersive media controls. */
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true'], [data-immersive='true']) *) {
   visibility: hidden;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace {
-  /* Dock height + breathing room + its actual viewport-relative offset. */
-  --mobile-dock-clearance: calc(64px + max(12px, var(--safe-area-bottom)));
-  --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
 #root .codex-shell[data-presentation='mobile'] .app-screen-layer > main {
@@ -520,6 +529,25 @@
   color: var(--text-secondary);
 }
 
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions {
+  display: grid;
+  flex: 0 0 auto;
+  min-width: 54px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-reorder-actions > button {
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-hold-reorder] [data-preview-open] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Public profiles have no engagement footer. Keep the card's base rounded
    when its redundant creator row is omitted on mobile. */
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
@@ -556,7 +584,7 @@
   white-space: normal;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-toggle, .mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }

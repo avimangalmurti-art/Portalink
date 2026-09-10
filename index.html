@@ -45,7 +45,7 @@
         const root = document.documentElement;
         let mode = 'auto';
         try {
-          const stored = window.localStorage.getItem('portalinknetworks.appearanceMode');
+          const stored = window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
           if (stored === 'light' || stored === 'dark' || stored === 'auto') mode = stored;
         } catch {
           // Storage can be unavailable in private browsing; System still works.

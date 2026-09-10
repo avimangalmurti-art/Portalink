@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BellIcon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PanelLeftCloseIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BellIcon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
@@ -40,10 +40,12 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
-  const railToggle = useRef<HTMLButtonElement>(null);
-  function close() { setHidden(true); requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true })); }
-  // The close control sits after Profile; let the rail reveal it on short screens.
-  function open() { setHidden(false); requestAnimationFrame(() => railToggle.current?.focus({ preventScroll: false })); }
+  function setNavigationHidden(next: boolean) {
+    setHidden(next);
+    requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true }));
+  }
+  function close() { setNavigationHidden(true); }
+  function open() { setNavigationHidden(false); }
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
@@ -70,17 +72,18 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
           <Destination item={{ label: theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance', icon: theme === 'dark' ? SunIcon : MoonIcon, action: () => onThemeChange(theme === 'dark' ? 'light' : 'dark') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
-          <button ref={railToggle} type="button" className="mobile-navigation-toggle mobile-nav-destination nav-button shape-compact" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" /></button>
           {liveControl}
         </nav>
       </>}
     </aside>
-    <motion.nav hidden={!hidden} className="mobile-floating-navigation" aria-label="Quick navigation" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} {...dockSwipe}>
+    <div className="mobile-floating-navigation" {...dockSwipe}>
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={PlusIcon} /></button>
-      <div className="mobile-navigation-dock">
-        {[messages, portals, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
-      </div>
-      <Destination item={profile} variant="profile" />
-    </motion.nav>
+      <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
+        <div className="mobile-navigation-dock">
+          {[messages, portals, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
+        </div>
+        <Destination item={profile} variant="profile" />
+      </motion.nav>
+    </div>
   </>;
 }

@@ -149,25 +149,37 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
   }
 });
 
-function profileHarness(search = '') {
+function profileHarness(search = '', options = {}) {
   let params = new URLSearchParams(search);
   const navigation = [];
-  const react = { ...React, useState: (initial) => [typeof initial === 'function' ? initial() : initial, () => {}], useEffect() {}, useRef: () => ({ current: null }), useMemo: (fn) => fn() };
+  let cursor = 0;
+  const slots = [];
+  const projects = options.projects ?? [];
+  const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
+  let outside;
+  const react = { ...React,
+    useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
+    useEffect() {}, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
-    if (name.endsWith('/usePresentation')) return { usePresentation: () => ({ isMobile: false }) };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
+    if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
+    if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1 };
     if (name.endsWith('/viewer')) return { canAuthor: (role) => role === 'owner', needsAccount: (role) => role === 'guest' };
     if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [], counts: {}, loading: false, error: null, nextOffset: null }) };
-    if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null } }) };
-    if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => ({ order: [] }) };
+    if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
+    if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => [] };
     return placeholder;
   }, { URLSearchParams, window: { localStorage: { getItem: () => null } } });
-  const profile = { id: 'owner', name: 'Owner', projects: [], categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
-  return { navigation, search: () => params.toString(), render: () => UserProfilePage({ profile, viewerRole: 'owner', onBack() {}, onOpenProject() {} }) };
+  const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
+  return { navigation, projectOrder, outside: () => outside, search: () => params.toString(), render: () => {
+    cursor = 0;
+    return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {} });
+  } };
 }
 
 test('count controls replace the project area, report real Portal count, and restore from the profile URL', () => {
@@ -191,4 +203,41 @@ test('count controls replace the project area, report real Portal count, and res
   nodes(stats.type(stats.props)).find((node) => node.type === 'button').props.onClick();
   assert.equal(new URLSearchParams(h.search()).has('view'), false);
   assert.equal(nodes(h.render()).find((node) => node.props?.id === 'profile-content').props.children.type, 'EmptyState');
+});
+
+const reorderProjects = [{ id: 'a', cover: 'a.png' }, { id: 'b', cover: 'b.png' }];
+const wall = tree => nodes(tree).find(node => node.type === 'JustifiedImageWall');
+test('only the mobile owner overview offers hold-to-reorder, excluding public links and other views', () => {
+  const owner = profileHarness('', { presentation: 'mobile', projects: reorderProjects });
+  assert.equal(typeof wall(owner.render()).props.reorderMode.onStart, 'function');
+  for (const options of [{ presentation: 'web' }, { viewerRole: 'visitor' }, { viewerRole: 'guest' },
+    { isSharedView: true }, { editorProjectId: 'a' }, { projects: reorderProjects.slice(0, 1) }, { projectOrder: { isSaving: true } }]) {
+    const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, ...options });
+    assert.equal(wall(h.render()).props.reorderMode, undefined, JSON.stringify(options));
+    assert.equal(h.outside().enabled, false);
+  }
+  assert.equal(wall(profileHarness('view=followers', { presentation: 'mobile', projects: reorderProjects }).render()), undefined);
+});
+
+test('hold enters reorder, duplicate outside taps save once, and failure retries before exiting', async () => {
+  let resolveSave;
+  let saves = 0;
+  let retries = 0;
+  const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects,
+    projectOrder: { commit() { saves++; return new Promise(resolve => { resolveSave = resolve; }); }, retry: async () => { retries++; return true; } } });
+  wall(h.render()).props.reorderMode.onStart();
+  assert.equal(wall(h.render()).props.reorderMode.enabled, true);
+  assert.equal(h.outside().enabled, true);
+  h.outside().finish(); h.outside().finish();
+  assert.equal(saves, 1);
+  resolveSave(false);
+  await flush();
+  h.projectOrder.saveError = 'Offline';
+  assert.equal(wall(h.render()).props.reorderMode.enabled, true);
+  h.outside().finish();
+  await flush();
+  assert.equal(retries, 1);
+  assert.equal(saves, 1);
+  assert.equal(wall(h.render()).props.reorderMode.enabled, false);
+  assert.equal(h.outside().enabled, false);
 });

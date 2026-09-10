@@ -29,14 +29,15 @@ test('public appearance validates the existing gray/mode vocabulary and rejects 
   }
 });
 
-test('visitors start with creator mode; local overrides remain per site and never change creator/private preferences', () => {
+test('visitors follow their device; local overrides remain per site without changing creator colors or private preferences', () => {
   const storage = new Map([['portalinknetworks.appearanceMode', 'light']]);
   const { api } = publicModule(storage, true);
-  assert.equal(api.resolvePublicTheme(A, api.readVisitorTheme('one')), 'dark');
+  assert.equal(api.resolvePublicTheme(api.readVisitorTheme('one')), 'dark');
+  assert.equal(api.resolvePublicTheme(null, 'light'), 'light');
   api.writeVisitorTheme('one', 'light');
-  assert.equal(api.resolvePublicTheme(A, api.readVisitorTheme('one')), 'light');
+  assert.equal(api.resolvePublicTheme(api.readVisitorTheme('one')), 'light');
   assert.equal(api.readVisitorTheme('two'), null);
-  assert.equal(api.resolvePublicTheme({ ...A, mode: 'auto' }, null), 'dark');
+  assert.equal(api.resolvePublicTheme(null), 'dark');
   assert.equal(storage.get('portalinknetworks.appearanceMode'), 'light');
   assert.equal(A.mode, 'dark');
 });

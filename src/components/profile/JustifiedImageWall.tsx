@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import {
   DndContext,
   KeyboardSensor,
+  MouseSensor,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   pointerWithin,
   useSensor,
@@ -60,6 +62,8 @@ export type WallItem = {
 type ReorderMode = {
   enabled: boolean;
   disabled?: boolean;
+  /** Supplied only by the owner's mobile profile, to enter via a long press. */
+  onStart?: () => void;
   onMove: (sourceKey: string, targetKey: string) => void;
   onMoveByOffset: (key: string, offset: -1 | 1) => void;
 };
@@ -152,6 +156,8 @@ function SortableWallCard({
   shouldReduceMotion,
   reorderMode,
 }: SortableWallCardProps) {
+  const canHoldToReorder = Boolean(reorderMode?.onStart) && !isDisabled;
+  const canSort = !isDisabled && (isReordering || canHoldToReorder);
   const {
     attributes,
     listeners,
@@ -162,7 +168,7 @@ function SortableWallCard({
     isDragging,
   } = useSortable({
     id: item.key,
-    disabled: !isReordering || isDisabled,
+    disabled: !canSort,
     transition: shouldReduceMotion ? null : {
       duration: 190,
       easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
@@ -187,6 +193,9 @@ function SortableWallCard({
   const visualTransform = isDragging && transform
     ? { ...transform, scaleX: 1, scaleY: 1 }
     : transform;
+  const startFromArtwork = (event: React.SyntheticEvent, name: 'onTouchStart' | 'onMouseDown') => {
+    if ((event.target as HTMLElement).closest('[data-preview-open]')) listeners?.[name]?.(event);
+  };
 
   return <div
     ref={setNodeRef}
@@ -202,9 +211,13 @@ function SortableWallCard({
     } as React.CSSProperties}
   >
       <div
-        ref={isReordering ? setActivatorNodeRef : undefined}
+        ref={canSort ? setActivatorNodeRef : undefined}
         {...(isReordering ? attributes : {})}
-        {...(isReordering && !isDisabled ? listeners : {})}
+        {...(canSort ? isReordering ? listeners : {
+          onTouchStart: (event: React.TouchEvent) => startFromArtwork(event, 'onTouchStart'),
+          onMouseDown: (event: React.MouseEvent) => startFromArtwork(event, 'onMouseDown'),
+        } : {})}
+        data-profile-hold-reorder={canHoldToReorder || undefined}
         aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
         aria-label={isReordering ? `Project ${itemIndex + 1} of ${itemCount}; drag to reorder` : undefined}
         onKeyDown={isReordering ? handleKeyDown : undefined}
@@ -230,6 +243,7 @@ export function JustifiedImageWall({
   items,
   columns,
   label,
+  columnCapacityWidth,
   reorderMode
 
 
@@ -238,7 +252,7 @@ export function JustifiedImageWall({
 
 
 
-}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;reorderMode?: ReorderMode;}) {
+}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;/** MOBILE Home keeps its columns when the navigation rail takes space. */columnCapacityWidth?: number;reorderMode?: ReorderMode;}) {
   const {
     ref,
     width
@@ -254,19 +268,24 @@ export function JustifiedImageWall({
   const isMobile = usePresentation() === 'mobile';
   const readableCardWidth = isMobile ? 150 : MIN_READABLE_CARD_WIDTH;
   const shouldReduceMotion = useReducedMotion();
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: reorderMode?.enabled ? { distance: 6 } : { delay: 450, tolerance: 8 },
+  });
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: isMobile && !reorderMode?.enabled ? { delay: 450, tolerance: 8 } : { distance: 6 },
+  });
+  const keyboardSensor = useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates });
+  // dnd-kit uses the sensor list as effect dependencies: keep its length stable
+  // when resizing. PointerSensor wins mouse activation on WEB; MouseSensor is
+  // its fallback and complements TouchSensor on the owner's mobile profile.
+  const sensors = useSensors(isMobile && reorderMode ? touchSensor : pointerSensor, mouseSensor, keyboardSensor);
   // Three is the standard minimum in the profile workspace. Only a genuinely
   // narrow viewport may reduce the rendered count so cards never become
   // unreadable; the saved 3–9 preference itself remains unchanged.
-  const responsiveCapacity = width > 0
-    ? Math.max(1, Math.floor((width + GAP) / (readableCardWidth + GAP)))
+  const capacityWidth = isMobile ? columnCapacityWidth ?? width : width;
+  const responsiveCapacity = capacityWidth > 0
+    ? Math.max(1, Math.floor((capacityWidth + GAP) / (readableCardWidth + GAP)))
     : MAX_COLUMNS;
   // On phones zoom starts from the columns actually visible, so enlarging a
   // two-column feed can reach one column instead of hitting the WEB minimum.
@@ -288,8 +307,10 @@ export function JustifiedImageWall({
   return <div ref={view.ref} className="relative w-full">
       <ZoomReadout view={view} />
       {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
-      <DndContext sensors={sensors} collisionDetection={gapAwareCollisionDetection} onDragEnd={handleDragEnd}>
-        <SortableContext items={items.map((item) => item.key)} strategy={rectSortingStrategy} disabled={!reorderMode?.enabled || reorderMode.disabled}>
+      <DndContext sensors={sensors} collisionDetection={gapAwareCollisionDetection} onDragStart={() => {
+        if (!reorderMode?.enabled && !reorderMode?.disabled) reorderMode?.onStart?.();
+      }} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((item) => item.key)} strategy={rectSortingStrategy} disabled={(!reorderMode?.enabled && !reorderMode?.onStart) || reorderMode?.disabled}>
           <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
           {rows.map((row, rowIndex) => <div key={row.items[0]?.key ?? rowIndex} className="flex w-full" style={{
             gap: GAP,

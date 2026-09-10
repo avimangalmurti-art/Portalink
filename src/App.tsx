@@ -25,7 +25,8 @@ import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
 import { resolveMacTokens } from './utils/macTokens';
-import { readContrastMode, readHighContrast, readIconColor, readLanguage, readReduceTranslucency, resolveAppearance, writeAccentColor, writeAppearanceMode, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
+import { readContrastMode, readHighContrast, readIconColor, readLanguage, readReduceTranslucency, writeAccentColor, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
+import { useDeviceAppearance } from './hooks/useDeviceAppearance';
 import { useScreenInit } from './useScreenInit.js';
 import { useFollows } from './features/follows/useFollows';
 import { useLiveSessions } from './features/live/useLiveSessions';
@@ -125,10 +126,10 @@ export function App() {
   const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject';
   const auth = useAuth();
   const creatorAppearance = useCreatorAppearance(auth.viewerProfileId, !isSharedRoute);
-  const { accentColor, systemGray: navSystemGray, mode: appearanceMode } = creatorAppearance.appearance;
+  const { accentColor, systemGray: navSystemGray } = creatorAppearance.appearance;
+  const { mode: appearanceMode, chooseMode: setAppearanceMode, theme, systemTheme } = useDeviceAppearance();
   const setAccentColor = (value: string) => creatorAppearance.choose({ accentColor: value });
   const setNavSystemGray = (value: string) => creatorAppearance.choose({ systemGray: value });
-  const setAppearanceMode = (value: StoredAppearanceMode) => creatorAppearance.choose({ mode: value });
   const sharedProfileId = isSharedRoute ? route.profileId : null;
   const sharedAppearanceQuery = useProfileQuery(sharedProfileId);
   const publicAppearance = sharedAppearanceQuery.profile?.publicAppearance ?? DEFAULT_PUBLIC_APPEARANCE;
@@ -160,8 +161,7 @@ export function App() {
     writeVisitorTheme(sharedProfileId, value);
     setVisitorThemes(themes => ({ ...themes, [sharedProfileId]: value }));
   };
-  const theme = resolveAppearance(appearanceMode);
-  const interfaceTheme = isSharedRoute ? resolvePublicTheme(publicAppearance, visitorTheme) : theme;
+  const interfaceTheme = isSharedRoute ? resolvePublicTheme(visitorTheme, systemTheme) : theme;
   const interfaceHighContrast = highContrast;
   const interfaceReduceTranslucency = reduceTranslucency;
   const interfaceNavSystemGray = isSharedRoute ? publicAppearance.systemGray : navSystemGray;
@@ -206,21 +206,6 @@ export function App() {
   function chooseAppearanceMode(nextMode: StoredAppearanceMode) {
     setAppearanceMode(nextMode);
   }
-  // Every change writes through, so the settings on screen are the defaults.
-  useEffect(() => {
-    writeAppearanceMode(appearanceMode);
-  }, [appearanceMode]);
-  // System Automatic keeps following the operating system while the app runs.
-  const [, forceSystemSync] = useState(0);
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) {
-      return undefined;
-    }
-    const query = window.matchMedia('(prefers-color-scheme: dark)');
-    const sync = () => forceSystemSync((tick) => tick + 1);
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, [appearanceMode]);
   // Keep browser-native controls, scrollbars, and portalled UI in the same
   // resolved appearance. The pre-render bootstrap in index.html sets this before
   // React starts; this effect keeps it current after an override or OS change.

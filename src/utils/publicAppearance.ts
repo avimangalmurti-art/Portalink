@@ -24,8 +24,8 @@ export function writeVisitorTheme(profileId: string, theme: AppearanceTheme): vo
   try { window.localStorage.setItem(`portalink.publicTheme.${profileId}`, theme); } catch { /* Session-only when storage is unavailable. */ }
 }
 
-export function resolvePublicTheme(appearance: PublicAppearance, visitorTheme: AppearanceTheme | null): AppearanceTheme {
-  return visitorTheme ?? resolveAppearance(appearance.mode);
+export function resolvePublicTheme(visitorTheme: AppearanceTheme | null, systemTheme: AppearanceTheme = resolveAppearance('auto')): AppearanceTheme {
+  return visitorTheme ?? systemTheme;
 }
 
 /** Serialize saves so a slow older request cannot overwrite a newer choice. */
