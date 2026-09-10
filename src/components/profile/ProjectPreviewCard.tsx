@@ -25,6 +25,7 @@ type Props = {
   priority?: boolean;
   disabled?: boolean;
   showEngagementMetrics?: boolean;
+  showCreator?: boolean;
   metrics?: React.ReactNode;
   footerEnd?: React.ReactNode;
   editor?: React.ReactNode;
@@ -35,12 +36,13 @@ type Props = {
 /** Artwork stays fixed; the extension overlays on WEB and grows the MOBILE row. */
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
-  showEngagementMetrics = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
+  showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
   const preview = useContentPreview(disabled);
   const reduceMotion = useReducedMotion();
   const [settled, setSettled] = useState(false);
   const extensionRef = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => { if (extensionRef.current) extensionRef.current.inert = !preview.expanded; }, [preview.expanded]);
+  const hasExtension = Boolean(showCreator || metrics || showEngagementMetrics || footerEnd);
+  useLayoutEffect(() => { if (extensionRef.current) extensionRef.current.inert = !preview.expanded; }, [preview.expanded, hasExtension]);
   useEffect(() => { if (!preview.expanded) onCollapse?.(); }, [preview.expanded, onCollapse]);
   const creatorContent = <>
     <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="compact" className="h-7 w-7 shrink-0 text-[11px]" fallbackClassName="bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-0" />
@@ -62,13 +64,13 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
   const artwork = <span className="project-preview-image absolute inset-0 block">
     {cover ?? <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} />}
   </span>;
-  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-expanded={preview.expanded} className={`project-preview-card relative min-w-0 ${className}`}>
+  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />
       {editor}
     </div>
-    <motion.div initial={false} animate={{ height: preview.expanded ? 'auto' : 0, opacity: preview.expanded ? 1 : 0 }}
+    {hasExtension && <motion.div initial={false} animate={{ height: preview.expanded ? 'auto' : 0, opacity: preview.expanded ? 1 : 0 }}
       transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
       onAnimationStart={() => setSettled(false)} onAnimationComplete={() => setSettled(true)}
       aria-hidden={!preview.expanded}
@@ -78,9 +80,9 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
           {metrics ?? (showEngagementMetrics && <ProjectPreviewMetrics projectId={project.id} onOpenComments={onOpenComments} />)}
           {footerEnd && <span className="relative ml-auto inline-flex shrink-0">{footerEnd}</span>}
         </div>}
-        {onOpenCreator ? <button type="button" {...creatorProps} onClick={onOpenCreator}>{creatorContent}</button>
-          : <Link {...creatorProps} to={creatorHref ?? `/p/${creator.id}`}>{creatorContent}</Link>}
+        {showCreator && (onOpenCreator ? <button type="button" {...creatorProps} onClick={onOpenCreator}>{creatorContent}</button>
+          : <Link {...creatorProps} to={creatorHref ?? `/p/${creator.id}`}>{creatorContent}</Link>)}
       </div>
-    </motion.div>
+    </motion.div>}
   </article>;
 }

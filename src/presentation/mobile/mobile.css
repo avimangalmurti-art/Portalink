@@ -277,6 +277,12 @@
   color: var(--text-secondary);
 }
 
+/* Public profiles have no engagement footer. Keep the card's base rounded
+   when its redundant creator row is omitted on mobile. */
+#root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
+  border-radius: 0 0 8px 8px;
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-identity-and-links {
   flex: 1 1 auto;
   gap: 8px;

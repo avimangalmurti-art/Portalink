@@ -245,6 +245,7 @@ function ProfileProjectTile({
   onRepositionPreview?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const showCreator = usePresentation() !== 'mobile';
   const menuRef = useRef<HTMLSpanElement>(null);
   const hasOwnerActions = Boolean(onEditDescription || onEditProject || onRepositionPreview);
 
@@ -270,6 +271,7 @@ function ProfileProjectTile({
   };
 
   return <ProjectPreviewCard project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+      showCreator={showCreator}
       onCollapse={() => setIsMenuOpen(false)}
       disabled={disabled || Boolean(descriptionEditor)} showEngagementMetrics={showEngagementMetrics}
       creatorHref={isSharedView ? buildPath('sharedProfile', { profileId: creator.id }) : buildPath('profile', { profileId: creator.id })}
