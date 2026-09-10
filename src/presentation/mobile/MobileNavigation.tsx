@@ -72,8 +72,8 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
       </>}
     </aside>
     {hidden && <motion.div className="mobile-floating-navigation" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} {...openSwipe}>
-      <button ref={opener} type="button" className="mobile-navigation-opener" aria-label="Show navigation" aria-expanded="false" aria-controls="mobile-main-navigation" title="Show navigation · swipe right" onClick={open}><InterfaceIcon icon={PanelLeftOpenIcon} /></button>
       <nav className="mobile-navigation-dock" aria-label="Quick navigation">
+        <button ref={opener} type="button" className="mobile-navigation-opener" aria-label="Show navigation" aria-expanded="false" aria-controls="mobile-main-navigation" title="Show navigation · swipe right" onClick={open}><InterfaceIcon icon={PanelLeftOpenIcon} /></button>
         {[messages, portals, studio, profile].map(item => <Destination key={item.label} item={item} dock />)}
       </nav>
     </motion.div>}

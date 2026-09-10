@@ -127,7 +127,7 @@ export function HomeFeed({
         onScroll={rememberScroll}
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
-        <div className="relative pt-3">
+        <div data-feed-scroll-content="" className="relative pt-3">
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {feed.status === 'loading' && projects.length === 0
