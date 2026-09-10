@@ -83,6 +83,9 @@ test('destination callbacks never receive the click event as a message recipient
 
 function navigationHarness() {
   const slots = [];
+  const frames = [];
+  const focused = [];
+  let railRef;
   let cursor = 0;
   const react = {
     ...React,
@@ -98,7 +101,7 @@ function navigationHarness() {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText + '\nexports.Destination = Destination;', {
-    exports, requestAnimationFrame: fn => fn(),
+    exports, requestAnimationFrame: fn => frames.push(fn),
     require: name => {
       if (name === 'react') return react;
       if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname: '/' }) };
@@ -113,37 +116,57 @@ function navigationHarness() {
     const tree = exports.MobileNavigation({ settings: null, onAppearance() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, dock] = React.Children.toArray(tree.props.children);
     const [toggle, group, profile] = React.Children.toArray(dock.props.children);
-    return { rail, dock, toggle, group, profile: exports.Destination(profile.props) };
+    const railToggle = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
+    toggle.ref.current = { focus(options) {
+      assert.equal(dock.props.hidden, false, 'focus must never land in the hidden dock');
+      assert.equal(options.preventScroll, true);
+      focused.push('dock');
+    } };
+    if (railToggle) {
+      railRef = railToggle.ref;
+      railRef.current = { focus(options) {
+        assert.equal(rail.props['data-hidden'], false);
+        assert.equal(options.preventScroll, true);
+        focused.push('rail');
+      } };
+    } else if (railRef) railRef.current = null;
+    frames.splice(0).forEach(fn => fn());
+    return { rail, railToggle, dock, toggle, group, profile: exports.Destination(profile.props), focused };
   }
   return { render };
 }
 
-test('the dock remains available in both rail states and its toggle retains focus', () => {
+test('sidebar and dock alternate, transferring focus to the visible navigation control', () => {
   const h = navigationHarness();
-  let ui = h.render(); let focused = 0;
-  ui.toggle.ref.current = { focus(options) { assert.equal(options.preventScroll, true); focused++; } };
-  assert.equal(ui.toggle.props['aria-expanded'], true);
+  let ui = h.render();
+  assert.equal(ui.dock.props.hidden, true);
+  assert.equal(ui.railToggle.props['aria-expanded'], 'true');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Studio', 'Home']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Portals', 'Studio']);
   for (const expectedHidden of [true, false, true, false]) {
-    ui.toggle.props.onClick(); ui = h.render();
+    (ui.railToggle ?? ui.toggle).props.onClick(); ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], expectedHidden);
+    assert.equal(ui.dock.props.hidden, !expectedHidden);
+    assert.equal(ui.railToggle === null, expectedHidden);
     assert.equal(ui.toggle.props['aria-expanded'], !expectedHidden);
     assert.equal(ui.dock.props['aria-label'], 'Quick navigation');
     assert.equal(ui.toggle.props['aria-label'], expectedHidden ? 'Show navigation' : 'Hide navigation');
   }
-  assert.equal(focused, 4);
+  assert.deepEqual(ui.focused, ['dock', 'rail', 'dock', 'rail']);
 });
 
-test('dock swipe suppression survives closing and reopening the sidebar', () => {
+test('rail and dock swipes alternate navigation without activating destinations underneath', () => {
   const h = navigationHarness(); let ui = h.render();
   for (const [from, to, hidden] of [[60, 10, true], [10, 60, false]]) {
-    ui.dock.props.onPointerDownCapture(pointer(from, 10, 0));
-    ui.dock.props.onPointerUpCapture(pointer(to, 10, 60));
+    const surface = hidden ? 'rail' : 'dock';
+    ui[surface].props.onPointerDownCapture(pointer(from, 10, 0));
+    ui[surface].props.onPointerMoveCapture(pointer(to, 10, 30));
+    ui[surface].props.onPointerUpCapture(pointer(to, 10, 60));
     ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], hidden);
-    const event = click(); ui.dock.props.onClickCapture(event);
+    assert.equal(ui.dock.props.hidden, !hidden);
+    const event = click(); ui[surface].props.onClickCapture(event);
     assert.equal(event.prevented, true);
     assert.equal(event.stopped, true);
   }

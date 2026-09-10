@@ -38,8 +38,9 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
+  const railToggle = useRef<HTMLButtonElement>(null);
   function close() { setHidden(true); requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true })); }
-  function open() { setHidden(false); requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true })); }
+  function open() { setHidden(false); requestAnimationFrame(() => railToggle.current?.focus({ preventScroll: true })); }
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
@@ -62,7 +63,7 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
   return <>
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
-        <button type="button" className="mobile-navigation-toggle" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} /></button>
+        <button ref={railToggle} type="button" className="mobile-navigation-toggle" aria-label="Hide navigation" aria-expanded="true" aria-controls="mobile-main-navigation" title="Hide navigation · swipe left" onClick={close}><InterfaceIcon icon={PanelLeftCloseIcon} /></button>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
           <Destination item={{ label: 'Appearance', icon: SunIcon, action: onAppearance, active: pathname === buildPath('controlCenter') }} />
           {settings}
@@ -71,7 +72,7 @@ export function MobileNavigation({ settings, onAppearance, onPortalink, onMessag
         </nav>
       </>}
     </aside>
-    <motion.nav className="mobile-floating-navigation" aria-label="Quick navigation" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} {...dockSwipe}>
+    <motion.nav hidden={!hidden} className="mobile-floating-navigation" aria-label="Quick navigation" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} {...dockSwipe}>
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={PlusIcon} /></button>
       <div className="mobile-navigation-dock">
         {[messages, portals, studio, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}

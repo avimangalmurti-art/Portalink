@@ -170,7 +170,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  padding: var(--mobile-sidebar-content-inset) 4px calc(64px + max(12px, var(--safe-area-bottom)));
+  padding: var(--mobile-sidebar-content-inset) 4px max(var(--mobile-sidebar-content-inset), var(--safe-area-bottom));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
@@ -217,6 +217,11 @@
   margin-inline: auto;
   pointer-events: none;
   touch-action: pan-y;
+}
+
+/* Only one set of destinations is visible and keyboard-accessible at a time. */
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[hidden] {
+  display: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
@@ -292,7 +297,8 @@
   --interface-icon-size: 24px;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation .mobile-nav-destination svg {
+/* Links and buttons share their destination's theme and selected color. */
+#root .codex-shell[data-presentation='mobile'] .mobile-nav-destination svg {
   color: inherit !important;
 }
 
@@ -301,7 +307,7 @@
   visibility: hidden;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation ~ .codex-workspace {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] ~ .codex-workspace {
   /* Dock height + breathing room + its actual viewport-relative offset. */
   --mobile-dock-clearance: calc(64px + max(12px, var(--safe-area-bottom)));
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
