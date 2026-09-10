@@ -3,6 +3,8 @@ import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
 import { BentoFeedGrid } from './BentoFeedGrid';
 import type { BentoCellItem } from './BentoFeedGrid';
+import { JustifiedImageWall } from '../profile/JustifiedImageWall';
+import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio, resolveFeedSpan } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
@@ -59,6 +61,7 @@ export function HomeFeed({
   emptyTitle = 'Your Home feed is ready',
   emptyDescription = 'Your published work and new work from creators you follow will appear here.',
 }: HomeFeedProps) {
+  const isMobile = usePresentation() === 'mobile';
   const feed = useFeed(locationId);
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const hasRestoredScrollRef = useRef(false);
@@ -146,7 +149,20 @@ export function HomeFeed({
                   description={emptyDescription}
                 />
               : null}
-            {projects.length > 0 ? <BentoFeedGrid items={cells} /> : null}
+            {projects.length > 0 ? isMobile
+              // Consecutive rows share Profile's sizing and preserve reading
+              // order without repacking measured cards when this screen mounts.
+              ? <JustifiedImageWall
+                  label="Home projects"
+                  columns={3}
+                  items={cells.map((cell, index) => ({
+                    key: cell.key,
+                    ratio: getProjectAspectRatio(projects[index].project),
+                    content: cell.content,
+                  }))}
+                />
+              : <BentoFeedGrid items={cells} />
+              : null}
           </section>
         </div>
       </div>

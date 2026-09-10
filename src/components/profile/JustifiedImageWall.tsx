@@ -251,7 +251,8 @@ export function JustifiedImageWall({
   const view = useContentZoom<HTMLDivElement>();
   // Hiding the phone rail enlarges the same two columns instead of shrinking
   // the artwork to squeeze in a third. The saved WEB density remains intact.
-  const readableCardWidth = usePresentation() === 'mobile' ? 150 : MIN_READABLE_CARD_WIDTH;
+  const isMobile = usePresentation() === 'mobile';
+  const readableCardWidth = isMobile ? 150 : MIN_READABLE_CARD_WIDTH;
   const shouldReduceMotion = useReducedMotion();
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -261,13 +262,16 @@ export function JustifiedImageWall({
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-  const preferredColumns = Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, view.scaleColumns(columns)));
   // Three is the standard minimum in the profile workspace. Only a genuinely
   // narrow viewport may reduce the rendered count so cards never become
   // unreadable; the saved 3–9 preference itself remains unchanged.
   const responsiveCapacity = width > 0
     ? Math.max(1, Math.floor((width + GAP) / (readableCardWidth + GAP)))
-    : preferredColumns;
+    : MAX_COLUMNS;
+  // On phones zoom starts from the columns actually visible, so enlarging a
+  // two-column feed can reach one column instead of hitting the WEB minimum.
+  const preferredColumns = Math.max(isMobile ? 1 : MIN_COLUMNS, Math.min(MAX_COLUMNS,
+    view.scaleColumns(isMobile ? Math.min(columns, responsiveCapacity) : columns)));
   const effectiveColumns = Math.min(preferredColumns, responsiveCapacity);
   const rows = useMemo(() => {
     if (width === 0) {
