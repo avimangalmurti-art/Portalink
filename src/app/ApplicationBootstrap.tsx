@@ -65,7 +65,7 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, routeSharedProfileId, sessionSharedProfileId]);
 
-  if (!auth.isInitializing && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId) {
+  if (!auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId) {
     return <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId })} />;
   }
 

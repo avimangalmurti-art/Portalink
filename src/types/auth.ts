@@ -32,6 +32,8 @@ export type AuthUser = {
 export type AuthSession = {
   user: AuthUser;
   isPrototype: boolean;
+  /** Verified recovery opens the password form instead of the normal landing. */
+  isPasswordRecovery?: boolean;
 };
 
 /** The one state machine the whole application reads. */

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { createPasswordRecoveryTracker } from './passwordRecovery';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
@@ -30,6 +31,15 @@ export const isSupabaseConfigured = isRealProjectUrl && isRealPublishableKey;
 // Keep the SDK's existing namespace explicit so confirmed account deletion can
 // clear only this application's session if the SDK cannot finish local logout.
 const authStorageKey = isRealProjectUrl ? `sb-${new URL(projectUrl).hostname.split('.')[0]}-auth-token` : '';
+const recoveryStorage = (() => {
+  try { return typeof window === 'undefined' ? null : window.sessionStorage; } catch { return null; }
+})();
+export const passwordRecovery = createPasswordRecoveryTracker(recoveryStorage, `${authStorageKey}-recovery`);
+// An expired callback must not reuse a recovery checkpoint from an earlier link.
+export const recoveryCallbackFailed = typeof window !== 'undefined'
+  && (new URLSearchParams(window.location.hash.slice(1)).has('error')
+    || new URLSearchParams(window.location.hash.slice(1)).has('error_code'));
+if (recoveryCallbackFailed) passwordRecovery.clear();
 
 if (isProductionRuntime && !isSupabaseConfigured) {
   throw new Error(
@@ -47,6 +57,23 @@ export const supabase = isSupabaseConfigured
       },
     })
   : null;
+
+// Register before React mounts: the SDK emits PASSWORD_RECOVERY only once
+// while consuming the link, and late subscribers receive INITIAL_SESSION.
+supabase?.auth.onAuthStateChange((event, session) => passwordRecovery.record(event, session));
+
+/** Password writes stay bound to the recovered account if another tab signs in. */
+export function createPasswordRecoveryClient() {
+  requireSupabase();
+  return createClient(projectUrl, publishableKey, {
+    auth: {
+      storageKey: `${authStorageKey}-recovery-write`,
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }).auth;
+}
 
 export function clearDeletedAccountStorage(): void {
   if (!authStorageKey || typeof window === 'undefined') return;

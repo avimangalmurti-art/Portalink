@@ -83,10 +83,16 @@ export function usePasswordUpdate() {
   const [recovery, setRecovery] = useState<AuthRecoverySession | null>(null);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
-  const loadRecovery = useAsyncAction(async () => {
+  const resolveRecovery = useCallback(async () => {
     setError(null);
-    setRecovery(await auth.getRecoverySession());
-  });
+    try {
+      setRecovery(await auth.getRecoverySession());
+    } catch (caught) {
+      setError(toAuthError(caught));
+      throw caught;
+    }
+  }, [auth]);
+  const loadRecovery = useAsyncAction(resolveRecovery);
   const action = useAsyncAction(async (password: string) => {
     setError(null);
     try {

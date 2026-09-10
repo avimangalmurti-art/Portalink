@@ -3,6 +3,7 @@ import { useServices } from './ServicesContext';
 import { toAuthError } from '../types/auth';
 import type { AuthError, AuthIntent, AuthPhase, AuthSession, AuthUser, SignInInput } from '../types/auth';
 import type { Id } from '../types/domain';
+import { clearPasswordRecoveryReturn, isPasswordRecoveryReturn } from '../utils/passwordRecoveryReturn';
 
 /**
  * The application's single session source of truth.
@@ -107,7 +108,7 @@ export function AuthProvider({
   const [phase, setPhase] = useState<AuthPhase>('initializing');
   const [session, setSession] = useState<AuthSession | null>(null);
   const [error, setError] = useState<AuthError | null>(null);
-  const [pendingView, setPendingView] = useState<AuthView | null>(null);
+  const [pendingView, setPendingView] = useState<AuthView | null>(() => isPasswordRecoveryReturn(window.location.href) ? 'resetPassword' : null);
   // Mirrors `pendingView` so callbacks can read it without re-creating.
   // A ref, not state: the destination is not rendered, and keeping it out of
   // render guarantees it cannot drive a re-request while the sheet is open.
@@ -120,27 +121,36 @@ export function AuthProvider({
   const isAuthenticated = phase === 'authenticated' && session !== null;
   const isAuthenticatedRef = useRef(isAuthenticated);
   isAuthenticatedRef.current = isAuthenticated;
-  const pendingViewRef = useRef<AuthView | null>(null);
+  const pendingViewRef = useRef<AuthView | null>(pendingView);
+  const hasPresentedRecoveryRef = useRef(false);
   // Guards against a second submit while a request is in flight.
   const isSigningInRef = useRef(false);
   useEffect(() => {
     let isCurrent = true;
+    let receivedAuthEvent = false;
     setPhase('initializing');
-    const unsubscribe = auth.onAuthStateChange((next) => {
+    const acceptSession = (next: AuthSession | null) => {
       if (!isCurrent) {
         return;
       }
+      if (next?.isPasswordRecovery && !hasPresentedRecoveryRef.current) {
+        hasPresentedRecoveryRef.current = true;
+        pendingViewRef.current = 'resetPassword';
+        setPendingView('resetPassword');
+        setGateMessage(null);
+      }
+      if (!next) hasPresentedRecoveryRef.current = false;
       setSession(next);
       setPhase(next ? 'authenticated' : 'unauthenticated');
+    };
+    const unsubscribe = auth.onAuthStateChange((next) => {
+      receivedAuthEvent = true;
+      acceptSession(next);
     });
     auth.getSession().then((next) => {
-      if (!isCurrent) {
-        return;
-      }
-      setSession(next);
-      setPhase(next ? 'authenticated' : 'unauthenticated');
+      if (!receivedAuthEvent) acceptSession(next);
     }).catch((caught) => {
-      if (!isCurrent) {
+      if (!isCurrent || receivedAuthEvent) {
         return;
       }
       setError(toAuthError(caught));
@@ -157,7 +167,7 @@ export function AuthProvider({
   // sign-out does not re-present it on top of the person's work.
   const hasPresentedLandingRef = useRef(false);
   useEffect(() => {
-    if (hasPresentedLandingRef.current || phase !== 'unauthenticated') {
+    if (hasPresentedLandingRef.current || phase !== 'unauthenticated' || pendingViewRef.current) {
       return;
     }
     hasPresentedLandingRef.current = true;
@@ -230,6 +240,7 @@ export function AuthProvider({
     pendingIntentRef.current = null;
   }, []);
   const requestAuth = useCallback((view: AuthView = 'signIn') => {
+    if (view !== 'resetPassword') clearPasswordRecoveryReturn();
     // Switching between sheets keeps the gate's wording; opening the sheet
     // directly (from Account settings, say) has no destination to explain.
     if (pendingViewRef.current === null) {
@@ -252,6 +263,7 @@ export function AuthProvider({
     return taken;
   }, []);
   const closeAuth = useCallback(() => {
+    clearPasswordRecoveryReturn();
     setPendingView(null);
     setGateMessage(null);
     setError(null);

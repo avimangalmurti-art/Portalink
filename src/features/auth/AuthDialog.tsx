@@ -400,7 +400,7 @@ function ForgotPasswordForm({
   if (reset.result) {
     return <div className="flex flex-col gap-4">
         <FormSuccess title={reset.result.deliveryConfirmed ? 'Check your email' : 'Request received'} description={reset.result.message} />
-        <Button variant="primary" size="lg" fullWidth onClick={() => auth.requestAuth('resetPassword')}>Continue to set a new password</Button>
+        {!reset.result.deliveryConfirmed && <Button variant="primary" size="lg" fullWidth onClick={() => auth.requestAuth('resetPassword')}>Continue to set a new password</Button>}
         <ViewLink label="Back to sign in" onSelect={() => auth.requestAuth('signIn')} />
       </div>;
   }
@@ -418,7 +418,7 @@ function ForgotPasswordForm({
   }
   return <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
-        Enter the email address on the account to start password recovery.
+        Enter your account email. We’ll send you a link to reset your password.
       </p>
       {reset.error && <FormError message={reset.error.message} onRetry={() => void reset.retry()} />}
       <AuthField ref={firstFieldRef} id="auth-forgot-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldError} disabled={reset.isLoading} onChange={(value) => {
@@ -427,7 +427,7 @@ function ForgotPasswordForm({
       setFieldError(null);
     }} />
       <Button type="submit" variant="primary" size="lg" fullWidth isLoading={reset.isLoading}>
-        {reset.isLoading ? 'Sending…' : 'Send recovery instructions'}
+        {reset.isLoading ? 'Sending…' : 'Send reset link'}
       </Button>
       <ViewLink label="Back to sign in" onSelect={() => auth.requestAuth('signIn')} />
     </form>;
@@ -444,22 +444,29 @@ function ResetPasswordForm({
   useEffect(() => {
     // A recovery link establishes this context; without it the form cannot act.
     void loadRecovery();
-  }, [loadRecovery]);
+  }, [loadRecovery, auth.user?.id, auth.session?.isPasswordRecovery]);
   if (update.isComplete) {
     return <div className="flex flex-col gap-4">
-        <FormSuccess title="Password updated" description="Your password has been changed. Sign in with it to continue." />
-        <Button variant="primary" size="lg" fullWidth onClick={() => auth.requestAuth('signIn')}>Back to sign in</Button>
+        <FormSuccess title="Password updated" description="Your new password is saved." />
+        <Button variant="primary" size="lg" fullWidth onClick={() => auth.isAuthenticated ? auth.closeAuth() : auth.requestAuth('signIn')}>{auth.isAuthenticated ? 'Continue' : 'Back to sign in'}</Button>
       </div>;
   }
   // Resolving the recovery context is itself a request, so it gets its own state
   // rather than presenting an empty form that cannot yet act.
   const isCheckingRecovery = update.recoveryStatus === 'idle' || update.recoveryStatus === 'loading';
-  const isRecoveryMissing = update.recoveryStatus === 'error' || update.recoveryStatus === 'success' && update.recovery === null;
+  const isRecoveryMissing = update.recoveryStatus === 'success' && update.recovery === null
+    || update.error?.code === 'recovery_session_invalid';
   if (isCheckingRecovery) {
     return <div role="status" className="flex items-center gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
         <InterfaceIcon icon={Loader2Icon} weight="medium" className="animate-spin motion-reduce:animate-none" />
         Checking your recovery link…
       </div>;
+  }
+  if (update.recoveryStatus === 'error') {
+    return <div className="flex flex-col gap-4">
+      <FormError message={update.error?.message ?? 'Your recovery link could not be checked.'} onRetry={() => void update.loadRecovery()} />
+      <ViewLink label="Request a new reset link" onSelect={() => auth.requestAuth('forgotPassword')} />
+    </div>;
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -477,7 +484,7 @@ function ResetPasswordForm({
     await update.submit(password);
   }
   return <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      {isRecoveryMissing && <FormError message="This recovery link is invalid or has expired." />}
+      {isRecoveryMissing && !update.error && <FormError message="This recovery link is invalid or has expired." />}
       {update.error && <FormError message={update.error.message} onRetry={() => void update.retry()} />}
       {update.recovery && <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
           Setting a new password for <span className="font-semibold text-[var(--text-primary)]">{update.recovery.email}</span>.

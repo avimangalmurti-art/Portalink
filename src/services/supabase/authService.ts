@@ -3,13 +3,11 @@ import type { AuthService } from '../interfaces';
 import { AuthServiceError } from '../../types/auth';
 import type {
   AccountSecurityState,
-  AuthRecoverySession,
   AuthSession,
   AuthUser,
 } from '../../types/auth';
-import { accountDeletionEnabled, requireSupabase } from './client';
-
-let recoverySession: AuthRecoverySession | null = null;
+import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
+import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -67,12 +65,18 @@ async function toAuthSession(session: Session | null): Promise<AuthSession | nul
     isEmailVerified: Boolean(user.email_confirmed_at),
   };
 
-  return { user: mapped, isPrototype: false };
+  return { user: mapped, isPrototype: false, isPasswordRecovery: Boolean(passwordRecovery.read(session)) };
 }
 
-function authFailure(error: { message: string; status?: number | null }, fallback: string): AuthServiceError {
+function authFailure(error: { message: string; status?: number | null; code?: string }, fallback: string): AuthServiceError {
   const message = error.message || fallback;
   const normalized = message.toLowerCase();
+  if (error.code === 'same_password' || normalized.includes('different from the old password')) {
+    return new AuthServiceError('same_password', 'Choose a password different from your current one.');
+  }
+  if (error.code === 'email_address_not_authorized') {
+    return new AuthServiceError('verification_unavailable', 'Password-reset email is unavailable right now. Please try again later.');
+  }
   if (normalized.includes('invalid login credentials')) {
     return new AuthServiceError('invalid_credentials', 'That email and password do not match an account.');
   }
@@ -105,6 +109,23 @@ async function currentProviderUser(): Promise<User> {
   return data.user;
 }
 
+async function verifiedRecoverySession() {
+  if (recoveryCallbackFailed) return null;
+  const client = requireSupabase();
+  const { data, error } = await client.auth.getSession();
+  if (error) throw authFailure(error, 'Your recovery link could not be checked.');
+  const recovery = passwordRecovery.read(data.session);
+  if (!recovery || !data.session) return null;
+  const recovered = data.session;
+  const verified = await client.auth.getUser(recovered.access_token);
+  if (verified.error) {
+    if (verified.error.status === 401 || verified.error.status === 403) { passwordRecovery.clear(recovered); return null; }
+    throw authFailure(verified.error, 'Your recovery link could not be checked.');
+  }
+  if (verified.data.user?.id !== recovered.user.id) { passwordRecovery.clear(recovered); return null; }
+  return passwordRecovery.read(recovered) ? { session: recovered, recovery } : null;
+}
+
 export const supabaseAuthService: AuthService = {
   async getSession() {
     const client = requireSupabase();
@@ -118,17 +139,16 @@ export const supabaseAuthService: AuthService = {
   onAuthStateChange(listener) {
     const client = requireSupabase();
     let active = true;
-    const { data } = client.auth.onAuthStateChange((event, session) => {
-      if (event === 'PASSWORD_RECOVERY' && session?.user.email) {
-        recoverySession = { email: session.user.email, isPrototype: false };
-      }
+    let latestEvent = 0;
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      const eventVersion = ++latestEvent;
       // Supabase recommends keeping its auth callback synchronous. Resolve the
       // profile identity on the next task, outside the auth client's lock.
       window.setTimeout(() => {
-        if (!active) return;
+        if (!active || eventVersion !== latestEvent) return;
         void toAuthSession(session)
-          .then((mapped) => active && listener(mapped))
-          .catch(() => active && listener(null));
+          .then((mapped) => active && eventVersion === latestEvent && listener(mapped))
+          .catch(() => active && eventVersion === latestEvent && listener(null));
       }, 0);
     });
     return () => {
@@ -181,27 +201,41 @@ export const supabaseAuthService: AuthService = {
   async requestPasswordReset(input) {
     const email = input.email.trim().toLowerCase();
     const { error } = await requireSupabase().auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+      redirectTo: passwordRecoveryRedirect(window.location.origin),
     });
     if (error) throw authFailure(error, 'The reset email could not be requested.');
     return {
       email,
       deliveryConfirmed: true,
-      message: 'A password reset link has been sent if that address belongs to an account.',
+      message: 'If an account uses this address, you’ll receive a reset link. Open the link in your email to choose a new password. Check your spam folder if it doesn’t arrive.',
     };
   },
 
   async getRecoverySession() {
-    return recoverySession;
+    return (await verifiedRecoverySession())?.recovery ?? null;
   },
 
   async updatePassword(input) {
-    if (!recoverySession) {
+    const recovery = await verifiedRecoverySession();
+    if (!recovery) {
       throw new AuthServiceError('recovery_session_invalid', 'This recovery link is invalid or has expired.');
     }
-    const { error } = await requireSupabase().auth.updateUser({ password: input.password });
+    // A fresh non-persisting SDK client prevents a concurrent sign-in in
+    // another tab from changing which account this password request updates.
+    const recoveryClient = createPasswordRecoveryClient();
+    const established = await recoveryClient.setSession({
+      access_token: recovery.session.access_token,
+      refresh_token: recovery.session.refresh_token,
+    });
+    if (established.error || !established.data.session) {
+      throw established.error
+        ? authFailure(established.error, 'The recovery session could not be restored.')
+        : new AuthServiceError('recovery_session_invalid', 'This recovery link is invalid or has expired.');
+    }
+    const { error } = await recoveryClient.updateUser({ password: input.password });
     if (error) throw authFailure(error, 'The password could not be updated.');
-    recoverySession = null;
+    if (passwordRecovery.read(recovery.session)) clearPasswordRecoveryReturn();
+    passwordRecovery.clear(recovery.session);
   },
 
   async attachProfile(profileId) {
