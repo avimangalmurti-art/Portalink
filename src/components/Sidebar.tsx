@@ -1,3 +1,5 @@
+import { MobileNavigation } from '../presentation/mobile/MobileNavigation';
+import { usePresentation } from '../presentation/usePresentation';
 import { useCompactNavigation } from '../hooks/useCompactNavigation';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -748,6 +750,7 @@ export function Sidebar({
   onCategorySelect,
   isOwnerMode
 }: SidebarProps) {
+  const isMobile = usePresentation() === 'mobile';
   const compactNavigation = useCompactNavigation(preferredSidebarCollapsed, onCollapsedChange);
   const isSidebarCollapsed = compactNavigation.collapsed;
   const mainSidebarWidth = useResizablePanelWidth({
@@ -949,6 +952,12 @@ export function Sidebar({
   const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       {isSidebarCollapsed ? <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
     </button>;
+  if (isMobile) return <MobileNavigation
+    onAppearance={onControlCenterOpen} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
+    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive}
+    settings={<AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />}
+    liveControl={liveShow ? <button type="button" className="mobile-nav-destination nav-button shape-compact" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`}><InterfaceIcon icon={Disc3Icon} /></button> : undefined}
+  />;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside

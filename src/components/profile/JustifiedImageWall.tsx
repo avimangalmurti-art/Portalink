@@ -23,6 +23,7 @@ import { GripVerticalIcon } from 'lucide-react';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
+import { usePresentation } from '../../presentation/usePresentation';
 
 /**
  * A justified wall of images — the packing layer for pure imagery.
@@ -247,6 +248,9 @@ export function JustifiedImageWall({
    * their own proportions either way — nothing is cropped to zoom.
    */
   const view = useContentZoom<HTMLDivElement>();
+  // Hiding the phone rail enlarges the same two columns instead of shrinking
+  // the artwork to squeeze in a third. The saved WEB density remains intact.
+  const readableCardWidth = usePresentation() === 'mobile' ? 150 : MIN_READABLE_CARD_WIDTH;
   const shouldReduceMotion = useReducedMotion();
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -261,7 +265,7 @@ export function JustifiedImageWall({
   // narrow viewport may reduce the rendered count so cards never become
   // unreadable; the saved 3–9 preference itself remains unchanged.
   const responsiveCapacity = width > 0
-    ? Math.max(1, Math.floor((width + GAP) / (MIN_READABLE_CARD_WIDTH + GAP)))
+    ? Math.max(1, Math.floor((width + GAP) / (readableCardWidth + GAP)))
     : preferredColumns;
   const effectiveColumns = Math.min(preferredColumns, responsiveCapacity);
   const rows = useMemo(() => {

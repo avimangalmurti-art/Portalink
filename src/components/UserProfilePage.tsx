@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { usePresentation } from '../presentation/usePresentation';
 import { useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
 import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
@@ -310,8 +311,8 @@ function ProfileIdentityAndLinks({
   displayName: string;
   links: ProfileLink[];
 }) {
-  return <div className="flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
-      <div className="flex min-w-0 max-w-full items-center gap-2.5">
+  return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
+      <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
         <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" />
         <div className="flex min-w-0 flex-col justify-center">
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
@@ -404,6 +405,9 @@ export function UserProfilePage({
   const followRequests = useFollowRequests();
   const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
+  const isMobile = usePresentation() === 'mobile';
+  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
+  useEffect(() => setIsMobileToolsOpen(false), [profile.id]);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
   // A creator does not follow themselves, and a guest is told an account is
@@ -511,7 +515,11 @@ export function UserProfilePage({
       {/* The toolbar material creates its own stacking context. Keep that local
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
-      {!isSharedView && <header className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
+      {!isSharedView && isMobile && <header className="mobile-profile-header">
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
+        <button type="button" className="mobile-profile-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+      </header>}
+      {!isSharedView && (!isMobile || isMobileToolsOpen) && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           <button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
@@ -689,7 +697,7 @@ export function UserProfilePage({
           </div>
         </section> : null}
 
-      {!isSharedView && <div className="w-full px-2 pt-[var(--side-panel-content-inset)]">
+      {!isSharedView && !isMobile && <div className="w-full px-2 pt-[var(--side-panel-content-inset)]">
         {/* Three regions, read left to right: who → where else they are → what the
            work amounts to. They only sit side by side once there is room; below
            that the same order stacks. */}
