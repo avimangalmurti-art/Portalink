@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckIcon, ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import type { ProfileQuery } from '../../contexts/ProfileDataContext';
 import type { ProfileOnboardingStatus } from '../../types/profile';
@@ -100,8 +100,9 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
   }
 
   return <section className="mobile-portals-page" aria-labelledby="mobile-portals-title">
-    <header data-mobile-safe-header="" className="global-control-header shrink-0 justify-between px-4">
-      <h1 id="mobile-portals-title" className="text-[20px] font-semibold">Portals</h1>
+    <header data-mobile-safe-header="" className="global-control-header shrink-0 gap-2 px-4">
+      <button type="button" aria-label="Go back" title="Go back" className="mobile-portal-action" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" mirroredInRtl /></button>
+      <h1 id="mobile-portals-title" className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
       {ownsProfile && <button type="button" aria-label="Add portal" aria-haspopup="dialog" disabled={actionsDisabled} className="mobile-portal-action" onClick={() => { management.dismissFailure(); setIsAdding(true); }}><InterfaceIcon icon={PlusIcon} size="lg" weight="medium" /></button>}
     </header>
     <div className="mobile-portals-scroll scrollbar-overlay" data-mobile-scroll-end="">

@@ -28,7 +28,7 @@ function harness() {
   } };
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
     if (name === 'react') return react;
-    if (name === 'lucide-react') return { ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
+    if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/FeatureInDesignPage')) return { FeatureInDesignPage };
@@ -66,6 +66,14 @@ const find = (tree, type) => elements(tree).find(node => node.type === type);
 
 test('mobile Portals lists the confirmed owner portals in saved order and selects by stable id', () => {
   const h = harness();
+  let wentBack = 0;
+  h.props.onBack = () => wentBack++;
+  const header = find(h.render(), 'header');
+  const headerChildren = React.Children.toArray(header.props.children);
+  assert.equal(headerChildren[0].props['aria-label'], 'Go back');
+  assert.equal(headerChildren[1].props.id, 'mobile-portals-title');
+  headerChildren[0].props.onClick();
+  assert.equal(wentBack, 1);
   const buttons = elements(h.render()).filter(node => node.type === 'button' && node.props.className === 'mobile-portal-row');
   assert.deepEqual(buttons.map(button => find(button, 'span').props.children), ['Typography', 'Graphic Design']);
   buttons[1].props.onClick();
@@ -76,7 +84,7 @@ test('signed-out and profile-setup states continue through the existing account 
   const h = harness();
   h.setAuth({ isAuthenticated: false, viewerProfileId: null });
   const guest = h.render();
-  assert.equal(find(guest, 'button'), undefined);
+  assert.equal(elements(guest).some(node => node.type === 'button' && node.props['aria-label'] !== 'Go back'), false);
   find(guest, EmptyState).props.action.onClick();
   h.setAuth({ isAuthenticated: true });
   h.props.onboardingStatus = 'required';
@@ -105,7 +113,7 @@ test('loading, failure, missing profile and empty data never substitute another 
     h.props.profileQuery.status = status;
     h.props.profileQuery.profile = { id: 'someone-else', categories: [{ id: 'private', label: 'Private' }] };
     assert.ok(find(h.render(), ErrorState));
-    assert.equal(find(h.render(), 'button'), undefined);
+    assert.equal(elements(h.render()).some(node => node.type === 'button' && node.props['aria-label'] !== 'Go back'), false);
   }
   h.props.profileQuery = { ...h.props.profileQuery, status: 'ready', profile: { id: 'owner', categories: [] } };
   assert.ok(find(h.render(), EmptyState));

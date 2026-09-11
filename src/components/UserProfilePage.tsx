@@ -324,12 +324,12 @@ function ProfileIdentityAndLinks({
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
         <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" />
-        <div className="flex min-w-0 flex-col justify-center">
+        <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
-          {summaryCounts && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] leading-[1.3] text-[var(--text-secondary)]" aria-label="Profile summary">
+          {summaryCounts && <div className="profile-summary-counts mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] leading-[1.3] text-[var(--text-secondary)]" aria-label="Profile summary">
             <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('projects')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.projectCount}</span> {summaryCounts.projectCount === 1 ? 'project' : 'projects'}</button>
             <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('portals')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.portalCount}</span> {summaryCounts.portalCount === 1 ? 'portal' : 'portals'}</button>
           </div>}

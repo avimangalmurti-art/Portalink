@@ -853,6 +853,30 @@
   white-space: normal;
 }
 
+/* Keep compact identity text within the avatar's 76px vertical span. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-copy {
+  height: 76px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-copy :is(h1, p) {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-summary-counts {
+  height: 32px;
+  min-height: 32px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+/* The 44px tap areas extend into empty space around the shorter visual row. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-summary-counts > button {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
