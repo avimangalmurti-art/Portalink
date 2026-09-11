@@ -118,7 +118,7 @@ function navigationHarness(pathname = '/') {
   function render(props = {}) {
     cursor = 0;
     const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
-    const [rail, floating] = React.Children.toArray(tree.props.children);
+    const [dismiss, rail, floating] = React.Children.toArray(tree.props.children);
     const [toggle, dock] = React.Children.toArray(floating.props.children);
     const [group, profile] = React.Children.toArray(dock.props.children);
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
@@ -131,7 +131,7 @@ function navigationHarness(pathname = '/') {
     } };
     frames.splice(0).forEach(fn => fn());
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
-    return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
+    return { layer: tree, dismiss, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
   return { render, icons, backCalls, destination: element => exports.Destination(element.props) };
 }
@@ -215,6 +215,30 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   }
   assert.deepEqual(ui.focused, ['toggle', 'toggle', 'toggle', 'toggle']);
   assert.equal(navigationHarness().render().dock.props.hidden, false, 'a new app session starts with the dock');
+});
+
+test('an outside tap dismisses the side rail, restores the dock and consumes the tap', () => {
+  const h = navigationHarness();
+  let ui = h.render();
+  assert.equal(ui.dismiss.props.hidden, true, 'closed rail does not block content');
+  ui.toggle.props.onClick();
+  ui = h.render();
+  assert.equal(ui.dismiss.props.hidden, false);
+  assert.equal(ui.dismiss.props.tabIndex, -1);
+  assert.equal(ui.dock.props.hidden, true);
+  // Actions inside the rail keep working without triggering dismissal.
+  ui.appearance.props.onClick();
+  ui = h.render();
+  assert.equal(ui.rail.props['data-hidden'], false);
+  const event = click();
+  ui.dismiss.props.onClick(event);
+  ui = h.render();
+  assert.equal(event.prevented, true);
+  assert.equal(event.stopped, true);
+  assert.equal(ui.rail.props['data-hidden'], true);
+  assert.equal(ui.dock.props.hidden, false);
+  assert.equal(ui.dismiss.props.hidden, true);
+  assert.equal(ui.focused.at(-1), 'toggle');
 });
 
 test('Portals is an enabled link in both mobile navigation forms and reflects the current route', () => {

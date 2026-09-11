@@ -70,6 +70,11 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     profile,
   ];
   return <div className="mobile-navigation-layer" data-mobile-navigation-layer="">
+    <button type="button" className="mobile-navigation-dismiss" hidden={hidden} tabIndex={-1} aria-label="Close side navigation" onClick={(event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      close();
+    }} />
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">

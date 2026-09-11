@@ -13,7 +13,7 @@ export function PlatformGrid({
   links: ProfileLink[];
   profileName: string;
 }) {
-  return <ul aria-label={`${profileName} links`} className="m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
+  return <ul aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         const Icon = getCategoryIcon(link.iconName ?? 'globe');
         const href = profileLinkHref(link.href);

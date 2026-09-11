@@ -5,9 +5,13 @@ export const projectPanelGeometry = { rail: 52, workMinimum: 320, indexMinimum: 
 /** Allocate sibling panels together, without changing the user's saved widths. */
 export function allocateProjectPanels(width: number, indexWanted: boolean, responseWanted: boolean,
   indexPreferred: number, responsePreferred: number, responseMinimum: number,
-  lastOpened: ProjectPanel | null, compactPanel: ProjectPanel | null, hasResponse = true) {
+  lastOpened: ProjectPanel | null, compactPanel: ProjectPanel | null, hasResponse = true, indexOnly = false) {
   const { rail, workMinimum, indexMinimum } = projectPanelGeometry;
   const available = Number.isFinite(width) ? Math.max(0, Math.floor(width)) : 0;
+  if (indexOnly) {
+    return { indexWidth: available, responseWidth: 0, workWidth: 0,
+      indexOpen: true, responseOpen: false, singlePanel: 'index' as const };
+  }
   if (!hasResponse && compactPanel === 'response') compactPanel = null;
   const chosenMinimum = compactPanel === 'index' ? indexMinimum : responseMinimum;
   if (compactPanel && available < workMinimum + rail + chosenMinimum) {
