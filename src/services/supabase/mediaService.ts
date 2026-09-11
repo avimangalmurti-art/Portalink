@@ -333,7 +333,7 @@ export const supabaseMediaService: MediaService = {
   async getProcessingCapability() {
     return {
       isAvailable: true,
-      reason: 'PDF originals are validated and converted into private page previews by the processing service.',
+      reason: 'Documents and videos are prepared by private background workers.',
       canRetry: true,
       refreshIntervalSeconds: 3,
     };
@@ -341,22 +341,37 @@ export const supabaseMediaService: MediaService = {
 
   async getProcessingStatus(objectIds) {
     if (objectIds.length === 0) return [];
-    const { data, error } = await requireSupabase()
+    const [documents, videos] = await Promise.all([requireSupabase()
       .from('pdf_processing_jobs')
       .select('attachment_id,status,processed_pages,page_count,error_code,error_message,is_retryable,updated_at')
-      .in('attachment_id', objectIds);
-    if (error) {
-      const missing = error.code === '42P01' || error.code === 'PGRST205';
-      throw new ProcessingServiceError(
-        missing ? 'unavailable' : 'network',
-        missing ? 'PDF processing has not been deployed yet.' : error.message,
-      );
+      .in('attachment_id', objectIds), requireSupabase().from('video_processing_jobs')
+      .select('attachment_id,status,error_message,is_retryable,updated_at').in('attachment_id', objectIds)]);
+    // PDF status may be restricted to signed-in viewers. Public videos must
+    // remain independent, including during staged migration deployment.
+    if (documents.error && !['42P01', 'PGRST205', '42501'].includes(documents.error.code)) {
+      throw new ProcessingServiceError('network', documents.error.message);
     }
-    return ((data ?? []) as unknown as PdfJobRow[]).map(asProcessingStatus);
+    // Older deployments continue serving existing PDF/native media while the video migration is installed.
+    if (videos.error && !['42P01', 'PGRST205'].includes(videos.error.code)) {
+      throw new ProcessingServiceError('network', videos.error.message);
+    }
+    return [
+      ...((documents.data ?? []) as unknown as PdfJobRow[]).map(asProcessingStatus),
+      ...(videos.data ?? []).map((row) => ({
+        objectId: row.attachment_id as string,
+        state: row.status === 'completed' ? 'ready' as const : row.status === 'failed' ? 'processing-failed' as const : 'processing' as const,
+        message: row.status === 'completed' ? 'Video ready to play.' : row.status === 'failed' ? row.error_message ?? 'Video conversion failed.'
+          : row.status === 'queued' ? 'Video queued for conversion.' : 'Preparing video for playback…',
+        isRetryable: row.status === 'failed' ? Boolean(row.is_retryable) : undefined,
+        updatedAt: row.updated_at as string,
+      })),
+    ];
   },
 
   async retryProcessing(objectId) {
-    const { data, error } = await requireSupabase().rpc('retry_pdf_processing', {
+    const video = await requireSupabase().from('video_processing_jobs').select('id').eq('attachment_id', objectId).maybeSingle();
+    if (video.error && !['42P01', 'PGRST205'].includes(video.error.code)) throw new ProcessingServiceError('network', video.error.message);
+    const { data, error } = await requireSupabase().rpc(video.data ? 'retry_video_processing' : 'retry_pdf_processing', {
       p_attachment_id: objectId,
     });
     if (error) {

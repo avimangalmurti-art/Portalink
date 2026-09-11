@@ -54,8 +54,9 @@ function isWatchable(attachment: ProjectAttachment): boolean {
 }
 /** Completed document jobs are queried once as well, because their fixed page
  * total remains useful presentation metadata even after processing has ended. */
-function hasDocumentStatus(attachment: ProjectAttachment): boolean {
-  return attachment.storagePath !== null && attachment.kind === 'document';
+function hasProcessingStatus(attachment: ProjectAttachment): boolean {
+  return attachment.storagePath !== null && (attachment.kind === 'document' || attachment.kind === 'video'
+    || attachment.mimeType.startsWith('video/') || /\.(mov|m4v|avi|mp4|webm)$/i.test(attachment.fileName));
 }
 function messageFor(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
@@ -76,16 +77,18 @@ export function useAssetProcessing(attachments: ProjectAttachment[]): AssetProce
 
   // The ids under observation, as a stable key so the effect does not re-run on
   // every render of a new array with the same contents.
-  const statusIds = useMemo(() => attachments.filter(hasDocumentStatus).map((attachment) => attachment.id).sort(), [attachments]);
-  const watchedIds = useMemo(() => attachments.filter(isWatchable).map((attachment) => attachment.id).sort(), [attachments]);
+  const statusIds = useMemo(() => attachments.filter(hasProcessingStatus).map((attachment) => attachment.id).sort(), [attachments]);
+  const watchedIds = useMemo(() => attachments.filter(attachment => isWatchable(attachment) || statuses[attachment.id]?.state === 'processing').map((attachment) => attachment.id).sort(), [attachments, statuses]);
   const statusKey = statusIds.join('|');
   const watchedKey = watchedIds.join('|');
   // Only the newest query may settle: navigating between projects while a query
   // is outstanding must not write one project's statuses into another's.
   const latestRequestRef = useRef(0);
   const isMountedRef = useRef(true);
-  useEffect(() => () => {
-    isMountedRef.current = false;
+  const readyVersionsRef = useRef(new Map<string, string>());
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
   useEffect(() => {
     if (statusIds.length === 0) {
@@ -119,7 +122,14 @@ export function useAssetProcessing(attachments: ProjectAttachment[]): AssetProce
       }
       // An id the service did not mention keeps whatever it had. Silence is not
       // permission to call something ready.
-      const becameReady = results.some((result) => result.state === 'ready');
+      let becameReady = false;
+      for (const result of results) {
+        const version = result.updatedAt ?? 'ready';
+        if (result.state === 'ready' && readyVersionsRef.current.get(result.objectId) !== version) {
+          becameReady = true;
+          readyVersionsRef.current.set(result.objectId, version);
+        }
+      }
       setStatuses((current) => {
         const next = {
           ...current

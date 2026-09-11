@@ -73,10 +73,10 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">
-          <Destination item={{ label: 'Back', icon: ArrowLeftIcon, action: goBack, mirroredInRtl: true }} />
           <Destination item={{ label: theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance', icon: theme === 'dark' ? SunIcon : MoonIcon, action: () => onThemeChange(theme === 'dark' ? 'light' : 'dark') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
+          <Destination item={{ label: 'Back', icon: ArrowLeftIcon, action: goBack, mirroredInRtl: true }} />
           {liveControl}
         </nav>
       </>}

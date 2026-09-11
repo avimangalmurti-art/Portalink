@@ -1,3 +1,4 @@
+import { readVideoPlayback } from '../../features/media/videoPlayback';
 import type {
   DiscoveryService,
   ProfileService,
@@ -292,13 +293,22 @@ async function hydrateProjects(
   categoryRows: Array<Pick<CategoryRow, 'id' | 'label'>>,
   attachmentRows: AttachmentRow[],
 ): Promise<Map<string, Project>> {
-  const urls = await signedUrls(attachmentRows.flatMap((row) => [
-    row.storage_path,
-    ...renderedPagePaths(row.metadata),
-  ]));
+  const urls = await signedUrls(attachmentRows.flatMap((row) => {
+    const playback = readVideoPlayback(row.metadata, row.storage_path, row.project_id);
+    return [row.storage_path, ...renderedPagePaths(row.metadata), ...(playback ? [playback.storagePath] : [])];
+  }));
   const attachmentsByProject = new Map<string, ProjectAttachment[]>();
   await Promise.all(attachmentRows.map(async (row) => {
-    const metadata = asMetadata(row.metadata, urls);
+    let metadata = asMetadata(row.metadata, urls);
+    const playback = readVideoPlayback(row.metadata, row.storage_path, row.project_id);
+    if (playback) {
+      let playbackUrl = urls.get(playback.storagePath) ?? null;
+      if (playback.multipart) {
+        try { playbackUrl = await multipartSource(playback.storagePath, playback.multipart, 'video.mp4', 'video/mp4'); }
+        catch { playbackUrl = null; }
+      }
+      metadata = { ...metadata, playbackVideo: { ...playback, sourceUrl: playbackUrl } };
+    }
     let sourceUrl = urls.get(row.storage_path) ?? null;
     if (metadata?.multipart) {
       try {
@@ -311,7 +321,7 @@ async function hydrateProjects(
     }
     const attachment: ProjectAttachment = {
       id: row.id,
-      kind: row.kind as ProjectAttachment['kind'],
+      kind: playback ? 'video' : row.kind as ProjectAttachment['kind'],
       fileName: row.file_name,
       displayName: row.display_name,
       extension: row.extension,
@@ -335,7 +345,7 @@ async function hydrateProjects(
   const categoryLabels = new Map(categoryRows.map((row) => [row.id, row.label]));
   return new Map(projectRows.map((row) => {
     const attachments = attachmentsByProject.get(row.id) ?? [];
-    const cover = attachments.find((item) => item.isCover && item.sourceUrl)
+    const cover = attachments.find((item) => item.isCover && (item.metadata?.playbackVideo?.sourceUrl || item.sourceUrl))
       ?? attachments.find((item) => item.kind === 'image' && item.sourceUrl)
       ?? attachments[0];
     const storedRelevance: Partial<ProjectRelevance> = {
@@ -356,7 +366,7 @@ async function hydrateProjects(
         categoryLabel: categoryLabels.get(row.category_id) ?? '',
         stored: storedRelevance,
       }),
-      cover: cover?.sourceUrl ?? '',
+      cover: cover?.metadata?.playbackVideo?.sourceUrl ?? cover?.sourceUrl ?? '',
       coverAlt: row.title,
       coverKind: cover?.kind === 'video' ? 'video' : cover?.kind === 'document' ? 'document' : undefined,
       coverAspectRatio: cover?.metadata?.widthPixels && cover.metadata.heightPixels
@@ -1012,6 +1022,7 @@ export const supabaseProjectService: ProjectService = {
     if (error) throw new ProjectMutationError(error.code === '42501' ? 'permission_denied' : 'network', error.message);
     const paths = stored.flatMap((item) => [
       item.storagePath,
+      item.metadata?.playbackVideo?.storagePath,
       ...(item.metadata?.renderedPages ?? []).map((page) => page.storagePath),
     ]).filter((path): path is string => Boolean(path));
     let storageDeleted = paths.length === 0;

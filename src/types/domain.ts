@@ -200,6 +200,14 @@ export type ProjectAttachment = {
   order: number;
   /** Only what the renderer needs and the file actually told us. */
   metadata?: {
+    /** Verified browser-playable copy; the original source/storage fields stay intact. */
+    playbackVideo?: {
+      storagePath: string;
+      sourceUrl: string | null;
+      mimeType: 'video/mp4';
+      sizeBytes: number;
+      multipart?: { version: 1; sizeBytes: number; partBytes: number; partCount: number };
+    };
     /** Logical original stored as bounded private objects, not separate assets. */
     multipart?: { version: 1; sizeBytes: number; partBytes: number; partCount: number };
     durationSeconds?: number;

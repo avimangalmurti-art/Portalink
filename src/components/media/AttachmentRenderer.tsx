@@ -83,8 +83,10 @@ export function AttachmentRenderer({
    * the state is stated instead — for either outcome, and never conflated with an
    * upload failure.
    */const canShowOriginalPdf = attachment.kind === 'document' && Boolean(attachment.sourceUrl);
-  if ((state === 'processing' || state === 'processing-failed') && !canShowOriginalPdf) {return <MediaFrame>
-        <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null} canRetry={processing?.canRetry ?? false} isRetrying={processing?.isRetrying ?? false} onRetry={processing?.onRetry ?? (() => undefined)} />
+  const canShowVideo = attachment.kind === 'video' && Boolean(attachment.metadata?.playbackVideo?.sourceUrl
+    || (['mp4', 'webm'].includes(attachment.extension.toLowerCase()) && attachment.sourceUrl));
+  if ((state === 'processing' || state === 'processing-failed') && !canShowOriginalPdf && !canShowVideo) {return <MediaFrame>
+        <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null} canRetry={isOwner && (processing?.canRetry ?? false)} isRetrying={processing?.isRetrying ?? false} onRetry={processing?.onRetry ?? (() => undefined)} />
       </MediaFrame>;}switch (attachment.kind) {case 'audio': // A real file plays natively; seeded work with no file keeps the
       // synthetic player and its derived length.
       return attachment.sourceUrl ? <MediaFrame>
@@ -106,7 +108,7 @@ export function AttachmentRenderer({
         </MediaFrame>;
     case 'video':
       return <MediaFrame>
-          <VideoAttachment attachment={attachment} />
+          <VideoAttachment attachment={attachment} conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
         </MediaFrame>;
     case 'model3d':
       return <MediaFrame>

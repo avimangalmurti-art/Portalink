@@ -136,14 +136,16 @@ function navigationHarness(pathname = '/') {
   return { render, icons, backCalls, destination: element => exports.Destination(element.props) };
 }
 
-test('Back is first in the mobile sidebar and uses the existing history action once per tap', () => {
+test('Back is directly below Profile in the mobile sidebar and uses the existing history action once per tap', () => {
   const h = navigationHarness('/portals');
   let ui = h.render();
   assert.equal(ui.dock.props.hidden, false);
   assert.equal(h.backCalls.length, 0);
   ui.toggle.props.onClick();
   ui = h.render();
-  const back = h.destination(ui.railItems[0]);
+  const profileIndex = ui.railItems.findIndex(child => child.props.item?.label === 'Profile');
+  assert.ok(profileIndex >= 0);
+  const back = h.destination(ui.railItems[profileIndex + 1]);
   assert.equal(back.type, 'button');
   assert.equal(back.props['aria-label'], 'Back');
   assert.equal(back.props.title, 'Back');
