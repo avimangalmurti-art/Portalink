@@ -377,6 +377,16 @@
 }
 
 /* The dock's Portals destination uses one grouped, scrollable list. */
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(.mobile-portals-page) {
+  overflow: hidden;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-screen-scroll='page']:has(> .mobile-portals-page) {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-portals-page {
   display: flex;
   flex-direction: column;

@@ -42,6 +42,8 @@ type UserProfilePageProps = {
   /** The canonical record. Read through the profile data boundary, so a saved edit shows immediately. */
   profile: Profile;
   onBack: () => void;
+  /** The same portal-list screen used by mobile navigation, for this profile. */
+  mobilePortalsView: React.ReactElement;
   /**
    * The viewer's relationship to this profile, and the ONLY permission input this
    * component takes. It previously took `isOwner` alongside this, which meant two
@@ -310,12 +312,14 @@ function ProfileIdentityAndLinks({
   profile,
   displayName,
   links,
-  showLinks = true
+  showLinks = true,
+  summaryCounts
 }: {
   profile: Profile;
   displayName: string;
   links: ProfileLink[];
   showLinks?: boolean;
+  summaryCounts?: { projectCount: number; portalCount: number; onSelect: (view: 'projects' | 'portals') => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
@@ -325,6 +329,10 @@ function ProfileIdentityAndLinks({
             {displayName}
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
+          {summaryCounts && <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] leading-[1.3] text-[var(--text-secondary)]" aria-label="Profile summary">
+            <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('projects')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.projectCount}</span> {summaryCounts.projectCount === 1 ? 'project' : 'projects'}</button>
+            <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('portals')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.portalCount}</span> {summaryCounts.portalCount === 1 ? 'portal' : 'portals'}</button>
+          </div>}
         </div>
       </div>
       {showLinks && <div className="min-w-0 flex-1 self-center">
@@ -368,6 +376,7 @@ function ProfileStats({
 export function UserProfilePage({
   profile,
   onBack,
+  mobilePortalsView,
   viewerRole,
   follow,
   onSignInRequest,
@@ -388,7 +397,7 @@ export function UserProfilePage({
     if (view === 'projects') next.delete('view');
     else next.set('view', view);
     return next;
-  }, { replace: true });
+  }, { replace: !(isMobile && view === 'portals') });
   // This page renders portfolio media from canonical projects and nothing else.
   // It used to keep its own list of picked image files as object URLs and show
   // them as tiles beside the real work — a second, parallel way for media to
@@ -533,6 +542,7 @@ export function UserProfilePage({
   // whatever width the shell currently has.
   const fitsInOneRow = imageryCells.length < columnsPerRow;
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
+  if (isMobile && !isSharedView && activeView === 'portals') return mobilePortalsView;
   // Keep one app-shell scroller. Mobile pins the identity and its optional tools;
   // the display-contents wrapper preserves the existing desktop document flow.
   return <div ref={profilePageRef} data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
@@ -548,7 +558,7 @@ export function UserProfilePage({
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
       {!isSharedView && isMobile && <header className="mobile-profile-header">
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={!isMobileToolsOpen ? { projectCount, portalCount: profile.categories.length, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null } : undefined} />
         {isReorderingProjects ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>

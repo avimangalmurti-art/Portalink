@@ -119,6 +119,46 @@ test('WEB retains its existing Portals destination regardless of account state',
   assert.equal(h.render().type, FeatureInDesignPage);
 });
 
+test('profile entry reuses the owner list and keeps its existing editing controls', () => {
+  const h = harness();
+  h.props.profileContext = true;
+  const tree = h.render();
+  assert.deepEqual(Array.from(find(tree, MobileReorderList).props.items, item => item.id), ['typography', 'design']);
+  assert.equal(find(tree, MobileReorderList).props.disabled, false);
+  assert.equal(elements(tree).filter(node => node.type === CategoryOptionsMenu).length, 2);
+  assert.ok(elements(tree).some(node => node.props['aria-label'] === 'Add portal'));
+});
+
+test('visitor and guest profile entry shows that creator’s canonical portals without owner actions', () => {
+  for (const isAuthenticated of [true, false]) {
+    const h = harness();
+    h.props.profileContext = true;
+    h.props.onboardingStatus = 'required';
+    h.setAuth({ isAuthenticated, viewerProfileId: isAuthenticated ? 'viewer' : null });
+    h.props.profileQuery.profile = { id: 'creator', name: 'Creator', categories: [
+      { id: 'design', label: 'Creator Design', iconName: 'window' },
+      { id: 'typography', label: 'Creator Type', iconName: 'type' },
+    ] };
+    // Another account's arrangement must not reorder or hide the creator's rows.
+    h.props.management.arrangement.hiddenCategoryIds = ['design'];
+    h.props.management.reorderCategories = () => assert.fail('Visitor tried to reorder');
+    const tree = h.render();
+    const list = find(tree, MobileReorderList);
+    assert.deepEqual(Array.from(list.props.items, item => item.id), ['design', 'typography']);
+    assert.equal(list.props.disabled, true);
+    list.props.onReorder([...list.props.items].reverse());
+    assert.equal(elements(tree).some(node => node.type === CategoryOptionsMenu), false);
+    assert.equal(elements(tree).some(node => node.props['aria-label'] === 'Add portal'), false);
+    const rows = elements(tree).filter(node => node.props.className === 'mobile-portal-row');
+    assert.ok(rows.every(node => node.props['data-hidden'] === undefined));
+    rows[0].props.onClick();
+    assert.deepEqual(h.chosen, ['design']);
+    h.props.profileQuery.status = 'error';
+    assert.ok(find(h.render(), ErrorState));
+    assert.equal(find(h.render(), MobileReorderList), undefined);
+  }
+});
+
 test('portal reordering saves the complete ordered IDs through the existing management boundary', async () => {
   const h = harness(), saves = [];
   h.props.management.reorderCategories = async ids => { saves.push(ids); return true; };

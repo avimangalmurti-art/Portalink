@@ -209,6 +209,34 @@ test('count controls replace the project area, report real Portal count, and res
 
 const reorderProjects = [{ id: 'a', cover: 'a.png' }, { id: 'b', cover: 'b.png' }];
 const wall = tree => nodes(tree).find(node => node.type === 'JustifiedImageWall');
+
+test('both mobile portal counts open the supplied list screen and preserve a profile history entry', () => {
+  const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    for (const expanded of [false, true]) {
+      const h = profileHarness('keep=value', { presentation: 'mobile', viewerRole, props: { mobilePortalsView } });
+      let tree = h.render();
+      if (expanded) {
+        nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+        tree = h.render();
+        const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+        nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
+      } else {
+        const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+        const summary = nodes(identity.type(identity.props)).find(node => node.props?.['aria-label'] === 'Profile summary');
+        nodes(summary).filter(node => node.type === 'button')[1].props.onClick();
+      }
+      assert.equal(h.render(), mobilePortalsView);
+      assert.equal(new URLSearchParams(h.search()).get('view'), 'portals');
+      assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
+      assert.equal(h.navigation.at(-1).replace, false);
+      assert.equal(profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render(), mobilePortalsView);
+    }
+  }
+  const web = profileHarness('view=portals', { presentation: 'web', props: { mobilePortalsView } }).render();
+  assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children.type, 'ProfileCollectionGrid');
+  assert.equal(nodes(web).includes(mobilePortalsView), false);
+});
 test('mobile profile links appear below the action row only while Profile options is open', () => {
   const links = [{ label: 'Website', href: 'https://example.com', iconName: 'globe' }];
   for (const viewerRole of ['owner', 'visitor']) {
