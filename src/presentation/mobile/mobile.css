@@ -530,6 +530,10 @@
   padding-top: 0;
 }
 
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
+  padding-top: calc(12px + var(--mobile-content-safe-top));
+}
+
 /* City feeds sit below a safe header; their content needs no second top inset. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-safe-header] ~ * [data-feed-scroll-content] {
   padding-top: 12px;

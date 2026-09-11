@@ -8,6 +8,8 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio, resolveFeedSpan } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
+import { SearchIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 type HomeFeedProps = {
   /** Retained as part of the shell contract; the grid measures its real width. */
@@ -21,6 +23,8 @@ type HomeFeedProps = {
   scrollMemoryKey?: string;
   /** Present only for a Portalink city surface; switches to location placement. */
   locationId?: Id;
+  /** Reserved for future search on the mobile Home route. */
+  showSearchPlaceholder?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 };
@@ -58,10 +62,12 @@ export function HomeFeed({
   onWarmCreator,
   scrollMemoryKey = 'home',
   locationId,
+  showSearchPlaceholder = false,
   emptyTitle = 'Your Home feed is ready',
   emptyDescription = 'Your published work and new work from creators you follow will appear here.',
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
+  const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const [mobileCapacityWidth, setMobileCapacityWidth] = useState<number>();
@@ -144,13 +150,17 @@ export function HomeFeed({
     writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
   }, [scrollMemoryKey]);
 
-  return <div data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
+  return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
         ref={autoScrollRef}
         onScroll={rememberScroll}
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div data-feed-scroll-content="" className="relative pt-3">
+          {showMobileSearch && <div className="text-control-shell mb-3 flex h-11 w-full items-center gap-2.5 px-3" title="Search is coming soon">
+            <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
+            <input type="search" disabled placeholder="Search" aria-label="Search (coming soon)" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[16px] text-[var(--text-secondary)]" />
+          </div>}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {feed.status === 'loading' && projects.length === 0

@@ -32,6 +32,8 @@ type ProfileCategoryPageProps = {
    */
   viewerRole: ViewerRole;
   activeProjectId: string | null;
+  /** Returns to the screen used to enter this portal. */
+  onBack: () => void;
   /**
    * Changes which project the portal is showing. `replace` is used for the
    * automatic first-project selection on entry, so that lands in place of the
@@ -60,6 +62,7 @@ export function ProfileCategoryPage({
   category,
   viewerRole,
   activeProjectId,
+  onBack,
   onSelectProject: selectProject,
   onCreateProject,
   isIndexCollapsed: preferredIndexCollapsed,
@@ -379,7 +382,12 @@ export function ProfileCategoryPage({
             </button>
           </div> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             <div data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
-              {mobileIndexOnly ? <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
+              {mobileIndexOnly ? <>
+                <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                  <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
+                </button>
+                <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
+              </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
                 <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
               </button>}
               {/* Page totals belong in project information, not the toolbar.
