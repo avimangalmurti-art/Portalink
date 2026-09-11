@@ -1,4 +1,5 @@
 import { readVideoPlayback } from '../../features/media/videoPlayback';
+import { resolveStoredMediaKind } from '../../features/publishing/assetTypes';
 import type {
   DiscoveryService,
   ProfileService,
@@ -321,7 +322,7 @@ async function hydrateProjects(
     }
     const attachment: ProjectAttachment = {
       id: row.id,
-      kind: playback ? 'video' : row.kind as ProjectAttachment['kind'],
+      kind: playback ? 'video' : resolveStoredMediaKind(row.kind as ProjectAttachment['kind'], row.file_name, row.mime_type),
       fileName: row.file_name,
       displayName: row.display_name,
       extension: row.extension,

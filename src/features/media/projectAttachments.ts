@@ -1,4 +1,4 @@
-import { fileExtension, mediaKindFor } from '../publishing/assetTypes';
+import { fileExtension, mediaKindFor, resolveStoredMediaKind } from '../publishing/assetTypes';
 import { resolveSourceImage } from '../../data/sourceImages';
 import type { PersistedAttachment, PersistedMedia, PreparedMedia } from '../../types/publishing';
 import type { MediaKind, ProjectAttachment } from '../../types/domain';
@@ -178,7 +178,10 @@ function legacyAttachments(project: ProjectEntry, category: ProfileCategory): Pr
 
 export function resolveProjectAttachments(project: ProjectEntry, category: ProfileCategory): ProjectAttachment[] {
   if (project.attachments && project.attachments.length > 0) {
-    return [...project.attachments].sort((a, b) => a.order - b.order);
+    return project.attachments.map(attachment => {
+      const kind = resolveStoredMediaKind(attachment.kind, attachment.fileName, attachment.mimeType);
+      return kind === attachment.kind ? attachment : { ...attachment, kind };
+    }).sort((a, b) => a.order - b.order);
   }
   return legacyAttachments(project, category);
 }

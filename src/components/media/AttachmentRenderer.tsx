@@ -84,7 +84,7 @@ export function AttachmentRenderer({
    * upload failure.
    */const canShowOriginalPdf = attachment.kind === 'document' && Boolean(attachment.sourceUrl);
   const canShowVideo = attachment.kind === 'video' && Boolean(attachment.metadata?.playbackVideo?.sourceUrl
-    || (['mp4', 'webm'].includes(attachment.extension.toLowerCase()) && attachment.sourceUrl));
+    || attachment.sourceUrl);
   if ((state === 'processing' || state === 'processing-failed') && !canShowOriginalPdf && !canShowVideo) {return <MediaFrame>
         <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null} canRetry={isOwner && (processing?.canRetry ?? false)} isRetrying={processing?.isRetrying ?? false} onRetry={processing?.onRetry ?? (() => undefined)} />
       </MediaFrame>;}switch (attachment.kind) {case 'audio': // A real file plays natively; seeded work with no file keeps the

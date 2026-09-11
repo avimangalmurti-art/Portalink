@@ -222,7 +222,7 @@ export type DetectedAsset = {
  * list. An unrecognised file is still accepted as a source attachment — the
  * work is preserved rather than refused.
  */
-export function detectAsset(file: File): DetectedAsset {
+export function detectAsset(file: Pick<File, 'name' | 'type'>): DetectedAsset {
   const extension = fileExtension(file.name);
   const known = EXTENSIONS[extension];
   if (known) {
@@ -248,9 +248,9 @@ export function detectAsset(file: File): DetectedAsset {
   };
 }
 
-/** Only these render from a blob URL in the browser today. */
+/** Video support depends on its codecs and the device, so let the player try. */
 export function canPreviewLocally(family: AssetFamily, capability: AssetPreviewCapability): boolean {
-  return capability === 'native' && (family === 'image' || family === 'video' || family === 'audio' || family === 'model' || family === 'document');
+  return family === 'video' || (capability === 'native' && (family === 'image' || family === 'audio' || family === 'model' || family === 'document'));
 }
 
 /**
@@ -258,15 +258,16 @@ export function canPreviewLocally(family: AssetFamily, capability: AssetPreviewC
  *
  * Nothing else in the product may infer this — not a category, not a region,
  * not a filename check inside a component. A family whose capability means the
- * browser cannot show it resolves to `unknown`, which is a truthful file card
- * rather than a broken viewer.
+ * browser cannot show it resolves to `unknown`. Video is an exception: the
+ * player must try the actual stream, since a container alone cannot establish
+ * whether this device can decode it. Conversion remains a separate job state.
  */
 export function mediaKindFor(family: AssetFamily, capability: AssetPreviewCapability): MediaKind {
   switch (family) {
     case 'image':
       return capability === 'native' ? 'image' : 'unknown';
     case 'video':
-      return capability === 'native' ? 'video' : 'unknown';
+      return 'video';
     case 'audio':
       return capability === 'native' ? 'audio' : 'unknown';
     case 'model':
@@ -277,6 +278,12 @@ export function mediaKindFor(family: AssetFamily, capability: AssetPreviewCapabi
     default:
       return 'unknown';
   }
+}
+
+/** Repair legacy video classification when reading, without rewriting uploads. */
+export function resolveStoredMediaKind(kind: MediaKind, fileName: string, mimeType: string): MediaKind {
+  if (kind === 'unknown' && detectAsset({ name: fileName, type: mimeType }).family === 'video') return 'video';
+  return kind;
 }
 
 /** Convenience for callers holding only a File. */

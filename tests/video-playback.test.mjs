@@ -7,9 +7,9 @@ import * as multipart from '../public/portalink-media-core.js';
 
 const exports = {};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/features/media/videoPlayback.ts', import.meta.url), 'utf8'), {
-  compilerOptions: { module: ts.ModuleKind.CommonJS },
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText, { exports, require: () => multipart });
-const { readVideoPlayback, videoSource } = exports;
+const { readVideoPlayback, videoSource, videoSources } = exports;
 const profile = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const project = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const path = `${profile}/video-previews/${project}/cccccccc-cccc-4ccc-8ccc-cccccccccccc/dddddddd-dddd-4ddd-8ddd-dddddddddddd/playback.mp4`;
@@ -39,4 +39,10 @@ test('fresh converted source wins while original remains available for download'
   assert.equal(attachment.sourceUrl, 'original');
   attachment.metadata.playbackVideo.sourceUrl = null;
   assert.equal(videoSource(attachment), 'original');
+});
+
+test('playback candidates prefer conversion, retain original fallback and never duplicate a URL', () => {
+  assert.deepEqual(Array.from(videoSources({ sourceUrl: 'original', metadata: { playbackVideo: { sourceUrl: 'converted' } } })), ['converted', 'original']);
+  assert.deepEqual(Array.from(videoSources({ sourceUrl: 'original', metadata: { playbackVideo: { sourceUrl: 'original' } } })), ['original']);
+  assert.deepEqual(Array.from(videoSources({ sourceUrl: null })), []);
 });

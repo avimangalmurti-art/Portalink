@@ -21,3 +21,7 @@ export function readVideoPlayback(value: unknown, originalPath: string, projectI
 export function videoSource(attachment: ProjectAttachment): string | null {
   return attachment.metadata?.playbackVideo?.sourceUrl ?? attachment.sourceUrl;
 }
+
+export function videoSources(attachment: ProjectAttachment): string[] {
+  return [...new Set([attachment.metadata?.playbackVideo?.sourceUrl, attachment.sourceUrl].filter((url): url is string => Boolean(url)))];
+}
