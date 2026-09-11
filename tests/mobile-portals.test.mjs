@@ -14,19 +14,31 @@ function compile(path, require) {
 }
 const EmptyState = () => null, LoadingState = () => null, ErrorState = () => null;
 const FeatureInDesignPage = () => null;
+const CategoryOptionsMenu = () => null, NewCategoryDialog = () => null;
+const MobileReorderList = () => null;
 const Icon = () => null;
 function harness() {
   let presentation = 'mobile';
   let auth = { isAuthenticated: true, viewerProfileId: 'owner', phase: 'authenticated' };
+  const slots = []; let cursor = 0;
+  const react = { ...React, useMemo: fn => fn(), useRef: value => ({ current: value }), useEffect() {}, useState: initial => {
+    const index = cursor++;
+    if (!(index in slots)) slots[index] = initial;
+    return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
+  } };
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
-    if (name === 'react') return React;
-    if (name === 'lucide-react') return { ChevronRightIcon: Icon };
+    if (name === 'react') return react;
+    if (name === 'lucide-react') return { ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/FeatureInDesignPage')) return { FeatureInDesignPage };
     if (name.endsWith('/StateViews')) return { EmptyState, LoadingState, ErrorState };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: Icon };
     if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => Icon };
+    if (name.endsWith('/CategoryOptionsMenu')) return { CategoryOptionsMenu };
+    if (name.endsWith('/NewCategoryDialog')) return { NewCategoryDialog };
+    if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
+    if (name.endsWith('/useCategoryManagement')) return { MAX_CATEGORY_LABEL: 40 };
     throw new Error(`Unexpected import: ${name}`);
   });
   const chosen = [];
@@ -36,20 +48,25 @@ function harness() {
   ] };
   let continued = 0, retried = 0;
   const props = { profileQuery: { status: 'ready', profile, retry: () => retried++ },
+    management: { categoryIcons: {}, arrangement: { categoryOrder: ['typography', 'design'], hiddenCategoryIds: [] },
+      pending: null, failure: null, dismissFailure() {}, isLoadingArrangement: false,
+      createCategory: async () => null, renameCategory: async () => false },
+    theme: 'dark', accentColor: '#ff2d55', onChangeCategoryIcon() {},
     onboardingStatus: 'ready', onContinue: () => continued++, onSelectCategory: id => chosen.push(id), onBack() {} };
-  return { props, chosen, render: () => PortalsPage(props),
+  return { props, chosen, render: () => { cursor = 0; return PortalsPage(props); },
     setAuth: patch => { auth = { ...auth, ...patch }; }, setPresentation: value => { presentation = value; },
     get continued() { return continued; }, get retried() { return retried; } };
 }
 function elements(node) {
   if (!React.isValidElement(node)) return [];
+  if (node.type === MobileReorderList) return [node, ...node.props.items.flatMap(item => elements(node.props.renderItem(item, {})))];
   return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
 }
 const find = (tree, type) => elements(tree).find(node => node.type === type);
 
 test('mobile Portals lists the confirmed owner portals in saved order and selects by stable id', () => {
   const h = harness();
-  const buttons = elements(h.render()).filter(node => node.type === 'button');
+  const buttons = elements(h.render()).filter(node => node.type === 'button' && node.props.className === 'mobile-portal-row');
   assert.deepEqual(buttons.map(button => find(button, 'span').props.children), ['Typography', 'Graphic Design']);
   buttons[1].props.onClick();
   assert.deepEqual(h.chosen, ['design']);
@@ -74,10 +91,13 @@ test('loading, failure, missing profile and empty data never substitute another 
   h.setAuth({ isInitializing: true });
   assert.ok(find(h.render(), LoadingState));
   h.setAuth({ isInitializing: false });
+  const owner = h.props.profileQuery.profile;
+  h.props.profileQuery.profile = null;
   for (const status of ['idle', 'loading']) {
     h.props.profileQuery.status = status;
     assert.ok(find(h.render(), LoadingState));
   }
+  h.props.profileQuery.profile = owner;
   h.props.profileQuery.status = 'error';
   find(h.render(), ErrorState).props.onRetry();
   assert.equal(h.retried, 1);
@@ -97,6 +117,90 @@ test('WEB retains its existing Portals destination regardless of account state',
   assert.equal(h.render().type, FeatureInDesignPage);
   h.setAuth({ isAuthenticated: false });
   assert.equal(h.render().type, FeatureInDesignPage);
+});
+
+test('portal reordering saves the complete ordered IDs through the existing management boundary', async () => {
+  const h = harness(), saves = [];
+  h.props.management.reorderCategories = async ids => { saves.push(ids); return true; };
+  const list = find(h.render(), MobileReorderList);
+  assert.equal(list.props.disabled, false);
+  list.props.onReorder([...list.props.items].reverse());
+  await Promise.resolve();
+  assert.deepEqual(saves, [['design', 'typography']]);
+  assert.deepEqual(h.chosen, []);
+  // No local committed draft conceals a failed save or a later canonical reload.
+  assert.deepEqual(Array.from(find(h.render(), MobileReorderList).props.items, item => item.id), ['typography', 'design']);
+});
+
+test('portal hold cannot start while editing or saving, and hidden portals keep a separate group', () => {
+  const h = harness();
+  h.props.management.arrangement.hiddenCategoryIds = ['typography'];
+  let list = find(h.render(), MobileReorderList);
+  assert.deepEqual(Array.from(list.props.items, item => item.id), ['design', 'typography']);
+  assert.equal(list.props.groupForItem(list.props.items[0]), 'visible');
+  assert.equal(list.props.groupForItem(list.props.items[1]), 'hidden');
+  h.props.management.pending = { kind: 'arrangement' };
+  assert.equal(find(h.render(), MobileReorderList).props.disabled, true);
+  h.props.management.pending = null;
+  elements(h.render()).find(node => node.type === CategoryOptionsMenu).props.onRenameStart();
+  assert.equal(find(h.render(), MobileReorderList).props.disabled, true);
+});
+
+const byLabel = (tree, label) => elements(tree).find(node => node.props['aria-label'] === label);
+const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
+
+test('plus creates through management, retains the dialog on failure and opens the confirmed new portal', async () => {
+  const h = harness();
+  byLabel(h.render(), 'Add portal').props.onClick();
+  assert.ok(find(h.render(), NewCategoryDialog));
+  find(h.render(), NewCategoryDialog).props.onCreate('My portal', 'camera');
+  await flush();
+  assert.ok(find(h.render(), NewCategoryDialog));
+  assert.deepEqual(h.chosen, []);
+  h.props.management.createCategory = async (label, icon) => {
+    assert.equal(label, 'My portal'); assert.equal(icon, 'camera');
+    return { id: 'created-portal' };
+  };
+  find(h.render(), NewCategoryDialog).props.onCreate('My portal', 'camera');
+  await flush();
+  assert.equal(find(h.render(), NewCategoryDialog), undefined);
+  assert.deepEqual(h.chosen, ['created-portal']);
+});
+
+test('row options edit that portal without navigating and retain rejected rename drafts', async () => {
+  const h = harness(); const calls = [];
+  h.props.management.toggleCategoryHidden = id => calls.push(['hide', id]);
+  h.props.management.deleteCategory = id => calls.push(['delete', id]);
+  h.props.management.readDeletionCapability = id => calls.push(['capability', id]);
+  h.props.onChangeCategoryIcon = id => calls.push(['icon', id]);
+  const menu = elements(h.render()).filter(node => node.type === CategoryOptionsMenu)[1];
+  assert.equal(menu.props.mobile, true);
+  menu.props.onHideToggle(); menu.props.onChangeIcon(); menu.props.readDeletionCapability();
+  assert.deepEqual(calls, [['hide', 'design'], ['icon', 'design'], ['capability', 'design']]);
+  assert.deepEqual(h.chosen, []);
+  menu.props.onRenameStart();
+  byLabel(h.render(), 'Rename Graphic Design').props.onChange({ target: { value: 'New name' } });
+  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  await flush();
+  assert.equal(byLabel(h.render(), 'Rename Graphic Design').props.value, 'New name');
+  h.props.management.renameCategory = async (id, label) => { assert.equal(id, 'design'); assert.equal(label, 'New name'); return true; };
+  find(h.render(), 'form').props.onSubmit({ preventDefault() {} });
+  await flush();
+  assert.equal(find(h.render(), 'form'), undefined);
+  assert.deepEqual(h.chosen, []);
+});
+
+test('pending or unreadable arrangement disables editing, while empty owner profiles retain Add', () => {
+  const h = harness();
+  h.props.management.arrangementError = 'Unavailable';
+  assert.equal(byLabel(h.render(), 'Add portal').props.disabled, true);
+  for (const menu of elements(h.render()).filter(node => node.type === CategoryOptionsMenu)) assert.equal(menu.props.disabled, true);
+  h.props.management.arrangementError = null;
+  h.props.management.pending = { kind: 'create', categoryId: null };
+  assert.equal(byLabel(h.render(), 'Add portal').props.disabled, true);
+  h.props.management.pending = null;
+  h.props.profileQuery.profile.categories = [];
+  assert.equal(byLabel(h.render(), 'Add portal').props.disabled, false);
 });
 
 test('mobile project index owns the entire width including wider phones and restores without changing preferences', () => {

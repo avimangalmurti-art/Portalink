@@ -7,6 +7,8 @@ import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, 
 import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
+import { usePresentation } from '../../presentation/usePresentation';
+import { MobileReorderList, type MobileReorderActivator } from '../../presentation/mobile/MobileReorderList';
 type ProjectIndexListProps = {
   projects: ProjectEntry[];
   /** Each row reads in the face of the project it points at, keyed by id. */
@@ -18,6 +20,8 @@ type ProjectIndexListProps = {
   activeProjectId: string | null;
   /** Arranging and hiding work belongs to whoever owns the portfolio. */
   isOwner: boolean;
+  /** MOBILE waits for a complete, writable arrangement before starting a hold. */
+  mobileReorderDisabled?: boolean;
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -58,6 +62,7 @@ export function ProjectIndexList({
   pinnedIds,
   activeProjectId,
   isOwner,
+  mobileReorderDisabled = false,
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -66,6 +71,7 @@ export function ProjectIndexList({
   onTypefaceChange,
   onDelete,
 }: ProjectIndexListProps) {
+  const isMobile = usePresentation() === 'mobile';
   /*
    * Three groups, in reading order: pinned work first, then the rest of the
    * category, then — for the owner alone — work they have hidden. Pinning is a
@@ -120,6 +126,21 @@ export function ProjectIndexList({
     onTypefaceChange: onTypefaceChange ? (typefaceId: string) => onTypefaceChange(project.id, typefaceId) : undefined,
     onDelete: onDelete ? () => onDelete(project.id) : undefined,
   });
+  if (isMobile) {
+    const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
+      <MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
+        className="side-panel-navigation-list m-0 list-none p-0"
+        onReorder={reordered => onReorder(combine(reordered))}
+        renderItem={(project, activator) => <ProjectRow {...rowProps(project)} isDraggable={false} reorderActivator={activator} />} />;
+    return <div>
+      {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
+      {rest.length > 0 && <>
+        {(pinned.length > 0 || hidden.length > 0) && <SectionHeading label="Projects" icon={FolderIcon} />}
+        {group(rest, 'Projects', reordered => [...pinned, ...reordered, ...hidden])}
+      </>}
+      {hidden.length > 0 && <><SectionHeading label="Hidden" icon={EyeOffIcon} />{group(hidden, 'Hidden projects', reordered => [...pinned, ...rest, ...reordered])}</>}
+    </div>;
+  }
   return <div>
       {pinned.length > 0 && <>
           <SectionHeading label="Pinned" icon={PinIcon} />
@@ -186,6 +207,7 @@ function ProjectRow({
   isPinned,
   isActive,
   isDraggable,
+  reorderActivator,
   onToggleHidden,
   onTogglePinned,
   onSelect,
@@ -205,7 +227,7 @@ function ProjectRow({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;reorderActivator?: MobileReorderActivator;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -259,7 +281,7 @@ function ProjectRow({
         {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => dragControls.start(event)} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
-        <button type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 pr-10 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
+        <button {...reorderActivator} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 pr-10 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
           <span data-font-preview="" style={{
           fontFamily: typefaceStack
         }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>

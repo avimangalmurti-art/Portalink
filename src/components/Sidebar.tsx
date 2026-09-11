@@ -14,10 +14,11 @@ import type { Profile, PortfolioCategory as ProfileCategory } from '../types/dom
 import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import type { CategoryDeletionCapability } from '../types/domain';
-import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, LogInIcon, LogOutIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, MoreHorizontalIcon, EyeIcon, EyeOffIcon, PencilIcon, ShapesIcon, Trash2Icon, WarehouseIcon } from 'lucide-react';
+import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, LogInIcon, LogOutIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
 import { AiMarkIcon } from './AiMarkIcon';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
+import { CategoryOptionsMenu } from './profile/CategoryOptionsMenu';
 import { resolveAccentTokens } from '../utils/accentTokens';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
@@ -408,97 +409,10 @@ function CategoryRowContent({
 
 }: {category: ProfileCategory;isActive: boolean;accentColor: string;theme: 'light' | 'dark';isDraggable: boolean;isHidden?: boolean;isRenaming?: boolean; /** An operation on THIS row is in flight, so its controls stand down. */isBusy?: boolean;showOptions?: boolean; /** Asked when the confirmation opens, so the answer comes from the store. */readDeletionCapability?: () => Promise<CategoryDeletionCapability>;onSelect: () => void;onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;onDragHandlePointerDown?: (event: React.PointerEvent) => void;onHideToggle?: () => void;onRenameStart?: () => void;onRenameCommit?: (label: string) => void;onRenameCancel?: () => void;onChangeIcon?: () => void; /** Removes the category from the portfolio. Owner-only, destructive. */onDelete?: () => void;}) {
   const Icon = getCategoryIcon(category.iconName);
-  // What deleting this category actually does, answered by the service rather
-  // than assumed here: null while it is still being asked.
-  const [capability, setCapability] = useState<CategoryDeletionCapability | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const [menuPosition, setMenuPosition] = useState({
-    top: 0,
-    left: 0
-  });
-  // Deleting is destructive and unrecoverable, so it confirms in place.
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  useEffect(() => {
-    if (!isMenuOpen) {
-      setIsConfirmingDelete(false);
-      setCapability(null);
-    }
-  }, [isMenuOpen]);
-  // Read when the confirmation opens, so the panel can state the consequences
-  // truthfully — or refuse, when work would be lost.
-  useEffect(() => {
-    if (!isConfirmingDelete || !readDeletionCapability) {
-      return;
-    }
-    let isCurrent = true;
-    setCapability(null);
-    readDeletionCapability().then((next) => {
-      if (isCurrent) {
-        setCapability(next);
-      }
-    }).catch(() => {
-      if (isCurrent) {
-        setCapability({
-          isAvailable: false,
-          removes: [],
-          reason: 'Whether this can be deleted could not be checked. Nothing was removed.',
-          blockingProjectCount: 0
-        });
-      }
-    });
-    return () => {
-      isCurrent = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-ask only when the panel opens.
-  }, [isConfirmingDelete]);
-  // Rows near the bottom of the sidebar flip the menu above the trigger, so the
-  // lower categories' options are never clipped by the viewport. Measured
-  // before paint so the menu never appears in the wrong place first.
-  useLayoutEffect(() => {
-    if (!isMenuOpen) {
-      return;
-    }
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) {
-      return;
-    }
-    const menuHeight = menuRef.current?.offsetHeight ?? 0;
-    const spaceBelow = window.innerHeight - rect.bottom - 12;
-    const opensUpward = menuHeight > 0 && spaceBelow < menuHeight && rect.top > menuHeight;
-    const top = opensUpward ? rect.top - 6 - menuHeight : Math.min(rect.bottom + 6, Math.max(8, window.innerHeight - 8 - menuHeight));
-    setMenuPosition({
-      top: Math.max(8, top),
-      left: Math.max(8, rect.right - 164)
-    });
-  }, [isMenuOpen, isConfirmingDelete]);
   const [draftLabel, setDraftLabel] = useState(category.label);
   useEffect(() => {
     setDraftLabel(category.label);
   }, [category.label]);
-  useEffect(() => {
-    if (!isMenuOpen) {
-      return undefined;
-    }
-    function closeOnOutsideTap(event: PointerEvent) {
-      const target = event.target as Node;
-      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) {
-        setIsMenuOpen(false);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsMenuOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', closeOnOutsideTap);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideTap);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isMenuOpen]);
   return <div className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] w-full ${isHidden ? 'opacity-50' : ''}`}>
       {/* A category is a destination inside the active product area, so its
          selected state is a quieter version of the primary nav's accent. */}
@@ -532,81 +446,7 @@ function CategoryRowContent({
          keyboard — focus within the row reveals it — and it holds while its own
          menu is open, so the control does not vanish out from under the menu it
          opened. */}
-      {showOptions && <div className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button type="button" data-static-icon="" aria-label={`Options for ${category.label}`} aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={(event) => {
-        event.stopPropagation();
-        setIsMenuOpen((open) => !open);
-      }} ref={triggerRef} data-row-menu="" className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
-          </button>
-
-          {isMenuOpen && createPortal(<div ref={menuRef} role="menu" aria-label={`${category.label} options`} style={{
-        ...resolveAccentTokens(accentColor, theme),
-        position: 'fixed',
-        top: menuPosition.top,
-        left: menuPosition.left,
-        backgroundColor: 'var(--surface-raised)',
-        boxShadow: '0 16px 40px rgba(30,41,59,0.24)',
-        zIndex: 9999
-      }} className={`side-panel-popover theme-${theme} accent-theme w-[164px] overflow-hidden rounded-[10px] border border-[var(--hairline)] py-1 text-[var(--text-primary)]`}>
-              {isConfirmingDelete ? <div className="px-3 py-2">
-                  <p className="m-0 text-[12px] font-semibold leading-snug text-[var(--text-primary)]">Delete “{category.label}”?</p>
-                  {/* Consequences come from the service, so this never promises an
-               outcome the store would not actually perform. */}
-                  {!capability ? <p className="mt-1 flex items-center gap-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
-                      <Loader2Icon className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
-                      Checking what this removes…
-                    </p> : capability.isAvailable ? <ul className="m-0 mt-1 list-none space-y-0.5 p-0 text-[11px] leading-snug text-[var(--text-secondary)]">
-                      {capability.removes.map((line) => <li key={line}>{line}</li>)}
-                    </ul> : <p role="alert" className="mt-1 text-[11px] leading-snug text-[var(--text-secondary)]">{capability.reason}</p>}
-                  <div className="mt-2.5 flex items-center gap-1.5">
-                    <button type="button" onClick={() => setIsConfirmingDelete(false)} className="dialog-action-button h-7 flex-1 rounded-[7px] border border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      {capability && !capability.isAvailable ? 'Close' : 'Cancel'}
-                    </button>
-                    {/* Offered only once the store has confirmed it is safe. */}
-                    {(!capability || capability.isAvailable) && <button type="button" data-keep-color="" disabled={!capability || isBusy} onClick={() => {
-              setIsMenuOpen(false);
-              onDelete?.();
-            }} style={{
-              backgroundColor: 'var(--status-danger)'
-            }} className="dialog-action-button h-7 flex-1 rounded-[7px] text-[12px] font-semibold text-[var(--status-danger-foreground)] transition-colors hover:bg-[var(--status-danger-hover)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      {isBusy ? 'Deleting…' : 'Delete'}
-                    </button>}
-                  </div>
-                </div> : <>
-              <button type="button" role="menuitem" onClick={() => {
-            setIsMenuOpen(false);
-            onHideToggle?.();
-          }} className="flex h-9 w-full items-center gap-2.5 px-3 text-left text-small font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none">
-                {isHidden ? <InterfaceIcon icon={EyeIcon} weight="medium" /> : <InterfaceIcon icon={EyeOffIcon} weight="medium" />}
-                {isHidden ? 'Make visible' : 'Hide'}
-              </button>
-              <button type="button" role="menuitem" onClick={() => {
-            setIsMenuOpen(false);
-            onRenameStart?.();
-          }} className="flex h-9 w-full items-center gap-2.5 px-3 text-left text-small font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none">
-                <InterfaceIcon icon={PencilIcon} weight="medium" />
-                Rename
-              </button>
-              <button type="button" role="menuitem" onClick={() => {
-            setIsMenuOpen(false);
-            onChangeIcon?.();
-          }} className="flex h-9 w-full items-center gap-2.5 px-3 text-left text-small font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none">
-                <InterfaceIcon icon={ShapesIcon} weight="medium" />
-                Change icon
-              </button>
-              {onDelete && <>
-                  <span role="separator" className="my-1 block h-px bg-[var(--hairline)]" />
-                  {/* Destructive, so it rests neutral and only reads as danger
-                 once it is the thing being pointed at. */}
-                  <button type="button" role="menuitem" onClick={() => setIsConfirmingDelete(true)} className="group/delete flex h-9 w-full items-center gap-2.5 px-3 text-left text-small font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none">
-                    <Trash2Icon data-keep-color="" className="h-4 w-4 shrink-0 text-[var(--text-primary)] group-hover/delete:text-[var(--status-danger)]" aria-hidden="true" />
-                    <span className="group-hover/delete:text-[var(--status-danger)]" data-keep-color="">Delete</span>
-                  </button>
-                </>}
-                </>}
-            </div>, document.body)}
-        </div>}
+      {showOptions && <CategoryOptionsMenu category={category} accentColor={accentColor} theme={theme} isHidden={isHidden} isBusy={isBusy} readDeletionCapability={readDeletionCapability} onHideToggle={onHideToggle} onRenameStart={onRenameStart} onChangeIcon={onChangeIcon} onDelete={onDelete} />}
     </div>;
 }
 function DraggableCategoryRow({

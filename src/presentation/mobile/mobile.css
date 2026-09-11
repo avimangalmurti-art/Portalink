@@ -447,6 +447,71 @@
   line-height: 1.4;
 }
 
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-item {
+  display: flex;
+  align-items: center;
+  padding-right: 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-row[data-hidden] {
+  opacity: 0.5;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-item > .mobile-portal-row {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  padding-right: 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-rename {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  min-height: 60px;
+  padding-left: 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-action {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: var(--text-primary);
+  background: transparent;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-action:is(:hover, :active) {
+  background: var(--surface-hover);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-action:disabled {
+  opacity: 0.4;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-action:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-reorder-activator] {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-reorder-row][data-dragging] {
+  border-radius: 12px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24), inset 0 0 0 2px var(--accent-primary);
+}
+
 /* Home and city feeds own an inner scroller. Keep its viewport full-height;
    only the end of its scrolling content needs clearance beneath the dock. */
 #root .codex-shell[data-presentation='mobile'] [data-feed-scroll-content] {
