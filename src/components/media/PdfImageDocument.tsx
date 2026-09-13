@@ -448,7 +448,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     const next = Math.min(pageCount, Math.max(1, focusedPageNumber + direction));
     if (next !== focusedPageNumber) focusPage(next);
   }, [focusPage, focusedPageNumber, pageCount]);
-  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageNumber !== null, zoom, onMove: moveFocusedPage });
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageNumber !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus });
   useEffect(() => {
     if (focusedPageNumber !== null && pageCount > 0 && focusedPageNumber > pageCount) exitFocus();
   }, [exitFocus, focusedPageNumber, pageCount]);

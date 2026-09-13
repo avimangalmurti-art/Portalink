@@ -127,7 +127,7 @@ export function DocumentAttachment({
     const next = Math.min(renderedPages.length - 1, Math.max(0, focusedPageIndex + direction));
     if (next !== focusedPageIndex) focusPage(next);
   }, [focusPage, focusedPageIndex, renderedPages.length]);
-  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageIndex !== null, zoom, onMove: moveFocusedPage });
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageIndex !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus });
   useEffect(() => {
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);

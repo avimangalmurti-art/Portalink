@@ -230,7 +230,7 @@ export function ImageAttachment({
     if (nextIndex !== focusedPageIndex) focusPage(pages[nextIndex].id);
   }, [focusPage, focusedPageIndex, pages]);
 
-  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPage !== null, zoom, onMove: moveFocusedPage });
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPage !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus });
   useEffect(() => {
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
