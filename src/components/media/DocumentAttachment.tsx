@@ -215,7 +215,7 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            {showMediaInteractions && !(isMobile && focusedPageIndex === index) && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
+            {showMediaInteractions && !isMobile && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,

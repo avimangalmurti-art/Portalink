@@ -298,7 +298,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions} isOwner={isOwner} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

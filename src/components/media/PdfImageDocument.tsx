@@ -473,7 +473,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
-          showMediaInteractions={showMediaInteractions && !(isMobile && focusedPageNumber === pageNumber)}
+          showMediaInteractions={showMediaInteractions && !isMobile}
           isOwner={isOwner}
           focusMemoryKey={focusedPageNumber === pageNumber ? `${memoryKey}:page:${pageNumber}` : undefined}
           onToggleFocus={focusPage}
