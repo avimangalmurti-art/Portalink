@@ -83,14 +83,15 @@ function all(node) {
 const find = (tree, type) => all(tree).find(node => node.type === type);
 const error = code => ({ currentTarget: { error: { code } } });
 
-test('native play controls remain visible before metadata, so a tap can start playback', () => {
+test('selected videos autoplay muted inline and retain native playback controls', () => {
   const h = harness();
   const video = find(h.render(), 'video');
   assert.equal(video.props.controls, true);
   assert.equal(video.props.playsInline, true);
   assert.equal(video.props.src, 'original.mov');
   assert.doesNotMatch(video.props.className, /opacity-0|hidden/);
-  assert.equal(video.props.autoPlay, undefined);
+  assert.equal(video.props.autoPlay, true);
+  assert.equal(video.props.muted, true);
   video.props.onPlay();
   assert.equal(find(h.render(), LoadingState), undefined);
 });
@@ -102,6 +103,8 @@ test('a failed converted copy falls back to the original and stops after both fa
   video.props.onError(error(2));
   video = find(h.render(), 'video');
   assert.equal(video.props.src, 'original.mov');
+  assert.equal(video.props.autoPlay, true);
+  assert.equal(video.props.muted, true);
   video.props.onError(error(4));
   assert.equal(find(h.render(), 'video'), undefined);
   assert.match(find(h.render(), ErrorState).props.title, /could not play/);

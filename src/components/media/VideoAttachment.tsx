@@ -50,7 +50,7 @@ function VideoPlayback({ attachment, sources, conversion }: { attachment: Projec
   }
   return <div className="relative flex h-full w-full items-center justify-center p-3">
       {status === 'loading' && <div className="pointer-events-none absolute left-0 right-0 top-3 z-10"><LoadingState label={`Loading ${attachment.displayName}`} /></div>}
-      <video key={`${attempt}:${sourceIndex}`} src={source} controls muted playsInline preload="metadata" aria-label={attachment.displayName} onLoadedMetadata={() => setStatus('ready')} onPlay={() => setStatus('ready')} onError={event => {
+      <video key={`${attempt}:${sourceIndex}`} src={source} autoPlay controls muted playsInline preload="metadata" aria-label={attachment.displayName} onLoadedMetadata={() => setStatus('ready')} onPlay={() => setStatus('ready')} onError={event => {
         if (sourceIndex + 1 < sources.length) {
           setSourceIndex(sourceIndex + 1);
           setStatus('loading');
