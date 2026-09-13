@@ -143,7 +143,7 @@ test('mobile sidebar ends with Profile and has no Back destination', () => {
   assert.equal(destinations.at(-1), 'Profile');
   assert.equal(destinations.includes('Back'), false);
   assert.ok(ui.appearance);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Home']);
 });
 
 test('the mobile appearance control switches the shared theme both ways and updates its icon and label', () => {
@@ -182,7 +182,7 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   assert.equal(layerType, 'div');
   assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Home']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), []);
   for (const expectedHidden of [false, true, false, true]) {
     ui.toggle.props.onClick(); ui = h.render();
@@ -230,25 +230,16 @@ test('an outside tap dismisses the side rail, restores the dock and consumes the
   assert.equal(ui.focused.at(-1), 'toggle');
 });
 
-test('Portals is an enabled link in both mobile navigation forms and reflects the current route', () => {
+test('Portals is absent from both mobile navigation forms even on the portals route', () => {
   for (const pathname of ['/', '/portals']) {
     const h = navigationHarness(pathname);
     let ui = h.render();
     assert.equal(ui.dock.props.hidden, false);
-    const dockPortals = React.Children.toArray(ui.group.props.children).find(child => child.props.item.label === 'Portals');
+    assert.equal(React.Children.toArray(ui.group.props.children).some(child => child.props.item.label === 'Portals'), false);
     ui.toggle.props.onClick();
     ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], false);
-    const railPortals = ui.railItems.find(child => child.props.item?.label === 'Portals');
-    for (const element of [railPortals, dockPortals]) {
-      const link = h.destination(element);
-      assert.equal(link.type, 'a');
-      assert.equal(link.props.to, '/portals');
-      assert.equal(link.props.disabled, undefined);
-      assert.equal(link.props['aria-label'], 'Portals');
-      assert.equal(link.props.title, 'Portals');
-      assert.equal(link.props['aria-current'], pathname === '/portals' ? 'page' : undefined);
-    }
+    assert.equal(ui.railItems.some(child => child.props.item?.label === 'Portals'), false);
   }
 });
 

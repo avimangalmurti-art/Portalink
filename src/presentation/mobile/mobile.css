@@ -7,6 +7,13 @@
   border-radius: var(--shape-compact, 10px);
 }
 
+/* Keep editable text readable before focus so iOS does not zoom the page.
+   This must beat the shared dense-panel !important sizing and also cover
+   body-portalled editors carrying their own presentation scope. */
+[data-presentation='mobile'] :is(input, textarea, select, [contenteditable='true'], [contenteditable='plaintext-only']):not([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden']) {
+  font-size: max(16px, 1rem) !important;
+}
+
 #root .codex-shell[data-presentation='mobile'] {
   /* Let the canvas reach both display edges. Insets belong to controls and
      scroll-content ends, never to the viewport that clips the entire screen. */
@@ -270,7 +277,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: 2px;
@@ -931,6 +938,19 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header {
   margin-inline: -8px;
   padding: calc(12px + var(--mobile-content-safe-top)) 8px 12px;
+}
+
+/* Focusing the placeholder search must not push the feed down. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header #home-search-status:not(.sr-only) {
+  position: absolute;
+  inset-inline: 8px;
+  top: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--shape-compact, 10px);
+  background: var(--surface-raised);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header input::-webkit-search-cancel-button {

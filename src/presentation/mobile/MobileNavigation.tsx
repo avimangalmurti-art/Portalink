@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
-import { PortalRingIcon } from '../../components/PortalRingIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
@@ -49,7 +48,6 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
-  const portals: Item = { label: 'Portals', icon: PortalRingIcon, href: buildPath('portals'), active: pathname === buildPath('portals') };
   const studio: Item = { label: 'Studio', icon: WarehouseIcon, disabled: true };
   const profile: Item = { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive };
   const home: Item = { label: 'Home', icon: HomeIcon, href: buildPath('home'), active: pathname === buildPath('home') };
@@ -61,7 +59,6 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     { label: 'Videos', icon: PlayIcon, disabled: true },
     studio,
     messages,
-    portals,
     home,
     profile,
   ];
@@ -85,7 +82,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={PlusIcon} /></button>
       <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
         <div className="mobile-navigation-dock">
-          {[messages, portals, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
+          {[messages, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
         </div>
         <Destination item={profile} variant="profile" />
       </motion.nav>

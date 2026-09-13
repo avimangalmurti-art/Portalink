@@ -120,8 +120,9 @@ test('every platform CSS selector is scoped, including nested rules and selector
       for (const selector of rule.selectors) {
         // Frame rules can target the scoped host itself; descendant rules and
         // specific account overrides must stay behind the same boundary. A
-        // zero-specificity scope also covers body-portalled mobile controls.
-        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\))(?: |$)`);
+        // presentation attribute also scopes body-portalled mobile controls,
+        // with or without zero specificity for component-level overrides.
+        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?: |$)`);
         assert.match(selector, boundary);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
