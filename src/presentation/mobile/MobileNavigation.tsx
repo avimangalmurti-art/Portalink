@@ -4,7 +4,6 @@ import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCirc
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
-import { useProjectScrollActivity } from './useProjectScrollActivity';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
@@ -47,8 +46,6 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
-  const floating = useRef<HTMLDivElement | null>(null);
-  const isScrollingProject = useProjectScrollActivity(hidden, pathname, floating);
   function setNavigationHidden(next: boolean) {
     setHidden(next);
     requestAnimationFrame(() => toggle.current?.focus({ preventScroll: true }));
@@ -88,10 +85,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
         </nav>
       </>}
     </aside>
-    <div ref={element => {
-      floating.current = element;
-      if (element) element.inert = isScrollingProject;
-    }} className="mobile-floating-navigation" data-scrolling={isScrollingProject || undefined} aria-hidden={isScrollingProject || undefined} {...dockSwipe}>
+    <div className="mobile-floating-navigation" {...dockSwipe}>
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
       <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
         <div className="mobile-navigation-dock">

@@ -137,6 +137,7 @@ export function ProjectMediaViewer({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
+  const isMobileViewer = Boolean(mobileNavigation);
   useEffect(() => {
     setSharedInfoPanel('project');
   }, [projectId]);
@@ -155,13 +156,13 @@ export function ProjectMediaViewer({
     if (controlsTimerRef.current !== null) {
       window.clearTimeout(controlsTimerRef.current);
     }
-    if (isImmersive) {
+    if (isImmersive && !isMobileViewer) {
       controlsTimerRef.current = window.setTimeout(() => {
         controlsTimerRef.current = null;
         setAreControlsVisible(false);
       }, 1800);
     }
-  }, [isImmersive]);
+  }, [isImmersive, isMobileViewer]);
   const holdControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
@@ -388,7 +389,7 @@ export function ProjectMediaViewer({
    * the work back. The rail owns the only fixed dimension in the row.
    */
   return <div data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
-    if (isImmersive) setAreControlsVisible(false);
+    if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">

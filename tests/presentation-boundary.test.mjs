@@ -80,13 +80,16 @@ test('one media listener follows repeated presentation changes and is cleaned up
 
 test('both presentations keep the same provider, DOM host, and child element identities', () => {
   let presentation = 'web';
+  const readingScopes = [];
   const context = React.createContext('web');
   const { AppPresentation } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
     if (name === 'react') return React;
+    if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
     if (name === './usePresentation') return { PresentationContext: context };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
+    if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
     if (name.endsWith('.css')) return {};
     throw new Error(`Unexpected presentation dependency: ${name}`);
   } });
@@ -97,6 +100,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const web = AppPresentation(props);
   presentation = 'mobile';
   const mobile = AppPresentation(props);
+  assert.deepEqual(readingScopes, [[false, '/share/profile/project'], [true, '/share/profile/project']]);
   assert.equal(web.type, context.Provider); assert.equal(mobile.type, web.type);
   assert.equal(web.key, mobile.key);
   for (const [tree, mode] of [[web, 'web'], [mobile, 'mobile']]) {

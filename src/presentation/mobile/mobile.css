@@ -263,14 +263,27 @@
   transition: opacity 160ms ease;
 }
 
-/* Clear the artwork during scrolling; retain the dock's geometry and clearance. */
-#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling='true'] {
-  opacity: 0;
+/* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
+#root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
+  transition: opacity 160ms ease, visibility 0s;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: opacity 160ms ease, visibility 0s 160ms;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition: visibility 0s 160ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
-    transition: none;
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-floating-navigation, [data-project-reading-control], [data-project-reading-control] *) {
+    transition: none !important;
   }
 }
 
@@ -669,7 +682,7 @@
   --mobile-content-safe-bottom: 12px;
 }
 
-[data-project-description-overlay][data-presentation='mobile'] {
+[data-presentation='mobile'] [data-project-description-overlay] {
   position: fixed;
   inset: 0;
   z-index: 90;
@@ -680,7 +693,7 @@
   background: rgb(0 0 0 / 12%);
 }
 
-[data-project-description-overlay][data-presentation='mobile'] [data-project-description-preview] {
+[data-presentation='mobile'] [data-project-description-overlay] [data-project-description-preview] {
   width: min(380px, 100%);
   max-height: min(480px, 100%);
   min-height: min(160px, 100%);
@@ -697,21 +710,21 @@
   outline: none;
 }
 
-[data-project-description-preview] > p {
+[data-presentation='mobile'] [data-project-description-preview] > p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 1rem;
   line-height: 1.5;
 }
 
-[data-project-description-preview]:where(.reduce-translucency *, .high-contrast *) {
+[data-presentation='mobile'] [data-project-description-preview]:where(.reduce-translucency *, .high-contrast *) {
   background: var(--surface-raised) !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  [data-project-description-preview] {
+  [data-presentation='mobile'] [data-project-description-preview] {
     background: var(--surface-raised) !important;
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
