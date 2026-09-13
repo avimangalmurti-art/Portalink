@@ -12,6 +12,7 @@ import { validateProfileName, validateLocation, NAME_MAX_LENGTH, LOCATION_MAX_LE
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
 import { usePasswordReset, usePasswordUpdate, useSignUp } from './useAuthFlows';
 import { validateEmail, validateNewPassword, validatePasswordConfirmation, validateRequiredPassword } from './validation';
+import { usePresentation } from '../../presentation/usePresentation';
 
 const titles: Record<AuthView, string> = {
   signIn: 'Sign in', signUp: 'Create your account',
@@ -20,12 +21,13 @@ const titles: Record<AuthView, string> = {
 
 export function AuthDialog(props: AccountAppearanceProps) {
   const auth = useAuth();
+  const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} title={titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} showAppearance={!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword')} title={titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}

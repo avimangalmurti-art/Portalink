@@ -18,8 +18,9 @@ export type AccountAppearanceProps = {
 };
 
 /** One welcome scene for every step of the account journey. */
-export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
+export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, showAppearance = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
   title: string;
+  showAppearance?: boolean;
   busy?: boolean;
   dirty?: boolean;
   onDismiss: () => void;
@@ -82,7 +83,7 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
           <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>
           <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
         </header>
-        <div className="account-welcome-appearance mb-5">
+        {showAppearance && <div className="account-welcome-appearance mb-5">
           <div role="radiogroup" aria-label="Accent color" className="account-welcome-colors">
             {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} aria-label={option.label} title={option.label}
               disabled={busy} data-keep-color="" onClick={() => onAccentColorChange(option.dark)} className="account-welcome-swatch relative flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
@@ -100,7 +101,7 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
               <AppearanceSwitch label="Reduce Translucency" isOn={reduceTranslucency} onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)} />
             </div>
           </div>
-        </div>
+        </div>}
         {pendingLeave && <div ref={confirmationRef} role="alertdialog" aria-label="Discard account details" className="mb-4 rounded-xl bg-[var(--surface-sunken)] p-3">
           <p className="text-sm">Discard your changes?</p>
           <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => { setPendingLeave(null); headingRef.current?.focus(); }}>Keep editing</Button><Button size="sm" variant="danger" disabled={busy} onClick={() => { if (busy) return; const leave = pendingLeave; setPendingLeave(null); leave(); }}>Discard</Button></div>
