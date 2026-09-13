@@ -66,14 +66,15 @@ function events(object = {}) {
   });
 }
 
-function harness(fullscreen = false) {
-  const shell = {}, presentation = {};
+function harness(fullscreen = false, mode = 'web') {
+  const attributes = new Map(), viewportStyles = new Map(), modalCalls = [];
+  const shell = { setAttribute: (key, value) => attributes.set(key, value), removeAttribute: key => attributes.delete(key) }, presentation = {};
   const document = events({ fullscreenElement: fullscreen ? presentation : null, body: {}, querySelector: () => shell });
   const viewport = events({ width: 1056, height: 698, offsetLeft: 0, offsetTop: 0 });
   const window = events({ visualViewport: viewport, innerWidth: 1056, innerHeight: 698 });
   const effects = [], layouts = [], frames = new Map(), states = [], observers = [];
   let rect = { left: 680, top: 430, bottom: 450 }, focused = 0, closed = 0, sequence = 0, visibility;
-  const anchor = { getBoundingClientRect: () => rect };
+  const anchor = { getBoundingClientRect: () => rect, closest: () => shell };
   const trigger = { contains: (target) => target === trigger, focus: () => focused++ };
   const panel = { style: {}, scrollHeight: 180, children: [{}], contains: (target) => target === panel };
   const react = { ...React,
@@ -83,6 +84,9 @@ function harness(fullscreen = false) {
   };
   const { MediaCommentsPopover } = load('../src/features/media-interactions/MediaCommentsPopover.tsx', {
     react, 'react-dom': { createPortal: (node, host) => ({ node, host }) }, './mediaCommentsPosition': positions,
+    '../../presentation/usePresentation': { usePresentation: () => mode },
+    '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: { style: { setProperty: (key, value) => viewportStyles.set(key, value) } } }) },
+    '../../hooks/useModalFocus': { useModalFocus: (...args) => modalCalls.push(args) },
   }, {
     document, window,
     requestAnimationFrame: (fn) => { frames.set(++sequence, fn); return sequence; },
@@ -90,12 +94,14 @@ function harness(fullscreen = false) {
     ResizeObserver: class { constructor(fn) { this.update = fn; this.observed = []; observers.push(this); } observe(node) { this.observed.push(node); } disconnect() { this.observed = []; } },
     IntersectionObserver: class { constructor(fn) { visibility = fn; } observe() {} disconnect() {} },
   });
-  const rendered = MediaCommentsPopover({ id: 'comments-1', label: 'Comments for Page 1', anchorRef: { current: anchor }, triggerRef: { current: trigger }, onClose: () => closed++, children: 'Comments content' });
+  const selected = MediaCommentsPopover({ id: 'comments-1', label: 'Comments for Page 1', anchorRef: { current: anchor }, triggerRef: { current: trigger }, onClose: () => closed++, children: 'Comments content' });
+  const portal = selected.type(selected.props);
+  const rendered = mode === 'mobile' ? { ...portal, scope: portal.node.props['data-presentation'], node: portal.node.props.children } : portal;
   const cleanups = [...layouts, ...effects].map((fn) => fn());
-  return { ...rendered, document, window, viewport, shell, presentation, panel, trigger, states, observers,
+  return { ...rendered, document, window, viewport, shell, presentation, panel, trigger, states, observers, attributes, viewportStyles, modalCalls,
     get focused() { return focused; }, get closed() { return closed; },
     move(next) { rect = next; window.emit('scroll', {}); for (const [id, fn] of [...frames]) { frames.delete(id); fn(); } },
-    hideAnchor() { visibility([{ isIntersecting: false }]); },
+    hideAnchor() { visibility?.([{ isIntersecting: false }]); },
     cleanup() { cleanups.forEach((fn) => fn?.()); },
   };
 }
@@ -111,6 +117,44 @@ test('the popup escapes media clipping into the themed shell or fullscreen eleme
     assert.equal(env.states[0], fullscreen ? env.shell : env.presentation);
     env.cleanup();
   }
+});
+
+test('mobile comments use a keyboard-aware modal without following or dismissing a hidden toolbar', () => {
+  const env = harness(false, 'mobile');
+  assert.equal(env.scope, 'mobile');
+  assert.equal(env.node.props.children.props.role, 'dialog');
+  assert.equal(env.node.props.children.props['aria-modal'], 'true');
+  assert.equal(env.node.props.style.height, 'var(--dialog-viewport-height, 100dvh)');
+  assert.equal(env.attributes.get('data-page-comments-open'), '');
+  assert.equal(env.modalCalls[0][0], true);
+  assert.equal(env.observers.length, 0);
+  env.hideAnchor();
+  env.viewport.height = 300;
+  env.viewport.emit('resize', {});
+  assert.equal(env.viewportStyles.get('--comments-bottom-inset'), '12px');
+  assert.equal(env.closed, 0, 'Keyboard and hidden source toolbar must not close the composer');
+  env.node.props.onPointerDown({ target: env.panel, currentTarget: {}, stopPropagation() {} });
+  assert.equal(env.closed, 0);
+  const backdrop = {};
+  env.node.props.onPointerDown({ target: backdrop, currentTarget: backdrop, stopPropagation() {} });
+  assert.equal(env.closed, 1);
+  env.cleanup();
+  assert.equal(env.attributes.has('data-page-comments-open'), false);
+  assert.equal(env.viewport.listenerCount(), 0);
+});
+
+test('mobile comments keep their fullscreen host and isolate gestures from the focused page', () => {
+  const env = harness(true, 'mobile');
+  assert.equal(env.host, env.presentation);
+  for (const name of ['onPointerUp', 'onClick', 'onDoubleClick', 'onWheel', 'onTouchMove', 'onKeyDown']) {
+    let stopped = false;
+    env.node.props[name]({ stopPropagation() { stopped = true; } });
+    assert.equal(stopped, true);
+  }
+  env.document.fullscreenElement = null;
+  env.document.emit('fullscreenchange', {});
+  assert.equal(env.closed, 1, 'Close without losing the parent draft rather than retaining stale focus/viewport nodes');
+  env.cleanup();
 });
 
 test('popup events stay out of the page viewer and Escape returns focus to its trigger', () => {

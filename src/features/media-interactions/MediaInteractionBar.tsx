@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
 import { mediaToolbarLayout, mobileFocusedMediaToolbarLayout } from './mediaToolbarLayout';
@@ -34,7 +34,8 @@ export function MediaInteractionBar({
   /** Derived from authenticated profile ownership, never navigation history. */
   isOwner?: boolean;
 }) {
-  const isMobileFocused = usePresentation() === 'mobile' && placement === 'focused';
+  const isMobile = usePresentation() === 'mobile';
+  const isMobileFocused = isMobile && placement === 'focused';
   // Uploaded source names can contain machine-generated or extraction text.
   // They never belong in the social UI, including when the creator views their
   // own work. A stable page number keeps every audience-facing label clean.
@@ -67,6 +68,13 @@ export function MediaInteractionBar({
     setCommentsOpen(true);
     requestAnimationFrame(() => composerRef.current?.focus());
   }, [activity.commentResumeToken]);
+
+  useLayoutEffect(() => {
+    const composer = composerRef.current;
+    if (!isMobile || !composer) return;
+    composer.style.height = '0px';
+    composer.style.height = `${Math.min(112, Math.max(44, composer.scrollHeight))}px`;
+  }, [commentBody, commentsOpen, isMobile]);
 
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
@@ -147,54 +155,56 @@ export function MediaInteractionBar({
     </div>
 
     {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
-      <header className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
+      <header data-comments-header="" className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
           <h3 className="truncate text-[12px] font-semibold text-white">Comments</h3>
-          <p className="truncate text-[10px] text-white/55">{presentedTarget.label}</p>
+          <p className="truncate text-[10px] text-white/55">{presentedTarget.label}{isMobile && pageCount ? ` of ${pageCount}` : ''}</p>
         </div>
-        {activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
+        {isMobile ? <button type="button" data-comments-close="" onClick={closeComments} aria-label="Close comments"><InterfaceIcon icon={XIcon} size="lg" weight="medium" /></button> : null}
+        {!isMobile && activity.isLoading ? <Loader2Icon className="h-3.5 w-3.5 animate-spin text-white/55 motion-reduce:animate-none" aria-label="Loading comments" /> : null}
       </header>
-      {activity.record.comments.length > 0 || !isOwner ? <div className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
-        {activity.record.comments.length === 0 && !activity.isLoading && !isOwner ? <p className="py-4 text-center text-[11px] leading-relaxed text-white/55">Be the first to respond to this page.</p> : null}
+      {isMobile || activity.record.comments.length > 0 || !isOwner ? <div data-comments-list="" className="scrollbar-overlay max-h-48 overflow-y-auto overscroll-contain px-3.5 py-2.5">
+        {activity.record.comments.length === 0 && !activity.isLoading && (!isMobile || !activity.failure) && (isMobile || !isOwner) ? <p data-comments-empty="" className="py-4 text-center text-[11px] leading-relaxed text-white/55">{isMobile ? 'No comments yet.' : 'Be the first to respond to this page.'}</p> : null}
+        {isMobile && activity.isLoading ? <p role="status" data-comments-empty="">Loading comments…</p> : null}
         <ul className="m-0 list-none space-y-3 p-0">
-          {activity.record.comments.map((comment) => <li key={comment.id} className="group/comment">
+          {activity.record.comments.map((comment) => <li key={comment.id} data-comment="" className="group/comment">
             <div className="flex items-start gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[9px] font-semibold text-white/70">
+              <span data-comment-avatar="" className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[9px] font-semibold text-white/70">
                 {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" className="h-full w-full object-cover" /> : comment.authorName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-white/80">{comment.authorName}</span>
-                  {comment.canDelete ? <button type="button" onClick={() => void activity.deleteComment(comment.id)} aria-label="Delete comment" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+                  <span data-comment-author="" className="min-w-0 flex-1 truncate text-[10px] font-semibold text-white/80">{comment.authorName}</span>
+                  {comment.canDelete ? <button type="button" onClick={() => void activity.deleteComment(comment.id)} aria-label="Delete comment" data-comment-delete="" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
                     <InterfaceIcon icon={Trash2Icon} size="sm" weight="regular" />
                   </button> : null}
                 </div>
-                <p className="mt-0.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-white/75">{comment.body}</p>
+                <p data-comment-body="" className="mt-0.5 whitespace-pre-wrap break-words text-[11px] leading-relaxed text-white/75">{comment.body}</p>
               </div>
             </div>
           </li>)}
         </ul>
       </div> : null}
-      <form className="p-2.5" onSubmit={async (event) => {
+      <form data-comments-composer="" className="p-2.5" onSubmit={async (event) => {
         event.preventDefault();
         if (await activity.postComment(commentBody)) setCommentBody('');
       }}>
-        <div className="flex items-end gap-2 rounded-[10px] bg-white/8 p-2">
+        <div data-comments-input="" className={isMobile ? 'field-shell text-control-shell' : 'flex items-end gap-2 rounded-[10px] bg-white/8 p-2'}>
           <textarea
             ref={composerRef}
             value={commentBody}
             onChange={(event) => setCommentBody(event.target.value)}
-            rows={2}
+            rows={isMobile ? 1 : 2}
             maxLength={1000}
             placeholder="Add a comment"
             aria-label={`Comment on ${presentedTarget.label}`}
             className="min-h-8 min-w-0 flex-1 resize-none bg-transparent text-[11px] leading-relaxed text-white outline-none placeholder:text-white/35"
           />
-          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
+          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" data-comment-send="" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
             {activity.isPostingComment ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <InterfaceIcon icon={SendIcon} size="sm" weight="medium" />}
           </button>
         </div>
-        {activity.failure ? <p role="alert" className="mt-2 text-[10px] leading-relaxed text-[#ff6961]">
+        {activity.failure ? <p data-comment-failure="" role="alert" className="mt-2 text-[10px] leading-relaxed text-[#ff6961]">
           {activity.failure}
           <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button>
         </p> : null}

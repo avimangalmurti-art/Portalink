@@ -904,6 +904,154 @@
   overflow: hidden;
 }
 
+[data-presentation='mobile'] [data-mobile-media-comments] {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 75;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+  padding-bottom: var(--comments-bottom-inset, max(12px, env(safe-area-inset-bottom)));
+  background: rgb(0 0 0 / 18%);
+}
+
+[data-presentation='mobile'] .mobile-media-comments-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--border-default) !important;
+  border-radius: var(--shape-container) !important;
+  background: var(--surface-raised) !important;
+  color: var(--text-primary);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 24%);
+  outline: none;
+}
+
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-header] {
+  flex: none;
+  gap: 8px;
+  padding: 12px 12px 12px 16px;
+  border-color: var(--border-default);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-header] h3 {
+  font-size: 16px;
+  line-height: 22px;
+  color: var(--text-primary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-header] p {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--text-secondary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-close] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: auto;
+  border-radius: var(--shape-compact);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-list] {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 260px;
+  padding: 12px 16px;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-empty] {
+  padding: 12px 0;
+  text-align: center;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text-secondary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-avatar] {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--surface-inset);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-author] {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-primary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-body] {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-delete] {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  margin-block: -8px;
+  border-radius: var(--shape-compact);
+  color: var(--text-secondary);
+  opacity: 1;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-composer] {
+  flex: none;
+  padding: 12px;
+  border-top: 1px solid var(--border-default);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-input] {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 8px !important;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet textarea {
+  min-height: 44px;
+  max-height: 112px;
+  padding: 10px 0;
+  border-radius: 0 !important;
+  font-size: 16px !important;
+  line-height: 24px;
+  color: var(--text-primary);
+  overflow-y: auto;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-send] {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px !important;
+  color: var(--accent-foreground);
+  background: var(--accent-primary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-send] svg {
+  width: 20px;
+  height: 20px;
+  color: inherit !important;
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-failure] {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--status-danger);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet [data-comment-failure] button {
+  color: var(--text-secondary);
+}
+[data-presentation='mobile'] .mobile-media-comments-sheet button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+/* The sheet owns this moment; media remains mounted and keeps its position. */
+#root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-page-comments-open] *):not([data-mobile-media-comments] *) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-focused-page-scroll] {
   touch-action: var(--focused-page-touch-action, pan-x pan-y);
 }

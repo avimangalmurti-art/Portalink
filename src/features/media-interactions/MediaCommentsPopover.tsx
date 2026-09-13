@@ -1,6 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { positionMediaComments } from './mediaCommentsPosition';
+import { usePresentation } from '../../presentation/usePresentation';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useModalFocus } from '../../hooks/useModalFocus';
 
 function popupHost() {
   // Native fullscreen hides portals outside its element. Both hosts inherit
@@ -8,14 +11,64 @@ function popupHost() {
   return document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
 }
 
-export function MediaCommentsPopover({ id, label, anchorRef, triggerRef, onClose, children }: {
+type Props = {
   id: string;
   label: string;
   anchorRef: RefObject<HTMLDivElement>;
   triggerRef: RefObject<HTMLButtonElement>;
   onClose: () => void;
   children: React.ReactNode;
-}) {
+};
+
+export function MediaCommentsPopover(props: Props) {
+  return usePresentation() === 'mobile' ? <MobileMediaCommentsSheet {...props} /> : <AnchoredMediaComments {...props} />;
+}
+
+function MobileMediaCommentsSheet({ id, label, anchorRef, onClose, children }: Props) {
+  const viewportRef = useDialogViewport();
+  const panelRef = useRef<HTMLElement>(null);
+  const [host] = useState(popupHost);
+  useModalFocus(true, panelRef, onClose);
+  useEffect(() => {
+    // Leaving native fullscreen changes the portal host. Close the sheet so
+    // its focus/keyboard hooks never keep references to replaced DOM nodes.
+    // The parent retains the draft when the user opens comments again.
+    const changeHost = () => onClose();
+    document.addEventListener('fullscreenchange', changeHost);
+    return () => document.removeEventListener('fullscreenchange', changeHost);
+  }, [onClose]);
+  useLayoutEffect(() => {
+    const frame = anchorRef.current?.closest('[data-presentation="mobile"]');
+    frame?.setAttribute('data-page-comments-open', '');
+    return () => { frame?.removeAttribute('data-page-comments-open'); };
+  }, [anchorRef]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const update = () => {
+      const keyboardOpen = viewport && window.innerHeight - viewport.height - viewport.offsetTop > 120;
+      viewportRef.current?.style.setProperty('--comments-bottom-inset', keyboardOpen ? '12px' : 'max(12px, env(safe-area-inset-bottom))');
+    };
+    update();
+    viewport?.addEventListener('resize', update);
+    viewport?.addEventListener('scroll', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      viewport?.removeEventListener('scroll', update);
+    };
+  }, [viewportRef]);
+  const stop = (event: React.SyntheticEvent) => event.stopPropagation();
+  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-mobile-media-comments=""
+    style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
+    onPointerDown={event => { stop(event); if (event.target === event.currentTarget) onClose(); }}
+    onPointerUp={stop} onClick={stop} onDoubleClick={stop} onWheel={stop} onTouchMove={stop} onKeyDown={stop}>
+    <section ref={panelRef} id={id} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label}
+      data-media-interaction="" className="mobile-media-comments-sheet">
+      {children}
+    </section>
+  </div></div>, host);
+}
+
+function AnchoredMediaComments({ id, label, anchorRef, triggerRef, onClose, children }: Props) {
   const panelRef = useRef<HTMLElement>(null);
   const [host, setHost] = useState(popupHost);
   const [position, setPosition] = useState<ReturnType<typeof positionMediaComments> | null>(null);
