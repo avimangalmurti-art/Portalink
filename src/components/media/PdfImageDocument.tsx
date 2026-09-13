@@ -469,7 +469,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}
-    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-2 sm:gap-3`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
+    {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
       {pageNumbers.map((pageNumber) => <li key={pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
         <PdfImagePage
           projectId={projectId}

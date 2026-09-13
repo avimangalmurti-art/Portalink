@@ -100,7 +100,7 @@ function ImagePage({
       event.preventDefault();
       onToggleFocus(attachment.id);
     }
-  }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block min-h-[240px] touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
+  }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
       {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
@@ -293,12 +293,12 @@ export function ImageAttachment({
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
   return <div className="premium-media-mode-enter relative h-full w-full">
-      <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-1 overflow-x-hidden overflow-y-auto p-0">
-      {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-1">
+      <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0">
+      {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-[2px]">
           {/* The pages themselves stay list items, so a screen reader still hears
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
-          <ol className="m-0 flex list-none flex-col gap-1 p-0">
+          <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
             {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
