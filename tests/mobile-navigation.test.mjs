@@ -85,7 +85,6 @@ function navigationHarness(pathname = '/') {
   const slots = [];
   const frames = [];
   const focused = [];
-  const backCalls = [];
   const icons = { SunIcon: () => null, MoonIcon: () => null };
   let cursor = 0;
   const react = {
@@ -110,8 +109,6 @@ function navigationHarness(pathname = '/') {
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
       if (name === '../../app/routes') return { buildPath: name => paths[name] };
-      if (name === './MobileBackNavigation') return { useMobileBack: fallback => fallback };
-      if (name === '../../app/useAppRoute') return { useRouteNavigator: () => ({ back: (...args) => backCalls.push(args) }) };
       return new Proxy({}, { get: () => () => null });
     },
   });
@@ -133,27 +130,19 @@ function navigationHarness(pathname = '/') {
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
     return { layer: tree, dismiss, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render, icons, backCalls, destination: element => exports.Destination(element.props) };
+  return { render, icons, destination: element => exports.Destination(element.props) };
 }
 
-test('Back is directly below Profile in the mobile sidebar and uses the existing history action once per tap', () => {
+test('mobile sidebar ends with Profile and has no Back destination', () => {
   const h = navigationHarness('/portals');
   let ui = h.render();
   assert.equal(ui.dock.props.hidden, false);
-  assert.equal(h.backCalls.length, 0);
   ui.toggle.props.onClick();
   ui = h.render();
-  const profileIndex = ui.railItems.findIndex(child => child.props.item?.label === 'Profile');
-  assert.ok(profileIndex >= 0);
-  const back = h.destination(ui.railItems[profileIndex + 1]);
-  assert.equal(back.type, 'button');
-  assert.equal(back.props['aria-label'], 'Back');
-  assert.equal(back.props.title, 'Back');
-  assert.equal(back.props['aria-current'], undefined);
-  assert.equal(back.props.children.props.mirroredInRtl, true);
+  const destinations = ui.railItems.filter(child => child.props.item).map(child => child.props.item.label);
+  assert.equal(destinations.at(-1), 'Profile');
+  assert.equal(destinations.includes('Back'), false);
   assert.ok(ui.appearance);
-  back.props.onClick({ type: 'click' });
-  assert.deepEqual(h.backCalls, [[]]);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Portals', 'Home']);
 });
 

@@ -1,12 +1,10 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeftIcon, BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
-import { useRouteNavigator } from '../../app/useAppRoute';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { PortalRingIcon } from '../../components/PortalRingIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
-import { useMobileBack } from './MobileBackNavigation';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
@@ -41,8 +39,6 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const [hidden, setHidden] = useState(true);
   const reduceMotion = useReducedMotion();
   const { pathname } = useLocation();
-  const nav = useRouteNavigator();
-  const goBack = useMobileBack(nav.back);
   const toggle = useRef<HTMLButtonElement>(null);
   function setNavigationHidden(next: boolean) {
     setHidden(next);
@@ -81,7 +77,6 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
           <Destination item={{ label: theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance', icon: theme === 'dark' ? SunIcon : MoonIcon, action: () => onThemeChange(theme === 'dark' ? 'light' : 'dark') }} />
           {settings}
           {items.map(item => <Destination key={item.label} item={item} />)}
-          <Destination item={{ label: 'Back', icon: ArrowLeftIcon, action: goBack, mirroredInRtl: true }} />
           {liveControl}
         </nav>
       </>}

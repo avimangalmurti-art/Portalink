@@ -1203,7 +1203,8 @@ export function App() {
           }
         }}>
             <main ref={layer.screenKey === screenTransitionKey ? mainContentRef : undefined} tabIndex={-1} onScroll={layer.screenKey === screenTransitionKey ? handleMainScroll : undefined} className={layer.snapshot.mainClassName} aria-label={layer.snapshot.ariaLabel}>
-              <MobileBackScope active={layer.screenKey === screenTransitionKey} enabled={!isSharedRoute}>
+              {/* The mobile sidebar has no Back action; each screen keeps its own exit. */}
+              <MobileBackScope active={layer.screenKey === screenTransitionKey} enabled={false}>
                 {layer.snapshot.content}
               </MobileBackScope>
             </main>
