@@ -1,5 +1,12 @@
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
+/* Bare actions need a shape before their pressed/focus fill appears. Keep this
+   fallback weaker than explicit circles, pills, and component corner rules.
+   Body-portalled menus carry the same presentation scope as the app. */
+:where([data-presentation='mobile']) :where(button, a[href], [role='button'], [role='tab'], [role='menuitem'], [role='option']):where(:not([data-preview-open], [data-portalink-tile], [data-profile-module], .project-preview-description, .content-corner-frame, .content-corner-group, [class~='group/media'], .mobile-navigation-dismiss, .mobile-project-index-dismiss, .mobile-profile-portal-dismiss)) {
+  border-radius: var(--shape-compact, 10px);
+}
+
 #root .codex-shell[data-presentation='mobile'] {
   /* Let the canvas reach both display edges. Insets belong to controls and
      scroll-content ends, never to the viewport that clips the entire screen. */
@@ -433,7 +440,7 @@
   min-height: 60px;
   padding: 14px 16px;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--shape-compact);
   color: var(--text-primary);
   background: transparent;
   text-align: left;

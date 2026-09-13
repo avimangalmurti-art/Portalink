@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { CheckIcon, TypeIcon } from 'lucide-react';
 import { scriptFallbackStack, typefaceCategories, typefaces } from '../../data/typefaces';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { usePresentation } from '../../presentation/usePresentation';
 const DEFAULT_TYPEFACE_ID = 'default';
 /**
  * Latin, Japanese kana, Devanagari, and Siddham (Bonji) in one run — the whole
@@ -32,6 +33,7 @@ export function TypographyInspector({
   triggerVariant = 'header',
   onSelectComplete
 }: TypographyInspectorProps) {
+  const presentation = usePresentation();
   const [isOpen, setIsOpen] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,7 +120,7 @@ export function TypographyInspector({
 
       {/* Portaled above the work so neither the open nor collapsed sidebar can
          constrain its width, stacking order, or visible bounds. */}
-      {isOpen && createPortal(<div ref={popoverRef} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
+      {isOpen && createPortal(<div ref={popoverRef} data-presentation={presentation} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
       left: 0,
       top: 0,
       visibility: 'hidden'

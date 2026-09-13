@@ -4,6 +4,7 @@ import { EyeIcon, EyeOffIcon, Loader2Icon, MoreHorizontalIcon, PencilIcon, Shape
 import type { CategoryDeletionCapability, PortfolioCategory } from '../../types/domain';
 import { resolveAccentTokens } from '../../utils/accentTokens';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { usePresentation } from '../../presentation/usePresentation';
 
 /** Shared owner menu; mobile exposes its trigger without requiring hover. */
 export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete }: {
@@ -20,6 +21,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
   onChangeIcon?: () => void;
   onDelete?: () => void;
 }) {
+  const presentation = usePresentation();
   // What deleting this category actually does, answered by the service rather
   // than assumed here: null while it is still being asked.
   const [capability, setCapability] = useState<CategoryDeletionCapability | null>(null);
@@ -115,7 +117,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
 
-          {isMenuOpen && createPortal(<div ref={menuRef} data-mobile-portal-menu={mobile ? '' : undefined} role="menu" aria-label={`${category.label} options`} style={{
+          {isMenuOpen && createPortal(<div ref={menuRef} data-presentation={presentation} data-mobile-portal-menu={mobile ? '' : undefined} role="menu" aria-label={`${category.label} options`} style={{
         ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: mobile ? `max(env(safe-area-inset-top, 0px), ${menuPosition.top}px)` : menuPosition.top,

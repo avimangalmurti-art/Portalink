@@ -22,6 +22,7 @@ function harness(mobile = true, capability = { isAvailable: true, removes: ['Emp
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
     if (name.endsWith('/accentTokens')) return { resolveAccentTokens: () => ({}) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => mobile ? 'mobile' : 'web' };
     throw new Error(name);
   } });
   const props = { category: { id: 'portal', label: 'Design' }, mobile, theme: 'dark', accentColor: '#ff2d55',
@@ -41,6 +42,7 @@ test('mobile exposes touch-sized menu actions while WEB retains its compact trig
     const tree = open(h);
     assert.deepEqual(all(tree).filter(node => node.props.role === 'menuitem').map(text), ['Hide', 'Rename', 'Change icon', 'Delete']);
     assert.equal(all(tree).find(node => node.props.role === 'menu').props.style.position, 'fixed');
+    assert.equal(all(tree).find(node => node.props.role === 'menu').props['data-presentation'], mobile ? 'mobile' : 'web', 'The body portal must keep its presentation scope');
   }
   for (const [label, call] of [['Hide', 'hide'], ['Rename', 'rename'], ['Change icon', 'icon']]) {
     const h = harness(); button(open(h), label).props.onClick();

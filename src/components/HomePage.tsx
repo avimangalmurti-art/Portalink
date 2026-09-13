@@ -5,6 +5,7 @@ import type { FeatureCardApp } from './FeatureCard';
 import { accountPlaceholderColours } from './navigation';
 import { SectionLoopRow } from './SectionLoopRow';
 import { InterfaceIcon } from './ui/InterfaceIcon';
+import { usePresentation } from '../presentation/usePresentation';
 type HomePageProps = {
   onView: (item: FeatureCardApp) => void;
   hideHeading?: boolean;
@@ -148,6 +149,7 @@ function ColourPicker({
 
 
 }: {swatches: string[];productName: string;selectedColour: string;onColourChange: (colour: string) => void;onOpenChange: (isOpen: boolean) => void;}) {
+  const presentation = usePresentation();
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({
     left: 0,
@@ -187,7 +189,7 @@ function ColourPicker({
         <span>Colour</span>
         <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
-      {isOpen && createPortal(<div role="listbox" aria-label={`Colour options for ${productName}`} className="fixed z-[100] w-52 overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 text-[var(--text-primary)] shadow-[var(--shadow-pop)]" style={{
+      {isOpen && createPortal(<div data-presentation={presentation} role="listbox" aria-label={`Colour options for ${productName}`} className="fixed z-[100] w-52 overflow-hidden rounded-xl border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 text-[var(--text-primary)] shadow-[var(--shadow-pop)]" style={{
       left: menuPosition.left,
       top: menuPosition.top
     }}>

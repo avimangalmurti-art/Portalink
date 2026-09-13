@@ -216,6 +216,7 @@ function AccountMenuTrigger({
   onSignIn: () => void;
   onSignOut: () => Promise<boolean>;
 }) {
+  const presentation = usePresentation();
   const [isOpen, setIsOpen] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [inviteStatus, setInviteStatus] = useState<'idle' | 'copied'>('idle');
@@ -324,7 +325,7 @@ function AccountMenuTrigger({
       <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
         <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
       </button>
-      {isOpen && createPortal(<div ref={menuRef} role="menu" aria-label="Account and settings" style={{
+      {isOpen && createPortal(<div ref={menuRef} data-presentation={presentation} role="menu" aria-label="Account and settings" style={{
         ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: position.top,

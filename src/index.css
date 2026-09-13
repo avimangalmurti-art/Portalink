@@ -2476,12 +2476,11 @@ button[data-portalink-tile],
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
-/* An outline traces the element's own corners, so `border-radius: inherit` here
-   collapsed to 0 on any field whose parent is square — giving a rectangular ring
-   on rounded fields. A concrete radius keeps the ring rounded everywhere. */
-.accent-theme a:focus-visible,
-.accent-theme button:focus-visible,
-.accent-theme [tabindex]:focus-visible {
+/* Preserve the established WEB focus shape. MOBILE keeps each control's own
+   radius: inheriting a square parent's corners would erase its rounded shape. */
+.accent-theme a:focus-visible:not(:where([data-presentation='mobile'] *)),
+.accent-theme button:focus-visible:not(:where([data-presentation='mobile'] *)),
+.accent-theme [tabindex]:focus-visible:not(:where([data-presentation='mobile'] *)) {
   border-radius: inherit;
 }
 .accent-theme input:focus-visible,
