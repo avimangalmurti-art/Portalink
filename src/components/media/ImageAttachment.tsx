@@ -8,6 +8,7 @@ import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
+import { FocusedPageCounter } from './FocusedPageCounter';
 
 function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
   if (typeof window === 'undefined') return null;
@@ -269,7 +270,7 @@ export function ImageAttachment({
             {focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
             </button> : null}
-            {!showMediaInteractions && <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageIndex + 1} / {pages.length}</span>}
+            <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
           <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />

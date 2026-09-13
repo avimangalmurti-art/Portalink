@@ -819,6 +819,35 @@
   overflow: hidden;
 }
 
+#root .codex-shell[data-presentation='mobile'] [data-focused-page-count] {
+  top: max(8px, var(--mobile-content-safe-top));
+  right: max(8px, env(safe-area-inset-right, 0px));
+  bottom: auto;
+  left: auto;
+  transform: none;
+  min-width: 56px;
+  padding: 6px 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
+#root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused {
+  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+#root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
+  height: 48px;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action-count {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
+
 /* With no profile header, the project controls own the inherited safe inset. */
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-workspace-content[data-mobile-project-selected] {
   --mobile-content-safe-top: inherit;

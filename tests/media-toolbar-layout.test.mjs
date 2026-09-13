@@ -15,8 +15,21 @@ function load(file, imports = {}, globals = {}) {
   return exports;
 }
 const layoutModule = load('mediaToolbarLayout.ts');
-const { displayedPageWidth, mediaToolbarLayout } = layoutModule;
+const { displayedPageWidth, mediaToolbarLayout, mobileFocusedMediaToolbarLayout } = layoutModule;
 const emptyCounts = ['', '', '', ''];
+
+test('mobile focused controls fill the viewer with five equal touch targets', () => {
+  for (const hostWidth of [320, 390, 430, 639]) {
+    const { width, unit, slots } = mobileFocusedMediaToolbarLayout(hostWidth);
+    assert.equal(width, hostWidth - 16);
+    assert.deepEqual(Array.from(slots), [1, 1, 1, 1, 1]);
+    assert.equal(16 * unit, 24); // Icon size.
+    assert.equal(32 * unit, 48); // Touch-target height.
+    const buttonWidth = (width - 12 * unit - 4 * 4 * unit) / 5;
+    assert.ok(buttonWidth >= 44);
+  }
+  assert.equal(mobileFocusedMediaToolbarLayout(0).width, 0);
+});
 
 test('focused portrait and landscape images use their artwork width, excluding letterboxing', () => {
   assert.equal(displayedPageWidth(900, 600, 600, 1200, true), 300);

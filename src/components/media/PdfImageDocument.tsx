@@ -8,6 +8,7 @@ import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
+import { FocusedPageCounter } from './FocusedPageCounter';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -463,7 +464,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         {focusedPageNumber < pageCount ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
           <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
         </button> : null}
-        {!showMediaInteractions && <span data-viewer-page-control="" className="premium-viewer-page-counter pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium tabular-nums text-white">{focusedPageNumber} / {pageCount}</span>}
+        <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />
       </> : null}
     {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />

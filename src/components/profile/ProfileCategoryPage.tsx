@@ -533,7 +533,7 @@ export function ProfileCategoryPage({
       </div>;
 
   return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
-      {mobileProjectView && <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
+      {mobileProjectView && !isPageFocused && <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
         <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
       </button>}
       {(!mobileProjectView || !activeProject) && projectIndexPanel}

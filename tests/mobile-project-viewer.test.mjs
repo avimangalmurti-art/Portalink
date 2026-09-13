@@ -170,6 +170,11 @@ test('project workspace combines only resolved mobile projects and uses the exis
   let tree = render(props);
   assert.equal(withProp(tree, 'data-project-index-panel'), undefined);
   assert.ok(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation);
+  nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(true);
+  tree = render(props);
+  assert.equal(button(tree, 'Go back'), undefined, 'The project Back button must not overlap focused-page controls');
+  nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(false);
+  tree = render(props);
   button(tree, 'Go back').props.onClick();
   assert.equal(back, 1);
   nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();

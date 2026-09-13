@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
-import { mediaToolbarLayout } from './mediaToolbarLayout';
+import { mediaToolbarLayout, mobileFocusedMediaToolbarLayout } from './mediaToolbarLayout';
+import { usePresentation } from '../../presentation/usePresentation';
 import { useMediaPageSize } from './useMediaPageSize';
 import { MediaCommentsPopover } from './MediaCommentsPopover';
 
@@ -33,6 +34,7 @@ export function MediaInteractionBar({
   /** Derived from authenticated profile ownership, never navigation history. */
   isOwner?: boolean;
 }) {
+  const isMobileFocused = usePresentation() === 'mobile' && placement === 'focused';
   // Uploaded source names can contain machine-generated or extraction text.
   // They never belong in the social UI, including when the creator views their
   // own work. A stable page number keeps every audience-facing label clean.
@@ -49,10 +51,11 @@ export function MediaInteractionBar({
   const closeComments = useCallback(() => setCommentsOpen(false), []);
   const { ref: engagementRef, pageWidth, hostWidth } = useMediaPageSize();
   const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
-  const counter = placement === 'focused' && pageCount && pageCount > 1
+  const counter = !isMobileFocused && placement === 'focused' && pageCount && pageCount > 1
     ? `${target.pageIndex + 1} / ${pageCount}` : null;
   const counterWidth = counter ? Math.min(Math.max(48, counter.length * 7 + 20), Math.max(0, (hostWidth - 24) * 0.4)) : 0;
-  const layout = mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts, counter ? counterWidth + 8 : 0);
+  const layout = isMobileFocused ? mobileFocusedMediaToolbarLayout(hostWidth)
+    : mediaToolbarLayout(pageWidth, hostWidth, placement === 'focused' ? 8 : 4, counts, counter ? counterWidth + 8 : 0);
 
   useEffect(() => {
     setCommentsOpen(false);

@@ -16,3 +16,8 @@ export function mediaToolbarLayout(pageWidth: number, hostWidth: number, inset: 
   const width = Math.min(availableWidth, 220, Math.max(baseWidth * 0.64, pageWidth * 0.15));
   return { width, unit: width / baseWidth, slots };
 }
+
+/** Focused phone pages use five equal touch targets across the viewer. */
+export function mobileFocusedMediaToolbarLayout(hostWidth: number) {
+  return { width: Math.max(0, hostWidth - 16), unit: 1.5, slots: [1, 1, 1, 1, 1] };
+}
