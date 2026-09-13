@@ -355,7 +355,7 @@ test('mobile wall remembers its scroll through a project and after returning fro
     assert.equal(element.scrollTop, 408);
   }
 });
-test('nested mobile work retains profile identity and tools, and count controls navigate out of the project', () => {
+test('mobile project lists retain profile identity and tools, and count controls navigate between collections', () => {
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     const selectedViews = [];
     const mobileContent = React.createElement('section', { 'aria-label': 'Project viewer' });
@@ -381,6 +381,26 @@ test('nested mobile work retains profile identity and tools, and count controls 
       tree = h.render();
       assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Cards per row'), false);
       assert.equal(nodes(tree).some(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')), false);
+    }
+  }
+});
+
+test('selected mobile projects hide the profile header and restore it on return without moving the viewer', () => {
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    for (const isSharedView of [false, true]) {
+      const child = React.createElement('section', { 'aria-label': 'Project viewer' });
+      const h = profileHarness('', { presentation: 'mobile', viewerRole, props: { isSharedView } });
+      for (const mobileProjectSelected of [false, true, false]) {
+        const tree = h.render({ mobileContent: child, mobileProjectSelected });
+        const children = React.Children.toArray(tree.props.children);
+        assert.equal(children[0].props.className, mobileProjectSelected ? 'hidden' : 'profile-header-region contents');
+        assert.equal(children[1].props.id, 'profile-content');
+        assert.equal(children[1].props.children, child);
+        assert.equal(children[1].props['data-mobile-project-selected'], mobileProjectSelected ? '' : undefined);
+      }
+      const overview = h.render();
+      assert.equal(React.Children.toArray(overview.props.children)[0].props.className, 'profile-header-region contents');
+      assert.equal(nodes(overview).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
     }
   }
 });
@@ -430,18 +450,24 @@ test('workspace keeps one child position and only MOBILE displays the profile fr
   });
   const overview = React.createElement('profile', { profile: { id: 'viewed-creator' } });
   const child = React.createElement('project');
-  const result = MobileProfileWorkspace({ overview, children: child, view: 'portals' });
+  const result = MobileProfileWorkspace({ overview, children: child, projectSelected: true });
   assert.equal(result.props.profile.id, 'viewed-creator');
   assert.equal(result.props.mobileContent, child);
-  assert.equal(result.props.mobileContentView, 'portals');
+  assert.equal(result.props.mobileContentView, 'projects');
+  assert.equal(result.props.mobileProjectSelected, true);
+  const portals = MobileProfileWorkspace({ overview, children: React.createElement('portals'), view: 'portals' });
+  assert.equal(portals.props.mobileContentView, 'portals');
+  assert.equal(portals.props.mobileProjectSelected, false);
   const overviewResult = MobileProfileWorkspace({ overview });
   assert.equal(overviewResult.type, result.type);
   assert.equal(overviewResult.key, result.key);
   assert.equal(overviewResult.props.mobileContent, undefined);
-  const web = profileHarness('', { presentation: 'web', props: { mobileContent: child } }).render();
+  assert.equal(overviewResult.props.mobileProjectSelected, false);
+  const web = profileHarness('', { presentation: 'web', props: { mobileContent: child, mobileProjectSelected: true } }).render();
   const mobile = profileHarness('', { presentation: 'mobile', props: { mobileContent: child } }).render();
   assert.equal(web.props.className, 'contents');
   assert.equal(web.props['data-profile-page'], undefined);
+  assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
   assert.equal(React.Children.toArray(web.props.children)[0].props.className, 'hidden');
   for (const tree of [web, mobile]) {
     const main = nodes(tree).find(node => node.props?.id === 'profile-content');

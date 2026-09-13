@@ -46,9 +46,11 @@ type UserProfilePageProps = {
   onBack: () => void;
   /** The same portal-list screen used by mobile navigation, for this profile. */
   mobilePortalsView: React.ReactElement;
-  /** A portal or project remains inside the mobile profile header. */
+  /** Keep portal and project content in the same mobile profile workspace. */
   mobileContent?: React.ReactElement;
   mobileContentView?: 'portals' | 'projects';
+  /** Selected projects take over the canvas without the profile header. */
+  mobileProjectSelected?: boolean;
   onMobileViewChange?: (view: ProfileContentView) => void;
   mobileWallScrollMemory?: { read: () => number; save: (top: number) => void };
   /**
@@ -374,6 +376,7 @@ export function UserProfilePage({
   mobilePortalsView,
   mobileContent,
   mobileContentView,
+  mobileProjectSelected = false,
   onMobileViewChange,
   mobileWallScrollMemory,
   viewerRole,
@@ -574,6 +577,7 @@ export function UserProfilePage({
   }, [hasMobilePortalOverlay]);
   const isMobileWall = isMobile && (activeView === 'projects' || activeView === 'portals') && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
+  const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
     <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
@@ -582,10 +586,10 @@ export function UserProfilePage({
       onMoveByOffset: projectOrder.moveByOffset
     } : undefined} />
   </div>;
-  // Mobile keeps one body scroller beneath the pinned profile identity;
+  // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
-      <div className={isWebWorkspace ? 'hidden' : 'profile-header-region contents'}>
+      <div className={isWebWorkspace || isMobileProject ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
             <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
@@ -818,7 +822,7 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main id="profile-content" className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
+      <main id="profile-content" data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
         {isMobileWall ? <>
           <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;

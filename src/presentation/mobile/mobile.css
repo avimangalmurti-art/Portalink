@@ -806,6 +806,11 @@
   overflow: hidden;
 }
 
+/* With no profile header, the project controls own the inherited safe inset. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-workspace-content[data-mobile-project-selected] {
+  --mobile-content-safe-top: inherit;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-wall {
   height: 100%;
   min-height: 0;
