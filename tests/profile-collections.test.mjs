@@ -380,7 +380,7 @@ test('nested mobile work retains profile identity and tools, and count controls 
       nodes(tree).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
       tree = h.render();
       assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Cards per row'), false);
-      assert.equal(nodes(tree).some(node => node.props?.role === 'menuitem' && React.Children.toArray(node.props.children).includes('Reorder projects')), false);
+      assert.equal(nodes(tree).some(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')), false);
     }
   }
 });
@@ -493,25 +493,63 @@ test('WEB and shared public profiles retain their existing visible identity link
   }
 });
 
-test('only the mobile owner overview offers hold-to-reorder, excluding public links and other views', () => {
+const reorderControl = tree => nodes(tree).find(node => node.props?.['data-profile-reorder-start'] !== undefined);
+function openProfileOptions(h) {
+  nodes(h.render()).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+  return h.render();
+}
+
+test('mobile owner reorder is available through the three dots with no passive hold activation', () => {
   const owner = profileHarness('', { presentation: 'mobile', projects: reorderProjects });
-  assert.equal(typeof wall(owner.render()).props.reorderMode.onStart, 'function');
-  for (const options of [{ presentation: 'web' }, { viewerRole: 'visitor' }, { viewerRole: 'guest' },
-    { isSharedView: true }, { editorProjectId: 'a' }, { projects: reorderProjects.slice(0, 1) }, { projectOrder: { isSaving: true } }]) {
+  assert.equal(wall(owner.render()).props.reorderMode, undefined);
+  assert.equal(reorderControl(owner.render()), undefined);
+  const control = reorderControl(openProfileOptions(owner));
+  assert.equal(control.props.disabled, false);
+  assert.equal(wall(owner.render()).props.reorderMode, undefined, 'Opening options alone must not start a drag');
+  control.props.onClick();
+  const editing = owner.render();
+  assert.equal(wall(editing).props.reorderMode.enabled, true);
+  assert.equal(wall(editing).props.reorderMode.onStart, undefined);
+  assert.equal(nodes(editing).some(node => node.props?.id === 'profile-navigation-tools'), false);
+  assert.ok(nodes(editing).some(node => node.type === 'button' && node.props.children === 'Done'));
+  const cancel = nodes(editing).find(node => node.type === 'button' && node.props.children === 'Cancel');
+  cancel.props.onClick();
+  assert.equal(wall(owner.render()).props.reorderMode, undefined);
+  for (const options of [{ viewerRole: 'visitor' }, { viewerRole: 'guest' }, { props: { mobileContent: React.createElement('project') } }]) {
     const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, ...options });
-    assert.equal(wall(h.render()).props.reorderMode, undefined, JSON.stringify(options));
+    assert.equal(reorderControl(openProfileOptions(h)), undefined);
+    assert.equal(wall(h.render())?.props.reorderMode, undefined);
     assert.equal(h.outside().enabled, false);
   }
-  assert.equal(wall(profileHarness('view=followers', { presentation: 'mobile', projects: reorderProjects }).render()), undefined);
+  for (const view of ['portals', 'followers', 'following']) {
+    const h = profileHarness(`view=${view}`, { presentation: 'mobile', projects: reorderProjects });
+    assert.equal(reorderControl(openProfileOptions(h)), undefined);
+    assert.equal(wall(h.render())?.props.reorderMode, undefined);
+  }
+  const shared = profileHarness('', { presentation: 'mobile', projects: reorderProjects, isSharedView: true }).render();
+  assert.equal(reorderControl(shared), undefined);
+  assert.equal(wall(shared).props.reorderMode, undefined);
+  for (const options of [{ editorProjectId: 'a' }, { projects: reorderProjects.slice(0, 1) }, { projectOrder: { isSaving: true } }]) {
+    const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, ...options });
+    const disabled = reorderControl(openProfileOptions(h));
+    assert.equal(disabled.props.disabled, true);
+    disabled.props.onClick();
+    assert.equal(wall(h.render()).props.reorderMode, undefined);
+  }
+  const web = profileHarness('', { presentation: 'web', projects: reorderProjects });
+  assert.equal(reorderControl(web.render()), undefined);
+  nodes(web.render()).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
+  nodes(web.render()).find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')).props.onClick();
+  assert.equal(wall(web.render()).props.reorderMode.enabled, true);
 });
 
-test('hold enters reorder, duplicate outside taps save once, and failure retries before exiting', async () => {
+test('three-dot reorder entry keeps duplicate outside saves and retry recovery intact', async () => {
   let resolveSave;
   let saves = 0;
   let retries = 0;
   const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects,
     projectOrder: { commit() { saves++; return new Promise(resolve => { resolveSave = resolve; }); }, retry: async () => { retries++; return true; } } });
-  wall(h.render()).props.reorderMode.onStart();
+  reorderControl(openProfileOptions(h)).props.onClick();
   assert.equal(wall(h.render()).props.reorderMode.enabled, true);
   assert.equal(h.outside().enabled, true);
   h.outside().finish(); h.outside().finish();
@@ -524,6 +562,6 @@ test('hold enters reorder, duplicate outside taps save once, and failure retries
   await flush();
   assert.equal(retries, 1);
   assert.equal(saves, 1);
-  assert.equal(wall(h.render()).props.reorderMode.enabled, false);
+  assert.equal(wall(h.render()).props.reorderMode, undefined);
   assert.equal(h.outside().enabled, false);
 });

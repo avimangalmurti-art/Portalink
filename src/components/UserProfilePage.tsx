@@ -465,9 +465,10 @@ export function UserProfilePage({
       .map((projectId) => projectsById.get(projectId))
       .filter((project): project is Project => Boolean(project));
   }, [cardProjects, projectOrder.order]);
-  const canHoldToReorder = isMobile && showsOwnerTools && !isSharedView && activeView === 'projects'
-    && orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
+  const showsMobileReorder = isMobile && showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
+  const canReorderProjects = orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
   const startReordering = () => {
+    if (!showsMobileReorder || !canReorderProjects) return;
     projectOrder.reset();
     setIsReorderingProjects(true);
     setIsMobileToolsOpen(false);
@@ -574,10 +575,9 @@ export function UserProfilePage({
   const isMobileWall = isMobile && (activeView === 'projects' || activeView === 'portals') && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
-    <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects || canHoldToReorder ? {
+    <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
       disabled: projectOrder.isSaving,
-      onStart: canHoldToReorder ? startReordering : undefined,
       onMove: projectOrder.move,
       onMoveByOffset: projectOrder.moveByOffset
     } : undefined} />
@@ -719,7 +719,7 @@ export function UserProfilePage({
                       <label htmlFor="profile-view-density" className="min-w-0 flex-1 text-[12px] font-medium text-[var(--text-primary)]">View density</label>
                       <input id="profile-view-density" type="range" min={MIN_COLUMNS} max={MAX_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => setColumnsPerRow(writeProfileDensity(Number(event.target.value)))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
                     </div>
-                    <button type="button" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
+                    {!isMobile && <button type="button" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
                   projectOrder.reset();
                   setActiveView('projects');
                   setIsReorderingProjects(true);
@@ -727,7 +727,7 @@ export function UserProfilePage({
                 }} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
                       <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
                       Reorder projects
-                    </button></>}
+                    </button>}</>}
                     <button type="button" onClick={visibility.onToggle} disabled={visibility.isPending} aria-pressed={visibility.isPrivate} aria-busy={visibility.isPending || undefined} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                       <InterfaceIcon icon={LockIcon} size="sm" weight="medium" />
                       <span className="min-w-0 flex-1">Account visibility</span>
@@ -746,6 +746,11 @@ export function UserProfilePage({
                   </div> : null}
               </div> : null}
           </div>
+          {showsMobileReorder && <button type="button" data-profile-reorder-start="" aria-label="Reorder projects" disabled={!canReorderProjects} onClick={startReordering}
+            className="flex min-h-11 w-full basis-full items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] px-3 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
+            <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
+            Reorder projects
+          </button>}
           {isMobile && profileLinks.length > 0 && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
             <PlatformGrid links={profileLinks} profileName={displayName} />
           </div>}
