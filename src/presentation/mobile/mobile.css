@@ -263,6 +263,18 @@
   transition: opacity 160ms ease;
 }
 
+/* Browsing briefly tucks away the entire dock without moving the page. */
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 160ms ease, visibility 0s 160ms;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] * {
+  pointer-events: none;
+}
+
 /* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
   transition: opacity 160ms ease, visibility 0s;
