@@ -276,22 +276,23 @@ export function MessagesPage({
   }
 
   const showList = !activeId;
+  const isMobileNewChat = isMobile && isNewChatOpen;
   return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
-        <ScreenBack action={goBackFromMessages}><button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+        <ScreenBack action={goBackFromMessages}><button type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button></ScreenBack>
         <div className="flex min-w-0 items-baseline gap-2">
-          <h1 id="messages-heading" className="truncate text-[16px] font-semibold">Messages</h1>
-          {messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
+          <h1 id="messages-heading" className="truncate text-[16px] font-semibold">{isMobileNewChat ? 'New message' : 'Messages'}</h1>
+          {!isMobileNewChat && messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
-        <div className="side-panel-control-row ml-auto shrink-0">
+        {!isMobileNewChat ? <div className="side-panel-control-row ml-auto shrink-0">
           <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message settings" title="Message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
           <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
           </button>
-        </div>
+        </div> : null}
         </div>
         {messaging.activeConversation ? <div className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
           <ScreenBack><button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
@@ -317,6 +318,7 @@ export function MessagesPage({
       <div className="flex min-h-0 flex-1">
         <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
           {isNewChatOpen ? <NewChatPanel
+              showHeader={!isMobile}
               onClose={() => { setIsNewChatOpen(false); messaging.dismissError(); }}
               startingCreatorId={messaging.startingCreatorId}
               startError={messaging.error}

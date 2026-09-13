@@ -9,6 +9,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 
 type NewChatPanelProps = {
+  showHeader?: boolean;
   onClose: () => void;
   onSelectCreator: (creatorId: string) => void;
   startingCreatorId?: string | null;
@@ -18,6 +19,7 @@ type NewChatPanelProps = {
 
 /** Starts with followed people and expands to visible profiles when searching. */
 export function NewChatPanel({
+  showHeader = true,
   onClose,
   onSelectCreator,
   startingCreatorId = null,
@@ -46,12 +48,12 @@ export function NewChatPanel({
 
   return <div className="flex min-h-0 flex-1 flex-col" aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
       <div className="side-panel-control-stack side-panel-content-inset shrink-0">
-      <div className="side-panel-primary-control side-panel-control-row">
+      {showHeader ? <div className="side-panel-primary-control side-panel-control-row">
         <ScreenBack><button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" mirroredInRtl />
         </button></ScreenBack>
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-[var(--text-primary)]">New message</h2>
-      </div>
+      </div> : null}
 
         <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
           <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />

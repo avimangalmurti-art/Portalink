@@ -91,6 +91,7 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
   let cursor = 0, options, exits = 0, closes = 0;
   const routeChanges = [];
   const ScreenBack = () => null;
+  const NewChatPanel = () => null;
   const react = { ...React,
     useState(initialValue) {
       const i = cursor++;
@@ -114,14 +115,16 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { ScreenBack };
+    if (name.endsWith('/NewChatPanel')) return { NewChatPanel };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'me' }) };
     if (name.endsWith('/useMessaging')) return { useMessaging: args => { options = args; return messaging; } };
-    if (name.endsWith('/ResizablePanelHandle')) return { useResizablePanelWidth: () => ({ width: 400 }) };
+    if (name.endsWith('/ResizablePanelHandle')) return { ResizablePanelHandle: () => null, useResizablePanelWidth: () => ({ width: 400 }) };
     return new Proxy({}, { get: () => () => null });
   }, { sessionStorage: { getItem: () => null } });
   return {
     render() { cursor = 0; return api.MessagesPage(props); }, messaging, routeChanges,
     back(tree) { find(tree, node => node.type === ScreenBack && node.props.action).props.action(); },
+    newChat(tree) { return find(tree, node => node.type === NewChatPanel); },
     get options() { return options; }, get exits() { return exits; }, get closes() { return closes; },
   };
 }
@@ -134,6 +137,51 @@ test('mobile Back closes New message first, then leaves Messages from the list',
   assert.equal(h.closes, 2, 'Opening and dismissing cancel pending thread work');
   assert.equal(h.exits, 0);
   h.back(h.render()); assert.equal(h.exits, 1);
+});
+
+test('mobile New message uses one header and its visible Back returns to the list', () => {
+  const h = messagesHarness();
+  h.messaging.unreadCount = 3;
+  find(h.render(), node => node.props['aria-label'] === 'New message').props.onClick();
+  let tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, 'New message');
+  assert.equal(h.newChat(tree).props.showHeader, false);
+  assert.equal(find(tree, node => node.props['aria-label'] === 'New message'), null);
+  assert.equal(find(tree, node => node.props['aria-label'] === 'Message settings'), null);
+  find(tree, node => node.props['aria-label'] === 'Back to messages').props.onClick();
+  tree = h.render();
+  assert.equal(h.newChat(tree), null);
+  assert.equal(h.exits, 0);
+  assert.equal(h.closes, 2, 'Visible Back cancels pending conversation starts');
+  assert.equal(find(tree, node => node.type === 'h1').props.children, 'Messages');
+  assert.ok(find(tree, node => node.props['aria-label'] === 'Message settings'));
+  find(tree, node => node.props['aria-label'] === 'Go back').props.onClick();
+  assert.equal(h.exits, 1);
+});
+
+test('WEB retains its Messages toolbar and New message panel header', () => {
+  const h = messagesHarness('web');
+  find(h.render(), node => node.props['aria-label'] === 'New message').props.onClick();
+  const tree = h.render();
+  assert.equal(find(tree, node => node.type === 'h1').props.children, 'Messages');
+  assert.equal(h.newChat(tree).props.showHeader, true);
+  assert.ok(find(tree, node => node.props['aria-label'] === 'New message'));
+  assert.ok(find(tree, node => node.props['aria-label'] === 'Message settings'));
+});
+
+test('hiding the embedded New message header preserves recipient search', () => {
+  const api = compile('../src/components/messages/NewChatPanel.tsx', name => {
+    if (name === 'react') return { ...React, useState: initial => [initial, () => {}], useMemo: fn => fn(), useRef: () => ({ current: null }), useEffect() {} };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'me' }) };
+    if (name.endsWith('/useDirectory')) return { useDirectory: () => ({ people: [], status: 'success' }) };
+    return new Proxy({}, { get: () => () => null });
+  });
+  for (const showHeader of [false, true, undefined]) {
+    const tree = api.NewChatPanel({ showHeader, onClose() {}, onSelectCreator() {} });
+    assert.equal(Boolean(find(tree, node => node.type === 'h2')), showHeader !== false);
+    assert.equal(Boolean(find(tree, node => node.props['aria-label'] === 'Back to messages')), showHeader !== false);
+    assert.ok(find(tree, node => node.type === 'input' && node.props.type === 'search'));
+  }
 });
 
 test('mobile Back returns a loaded or deep-linked conversation to the list before exiting', () => {
