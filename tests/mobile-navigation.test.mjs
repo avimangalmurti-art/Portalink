@@ -87,6 +87,7 @@ function navigationHarness(pathname = '/') {
   const focused = [];
   const icons = { SunIcon: () => null, MoonIcon: () => null };
   let cursor = 0;
+  let scrolling = false;
   const react = {
     ...React,
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
@@ -108,6 +109,7 @@ function navigationHarness(pathname = '/') {
       if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname }) };
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
+      if (name === './useProjectScrollActivity') return { useProjectScrollActivity: enabled => enabled && scrolling };
       if (name === '../../app/routes') return { buildPath: name => paths[name] };
       return new Proxy({}, { get: () => () => null });
     },
@@ -130,8 +132,33 @@ function navigationHarness(pathname = '/') {
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
     return { layer: tree, dismiss, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render, icons, destination: element => exports.Destination(element.props) };
+  return { render, icons, setScrolling: value => { scrolling = value; }, destination: element => exports.Destination(element.props) };
 }
+
+test('project scroll hides the entire floating dock without moving its controls or hiding the open rail', () => {
+  const h = navigationHarness('/p/creator/c/portal/project');
+  const before = h.render();
+  h.setScrolling(true);
+  const during = h.render();
+  const element = { inert: false };
+  during.floating.ref(element);
+  assert.equal(element.inert, true);
+  assert.equal(during.floating.props['data-scrolling'], true);
+  assert.equal(during.floating.props['aria-hidden'], true);
+  assert.equal(during.floating.type, before.floating.type);
+  assert.equal(during.toggle.ref, before.toggle.ref);
+  h.setScrolling(false);
+  const after = h.render();
+  after.floating.ref(element);
+  assert.equal(element.inert, false);
+  assert.equal(after.floating.props['data-scrolling'], undefined);
+  assert.equal(after.floating.props['aria-hidden'], undefined);
+  after.toggle.props.onClick();
+  h.setScrolling(true);
+  const rail = h.render();
+  assert.equal(rail.rail.props['data-hidden'], false);
+  assert.equal(rail.floating.props['data-scrolling'], undefined);
+});
 
 test('mobile sidebar ends with Profile and has no Back destination', () => {
   const h = navigationHarness('/portals');

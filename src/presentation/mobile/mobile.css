@@ -259,6 +259,19 @@
   bottom: max(12px, var(--safe-area-bottom));
   pointer-events: none;
   touch-action: pan-y;
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+
+/* Clear the artwork during scrolling; retain the dock's geometry and clearance. */
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling='true'] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
+    transition: none;
+  }
 }
 
 /* The toggle stays in the first grid cell; only the destinations animate. */
