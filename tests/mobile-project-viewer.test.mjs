@@ -110,13 +110,18 @@ test('project workspace combines only resolved mobile projects and uses the exis
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-    }).outputText, { exports, require });
+    }).outputText, { exports, require, requestAnimationFrame: callback => callback() });
     return exports;
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
-  let presentation = 'mobile', back = 0;
+  let presentation = 'mobile', back = 0, portalReturns = 0, cursor = 0;
+  const slots = [];
   const Viewer = () => null;
-  const react = { ...React, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
+  const react = { ...React, useState(initial) {
+      const i = cursor++;
+      if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
+      return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }];
+    },
     useMemo: fn => fn(), useCallback: fn => fn, useRef: current => ({ current }), useEffect() {} };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
     if (name === 'react') return react;
@@ -138,21 +143,33 @@ test('project workspace combines only resolved mobile projects and uses the exis
   });
   const props = { profile: { id: 'owner', projects: [{ id: 'work', categoryId: 'portal', title: 'Work' }] },
     category: { id: 'portal', label: 'Portal' }, viewerRole: 'visitor', activeProjectId: 'work',
-    onBack: () => back++, onSelectProject() {}, isIndexCollapsed: true, isEngagementOpen: false };
-  let tree = ProfileCategoryPage(props);
+    onBack: () => back++, onBackToPortals: () => portalReturns++, onSelectProject() {}, isIndexCollapsed: true, isEngagementOpen: false };
+  const render = values => { cursor = 0; return ProfileCategoryPage(values); };
+  let tree = render(props);
   assert.equal(withProp(tree, 'data-project-index-panel'), undefined);
   assert.ok(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation);
   button(tree, 'Go back').props.onClick();
   assert.equal(back, 1);
-  tree = ProfileCategoryPage({ ...props, activeProjectId: 'missing' });
+  nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();
+  tree = render(props);
+  const projectList = nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.index;
+  button(projectList, 'Back to portals').props.onClick();
+  assert.ok(button(projectList, 'Collapse document list'));
+  assert.equal(portalReturns, 1);
+  tree = render({ ...props, activeProjectId: null });
+  button(tree, 'Back to portals').props.onClick();
+  assert.equal(portalReturns, 2);
+  assert.equal(back, 1);
+  tree = render({ ...props, activeProjectId: 'missing' });
   assert.equal(tree.props['data-mobile-project-view'], undefined);
   assert.equal(withProp(tree, 'data-project-index-panel').props.style.width, '52px');
   assert.ok(nodes(tree).find(node => node.props['aria-label'] === 'Project not found'));
   presentation = 'web';
-  tree = ProfileCategoryPage(props);
+  tree = render(props);
   assert.ok(withProp(tree, 'data-project-index-panel'));
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation, undefined);
   assert.equal(button(tree, 'Go back'), undefined);
+  assert.equal(button(tree, 'Back to portals'), undefined);
 });
 
 test('direct public-project Back remains public; existing browser history takes priority', () => {
@@ -166,5 +183,21 @@ test('direct public-project Back remains public; existing browser history takes 
       buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
     back();
     assert.deepEqual(calls, idx === 2 ? ['back'] : [['sharedProfile/creator', true]]);
+  }
+});
+
+
+test('Back to portals targets the viewed creator collection rather than previous projects', () => {
+  const source = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const fn = source.match(/function returnToPortalCollection\(\) \{[\s\S]*?\n  \}/)[0];
+  for (const [isSharedRoute, isOwnerMode, expected] of [
+    [false, true, 'portals/'], [false, false, 'profile/creator?view=portals'], [true, false, 'sharedProfile/creator'],
+  ]) {
+    const calls = [];
+    const go = vm.runInNewContext(`(${fn})`, { isSharedRoute, isOwnerMode, viewedProfileId: 'creator',
+      nav: { to: (...args) => calls.push(args), back: () => assert.fail('Must not revisit a project') },
+      buildPath: (kind, values) => `${kind}/${values?.profileId ?? ''}` });
+    go();
+    assert.deepEqual(calls, [[expected, true]]);
   }
 });

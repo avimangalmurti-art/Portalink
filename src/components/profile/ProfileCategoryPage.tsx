@@ -34,6 +34,8 @@ type ProfileCategoryPageProps = {
   activeProjectId: string | null;
   /** Returns to the screen used to enter this portal. */
   onBack: () => void;
+  /** Leaves this portal for the viewed creator's portal collection. */
+  onBackToPortals: () => void;
   /**
    * Changes which project the portal is showing. `replace` is used for the
    * automatic first-project selection on entry, so that lands in place of the
@@ -63,6 +65,7 @@ export function ProfileCategoryPage({
   viewerRole,
   activeProjectId,
   onBack,
+  onBackToPortals,
   onSelectProject: selectProject,
   onCreateProject,
   isIndexCollapsed: preferredIndexCollapsed,
@@ -391,10 +394,16 @@ export function ProfileCategoryPage({
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
-            <div data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
+          </div> : <header data-mobile-portal-project-header={mobileProjectView ? '' : undefined} data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
+            {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
+              <button type="button" onClick={onBackToPortals} aria-label="Back to portals" title="Back to portals" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+                <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
+              </button>
+              <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h2>
+            </div>}
+            <div data-project-index-toolbar="" data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               {mobileIndexOnly ? <>
-                <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={onBackToPortals} aria-label="Back to portals" title="Back to portals" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>

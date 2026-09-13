@@ -634,6 +634,27 @@
   padding-inline: 4px;
 }
 
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] > [data-mobile-portal-project-header] {
+  flex-direction: column;
+  gap: 0;
+  height: calc(112px + var(--mobile-content-safe-top));
+  min-height: calc(112px + var(--mobile-content-safe-top));
+  max-height: calc(112px + var(--mobile-content-safe-top));
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-projects-back {
+  flex: 0 0 48px;
+  width: 100%;
+  min-height: 48px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-projects-back + [data-project-index-toolbar] {
+  flex: 0 0 64px;
+  width: 100%;
+  height: 64px;
+  min-height: 0;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-opener + .global-control-header {
   height: 64px;
   min-height: 64px;
