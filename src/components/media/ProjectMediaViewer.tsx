@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
+import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
 import { EngagementBar, EngagementFeedback } from '../../features/engagement/EngagementBar';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
@@ -138,6 +139,7 @@ export function ProjectMediaViewer({
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
+  const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
   const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
   const popupAnchorRef = useRef<HTMLDivElement>(null);
@@ -487,7 +489,7 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  return <div data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -530,7 +532,7 @@ export function ProjectMediaViewer({
         </nav>}
       </div>
 
-      {mobileNavigation?.isIndexOpen && <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={mobileNavigation.onCloseIndex} />}
+
 
       {/* The rail: engagement above the conversation, in one scroll.
          Engagement reads the same canonical record the feed card does, so a like
@@ -541,7 +543,10 @@ export function ProjectMediaViewer({
       {/* The rail shares the work's canvas rather than sitting on a raised panel:
          it is part of the same page, and a second background only added a seam
          down the middle of one composition. The hairline carries the separation. */}
-      {mobileNavigation?.isIndexOpen ? mobileNavigation.index : isMobileViewer ? <aside data-project-response-rail="" data-rail-expanded="false" aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto">
+      {mobileNavigation?.isIndexOpen ? !isImmersive && <MobileProjectIndexPortal anchorRef={viewerRootRef}>
+        <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={mobileNavigation.onCloseIndex} />
+        {mobileNavigation.index}
+      </MobileProjectIndexPortal> : isMobileViewer ? <aside data-project-response-rail="" data-rail-expanded="false" aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto">
         <div ref={popupAnchorRef} data-mobile-project-popup-controls="" className="side-panel-navigation-list items-center">
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>

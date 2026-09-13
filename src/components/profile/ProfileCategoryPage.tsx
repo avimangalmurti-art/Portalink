@@ -97,6 +97,7 @@ export function ProfileCategoryPage({
   });
   const workspace = useElementSize<HTMLDivElement>();
   const projectPresentationRef = workspace.ref;
+  const projectIndexRef = useRef<HTMLDivElement>(null);
   const [lastOpened, setLastOpened] = useState<ProjectPanel | null>(null);
   const [compactPanel, setCompactPanel] = useState<ProjectPanel | null>(null);
   useEffect(() => {
@@ -171,7 +172,7 @@ export function ProfileCategoryPage({
   const onIndexCollapsedChange = useCallback((collapsed: boolean) => {
     if (mobileProjectView) {
       setMobilePanel(collapsed ? null : 'index');
-      requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
+      requestAnimationFrame(() => (collapsed ? projectPresentationRef.current : projectIndexRef.current)?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
       return;
     }
     if (!collapsed) openPanel('index');
@@ -375,7 +376,7 @@ export function ProfileCategoryPage({
   const isIndexCollapsed = !panelLayout.indexOpen;
   const isEngagementOpen = panelLayout.responseOpen;
   const isMissingSelection = activeProjectId !== null && activeProject === null;
-  const projectIndexPanel = <div data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
+  const projectIndexPanel = <div ref={projectIndexRef} data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
            empty, darker band above the controls. */}

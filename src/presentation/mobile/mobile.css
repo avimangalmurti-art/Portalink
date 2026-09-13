@@ -696,9 +696,22 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] {
   left: max(8px, env(safe-area-inset-left, 0px));
-  right: auto;
+  right: max(8px, env(safe-area-inset-right, 0px));
+  width: auto !important;
+  max-width: none;
   overflow: hidden;
   animation: mobile-project-panel-enter 180ms ease-out;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+}
+
+[data-presentation='mobile'] [data-mobile-media-comments]:has([data-mobile-project-popup-content]) {
+  padding-left: max(8px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
 }
 
 @keyframes mobile-project-panel-enter {
