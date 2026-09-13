@@ -226,17 +226,74 @@ test('both mobile portal counts open the supplied list screen and preserve a pro
         const summary = nodes(identity.type(identity.props)).find(node => node.props?.['aria-label'] === 'Profile summary');
         nodes(summary).filter(node => node.type === 'button')[1].props.onClick();
       }
-      assert.equal(h.render(), mobilePortalsView);
+      const portalTree = h.render();
+      assert.equal(nodes(portalTree).find(node => node.props?.id === 'profile-content').props.children, mobilePortalsView);
+      assert.ok(nodes(portalTree).some(node => node.props?.className === 'mobile-profile-header'));
       assert.equal(new URLSearchParams(h.search()).get('view'), 'portals');
       assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
       assert.equal(h.navigation.at(-1).replace, false);
-      assert.equal(profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render(), mobilePortalsView);
+      const restored = profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render();
+      assert.equal(nodes(restored).find(node => node.props?.id === 'profile-content').props.children, mobilePortalsView);
     }
   }
   const web = profileHarness('view=portals', { presentation: 'web', props: { mobilePortalsView } }).render();
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children.type, 'ProfileCollectionGrid');
   assert.equal(nodes(web).includes(mobilePortalsView), false);
 });
+test('nested mobile work retains profile identity and tools, and count controls navigate out of the project', () => {
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    const selectedViews = [];
+    const mobileContent = React.createElement('section', { 'aria-label': 'Project viewer' });
+    const h = profileHarness('', { presentation: 'mobile', viewerRole, projects: reorderProjects,
+      props: { mobileContent, onMobileViewChange: view => selectedViews.push(view), onEditProfile() {} } });
+    let tree = h.render();
+    assert.equal(tree.props['data-profile-nested'], '');
+    assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children, mobileContent);
+    assert.equal(wall(tree), undefined);
+    const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+    assert.equal(identity.props.profile.id, 'owner');
+    identity.props.summaryCounts.onSelect('portals');
+    assert.deepEqual(selectedViews, ['portals']);
+    assert.equal(h.navigation.length, 0, 'Nested count must not edit the project URL query');
+    nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+    tree = h.render();
+    const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+    for (const view of ['projects', 'followers', 'following']) stats.props.onSelect(view);
+    assert.deepEqual(selectedViews, ['portals', 'projects', 'followers', 'following']);
+    assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Edit profile'), viewerRole === 'owner');
+    if (viewerRole === 'owner') {
+      nodes(tree).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
+      tree = h.render();
+      assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Cards per row'), false);
+      assert.equal(nodes(tree).some(node => node.props?.role === 'menuitem' && React.Children.toArray(node.props.children).includes('Reorder projects')), false);
+    }
+  }
+});
+
+test('workspace keeps one child position and only MOBILE displays the profile frame', () => {
+  const { MobileProfileWorkspace } = compile('../src/presentation/mobile/MobileProfileWorkspace.tsx', name => {
+    if (name === 'react') return React;
+    return {};
+  });
+  const overview = React.createElement('profile', { profile: { id: 'viewed-creator' } });
+  const child = React.createElement('project');
+  const result = MobileProfileWorkspace({ overview, children: child, view: 'portals' });
+  assert.equal(result.props.profile.id, 'viewed-creator');
+  assert.equal(result.props.mobileContent, child);
+  assert.equal(result.props.mobileContentView, 'portals');
+  const web = profileHarness('', { presentation: 'web', props: { mobileContent: child } }).render();
+  const mobile = profileHarness('', { presentation: 'mobile', props: { mobileContent: child } }).render();
+  assert.equal(web.props.className, 'contents');
+  assert.equal(web.props['data-profile-page'], undefined);
+  assert.equal(React.Children.toArray(web.props.children)[0].props.className, 'hidden');
+  for (const tree of [web, mobile]) {
+    const main = nodes(tree).find(node => node.props?.id === 'profile-content');
+    assert.equal(main.props.children, child);
+    assert.equal(React.Children.toArray(tree.props.children).findIndex(node => node.props.id === 'profile-content'), 1);
+  }
+  assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.className, 'contents');
+});
+
 test('mobile profile links appear below the action row only while Profile options is open', () => {
   const links = [{ label: 'Website', href: 'https://example.com', iconName: 'globe' }];
   for (const viewerRole of ['owner', 'visitor']) {

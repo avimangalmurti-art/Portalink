@@ -766,6 +766,31 @@
 
 /* The profile header owns the safe inset so it stays covered while scrolling.
    The artwork still uses the app's original, single scroll container. */
+#root .codex-shell[data-presentation='mobile'] [data-screen-scroll]:has([data-profile-nested]) {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-nested] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-nested] > .profile-header-region {
+  z-index: 60;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-workspace-content {
+  --mobile-content-safe-top: 0px;
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-screen-scroll='page']:has(> [data-profile-page]) {
   padding-top: 0;
 }

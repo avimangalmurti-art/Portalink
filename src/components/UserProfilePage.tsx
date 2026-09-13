@@ -44,6 +44,10 @@ type UserProfilePageProps = {
   onBack: () => void;
   /** The same portal-list screen used by mobile navigation, for this profile. */
   mobilePortalsView: React.ReactElement;
+  /** A portal or project remains inside the mobile profile header. */
+  mobileContent?: React.ReactElement;
+  mobileContentView?: 'portals' | 'projects';
+  onMobileViewChange?: (view: ProfileContentView) => void;
   /**
    * The viewer's relationship to this profile, and the ONLY permission input this
    * component takes. It previously took `isOwner` alongside this, which meant two
@@ -377,6 +381,9 @@ export function UserProfilePage({
   profile,
   onBack,
   mobilePortalsView,
+  mobileContent,
+  mobileContentView,
+  onMobileViewChange,
   viewerRole,
   follow,
   onSignInRequest,
@@ -388,16 +395,23 @@ export function UserProfilePage({
   onAddCategory,
   onOpenActivity
 }: UserProfilePageProps) {
+  const isMobile = usePresentation() === 'mobile';
   const [columnsPerRow, setColumnsPerRow] = useState(readProfileDensity);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get('view');
-  const activeView: ProfileContentView = !isSharedView && (requestedView === 'portals' || requestedView === 'followers' || requestedView === 'following') ? requestedView : 'projects';
-  const setActiveView = (view: ProfileContentView) => setSearchParams((previous) => {
-    const next = new URLSearchParams(previous);
-    if (view === 'projects') next.delete('view');
-    else next.set('view', view);
-    return next;
-  }, { replace: !(isMobile && view === 'portals') });
+  const activeView: ProfileContentView = isMobile && mobileContent && mobileContentView ? mobileContentView : !isSharedView && (requestedView === 'portals' || requestedView === 'followers' || requestedView === 'following') ? requestedView : 'projects';
+  const setActiveView = (view: ProfileContentView) => {
+    if (isMobile && mobileContent && onMobileViewChange) {
+      onMobileViewChange(view);
+      return;
+    }
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (view === 'projects') next.delete('view');
+      else next.set('view', view);
+      return next;
+    }, { replace: !(isMobile && view === 'portals') });
+  };
   // This page renders portfolio media from canonical projects and nothing else.
   // It used to keep its own list of picked image files as object URLs and show
   // them as tiles beside the real work — a second, parallel way for media to
@@ -422,7 +436,6 @@ export function UserProfilePage({
   const followRequests = useFollowRequests();
   const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
-  const isMobile = usePresentation() === 'mobile';
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   useEffect(() => setIsMobileToolsOpen(false), [profile.id]);
   const [isManageOpen, setIsManageOpen] = useState(false);
@@ -542,11 +555,12 @@ export function UserProfilePage({
   // whatever width the shell currently has.
   const fitsInOneRow = imageryCells.length < columnsPerRow;
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
-  if (isMobile && !isSharedView && activeView === 'portals') return mobilePortalsView;
+  const nestedMobileContent = mobileContent ?? (isMobile && !isSharedView && activeView === 'portals' ? mobilePortalsView : undefined);
+  const isWebWorkspace = !isMobile && Boolean(mobileContent);
   // Keep one app-shell scroller. Mobile pins the identity and its optional tools;
   // the display-contents wrapper preserves the existing desktop document flow.
-  return <div ref={profilePageRef} data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
-      <div className="profile-header-region contents">
+  return <div ref={profilePageRef} data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && nestedMobileContent ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+      <div className={isWebWorkspace ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
             <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
@@ -675,7 +689,7 @@ export function UserProfilePage({
                   {!isMobile && <InterfaceIcon icon={ChevronDownIcon} size="xs" weight="medium" className={`transition-transform duration-150 ${isManageOpen ? 'rotate-180' : ''}`} />}
                 </button>
                 {isManageOpen ? <div role="menu" aria-label="Profile management" className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-pop)]">
-                    <div className="flex min-h-10 items-center gap-3 rounded-[8px] px-2.5">
+                    {!(isMobile && mobileContent) && <><div className="flex min-h-10 items-center gap-3 rounded-[8px] px-2.5">
                       <label htmlFor="profile-view-density" className="min-w-0 flex-1 text-[12px] font-medium text-[var(--text-primary)]">View density</label>
                       <input id="profile-view-density" type="range" min={MIN_COLUMNS} max={MAX_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => setColumnsPerRow(writeProfileDensity(Number(event.target.value)))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
                     </div>
@@ -687,7 +701,7 @@ export function UserProfilePage({
                 }} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
                       <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
                       Reorder projects
-                    </button>
+                    </button></>}
                     <button type="button" role="menuitem" onClick={visibility.onToggle} disabled={visibility.isPending} aria-pressed={visibility.isPrivate} aria-busy={visibility.isPending || undefined} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                       <InterfaceIcon icon={LockIcon} size="sm" weight="medium" />
                       <span className="min-w-0 flex-1">Account visibility</span>
@@ -749,7 +763,7 @@ export function UserProfilePage({
           </div>
         </section> : null}
 
-      {!isSharedView && !isMobile && <div className="w-full px-2 pt-[var(--side-panel-content-inset)]">
+      {!isSharedView && !isMobile && !isWebWorkspace && <div className="w-full px-2 pt-[var(--side-panel-content-inset)]">
         {/* Three regions, read left to right: who → where else they are → what the
            work amounts to. They only sit side by side once there is room; below
            that the same order stacks. */}
@@ -775,8 +789,8 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main id="profile-content" className="w-full flex-1 px-2 pb-8 pt-1" aria-label={`${displayName} ${activeView}`}>
-        {activeView !== 'projects' ? <ProfileCollectionGrid profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{
+      <main id="profile-content" className={isWebWorkspace ? 'contents' : nestedMobileContent ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
+        {nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{
         maxWidth: gridWidth ? `${gridWidth}px` : undefined
       }}>
             {/* Equal-width columns left dead space: a row took the height of its
@@ -795,7 +809,7 @@ export function UserProfilePage({
           onMove: projectOrder.move,
           onMoveByOffset: projectOrder.moveByOffset
         } : undefined} />
-          </div>}
+          </div>)}
       </main>
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
     </div>;

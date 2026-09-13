@@ -120,6 +120,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   };
   const geometry = compile('../src/utils/projectPanelLayout.ts', () => ({}));
   let presentation = 'mobile', back = 0, portalReturns = 0, cursor = 0, effectCursor = 0;
+  let currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
   const slots = [], effects = [], pendingEffects = [], selections = [];
   const Viewer = () => null;
   const Index = () => null;
@@ -137,6 +138,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/useAppRoute')) return { useAppRoute: () => currentRoute };
     if (name.endsWith('/projectPanelLayout')) return geometry;
     if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ ref: { current: null }, width: 390 }) };
     if (name.endsWith('/ResizablePanelHandle')) return { useResizablePanelWidth: () => ({ preferredWidth: 315 }) };
@@ -184,6 +186,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   button(projectList, 'Back to portals').props.onClick();
   assert.ok(button(projectList, 'Collapse document list'));
   assert.equal(portalReturns, 1);
+  currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
   tree = render({ ...props, activeProjectId: null });
   assert.deepEqual(selections.at(-1), ['work', true]);
   button(tree, 'Back to portals').props.onClick();
@@ -193,6 +196,17 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'work');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, true);
   const selectionCount = selections.length;
+  for (const route of [
+    { kind: 'profile', profileId: 'owner' },
+    { kind: 'portals' },
+    { kind: 'category', profileId: 'owner', categoryId: 'another-portal' },
+    { kind: 'category', profileId: 'another-owner', categoryId: 'portal' },
+  ]) {
+    currentRoute = route;
+    render({ ...props, activeProjectId: null });
+    assert.equal(selections.length, selectionCount, 'An outgoing category snapshot must not redirect the live screen');
+  }
+  currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
   tree = render({ ...props, activeProjectId: null, profile: { ...props.profile, projects: [] } });
   assert.equal(selections.length, selectionCount);
   assert.ok(button(tree, 'Back to portals'));

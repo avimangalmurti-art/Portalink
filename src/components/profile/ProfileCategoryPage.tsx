@@ -21,6 +21,7 @@ import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
 import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
+import { useAppRoute } from '../../app/useAppRoute';
 import { EmptyState } from '../ui/StateViews';
 type ProfileCategoryPageProps = {
   profile: Profile;
@@ -313,14 +314,19 @@ export function ProfileCategoryPage({
    * being quietly corrected to different work.
    */
   const firstProjectId = projects[0]?.id ?? null;
+  const currentRoute = useAppRoute();
+  // Outgoing transition layers can retain an unselected category snapshot.
+  // Only the live category destination may choose its initial project.
+  const isCurrentCategory = (currentRoute.kind === 'category' || currentRoute.kind === 'sharedCategory')
+    && currentRoute.profileId === profile.id && currentRoute.categoryId === category.id;
   useEffect(() => {
-    if (activeProjectId === null && firstProjectId) {
+    if (isCurrentCategory && activeProjectId === null && firstProjectId) {
       if (isMobile) setMobilePanel('index');
       onSelectProject(firstProjectId, true);
     }
     // Keyed to the category through its resolved order, so switching portals
     // re-initialises rather than carrying the previous portal's selection.
-  }, [isMobile, activeProjectId, firstProjectId, onSelectProject]);
+  }, [isCurrentCategory, isMobile, activeProjectId, firstProjectId, onSelectProject]);
   // Only the search box is local to this view now; the arrangement reloads
   // itself when the category changes.
   useEffect(() => {
