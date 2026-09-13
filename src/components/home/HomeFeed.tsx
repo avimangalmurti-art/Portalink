@@ -8,7 +8,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio, resolveFeedSpan } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
-import { SearchIcon, XIcon } from 'lucide-react';
+import { RotateCwIcon, SearchIcon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 type HomeFeedProps = {
@@ -75,6 +75,7 @@ export function HomeFeed({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [hasReloaded, setHasReloaded] = useState(false);
   const [mobileCapacityWidth, setMobileCapacityWidth] = useState<number>();
   const hasRestoredScrollRef = useRef(false);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
@@ -163,11 +164,11 @@ export function HomeFeed({
       >
         <div data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header">
-            <form role="search" aria-label="Home search" onSubmit={event => event.preventDefault()}
-              onFocus={() => setIsSearchFocused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setIsSearchFocused(false); }}>
+            <form role="search" aria-label="Home search" onSubmit={event => event.preventDefault()}>
               <div className="field-shell text-control-shell flex h-11 w-full items-center gap-2.5 rounded-[8px] pl-3 pr-0">
                 <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
                 <input ref={searchInputRef} type="search" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}
+                  onFocus={() => setIsSearchFocused(true)} onBlur={() => setIsSearchFocused(false)}
                   placeholder="Search · Coming soon" aria-label="Search Home" aria-describedby="home-search-status" autoComplete="off" enterKeyHint="search"
                   onKeyDown={event => { if (event.key === 'Escape') { setSearchDraft(''); event.currentTarget.blur(); } }}
                   className="min-w-0 flex-1 border-0 bg-transparent p-0 pr-3 text-[16px] text-[var(--text-primary)]" />
@@ -175,9 +176,17 @@ export function HomeFeed({
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
                   <InterfaceIcon icon={XIcon} size="sm" />
                 </button>}
+                <button type="button" aria-label="Reload Home content" title="Reload Home content" disabled={feed.isRefreshing || feed.status === 'loading'}
+                  aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  <InterfaceIcon icon={RotateCwIcon} size="sm" weight="medium" effect="rotate" effectActive={feed.isRefreshing} />
+                </button>
               </div>
               <p id="home-search-status" className={isSearchFocused ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>Search is still being designed.</p>
             </form>
+            <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
+              {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
+            </p>
           </header>}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>

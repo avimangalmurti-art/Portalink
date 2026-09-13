@@ -13,6 +13,9 @@ function nodes(node) {
 function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
   const feedArguments = [];
+  let reloads = 0;
+  const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' } }, { project: { id: 'second' } }], isEmpty: false,
+    isRefreshing: false, refreshError: null, retry() { reloads++; } };
   const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useLayoutEffect() {},
     useRef(value) { const index = cursor++; return slots[index] ??= { current: value }; },
     useState(value) {
@@ -29,12 +32,12 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useFeed')) return { useFeed(locationId) {
       feedArguments.push(locationId);
-      return { status: 'ready', featured: null, projects: [{ project: { id: 'first' } }, { project: { id: 'second' } }], isEmpty: false };
+      return feed;
     } };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, resolveFeedSpan: () => 1 };
     return new Proxy({}, { get: (_, key) => key });
   } });
-  return { feedArguments, render() {
+  return { feedArguments, feed, get reloads() { return reloads; }, render() {
     cursor = 0;
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onOpenProject() {}, onOpenCreator() {}, ...props });
   } };
@@ -71,7 +74,7 @@ test('typing and submitting stay local and preserve the feed’s content and ord
 test('focus explains availability, clearing retains focus, and Escape clears and dismisses', () => {
   const h = harness();
   let tree = h.render();
-  nodes(tree).find(node => node.type === 'form').props.onFocus();
+  nodes(tree).find(node => node.type === 'input').props.onFocus();
   tree = h.render();
   assert.notEqual(nodes(tree).find(node => node.props.id === 'home-search-status').props.className, 'sr-only');
   let focused = false;
@@ -87,4 +90,26 @@ test('focus explains availability, clearing retains focus, and Escape clears and
   let blurred = false;
   nodes(tree).find(node => node.type === 'input').props.onKeyDown({ key: 'Escape', currentTarget: { blur() { blurred = true; } } });
   assert.equal(blurred, true);
+});
+
+test('rightmost Home search action reloads the feed, preserves its cards, and prevents duplicate requests', () => {
+  const h = harness();
+  let tree = h.render();
+  let reload = nodes(tree).find(node => node.props['aria-label'] === 'Reload Home content');
+  assert.equal(reload.props.type, 'button');
+  assert.equal(reload.props.disabled, false);
+  reload.props.onClick(); assert.equal(h.reloads, 1);
+  h.feed.isRefreshing = true; tree = h.render();
+  reload = nodes(tree).find(node => node.props['aria-label'] === 'Reload Home content');
+  assert.equal(reload.props.disabled, true); assert.equal(reload.props['aria-busy'], true);
+  reload.props.onClick(); assert.equal(h.reloads, 1);
+  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === 'JustifiedImageWall').props.items, item => item.key), ['first', 'second']);
+  assert.equal(nodes(tree).find(node => node.props.id === 'home-search-status').props.className, 'sr-only');
+  assert.equal(nodes(tree).find(node => node.props.role === 'status').props.children, 'Refreshing Home content.');
+  h.feed.isRefreshing = false; h.feed.refreshError = 'Could not refresh Home. Please try again.';
+  const status = nodes(h.render()).find(node => node.props.role === 'status');
+  assert.equal(status.props.children, h.feed.refreshError); assert.notEqual(status.props.className, 'sr-only');
+  for (const other of [harness('web'), harness('mobile', { locationId: 'city' })]) {
+    assert.equal(nodes(other.render()).some(node => node.props['aria-label'] === 'Reload Home content'), false);
+  }
 });

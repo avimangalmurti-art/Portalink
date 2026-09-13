@@ -15,6 +15,9 @@ import type { ContentSphere, HomeFeedMode } from '../../types/discovery';
  */
 export type FeedState = {
   status: AsyncStatus;
+  /** Revalidation keeps the last complete feed visible. */
+  isRefreshing: boolean;
+  refreshError: string | null;
   /**
    * The curated hero, resolved canonically like every other project here. Null is
    * a real answer, not a failure: it means the curation no longer names a project
@@ -79,6 +82,8 @@ export function useFeed(locationId?: Id): FeedState {
   const [isSavingHomeMode, setIsSavingHomeMode] = useState(false);
   const [homeModeError, setHomeModeError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let isCurrent = true;
@@ -95,6 +100,8 @@ export function useFeed(locationId?: Id): FeedState {
       setStatus('loading');
     }
     setError(null);
+    setIsRefreshing(true);
+    setRefreshError(null);
     // Home ranking and its sphere resolve atomically. A location feed is a
     // different placement query entirely: it never borrows Home relationships.
     if (!entry.request || attempt > 0) {
@@ -118,9 +125,9 @@ export function useFeed(locationId?: Id): FeedState {
     }
     const request = entry.request;
     request.then((snapshot) => {
-      entry.snapshot = snapshot;
-      entry.cachedAt = Date.now();
       if (entry.request === request) {
+        entry.snapshot = snapshot;
+        entry.cachedAt = Date.now();
         delete entry.request;
       }
       if (!isCurrent) {
@@ -132,6 +139,7 @@ export function useFeed(locationId?: Id): FeedState {
       setSphere(snapshot.sphere);
       setHomeModeState(snapshot.homeMode);
       setStatus('success');
+      setIsRefreshing(false);
     }).catch((caught) => {
       if (entry.request === request) {
         delete entry.request;
@@ -139,9 +147,11 @@ export function useFeed(locationId?: Id): FeedState {
       if (!isCurrent) {
         return;
       }
+      setIsRefreshing(false);
       // Stale-while-revalidate: a background refresh failure does not blank a
       // complete feed the user was already viewing.
       if (cachedSnapshot) {
+        setRefreshError('Could not refresh Home. Please try again.');
         setStatus('success');
         return;
       }
@@ -159,6 +169,8 @@ export function useFeed(locationId?: Id): FeedState {
     };
   }, [discovery, cacheKey, attempt, locationId]);
   const retry = useCallback(() => {
+    setIsRefreshing(true);
+    setRefreshError(null);
     setAttempt((count) => count + 1);
   }, []);
   const setHomeMode = useCallback((mode: HomeFeedMode) => {
@@ -189,6 +201,8 @@ export function useFeed(locationId?: Id): FeedState {
   }, [discovery, homeMode, cacheKey]);
   return {
     status,
+    isRefreshing,
+    refreshError,
     featured,
     projects,
     creators,
