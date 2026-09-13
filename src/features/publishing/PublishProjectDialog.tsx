@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { PublishResult } from '../../types/publishing';
 
 /**
@@ -33,7 +34,8 @@ export function PublishProjectDialog({
   onClose,
   onPublished
 }: PublishProjectDialogProps) {
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel);
+  const isMobile = usePresentation() === 'mobile';
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -147,7 +149,7 @@ export function PublishProjectDialog({
           if (publishFlow.canPublish) {
             void publishFlow.publish.run();
           }
-        }} noValidate className="project-form-content scrollbar-slim">
+        }} noValidate aria-describedby={publishHint ? 'publish-hint' : undefined} data-mobile-publish={isMobile || undefined} className="project-form-content scrollbar-slim">
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately
                separate from a publish failure, because the recovery differs. */}
@@ -179,16 +181,16 @@ export function PublishProjectDialog({
               <div className="project-form-fields">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
-                  <MediaPicker media={media} upload={publishFlow.upload} disabled={isPublishing} />
-                  <CoverFilmstrip media={media} disabled={isPublishing || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
+                  <MediaPicker compact={isMobile} media={media} upload={publishFlow.upload} disabled={isPublishing} />
+                  <CoverFilmstrip compact={isMobile} media={media} disabled={isPublishing || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
                   <section className="project-form-details" aria-labelledby="publish-details-label">
-                    <h3 id="publish-details-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project details</h3>
+                    <h3 id="publish-details-label" className={isMobile ? 'sr-only' : 'text-[13px] font-semibold text-[var(--text-primary)]'}>Project details</h3>
                     {/* Everything a visitor will see is entered here. Nothing is
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing} onChange={(value) => setField('title', value)} />
                      <ProfileField id="publish-summary" label="Description" required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
-                    {publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                    {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
                         <button type="button" onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                           {publishFlow.ignoreInferredLocation ? 'Use the place mentioned in the project' : 'This project is not location-specific'}
@@ -198,7 +200,7 @@ export function PublishProjectDialog({
                 </div>
 
               <div className="project-form-actions flex flex-col items-end gap-1.5">
-                {publishHint ? <p role="status" className="text-[12px] text-[var(--text-secondary)]">{publishHint}</p> : null}
+                {publishHint ? <p id="publish-hint" role={isMobile ? undefined : 'status'} className={isMobile ? 'sr-only' : 'text-[12px] text-[var(--text-secondary)]'}>{publishHint}</p> : null}
                 <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
                   {isPublishing ? 'Publishing…' : 'Publish'}
                 </Button>

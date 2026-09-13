@@ -69,6 +69,7 @@ test('draft, publish (including fallback), and edit services pass the entire des
   let useFallback = false;
   const { service } = execute(`exports.service = {${methods}}`, {
     PublishServiceError: Error, ProjectMutationError: Error, draftFromRow: (row) => row,
+    withProjectLocation: (relevance) => relevance,
     removeStoredMedia: async () => undefined,
     requireSupabase: () => ({
       from: () => chain,

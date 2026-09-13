@@ -337,6 +337,8 @@ export type PublishProjectInput = {
   metadata: DraftMetadata;
   /** Optional creator-reviewed discovery metadata derived from the work. */
   relevance?: import('./discovery').ProjectRelevance;
+  /** Explicit project location. Empty means no place; omitted retains legacy inference. */
+  location?: string;
   /** Persisted attachments from a completed upload. Production path. */
   attachments?: PersistedAttachment[];
   /** Locally prepared files. Prototype-only, session-only outcome. */

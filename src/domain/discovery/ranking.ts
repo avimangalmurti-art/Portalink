@@ -132,7 +132,7 @@ export function deriveProjectRelevance(input: {
   const storedGeography = input.stored?.contentGeography ?? null;
   return {
     topicKeys: [...new Set([...storedTopics, ...extractTopicKeys(input.categoryLabel ?? '', input.title, input.summary)])].slice(0, 10),
-    contentGeography: storedGeography ?? inferredGeography,
+    contentGeography: input.stored?.geographicScope === 'location_independent' && input.stored.contentGeography === null ? null : storedGeography ?? inferredGeography,
     geographicScope: input.stored?.geographicScope ?? inferScope(combined, inferredGeography),
     geographyConfidence: clamp(input.stored?.geographyConfidence ?? (inferredGeography ? 0.86 : 0)),
   };

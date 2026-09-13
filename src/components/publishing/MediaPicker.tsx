@@ -51,16 +51,20 @@ type MediaPickerProps = {
    */
   upload?: MediaUpload;
   disabled?: boolean;
+  /** File management is disclosed separately from the mobile project details. */
+  compact?: boolean;
 };
 export function MediaPicker({
   media,
   upload,
-  disabled = false
+  disabled = false,
+  compact = false
 }: MediaPickerProps) {
   const addRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showsFiles, setShowsFiles] = useState(false);
   const [showsFormats, setShowsFormats] = useState(false);
   const fileOptionsRef = useRef<HTMLButtonElement>(null);
   const requirementsRef = useRef<HTMLDivElement>(null);
@@ -90,7 +94,13 @@ export function MediaPicker({
     replaceTargetRef.current = mediaId;
     replaceRef.current?.click();
   };
-  return <section aria-labelledby="publish-files-label" className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
+  const collapsed = compact && items.length > 0 && !showsFiles;
+  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined} className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
+      {compact && items.length > 0 ? <div className="flex items-center justify-between gap-3">
+        <span id={collapsed ? 'publish-files-label' : undefined} className="text-[13px] text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'file' : 'files'} selected</span>
+        <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : 'Edit files'}</button>
+      </div> : null}
+      {!collapsed && <>
       <div className="flex items-center justify-between gap-3">
         <h3 id="publish-files-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
         <div className="flex items-center gap-1">
@@ -150,6 +160,7 @@ export function MediaPicker({
         </dl>
       </div>}
 
+      </>}
       {/* The honest state of the transport, never a fake upload. */}
       {state === 'upload-unavailable' && capability && !upload?.isBusy && <p role="status" className="flex items-start gap-1.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
           <InfoIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />

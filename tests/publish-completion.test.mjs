@@ -13,7 +13,7 @@ const compiled = ts.transpileModule(source, { compilerOptions: {
   jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true,
 } }).outputText;
 
-function harness() {
+function harness(presentation = 'web') {
   let currentFlow;
   let effects = [];
   let cursor = 0;
@@ -32,6 +32,7 @@ function harness() {
       if (name === 'framer-motion') return { AnimatePresence: React.Fragment, motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
       if (name === './usePublishProject') return { usePublishProject: () => currentFlow };
       if (name === './validation') return { TITLE_MAX_LENGTH: 80 };
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       return new Proxy({}, { get: (_, key) => key });
     },
     document: { addEventListener() {}, removeEventListener() {}, getElementById: () => null },
@@ -59,6 +60,21 @@ function nodes(tree) {
   return [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
 const published = { projectId: 'new-project', mediaPersisted: true, sessionOnly: false };
+
+test('mobile keeps location separate and hides inferred commentary and file details by default', () => {
+  const flow = { location: 'Oakland', inferredRelevance: { contentGeography: { label: 'San Francisco' } }, media: { items: [{}] } };
+  const tree = harness('mobile').render(flow);
+  const all = nodes(tree);
+  assert.equal(all.find((node) => node.props?.id === 'publish-location').props.value, 'Oakland');
+  assert.equal(all.find((node) => node.props?.id === 'publish-location').props.maxLength, 80);
+  assert.equal(all.find((node) => node.type === 'MediaPicker').props.compact, true);
+  assert.equal(all.find((node) => node.type === 'CoverFilmstrip').props.compact, true);
+  assert.ok(!JSON.stringify(tree).includes('Project relevance:'));
+  assert.ok(!all.some((node) => node.props?.role === 'status'));
+  const web = nodes(harness().render(flow));
+  assert.ok(!web.some((node) => node.props?.id === 'publish-location'));
+  assert.equal(web.find((node) => node.type === 'MediaPicker').props.compact, false);
+});
 
 test('confirmed publication removes the entire modal and announces once', () => {
   const h = harness();

@@ -29,7 +29,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: (keyof DraftMetadata)[] = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '') {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false) {
   const {
     projects: projectService
   } = useServices();
@@ -49,6 +49,12 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const [draft, setDraft] = useState<ProjectDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<DraftMetadata>(EMPTY_METADATA);
+  const [location, updateLocation] = useState('');
+  const [hasChosenLocation, setHasChosenLocation] = useState(false);
+  const setLocation = useCallback((value: string) => {
+    updateLocation(value);
+    setHasChosenLocation(true);
+  }, []);
   const [ignoreInferredLocation, setIgnoreInferredLocation] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof DraftMetadata, string | null>>>({});
   const [step, setStep] = useState<PublishStep>('metadata');
@@ -108,6 +114,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       setDraft(null);
       setDraftError(null);
       setMetadata(EMPTY_METADATA);
+      updateLocation('');
+      setHasChosenLocation(false);
       setIgnoreInferredLocation(false);
       setFieldErrors({});
       setStep('metadata');
@@ -135,7 +143,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }));
     setInvalidField(null);
   }, []);
-  const isDirty = useMemo(() => FIELD_ORDER.some((key) => metadata[key].trim() !== '') || media.items.length > 0, [metadata, media.items.length]);
+  const isDirty = useMemo(() => FIELD_ORDER.some((key) => metadata[key].trim() !== '') || location.trim() !== '' || media.items.length > 0, [metadata, location, media.items.length]);
   const inferredRelevance = useMemo(() => deriveProjectRelevance({
     title: metadata.title,
     summary: metadata.summary,
@@ -214,6 +222,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         profileId,
         categoryId,
         metadata,
+        ...(manualLocation || hasChosenLocation ? { location: location.trim() } : {}),
         relevance: ignoreInferredLocation ? {
           ...inferredRelevance,
           contentGeography: null,
@@ -362,6 +371,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     draft,
     draftError,
     metadata,
+    location,
+    setLocation,
     inferredRelevance,
     ignoreInferredLocation,
     setIgnoreInferredLocation,

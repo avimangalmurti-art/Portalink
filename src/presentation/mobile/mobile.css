@@ -1484,3 +1484,101 @@
     transition: none;
   }
 }
+/* New-project details stay concise; media management is opened deliberately. */
+[data-presentation='mobile'] .project-form-dialog:has([data-mobile-publish]) {
+  padding: 16px;
+  gap: 16px;
+}
+
+[data-presentation='mobile'] .project-form-dialog:has([data-mobile-publish]) .project-form-heading button {
+  width: 44px;
+  height: 44px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] {
+  gap: 16px;
+  padding-right: 2px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-fields {
+  flex: 0 0 auto;
+  gap: 16px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-details {
+  gap: 16px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-details > div {
+  gap: 6px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .input-shell {
+  min-height: 44px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] :is(input, textarea, select) {
+  font-size: 16px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] textarea {
+  height: 104px;
+  min-height: 104px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-actions {
+  position: sticky;
+  bottom: 0;
+  padding-top: 12px;
+  background: var(--surface-raised);
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-actions > button {
+  width: 100%;
+  min-height: 44px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-form-media--populated {
+  order: 3;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] .project-media-list {
+  max-height: 240px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-compact-cover] {
+  flex: 0 0 auto;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 16px;
+  padding: 12px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] > div:first-child {
+  grid-column: 2;
+  grid-row: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] > div:first-child button {
+  margin-left: -12px;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] .cover-filmstrip-track {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 112px;
+  height: 112px;
+  padding: 3px;
+  overflow: hidden;
+}
+
+[data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] .cover-filmstrip-item {
+  width: 90px;
+}

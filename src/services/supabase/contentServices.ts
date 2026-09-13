@@ -1,4 +1,5 @@
 import { readVideoPlayback } from '../../features/media/videoPlayback';
+import { withProjectLocation } from '../../features/publishing/projectLocation';
 import { resolveStoredMediaKind } from '../../features/publishing/assetTypes';
 import type {
   DiscoveryService,
@@ -944,7 +945,7 @@ export const supabaseProjectService: ProjectService = {
     }
     const categoryResult = await requireSupabase().from('portfolio_categories').select('label').eq('id', input.categoryId).eq('profile_id', input.profileId).single();
     if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That portfolio category could not be found.');
-    const relevance = input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? ''));
+    const relevance = withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? '')), input.location);
     const extended = await requireSupabase().rpc('publish_project', {
       p_draft_id: input.draftId,
       p_profile_id: input.profileId,
@@ -959,7 +960,11 @@ export const supabaseProjectService: ProjectService = {
     });
     // Deployments can roll forward safely: until the migration is applied, use
     // the existing RPC and derive the same metadata when the project is read.
-    const result = extended.error && (extended.error.code === 'PGRST202' || extended.error.message.includes('function'))
+    const needsLegacyRpc = extended.error && (extended.error.code === 'PGRST202' || extended.error.message.includes('function'));
+    if (needsLegacyRpc && input.location !== undefined) {
+      throw new PublishServiceError('network', 'Your project location could not be saved. Your draft is still here. Please try again later.');
+    }
+    const result = needsLegacyRpc
       ? await requireSupabase().rpc('publish_project', {
           p_draft_id: input.draftId,
           p_profile_id: input.profileId,

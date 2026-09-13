@@ -1,3 +1,5 @@
+import { withProjectLocation } from '../../features/publishing/projectLocation';
+import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
 /**
  * Mock implementations of every service interface.
  *
@@ -612,6 +614,7 @@ export const mockProjectService: ProjectService = {
       title: input.metadata.title.trim(),
       summary: input.metadata.summary.trim(),
       cover,
+      relevance: withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata), input.location),
       coverAlt: isPersisted ? input.metadata.title.trim() : `${input.metadata.title.trim()} — locally prepared preview`,
       coverKind: coverAsset?.kind === 'video' ? 'video' : coverAsset?.kind === 'document' ? 'document' : undefined,
       coverAspectRatio: coverAsset?.metadata?.widthPixels && coverAsset.metadata.heightPixels ? coverAsset.metadata.widthPixels / coverAsset.metadata.heightPixels : undefined,
