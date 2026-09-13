@@ -624,7 +624,9 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] {
   position: relative;
-  padding-right: 52px;
+  padding-right: 0;
+  --mobile-project-panel-top: calc(8px + var(--mobile-content-safe-top));
+  --mobile-project-panel-bottom: max(8px, var(--mobile-content-safe-bottom));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-dismiss {
@@ -650,14 +652,35 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > :is([data-project-index-panel], [data-project-response-rail]) {
   position: absolute;
-  inset: 0 0 0 auto;
+  inset: var(--mobile-project-panel-top) max(8px, env(safe-area-inset-right, 0px)) var(--mobile-project-panel-bottom) auto;
   z-index: 40;
-  max-width: calc(100% - 60px);
-  border-left: 1px solid var(--hairline);
-  border-right: 0;
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent);
+  height: auto;
+  max-height: calc(100% - var(--mobile-project-panel-top) - var(--mobile-project-panel-bottom));
+  max-width: calc(100% - 60px - max(8px, env(safe-area-inset-right, 0px)));
+  border: 1px solid var(--hairline-strong);
+  border-color: var(--hairline-strong) !important;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
   -webkit-backdrop-filter: blur(22px) saturate(125%);
   backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: var(--shadow-pop);
+  /* The floating frame already clears the safe areas and bottom navigation. */
+  --mobile-content-safe-top: 0px;
+  --mobile-content-safe-bottom: 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] {
+  overflow: hidden;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail]:has(> .global-control-header > button[aria-expanded='false']) {
+  bottom: auto;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > :is([data-project-index-panel], [data-project-response-rail]) > .global-control-header {
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-opener,
@@ -703,15 +726,15 @@
   padding-top: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > [data-project-index-panel]):where(.reduce-translucency *, .high-contrast *) {
-  background: var(--surface-raised);
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > :is([data-project-index-panel], [data-project-response-rail])):where(.reduce-translucency *, .high-contrast *) {
+  background: var(--surface-raised) !important;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > [data-project-index-panel]) {
-    background: var(--surface-raised);
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > :is([data-project-index-panel], [data-project-response-rail])) {
+    background: var(--surface-raised) !important;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
