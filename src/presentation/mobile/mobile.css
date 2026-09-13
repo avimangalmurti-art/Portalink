@@ -599,11 +599,24 @@
   padding-right: 52px;
 }
 
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-dismiss {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  border: 0;
+  background: transparent;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-dismiss:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail][data-immersive='true'] {
   padding-right: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail][data-immersive='true'] > [data-project-index-panel] {
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail][data-immersive='true'] > :is([data-project-index-panel], .mobile-project-index-dismiss) {
   display: none;
 }
 

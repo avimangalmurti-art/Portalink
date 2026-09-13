@@ -75,12 +75,11 @@ export function ProfileCategoryPage({
   sharedReadOnly = false,
   onReturnToDiscovery
 }: ProfileCategoryPageProps) {
-  // The category URL is the mobile project list. Selecting a row pushes the
-  // project URL, so Back restores this list without changing saved panel widths.
+  // Mobile panels are local to the portal and independent of WEB preferences.
   const isMobile = usePresentation() === 'mobile';
   const mobileIndexOnly = isMobile && !sharedReadOnly && activeProjectId === null;
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
-  useEffect(() => { setMobilePanel(null); }, [activeProjectId, category.id, isMobile]);
+  useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
   const projectIndexWidth = useResizablePanelWidth({
     // Public copies keep a separate preference from the signed-in workspace.
     id: sharedReadOnly ? 'shared-project-index-standard' : 'project-index',
@@ -107,7 +106,6 @@ export function ProfileCategoryPage({
     return () => window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
   }, []);
   const onSelectProject = useCallback((id: string | null, replace?: boolean) => {
-    setMobilePanel(null);
     setCompactPanel(null);
     selectProject(id, replace);
     if (compactPanel) requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
@@ -307,9 +305,8 @@ export function ProfileCategoryPage({
   const projectTypefaceIds = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, typography.resolveTypefaceId(project.id)])), [categoryProjects, typography]);
   const projectTypefaceStacks = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, getTypefaceStack(projectTypefaceIds[project.id])])), [categoryProjects, projectTypefaceIds]);
   /**
-   * WEB and shared websites open the first project in the saved order. The
-   * mobile platform instead starts with the full project index and waits for a
-   * selection, preserving the category URL as the return destination.
+   * A portal opens its first project in the saved order. On mobile, keep its
+   * index above the work so the viewer can browse without repeatedly reopening it.
    *
    * Deliberately narrow: it fires only when nothing is selected, so a URL naming a
    * project that this category does not hold still reports that plainly instead of
@@ -317,12 +314,13 @@ export function ProfileCategoryPage({
    */
   const firstProjectId = projects[0]?.id ?? null;
   useEffect(() => {
-    if (!mobileIndexOnly && activeProjectId === null && firstProjectId) {
+    if (activeProjectId === null && firstProjectId) {
+      if (isMobile) setMobilePanel('index');
       onSelectProject(firstProjectId, true);
     }
     // Keyed to the category through its resolved order, so switching portals
     // re-initialises rather than carrying the previous portal's selection.
-  }, [mobileIndexOnly, activeProjectId, firstProjectId, onSelectProject]);
+  }, [isMobile, activeProjectId, firstProjectId, onSelectProject]);
   // Only the search box is local to this view now; the arrangement reloads
   // itself when the category changes.
   useEffect(() => {
@@ -548,7 +546,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false) } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true) } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <div role="alert" className="max-w-[420px] text-center">
             <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>
