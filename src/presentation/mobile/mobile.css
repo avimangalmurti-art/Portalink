@@ -968,18 +968,35 @@
   display: flex;
   align-items: flex-start;
   gap: 2px;
-  padding: 8px 6px 12px;
+  padding: 8px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-options {
   display: grid;
   place-items: center;
-  align-self: center;
+  align-self: flex-start;
   flex: 0 0 44px;
+  margin-block-start: 16px;
+  height: 44px;
   min-height: 44px;
   border-radius: 12px;
   background: transparent;
   color: var(--text-secondary);
+}
+
+/* Expanded details continue the header's 8px rhythm without toolbar padding. */
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools {
+  min-height: 0;
+  padding: 0 8px 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row {
+  row-gap: 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [aria-label='Profile content'] {
+  width: 100%;
+  justify-content: space-between;
 }
 
 /* Five owner actions share one row, with two slots for Like and Repost. */
@@ -1106,8 +1123,13 @@
   white-space: normal;
 }
 
-/* Keep normal identity aligned to the avatar; allow larger text to reflow. */
+/* Anchor identity to the portrait in both disclosure states; let long text grow. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-main {
+  align-items: flex-start;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-copy {
+  justify-content: flex-start;
   min-height: 76px;
   height: auto;
 }
