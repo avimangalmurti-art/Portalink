@@ -1104,7 +1104,11 @@ export function App() {
         setDiscoveryReturn(null);
         nav.to(target, false, viewTransition);
       } : undefined} /> : null;
-  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} mobilePortalsView={portalsPage} onMobileViewChange={(view) => {
+  const mobileWallScrollKey = `mobile-profile-wall:${auth.user?.id ?? 'guest'}:${viewedProfile?.id}:${isSharedRoute}`;
+  const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} mobilePortalsView={portalsPage} mobileWallScrollMemory={{
+    read: () => scrollPositionsRef.current.get(mobileWallScrollKey) ?? 0,
+    save: top => { scrollPositionsRef.current.set(mobileWallScrollKey, top); }
+  }} onMobileViewChange={(view) => {
         const path = buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfile.id });
         const target = view === 'projects' ? path : `${path}?view=${view}`;
         if (target !== `${pathname}${search}`) nav.to(target);

@@ -48,6 +48,7 @@ type UserProfilePageProps = {
   mobileContent?: React.ReactElement;
   mobileContentView?: 'portals' | 'projects';
   onMobileViewChange?: (view: ProfileContentView) => void;
+  mobileWallScrollMemory?: { read: () => number; save: (top: number) => void };
   /**
    * The viewer's relationship to this profile, and the ONLY permission input this
    * component takes. It previously took `isOwner` alongside this, which meant two
@@ -384,6 +385,7 @@ export function UserProfilePage({
   mobileContent,
   mobileContentView,
   onMobileViewChange,
+  mobileWallScrollMemory,
   viewerRole,
   follow,
   onSignInRequest,
@@ -422,6 +424,8 @@ export function UserProfilePage({
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
   const [isReorderingProjects, setIsReorderingProjects] = useState(false);
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const mobileWallScroll = useRef({ profileId: profile.id, top: 0 });
+  if (mobileWallScroll.current.profileId !== profile.id) mobileWallScroll.current = { profileId: profile.id, top: 0 };
   const finishingReorder = useRef(false);
   /*
    * Public or private, written through the profile service. The state shown is
@@ -556,10 +560,21 @@ export function UserProfilePage({
   const fitsInOneRow = imageryCells.length < columnsPerRow;
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
   const nestedMobileContent = mobileContent ?? (isMobile && !isSharedView && activeView === 'portals' ? mobilePortalsView : undefined);
+  const mobilePortalOverlay = isMobile && activeView === 'portals' ? nestedMobileContent : undefined;
+  const isMobileWall = isMobile && (activeView === 'projects' || activeView === 'portals') && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
-  // Keep one app-shell scroller. Mobile pins the identity and its optional tools;
-  // the display-contents wrapper preserves the existing desktop document flow.
-  return <div ref={profilePageRef} data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && nestedMobileContent ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+  const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
+    <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects || canHoldToReorder ? {
+      enabled: isReorderingProjects,
+      disabled: projectOrder.isSaving,
+      onStart: canHoldToReorder ? startReordering : undefined,
+      onMove: projectOrder.move,
+      onMoveByOffset: projectOrder.moveByOffset
+    } : undefined} />
+  </div>;
+  // Mobile keeps one body scroller beneath the pinned profile identity;
+  // the display-contents wrapper preserves the desktop document flow.
+  return <div ref={profilePageRef} data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       <div className={isWebWorkspace ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
@@ -781,35 +796,30 @@ export function UserProfilePage({
         
       </div>}
 
-      {/* The work grows the page rather than scrolling inside it, so the grid's
-         height is simply its content and the page-level scroll carries it. The
-         content region takes the remaining column height, so a short or empty
-         collection still carries the page surface to the bottom. */}
+      {/* WEB keeps page scrolling; MOBILE contains the wall beneath its header
+          so opening the portal chooser never changes the canvas geometry. */}
       {/* The wall runs edge to edge with only its own gutter: the page margin
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main id="profile-content" className={isWebWorkspace ? 'contents' : nestedMobileContent ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{
-        maxWidth: gridWidth ? `${gridWidth}px` : undefined
-      }}>
-            {/* Equal-width columns left dead space: a row took the height of its
-             tallest frame, and a landscape photograph left a band empty
-             beneath it. The wall justifies by ROW instead — every row is
-             scaled to span the full width and rows sit flush against each
-             other, so no gap is left anywhere. Widths differ within a row
-             because the proportions differ; nothing is cropped or stretched.
-             Each published image is also the direct entrance to the project it
-             represents; the image itself remains visually unchanged at rest.
-             A short trailing row ends naturally. */}
-            <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects || canHoldToReorder ? {
-          enabled: isReorderingProjects,
-          disabled: projectOrder.isSaving,
-          onStart: canHoldToReorder ? startReordering : undefined,
-          onMove: projectOrder.move,
-          onMoveByOffset: projectOrder.moveByOffset
-        } : undefined} />
-          </div>)}
+      <main id="profile-content" className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
+        {isMobileWall ? <>
+          <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
+            mobileWallScroll.current.top = event.currentTarget.scrollTop;
+            mobileWallScrollMemory?.save(event.currentTarget.scrollTop);
+          }} ref={element => {
+            if (element) {
+              element.inert = Boolean(mobilePortalOverlay);
+              element.scrollTop = mobileWallScrollMemory?.read() ?? mobileWallScroll.current.top;
+            }
+          }}>
+            {projectWall}
+          </div>
+          {mobilePortalOverlay && <div className="mobile-profile-portal-overlay">
+            <button type="button" className="mobile-profile-portal-dismiss" aria-label="Close portals" onClick={() => setActiveView('projects')} />
+            {mobilePortalOverlay}
+          </div>}
+        </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
     </div>;

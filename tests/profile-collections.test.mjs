@@ -210,11 +210,11 @@ test('count controls replace the project area, report real Portal count, and res
 const reorderProjects = [{ id: 'a', cover: 'a.png' }, { id: 'b', cover: 'b.png' }];
 const wall = tree => nodes(tree).find(node => node.type === 'JustifiedImageWall');
 
-test('both mobile portal counts open the supplied list screen and preserve a profile history entry', () => {
+test('both mobile portal counts float the supplied chooser above the wall and preserve a profile history entry', () => {
   const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const expanded of [false, true]) {
-      const h = profileHarness('keep=value', { presentation: 'mobile', viewerRole, props: { mobilePortalsView } });
+      const h = profileHarness('keep=value', { presentation: 'mobile', viewerRole, projects: reorderProjects, props: { mobilePortalsView } });
       let tree = h.render();
       if (expanded) {
         nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
@@ -227,18 +227,62 @@ test('both mobile portal counts open the supplied list screen and preserve a pro
         nodes(summary).filter(node => node.type === 'button')[1].props.onClick();
       }
       const portalTree = h.render();
-      assert.equal(nodes(portalTree).find(node => node.props?.id === 'profile-content').props.children, mobilePortalsView);
+      assert.ok(nodes(portalTree).some(node => node.props === mobilePortalsView.props));
+      assert.ok(wall(portalTree), 'Opening Portals must leave the artwork mounted underneath');
+      const underlay = nodes(portalTree).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
+      assert.equal(underlay.props['aria-hidden'], true);
+      const element = {};
+      underlay.ref(element);
+      assert.equal(element.inert, true, 'Underlying cards must not receive taps or focus');
       assert.ok(nodes(portalTree).some(node => node.props?.className === 'mobile-profile-header'));
       assert.equal(new URLSearchParams(h.search()).get('view'), 'portals');
       assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
       assert.equal(h.navigation.at(-1).replace, false);
       const restored = profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render();
-      assert.equal(nodes(restored).find(node => node.props?.id === 'profile-content').props.children, mobilePortalsView);
+      assert.ok(nodes(restored).some(node => node.props === mobilePortalsView.props));
+      nodes(portalTree).find(node => node.props?.['aria-label'] === 'Close portals').props.onClick();
+      const closed = h.render();
+      assert.equal(nodes(closed).some(node => node.props === mobilePortalsView.props), false);
+      const restoredWall = nodes(closed).find(node => node.props?.className === underlay.props.className);
+      assert.equal(restoredWall.type, underlay.type);
+      restoredWall.ref(element);
+      assert.equal(element.inert, false);
+      assert.equal(restoredWall.props['aria-hidden'], undefined);
+      assert.ok(wall(closed));
     }
   }
   const web = profileHarness('view=portals', { presentation: 'web', props: { mobilePortalsView } }).render();
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children.type, 'ProfileCollectionGrid');
   assert.equal(nodes(web).includes(mobilePortalsView), false);
+});
+
+test('the account Portals destination uses the same overlay while WEB keeps its page', () => {
+  const mobileContent = React.createElement('section', { 'aria-label': 'Account portals' });
+  const selected = [];
+  const props = { mobileContent, mobileContentView: 'portals', onMobileViewChange: view => selected.push(view) };
+  const mobile = profileHarness('', { presentation: 'mobile', projects: reorderProjects, props }).render();
+  assert.ok(wall(mobile));
+  assert.ok(nodes(mobile).some(node => node.props === mobileContent.props));
+  nodes(mobile).find(node => node.props?.['aria-label'] === 'Close portals').props.onClick();
+  assert.deepEqual(selected, ['projects']);
+  const web = profileHarness('', { presentation: 'web', projects: reorderProjects, props }).render();
+  assert.equal(wall(web), undefined);
+  assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children, mobileContent);
+});
+
+test('mobile wall remembers its scroll through a project and after returning from another screen', () => {
+  let savedTop = 0;
+  const props = { mobileWallScrollMemory: { read: () => savedTop, save: top => { savedTop = top; } } };
+  const options = { presentation: 'mobile', projects: reorderProjects, props };
+  const h = profileHarness('', options);
+  const scrollWall = tree => nodes(tree).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
+  scrollWall(h.render()).props.onScroll({ currentTarget: { scrollTop: 408 } });
+  h.render({ mobileContent: React.createElement('project') });
+  for (const tree of [h.render(), profileHarness('', options).render()]) {
+    const element = { scrollTop: 0 };
+    scrollWall(tree).ref(element);
+    assert.equal(element.scrollTop, 408);
+  }
 });
 test('nested mobile work retains profile identity and tools, and count controls navigate out of the project', () => {
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
