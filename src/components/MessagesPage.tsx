@@ -528,7 +528,7 @@ function ConversationMenuButton({ icon, label, danger = false, onClick }: { icon
 function MessageAttachmentView({ attachment }: { attachment: MessageAttachment }) {
   if (attachment.mimeType.startsWith('image/')) return <a href={attachment.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-[12px] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><img src={attachment.url} alt={attachment.fileName} className="max-h-72 w-full object-cover" /></a>;
   if (attachment.mimeType.startsWith('audio/')) return <div><p className="mb-1 truncate text-[12px] font-medium">{attachment.fileName}</p><audio controls preload="metadata" src={attachment.url} className="max-w-full" /></div>;
-  if (attachment.mimeType.startsWith('video/')) return <video controls preload="metadata" src={attachment.url} className="max-h-72 w-full rounded-[12px]" aria-label={attachment.fileName} />;
+  if (attachment.mimeType.startsWith('video/')) return <video controls muted preload="metadata" src={attachment.url} className="max-h-72 w-full rounded-[12px]" aria-label={attachment.fileName} />;
   return <a href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[10px] bg-black/10 px-3 py-2 text-[13px] font-semibold underline focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={FileTextIcon} /><span className="min-w-0 truncate">{attachment.fileName}</span></a>;
 }
 

@@ -531,7 +531,7 @@
 
 /* Artwork can paint behind the status area from the first frame. Empty/error
    states keep their safe inset; City keeps its separate navigation header. */
-#root .codex-shell[data-presentation='mobile'] [data-feed-artwork-edge] > .feed-edge-fade {
+#root .codex-shell[data-presentation='mobile'] :is([data-feed-artwork-edge], [data-mobile-home-search]) > .feed-edge-fade {
   -webkit-mask-image: none;
   mask-image: none;
 }
@@ -541,7 +541,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
-  padding-top: calc(12px + var(--mobile-content-safe-top));
+  padding-top: 0;
 }
 
 /* City feeds sit below a safe header; their content needs no second top inset. */
@@ -649,7 +649,7 @@
   padding-top: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] .profile-header-region {
+#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header) {
   display: block;
   position: sticky;
   top: 0;
@@ -662,7 +662,7 @@
 
 /* Only the decorative glass is masked. Menus, links and the avatar remain
    crisp and can extend beyond the header without being clipped. */
-#root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)::before {
   content: '';
   position: absolute;
   inset: 0 0 -20px;
@@ -674,7 +674,7 @@
 }
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  #root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+  #root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)::before {
     background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(140%);
     backdrop-filter: blur(20px) saturate(140%);
@@ -687,11 +687,11 @@
   backdrop-filter: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] .profile-header-region:where(.high-contrast *)::before {
+#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.high-contrast *)::before {
   background: var(--codex-workspace-bg);
 }
 
-#root .codex-shell[data-presentation='mobile'] .profile-header-region:where(.reduce-translucency *)::before {
+#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):where(.reduce-translucency *)::before {
   bottom: 0;
   background: var(--codex-workspace-bg);
   -webkit-backdrop-filter: none;
@@ -701,7 +701,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  #root .codex-shell[data-presentation='mobile'] .profile-header-region::before {
+  #root .codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)::before {
     bottom: 0;
     background: var(--codex-workspace-bg);
     -webkit-backdrop-filter: none;
@@ -709,6 +709,16 @@
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header {
+  margin-inline: -8px;
+  padding: calc(12px + var(--mobile-content-safe-top)) 8px 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header {

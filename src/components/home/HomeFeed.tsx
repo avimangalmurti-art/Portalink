@@ -8,7 +8,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio, resolveFeedSpan } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
-import { SearchIcon } from 'lucide-react';
+import { SearchIcon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 type HomeFeedProps = {
@@ -70,6 +70,9 @@ export function HomeFeed({
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const autoScrollRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchDraft, setSearchDraft] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [mobileCapacityWidth, setMobileCapacityWidth] = useState<number>();
   const hasRestoredScrollRef = useRef(false);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
@@ -157,10 +160,23 @@ export function HomeFeed({
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div data-feed-scroll-content="" className="relative pt-3">
-          {showMobileSearch && <div className="text-control-shell mb-3 flex h-11 w-full items-center gap-2.5 px-3" title="Search is coming soon">
-            <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
-            <input type="search" disabled placeholder="Search" aria-label="Search (coming soon)" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[16px] text-[var(--text-secondary)]" />
-          </div>}
+          {showMobileSearch && <header className="mobile-home-search-header">
+            <form role="search" aria-label="Home search" onSubmit={event => event.preventDefault()}
+              onFocus={() => setIsSearchFocused(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setIsSearchFocused(false); }}>
+              <div className="field-shell text-control-shell flex h-11 w-full items-center gap-2.5 rounded-[8px] pl-3 pr-0">
+                <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
+                <input ref={searchInputRef} type="search" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}
+                  placeholder="Search" aria-label="Search Home" aria-describedby="home-search-status" autoComplete="off" enterKeyHint="search"
+                  onKeyDown={event => { if (event.key === 'Escape') { setSearchDraft(''); event.currentTarget.blur(); } }}
+                  className="min-w-0 flex-1 border-0 bg-transparent p-0 pr-3 text-[16px] text-[var(--text-primary)]" />
+                {searchDraft && <button type="button" aria-label="Clear search" onClick={() => { setSearchDraft(''); searchInputRef.current?.focus({ preventScroll: true }); }}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  <InterfaceIcon icon={XIcon} size="sm" />
+                </button>}
+              </div>
+              <p id="home-search-status" className={isSearchFocused ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>Search is still being designed.</p>
+            </form>
+          </header>}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {feed.status === 'loading' && projects.length === 0
