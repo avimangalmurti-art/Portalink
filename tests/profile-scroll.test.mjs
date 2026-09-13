@@ -19,10 +19,49 @@ function nodes(tree) {
 }
 
 const { ProjectHoverDetails, PreviewMetrics } = compile('../src/components/profile/ProjectHoverDetails.tsx', (name) => {
-  if (name === 'react') return React;
+  if (name === 'react') return { ...React, useRef: current => ({ current }), useLayoutEffect() {} };
+  if (name.endsWith('/usePresentation')) return { usePresentation: () => 'web' };
   if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ count: () => 0 }) };
   if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({ phase: 'ready', totalCount: 0 }) };
   return new Proxy({}, { get: (_, key) => key });
+});
+
+test('mobile descriptions indicate hidden text at either edge and update after scrolling or reflow', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const styles = new Map(), listeners = new Map(), effects = [], observed = [];
+    let resize, disconnected = false;
+    const text = { scrollTop: 0, clientHeight: 100, scrollHeight: 300, firstElementChild: {},
+      style: { setProperty: (key, value) => styles.set(key, value), removeProperty: key => styles.delete(key) },
+      addEventListener(type, callback, options) { assert.equal(options.passive, true); listeners.set(type, callback); },
+      removeEventListener(type, callback) { assert.equal(listeners.get(type), callback); listeners.delete(type); },
+    };
+    const module = compile('../src/components/profile/ProjectHoverDetails.tsx', name => {
+      if (name === 'react') return { ...React, useRef: () => ({ current: { querySelector: () => text } }), useLayoutEffect: effect => effects.push(effect) };
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+      return new Proxy({}, { get: (_, key) => key });
+    }, { ResizeObserver: class {
+      constructor(callback) { resize = callback; }
+      observe(element) { observed.push(element); }
+      disconnect() { disconnected = true; }
+    } });
+    module.ProjectHoverDetails({ summary: 'Long description', href: '/project' });
+    const cleanup = effects.map(effect => effect());
+    if (presentation === 'web') {
+      assert.equal(styles.size, 0); assert.equal(listeners.size, 0); assert.equal(observed.length, 0);
+      continue;
+    }
+    const edges = () => [styles.get('--description-fade-top'), styles.get('--description-fade-bottom')];
+    assert.deepEqual(edges(), ['0px', '14px']);
+    assert.deepEqual(observed, [text, text.firstElementChild], 'Watch the text as well as its fixed-height viewport');
+    text.scrollTop = 80; listeners.get('scroll')(); assert.deepEqual(edges(), ['14px', '14px']);
+    text.scrollTop = 200; listeners.get('scroll')(); assert.deepEqual(edges(), ['14px', '0px']);
+    text.scrollTop = 230; listeners.get('scroll')(); assert.deepEqual(edges(), ['14px', '0px']);
+    text.scrollTop = -30; listeners.get('scroll')(); assert.deepEqual(edges(), ['0px', '14px']);
+    text.clientHeight = 400; resize(); assert.deepEqual(edges(), ['0px', '0px']);
+    text.scrollHeight = 600; resize(); assert.deepEqual(edges(), ['0px', '14px']);
+    cleanup.forEach(fn => fn?.());
+    assert.equal(disconnected, true); assert.equal(styles.size, 0); assert.equal(listeners.size, 0);
+  }
 });
 
 test('every profile-card variant permits native vertical scroll chaining and keeps descriptions scrollable', () => {

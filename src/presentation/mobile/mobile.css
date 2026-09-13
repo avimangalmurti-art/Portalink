@@ -1129,6 +1129,15 @@
   text-overflow: clip;
 }
 
+/* Fade only toward hidden description text; keep the first and last lines
+   fully readable when their respective scroll boundary is reached. */
+#root .codex-shell[data-presentation='mobile'] [data-project-hover-description] {
+  --description-fade-top: 0px;
+  --description-fade-bottom: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--description-fade-top), #000 calc(100% - var(--description-fade-bottom)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--description-fade-top), #000 calc(100% - var(--description-fade-bottom)), transparent);
+}
+
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;

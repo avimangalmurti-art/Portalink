@@ -96,7 +96,8 @@ test('draft, publish (including fallback), and edit services pass the entire des
 test('hover descriptions preserve paragraphs and scroll rather than truncate', () => {
   const { ProjectHoverDetails } = execute(read('../src/components/profile/ProjectHoverDetails.tsx'), {
     require: (name) => {
-      if (name === 'react') return React;
+      if (name === 'react') return { ...React, useRef: current => ({ current }), useLayoutEffect() {} };
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => 'web' };
       if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ count: () => 0 }) };
       if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({ phase: 'ready', totalCount: 0 }) };
       return new Proxy({}, { get: (_, key) => key });
@@ -104,7 +105,7 @@ test('hover descriptions preserve paragraphs and scroll rather than truncate', (
   });
   const tree = ProjectHoverDetails({ projectId: 'project', summary: longDescription });
   const description = React.Children.toArray(tree.props.children).find((child) => child.props?.['data-project-hover-description'] !== undefined);
-  assert.equal(description.props.children, longDescription);
+  assert.equal(description.props.children.props.children, longDescription);
   for (const name of ['whitespace-pre-wrap', 'break-words', 'overflow-y-auto', 'overscroll-y-auto']) {
     assert.ok(description.props.className.split(/\s+/).includes(name));
   }

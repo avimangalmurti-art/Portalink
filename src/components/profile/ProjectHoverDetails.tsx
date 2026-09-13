@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
 import { useProjectComments } from '../../features/comments/useProjectComments';
 import type { Id } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { usePresentation } from '../../presentation/usePresentation';
 
 const formatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const formatCount = (count: number | null) => count === null ? '—' : formatter.format(count);
@@ -21,12 +22,37 @@ export function ProjectHoverDetails({ summary, className = '', onOpen, href }: {
   onOpen?: (event: React.MouseEvent<HTMLElement>) => void;
   href?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const presentation = usePresentation();
+  useLayoutEffect(() => {
+    if (presentation !== 'mobile') return;
+    const text = containerRef.current?.querySelector<HTMLElement>('[data-project-hover-description]');
+    if (!text) return;
+    const updateEdges = () => {
+      const maximum = Math.max(0, text.scrollHeight - text.clientHeight);
+      const offset = Math.min(maximum, Math.max(0, text.scrollTop));
+      text.style.setProperty('--description-fade-top', offset > 1 ? '14px' : '0px');
+      text.style.setProperty('--description-fade-bottom', maximum - offset > 1 ? '14px' : '0px');
+    };
+    updateEdges();
+    const observer = new ResizeObserver(updateEdges);
+    observer.observe(text);
+    if (text.firstElementChild) observer.observe(text.firstElementChild);
+    text.addEventListener('scroll', updateEdges, { passive: true });
+    return () => {
+      observer.disconnect();
+      text.removeEventListener('scroll', updateEdges);
+      text.style.removeProperty('--description-fade-top');
+      text.style.removeProperty('--description-fade-bottom');
+    };
+  }, [presentation, summary, href]);
   const props = {
     'data-project-hover-description': '', onClick: onOpen,
     className: 'project-hover-scrollbar block h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-[1.45] text-[var(--accent-text)]',
   };
-  return <div className={`absolute inset-0 bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${className}`}>
-    {href ? <Link to={href} tabIndex={-1} {...props}>{summary}</Link> : <div {...props}>{summary}</div>}
+  const text = <span className="block">{summary}</span>;
+  return <div ref={containerRef} className={`absolute inset-0 bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${className}`}>
+    {href ? <Link to={href} tabIndex={-1} {...props}>{text}</Link> : <div {...props}>{text}</div>}
   </div>;
 }
 
