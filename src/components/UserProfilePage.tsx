@@ -324,7 +324,7 @@ function ProfileIdentityAndLinks({
   displayName: string;
   links: ProfileLink[];
   showLinks?: boolean;
-  summaryCounts?: { projectCount: number; portalCount: number; onSelect: (view: 'projects' | 'portals') => void; disabled: boolean };
+  summaryCounts?: { projectCount: number; portalCount: number; activeView: ProfileContentView; onSelect: (view: 'projects' | 'portals') => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
@@ -335,8 +335,8 @@ function ProfileIdentityAndLinks({
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
           {summaryCounts && <div className="profile-summary-counts mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[13px] leading-[1.3] text-[var(--text-secondary)]" aria-label="Profile summary">
-            <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('projects')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.projectCount}</span> {summaryCounts.projectCount === 1 ? 'project' : 'projects'}</button>
-            <button type="button" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('portals')} className="min-h-11 whitespace-nowrap text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.portalCount}</span> {summaryCounts.portalCount === 1 ? 'portal' : 'portals'}</button>
+            <button type="button" aria-pressed={summaryCounts.activeView === 'projects'} aria-controls="profile-content" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('projects')} className="profile-count-control min-h-11 whitespace-nowrap text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.projectCount}</span> {summaryCounts.projectCount === 1 ? 'project' : 'projects'}</button>
+            <button type="button" aria-pressed={summaryCounts.activeView === 'portals'} aria-controls="profile-content" disabled={summaryCounts.disabled} onClick={() => summaryCounts.onSelect('portals')} className="profile-count-control min-h-11 whitespace-nowrap text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)] disabled:opacity-45"><span className="font-semibold tabular-nums">{summaryCounts.portalCount}</span> {summaryCounts.portalCount === 1 ? 'portal' : 'portals'}</button>
           </div>}
         </div>
       </div>
@@ -587,7 +587,7 @@ export function UserProfilePage({
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
       {!isSharedView && isMobile && <header className="mobile-profile-header">
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={!isMobileToolsOpen ? { projectCount, portalCount: profile.categories.length, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null } : undefined} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={!isMobileToolsOpen ? { projectCount, portalCount: profile.categories.length, activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null } : undefined} />
         {isReorderingProjects ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
@@ -598,9 +598,9 @@ export function UserProfilePage({
       </div>}
       {!isSharedView && (!isMobile || isMobileToolsOpen) && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          <ScreenBack><button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          {!isMobile && <ScreenBack><button type="button" onClick={onBack} aria-label="Go back" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
-            </button></ScreenBack>
+            </button></ScreenBack>}
           {/* Audience figures sit in the toolbar rather than the header below, so
              the header's fact area stays about the work itself. They read from
              the record — a profile carrying no figure shows none rather than a

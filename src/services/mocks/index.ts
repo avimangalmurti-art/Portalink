@@ -174,6 +174,7 @@ export const mockProfileService: ProfileService = {
       handle: `@${handle}`,
       headline: input.headline?.trim() ?? '',
       location: input.location?.trim() ?? '',
+      isPrivate: input.isPrivate === true,
       initials: deriveInitials(input.name),
       // No storage backend exists, so the chosen file is never given a URL.
       avatar: '',

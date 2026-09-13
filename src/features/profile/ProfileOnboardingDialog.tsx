@@ -6,6 +6,8 @@ import { readRegistrationAvatar, removeRegistrationAvatar } from '../auth/regist
 import { DEFAULT_PUBLIC_APPEARANCE } from '../../utils/publicAppearance';
 import type { PreparedAvatar } from '../../types/profile';
 import { ProfileField } from '../../components/profile/ProfileField';
+import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
+import { usePresentation } from '../../presentation/usePresentation';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { Button } from '../../components/ui/Button';
 import { useAvatarSelection, useCreateProfile } from './useProfileOnboarding';
@@ -39,6 +41,7 @@ export function ProfileOnboardingDialog({
   onReduceTranslucencyChange
 }: ProfileOnboardingDialogProps) {
   const auth = useAuth();
+  const isMobile = usePresentation() === 'mobile';
   const registration = useRef(auth.user?.registration).current;
   const [draftLoading, setDraftLoading] = useState(Boolean(registration));
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
@@ -50,8 +53,9 @@ export function ProfileOnboardingDialog({
   const selectAvatar = avatar.select;
   const [name, setName] = useState(registration?.name ?? '');
   const [location, setLocation] = useState(registration?.location ?? '');
+  const [isPrivate, setIsPrivate] = useState(registration?.isPrivate === true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-  const isDirty = Boolean(name || location || avatar.avatar);
+  const isDirty = Boolean(name || location || isPrivate || avatar.avatar);
   const isSubmittingRef = useRef(false);
   const createRef = useRef(create.run);
   createRef.current = create.run;
@@ -78,6 +82,7 @@ export function ProfileOnboardingDialog({
       autoStarted.current = true;
       setDraftLoading(false);
       await createRef.current({ name: registration.name, location: registration.location,
+        isPrivate: registration.isPrivate === true,
         avatar: pending, creationKey: registration.id,
         publicAppearance: { ...DEFAULT_PUBLIC_APPEARANCE, accentColor: registration.accentColor } });
     };
@@ -124,6 +129,7 @@ export function ProfileOnboardingDialog({
       await create.run({
         name,
         location: location.trim() || undefined,
+        isPrivate,
         avatar: avatar.avatar ?? undefined,
         creationKey: registration?.id,
         publicAppearance: { ...DEFAULT_PUBLIC_APPEARANCE, accentColor }
@@ -181,6 +187,8 @@ export function ProfileOnboardingDialog({
               location: null
             }));
           }} />
+
+              {isMobile && <ProfileVisibilityField id="onboarding-visibility" isPrivate={isPrivate} onChange={setIsPrivate} disabled={isSubmitting} />}
 
               <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting} disabled={!canSubmit}>
                 {isSubmitting ? 'Finishing setup…' : 'Finish setup'}

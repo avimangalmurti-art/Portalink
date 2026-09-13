@@ -56,6 +56,8 @@ export type CreateProfileInput = {
   handle?: string;
   headline?: string;
   location?: string;
+  /** Initial visibility; older callers keep the existing public default. */
+  isPrivate?: boolean;
   /** Transient; the transport for this is not implemented in the prototype. */
   avatar?: PreparedAvatar;
   /** Stable registration key for retry-safe initial avatar uploads. */

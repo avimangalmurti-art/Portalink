@@ -576,6 +576,7 @@ export const supabaseProfileService: ProfileService = {
           headline: input.headline?.trim() ?? '',
           location: input.location?.trim() ?? '',
           avatar_url: avatarUrl,
+          is_private: input.isPrivate === true,
           ...(input.publicAppearance ? { public_appearance: normalizePublicAppearance(input.publicAppearance) } : {}),
         })
         .select('id')

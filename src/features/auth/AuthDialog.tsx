@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { ProfileField } from '../../components/profile/ProfileField';
+import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
 import { useAvatarSelection } from '../profile/useProfileOnboarding';
 import { validateProfileName, validateLocation, NAME_MAX_LENGTH, LOCATION_MAX_LENGTH } from '../profile/validation';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
@@ -154,6 +155,7 @@ function SignInForm(props: FormProps) {
 }
 function SignUpForm(props: FormProps & { accentColor: string }) {
   const { firstFieldRef } = props;
+  const isMobile = usePresentation() === 'mobile';
   const auth = useAuth();
   const signUp = useSignUp();
   const avatar = useAvatarSelection();
@@ -161,12 +163,13 @@ function SignUpForm(props: FormProps & { accentColor: string }) {
   const submittingRef = useRef(false);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [email, setEmail] = useState(auth.rememberedEmail);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
 
-  useFormActivity(signUp.isLoading, props, !signUp.result && Boolean(name || location || avatar.avatar || password));
+  useFormActivity(signUp.isLoading, props, !signUp.result && Boolean(name || location || isPrivate || avatar.avatar || password));
 
   // Confirmation and an immediate session are distinct provider outcomes.
   if (signUp.result) {
@@ -194,7 +197,7 @@ function SignUpForm(props: FormProps & { accentColor: string }) {
     submittingRef.current = true;
     try {
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), location: location.trim(), accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar) }, avatar.avatar);
+        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar) }, avatar.avatar);
     } finally { submittingRef.current = false; }
   }
   return <form onSubmit={submit} noValidate className="flex flex-col gap-4">
@@ -202,6 +205,7 @@ function SignUpForm(props: FormProps & { accentColor: string }) {
       <AvatarPicker presentation="featured" labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
       <ProfileField id="auth-signup-name" label="Profile name" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
       <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
+      {isMobile && <ProfileVisibilityField id="auth-signup-visibility" isPrivate={isPrivate} onChange={setIsPrivate} disabled={signUp.isLoading} />}
       <AuthField ref={firstFieldRef} id="auth-signup-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={signUp.isLoading} onChange={(value) => {
       setEmail(value);
       auth.rememberEmail(value);

@@ -70,6 +70,15 @@ test('automatic handle collision retries use a new handle and upload the avatar 
   assert.notEqual(h.inserts[0].handle, h.inserts[1].handle);
   assert.equal(h.uploads(), 1);
 });
+
+test('visibility is written on the initial insert and retained during handle retries', async () => {
+  for (const isPrivate of [undefined, false, true]) {
+    const h = creationService([{ code: '23505', message: 'duplicate key violates profiles_handle_key' }]);
+    await h.service.createProfile('account', { name: 'Creator', isPrivate });
+    assert.equal(h.inserts.length, 2);
+    for (const row of h.inserts) assert.equal(row.is_private, isPrivate === true);
+  }
+});
 test('explicit handles/headlines survive and duplicate accounts are not retried as handle collisions', async () => {
   const h = creationService();
   await h.service.createProfile('account', { name: 'Avi', handle: '@existing', headline: 'Existing headline' });
@@ -112,6 +121,7 @@ function component(file, name, props, overrides = {}) {
     if (dependency.endsWith('/validation')) return validation;
     if (dependency.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (dependency.endsWith('/useProfileOnboarding')) return overrides;
+    if (dependency.endsWith('/usePresentation')) return { usePresentation: () => overrides.presentation ?? 'web' };
     if (dependency.endsWith('/imageMetadata')) return { imageDimensionsLabel: () => '', imageResolutionNotice: () => null };
     return new Proxy({}, { get: (_, key) => key });
   } });
@@ -121,8 +131,10 @@ function nodes(tree) { return !tree || typeof tree !== 'object' ? [] : [tree, ..
 const find = (tree, predicate) => nodes(tree).find(predicate);
 
 test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
+  for (const presentation of ['web', 'mobile']) {
   let submitted;
   const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete() {} }, {
+    presentation,
     useAvatarSelection: () => ({ avatar: null, error: null, select() {}, clear() {} }),
     useCreateProfile: () => ({ status: 'idle', isLoading: false, run: async (input) => { submitted = input; } }),
   });
@@ -135,12 +147,17 @@ test('setup exposes large image selection, name and location and submits without
   assert.equal(submitted, undefined);
   fields[0].props.onChange('Avi');
   fields[1].props.onChange('San Francisco');
+  const visibility = find(tree, node => node.type === 'ProfileVisibilityField');
+  assert.equal(Boolean(visibility), presentation === 'mobile');
+  visibility?.props.onChange(true);
   tree = render();
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted.name, 'Avi');
   assert.equal(submitted.location, 'San Francisco');
+  assert.equal(submitted.isPrivate, presentation === 'mobile');
   assert.equal('handle' in submitted, false);
   assert.equal('headline' in submitted, false);
+  }
 });
 test('featured image selection keeps replace, remove and crop save while compact editing remains 40px', () => {
   const selections = [];

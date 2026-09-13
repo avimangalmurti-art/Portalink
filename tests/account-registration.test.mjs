@@ -28,7 +28,12 @@ test('registration metadata is normalized and never becomes an ownership or veri
   assert.equal(value.accountId, undefined);
   assert.equal(value.profileId, undefined);
   assert.equal(value.isEmailVerified, undefined);
-  for (const change of [{version: 2}, {id: 'bad'}, {name: ''}, {location: 8}, {accentColor: 'url(unsafe)'}, {hasAvatar: 'yes'}]) {
+  assert.equal(value.isPrivate, false, 'Older registration drafts retain their Public default.');
+  for (const isPrivate of [false, true]) {
+    const saved = registration.readRegistrationProfile(JSON.parse(JSON.stringify({ ...draft, isPrivate })));
+    assert.equal(saved.isPrivate, isPrivate);
+  }
+  for (const change of [{version: 2}, {id: 'bad'}, {name: ''}, {location: 8}, {accentColor: 'url(unsafe)'}, {hasAvatar: 'yes'}, {isPrivate: 'false'}, {isPrivate: null}]) {
     assert.equal(registration.readRegistrationProfile({ ...draft, ...change }), undefined);
   }
 });
@@ -150,18 +155,25 @@ test('profile linking and refresh cannot commit a stale account into the provide
 });
 
 test('one registration form validates account and profile fields before the single submission', async () => {
+  for (const presentation of ['web', 'mobile']) {
   const hooks = hookRuntime(); const submitted = [];
   const mock = {isLoading: false, result: null, error: null, submit: async (...args) => submitted.push(args)};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': {}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}})},
     '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
+    '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
+    '../../presentation/usePresentation': {usePresentation: () => presentation},
     '../profile/useProfileOnboarding': {useAvatarSelection: () => ({avatar: null, error: null})}, '../profile/validation': validation,
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': {useSignUp: () => mock}, './validation': load('src/features/auth/validation.ts'),
   });
   const render = () => hooks.render(() => SignUpForm({accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   let tree = render();
+  const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
+  assert.equal(Boolean(visibility), presentation === 'mobile');
+  visibility?.props.onChange(true);
+  tree = render();
   await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
   for (const [key, value] of [['name', 'Creator'], ['location', 'City'], ['email', 'example@example.test'], ['password', 'test-password'], ['confirmation', 'different']]) {
     nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
@@ -173,6 +185,8 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(submitted[0][2].name, 'Creator');
   assert.equal(submitted[0][2].location, 'City');
   assert.equal(submitted[0][2].accentColor, '#0A84FF');
+  assert.equal(submitted[0][2].isPrivate, presentation === 'mobile');
+  }
 });
 
 test('email confirmation completes the saved profile once; a missing image asks for selection instead', async () => {
@@ -182,11 +196,13 @@ test('email confirmation completes the saved profile once; a missing image asks 
     const select = () => {};
     const create = {status: 'idle', isLoading: false, createdProfile: null, async run(input) {submissions.push(input);}};
     const {ProfileOnboardingDialog} = load('src/features/profile/ProfileOnboardingDialog.tsx', {
-      react: hooks.react, 'lucide-react': {}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, hasAvatar: mode !== 'no-image'}}})},
+      react: hooks.react, 'lucide-react': {}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, hasAvatar: mode !== 'no-image'}}})},
       '../../components/auth/AccountWelcomeSurface': {AccountWelcomeSurface: 'Surface'},
       '../auth/registration': {readRegistrationAvatar: async () => mode === 'image' ? {file: image, originalSource: image, crop: {zoom: 2}} : null, removeRegistrationAvatar: async key => cleaned.push(key)},
       '../../utils/publicAppearance': {DEFAULT_PUBLIC_APPEARANCE: {accentColor: '#0A84FF', mode: 'auto', systemGray: 'gray6'}},
       '../../components/profile/ProfileField': {ProfileField: 'ProfileField'}, '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/ui/Button': {Button: 'Button'},
+      '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
+      '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' ? 'mobile' : 'web'},
       './useProfileOnboarding': {useAvatarSelection: () => ({select, avatar: null, error: null}), useCreateProfile: () => create}, './validation': validation,
     });
     const props = {isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete: id => completed.push(id)};
@@ -196,6 +212,7 @@ test('email confirmation completes the saved profile once; a missing image asks 
     if (mode !== 'missing') {
       assert.equal(submissions[0].name, draft.name);
       assert.equal(submissions[0].creationKey, id);
+      assert.equal(submissions[0].isPrivate, true, 'Email confirmation retains the mobile selection even on desktop.');
       if (mode === 'image') { assert.equal(submissions[0].avatar.file, image); assert.equal(submissions[0].avatar.crop.zoom, 2); }
       create.status = 'success'; create.createdProfile = {id: 'created'};
       render(); await tick(); render();
@@ -205,6 +222,11 @@ test('email confirmation completes the saved profile once; a missing image asks 
       assert.equal(tree.props.busy, false);
       assert.equal(JSON.stringify(tree).includes('Choose your profile image again'), true);
       assert.equal(JSON.stringify(tree).includes(draft.name), true);
+      const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
+      const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
+      assert.equal(visibility.props.isPrivate, true);
+      await nodes(tree).find(node => node.type === 'form').props.onSubmit({preventDefault() {}});
+      assert.equal(submissions[0].isPrivate, true, 'Retrying without the saved image preserves privacy.');
     }
   }
 });

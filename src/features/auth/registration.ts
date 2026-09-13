@@ -9,6 +9,8 @@ export type RegistrationProfile = {
   id: string;
   name: string;
   location: string;
+  /** Omitted by older drafts, which retain the existing public default. */
+  isPrivate?: boolean;
   accentColor: string;
   hasAvatar: boolean;
 };
@@ -20,8 +22,9 @@ export function readRegistrationProfile(value: unknown): RegistrationProfile | u
     || typeof data.name !== 'string' || validateProfileName(data.name)
     || typeof data.location !== 'string' || validateLocation(data.location)
     || typeof data.accentColor !== 'string' || !/^#[a-f0-9]{6}$/i.test(data.accentColor)
-    || typeof data.hasAvatar !== 'boolean') return;
-  return { version: 1, id: data.id, name: data.name.trim(), location: data.location.trim(), accentColor: data.accentColor, hasAvatar: data.hasAvatar };
+    || typeof data.hasAvatar !== 'boolean'
+    || (data.isPrivate !== undefined && typeof data.isPrivate !== 'boolean')) return;
+  return { version: 1, id: data.id, name: data.name.trim(), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, hasAvatar: data.hasAvatar };
 }
 
 export function canResumeRegistration(session: AuthSession | null, view: string | null): boolean {
