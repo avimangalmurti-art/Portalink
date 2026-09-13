@@ -17,6 +17,8 @@ function harness(mobile = true, capability = { isAvailable: true, removes: ['Emp
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/CategoryOptionsMenu.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, document: { body: {}, addEventListener() {}, removeEventListener() {} }, window: { innerHeight: 800 }, require(name) {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: child => child };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });

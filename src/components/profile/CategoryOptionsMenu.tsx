@@ -1,3 +1,5 @@
+import { useMenuFocus } from '../../hooks/useMenuFocus';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { EyeIcon, EyeOffIcon, Loader2Icon, MoreHorizontalIcon, PencilIcon, ShapesIcon, Trash2Icon } from 'lucide-react';
@@ -7,7 +9,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { usePresentation } from '../../presentation/usePresentation';
 
 /** Shared owner menu; mobile exposes its trigger without requiring hover. */
-export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete }: {
+export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete, onMoveUp, onMoveDown }: {
   category: PortfolioCategory;
   accentColor: string;
   theme: 'light' | 'dark';
@@ -20,6 +22,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
   onRenameStart?: () => void;
   onChangeIcon?: () => void;
   onDelete?: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
   const presentation = usePresentation();
   // What deleting this category actually does, answered by the service rather
@@ -34,6 +38,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
   });
   // Deleting is destructive and unrecoverable, so it confirms in place.
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const menuFocus = useMenuFocus({ open: isMenuOpen, menuRef, triggerRef, mode: isConfirmingDelete ? 'dialog' : 'menu', onOpen: () => setIsMenuOpen(true), onClose: () => setIsMenuOpen(false) });
+  useModalFocus(isMenuOpen && isConfirmingDelete, menuRef, () => setIsConfirmingDelete(false));
   useEffect(() => {
     if (!isMenuOpen) {
       setIsConfirmingDelete(false);
@@ -87,37 +93,16 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
       left: Math.max(8, rect.right - (mobile ? 224 : 164))
     });
   }, [isMenuOpen, isConfirmingDelete, capability, mobile]);
-  useEffect(() => {
-    if (!isMenuOpen) {
-      return undefined;
-    }
-    function closeOnOutsideTap(event: PointerEvent) {
-      const target = event.target as Node;
-      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) {
-        setIsMenuOpen(false);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsMenuOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', closeOnOutsideTap);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideTap);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isMenuOpen]);
+
   return <div className={`${mobile ? 'mobile-portal-options flex shrink-0 items-center' : 'absolute inset-y-0 right-2 flex items-center'} transition-opacity duration-150 ease-out motion-reduce:transition-none ${mobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
           <button type="button" data-static-icon="" disabled={disabled || isBusy} aria-label={`Options for ${category.label}`} aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={(event) => {
         event.stopPropagation();
         setIsMenuOpen((open) => !open);
-      }} ref={triggerRef} data-row-menu="" className={`${mobile ? 'h-11 w-11' : 'h-6 w-6'} flex items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40`}>
+      }} ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} data-row-menu="" className={`${mobile ? 'h-11 w-11' : 'h-6 w-6'} flex items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40`}>
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
 
-          {isMenuOpen && createPortal(<div ref={menuRef} data-presentation={presentation} data-mobile-portal-menu={mobile ? '' : undefined} role="menu" aria-label={`${category.label} options`} style={{
+          {isMenuOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" data-mobile-portal-menu={mobile ? '' : undefined} role={isConfirmingDelete ? 'alertdialog' : 'menu'} aria-modal={isConfirmingDelete || undefined} aria-describedby={isConfirmingDelete ? `delete-portal-${category.id}-description` : undefined} aria-label={isConfirmingDelete ? `Delete ${category.label}` : `${category.label} options`} style={{
         ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: mobile ? `max(env(safe-area-inset-top, 0px), ${menuPosition.top}px)` : menuPosition.top,
@@ -134,12 +119,12 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
                   <p className="m-0 text-[12px] font-semibold leading-snug text-[var(--text-primary)]">Delete “{category.label}”?</p>
                   {/* Consequences come from the service, so this never promises an
                outcome the store would not actually perform. */}
-                  {!capability ? <p className="mt-1 flex items-center gap-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
+                  <div id={`delete-portal-${category.id}-description`}>{!capability ? <p className="mt-1 flex items-center gap-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
                       <Loader2Icon className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
                       Checking what this removes…
                     </p> : capability.isAvailable ? <ul className="m-0 mt-1 list-none space-y-0.5 p-0 text-[11px] leading-snug text-[var(--text-secondary)]">
                       {capability.removes.map((line) => <li key={line}>{line}</li>)}
-                    </ul> : <p role="alert" className="mt-1 text-[11px] leading-snug text-[var(--text-secondary)]">{capability.reason}</p>}
+                    </ul> : <p role="alert" className="mt-1 text-[11px] leading-snug text-[var(--text-secondary)]">{capability.reason}</p>}</div>
                   <div className="mt-2.5 flex items-center gap-1.5">
                     <button type="button" onClick={() => setIsConfirmingDelete(false)} style={mobile ? { minHeight: 44 } : undefined} className="dialog-action-button h-7 flex-1 rounded-[7px] border border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                       {capability && !capability.isAvailable ? 'Close' : 'Cancel'}
@@ -156,6 +141,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
                     </button>}
                   </div>
                 </div> : <>
+              {[[onMoveUp, 'Move up'], [onMoveDown, 'Move down']].map(([action, label]) => typeof action === 'function' && <button key={String(label)} type="button" role="menuitem" disabled={disabled || isBusy} onClick={() => { setIsMenuOpen(false); action(); }} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{String(label)}</button>)}
               <button type="button" role="menuitem" disabled={disabled || isBusy} style={mobile ? { minHeight: 44 } : undefined} onClick={() => {
             setIsMenuOpen(false);
             onHideToggle?.();

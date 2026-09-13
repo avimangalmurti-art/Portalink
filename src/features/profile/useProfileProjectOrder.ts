@@ -1,3 +1,4 @@
+import { membershipSignature, useSavedChangeHistory, type HistoryWriteMode } from '../../hooks/useSavedChangeHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import type { Id, Project } from '../../types/domain';
@@ -16,9 +17,12 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
   const [order, setOrder] = useState<Id[]>(canonicalIds);
   const orderRef = useRef<Id[]>(canonicalIds);
   const committedOrderRef = useRef<Id[]>(canonicalIds);
-  const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const retryOrderRef = useRef<Id[] | null>(null);
+  const retryOrderRef = useRef<{ order: Id[]; mode: HistoryWriteMode } | null>(null);
+  const historyState = useSavedChangeHistory<Id[]>({ scope: profileId && isOwner ? `profile:${profileId}` : null,
+    membership: membershipSignature(canonicalIds), value: committedOrderRef.current,
+    equals: (a, b) => a.join(',') === b.join(',') });
+  const { begin, complete, finish, isCurrent, replay, isSaving } = historyState;
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -68,30 +72,25 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
     applyOrder(next);
   }, [applyOrder, isOwner, isSaving]);
 
-  const save = useCallback(async (next: Id[]): Promise<boolean> => {
+  const save = useCallback(async (next: Id[], mode: HistoryWriteMode = 'change'): Promise<boolean> => {
     if (!profileId || !isOwner) return false;
-    const previous = committedOrderRef.current;
-    setIsSaving(true);
-    setSaveError(null);
-    retryOrderRef.current = null;
+    const operation = begin(mode);
+    if (!operation) return false;
+    const previous = [...committedOrderRef.current];
+    const snapshot = [...next];
+    setSaveError(null); retryOrderRef.current = null;
     try {
-      await projectService.saveProfileProjectOrder(profileId, next);
-      if (!isMountedRef.current) return false;
-      committedOrderRef.current = next;
-      orderRef.current = next;
-      setOrder(next);
+      await projectService.saveProfileProjectOrder(profileId, snapshot);
+      if (!isCurrent(operation)) return false;
+      complete(operation, previous, snapshot, 'Reorder projects');
+      committedOrderRef.current = snapshot; orderRef.current = snapshot; setOrder(snapshot);
       return true;
     } catch (error) {
-      if (!isMountedRef.current) return false;
-      orderRef.current = previous;
-      setOrder(previous);
-      setSaveError(messageFor(error));
-      retryOrderRef.current = next;
-      return false;
-    } finally {
-      if (isMountedRef.current) setIsSaving(false);
-    }
-  }, [isOwner, profileId, projectService]);
+      if (!isCurrent(operation)) return false;
+      orderRef.current = previous; setOrder(previous); setSaveError(messageFor(error));
+      retryOrderRef.current = { order: snapshot, mode }; return false;
+    } finally { finish(operation); }
+  }, [begin, complete, finish, isCurrent, isOwner, profileId, projectService]);
 
   const commit = useCallback(() => {
     const next = orderRef.current;
@@ -107,10 +106,16 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
 
   const retry = useCallback(() => {
     const next = retryOrderRef.current;
-    return next ? save(next) : Promise.resolve(false);
+    return next ? save(next.order, next.mode) : Promise.resolve(false);
   }, [save]);
 
+  const undo = useCallback(() => replay('undo', save), [replay, save]);
+  const redo = useCallback(() => replay('redo', save), [replay, save]);
+  const history = useMemo(() => ({ canUndo: historyState.canUndo, canRedo: historyState.canRedo,
+    undoLabel: historyState.undoLabel, redoLabel: historyState.redoLabel, isSaving, undo, redo }),
+    [historyState.canUndo, historyState.canRedo, historyState.undoLabel, historyState.redoLabel, isSaving, undo, redo]);
   return useMemo(() => ({
+    history,
     order,
     isSaving,
     saveError,
@@ -121,5 +126,5 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
     reset,
     retry,
     dismissError: () => setSaveError(null),
-  }), [order, isSaving, saveError, move, moveByOffset, commit, reset, retry]);
+  }), [history, order, isSaving, saveError, move, moveByOffset, commit, reset, retry]);
 }

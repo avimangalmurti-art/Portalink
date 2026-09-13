@@ -24,6 +24,12 @@ function nodes(tree) {
 function serviceHarness(owner = 'owner', failure = null) {
   const calls = [];
   const client = {
+    async rpc(name, args) {
+      assert.equal(name, 'profile_identities');
+      assert.deepEqual(Array.from(args.p_profile_ids), ['person']);
+      calls.push({ rpc: name, args });
+      return { data: [{ id: 'person', name: 'Person Name', handle: 'person', avatar_url: 'avatar.jpg' }], error: null };
+    },
     auth: { getUser: async () => ({ data: { user: { id: 'account' } }, error: null }) },
     from(table) {
       const operations = [];
@@ -32,7 +38,7 @@ function serviceHarness(owner = 'owner', failure = null) {
       query.maybeSingle = async () => ({ data: { id: owner }, error: null });
       query.then = (done) => {
         calls.push({ table, operations });
-        if (table === 'profiles') return Promise.resolve({ data: [{ id: 'person', name: 'Person Name', avatar_url: 'avatar.jpg' }], error: null }).then(done);
+        if (table === 'profiles') throw new Error('Identity hydration must use profile_identities');
         const column = operations.find(([method]) => method === 'select')[1];
         return Promise.resolve({ data: [{ [column]: 'person' }], count: 56, error: failure }).then(done);
       };
@@ -84,6 +90,8 @@ function hookHarness() {
   };
   const social = { listProfileConnections: (...args) => new Promise((resolve, reject) => pending.push({ args, resolve, reject })) };
   const { useProfileConnections } = compile('../src/features/follows/useProfileConnections.ts', (name) => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: accountId } }) };
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({ social }) };
@@ -134,6 +142,8 @@ test('pagination blocks duplicate requests, preserves loaded people on failure, 
 
 test('collection tiles navigate to real portals/profiles and keep labels outside the squircle', () => {
   const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', (name) => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return React;
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'camera-icon' };
@@ -162,6 +172,8 @@ function profileHarness(search = '', options = {}) {
     useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
     useEffect() {}, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
@@ -352,6 +364,8 @@ test('mobile profile count navigation always targets the viewed profile', () => 
 
 test('workspace keeps one child position and only MOBILE displays the profile frame', () => {
   const { MobileProfileWorkspace } = compile('../src/presentation/mobile/MobileProfileWorkspace.tsx', name => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return React;
     return {};
   });

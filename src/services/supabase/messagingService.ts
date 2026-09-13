@@ -139,7 +139,7 @@ async function readConversationSummaries(options: { conversationId?: string; con
   const otherIds = rows.map((row) => row.participant_one_profile_id === viewerId ? row.participant_two_profile_id : row.participant_one_profile_id).filter((id): id is string => id !== null);
   const conversationIds = rows.map((row) => row.id);
   const [profilesResult, readsResult, statesResult, blocksResult, summariesResult] = await Promise.all([
-    otherIds.length ? requireSupabase().from('profiles').select('id,name,handle,avatar_url').in('id', otherIds) : Promise.resolve({ data: [], error: null }),
+    otherIds.length ? requireSupabase().rpc('profile_identities', { p_profile_ids: otherIds }) : Promise.resolve({ data: [], error: null }),
     requireSupabase().from('direct_conversation_reads').select('conversation_id,profile_id,last_read_at').in('conversation_id', conversationIds),
     requireSupabase().from('direct_conversation_states').select('conversation_id,is_muted,archived_at').eq('profile_id', viewerId).in('conversation_id', conversationIds),
     otherIds.length ? requireSupabase().from('direct_message_blocks').select('blocked_profile_id').eq('blocker_profile_id', viewerId).in('blocked_profile_id', otherIds) : Promise.resolve({ data: [], error: null }),
@@ -191,6 +191,26 @@ async function readConversationSummaries(options: { conversationId?: string; con
 }
 
 export const supabaseMessagingService: MessagingService = {
+  async listBlockedPeople() {
+    const viewerId = await viewerProfileId();
+    const { data, error } = await requireSupabase().from('direct_message_blocks')
+      .select('blocked_profile_id').eq('blocker_profile_id', viewerId).order('created_at', { ascending: false });
+    if (error) throw publicMessageError(error, 'Blocked people could not be loaded.');
+    const ids = ((data ?? []) as Array<{ blocked_profile_id: string }>).map(row => row.blocked_profile_id);
+    if (!ids.length) return [];
+    const result = await requireSupabase().rpc('profile_identities', { p_profile_ids: ids });
+    // Missing identity must not hide a block or make it impossible to remove.
+    const people = new Map(((result.data ?? []) as Array<{ id: string; name: string; handle: string; avatar_url: string }>).map(person => [person.id, person]));
+    return ids.map(id => ({ id, name: people.get(id)?.name ?? 'Blocked person', handle: people.get(id)?.handle ?? '', avatar: people.get(id)?.avatar_url ?? '' }));
+  },
+
+  async unblockParticipant(otherProfileId) {
+    const viewerId = await viewerProfileId();
+    const { error } = await requireSupabase().from('direct_message_blocks').delete()
+      .eq('blocker_profile_id', viewerId).eq('blocked_profile_id', otherProfileId);
+    if (error) throw publicMessageError(error, 'This person could not be unblocked. Try again.');
+  },
+
   async listConversations(options = {}) {
     return readConversationSummaries(options);
   },
@@ -250,7 +270,7 @@ export const supabaseMessagingService: MessagingService = {
     if (!term) return (await readConversationSummaries({ limit })).conversations;
     const client = requireSupabase();
     const [profilesResult, messagesResult] = await Promise.all([
-      client.from('profiles').select('id').or(`name.ilike.%${term}%,handle.ilike.%${term}%`).limit(limit * 2),
+      client.rpc('search_message_identities', { p_query: term, p_limit: limit * 2, p_offset: 0, p_conversations_only: true }),
       client.from('direct_messages').select('conversation_id').ilike('body', `%${term}%`).order('created_at', { ascending: false }).limit(limit * 3),
     ]);
     if (profilesResult.error) throw publicMessageError(profilesResult.error, 'Conversations could not be searched.');
@@ -269,30 +289,19 @@ export const supabaseMessagingService: MessagingService = {
   },
 
   async searchRecipients(search, options = {}) {
-    const viewerId = await viewerProfileId();
+    await viewerProfileId();
     const term = search.trim().replace(/[^\p{L}\p{N}\s_.-]/gu, ' ').replace(/\s+/g, ' ').slice(0, 80).trim();
     if (search.trim() && !term) return [];
     const offset = Math.max(0, options.offset ?? 0);
     const limit = Math.min(50, Math.max(1, options.limit ?? 30));
-    const client = requireSupabase();
-    const recipients = term
-      ? client.from('profiles').select('id,name,handle,avatar_url')
-      : client.from('profiles')
-        .select('id,name,handle,avatar_url,following:profile_follows!profile_follows_target_profile_id_fkey!inner(target_profile_id)')
-        .eq('following.follower_profile_id', viewerId).eq('following.status', 'following');
-    let query = recipients
-      .neq('id', viewerId)
-      .order('name', { ascending: true })
-      .order('id', { ascending: true })
-      .range(offset, offset + limit - 1);
-    if (term) query = query.or(`name.ilike.%${term}%,handle.ilike.%${term}%`);
-    const { data, error } = await query;
+    // Empty search remains accepted followings only; the RPC scopes identities
+    // before pagination without granting access to private portfolio content.
+    const { data, error } = await requireSupabase().rpc('search_message_identities', {
+      p_query: term, p_limit: limit, p_offset: offset, p_conversations_only: false,
+    });
     if (error) throw publicMessageError(error, 'Creators could not be searched.');
     return ((data ?? []) as Array<{ id: string; name: string; handle: string; avatar_url: string }>).map((profile) => ({
-      id: profile.id,
-      name: profile.name,
-      handle: `@${profile.handle}`,
-      avatar: profile.avatar_url,
+      id: profile.id, name: profile.name, handle: `@${profile.handle}`, avatar: profile.avatar_url,
     }));
   },
 

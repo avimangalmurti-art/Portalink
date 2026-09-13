@@ -357,7 +357,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener[aria-expanded='true'] svg {
-  transform: rotate(45deg);
+  transform: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-profile[aria-current='page'] {
@@ -1088,40 +1088,44 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .profile-identity-main h1 {
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.2;
   white-space: normal;
   overflow-wrap: anywhere;
 }
 
 #root .codex-shell[data-presentation='mobile'] .profile-identity-main p {
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.3;
   white-space: normal;
 }
 
-/* Keep compact identity text within the avatar's 76px vertical span. */
+/* Keep normal identity aligned to the avatar; allow larger text to reflow. */
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-copy {
-  height: 76px;
+  min-height: 76px;
+  height: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-identity-copy :is(h1, p) {
-  white-space: nowrap;
-  overflow-wrap: normal;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-summary-counts {
-  height: 32px;
+  height: auto;
   min-height: 32px;
-  flex-wrap: nowrap;
+  font-size: 0.8125rem;
+  flex-wrap: wrap;
   align-items: center;
 }
 
 /* The 44px tap areas extend into empty space around the shorter visual row. */
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-header .profile-summary-counts > button {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {

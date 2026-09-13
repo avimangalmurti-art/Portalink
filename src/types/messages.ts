@@ -1,5 +1,7 @@
 import type { Id } from './domain';
 
+export type BlockedPerson = { id: Id; name: string; handle: string; avatar: string };
+
 export type MessageParticipant = {
   id: Id | null;
   isDeleted?: boolean;

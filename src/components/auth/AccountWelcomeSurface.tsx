@@ -1,3 +1,4 @@
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeftIcon, XIcon, CheckIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
@@ -84,8 +85,8 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
           <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
         </header>
         {showAppearance && <div className="account-welcome-appearance mb-5">
-          <div role="radiogroup" aria-label="Accent color" className="account-welcome-colors">
-            {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} aria-label={option.label} title={option.label}
+          <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Accent color" className="account-welcome-colors">
+            {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} aria-label={option.label} title={option.label}
               disabled={busy} data-keep-color="" onClick={() => onAccentColorChange(option.dark)} className="account-welcome-swatch relative flex items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
               <span className="squircle absolute inset-0" style={{ backgroundColor: option.dark }} />
               {selected.id === option.id && <CheckIcon className="relative" size={18} aria-hidden="true" style={{ color: isLightSurface(option.dark) ? '#1c1c1e' : '#fff' }} />}
@@ -93,12 +94,12 @@ export function AccountWelcomeSurface({ title, accentColor, onAccentColorChange,
           </div>
           <div className="account-welcome-switches">
             <div className="account-welcome-switch-row">
-              <span>High Contrast</span>
-              <AppearanceSwitch label="High Contrast" isOn={highContrast} onToggle={() => onHighContrastChange(!highContrast)} />
+              <label htmlFor="welcome-high-contrast">High Contrast</label>
+              <AppearanceSwitch id="welcome-high-contrast" label="High Contrast" isOn={highContrast} onToggle={() => onHighContrastChange(!highContrast)} />
             </div>
             <div className="account-welcome-switch-row">
-              <span>Reduce Translucency</span>
-              <AppearanceSwitch label="Reduce Translucency" isOn={reduceTranslucency} onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)} />
+              <label htmlFor="welcome-reduce-translucency">Reduce Translucency</label>
+              <AppearanceSwitch id="welcome-reduce-translucency" label="Reduce Translucency" isOn={reduceTranslucency} onToggle={() => onReduceTranslucencyChange(!reduceTranslucency)} />
             </div>
           </div>
         </div>}

@@ -1,3 +1,4 @@
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { createPortal } from 'react-dom';
@@ -135,6 +136,8 @@ export function ProfileLinksEditor({
     return profileLinkIconOptions.filter((option) => `${option.label} ${option.name}`.toLowerCase().includes(normalized));
   }, [iconQuery]);
 
+  const tabbableIconName = filteredIconOptions.find(option => option.name === draftIconName)?.name ?? filteredIconOptions[0]?.name;
+
   function chooseIcon(option: ProfileLinkIconOption) {
     if (!selected) return;
     onChange(selected.id, {
@@ -222,11 +225,11 @@ export function ProfileLinksEditor({
               <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </label>
 
-            <div role="radiogroup" aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
+            <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
                 const isSelected = option.name === draftIconName;
-                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                   <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
                 </button>;
               })}

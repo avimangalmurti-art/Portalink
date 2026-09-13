@@ -1,3 +1,5 @@
+import { useMenuFocus } from '../hooks/useMenuFocus';
+import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
@@ -256,23 +258,11 @@ function ProfileProjectTile({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showCreator = usePresentation() !== 'mobile';
   const menuRef = useRef<HTMLSpanElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuFocus = useMenuFocus({ open: isMenuOpen, menuRef, triggerRef: menuTriggerRef, onOpen: () => setIsMenuOpen(true), onClose: () => setIsMenuOpen(false) });
   const hasOwnerActions = Boolean(onEditDescription || onEditProject || onRepositionPreview);
 
-  useEffect(() => {
-    if (!isMenuOpen) return undefined;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setIsMenuOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMenuOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isMenuOpen]);
+
 
   const runAction = (action: (() => void) | undefined) => {
     setIsMenuOpen(false);
@@ -286,11 +276,11 @@ function ProfileProjectTile({
       creatorHref={isSharedView ? buildPath('sharedProfile', { profileId: creator.id }) : buildPath('profile', { profileId: creator.id })}
       sizes="(min-width: 1100px) 24vw, (min-width: 700px) 33vw, 92vw"
       editor={descriptionEditor ? <ProfileDescriptionEditor projectTitle={project.title} editor={descriptionEditor} /> : undefined}
-        footerEnd={hasOwnerActions && !descriptionEditor ? <span ref={menuRef} className="relative inline-flex items-center">
-            <button type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
+        footerEnd={hasOwnerActions && !descriptionEditor ? <span className="relative inline-flex items-center">
+            <button ref={menuTriggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-borderless-control="" aria-label={`Edit ${project.title}`} title="Project options" aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={() => setIsMenuOpen((open) => !open)} className="shape-compact inline-flex h-5 w-6 items-center justify-center border-0 bg-transparent p-0 text-[var(--accent-text)] shadow-none focus:outline-none">
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />
             </button>
-            {isMenuOpen ? <span role="menu" aria-label={`Edit ${project.title}`} className="shape-compact absolute bottom-[calc(100%+6px)] right-0 z-40 flex w-48 flex-col overflow-hidden border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[var(--shadow-pop)]">
+            {isMenuOpen ? <span ref={menuRef} tabIndex={-1} role="menu" aria-label={`Edit ${project.title}`} className="shape-compact absolute bottom-[calc(100%+6px)] right-0 z-40 flex w-48 flex-col overflow-hidden border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[var(--shadow-pop)]">
                 {onRepositionPreview ? <button type="button" role="menuitem" onClick={() => runAction(onRepositionPreview)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={MoveIcon} size="sm" weight="medium" />
                     Reposition preview…
@@ -444,33 +434,15 @@ export function UserProfilePage({
   useEffect(() => setIsMobileToolsOpen(false), [profile.id]);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
+  const manageTriggerRef = useRef<HTMLButtonElement>(null);
+  useMenuFocus({ open: isManageOpen, menuRef: manageMenuRef, triggerRef: manageTriggerRef, mode: 'dialog', onOpen: () => setIsManageOpen(true), onClose: () => setIsManageOpen(false) });
   // A creator does not follow themselves, and a guest is told an account is
   // needed rather than shown a control that quietly fails.
   const showsFollow = viewerRole === 'visitor';
   const showsSignInToFollow = needsAccount(viewerRole);
   const displayName = profile.name;
   const profileLinks = useMemo(() => mergeProfileLinks(profile.links, profile.socialLinks), [profile.links, profile.socialLinks]);
-  useEffect(() => {
-    if (!isManageOpen) {
-      return;
-    }
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!manageMenuRef.current?.contains(event.target as Node)) {
-        setIsManageOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsManageOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isManageOpen]);
+
   // Read straight off the record, so the figure states how much work exists
   // rather than how many tiles happen to be rendered below it.
   const projectCount = profile.projects.length;
@@ -574,7 +546,7 @@ export function UserProfilePage({
   </div>;
   // Mobile keeps one body scroller beneath the pinned profile identity;
   // the display-contents wrapper preserves the desktop document flow.
-  return <div ref={profilePageRef} data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+  return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       <div className={isWebWorkspace ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
@@ -593,6 +565,7 @@ export function UserProfilePage({
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
         </div> : <button type="button" className="mobile-profile-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>}
+      {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {isMobile && isReorderingProjects && <div data-profile-reorder-controls="" className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">
         <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Drag to move. Tap outside the cards to save.'}</p>
       </div>}
@@ -697,18 +670,18 @@ export function UserProfilePage({
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className={isMobile ? 'sr-only' : undefined}>Edit profile</span>
               </button> : null}
-            {showsOwnerTools ? <div ref={manageMenuRef} className="relative">
-                <button type="button" onClick={() => setIsManageOpen((open) => !open)} aria-label="Manage profile" title={isMobile ? 'Manage profile' : undefined} aria-expanded={isManageOpen} aria-haspopup="menu" className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsOwnerTools ? <div className="relative">
+                <button ref={manageTriggerRef} type="button" onClick={() => setIsManageOpen((open) => !open)} aria-label="Manage profile" title={isMobile ? 'Manage profile' : undefined} aria-expanded={isManageOpen} aria-haspopup="dialog" className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={Settings2Icon} size="sm" weight="medium" />
                   <span className={isMobile ? 'sr-only' : undefined}>Manage</span>
                   {!isMobile && <InterfaceIcon icon={ChevronDownIcon} size="xs" weight="medium" className={`transition-transform duration-150 ${isManageOpen ? 'rotate-180' : ''}`} />}
                 </button>
-                {isManageOpen ? <div role="menu" aria-label="Profile management" className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-pop)]">
+                {isManageOpen ? <div ref={manageMenuRef} tabIndex={-1} role="dialog" aria-label="Profile management" className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-pop)]">
                     {!(isMobile && mobileContent) && <><div className="flex min-h-10 items-center gap-3 rounded-[8px] px-2.5">
                       <label htmlFor="profile-view-density" className="min-w-0 flex-1 text-[12px] font-medium text-[var(--text-primary)]">View density</label>
                       <input id="profile-view-density" type="range" min={MIN_COLUMNS} max={MAX_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => setColumnsPerRow(writeProfileDensity(Number(event.target.value)))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
                     </div>
-                    <button type="button" role="menuitem" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
+                    <button type="button" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
                   projectOrder.reset();
                   setActiveView('projects');
                   setIsReorderingProjects(true);
@@ -717,7 +690,7 @@ export function UserProfilePage({
                       <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
                       Reorder projects
                     </button></>}
-                    <button type="button" role="menuitem" onClick={visibility.onToggle} disabled={visibility.isPending} aria-pressed={visibility.isPrivate} aria-busy={visibility.isPending || undefined} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
+                    <button type="button" onClick={visibility.onToggle} disabled={visibility.isPending} aria-pressed={visibility.isPrivate} aria-busy={visibility.isPending || undefined} className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                       <InterfaceIcon icon={LockIcon} size="sm" weight="medium" />
                       <span className="min-w-0 flex-1">Account visibility</span>
                       <span className="text-[11px] text-[var(--text-secondary)]">{visibility.isPending ? 'Working…' : visibility.isPrivate ? 'Private' : 'Public'}</span>
@@ -725,7 +698,7 @@ export function UserProfilePage({
                     {visibility.error ? <p role="alert" className="px-2.5 py-1.5 text-[11px] leading-snug text-[var(--status-danger)]">
                         {visibility.error} {visibility.onRetry ? <button type="button" onClick={visibility.onRetry} className="font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button> : null}
                       </p> : null}
-                    {onAddCategory ? <button type="button" role="menuitem" onClick={() => {
+                    {onAddCategory ? <button type="button" onClick={() => {
                   setIsAddingCategory(true);
                   setIsManageOpen(false);
                 }} aria-haspopup="dialog" className="flex min-h-10 w-full items-center gap-2.5 rounded-[8px] px-2.5 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">

@@ -99,9 +99,14 @@ test('only the destination gets hold listeners; disabled rows remain ordinary bu
 const ReorderGroup = () => null;
 const MobileReorderList = () => null;
 function projectHarness() {
+  const slots = []; let cursor = 0;
+  const react = { ...React,
+    useState(initial) { const i=cursor++; if(!(i in slots)) slots[i]=typeof initial==='function'?initial():initial;return [slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}]; },
+    useRef(initial) { const i=cursor++; return slots[i]??={current:initial}; },
+  };
   let presentation = 'mobile';
   const { ProjectIndexList } = compile('../src/components/profile/ProjectIndexList.tsx', name => {
-    if (name === 'react') return React;
+    if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
@@ -113,7 +118,7 @@ function projectHarness() {
   const props = { projects: ['a', 'b', 'p1', 'p2', 'h1', 'h2'].map(id => ({ id, title: id })),
     typefaceStacks: {}, typefaceIds: {}, hiddenIds: ['h1', 'h2'], pinnedIds: ['p1', 'p2'], isOwner: true,
     onReorder: items => saves.push(Array.from(items, item => item.id)) };
-  return { props, saves, render: () => ProjectIndexList(props), setPresentation: value => { presentation = value; } };
+  return { props, saves, render: () => { cursor=0; return ProjectIndexList(props); }, setPresentation: value => { presentation = value; } };
 }
 function all(node) {
   if (!React.isValidElement(node)) return [];
@@ -190,4 +195,24 @@ test('touch tap and scroll cancel pickup; a completed hold blocks its release cl
   t.mock.timers.tick(50); stopped = false;
   doc.fire('click', { stopPropagation() { stopped = true; } });
   assert.equal(stopped, false);
+});
+
+
+test('WEB stages drag frames locally and saves only the final drop with complete membership', () => {
+  const h=projectHarness();h.setPresentation('web');
+  let group=all(h.render()).find(node=>node.type===ReorderGroup);
+  group.props.children[0].props.onReorderStart();
+  group.props.onReorder([...group.props.values].reverse());
+  group=all(h.render()).find(node=>node.type===ReorderGroup);
+  assert.deepEqual(Array.from(group.props.values,p=>p.id),['b','a']);assert.deepEqual(h.saves,[]);
+  group.props.children[0].props.onReorderEnd();
+  assert.deepEqual(h.saves,[['p1','p2','b','a','h1','h2']]);
+});
+
+test('visible move actions respect the same group boundaries and disabled state as dragging',()=>{
+  const h=harness();let actions;
+  h.props.renderItem=(item,activator,moves)=>{if(item.id==='a')actions=moves;return React.createElement('button',activator,item.id);};
+  firstRow(h.render());assert.equal(actions.moveUp,undefined);assert.equal(typeof actions.moveDown,'function');
+  actions.moveDown();assert.deepEqual(h.saves,[['b','a','hidden']]);
+  h.props.disabled=true;firstRow(h.render());assert.equal(actions.moveDown,undefined);
 });

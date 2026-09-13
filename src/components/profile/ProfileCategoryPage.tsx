@@ -1,3 +1,4 @@
+import { SavedChangeNotice } from '../ui/SavedChangeNotice';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, SearchIcon, SquareIcon } from 'lucide-react';
@@ -22,7 +23,7 @@ import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePan
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useAppRoute } from '../../app/useAppRoute';
-import { EmptyState } from '../ui/StateViews';
+import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 type ProfileCategoryPageProps = {
   profile: Profile;
   category: ProfileCategory;
@@ -149,7 +150,7 @@ export function ProfileCategoryPage({
    * a real implementation must carry visibility on the record and filter
    * server-side, where a client cannot reach it.
    */
-  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools);
+  const arrangement = useProjectArrangement(profile.id, category.id, showsOwnerTools, categoryProjects.map(project => project.id));
   /**
    * The owner lifecycle of already-published work. Presentation calls no service:
    * the rows request an edit or a deletion, and this boundary owns loading,
@@ -521,16 +522,17 @@ export function ProfileCategoryPage({
           </div>}
 
         {!isIndexCollapsed && <nav data-project-index-list="" aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
+            {showsOwnerTools && <SavedChangeNotice history={arrangement.history} />}
             <ProjectIndexList projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(query.trim())} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
-            {mobileIndexOnly && projects.length === 0 && !query.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
-            {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
+            {mobileIndexOnly && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !query.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
+            {!arrangement.isLoading && !arrangement.loadError && query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
 
           </nav>}
         {!mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
       </div>;
 
-  return <div ref={projectPresentationRef} data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
+  return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
       {mobileProjectView && <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
         <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
       </button>}
@@ -546,7 +548,9 @@ export function ProfileCategoryPage({
           management.deletion.cancel();
           onSelectProject(null);
         }} />}
-      {activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
+      {!showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
+        {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />}
+      </section> : activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
           {/* Presentation follows each file's own media kind, never this
            category's format. */}
           {/* Closing clears the selection, which the entry rule immediately

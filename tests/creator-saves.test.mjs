@@ -115,6 +115,7 @@ test('footer utilities have real routes and selected states in both sidebar size
 
 test('saved library has distinct Projects and Creators collections with a private explanation', () => {
   const pages = load('../src/features/library/PersonalPages.tsx', {
+    '../../presentation/mobile/MobileBackNavigation': { ScreenBack: ({ children }) => React.createElement(React.Fragment, null, children) },
     react: React, 'lucide-react': icons, 'react-router-dom': { Link: () => null, useSearchParams: () => [new URLSearchParams(), () => {}] },
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },
     '../../contexts/ServicesContext': { useServices: () => ({}) },

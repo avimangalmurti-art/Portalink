@@ -1,3 +1,4 @@
+import { useMenuFocus } from '../../hooks/useMenuFocus';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckIcon, TypeIcon } from 'lucide-react';
@@ -38,6 +39,8 @@ export function TypographyInspector({
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  useMenuFocus({ open: isOpen, menuRef: popoverRef, triggerRef, mode: 'dialog', onOpen: () => setIsOpen(true), onClose: () => setIsOpen(false) });
 
   const positionPopover = useCallback(() => {
     const trigger = containerRef.current;
@@ -75,34 +78,8 @@ export function TypographyInspector({
     positionPopover();
   }, [isOpen, positionPopover]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    function closeOnOutsideTap(event: PointerEvent) {
-      const target = event.target as Node;
-      if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
-        setIsOpen(false);
-      }
-    }
-    function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setIsOpen(false);
-        containerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', closeOnOutsideTap);
-    document.addEventListener('keydown', closeOnEscape);
-    window.addEventListener('resize', positionPopover);
-    window.addEventListener('scroll', positionPopover, true);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsideTap);
-      document.removeEventListener('keydown', closeOnEscape);
-      window.removeEventListener('resize', positionPopover);
-      window.removeEventListener('scroll', positionPopover, true);
-    };
-  }, [isOpen, positionPopover]);
+
+  useEffect(() => { if (!isOpen) return; window.addEventListener('resize', positionPopover); window.addEventListener('scroll', positionPopover, true); return () => { window.removeEventListener('resize', positionPopover); window.removeEventListener('scroll', positionPopover, true); }; }, [isOpen, positionPopover]);
   const selectTypeface = (nextTypefaceId: string) => {
     onTypefaceChange(nextTypefaceId);
     if (triggerVariant === 'menu') {
@@ -111,16 +88,16 @@ export function TypographyInspector({
     }
   };
   return <div ref={containerRef} className="relative shrink-0">
-      {triggerVariant === 'menu' ? <button type="button" role="menuitem" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      {triggerVariant === 'menu' ? <button ref={triggerRef} type="button" role="menuitem" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={TypeIcon} size="sm" weight="medium" />
           Change typography…
-        </button> : <button type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        </button> : <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-expanded={isOpen} aria-haspopup="dialog" aria-label="Project typography" title="Typography" className="side-panel-header-control side-panel-header-icon flex items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <TypeIcon className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>}
 
       {/* Portaled above the work so neither the open nor collapsed sidebar can
          constrain its width, stacking order, or visible bounds. */}
-      {isOpen && createPortal(<div ref={popoverRef} data-presentation={presentation} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
+      {isOpen && createPortal(<div ref={popoverRef} tabIndex={-1} data-presentation={presentation} data-typography-popover="" role="dialog" aria-label="Typography" style={popoverPosition ?? {
       left: 0,
       top: 0,
       visibility: 'hidden'

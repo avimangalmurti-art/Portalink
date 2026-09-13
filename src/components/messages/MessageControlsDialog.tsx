@@ -4,6 +4,7 @@ import type { MessagingPermission } from '../../types/messages';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ModalPortal } from '../ui/ModalPortal';
+import { BlockedPeopleSection } from './BlockedPeopleSection';
 
 type MessageControlsDialogProps = {
   permission: MessagingPermission;
@@ -47,6 +48,7 @@ export function MessageControlsDialog({ permission, isSaving, error, onChange, o
           <p className="mt-3 text-[12px] leading-relaxed text-[var(--text-tertiary)]">People you follow and people you already chat with can still send you messages.</p>
           <p className="sr-only" role="status">{isSaving ? 'Saving message settings' : ''}</p>
           {error ? <p role="alert" className="mt-3 text-[13px] text-[var(--status-danger)]">{error}</p> : null}
+          <BlockedPeopleSection />
         </div>
       </div>
     </div>

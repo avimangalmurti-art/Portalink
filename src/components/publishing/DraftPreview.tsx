@@ -1,3 +1,4 @@
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useMemo, useRef, useState } from 'react';
 import { CheckIcon, FileIcon, PencilIcon, RotateCcwIcon } from 'lucide-react';
 import { formatFileSize } from '../../features/publishing/mediaRules';
@@ -187,11 +188,11 @@ export function DraftPreview({
             </div>
             <p className="mt-1 text-[10px] leading-relaxed text-[var(--text-tertiary)]">Drag the preview to reposition it. Arrow keys make precise adjustments; hold Shift for larger steps.</p>
           </div> : null}
-          <div role="radiogroup" aria-label="Project cover" className="scrollbar-slim flex max-h-[170px] flex-col gap-1 overflow-y-auto">
+          <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Project cover" className="scrollbar-slim flex max-h-[170px] flex-col gap-1 overflow-y-auto">
             {coverChoices.map((item) => {
               const itemKind = item.family === 'document' ? 'document' : item.family === 'video' ? 'video' : undefined;
               const itemRatio = item.metadata?.widthPixels && item.metadata.heightPixels ? item.metadata.widthPixels / item.metadata.heightPixels : 4 / 3;
-              return <button key={item.id} type="button" role="radio" aria-checked={item.isCover} disabled={disabled} onClick={() => media.setCover(item.id)} className={`shape-compact flex min-h-12 w-full items-center gap-2 border p-1.5 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${item.isCover ? 'border-[var(--accent-primary)] bg-[var(--surface-selected)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'}`}>
+              return <button key={item.id} type="button" role="radio" aria-checked={item.isCover} tabIndex={item.isCover ? 0 : -1} disabled={disabled} onClick={() => media.setCover(item.id)} className={`shape-compact flex min-h-12 w-full items-center gap-2 border p-1.5 text-left transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${item.isCover ? 'border-[var(--accent-primary)] bg-[var(--surface-selected)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]'}`}>
                   <span aria-hidden="true" className="flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[6px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
                     {item.previewUrl ? <ProjectCover source={item.previewUrl} alt="" kind={itemKind} fit="contain" aspectRatio={itemRatio} sizes="56px" /> : <InterfaceIcon icon={FileIcon} size="md" weight="medium" />}
                   </span>

@@ -4,6 +4,8 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, v
 import { CSS } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 
+export type MobileReorderActions = { moveUp?: () => void; moveDown?: () => void };
+
 export type MobileReorderActivator = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   ref?: React.Ref<HTMLButtonElement>;
 };
@@ -20,7 +22,7 @@ export function MobileReorderList<T extends { id: string }>({
   itemClassName?: string;
   groupForItem?: (item: T) => string;
   onReorder: (items: T[]) => void;
-  renderItem: (item: T, activator: MobileReorderActivator) => React.ReactNode;
+  renderItem: (item: T, activator: MobileReorderActivator, actions: MobileReorderActions) => React.ReactNode;
 }) {
   // TouchSensor cancels when scrolling begins before the hold. Unlike disabling
   // touch-action on the whole row, it leaves ordinary vertical scrolling intact.
@@ -38,6 +40,11 @@ export function MobileReorderList<T extends { id: string }>({
       return source && target && (!groupForItem || groupForItem(source) === groupForItem(target));
     }) });
   };
+  const moveAction = (index: number, delta: -1 | 1) => {
+    const destination = index + delta;
+    if (disabled || destination < 0 || destination >= items.length || (groupForItem && groupForItem(items[index]) !== groupForItem(items[destination]))) return undefined;
+    return () => onReorder(arrayMove(items, index, destination));
+  };
   return <DndContext sensors={sensors} collisionDetection={collisionDetection}
     accessibility={{ screenReaderInstructions: { draggable: 'Hold to move. With a keyboard, press Space, use the arrow keys to reposition, and press Space to save. Press Escape to cancel.' } }}
     onDragEnd={({ active, over }) => {
@@ -51,8 +58,8 @@ export function MobileReorderList<T extends { id: string }>({
     }}>
     <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
       <ul aria-label={label} className={className}>
-        {items.map(item => <MobileReorderRow key={item.id} id={item.id} disabled={disabled || items.length < 2} className={itemClassName}>
-          {activator => renderItem(item, activator)}
+        {items.map((item, index) => <MobileReorderRow key={item.id} id={item.id} disabled={disabled || items.length < 2} className={itemClassName}>
+          {activator => renderItem(item, activator, { moveUp: moveAction(index, -1), moveDown: moveAction(index, 1) })}
         </MobileReorderRow>)}
       </ul>
     </SortableContext>

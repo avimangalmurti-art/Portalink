@@ -32,6 +32,8 @@ function harness() {
     useRef: () => ({ current: null }), useEffect() {},
   };
   const { SharedProfileSidebar } = compile('../src/components/profile/SharedProfileSidebar.tsx', (name) => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
     if (name === '../../utils/panelLayoutDefaults') return layoutDefaults;

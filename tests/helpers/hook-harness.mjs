@@ -9,7 +9,7 @@ export function deferred() {
 }
 
 /** Executes the real hook with controlled effects, service responses and clock events. */
-export function hookHarness(file, exportName, services, auth, initialOptions = {}) {
+export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = {}) {
   const slots = [];
   const intervals = new Map();
   const timeouts = new Map();
@@ -56,10 +56,11 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     require(name) {
       if (name === 'react') return react;
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
+      if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
-      if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth')) {
+      if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth') || name.endsWith('/types/profile') || name.endsWith('/useSavedChangeHistory')) {
         const nested = {};
-        const path = name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : '../../src/types/auth.ts';
+        const path = name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : name.endsWith('/useSavedChangeHistory') ? '../../src/hooks/useSavedChangeHistory.ts' : name.endsWith('/types/profile') ? '../../src/types/profile.ts' : '../../src/types/auth.ts';
         vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
           compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
         }).outputText, { exports: nested, require: () => react });
@@ -70,7 +71,7 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
   });
   const render = () => {
     cursor = 0; dirty = false; effects = [];
-    result = exports[exportName](options);
+    result = exports[exportName](...(Array.isArray(options) ? options : [options]));
     for (const effect of effects) effect();
     return result;
   };

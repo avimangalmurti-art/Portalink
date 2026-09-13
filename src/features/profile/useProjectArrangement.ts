@@ -1,3 +1,4 @@
+import { membershipSignature, useSavedChangeHistory, type HistoryWriteMode, type SavedChangeActions } from '../../hooks/useSavedChangeHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import type { Id, Project, ProjectArrangement } from '../../types/domain';
@@ -22,6 +23,7 @@ import type { Id, Project, ProjectArrangement } from '../../types/domain';
  */
 
 export type ProjectArrangementState = {
+  history: SavedChangeActions;
   /** The saved order, reconciled against the work the category currently holds. */
   order: Id[];
   hiddenIds: Id[];
@@ -56,12 +58,21 @@ function messageFor(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
-export function useProjectArrangement(profileId: Id | null, categoryId: Id | null, isOwner: boolean): ProjectArrangementState {
+export function useProjectArrangement(profileId: Id | null, categoryId: Id | null, isOwner: boolean, canonicalIds: Id[] = []): ProjectArrangementState {
   const { projects: projectService } = useServices();
   const [arrangement, setArrangement] = useState<ProjectArrangement | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const canonicalMembership = membershipSignature(canonicalIds);
+  const scope = `${profileId ?? ''}:${categoryId ?? ''}:${canonicalMembership}`;
+  const scopeRef = useRef(scope); scopeRef.current = scope;
+  const loadVersion = useRef(0);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
+  const [loading, setIsLoading] = useState(true);
+  const isLoading = loading || loadedScope !== scope;
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const historyState = useSavedChangeHistory<ProjectArrangement>({ scope: profileId && categoryId && isOwner ? scope : null,
+    membership: canonicalMembership, value: loadedScope === scope ? arrangement : null,
+    equals: (a, b) => a.projectOrder.join(',') === b.projectOrder.join(',') && membershipSignature(a.hiddenProjectIds) === membershipSignature(b.hiddenProjectIds) && membershipSignature(a.pinnedProjectIds) === membershipSignature(b.pinnedProjectIds) });
+  const { begin, complete, finish, isCurrent, replay, isSaving } = historyState;
   const [saveError, setSaveError] = useState<string | null>(null);
   const [retrySave, setRetrySave] = useState<(() => void) | null>(null);
   const isMountedRef = useRef(true);
@@ -73,19 +84,21 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
   }, []);
 
   const load = useCallback(() => {
+    const version = ++loadVersion.current;
+    const current = () => isMountedRef.current && version === loadVersion.current && scopeRef.current === scope;
     if (!profileId || !categoryId) {
-      setArrangement(null);
+      setArrangement(null); setLoadedScope(scope); setIsLoading(false);
       return;
     }
     setIsLoading(true);
     setLoadError(null);
     projectService.getProjectArrangement(profileId, categoryId).then((next) => {
-      if (!isMountedRef.current) {
+      if (!current()) {
         return;
       }
       setArrangement(next);
     }).catch((error) => {
-      if (!isMountedRef.current) {
+      if (!current()) {
         return;
       }
       // A failed read is not an empty arrangement: saying "no order, nothing
@@ -94,35 +107,28 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
       setArrangement(null);
       setLoadError(messageFor(error, 'This category’s arrangement could not be loaded.'));
     }).finally(() => {
-      if (isMountedRef.current) {
-        setIsLoading(false);
+      if (current()) {
+        setLoadedScope(scope); setIsLoading(false);
       }
     });
-  }, [projectService, profileId, categoryId]);
-  useEffect(load, [load]);
+  }, [projectService, profileId, categoryId, scope]);
+  useEffect(() => { const generation = loadVersion; setSaveError(null); setRetrySave(null); load(); return () => { generation.current++; }; }, [load]);
 
-  const save = useCallback((next: ProjectArrangement, previous: ProjectArrangement | null) => {
-    if (!profileId || !categoryId) {
-      return;
-    }
-    setArrangement(next);
-    setIsSaving(true);
-    setSaveError(null);
-    setRetrySave(null);
-    projectService.saveProjectArrangement(profileId, categoryId, next).catch((error) => {
-      if (!isMountedRef.current) {
-        return;
-      }
-      // Rolled back, so the index never shows an arrangement the store rejected.
-      setArrangement(previous);
-      setSaveError(messageFor(error, 'That change could not be saved.'));
-      setRetrySave(() => () => save(next, previous));
-    }).finally(() => {
-      if (isMountedRef.current) {
-        setIsSaving(false);
-      }
-    });
-  }, [projectService, profileId, categoryId]);
+  const save = useCallback(async (next: ProjectArrangement, previous: ProjectArrangement | null, mode: HistoryWriteMode = 'change', label = 'Change project arrangement'): Promise<boolean> => {
+    if (!profileId || !categoryId || !isOwner || isLoading || loadError) return false;
+    const operation = begin(mode);
+    if (!operation) return false;
+    setArrangement(next); setSaveError(null); setRetrySave(null);
+    try {
+      await projectService.saveProjectArrangement(profileId, categoryId, next);
+      if (!isCurrent(operation)) return false;
+      complete(operation, previous, next, label); return true;
+    } catch (error) {
+      if (!isCurrent(operation)) return false;
+      setArrangement(previous); setSaveError(messageFor(error, 'That change could not be saved.'));
+      setRetrySave(() => () => { void save(next, previous, mode, label); }); return false;
+    } finally { finish(operation); }
+  }, [begin, complete, finish, isCurrent, projectService, profileId, categoryId, isOwner, isLoading, loadError]);
 
   const order = arrangement?.projectOrder ?? [];
   const hiddenIds = arrangement?.hiddenProjectIds ?? [];
@@ -133,11 +139,11 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
       return;
     }
     const previous = arrangement;
-    save({
+    void save({
       projectOrder: projectIds,
       hiddenProjectIds: previous?.hiddenProjectIds ?? [],
       pinnedProjectIds: previous?.pinnedProjectIds ?? []
-    }, previous);
+    }, previous, 'change', 'Reorder projects');
   }, [isOwner, arrangement, save]);
 
   const toggleHidden = useCallback((projectId: Id) => {
@@ -147,7 +153,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     const previous = arrangement;
     const currentHidden = previous?.hiddenProjectIds ?? [];
     const isHiding = !currentHidden.includes(projectId);
-    save({
+    void save({
       // The order is written alongside, because hiding a row changes where the
       // remaining rows sit and the arrangement must record what the owner sees.
       projectOrder: previous?.projectOrder ?? [],
@@ -155,7 +161,7 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
       // Hiding work releases its pin: a project cannot be both fixed to the top
       // of the index and withheld from it.
       pinnedProjectIds: isHiding ? (previous?.pinnedProjectIds ?? []).filter((id) => id !== projectId) : previous?.pinnedProjectIds ?? []
-    }, previous);
+    }, previous, 'change', isHiding ? 'Hide project' : 'Show project');
   }, [isOwner, arrangement, save]);
 
   const togglePinned = useCallback((projectId: Id) => {
@@ -165,12 +171,12 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     const previous = arrangement;
     const currentPinned = previous?.pinnedProjectIds ?? [];
     const isPinning = !currentPinned.includes(projectId);
-    save({
+    void save({
       projectOrder: previous?.projectOrder ?? [],
       // Pinning brings work back into view, for the same reason.
       hiddenProjectIds: isPinning ? (previous?.hiddenProjectIds ?? []).filter((id) => id !== projectId) : previous?.hiddenProjectIds ?? [],
       pinnedProjectIds: isPinning ? [...currentPinned, projectId] : currentPinned.filter((id) => id !== projectId)
-    }, previous);
+    }, previous, 'change', isPinning ? 'Pin project' : 'Unpin project');
   }, [isOwner, arrangement, save]);
 
   const arrange = useCallback((categoryProjects: Project[], includeHidden: boolean) => {
@@ -193,7 +199,14 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     // eslint-disable-next-line react-hooks/exhaustive-deps -- order/hiddenIds are derived arrays.
   }, [order.join(','), hiddenIds.join(','), isLoading, loadError]);
 
+  const restore = useCallback((next: ProjectArrangement, mode: HistoryWriteMode) => save(next, arrangement, mode), [save, arrangement]);
+  const undo = useCallback(() => replay('undo', restore), [replay, restore]);
+  const redo = useCallback(() => replay('redo', restore), [replay, restore]);
+  const history = useMemo(() => ({ canUndo: historyState.canUndo && !isLoading && !loadError, canRedo: historyState.canRedo && !isLoading && !loadError,
+    undoLabel: historyState.undoLabel, redoLabel: historyState.redoLabel, isSaving, undo, redo }),
+    [isLoading, loadError, historyState.canUndo, historyState.canRedo, historyState.undoLabel, historyState.redoLabel, isSaving, undo, redo]);
   return useMemo(() => ({
+    history,
     order,
     hiddenIds,
     pinnedIds,
@@ -212,5 +225,5 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
     togglePinned,
     arrange
     // eslint-disable-next-line react-hooks/exhaustive-deps -- order/hiddenIds are derived arrays.
-  }), [order.join(','), hiddenIds.join(','), pinnedIds.join(','), isLoading, loadError, load, isSaving, saveError, retrySave, reorder, toggleHidden, togglePinned, arrange]);
+  }), [history, order.join(','), hiddenIds.join(','), pinnedIds.join(','), isLoading, loadError, load, isSaving, saveError, retrySave, reorder, toggleHidden, togglePinned, arrange]);
 }

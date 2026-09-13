@@ -29,6 +29,7 @@ function welcomeHarness(mode = 'mobile') {
     useLayoutEffect: hook(layout), useEffect: hook(passive),
   };
   const imports = {
+    '../../utils/radioGroupKeyboard': { handleRadioGroupKeyDown() {} },
     react, 'lucide-react': { ArrowLeftIcon: 'svg', XIcon: 'svg', CheckIcon: 'svg' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus() {} },

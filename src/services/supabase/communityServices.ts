@@ -79,7 +79,7 @@ export const supabaseSocialService: SocialService = {
     const ids = ((edges.data ?? []) as unknown as Array<Record<string, string>>).map((row) => row[personColumn]);
     const total = edges.count ?? 0;
     if (ids.length === 0) return { items: [], total, nextOffset: null };
-    const people = await client.from('profiles').select('id,name,avatar_url').in('id', ids);
+    const people = await client.rpc('profile_identities', { p_profile_ids: ids });
     if (people.error) throw new SocialServiceError('network', 'Couldn’t load these profiles. Please try again.');
     const byId = new Map(((people.data ?? []) as unknown as Array<{ id: string; name: string; avatar_url: string }>).map((person) => [person.id, person]));
     return {
@@ -145,7 +145,7 @@ export const supabaseSocialService: SocialService = {
     if (error) throw new SocialServiceError('network', error.message);
     const ids = ((data ?? []) as unknown as Array<{ follower_profile_id: string }>).map((row) => row.follower_profile_id);
     if (ids.length === 0) return [];
-    const profiles = await requireSupabase().from('profiles').select('id,name,handle,avatar_url').in('id', ids);
+    const profiles = await requireSupabase().rpc('profile_identities', { p_profile_ids: ids });
     if (profiles.error) throw new SocialServiceError('network', profiles.error.message);
     return ((profiles.data ?? []) as unknown as Array<{ id: string; name: string; handle: string; avatar_url: string }>).map((row) => ({
       profileId: row.id,
@@ -187,16 +187,21 @@ type CommentRow = {
   profiles: { id: string; name: string; avatar_url: string } | null;
 };
 
-async function commentFromRow(row: CommentRow, viewerProfileId: string | null): Promise<Comment> {
-  const authorName = row.profiles?.name ?? 'Deleted creator';
+async function commentFromRow(row: CommentRow, viewerProfileId: string | null, resolved?: Map<string, NonNullable<CommentRow['profiles']>>): Promise<Comment> {
+  let identity = row.profiles ?? resolved?.get(row.author_profile_id) ?? null;
+  if (!identity && row.author_profile_id && !resolved) {
+    const result = await requireSupabase().rpc('profile_identities', { p_profile_ids: [row.author_profile_id] });
+    identity = result.data?.[0] ?? null;
+  }
+  const authorName = identity?.name ?? 'Creator';
   return {
     id: row.id,
     projectId: row.project_id,
     author: {
-      profileId: row.profiles?.id ?? null,
+      profileId: identity?.id ?? null,
       name: authorName,
       initials: authorName.split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join(''),
-      avatarUrl: row.profiles?.avatar_url || undefined,
+      avatarUrl: identity?.avatar_url || undefined,
     },
     body: row.body,
     createdAt: row.created_at,
@@ -218,7 +223,15 @@ async function readCommentRows(projectId: string): Promise<CommentRow[]> {
 export const supabaseCommentService: CommentService = {
   async listComments(projectId): Promise<ProjectComments> {
     const viewerProfileId = await currentProfileId(false);
-    const comments = await Promise.all((await readCommentRows(projectId)).map((row) => commentFromRow(row, viewerProfileId)));
+    const rows = await readCommentRows(projectId);
+    const missingIds = [...new Set(rows.filter(row => !row.profiles).map(row => row.author_profile_id))];
+    const identities = new Map<string, NonNullable<CommentRow['profiles']>>();
+    if (missingIds.length) {
+      const result = await requireSupabase().rpc('profile_identities', { p_profile_ids: missingIds });
+      if (result.error) throw new CommentServiceError('network', 'Comment authors could not be loaded.');
+      for (const person of (result.data ?? []) as Array<NonNullable<CommentRow['profiles']>>) identities.set(person.id, person);
+    }
+    const comments = await Promise.all(rows.map(row => commentFromRow(row, viewerProfileId, identities)));
     const roots = comments.filter((comment) => comment.parentId === null);
     return {
       projectId,

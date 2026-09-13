@@ -1,3 +1,5 @@
+import { useMenuFocus } from '../hooks/useMenuFocus';
+import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import { MobileNavigation } from '../presentation/mobile/MobileNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import { useCompactNavigation } from '../hooks/useCompactNavigation';
@@ -248,32 +250,10 @@ function AccountMenuTrigger({
     }
   }, [isOpen, positionMenu]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-    function closeOnOutsidePress(event: PointerEvent) {
-      const target = event.target as Node;
-      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) {
-        closeMenu();
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        closeMenu();
-        triggerRef.current?.focus();
-      }
-    }
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('resize', positionMenu);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('resize', positionMenu);
-    };
-  }, [closeMenu, isOpen, positionMenu]);
 
+
+  const menuFocus = useMenuFocus({ open: isOpen, menuRef, triggerRef, onOpen: () => setIsOpen(true), onClose: closeMenu });
+  useEffect(() => { if (!isOpen) return; window.addEventListener('resize', positionMenu); return () => window.removeEventListener('resize', positionMenu); }, [isOpen, positionMenu]);
   async function inviteFriend() {
     // Invites use the public viewer route, so a recipient never lands inside the
     // sender's account workspace. The public page already offers its own Join
@@ -322,10 +302,10 @@ function AccountMenuTrigger({
     : 'nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none';
 
   return <>
-      <button ref={triggerRef} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
+      <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
         <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
       </button>
-      {isOpen && createPortal(<div ref={menuRef} data-presentation={presentation} role="menu" aria-label="Account and settings" style={{
+      {isOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" role="menu" aria-label="Account and settings" style={{
         ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: position.top,
@@ -709,6 +689,7 @@ export function Sidebar({
   // can leave an earlier intermediate order as the durable one.
   useEffect(() => {
     setDraftCategoryIds((current) => {
+      if (current === null) return null;
       const known = new Set(arrangedCategoryIds);
       const retained = (current ?? []).filter((id) => known.has(id));
       const merged = [...retained, ...arrangedCategoryIds.filter((id) => !retained.includes(id))];
@@ -733,16 +714,10 @@ export function Sidebar({
   }
 
   async function commitDraftCategoryOrder(nextIds = draftCategoryIdsRef.current) {
-    if (!nextIds || isCategoryReorderDisabled) {
-      return;
-    }
-    const previousIds = arrangedCategoryIds;
-    const saved = await management.reorderCategories(nextIds);
-    if (!saved) {
-      draftCategoryIdsRef.current = previousIds;
-      setDraftCategoryIds(previousIds);
-    }
+    try { if (nextIds && !isCategoryReorderDisabled) await management.reorderCategories(nextIds); }
+    finally { draftCategoryIdsRef.current = null; setDraftCategoryIds(null); }
   }
+
   function moveCategory(categoryId: string, direction: -1 | 1) {
     if (isCategoryReorderDisabled) {
       return;
@@ -807,7 +782,7 @@ export function Sidebar({
          the surface spans the full rail and its centre is the sidebar's. Each
          responsive width now follows Apple Notes-style three-pane proportions,
          leaving room for full labels while keeping the content dominant. */}
-      <aside data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-150 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
+      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-150 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
         {/* Flat application region: one hairline divider, no floating card.
            It sits above the starfield layers behind it. */}
         {/* Collapsed, the surface carries no side padding: a 40px rail tile does
@@ -940,6 +915,7 @@ export function Sidebar({
                     </div>}
                   {/* One failure surface for every operation, naming what failed
                          and offering the same attempt again. */}
+                  {isOwnerMode && <SavedChangeNotice history={management.history} />}
                   {isOwnerMode && management.failure && <div role="alert" className="mb-2 flex flex-col gap-1.5 rounded-[10px] border border-[var(--hairline-strong)] px-2.5 py-2 text-[12px] leading-relaxed">
                       <span className="flex items-center gap-1.5">
                         <AlertCircleIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

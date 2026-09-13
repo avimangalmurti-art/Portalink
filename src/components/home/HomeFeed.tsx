@@ -25,6 +25,7 @@ type HomeFeedProps = {
   locationId?: Id;
   /** Reserved for future search on the mobile Home route. */
   showSearchPlaceholder?: boolean;
+  emptyAction?: { label: string; onClick: () => void };
   emptyTitle?: string;
   emptyDescription?: string;
 };
@@ -63,6 +64,7 @@ export function HomeFeed({
   scrollMemoryKey = 'home',
   locationId,
   showSearchPlaceholder = false,
+  emptyAction,
   emptyTitle = 'Your Home feed is ready',
   emptyDescription = 'Your published work and new work from creators you follow will appear here.',
 }: HomeFeedProps) {
@@ -166,7 +168,7 @@ export function HomeFeed({
               <div className="field-shell text-control-shell flex h-11 w-full items-center gap-2.5 rounded-[8px] pl-3 pr-0">
                 <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
                 <input ref={searchInputRef} type="search" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}
-                  placeholder="Search" aria-label="Search Home" aria-describedby="home-search-status" autoComplete="off" enterKeyHint="search"
+                  placeholder="Search · Coming soon" aria-label="Search Home" aria-describedby="home-search-status" autoComplete="off" enterKeyHint="search"
                   onKeyDown={event => { if (event.key === 'Escape') { setSearchDraft(''); event.currentTarget.blur(); } }}
                   className="min-w-0 flex-1 border-0 bg-transparent p-0 pr-3 text-[16px] text-[var(--text-primary)]" />
                 {searchDraft && <button type="button" aria-label="Clear search" onClick={() => { setSearchDraft(''); searchInputRef.current?.focus({ preventScroll: true }); }}
@@ -193,6 +195,7 @@ export function HomeFeed({
               ? <EmptyState
                   title={emptyTitle}
                   description={emptyDescription}
+                  action={emptyAction}
                 />
               : null}
             {projects.length > 0 ? isMobile

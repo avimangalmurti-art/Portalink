@@ -246,7 +246,7 @@ test('auth startup opens verified recovery and preserves expired-link UI instead
     const render = () => hooks.render(() => AuthProvider({ children: null })).props.value;
     render(); await tick(); render();
     const context = render();
-    assert.equal(context.pendingView, mode === 'ordinary' ? 'signIn' : 'resetPassword');
+    assert.equal(context.pendingView, mode === 'ordinary' ? null : 'resetPassword');
     assert.equal(context.isAuthenticated, mode === 'recovery');
   }
 });

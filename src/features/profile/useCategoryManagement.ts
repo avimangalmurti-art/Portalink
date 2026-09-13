@@ -1,3 +1,4 @@
+import { membershipSignature, useSavedChangeHistory, type HistoryWriteMode, type SavedChangeActions } from '../../hooks/useSavedChangeHistory';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -50,6 +51,7 @@ export type CategoryFailure = {
   retry: () => void;
 };
 export type CategoryManagement = {
+  history: SavedChangeActions;
   /**
    * Icons chosen but not yet confirmed by the store, so the sidebar shows the
    * choice immediately. Held only until the write lands — the canonical record
@@ -95,11 +97,22 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
   // One operation at a time. A double-click on Delete, or a drag landing while a
   // rename is still saving, must not race the store.
   const inFlightRef = useRef(false);
+  const scope = `${profileId ?? ''}:${isOwner}`;
+  const scopeRef = useRef(scope); scopeRef.current = scope;
+  const loadVersion = useRef(0);
+  const confirmedMembership = useRef({ profileId, ids: [] as Id[] });
+  if (confirmedMembership.current.profileId !== profileId) confirmedMembership.current = { profileId, ids: [] };
+  const confirmedProfile = profileId ? peekProfile(profileId) : null;
+  if (confirmedProfile) confirmedMembership.current.ids = confirmedProfile.categories.map(category => category.id);
+  const historyState = useSavedChangeHistory<PortfolioArrangement>({ scope: profileId && isOwner ? scope : null,
+    membership: membershipSignature(confirmedMembership.current.ids), value: arrangement,
+    equals: (a, b) => a.categoryOrder.join(',') === b.categoryOrder.join(',') && membershipSignature(a.hiddenCategoryIds) === membershipSignature(b.hiddenCategoryIds) && JSON.stringify(Object.entries(a.categoryIcons ?? {}).sort()) === JSON.stringify(Object.entries(b.categoryIcons ?? {}).sort()) });
+  const { begin, complete, finish, isCurrent, replay } = historyState;
   const isMountedRef = useRef(true);
-  useEffect(() => () => {
-    isMountedRef.current = false;
-  }, []);
+  useEffect(() => { isMountedRef.current = true; return () => { isMountedRef.current = false; }; }, []);
   const loadArrangement = useCallback(() => {
+    const version = ++loadVersion.current;
+    const current = () => isMountedRef.current && scopeRef.current === scope && loadVersion.current === version;
     if (!isOwner || !profileId) {
       setArrangement(null);
       return;
@@ -107,45 +120,49 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     setIsLoadingArrangement(true);
     setArrangementError(null);
     profileService.getPortfolioArrangement(profileId).then((next) => {
-      if (isMountedRef.current) {
+      if (current()) {
         setArrangement(next);
       }
     }).catch((error) => {
-      if (isMountedRef.current) {
+      if (current()) {
         setArrangementError(messageFor(error, 'Your portfolio arrangement could not be loaded.'));
       }
     }).finally(() => {
-      if (isMountedRef.current) {
+      if (current()) {
         setIsLoadingArrangement(false);
       }
     });
-  }, [isOwner, profileId, profileService]);
-  useEffect(loadArrangement, [loadArrangement]);
+  }, [isOwner, profileId, profileService, scope]);
+  useEffect(() => { const generation = loadVersion; setFailure(null); setArrangement(null); loadArrangement(); return () => { generation.current++; }; }, [loadArrangement]);
 
   /** Runs one guarded operation, with its own retry closure on failure. */
-  const run = useCallback(async function run<T>(operation: PendingOperation, attempt: () => Promise<T>, fallbackMessage: string, rollback?: () => void): Promise<T | null> {
+  const run = useCallback(async function run<T>(operation: PendingOperation, attempt: () => Promise<T>, fallbackMessage: string, rollback?: () => void, lifecycle?: { isCurrent: () => boolean; retry: () => void }): Promise<T | null> {
     if (inFlightRef.current) {
       return null;
     }
+    const operationScope = scopeRef.current;
+    const stillCurrent = () => isMountedRef.current && scopeRef.current === operationScope && (lifecycle?.isCurrent() ?? true);
     inFlightRef.current = true;
     setPending(operation);
     setFailure(null);
     try {
       const result = await attempt();
+      if (!stillCurrent()) return null;
       // Every surface reads the canonical record, so one invalidation updates
       // the sidebar, the profile, and the category page together.
       invalidateProfiles();
       return result;
     } catch (error) {
+      if (!stillCurrent()) return null;
       rollback?.();
-      if (isMountedRef.current) {
+      if (stillCurrent()) {
         setFailure({
           kind: operation.kind,
           categoryId: operation.categoryId,
           message: messageFor(error, fallbackMessage),
-          retry: () => {
+          retry: lifecycle?.retry ?? (() => {
             void run(operation, attempt, fallbackMessage, rollback);
-          }
+          })
         });
       }
       return null;
@@ -156,7 +173,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       }
     }
   }, [invalidateProfiles]);
-  const createCategory = useCallback(async (label: string, iconName?: string) => {
+  const createCategory = useCallback(async function createCategory(label: string, iconName?: string): Promise<PortfolioCategory | null> {
     if (!profileId) {
       return null;
     }
@@ -184,12 +201,12 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       ...(iconName ? {
         iconName
       } : {})
-    }), 'That category could not be created.');
+    }), 'That category could not be created.', undefined, { isCurrent: () => scopeRef.current === scope, retry: () => { void createCategory(label, iconName); } });
     if (created) {
       loadArrangement();
     }
     return created;
-  }, [loadArrangement, profileId, profileService, peekProfile, run]);
+  }, [loadArrangement, profileId, profileService, peekProfile, run, scope]);
   const renameCategory = useCallback(async (categoryId: Id, label: string) => {
     if (!profileId) {
       return false;
@@ -215,7 +232,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     }, () => profileService.renameCategory(profileId, categoryId, label), 'That category could not be renamed.');
     return renamed !== null;
   }, [profileId, profileService, peekProfile, run]);
-  const setCategoryIcon = useCallback(async (categoryId: Id, iconName: string) => {
+  const setCategoryIcon = useCallback(async function setCategoryIcon(categoryId: Id, iconName: string): Promise<boolean> {
     if (!profileId) {
       return false;
     }
@@ -244,31 +261,29 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     const updated = await run({
       kind: 'icon',
       categoryId
-    }, () => profileService.setCategoryIcon(profileId, categoryId, iconName), 'That icon could not be saved.', dropOverride);
+    }, () => profileService.setCategoryIcon(profileId, categoryId, iconName), 'That icon could not be saved.', dropOverride, { isCurrent: () => scopeRef.current === scope, retry: () => { void setCategoryIcon(categoryId, iconName); } });
     if (updated !== null) {
+      setArrangement(current => current ? { ...current, categoryIcons: { ...current.categoryIcons, [categoryId]: iconName } } : current);
       // The record now carries it, so the override has nothing left to say.
       dropOverride();
     }
     return updated !== null;
-  }, [profileId, profileService, run]);
+  }, [profileId, profileService, run, scope]);
 
   /** Order and hidden set share one write, so they can never disagree. */
-  const saveArrangement = useCallback(async (next: PortfolioArrangement, kind: PendingOperation['kind'], categoryId: Id | null, fallbackMessage: string) => {
-    if (!profileId) {
-      return false;
-    }
-    const previous = arrangement;
-    setArrangement(next);
-    const result = await run({
-      kind,
-      categoryId
-    }, () => profileService.savePortfolioArrangement(profileId, next).then(() => true), fallbackMessage, () => {
-      if (isMountedRef.current) {
-        setArrangement(previous);
-      }
-    });
-    return result === true;
-  }, [arrangement, profileId, profileService, run]);
+  const saveArrangement = useCallback(async (next: PortfolioArrangement, kind: PendingOperation['kind'], categoryId: Id | null, fallbackMessage: string, mode: HistoryWriteMode = 'change', label = 'Change portal arrangement'): Promise<boolean> => {
+    if (!profileId || !isOwner || inFlightRef.current || isLoadingArrangement || arrangementError) return false;
+    const operation = begin(mode); if (!operation) return false;
+    const previous = arrangement; setArrangement(next);
+    try {
+      const result = await run({ kind, categoryId }, () => profileService.savePortfolioArrangement(profileId, next).then(() => true), fallbackMessage,
+        () => { if (isCurrent(operation)) setArrangement(previous); },
+        { isCurrent: () => isCurrent(operation), retry: () => { void saveArrangement(next, kind, categoryId, fallbackMessage, mode, label); } });
+      if (result !== true || !isCurrent(operation)) return false;
+      complete(operation, previous, next, label); return true;
+    } finally { finish(operation); }
+  }, [arrangement, begin, complete, finish, isCurrent, isOwner, profileId, profileService, run, isLoadingArrangement, arrangementError]);
+
   const reorderCategories = useCallback(async (categoryOrder: Id[]) => {
     if (!arrangement) {
       return false;
@@ -276,7 +291,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     return saveArrangement({
       ...arrangement,
       categoryOrder
-    }, 'arrangement', null, 'That new order could not be saved.');
+    }, 'arrangement', null, 'That new order could not be saved.', 'change', 'Reorder portals');
   }, [arrangement, saveArrangement]);
   const toggleCategoryHidden = useCallback(async (categoryId: Id) => {
     if (!arrangement) {
@@ -286,7 +301,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     return saveArrangement({
       ...arrangement,
       hiddenCategoryIds: isHidden ? arrangement.hiddenCategoryIds.filter((id) => id !== categoryId) : [...arrangement.hiddenCategoryIds, categoryId]
-    }, 'arrangement', categoryId, isHidden ? 'That category could not be shown.' : 'That category could not be hidden.');
+    }, 'arrangement', categoryId, isHidden ? 'That category could not be shown.' : 'That category could not be hidden.', 'change', isHidden ? 'Show portal' : 'Hide portal');
   }, [arrangement, saveArrangement]);
   const readDeletionCapability = useCallback((categoryId: Id): Promise<CategoryDeletionCapability> => profileId ? profileService.getCategoryDeletionCapability(profileId, categoryId) : Promise.resolve({
     isAvailable: false,
@@ -294,7 +309,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     blockingProjectCount: 0,
     reason: 'There is no portfolio open, so nothing can be removed.'
   }), [profileId, profileService]);
-  const deleteCategory = useCallback(async (categoryId: Id) => {
+  const deleteCategory = useCallback(async function deleteCategory(categoryId: Id): Promise<boolean> {
     if (!profileId) {
       return false;
     }
@@ -310,13 +325,19 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       }
       await profileService.deleteCategory(profileId, categoryId);
       return true;
-    }, 'That category could not be deleted. Nothing was removed.');
+    }, 'That category could not be deleted. Nothing was removed.', undefined, { isCurrent: () => scopeRef.current === scope, retry: () => { void deleteCategory(categoryId); } });
     if (deleted) {
       loadArrangement();
     }
     return deleted === true;
-  }, [loadArrangement, profileId, profileService, run]);
+  }, [loadArrangement, profileId, profileService, run, scope]);
+  const restore = useCallback((next: PortfolioArrangement, mode: HistoryWriteMode) => saveArrangement(next, 'arrangement', null, 'That arrangement could not be restored.', mode), [saveArrangement]);
+  const undo = useCallback(() => replay('undo', restore), [replay, restore]);
+  const redo = useCallback(() => replay('redo', restore), [replay, restore]);
+  const history: SavedChangeActions = { canUndo: historyState.canUndo && !pending && !isLoadingArrangement && !arrangementError, canRedo: historyState.canRedo && !pending && !isLoadingArrangement && !arrangementError,
+    isSaving: historyState.isSaving || Boolean(pending), undoLabel: historyState.undoLabel, redoLabel: historyState.redoLabel, undo, redo };
   return {
+    history,
     categoryIcons: optimisticIcons,
     arrangement,
     isLoadingArrangement,

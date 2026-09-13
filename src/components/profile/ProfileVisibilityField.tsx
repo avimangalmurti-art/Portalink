@@ -19,7 +19,8 @@ export function ProfileVisibilityField({ id, isPrivate, disabled, onChange }: Pr
       </label>)}
     </div>
     <p id={`${id}-hint`} className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-      {isPrivate ? 'You approve new follow requests.' : 'Anyone can view your profile.'} You can change this later.
+      {isPrivate ? 'Only you and approved followers can view your projects and portals.' : 'Anyone can view your profile, projects and portals.'} You can change this later.
+      {' '}Your name and avatar remain visible in existing conversations and follow requests. Changing visibility does not remove messages or copies someone already saved.
     </p>
   </fieldset>;
 }

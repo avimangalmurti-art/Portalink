@@ -1,3 +1,4 @@
+import { useMenuFocus } from '../hooks/useMenuFocus';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -77,6 +78,9 @@ export function MessagesPage({
   const [hasNewBelow, setHasNewBelow] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isConversationMenuOpen, setIsConversationMenuOpen] = useState(false);
+  const conversationMenuRef = useRef<HTMLDivElement>(null);
+  const conversationTriggerRef = useRef<HTMLButtonElement>(null);
+  const conversationMenuFocus = useMenuFocus({ open: isConversationMenuOpen, menuRef: conversationMenuRef, triggerRef: conversationTriggerRef, onOpen: () => setIsConversationMenuOpen(true), onClose: () => setIsConversationMenuOpen(false) });
   const [confirmation, setConfirmation] = useState<'archive' | 'block' | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -196,13 +200,12 @@ export function MessagesPage({
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       if (confirmation) setConfirmation(null);
       else if (isReportOpen) setIsReportOpen(false);
-      else if (isConversationMenuOpen) setIsConversationMenuOpen(false);
       else if (isPrivacyOpen) setIsPrivacyOpen(false);
       else if (isNewChatOpen) setIsNewChatOpen(false);
     };
     document.addEventListener('keydown', closeOnEscape);
     return () => document.removeEventListener('keydown', closeOnEscape);
-  }, [confirmation, isConversationMenuOpen, isNewChatOpen, isPrivacyOpen, isReportOpen]);
+  }, [confirmation, isNewChatOpen, isPrivacyOpen, isReportOpen]);
 
   const visibleConversations = useMemo(() => {
     const source = query.trim() ? searchResults : messaging.conversations;
@@ -299,8 +302,8 @@ export function MessagesPage({
               <RecipientIdentity conversation={messaging.activeConversation} />
           </Link> : <RecipientIdentity conversation={messaging.activeConversation} />}
           <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
-          <button type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
-          {isConversationMenuOpen ? <div className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
+          <button ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+          {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
               <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
               <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('archive'); }} />
               <ConversationMenuButton icon={FlagIcon} label="Report conversation" onClick={() => { setIsConversationMenuOpen(false); setIsReportOpen(true); setReportSent(false); }} />

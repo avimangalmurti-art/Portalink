@@ -1,3 +1,4 @@
+import { useMenuFocus } from '../../hooks/useMenuFocus';
 import { useCompactNavigation } from '../../hooks/useCompactNavigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { HomeIcon, LogInIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide-react';
@@ -56,27 +57,8 @@ export function SharedProfileSidebar({
   const isCollapsed = compactNavigation.collapsed;
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!isSettingsOpen) return undefined;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!settingsMenuRef.current?.contains(target) && !settingsTriggerRef.current?.contains(target)) {
-        setIsSettingsOpen(false);
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSettingsOpen(false);
-        settingsTriggerRef.current?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', closeOnOutsidePress);
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress);
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [isSettingsOpen]);
+
+  const settingsMenuFocus = useMenuFocus({ open: isSettingsOpen, menuRef: settingsMenuRef, triggerRef: settingsTriggerRef, onOpen: () => setIsSettingsOpen(true), onClose: () => setIsSettingsOpen(false) });
   const openAuth = (request: () => void) => {
     setIsSettingsOpen(false);
     request();
@@ -124,7 +106,7 @@ export function SharedProfileSidebar({
 
       <div data-shared-account-footer="" className={`relative z-40 shrink-0 border-t border-[var(--hairline)] py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
         <div className={`relative items-center ${isCollapsed ? 'flex flex-col gap-1.5' : 'grid grid-cols-2 gap-[var(--side-panel-row-gap)]'}`}>
-          {isSettingsOpen ? <div ref={settingsMenuRef} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
+          {isSettingsOpen ? <div ref={settingsMenuRef} tabIndex={-1} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
               <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
                 <span className="whitespace-nowrap leading-none">Create an account</span>
@@ -134,7 +116,7 @@ export function SharedProfileSidebar({
                 <span className="whitespace-nowrap leading-none">Sign in</span>
               </button>
             </div> : null}
-          <button ref={settingsTriggerRef} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className={`nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+          <button ref={settingsTriggerRef} onKeyDown={settingsMenuFocus.onTriggerKeyDown} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className={`nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
           </button>
           <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'} data-system-color="" className={`shared-profile-theme-toggle nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { CheckIcon, ChevronDownIcon, RotateCcwIcon } from 'lucide-react';
@@ -95,7 +97,7 @@ export function NavigationButtonsPanel({
         >
           <SettingsGroup title="Grey intensity">
             <div
-              role="radiogroup"
+              role="radiogroup" onKeyDown={handleRadioGroupKeyDown}
               aria-label="Interface control system grey"
               className="side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
               style={{ transition }}
@@ -108,7 +110,7 @@ export function NavigationButtonsPanel({
                     key={option.id}
                     type="button"
                     role="radio"
-                    aria-checked={isSelected}
+                    aria-checked={isSelected} tabIndex={isSelected ? 0 : -1}
                     aria-label={option.label}
                     title={option.label}
                     onClick={() => onSystemGrayChange(option.id)}
@@ -162,7 +164,7 @@ export function NavigationButtonsPanel({
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <SettingsGroup title="Interface appearance">
               <div
-                role="radiogroup"
+                role="radiogroup" onKeyDown={handleRadioGroupKeyDown}
                 aria-label="Interface appearance"
                 className="side-panel-control-row w-full rounded-[10px] bg-[var(--surface-sunken)] p-1.5"
                 style={{ transition }}
@@ -174,7 +176,7 @@ export function NavigationButtonsPanel({
                       key={option.mode}
                       type="button"
                       role="radio"
-                      aria-checked={isSelected}
+                      aria-checked={isSelected} tabIndex={isSelected ? 0 : -1}
                       onClick={() => onAppearanceModeChange(option.mode)}
                       className="side-panel-primary-control side-panel-control-row flex-1 justify-center border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                       style={{
@@ -197,7 +199,7 @@ export function NavigationButtonsPanel({
             </SettingsGroup>
 
             <SettingsGroup title="Accent color">
-              <div role="radiogroup" aria-label="Accent color" className="grid grid-cols-6 justify-items-center gap-1">
+              <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Accent color" className="grid grid-cols-6 justify-items-center gap-1">
                 {navAccents.map((option) => {
                   const swatch = theme === 'dark' ? option.dark : option.light;
                   const isSelected = option.id === activeAccent.id;
@@ -206,7 +208,7 @@ export function NavigationButtonsPanel({
                       key={option.id}
                       type="button"
                       role="radio"
-                      aria-checked={isSelected}
+                      aria-checked={isSelected} tabIndex={isSelected ? 0 : -1}
                       aria-label={option.label}
                       title={option.label}
                       onClick={() => onAccentColorChange(swatch)}
@@ -356,16 +358,17 @@ function SwitchRow({
   transition: string;
   hasDivider?: boolean;
 }) {
+  const switchId = useId();
   return (
     <div
       className="flex min-h-[52px] items-center justify-between gap-6 py-1"
       style={{ borderBottom: hasDivider ? '1px solid var(--hairline)' : undefined }}
     >
-      <span className="min-w-0">
+      <label htmlFor={switchId} className="min-w-0">
         <span className="block text-[13px] font-medium text-[var(--text-primary)]">{label}</span>
         <span className="mt-0.5 block text-[12px] text-[var(--text-tertiary)]">{description}</span>
-      </span>
-      <AppearanceSwitch label={label} isOn={isOn} onToggle={onToggle} accent={accent} transition={transition} />
+      </label>
+      <AppearanceSwitch id={switchId} label={label} isOn={isOn} onToggle={onToggle} accent={accent} transition={transition} />
     </div>
   );
 }

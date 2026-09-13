@@ -109,6 +109,8 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
     },
   };
   const api = compile('../src/components/MessagesPage.tsx', name => {
+    if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileBackNavigation')) return { ScreenBack };

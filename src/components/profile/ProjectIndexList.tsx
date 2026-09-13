@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useMenuFocus } from '../../hooks/useMenuFocus';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
@@ -8,7 +9,7 @@ import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
-import { MobileReorderList, type MobileReorderActivator } from '../../presentation/mobile/MobileReorderList';
+import { MobileReorderList, type MobileReorderActivator, type MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 type ProjectIndexListProps = {
   projects: ProjectEntry[];
   /** Each row reads in the face of the project it points at, keyed by id. */
@@ -79,9 +80,37 @@ export function ProjectIndexList({
    * than one ranked list, and a heading states which is which instead of leaving
    * the viewer to infer it from position.
    */
-  const pinned = projects.filter((project) => pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
-  const hidden = projects.filter((project) => hiddenIds.includes(project.id));
-  const rest = projects.filter((project) => !pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
+  const [desktopDraft, setDesktopDraft] = useState<{ scope: string; ids: string[] } | null>(null);
+  const desktopDraftRef = useRef<typeof desktopDraft>(null);
+  const dragScope = JSON.stringify([projects.map(project => project.id), pinnedIds, hiddenIds]);
+  const byId = new Map(projects.map(project => [project.id, project]));
+  const displayedProjects = !isMobile && desktopDraft?.scope === dragScope
+    ? desktopDraft.ids.flatMap(id => byId.get(id) ?? []) : projects;
+  const pinned = displayedProjects.filter((project) => pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
+  const hidden = displayedProjects.filter((project) => hiddenIds.includes(project.id));
+  const rest = displayedProjects.filter((project) => !pinnedIds.includes(project.id) && !hiddenIds.includes(project.id));
+
+  // Keep drag frames local; persist exactly the final dropped order.
+  const startDesktopDrag = () => {
+    if (mobileReorderDisabled) return;
+    const next = { scope: dragScope, ids: projects.map(project => project.id) };
+    desktopDraftRef.current = next;
+    setDesktopDraft(next);
+  };
+  const stageDesktopDrag = (reordered: ProjectEntry[]) => {
+    if (desktopDraftRef.current?.scope !== dragScope) return;
+    const next = { scope: dragScope, ids: [...pinned, ...reordered, ...hidden].map(project => project.id) };
+    desktopDraftRef.current = next;
+    setDesktopDraft(next);
+  };
+  const finishDesktopDrag = () => {
+    const draft = desktopDraftRef.current;
+    desktopDraftRef.current = null;
+    setDesktopDraft(null);
+    if (!draft || draft.scope !== dragScope || mobileReorderDisabled ||
+      JSON.stringify(draft.ids) === JSON.stringify(projects.map(project => project.id))) return;
+    onReorder(draft.ids.flatMap(id => byId.get(id) ?? []));
+  };
 
   // A visitor reads a published index, so it is a plain list with no handles.
   if (!isOwner) {
@@ -131,7 +160,7 @@ export function ProjectIndexList({
       <MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
         className="side-panel-navigation-list m-0 list-none p-0"
         onReorder={reordered => onReorder(combine(reordered))}
-        renderItem={(project, activator) => <ProjectRow {...rowProps(project)} isDraggable={false} reorderActivator={activator} />} />;
+        renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={activator} />} />;
     return <div>
       {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
       {rest.length > 0 && <>
@@ -152,8 +181,8 @@ export function ProjectIndexList({
         </>}
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={(reordered) => onReorder([...pinned, ...reordered, ...hidden])} className="side-panel-navigation-list m-0 list-none p-0">
-          {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable />)}
+      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={stageDesktopDrag} className="side-panel-navigation-list m-0 list-none p-0">
+          {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable dragDisabled={mobileReorderDisabled} onReorderStart={startDesktopDrag} onReorderEnd={finishDesktopDrag} />)}
         </Reorder.Group>}
 
       {/* Hidden work sits under its own heading, dimmed, so the owner can see
@@ -207,7 +236,11 @@ function ProjectRow({
   isPinned,
   isActive,
   isDraggable,
+  dragDisabled = false,
+  onReorderStart,
+  onReorderEnd,
   reorderActivator,
+  reorderActions,
   onToggleHidden,
   onTogglePinned,
   onSelect,
@@ -227,12 +260,14 @@ function ProjectRow({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;reorderActivator?: MobileReorderActivator;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+  const isMobile = usePresentation() === 'mobile';
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuFocus = useMenuFocus({ open: isMenuOpen, menuRef, triggerRef, onOpen: () => setIsMenuOpen(true), onClose: () => setIsMenuOpen(false), childSelector: '[data-typography-popover]' });
   const [position, setPosition] = useState<ReturnType<typeof positionAnchoredMenu> | null>(null);
   const positionMenu = useCallback(() => {
     if (!triggerRef.current || !menuRef.current) return;
@@ -242,7 +277,6 @@ function ProjectRow({
   useLayoutEffect(() => {
     if (!isMenuOpen) { setPosition(null); return; }
     positionMenu();
-    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
     const observer = new ResizeObserver(positionMenu);
     if (menuRef.current) observer.observe(menuRef.current);
     window.addEventListener('resize', positionMenu);
@@ -253,35 +287,13 @@ function ProjectRow({
       window.removeEventListener('scroll', positionMenu, true);
     };
   }, [isMenuOpen, positionMenu]);
-  useEffect(() => {
-    if (!isMenuOpen) {
-      return;
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Element;
-      if (!rowRef.current?.contains(target) && !menuRef.current?.contains(target) && !target.closest('[data-typography-popover]')) {
-        setIsMenuOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.querySelector('[data-typography-popover]')) return;
-      event.preventDefault();
-      setIsMenuOpen(false);
-      triggerRef.current?.focus();
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [isMenuOpen]);
+
   const body = <div ref={rowRef} className="relative">
       <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
-        {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => dragControls.start(event)} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
+        {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => { if (!dragDisabled) dragControls.start(event); }} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
-        <button {...reorderActivator} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 pr-10 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
+        <button {...reorderActivator} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
           <span data-font-preview="" style={{
           fontFamily: typefaceStack
         }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>
@@ -289,15 +301,15 @@ function ProjectRow({
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
-        <div className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button ref={triggerRef} type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <div className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
+          <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
         </div>
       </div>
 
       {createPortal(<AnimatePresence>
-        {isMenuOpen && <motion.div ref={menuRef} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
+        {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
         opacity: 0,
         y: -4
       }} animate={{
@@ -309,6 +321,7 @@ function ProjectRow({
       }} transition={{
         duration: 0.14
       }} className="fixed z-[45] w-48 max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
+            {[[reorderActions?.moveUp, 'Move up'], [reorderActions?.moveDown, 'Move down']].map(([action, label]) => typeof action === 'function' && <button key={String(label)} type="button" role="menuitem" onClick={() => { setIsMenuOpen(false); action(); }} className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-sm hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{String(label)}</button>)}
             {onEdit && <button type="button" role="menuitem" onClick={() => {
           triggerRef.current?.focus();
           onEdit();
@@ -348,7 +361,7 @@ function ProjectRow({
   if (!isDraggable) {
     return body;
   }
-  return <Reorder.Item value={project} dragListener={false} dragControls={dragControls} className="relative">
+  return <Reorder.Item value={project} drag={dragDisabled ? false : 'y'} onDragStart={onReorderStart} onDragEnd={onReorderEnd} dragListener={false} dragControls={dragControls} className="relative">
       {body}
     </Reorder.Item>;
 }

@@ -1,3 +1,4 @@
+import { SavedChangeNotice } from '../../components/ui/SavedChangeNotice';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -79,7 +80,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
       disabled={!ownsProfile || actionsDisabled || Boolean(renaming) || isAdding}
       groupForItem={category => ownsProfile && management.arrangement?.hiddenCategoryIds.includes(category.id) ? 'hidden' : 'visible'}
       onReorder={reordered => { if (ownsProfile && !actionsDisabled) void management.reorderCategories(reordered.map(category => category.id)); }}
-      renderItem={(category, activator) => <>
+      renderItem={(category, activator, actions) => <>
         {ownsProfile && renaming?.id === category.id ? <form className="mobile-portal-rename" onSubmit={event => { event.preventDefault(); void saveRename(); }} onKeyDown={event => { if (event.key === 'Escape' && !management.pending) setRenaming(null); }}>
           <input autoFocus aria-label={`Rename ${category.label}`} maxLength={MAX_CATEGORY_LABEL} disabled={Boolean(management.pending)} value={renaming.label} onChange={event => setRenaming({ id: category.id, label: event.target.value })} className="text-control min-w-0 flex-1 px-2 py-2" />
           <button type="submit" disabled={actionsDisabled || !renaming.label.trim()} aria-label="Save portal name" className="mobile-portal-action"><InterfaceIcon icon={CheckIcon} /></button>
@@ -90,7 +91,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
           <span className="mobile-portal-label">{category.label}</span>
           <InterfaceIcon icon={ChevronRightIcon} size="sm" className="text-[var(--text-tertiary)]" />
         </button>
-        {ownsProfile && <CategoryOptionsMenu mobile category={category} accentColor={accentColor} theme={theme} disabled={actionsDisabled}
+        {ownsProfile && <CategoryOptionsMenu mobile onMoveUp={actions.moveUp} onMoveDown={actions.moveDown} category={category} accentColor={accentColor} theme={theme} disabled={actionsDisabled}
           isHidden={management.arrangement?.hiddenCategoryIds.includes(category.id)} isBusy={management.pending?.categoryId === category.id}
           readDeletionCapability={() => management.readDeletionCapability(category.id)} onHideToggle={() => void management.toggleCategoryHidden(category.id)}
           onRenameStart={() => { management.dismissFailure(); setRenaming({ id: category.id, label: category.label }); }}
@@ -99,7 +100,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
       </>} />;
   }
 
-  return <section className="mobile-portals-page" aria-labelledby="mobile-portals-title">
+  return <section data-saved-change-scope="" className="mobile-portals-page" aria-labelledby="mobile-portals-title">
     <header data-mobile-safe-header="" className="global-control-header shrink-0 gap-2 px-4">
       <button type="button" aria-label="Go back" title="Go back" className="mobile-portal-action" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" mirroredInRtl /></button>
       <h1 id="mobile-portals-title" className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
@@ -108,6 +109,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
     <div className="mobile-portals-scroll scrollbar-overlay" data-mobile-scroll-end="">
       {ownsProfile && management.arrangementError && <ErrorState title="Couldn’t load portal settings" description={management.arrangementError} onRetry={management.reloadArrangement} />}
       {ownsProfile && management.failure && !isAdding && <ErrorState title={management.failure.message} onRetry={renaming && management.failure.kind === 'rename' ? () => void saveRename() : management.failure.retry} />}
+      {ownsProfile && <SavedChangeNotice history={management.history} />}
       {content}
     </div>
     {ownsProfile && isAdding && <NewCategoryDialog itemName="portal" isSaving={management.pending?.kind === 'create'} error={management.failure?.kind === 'create' ? management.failure.message : null}

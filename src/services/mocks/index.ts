@@ -1546,6 +1546,8 @@ export const mockMessagingService: MessagingService = {
   async archiveConversation() {
     return resolve(undefined);
   },
+  async listBlockedPeople() { return resolve([]); },
+  async unblockParticipant() { return resolve(undefined); },
   async blockParticipant() {
     return resolve(undefined);
   },

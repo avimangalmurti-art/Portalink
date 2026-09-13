@@ -1,3 +1,5 @@
+import { useModalFocus } from '../../hooks/useModalFocus';
+import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useRef, useState } from 'react';
 import { XIcon } from 'lucide-react';
 import { categoryIconNames, getCategoryIcon } from './categoryIcons';
@@ -36,13 +38,16 @@ export function NewCategoryDialog({
 }: NewCategoryDialogProps) {
   const [label, setLabel] = useState('');
   const [iconName, setIconName] = useState(DEFAULT_ICON);
+  const dialogRef = useRef<HTMLFormElement>(null);
+  const onCancel = () => { if (!isSaving) cancel(); };
+  useModalFocus(true, dialogRef, onCancel);
   const fieldRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     fieldRef.current?.focus();
   }, []);
   const PreviewIcon = getCategoryIcon(iconName);
   const trimmed = label.trim();
-  const onCancel = () => { if (!isSaving) cancel(); };
+
   function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!trimmed || isSaving) {
@@ -56,7 +61,7 @@ export function NewCategoryDialog({
       onCancel();
     }
   }} className="modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form onSubmit={submit} onKeyDown={(event) => {
+      <form ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onCancel();
@@ -84,11 +89,11 @@ export function NewCategoryDialog({
 
           {/* A radiogroup, not a row of buttons: exactly one mark is selected,
              and arrow keys move between them the way a single choice should. */}
-          <div role="radiogroup" aria-label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} className="mt-5 grid grid-cols-6 gap-2.5 pb-2 sm:grid-cols-7">
+          <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} className="mt-5 grid grid-cols-6 gap-2.5 pb-2 sm:grid-cols-7">
             {categoryIconNames.map((name) => {
             const Icon = getCategoryIcon(name);
             const isSelected = name === iconName;
-            return <button key={name} type="button" disabled={isSaving} role="radio" aria-checked={isSelected} aria-label={name} onClick={() => setIconName(name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+            return <button key={name} type="button" disabled={isSaving} role="radio" aria-checked={isSelected} tabIndex={isSelected ? 0 : -1} aria-label={name} onClick={() => setIconName(name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                   <Icon className="h-[18px] w-[18px]" />
                 </button>;
           })}

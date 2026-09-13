@@ -166,19 +166,8 @@ export function AuthProvider({
       unsubscribe();
     };
   }, [auth, initializeAttempt]);
-  // Signing in is the product's landing surface: once the session has resolved
-  // and nobody is signed in, the sheet presents itself rather than waiting to be
-  // asked. It opens once per load, so dismissing it is respected and a later
-  // sign-out does not re-present it on top of the person's work.
-  const hasPresentedLandingRef = useRef(false);
-  useEffect(() => {
-    if (hasPresentedLandingRef.current || phase !== 'unauthenticated' || pendingViewRef.current) {
-      return;
-    }
-    hasPresentedLandingRef.current = true;
-    pendingViewRef.current = 'signIn';
-    setPendingView('signIn');
-  }, [phase]);
+  // Public pages remain browsable. Explicit auth routes, recovery returns and
+  // actions requiring an account open the welcome surface through the gate.
   const signIn = useCallback(async (input: SignInInput): Promise<AuthSession | null> => {
     if (isSigningInRef.current) {
       // One request at a time: a second submit cannot race the first.

@@ -484,6 +484,8 @@ export interface MessagingService {
   setMuted(conversationId: Id, muted: boolean): Promise<void>;
   archiveConversation(conversationId: Id): Promise<void>;
   blockParticipant(conversationId: Id): Promise<void>;
+  listBlockedPeople(): Promise<import('../types/messages').BlockedPerson[]>;
+  unblockParticipant(profileId: Id): Promise<void>;
   reportConversation(conversationId: Id, reason: string): Promise<void>;
 }
 export interface LiveService {

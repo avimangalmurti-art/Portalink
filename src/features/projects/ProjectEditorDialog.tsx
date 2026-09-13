@@ -10,6 +10,7 @@ import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ResponsiveImage } from '../../components/ui/ResponsiveImage';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
+import { useModalFocus } from '../../hooks/useModalFocus';
 import { TITLE_MAX_LENGTH } from '../publishing/validation';
 import type { ProjectManagement } from './useProjectManagement';
 
@@ -272,17 +273,16 @@ export function DeleteProjectDialog({
   const {
     deletion
   } = management;
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (deletion.phase === 'confirming') {
-      requestAnimationFrame(() => confirmRef.current?.focus());
-    }
-  }, [deletion.phase]);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const isOpen = deletion.projectId !== null && deletion.phase !== 'idle';
+  useModalFocus(isOpen, deleteDialogRef, () => {
+    if (!deletion.isDeleting) deletion.cancel();
+  });
   if (deletion.projectId === null || deletion.phase === 'idle') {
     return null;
   }
   return <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
-      <div role="alertdialog" aria-modal="true" aria-labelledby="delete-project-title" aria-describedby="delete-project-body" className="w-full max-w-[440px] rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+      <div ref={deleteDialogRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-busy={deletion.isDeleting} aria-labelledby="delete-project-title" aria-describedby="delete-project-body" className="w-full max-w-[440px] rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)] outline-none">
         <h2 id="delete-project-title" className="text-[17px] font-semibold text-[var(--text-primary)]">Delete this project?</h2>
         <p id="delete-project-body" className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
           {`“${projectTitle}” and its files will be removed from your portfolio. This cannot be undone.`}
@@ -306,7 +306,7 @@ export function DeleteProjectDialog({
               </p>}
             <div className="mt-4 flex items-center justify-end gap-2">
               <Button variant="secondary" onClick={deletion.cancel} disabled={deletion.isDeleting}>Cancel</Button>
-              <button ref={confirmRef} type="button" onClick={async () => {
+              <button type="button" onClick={async () => {
             const deleted = await deletion.confirm();
             if (deleted) {
               // Only now: the record is genuinely gone, so the deleted

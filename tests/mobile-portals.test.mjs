@@ -27,6 +27,7 @@ function harness() {
     return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
   } };
   const { PortalsPage } = compile('../src/features/profile/PortalsPage.tsx', name => {
+    if (name.endsWith('/SavedChangeNotice')) return { SavedChangeNotice: () => null };
     if (name === 'react') return react;
     if (name === 'lucide-react') return { ChevronLeftIcon: Icon, ChevronRightIcon: Icon, CheckIcon: Icon, PlusIcon: Icon, XIcon: Icon };
     if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
@@ -59,7 +60,7 @@ function harness() {
 }
 function elements(node) {
   if (!React.isValidElement(node)) return [];
-  if (node.type === MobileReorderList) return [node, ...node.props.items.flatMap(item => elements(node.props.renderItem(item, {})))];
+  if (node.type === MobileReorderList) return [node, ...node.props.items.flatMap(item => elements(node.props.renderItem(item, {}, {})))];
   return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
 }
 const find = (tree, type) => elements(tree).find(node => node.type === type);
