@@ -86,6 +86,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
     if (name === './usePresentation') return { PresentationContext: context };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
     if (name.endsWith('.css')) return {};
     throw new Error(`Unexpected presentation dependency: ${name}`);
   } });

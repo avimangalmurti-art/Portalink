@@ -10,7 +10,7 @@ import { TouchSensor as InstalledTouchSensor } from '@dnd-kit/core';
 function compile(path, require) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require });
   return exports;
 }
@@ -152,7 +152,7 @@ test('mobile project writes are gated while loading, saving or searching a parti
 
 // Exercise the installed sensor's gesture lifecycle as well as our component
 // wiring. This event shim is a unit test, not physical Safari verification.
-test('touch tap and scroll cancel pickup; a completed hold blocks its release click', t => {
+test('touch tap, scroll and pinch cancel pickup; ordinary holds still drag and clean up', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   class Surface {
     listeners = new Map();
@@ -171,10 +171,10 @@ test('touch tap and scroll cancel pickup; a completed hold blocks its release cl
   const win = Object.assign(new Surface(), { Document, HTMLElement: Element, SVGElement: Element, TouchEvent, EventTarget: Surface });
   const doc = Object.assign(new Document(), { defaultView: win });
   const target = Object.assign(new Element(), { ownerDocument: doc });
-  let starts = 0, cancels = 0, aborts = 0;
-  const create = () => new InstalledTouchSensor({ active: 'a', event: new TouchEvent(target),
+  let starts = 0, cancels = 0, aborts = 0, ends = 0;
+  const create = (Sensor = InstalledTouchSensor) => new Sensor({ active: 'a', event: new TouchEvent(target),
     options: harness().render().props.sensors[0].options,
-    onPending() {}, onStart() { starts++; }, onCancel() { cancels++; }, onAbort() { aborts++; }, onEnd() {}, onMove() {},
+    onPending() {}, onStart() { starts++; }, onCancel() { cancels++; }, onAbort() { aborts++; }, onEnd() { ends++; }, onMove() {},
   });
   const tap = create();
   t.mock.timers.tick(100); tap.handleEnd(); t.mock.timers.tick(500);
@@ -195,6 +195,47 @@ test('touch tap and scroll cancel pickup; a completed hold blocks its release cl
   t.mock.timers.tick(50); stopped = false;
   doc.fire('click', { stopPropagation() { stopped = true; } });
   assert.equal(stopped, false);
+
+  const { SingleTouchSensor } = compile('../src/presentation/mobile/SingleTouchSensor.ts', name => {
+    assert.equal(name, '@dnd-kit/core'); return { TouchSensor: InstalledTouchSensor };
+  });
+  starts = cancels = aborts = ends = 0;
+  create(SingleTouchSensor);
+  const pinch = new TouchEvent(target);
+  pinch.touches.push({ clientX: 160, clientY: 0 });
+  // The first finger has not moved: the ordinary sensor would still activate
+  // its 450ms hold while the second finger changes the content's zoom.
+  doc.fire('touchstart', pinch);
+  t.mock.timers.tick(500);
+  assert.equal(starts, 0);
+  assert.equal(cancels, 1);
+  assert.equal(aborts, 1);
+  assert.equal(ends, 0, 'A pinch must not commit a reorder');
+  assert.equal(pinch.prevented, false, 'The content still receives the pinch');
+  assert.equal(doc.listeners.get('touchstart').length, 0);
+  assert.equal(doc.listeners.get('touchcancel').length, 0);
+
+  const singleFingerHold = create(SingleTouchSensor);
+  t.mock.timers.tick(450);
+  assert.equal(starts, 1, 'Ordinary holds still activate');
+  singleFingerHold.handleEnd();
+  assert.equal(ends, 1);
+  assert.equal(doc.listeners.get('touchstart').length, 0);
+
+  create(SingleTouchSensor);
+  t.mock.timers.tick(450);
+  doc.fire('touchstart', pinch);
+  assert.equal(cancels, 2, 'A second touch also cancels an active drag');
+  assert.equal(ends, 1);
+  assert.equal(doc.listeners.get('touchstart').length, 0);
+
+  create(SingleTouchSensor);
+  doc.fire('touchcancel', new TouchEvent(target));
+  t.mock.timers.tick(500);
+  assert.equal(starts, 2);
+  assert.equal(cancels, 3);
+  assert.equal(ends, 1);
+  assert.equal(doc.listeners.get('touchcancel').length, 0);
 });
 
 

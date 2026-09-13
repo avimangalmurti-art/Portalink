@@ -62,7 +62,7 @@ test('project and comment clicks remain intact after removing scroll containment
   assert.equal(stopped, true);
 });
 
-function zoomHarness() {
+function zoomHarness(enabled = true) {
   const effects = [];
   const refs = [];
   const state = [];
@@ -77,11 +77,12 @@ function zoomHarness() {
       return [state[index], (value) => { state[index] = typeof value === 'function' ? value(state[index]) : value; }];
     },
   };
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', () => react, {
+  const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : react, {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();
-  const view = useContentZoom();
+  const view = useContentZoom(enabled);
   view.ref.current = {
     addEventListener: (type, handler) => listeners.set(type, handler),
     removeEventListener: (type, handler) => { if (listeners.get(type) === handler) listeners.delete(type); },
@@ -115,6 +116,34 @@ test('deliberate pinch or modified-wheel zoom remains available and listeners cl
     h.cleanup.forEach((cleanup) => cleanup?.());
     assert.equal(h.listeners.size, 0);
   }
+});
+
+test('phone pinches resize only overview content, stay bounded, and ignore single-finger scrolling', () => {
+  const h = zoomHarness();
+  const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
+  const move = distance => {
+    const event = { touches: touches(distance), cancelable: true, preventDefault() { this.prevented = true; } };
+    h.listeners.get('touchmove')(event);
+    return event;
+  };
+  h.listeners.get('touchstart')({ touches: touches(100) });
+  assert.equal(move(125).prevented, true);
+  assert.equal(h.state[0], h.initial[0] + 1);
+  move(10000); assert.equal(h.state[0], 6);
+  move(1); assert.equal(h.state[0], 0);
+  move(100); assert.equal(h.state[0], h.initial[0], 'Reversing a pinch restores its starting size');
+  h.listeners.get('touchend')();
+  move(200); assert.equal(h.state[0], h.initial[0]);
+  h.listeners.get('touchstart')({ touches: [touches(100)[0]] });
+  h.listeners.get('touchmove')({ touches: [touches(100)[0]], cancelable: true, preventDefault() { assert.fail('Single-finger scroll must remain native'); } });
+  h.cleanup.forEach(cleanup => cleanup?.());
+  assert.equal(h.listeners.size, 0);
+});
+
+test('reorder mode suspends overview zoom and its adjustment announcement', () => {
+  const h = zoomHarness(false);
+  assert.equal(h.listeners.size, 0);
+  assert.equal(h.state[1], false);
 });
 
 test('ordinary profile and shared-profile screens retain the app-shell vertical scroller', () => {

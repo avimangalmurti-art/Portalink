@@ -19,7 +19,7 @@ test('an inherited final-row height is capped before it can overflow', () => {
 });
 
 function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWidth, scaleColumns = columns => columns } = {}) {
-  let starts = 0;
+  let starts = 0, zoomEnabled;
   const placeholder = new Proxy({}, { get: (_, key) => key });
   const exports = {};
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText, {
@@ -30,19 +30,22 @@ function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWid
       if (name === '@dnd-kit/utilities') return { CSS: { Transform: { toString() {} } } };
       if (name === 'framer-motion') return { useReducedMotion: () => false };
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+      if (name.endsWith('/SingleTouchSensor')) return { SingleTouchSensor: 'Touch' };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width }) };
-      if (name.endsWith('/useContentZoom')) return { useContentZoom: () => ({ scaleColumns }) };
+      if (name.endsWith('/useContentZoom')) return { useContentZoom: enabled => { zoomEnabled = enabled; return { scaleColumns }; } };
       return placeholder;
     },
   });
   const tree = exports.JustifiedImageWall({ columns: 3, columnCapacityWidth, label: 'Projects', items: [{ key: 'a', ratio: 1, content: 'A' }, { key: 'b', ratio: 1, content: 'B' }], reorderMode });
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
-  return { context: nodes(tree).find(node => node.type === 'DndContext'), card: nodes(tree).find(node => node.type?.name === 'SortableWallCard'), list: nodes(tree).find(node => node.props['data-profile-wall-columns']), nodes, starts: () => starts };
+  return { context: nodes(tree).find(node => node.type === 'DndContext'), card: nodes(tree).find(node => node.type?.name === 'SortableWallCard'), list: nodes(tree).find(node => node.props['data-profile-wall-columns']), nodes, starts: () => starts, zoomEnabled };
 }
 
 test('sensor dependencies stay stable across WEB, mobile browsing, holding, dragging and saving', () => {
   for (const presentation of ['web', 'mobile']) for (const reorderMode of [undefined, { enabled: false, onStart() {} }, { enabled: true }, { enabled: true, disabled: true }]) {
-    const sensors = wallHarness(presentation, reorderMode).context.props.sensors;
+    const h = wallHarness(presentation, reorderMode);
+    const sensors = h.context.props.sensors;
+    assert.equal(h.zoomEnabled, !reorderMode?.enabled, 'Reordering must not also resize the grid');
     assert.equal(sensors.length, 3);
     assert.equal(sensors[0].sensor, presentation === 'mobile' && reorderMode ? 'Touch' : 'Pointer');
     if (sensors[0].sensor === 'Touch' && !reorderMode.enabled) {

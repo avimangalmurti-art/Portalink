@@ -4,7 +4,6 @@ import {
   KeyboardSensor,
   MouseSensor,
   PointerSensor,
-  TouchSensor,
   closestCenter,
   pointerWithin,
   useSensor,
@@ -26,6 +25,7 @@ import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
 import { usePresentation } from '../../presentation/usePresentation';
+import { SingleTouchSensor } from '../../presentation/mobile/SingleTouchSensor';
 
 /**
  * A justified wall of images — the packing layer for pure imagery.
@@ -262,14 +262,14 @@ export function JustifiedImageWall({
    * is untouched, and the zoom only scales how many land in a row. Frames keep
    * their own proportions either way — nothing is cropped to zoom.
    */
-  const view = useContentZoom<HTMLDivElement>();
+  const view = useContentZoom<HTMLDivElement>(!reorderMode?.enabled);
   // Hiding the phone rail enlarges the same two columns instead of shrinking
   // the artwork to squeeze in a third. The saved WEB density remains intact.
   const isMobile = usePresentation() === 'mobile';
   const readableCardWidth = isMobile ? 150 : MIN_READABLE_CARD_WIDTH;
   const shouldReduceMotion = useReducedMotion();
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
-  const touchSensor = useSensor(TouchSensor, {
+  const touchSensor = useSensor(SingleTouchSensor, {
     activationConstraint: reorderMode?.enabled ? { distance: 6 } : { delay: 450, tolerance: 8 },
   });
   const mouseSensor = useSensor(MouseSensor, {

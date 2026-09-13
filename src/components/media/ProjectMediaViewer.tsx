@@ -10,6 +10,7 @@ import type { MediaKind, ProjectAttachment, ProjectCredit } from '../../types/do
 import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
+import { pinchDistance, pinchSteps } from '../../utils/pinchGesture';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
@@ -262,18 +263,20 @@ export function ProjectMediaViewer({
   const lastDensityStepRef = useRef(0);
   const densityCommitTimerRef = useRef<number | null>(null);
   const densityCommitCallbackRef = useRef(onPagesPerRowCommit);
+  const densityPinchRef = useRef<{ distance: number; pages: number; next: number } | null>(null);
   useEffect(() => {
     densityCommitCallbackRef.current = onPagesPerRowCommit;
   }, [onPagesPerRowCommit]);
   useEffect(() => () => {
+    densityPinchRef.current = null;
     if (densityCommitTimerRef.current !== null) {
       window.clearTimeout(densityCommitTimerRef.current);
       densityCommitTimerRef.current = null;
     }
   }, [projectId]);
   /**
-   * The work surface itself is the density instrument, but only for a trackpad
-   * pinch. Browsers expose a two-finger pinch as a wheel event with `ctrlKey`;
+   * The work surface itself is the density instrument for touch or trackpad
+   * pinches. Browsers expose a trackpad pinch as a wheel event with `ctrlKey`;
    * an ordinary two-finger vertical swipe has no modifier and must remain native
    * page scrolling. Pinching inward reveals more, smaller pages and pinching
    * outward reveals fewer, larger pages. The listener is non-passive so only the
@@ -286,7 +289,7 @@ export function ProjectMediaViewer({
       return undefined;
     }
     const handleDensityWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey || event.deltaY === 0) {
+      if ((!event.ctrlKey && !event.metaKey) || event.deltaY === 0) {
         wheelDeltaRef.current = 0;
         return;
       }
@@ -317,8 +320,40 @@ export function ProjectMediaViewer({
         densityCommitCallbackRef.current?.(next);
       }, 450);
     };
+    const handleTouchStart = (event: TouchEvent) => {
+      const distance = pinchDistance(event.touches);
+      densityPinchRef.current = distance === null ? null : { distance, pages: normalizedPagesPerRow, next: normalizedPagesPerRow };
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      const pinch = densityPinchRef.current;
+      const distance = pinchDistance(event.touches);
+      if (!pinch || distance === null) return;
+      if (event.cancelable) event.preventDefault();
+      const next = normalizePagesPerRow(pinch.pages - pinchSteps(distance, pinch.distance));
+      if (next === pinch.next) return;
+      pinch.next = next;
+      onPagesPerRowChange(next);
+    };
+    const handleTouchEnd = () => {
+      const pinch = densityPinchRef.current;
+      densityPinchRef.current = null;
+      if (!pinch || pinch.next === pinch.pages) return;
+      if (densityCommitTimerRef.current !== null) window.clearTimeout(densityCommitTimerRef.current);
+      densityCommitTimerRef.current = null;
+      densityCommitCallbackRef.current?.(pinch.next);
+    };
     surface.addEventListener('wheel', handleDensityWheel, { passive: false });
-    return () => surface.removeEventListener('wheel', handleDensityWheel);
+    surface.addEventListener('touchstart', handleTouchStart, { passive: true });
+    surface.addEventListener('touchmove', handleTouchMove, { passive: false });
+    surface.addEventListener('touchend', handleTouchEnd, { passive: true });
+    surface.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    return () => {
+      surface.removeEventListener('wheel', handleDensityWheel);
+      surface.removeEventListener('touchstart', handleTouchStart);
+      surface.removeEventListener('touchmove', handleTouchMove);
+      surface.removeEventListener('touchend', handleTouchEnd);
+      surface.removeEventListener('touchcancel', handleTouchEnd);
+    };
   }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
   const emptyMedia = <div data-premium-project-viewer="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">

@@ -17,6 +17,12 @@
 
 /* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
 
+/* Native scrolling stays available; pinch and double-tap must not scale the
+   interface. Content viewers handle their own zoom without resizing chrome. */
+html, body, #root, .app-shell, [data-themed-portal] {
+  touch-action: pan-x pan-y;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    0. GLOBAL TYPOGRAPHY SYSTEM
    Legacy aliases initialize here; the semantic type roles below define the
