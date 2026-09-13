@@ -904,6 +904,10 @@
   overflow: hidden;
 }
 
+#root .codex-shell[data-presentation='mobile'] [data-focused-page-scroll] {
+  touch-action: var(--focused-page-touch-action, pan-x pan-y);
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-focused-page-count] {
   top: max(8px, var(--mobile-content-safe-top));
   right: max(8px, env(safe-area-inset-right, 0px));

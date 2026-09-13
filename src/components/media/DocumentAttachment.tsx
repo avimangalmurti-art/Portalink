@@ -4,6 +4,7 @@ import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
 import { useSinglePageZoom } from './useSinglePageZoom';
+import { useFocusedPageSwipe } from './useFocusedPageSwipe';
 import type { ProjectAttachment } from '../../types/domain';
 import { MAX_PAGES_PER_ROW, normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
@@ -72,7 +73,6 @@ export function DocumentAttachment({
     ?? readViewerMemory(memoryKey).focusedPageNumber
     ?? null);
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastTouchRef = useRef<{ index: number; time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
@@ -127,6 +127,7 @@ export function DocumentAttachment({
     const next = Math.min(renderedPages.length - 1, Math.max(0, focusedPageIndex + direction));
     if (next !== focusedPageIndex) focusPage(next);
   }, [focusPage, focusedPageIndex, renderedPages.length]);
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageIndex !== null, zoom, onMove: moveFocusedPage });
   useEffect(() => {
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
@@ -166,24 +167,15 @@ export function DocumentAttachment({
           event.preventDefault();
           moveFocusedPage(1);
         }
-      }} onPointerDown={focusedPageIndex === null ? undefined : (event) => {
-        if (event.pointerType === 'touch' && zoom <= 1.01) swipeStartRef.current = { x: event.clientX, y: event.clientY };
-      }} onPointerUp={focusedPageIndex === null ? undefined : (event) => {
-        const start = swipeStartRef.current;
-        swipeStartRef.current = null;
-        if (!start || event.pointerType !== 'touch' || zoom > 1.01) return;
-        const deltaX = event.clientX - start.x;
-        const deltaY = event.clientY - start.y;
-        if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
-      }} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : { touchAction: 'pan-x pan-y' }}>
+      }} {...swipeHandlers} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : swipeStyle}>
         {focusedPageIndex !== null ? <FocusedPageExitControl
           onExit={exitFocus}
         /> : null}
         {focusedPageIndex !== null && renderedPages.length > 1 ? <>
-            {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} data-side="previous" aria-label="Previous page" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} data-side="previous" aria-label="Previous page" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
             </button> : null}
-            {focusedPageIndex < renderedPages.length - 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex < renderedPages.length - 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} data-side="next" aria-label="Next page" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
             </button> : null}
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />

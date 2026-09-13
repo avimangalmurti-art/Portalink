@@ -4,6 +4,7 @@ import { ErrorState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { useSinglePageZoom } from './useSinglePageZoom';
+import { useFocusedPageSwipe } from './useFocusedPageSwipe';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
@@ -170,7 +171,6 @@ export function ImageAttachment({
   });
   const zoomSurfaceRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLOListElement>(null);
-  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
   const columnCount = Math.max(1, Math.min(columns, pages.length));
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
@@ -230,6 +230,7 @@ export function ImageAttachment({
     if (nextIndex !== focusedPageIndex) focusPage(pages[nextIndex].id);
   }, [focusPage, focusedPageIndex, pages]);
 
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPage !== null, zoom, onMove: moveFocusedPage });
   useEffect(() => {
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
@@ -249,25 +250,16 @@ export function ImageAttachment({
         event.preventDefault();
         moveFocusedPage(1);
       }
-    }} onPointerDown={(event) => {
-      if (event.pointerType === 'touch' && zoom <= 1.01) swipeStartRef.current = { x: event.clientX, y: event.clientY };
-    }} onPointerUp={(event) => {
-      const start = swipeStartRef.current;
-      swipeStartRef.current = null;
-      if (!start || event.pointerType !== 'touch' || zoom > 1.01) return;
-      const deltaX = event.clientX - start.x;
-      const deltaY = event.clientY - start.y;
-      if (Math.abs(deltaX) > 56 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) moveFocusedPage(deltaX < 0 ? 1 : -1);
-    }} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={{ touchAction: 'pan-x pan-y' }}>
+    }} {...swipeHandlers} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={swipeStyle}>
         <FocusedPageExitControl
           onExit={exitFocus}
           label="Exit single-image view"
         />
         {pages.length > 1 ? <>
-            {focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex > 0 ? <button type="button" data-viewer-page-control="" data-side="previous" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} aria-label="Previous image" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
             </button> : null}
-            {focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
+            {!isMobile && focusedPageIndex < pages.length - 1 ? <button type="button" data-viewer-page-control="" data-side="next" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(1)} aria-label="Next image" className="premium-viewer-page-control side-panel-compact-control absolute right-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
               <InterfaceIcon icon={ChevronRightIcon} size="lg" weight="medium" />
             </button> : null}
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
