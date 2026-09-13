@@ -349,15 +349,16 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener [data-interface-icon-frame] {
-  --interface-icon-size: 26px;
+  --interface-icon-size: 40px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener svg {
+  transform: rotate(0deg);
   transition: transform 180ms ease;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener[aria-expanded='true'] svg {
-  transform: none;
+  transform: rotate(-90deg);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-profile[aria-current='page'] {

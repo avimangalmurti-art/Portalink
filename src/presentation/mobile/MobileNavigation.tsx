@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PanelLeftOpenIcon, PanelLeftCloseIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
@@ -19,6 +19,13 @@ type Props = {
   isProfileActive: boolean;
   liveControl?: React.ReactNode;
 };
+
+function NavigationOrientationIcon(props: React.SVGProps<SVGSVGElement>) {
+  return <svg {...props} viewBox="0 0 24 24">
+    <rect x="3" y="6" width="18" height="2" rx="1" />
+    <rect x="3" y="15" width="12" height="2" rx="1" />
+  </svg>;
+}
 
 function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' | 'dock' | 'profile' }) {
   const shared = {
@@ -79,7 +86,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
       </>}
     </aside>
     <div className="mobile-floating-navigation" {...dockSwipe}>
-      <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={hidden ? PanelLeftOpenIcon : PanelLeftCloseIcon} /></button>
+      <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
       <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
         <div className="mobile-navigation-dock">
           {[messages, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
