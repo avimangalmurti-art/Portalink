@@ -533,6 +533,44 @@ export function UserProfilePage({
   const gridWidth = fitsInOneRow ? columnsPerRow * MAX_CARD_WIDTH + (columnsPerRow - 1) * GRID_GAP : undefined;
   const nestedMobileContent = mobileContent ?? (isMobile && !isSharedView && activeView === 'portals' ? mobilePortalsView : undefined);
   const mobilePortalOverlay = isMobile && activeView === 'portals' ? nestedMobileContent : undefined;
+  const portalOverlayRef = useRef<HTMLDivElement>(null);
+  const closePortalsRef = useRef(() => setActiveView('projects'));
+  closePortalsRef.current = () => setActiveView('projects');
+  const hasMobilePortalOverlay = Boolean(mobilePortalOverlay);
+  useEffect(() => {
+    if (!hasMobilePortalOverlay) return;
+    let press: { x: number; y: number; outside: boolean } | null = null;
+    const inside = (target: EventTarget | null) => !(target instanceof Element)
+      || Boolean(portalOverlayRef.current?.querySelector('.mobile-portals-page')?.contains(target))
+      || Boolean(target.closest('[data-mobile-portal-menu], .modal-scrim'));
+    const down = (event: PointerEvent) => {
+      press = { x: event.clientX, y: event.clientY, outside: event.isPrimary && event.button === 0 && !inside(event.target) };
+    };
+    const move = (event: PointerEvent) => {
+      if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8) press.outside = false;
+    };
+    const cancel = () => { press = null; };
+    const click = (event: MouseEvent) => {
+      const isOutsideTap = event.detail === 0 || press?.outside;
+      press = null;
+      if (inside(event.target) || !portalOverlayRef.current || portalOverlayRef.current.closest('[inert], [aria-hidden="true"]')) return;
+      // The whole screen dismisses, including the profile header and dock.
+      // Consume the tap so it cannot also open content or reopen the chooser.
+      event.preventDefault();
+      event.stopPropagation();
+      if (isOutsideTap) closePortalsRef.current();
+    };
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('pointermove', move, true);
+    document.addEventListener('pointercancel', cancel, true);
+    document.addEventListener('click', click, true);
+    return () => {
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('pointermove', move, true);
+      document.removeEventListener('pointercancel', cancel, true);
+      document.removeEventListener('click', click, true);
+    };
+  }, [hasMobilePortalOverlay]);
   const isMobileWall = isMobile && (activeView === 'projects' || activeView === 'portals') && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
@@ -788,7 +826,7 @@ export function UserProfilePage({
           }}>
             {projectWall}
           </div>
-          {mobilePortalOverlay && <div className="mobile-profile-portal-overlay">
+          {mobilePortalOverlay && <div ref={portalOverlayRef} className="mobile-profile-portal-overlay">
             <button type="button" className="mobile-profile-portal-dismiss" aria-label="Close portals" onClick={() => setActiveView('projects')} />
             {mobilePortalOverlay}
           </div>}

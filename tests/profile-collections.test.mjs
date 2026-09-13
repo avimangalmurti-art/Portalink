@@ -165,12 +165,19 @@ function profileHarness(search = '', options = {}) {
   const navigation = [];
   let cursor = 0;
   const slots = [];
+  const pendingEffects = [];
   const projects = options.projects ?? [];
   const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
   let outside;
   const react = { ...React,
     useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
-    useEffect() {}, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
+    useEffect(effect, deps) {
+      if (!options.document) return;
+      const i = cursor++;
+      if (!slots[i] || deps.some((value, index) => value !== slots[i].deps[index])) {
+        pendingEffects.push(() => { slots[i]?.cleanup?.(); slots[i] = { deps, cleanup: effect() }; });
+      }
+    }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
@@ -188,9 +195,9 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => options.links ?? [] };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
-  }, { URLSearchParams, window: { localStorage: { getItem: () => null } } });
+  }, { URLSearchParams, window: { localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
-  return { navigation, projectOrder, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  return { navigation, projectOrder, flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
@@ -221,6 +228,58 @@ test('count controls replace the project area, report real Portal count, and res
 
 const reorderProjects = [{ id: 'a', cover: 'a.png' }, { id: 'b', cover: 'b.png' }];
 const wall = tree => nodes(tree).find(node => node.type === 'JustifiedImageWall');
+
+test('mobile portal chooser consumes outside taps across the screen and preserves inner interactions', () => {
+  class Target {
+    constructor(kind) { this.kind = kind; }
+    closest() { return ['menu', 'dialog'].includes(this.kind) ? this : null; }
+  }
+  function setup(presentation = 'mobile') {
+    const listeners = new Map();
+    const document = {
+      addEventListener(type, listener) { listeners.set(type, listener); },
+      removeEventListener(type, listener) { if (listeners.get(type) === listener) listeners.delete(type); },
+    };
+    const h = profileHarness('view=portals', { presentation, document, Element: Target,
+      props: { mobilePortalsView: React.createElement('section', { className: 'mobile-portals-page' }) } });
+    const tree = h.render();
+    const overlay = nodes(tree).find(node => node.props?.className === 'mobile-profile-portal-overlay');
+    if (overlay) overlay.ref.current = { querySelector: () => ({ contains: target => target.kind === 'panel' }), closest: () => null };
+    h.flushEffects();
+    const dispatch = (type, kind, extra = {}) => {
+      const event = { target: new Target(kind), detail: 1, button: 0, isPrimary: true, clientX: 0, clientY: 0,
+        preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra };
+      listeners.get(type)?.(event);
+      return event;
+    };
+    return { h, listeners, dispatch };
+  }
+  for (const target of ['header', 'dock', 'portals-count', 'backdrop']) {
+    const { h, listeners, dispatch } = setup();
+    dispatch('pointerdown', target);
+    const click = dispatch('click', target);
+    assert.equal(h.search(), '', `${target} closes the chooser`);
+    assert.equal(click.prevented, true, 'Dismissal must not also activate the underlying control');
+    assert.equal(click.stopped, true);
+    h.render(); h.flushEffects();
+    assert.equal(listeners.size, 0, 'Listeners are removed when the panel closes');
+  }
+  for (const target of ['panel', 'menu', 'dialog']) {
+    const { h, dispatch } = setup();
+    dispatch('pointerdown', target);
+    assert.equal(dispatch('click', target).prevented, undefined);
+    assert.equal(h.search(), 'view=portals');
+  }
+  for (const gesture of ['scroll', 'drag-out', 'cancel']) {
+    const { h, dispatch } = setup();
+    dispatch('pointerdown', gesture === 'drag-out' ? 'panel' : 'header');
+    if (gesture === 'scroll') dispatch('pointermove', 'header', { clientY: 20 });
+    if (gesture === 'cancel') dispatch('pointercancel', 'header');
+    dispatch('click', 'header');
+    assert.equal(h.search(), 'view=portals', `${gesture} is not an outside tap`);
+  }
+  assert.equal(setup('web').listeners.size, 0, 'WEB collections have no popup dismissal listener');
+});
 
 test('both mobile portal counts float the supplied chooser above the wall and preserve a profile history entry', () => {
   const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
