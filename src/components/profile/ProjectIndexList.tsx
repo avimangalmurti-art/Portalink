@@ -8,6 +8,7 @@ import { EyeIcon, EyeOffIcon, FolderIcon, GripVerticalIcon, MoreHorizontalIcon, 
 import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
+import { ProjectDescriptionPreview } from './ProjectDescriptionPreview';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobileReorderList, type MobileReorderActivator, type MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 type ProjectIndexListProps = {
@@ -23,6 +24,8 @@ type ProjectIndexListProps = {
   isOwner: boolean;
   /** MOBILE waits for a complete, writable arrangement before starting a hold. */
   mobileReorderDisabled?: boolean;
+  /** Holds read descriptions in the floating MOBILE list. */
+  descriptionPreview?: boolean;
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -64,6 +67,7 @@ export function ProjectIndexList({
   activeProjectId,
   isOwner,
   mobileReorderDisabled = false,
+  descriptionPreview = false,
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -119,7 +123,7 @@ export function ProjectIndexList({
             <SectionHeading label="Pinned" icon={PinIcon} />
             <ul className="side-panel-navigation-list m-0 list-none p-0">
               {pinned.map((project) => <li key={project.id}>
-                  <ProjectLink project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink selectionScope={activeProjectId} descriptionPreview={descriptionPreview && isMobile} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -127,7 +131,7 @@ export function ProjectIndexList({
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
             <ul className="side-panel-navigation-list m-0 list-none p-0">
               {rest.map((project) => <li key={project.id}>
-                  <ProjectLink project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
+                  <ProjectLink selectionScope={activeProjectId} descriptionPreview={descriptionPreview && isMobile} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} onSelect={() => onSelect(project.id)} />
                 </li>)}
             </ul>
           </>}
@@ -143,6 +147,8 @@ export function ProjectIndexList({
    */
   const rowProps = (project: ProjectEntry) => ({
     project,
+    selectionScope: activeProjectId,
+    descriptionPreview: descriptionPreview && isMobile,
     typefaceStack: typefaceStacks[project.id],
     typefaceId: typefaceIds[project.id],
     isHidden: hiddenIds.includes(project.id),
@@ -201,6 +207,8 @@ export function ProjectIndexList({
 /** The shared row body: a tinted fill and weight mark the current document. */
 function ProjectLink({
   project,
+  selectionScope,
+  descriptionPreview = false,
   typefaceStack,
   isActive,
   isHidden = false,
@@ -213,7 +221,7 @@ function ProjectLink({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;onSelect: () => void;}) {
+}: {project: ProjectEntry;descriptionPreview?: boolean;selectionScope?: string | null;typefaceStack?: string;isActive: boolean;isHidden?: boolean;onSelect: () => void;}) {
   /*
    * A row is the project's title and nothing else. The cover thumbnail, the audio
    * length, and the waveform signature were removed: an index is read as a list of
@@ -221,15 +229,19 @@ function ProjectLink({
    * with the work actually open beside it.
    */
   return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+      <ProjectDescriptionPreview selectionScope={selectionScope} enabled={descriptionPreview} project={project} typefaceStack={typefaceStack}>
       <button type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
         <span data-font-preview="" style={{
         fontFamily: typefaceStack
       }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>
       </button>
+      </ProjectDescriptionPreview>
     </div>;
 }
 function ProjectRow({
   project,
+  selectionScope,
+  descriptionPreview = false,
   typefaceStack,
   typefaceId,
   isHidden,
@@ -260,7 +272,7 @@ function ProjectRow({
 
 
 
-}: {project: ProjectEntry;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
+}: {project: ProjectEntry;descriptionPreview?: boolean;selectionScope?: string | null;typefaceStack?: string;typefaceId: string;isHidden: boolean;isPinned: boolean;isActive: boolean;isDraggable: boolean;dragDisabled?: boolean;onReorderStart?: () => void;onReorderEnd?: () => void;reorderActivator?: MobileReorderActivator;reorderActions?: MobileReorderActions;onToggleHidden: () => void;onTogglePinned: () => void;onSelect: () => void;onEdit?: () => void;onTypefaceChange?: (typefaceId: string) => void;onDelete?: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   const dragControls = useDragControls();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -293,11 +305,13 @@ function ProjectRow({
         {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => { if (!dragDisabled) dragControls.start(event); }} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
-        <button {...reorderActivator} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
+        <ProjectDescriptionPreview selectionScope={selectionScope} enabled={descriptionPreview} project={project} typefaceStack={typefaceStack}>
+        <button {...(descriptionPreview ? {} : reorderActivator)} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
           <span data-font-preview="" style={{
           fontFamily: typefaceStack
         }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>
         </button>
+        </ProjectDescriptionPreview>
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
