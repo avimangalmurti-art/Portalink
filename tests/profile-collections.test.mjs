@@ -178,9 +178,9 @@ function profileHarness(search = '', options = {}) {
     return placeholder;
   }, { URLSearchParams, window: { localStorage: { getItem: () => null } } });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
-  return { navigation, projectOrder, outside: () => outside, search: () => params.toString(), render: () => {
+  return { navigation, projectOrder, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
-    return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props });
+    return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
 }
 
@@ -270,6 +270,42 @@ test('nested mobile work retains profile identity and tools, and count controls 
   }
 });
 
+test('mobile view switches keep the same expanded profile tools and use one navigation callback', () => {
+  const selected = [];
+  const h = profileHarness('', { presentation: 'mobile', props: { onMobileViewChange: view => selected.push(view) } });
+  let tree = h.render();
+  nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+  for (const mobileContent of [undefined, React.createElement('portals'), React.createElement('project'), undefined]) {
+    tree = h.render({ mobileContent });
+    assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], true);
+    const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+    stats.props.onSelect('portals');
+    stats.props.onSelect('projects');
+  }
+  assert.deepEqual(selected, ['portals', 'projects', 'portals', 'projects', 'portals', 'projects', 'portals', 'projects']);
+  assert.equal(h.navigation.length, 0);
+});
+
+test('mobile profile count navigation always targets the viewed profile', () => {
+  const source = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const body = source.match(/onMobileViewChange=\{\(view\) => \{([\s\S]*?)\}\} viewerRole/)[1];
+  for (const isSharedRoute of [false, true]) {
+    const destinations = [];
+    const navigate = vm.runInNewContext(`view => {${body}}`, {
+      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: '/start', search: '',
+      nav: { to: path => destinations.push(path) },
+    });
+    for (const view of ['portals', 'projects', 'followers', 'following']) navigate(view);
+    const base = `${isSharedRoute ? '/share' : '/p'}/viewed-creator`;
+    assert.deepEqual(destinations, [`${base}?view=portals`, base, `${base}?view=followers`, `${base}?view=following`]);
+    const noChange = vm.runInNewContext(`view => {${body}}`, {
+      isSharedRoute, viewedProfile: { id: 'viewed-creator' }, buildPath: routes.buildPath, pathname: base, search: '?view=portals',
+      nav: { to: () => assert.fail('An active count must not add duplicate history entries') },
+    });
+    noChange('portals');
+  }
+});
+
 test('workspace keeps one child position and only MOBILE displays the profile frame', () => {
   const { MobileProfileWorkspace } = compile('../src/presentation/mobile/MobileProfileWorkspace.tsx', name => {
     if (name === 'react') return React;
@@ -281,6 +317,10 @@ test('workspace keeps one child position and only MOBILE displays the profile fr
   assert.equal(result.props.profile.id, 'viewed-creator');
   assert.equal(result.props.mobileContent, child);
   assert.equal(result.props.mobileContentView, 'portals');
+  const overviewResult = MobileProfileWorkspace({ overview });
+  assert.equal(overviewResult.type, result.type);
+  assert.equal(overviewResult.key, result.key);
+  assert.equal(overviewResult.props.mobileContent, undefined);
   const web = profileHarness('', { presentation: 'web', props: { mobileContent: child } }).render();
   const mobile = profileHarness('', { presentation: 'mobile', props: { mobileContent: child } }).render();
   assert.equal(web.props.className, 'contents');

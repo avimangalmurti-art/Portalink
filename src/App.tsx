@@ -45,7 +45,7 @@ import { ProfileEditorDialog } from './features/profile/ProfileEditorDialog';
 import { PublishProjectDialog } from './features/publishing/PublishProjectDialog';
 import { PublishConfirmation } from './features/publishing/PublishConfirmation';
 import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
-import { useScreenTransition } from './app/useScreenTransition';
+import { AppScreenLayers } from './presentation/AppScreenLayers';
 import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
 import { beginProjectContinuity, isProjectContinuityActive } from './utils/projectContinuity';
@@ -55,7 +55,7 @@ import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
 import { canResumeRegistration } from './features/auth/registration';
 import { AppPresentation } from './presentation/AppPresentation';
-import { MobileBackProvider, MobileBackScope } from './presentation/mobile/MobileBackNavigation';
+import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
@@ -1105,9 +1105,9 @@ export function App() {
         nav.to(target, false, viewTransition);
       } : undefined} /> : null;
   const profilePage = viewedProfile ? <UserProfilePage key={`${auth.user?.id ?? 'guest'}:${viewedProfile.id}:${isSharedRoute}`} profile={viewedProfile} onBack={closeUserProfile} mobilePortalsView={portalsPage} onMobileViewChange={(view) => {
-        if (view === 'portals') { returnToPortalCollection(); return; }
         const path = buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfile.id });
-        nav.to(view === 'projects' ? path : `${path}?view=${view}`);
+        const target = view === 'projects' ? path : `${path}?view=${view}`;
+        if (target !== `${pathname}${search}`) nav.to(target);
       }} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute ? undefined : {
@@ -1136,9 +1136,13 @@ export function App() {
         label,
         iconName
       })) : undefined} onOpenActivity={isOwnerMode ? (kind) => nav.activity(viewedProfile.id, kind) : undefined} /> : null;
-  const mobilePortalsWorkspace = profilePage && isOwnerMode && auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'signing-out' && viewedProfileQuery.status === 'ready' && onboardingStatus !== 'required'
+  const canShowOwnPortalsWorkspace = profilePage && isOwnerMode && auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'signing-out' && viewedProfileQuery.status === 'ready' && onboardingStatus !== 'required';
+  const mobilePortalsWorkspace = canShowOwnPortalsWorkspace
     ? <MobileProfileWorkspace overview={profilePage} view="portals">{portalsPage}</MobileProfileWorkspace>
     : portalsPage;
+  const mobileProfileKey = !routeStateView && !personalScreen && !isControlCenterOpen && !iconPickerCategoryId && viewedProfile &&
+    (categoryPage || ((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady) || (isPortalsOpen && canShowOwnPortalsWorkspace))
+      ? `mobile-profile-${auth.user?.id ?? 'guest'}-${viewedProfile.id}-${isSharedRoute}` : undefined;
   const screenContent = <div data-screen-scroll={activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'nested' : 'page'} className={`feed-starfield min-h-full ${activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'h-full' : ''}`}>
       <React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
       {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isControlCenterOpen ? <ControlCenterPage appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={() => nav.back()} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
@@ -1150,16 +1154,11 @@ export function App() {
         setIconPickerCategoryId(null);
       }} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? (isPortalsOpen ? mobilePortalsWorkspace : <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} />) : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
-        </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile ? profilePage : <HomeFeed isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
+        </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
       })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
       </React.Suspense>
     </div>;
-  const screenLayers = useScreenTransition(screenTransitionKey, {
-    mainClassName: screenMainClassName,
-    ariaLabel: screenAriaLabel,
-    content: screenContent
-  }, Boolean(shouldReduceMotion), isProjectContinuityActive());
   const rootTokenStyle = useMemo(() => ({
     '--accent-color': interfaceAccentColor,
     // The chosen accent resolves into its whole interaction family here, once,
@@ -1207,18 +1206,7 @@ export function App() {
             {projectNavigation.retry && <button type="button" onClick={projectNavigation.retry} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
             <button type="button" onClick={projectNavigation.dismiss} aria-label="Dismiss" className="shrink-0 text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Dismiss</button>
           </div> : null}
-        {screenLayers.map((layer) => <div key={layer.id} className={`app-screen-layer ${layer.phase}`} aria-hidden={layer.phase === 'screen-exit' ? true : undefined} ref={(element) => {
-          if (element) {
-            element.inert = layer.phase === 'screen-exit';
-          }
-        }}>
-            <main ref={layer.screenKey === screenTransitionKey ? mainContentRef : undefined} tabIndex={-1} onScroll={layer.screenKey === screenTransitionKey ? handleMainScroll : undefined} className={layer.snapshot.mainClassName} aria-label={layer.snapshot.ariaLabel}>
-              {/* The mobile sidebar has no Back action; each screen keeps its own exit. */}
-              <MobileBackScope active={layer.screenKey === screenTransitionKey} enabled={false}>
-                {layer.snapshot.content}
-              </MobileBackScope>
-            </main>
-          </div>)}
+        <AppScreenLayers screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
       </div>
 

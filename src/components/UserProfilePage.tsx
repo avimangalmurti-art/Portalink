@@ -401,7 +401,7 @@ export function UserProfilePage({
   const requestedView = searchParams.get('view');
   const activeView: ProfileContentView = isMobile && mobileContent && mobileContentView ? mobileContentView : !isSharedView && (requestedView === 'portals' || requestedView === 'followers' || requestedView === 'following') ? requestedView : 'projects';
   const setActiveView = (view: ProfileContentView) => {
-    if (isMobile && mobileContent && onMobileViewChange) {
+    if (isMobile && onMobileViewChange) {
       onMobileViewChange(view);
       return;
     }
