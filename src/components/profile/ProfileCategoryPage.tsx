@@ -1,7 +1,7 @@
 import { SavedChangeNotice } from '../ui/SavedChangeNotice';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, SearchIcon, SquareIcon } from 'lucide-react';
+import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, ListIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
@@ -413,7 +413,7 @@ export function ProfileCategoryPage({
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
               </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
-                {mobileProjectView ? <InterfaceIcon icon={PanelRightCloseIcon} weight="medium" mirroredInRtl /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
+                {mobileProjectView ? <InterfaceIcon icon={PanelLeftCloseIcon} weight="medium" mirroredInRtl /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
               </button>}
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
@@ -533,9 +533,14 @@ export function ProfileCategoryPage({
       </div>;
 
   return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
-      {mobileProjectView && isIndexCollapsed && !isPageFocused && <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
-        <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
-      </button>}
+      {mobileProjectView && isIndexCollapsed && !isPageFocused && <>
+        <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
+          <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
+        </button>
+        <button type="button" data-project-index-toggle="" aria-label="Portal preview" title="Portal preview" aria-expanded={false} onClick={() => onIndexCollapsedChange(false)} className="mobile-project-back mobile-project-portal-preview">
+          <InterfaceIcon icon={ListIcon} size="lg" weight="medium" />
+        </button>
+      </>}
       {(!mobileProjectView || !activeProject) && projectIndexPanel}
 
             {/* Owner-only surfaces. They act on the canonical record through the

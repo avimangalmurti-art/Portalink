@@ -128,17 +128,23 @@ export function EngagementBar({
           </button>)}
       </div>
 
+      {!isRail && <EngagementFeedback engagement={engagement} />}
+    </div>;
+}
+
+export function EngagementFeedback({ engagement }: { engagement: ProjectEngagementLifecycle }) {
+  return <>
       {/* A failed read: the controls are held rather than claiming "not liked". */}
-      {!isRail && engagement.resolveError && <p role="status" className="text-[11px] leading-snug text-[var(--text-secondary)]">
+      {engagement.resolveError && <p role="status" className="text-[11px] leading-snug text-[var(--text-secondary)]">
           {engagement.resolveError}
           <button type="button" onClick={engagement.retryResolve} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>
         </p>}
 
       {/* A failed mutation: already rolled back, with the same attempt offered. */}
-      {!isRail && engagement.failure && <p role="alert" className="text-[11px] leading-snug text-[var(--text-primary)]">
+      {engagement.failure && <p role="alert" className="text-[11px] leading-snug text-[var(--text-primary)]">
           {engagement.failure.message}
           {engagement.failure.retry && <button type="button" onClick={engagement.failure.retry} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>}
           <button type="button" onClick={engagement.dismissFailure} className="ml-1.5 font-semibold text-[var(--text-secondary)] underline focus:outline-none">Dismiss</button>
         </p>}
-    </div>;
+  </>;
 }

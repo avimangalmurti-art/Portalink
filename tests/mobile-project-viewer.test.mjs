@@ -5,14 +5,14 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 
-const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null;
+const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ mobile = true, readOnlyShare = false, empty = false } = {}) {
+function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {} } = {}) {
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [];
   const react = { ...React, useEffect() {}, useCallback: fn => fn,
@@ -29,9 +29,10 @@ function harness({ mobile = true, readOnlyShare = false, empty = false } = {}) {
   }).outputText, { exports, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
-    if (name.endsWith('/EngagementBar')) return { EngagementBar };
+    if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
-    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: id => { serviceIds.push(id); return {}; } };
+    if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
+    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: id => { serviceIds.push(id); return engagement; } };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: id => { serviceIds.push(id); return {}; } };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
@@ -40,7 +41,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false } = {}) {
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: 'video', displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { serviceIds, render() {
+  return { serviceIds, openIndex() { panel = 'index'; }, render() {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -51,7 +52,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false } = {}) {
   } };
 }
 
-test('mobile uses one right-panel slot and keeps selected media while opening and closing the project list', () => {
+test('mobile keeps selected media while opening its floating project list and separate response popups', () => {
   const h = harness();
   let tree = h.render();
   button(tree, 'second, Video').props.onClick();
@@ -59,7 +60,7 @@ test('mobile uses one right-panel slot and keeps selected media while opening an
   const work = withProp(tree, 'data-project-work-column');
   const media = nodes(work).find(node => node.type === AttachmentRenderer);
   assert.equal(media.props.attachment.id, 'second');
-  button(tree, 'Show project list').props.onClick();
+  h.openIndex();
   tree = h.render();
   assert.ok(withProp(tree, 'data-project-index-panel'));
   assert.equal(withProp(tree, 'data-project-response-rail'), undefined);
@@ -70,17 +71,33 @@ test('mobile uses one right-panel slot and keeps selected media while opening an
   tree = h.render();
   assert.equal(withProp(tree, 'data-project-index-panel'), undefined);
   assert.ok(withProp(tree, 'data-project-response-rail'));
-  button(tree, 'Show engagement and comments').props.onClick();
+  button(tree, 'Show comments').props.onClick();
   tree = h.render();
   assert.ok(nodes(tree).some(node => node.type === CommentThreadView));
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project comments');
+  button(tree, 'Close project popup').props.onClick();
+  tree = h.render();
+  assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover), false);
+  button(tree, 'Show project description').props.onClick();
+  tree = h.render();
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project description');
+  assert.equal(nodes(tree).some(node => node.type === CommentThreadView), false);
   assert.equal(withProp(tree, 'data-project-work-column').props.style.display, undefined);
-  button(tree, 'Show project list').props.onClick();
+  h.openIndex();
   assert.equal(withProp(h.render(), 'data-project-response-rail'), undefined);
+});
+
+test('mobile engagement failures keep the recovery popup accessible', () => {
+  const h = harness({ engagement: { resolveError: 'Could not load engagement' } });
+  button(h.render(), 'Review engagement error').props.onClick();
+  const tree = h.render();
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Engagement update');
+  assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
 });
 
 test('empty mobile projects keep their project-list access; WEB keeps its existing empty state', () => {
   const mobile = harness({ empty: true });
-  button(mobile.render(), 'Show project list').props.onClick();
+  mobile.openIndex();
   assert.ok(withProp(mobile.render(), 'data-project-index-panel'));
   const web = harness({ mobile: false, empty: true }).render();
   assert.equal(withProp(web, 'data-project-response-rail'), undefined);
@@ -90,10 +107,10 @@ test('empty mobile projects keep their project-list access; WEB keeps its existi
 test('shared mobile projects retain public details without social service requests or controls', () => {
   const h = harness({ readOnlyShare: true });
   let tree = h.render();
-  assert.ok(button(tree, 'Show project list'));
-  button(tree, 'Show project details').props.onClick();
+  button(tree, 'Show project description').props.onClick();
   tree = h.render();
-  assert.ok(button(tree, 'Show project information'));
+  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project description');
+  assert.equal(button(tree, 'Show comments'), undefined);
   assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
   assert.ok(h.serviceIds.every(id => id === null));
 });
@@ -173,11 +190,12 @@ test('project workspace combines only resolved mobile projects and uses the exis
   nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(true);
   tree = render(props);
   assert.equal(button(tree, 'Go back'), undefined, 'The project Back button must not overlap focused-page controls');
+  assert.equal(button(tree, 'Portal preview'), undefined);
   nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(false);
   tree = render(props);
   button(tree, 'Go back').props.onClick();
   assert.equal(back, 1);
-  nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();
+  button(tree, 'Portal preview').props.onClick();
   tree = render(props);
   assert.equal(button(tree, 'Go back'), undefined, 'The open project list already has Back to portals beside its title');
   const projectList = nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.index;
@@ -191,6 +209,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   tree = render(props);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, false);
   assert.ok(button(tree, 'Go back'), 'Closing the list restores the content viewer Back button');
+  assert.ok(button(tree, 'Portal preview'));
   button(projectList, 'Back to portals').props.onClick();
   assert.ok(button(projectList, 'Collapse document list'));
   assert.equal(portalReturns, 1);
