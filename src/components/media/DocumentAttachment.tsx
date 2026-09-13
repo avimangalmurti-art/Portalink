@@ -131,14 +131,16 @@ export function DocumentAttachment({
   useEffect(() => {
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
-  useLayoutEffect(() => {
-    const element = zoomSurfaceRef.current;
+  const restoreFocusedScroll = useCallback(() => {
+    const root = zoomSurfaceRef.current;
+    const element = isMobile && focusedPageIndex !== null ? root?.querySelector<HTMLElement>('[data-focused-page-scroll]') : root;
     if (!element) return;
     const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
     const remembered = readViewerMemory(positionMemoryKey);
     element.scrollTop = remembered.scrollTop ?? 0;
     element.scrollLeft = remembered.scrollLeft ?? 0;
-  }, [focusedPageIndex, memoryKey]);
+  }, [focusedPageIndex, isMobile, memoryKey]);
+  useLayoutEffect(restoreFocusedScroll, [restoreFocusedScroll]);
   useEffect(() => {
     if (renderedPages.length === 0) {
       return undefined;
@@ -156,7 +158,7 @@ export function DocumentAttachment({
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
   return <div className="flex h-full w-full flex-col">
-      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
+      {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : isMobile ? 'document-focused' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
         const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
         updateViewerMemory(positionMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });
       }} onKeyDown={focusedPageIndex === null ? undefined : (event) => {
@@ -181,7 +183,7 @@ export function DocumentAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Double-click or double-tap to fill the viewer'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Double-click or double-tap to fill the viewer'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);
@@ -202,16 +204,17 @@ export function DocumentAttachment({
               event.preventDefault();
               focusPage(index);
             }
-          }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
+          }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} onScroll={isMobile && focusedPageIndex === index ? (event) => updateViewerMemory(`${memoryKey}:page:${index}`, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }) : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
             <img
               data-media-page-surface=""
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
               width={page.width}
               height={page.height}
-              loading={page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
-              fetchPriority={page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
+              loading={(isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
+              fetchPriority={(isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
+              onLoad={isMobile && focusedPageIndex === index ? restoreFocusedScroll : undefined}
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />

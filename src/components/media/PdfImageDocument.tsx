@@ -40,6 +40,7 @@ type PdfImagePageProps = {
   label: string;
   enabled: boolean;
   isFocused: boolean;
+  retainCanvasWhileLoading: boolean;
   zoom: number;
   showMediaInteractions: boolean;
   isOwner: boolean;
@@ -56,6 +57,7 @@ function PdfImagePage({
   label,
   enabled,
   isFocused,
+  retainCanvasWhileLoading,
   zoom,
   showMediaInteractions,
   isOwner,
@@ -74,6 +76,7 @@ function PdfImagePage({
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'waiting' | 'loading' | 'ready' | 'failed'>('waiting');
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
+  const [paintedPageNumber, setPaintedPageNumber] = useState<number | null>(null);
   useLayoutEffect(() => {
     if (!isFocused || !focusMemoryKey) return;
     const remembered = readViewerMemory(focusMemoryKey);
@@ -146,7 +149,7 @@ function PdfImagePage({
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
-    if (!page || !host || !canvas) {
+    if (!page || page.pageNumber !== pageNumber || !host || !canvas) {
       return undefined;
     }
 
@@ -171,18 +174,22 @@ function PdfImagePage({
     const outputScale = Math.min(deviceScale, dimensionScale);
     const renderViewport = page.getViewport({ scale: cssScale * outputScale });
 
-    canvas.width = Math.max(1, Math.ceil(renderViewport.width));
-    canvas.height = Math.max(1, Math.ceil(renderViewport.height));
-    setBaseCanvasSize({
+    // Keep the focused mobile page painted until its replacement is ready.
+    // Resizing the visible canvas first clears it and exposes a blank frame.
+    const renderCanvas = retainCanvasWhileLoading ? canvas.ownerDocument.createElement('canvas') : canvas;
+    renderCanvas.width = Math.max(1, Math.ceil(renderViewport.width));
+    renderCanvas.height = Math.max(1, Math.ceil(renderViewport.height));
+    const nextCanvasSize = {
       width: Math.max(1, Math.floor(cssViewport.width)),
       height: Math.max(1, Math.floor(cssViewport.height))
-    });
+    };
+    if (!retainCanvasWhileLoading) setBaseCanvasSize(nextCanvasSize);
     setStatus('loading');
 
     let cancelled = false;
     let settled = false;
     const renderTask = page.render({
-      canvas,
+      canvas: renderCanvas,
       viewport: renderViewport,
       background: '#ffffff'
     });
@@ -198,8 +205,23 @@ function PdfImagePage({
 
     void renderTask.promise.then(() => {
       if (!cancelled && !settled) {
-        settled = true;
         window.clearTimeout(renderTimeout);
+        if (retainCanvasWhileLoading) {
+          const context = canvas.getContext('2d');
+          if (!context) {
+            settled = true;
+            setStatus('failed');
+            onSettledRef.current(pageNumber);
+            return;
+          }
+          // Copy the completed page before the browser can paint another frame.
+          canvas.width = renderCanvas.width;
+          canvas.height = renderCanvas.height;
+          context.drawImage(renderCanvas, 0, 0);
+          setBaseCanvasSize(nextCanvasSize);
+        }
+        settled = true;
+        setPaintedPageNumber(pageNumber);
         setStatus('ready');
         onSettledRef.current(pageNumber);
       }
@@ -217,16 +239,17 @@ function PdfImagePage({
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
     };
-  }, [isFocused, layoutRevision, page, pageNumber]);
+  }, [isFocused, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
 
   return <div
     ref={hostRef}
     data-focused-page-scroll={isFocused ? '' : undefined}
+    data-focused-page-loading={retainCanvasWhileLoading && paintedPageNumber !== pageNumber ? '' : undefined}
     role={isFocused ? undefined : 'button'}
     tabIndex={isFocused ? undefined : 0}
     aria-pressed={isFocused ? undefined : false}
     aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`}
-    aria-busy={status === 'waiting' || status === 'loading'}
+    aria-busy={status === 'waiting' || status === 'loading' || (retainCanvasWhileLoading && paintedPageNumber !== pageNumber)}
     onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })}
     onDoubleClick={isFocused ? undefined : (event) => {
       event.preventDefault();
@@ -255,8 +278,12 @@ function PdfImagePage({
     className={`${isFocused ? 'flex h-full w-full items-start justify-start overflow-auto overscroll-contain' : 'w-full touch-manipulation overflow-hidden'} group/media relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
-    {status === 'waiting' || status === 'loading' ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
+    {(status === 'waiting' || status === 'loading') && !(retainCanvasWhileLoading && paintedPageNumber !== null) ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" />
+    </span> : null}
+    {retainCanvasWhileLoading && paintedPageNumber !== null && paintedPageNumber !== pageNumber && status === 'loading' ? <span role="status" className="absolute bottom-3 right-3 z-10 flex items-center gap-2 rounded-[var(--control-radius)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-secondary)]">
+      <span aria-hidden="true" className="premium-media-loading-mark" />
+      Loading page {pageNumber}
     </span> : null}
     {status === 'failed' ? <span className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)]">
       <button
@@ -276,7 +303,7 @@ function PdfImagePage({
       data-media-page-surface=""
       ref={canvasRef}
       aria-hidden="true"
-      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' || (retainCanvasWhileLoading && paintedPageNumber !== null) ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
       style={baseCanvasSize ? {
         width: `${baseCanvasSize.width * (isFocused ? zoom : 1)}px`,
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`
@@ -437,7 +464,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];
 
-  return <div key={focusedPageNumber === null ? 'pdf-grid' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
+  return <div key={focusedPageNumber === null ? 'pdf-grid' : isMobile ? 'pdf-focused' : `pdf-page-${focusedPageNumber}`} ref={scrollRootRef} tabIndex={focusedPageNumber === null ? undefined : 0} onScroll={focusedPageNumber === null ? (event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop }) : undefined} onKeyDown={focusedPageNumber === null ? undefined : (event) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       moveFocusedPage(-1);
@@ -463,7 +490,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       <span className="sr-only">Preparing page images</span>
     </div>}
     {document && <ol aria-label={`${label} pages`} className={`${focusedPageNumber === null ? 'max-w-[1600px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageNumber === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-      {pageNumbers.map((pageNumber) => <li key={pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
+      {pageNumbers.map((pageNumber) => <li key={isMobile && focusedPageNumber !== null ? 'focused' : pageNumber} className={`${focusedPageNumber === pageNumber ? 'h-full min-h-0' : ''} group/media flex w-full justify-center`}>
         <PdfImagePage
           projectId={projectId}
           attachmentId={attachmentId}
@@ -472,6 +499,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           label={label}
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
+          retainCanvasWhileLoading={isMobile && focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions && !isMobile}
           isOwner={isOwner}

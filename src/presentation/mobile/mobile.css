@@ -1043,6 +1043,32 @@
   flex-direction: column;
   padding-top: calc(var(--focused-control-top) + 44px + 8px);
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  animation: none;
+}
+
+/* Page changes replace artwork without fading the viewport through a blank
+   frame. White belongs to the document itself, never its loading/letterbox. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] :is(.premium-focused-media, .premium-media-ready) {
+  animation: none;
+  transition: none;
+  background-color: transparent;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] [data-focused-page-scroll] {
+  background-color: transparent;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] .premium-media-placeholder::after {
+  animation: none;
+  background: none;
+}
+
+/* A retained PDF frame still belongs to the previous page while loading.
+   Reserve the footer's space, but prevent reactions to the pending page. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view]:has([data-focused-page-loading]) > .media-item-engagement--focused {
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > ol {

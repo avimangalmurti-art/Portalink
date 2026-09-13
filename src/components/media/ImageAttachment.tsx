@@ -265,7 +265,7 @@ export function ImageAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
+          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={isMobile ? pages.length : 1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
         </ol>
         {isMobile && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pages.length} isOwner={isOwner} target={{
           projectId,
