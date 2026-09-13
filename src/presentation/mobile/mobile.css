@@ -1582,3 +1582,115 @@
 [data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] .cover-filmstrip-item {
   width: 90px;
 }
+/* Project-view navigation: one compact control scale and one glass material.
+   These changes affect the floating controls, never the artwork's geometry. */
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) {
+  --project-control-surface: color-mix(in srgb, var(--surface-raised) 78%, transparent);
+  --project-control-blur: blur(22px) saturate(140%);
+  --project-control-shadow: 0 4px 16px rgb(0 0 0 / 14%), inset 0 1px 0 rgb(255 255 255 / 12%);
+}
+
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile, .mobile-project-back, [data-project-response-rail][data-rail-expanded='false']) {
+  background: var(--project-control-surface) !important;
+  -webkit-backdrop-filter: var(--project-control-blur);
+  backdrop-filter: var(--project-control-blur);
+  box-shadow: var(--project-control-shadow);
+  border: 0;
+}
+
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-navigation-scroll {
+  gap: 2px;
+  padding-block: 6px;
+  margin-top: calc(var(--safe-area-top) + 76px);
+}
+
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-navigation-opener [data-interface-icon-frame] {
+  --interface-icon-size: 32px;
+}
+
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-dock-profile, .mobile-project-back) [data-interface-icon-frame] {
+  --interface-icon-size: 22px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-back {
+  top: calc(12px + var(--mobile-content-safe-top));
+  left: calc(var(--mobile-navigation-inset-start) + (var(--mobile-dock-size) - 52px) / 2);
+  width: 52px;
+  height: 52px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] {
+  --mobile-project-panel-top: calc(12px + var(--mobile-content-safe-top));
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-rail-expanded='false'] {
+  --shared-header-glyph: 22px;
+  right: var(--mobile-navigation-inset-end);
+  bottom: auto;
+  width: 52px !important;
+  max-height: calc(100% - var(--mobile-project-panel-top) - var(--mobile-dock-clearance, 80px));
+  padding: 4px;
+  gap: 2px;
+  border-radius: 28px;
+  border: 0 !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] > :is(.mobile-project-index-opener, .global-control-header) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] [data-project-rail-actions] {
+  flex: 0 0 auto;
+  padding: 6px 0 0;
+  margin-top: 4px;
+  border-top: 1px solid var(--hairline-strong);
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] > .global-control-header::after {
+  display: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] .side-panel-navigation-list {
+  gap: 2px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] :is(.mobile-project-index-opener, .global-control-header, .side-panel-navigation-list) > button {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] [data-interface-icon-frame] {
+  --interface-icon-size: 22px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] button:not(:disabled):is(:active, [aria-pressed='true']) {
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent) !important;
+  transform: none;
+}
+
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]):where(.reduce-translucency, .high-contrast, .reduce-translucency *, .high-contrast *) {
+  --project-control-surface: var(--surface-raised);
+  --project-control-blur: none;
+  --project-control-shadow: inset 0 0 0 1px var(--hairline-strong), 0 4px 12px rgb(0 0 0 / 12%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) {
+    --project-control-surface: var(--surface-raised);
+    --project-control-blur: none;
+  }
+}
