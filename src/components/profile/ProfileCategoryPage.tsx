@@ -1,6 +1,6 @@
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
+import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PanelRightCloseIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
@@ -74,7 +74,10 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   // The category URL is the mobile project list. Selecting a row pushes the
   // project URL, so Back restores this list without changing saved panel widths.
-  const mobileIndexOnly = usePresentation() === 'mobile' && !sharedReadOnly && activeProjectId === null;
+  const isMobile = usePresentation() === 'mobile';
+  const mobileIndexOnly = isMobile && !sharedReadOnly && activeProjectId === null;
+  const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
+  useEffect(() => { setMobilePanel(null); }, [activeProjectId, category.id, isMobile]);
   const projectIndexWidth = useResizablePanelWidth({
     // Public copies keep a separate preference from the signed-in workspace.
     id: sharedReadOnly ? 'shared-project-index-standard' : 'project-index',
@@ -101,6 +104,7 @@ export function ProfileCategoryPage({
     return () => window.removeEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
   }, []);
   const onSelectProject = useCallback((id: string | null, replace?: boolean) => {
+    setMobilePanel(null);
     setCompactPanel(null);
     selectProject(id, replace);
     if (compactPanel) requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
@@ -110,17 +114,6 @@ export function ProfileCategoryPage({
     const minimum = panel === 'index' ? 220 : sharedReadOnly ? 240 : 304;
     setCompactPanel(workspace.width < projectPanelGeometry.workMinimum + projectPanelGeometry.rail + minimum ? panel : null);
   }, [workspace.width, sharedReadOnly]);
-  const onIndexCollapsedChange = useCallback((collapsed: boolean) => {
-    if (!collapsed) openPanel('index');
-    else setCompactPanel(null);
-    changeIndexPreference(collapsed);
-    requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
-  }, [changeIndexPreference, openPanel, projectPresentationRef]);
-  const onEngagementOpenChange = (open: boolean) => {
-    if (open) openPanel('response');
-    else setCompactPanel(null);
-    changeResponsePreference(open);
-  };
   useEffect(() => {
     if (!compactPanel) return;
     const minimum = compactPanel === 'index' ? 220 : sharedReadOnly ? 240 : 304;
@@ -171,6 +164,24 @@ export function ProfileCategoryPage({
     return projects.filter((project) => `${project.title} ${project.summary}`.toLowerCase().includes(normalized));
   }, [projects, query]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
+  const mobileProjectView = isMobile && activeProject !== null;
+  const onIndexCollapsedChange = useCallback((collapsed: boolean) => {
+    if (mobileProjectView) {
+      setMobilePanel(collapsed ? null : 'index');
+      requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
+      return;
+    }
+    if (!collapsed) openPanel('index');
+    else setCompactPanel(null);
+    changeIndexPreference(collapsed);
+    requestAnimationFrame(() => projectPresentationRef.current?.querySelector<HTMLButtonElement>('[data-project-index-toggle]')?.focus());
+  }, [changeIndexPreference, openPanel, projectPresentationRef, mobileProjectView]);
+  const onEngagementOpenChange = (open: boolean) => {
+    if (mobileProjectView) { setMobilePanel(open ? 'response' : null); return; }
+    if (open) openPanel('response');
+    else setCompactPanel(null);
+    changeResponsePreference(open);
+  };
   /**
    * Each project's own face, resolved from the record through the service rather
    * than from a map held above this page. Read for every project in the category,
@@ -347,16 +358,16 @@ export function ProfileCategoryPage({
   // immediately reopened another one and a deleted or wrong-category id silently
   // presented different work under the requested one. The category shows what
   // happened and the viewer chooses.
-  const panelLayout = allocateProjectPanels(workspace.width, !preferredIndexCollapsed, responseWanted,
+  const panelLayout = mobileProjectView ? {
+    indexWidth: 320, responseWidth: mobilePanel === 'response' ? 320 : 52,
+    indexOpen: mobilePanel === 'index', responseOpen: mobilePanel === 'response', singlePanel: null,
+  } : allocateProjectPanels(workspace.width, !preferredIndexCollapsed, responseWanted,
     projectIndexWidth.preferredWidth, responseRailWidth.preferredWidth, sharedReadOnly ? 240 : 304,
     lastOpened, compactPanel, Boolean(activeProject), mobileIndexOnly);
   const isIndexCollapsed = !panelLayout.indexOpen;
   const isEngagementOpen = panelLayout.responseOpen;
   const isMissingSelection = activeProjectId !== null && activeProject === null;
-  return <div ref={projectPresentationRef} data-project-presentation="" className="flex h-full w-full bg-transparent">
-      {/* Local document navigation: related to the global sidebar, but one tonal
-         step lighter and divided by a single hairline rather than a card. */}
-      <div data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
+  const projectIndexPanel = <div data-resizable-panel="" data-project-index-panel="" data-collapsed={isIndexCollapsed} data-shared-navigation-panel={sharedReadOnly ? '' : undefined} style={{ width: `${panelLayout.indexWidth}px`, display: panelLayout.indexWidth === 0 ? 'none' : undefined }} className={`ps-panel relative flex h-full shrink-0 flex-col border-r border-[var(--hairline)] bg-transparent transition-[width] duration-200 ease-out ${isIndexCollapsed ? 'w-[52px]' : ''}`}>
         {/* A collapsed document rail keeps its expander in the global header.
            The open rail puts its complete toolbar there instead of reserving an
            empty, darker band above the controls. */}
@@ -369,7 +380,7 @@ export function ProfileCategoryPage({
            the portal's own title because it leaves the portal entirely, rather
            than changing anything inside it — and it is absent unless the viewer
            actually arrived from the home surface. */}
-        {onReturnToDiscovery && <ScreenBack><div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
+        {onReturnToDiscovery && !mobileProjectView && <ScreenBack><div data-project-index-back="" className={`flex shrink-0 items-center pt-2 ${isIndexCollapsed ? 'justify-center px-1.5' : 'side-panel-content-inset'}`}>
             <button type="button" onClick={onReturnToDiscovery} aria-label="Back to home" title="Back to home" className={`side-panel-primary-control flex items-center text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isIndexCollapsed ? 'w-10 justify-center' : 'gap-1.5 pl-1.5 pr-2.5'}`}>
               <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               {!isIndexCollapsed && 'Back to home'}
@@ -388,7 +399,7 @@ export function ProfileCategoryPage({
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
               </> : <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(true)} aria-label="Collapse document list" aria-expanded={true} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
-                <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />
+                {mobileProjectView ? <InterfaceIcon icon={PanelRightCloseIcon} weight="medium" mirroredInRtl /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
               </button>}
               {/* Page totals belong in project information, not the toolbar.
                  Keep the remaining controls aligned with the adjacent rails. */}
@@ -503,8 +514,14 @@ export function ProfileCategoryPage({
             {query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
 
           </nav>}
-        {!isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
-      </div>
+        {!mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
+      </div>;
+
+  return <div ref={projectPresentationRef} data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
+      {mobileProjectView && <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
+        <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
+      </button>}
+      {(!mobileProjectView || !activeProject) && projectIndexPanel}
 
             {/* Owner-only surfaces. They act on the canonical record through the
              management boundary; the service refuses an unauthorised write on
@@ -522,7 +539,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false) } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <div role="alert" className="max-w-[420px] text-center">
             <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>

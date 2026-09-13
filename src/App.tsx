@@ -816,7 +816,8 @@ export function App() {
       nav.back();
       return;
     }
-    const fallback = isOwnerMode ? buildPath('portals')
+    const fallback = isSharedRoute && viewedProfileId ? buildPath('sharedProfile', { profileId: viewedProfileId })
+      : isOwnerMode ? buildPath('portals')
       : viewedProfileId ? buildPath('profile', { profileId: viewedProfileId }) : buildPath('home');
     nav.to(fallback, true);
   }

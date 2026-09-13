@@ -568,6 +568,93 @@
   padding-block: var(--mobile-sidebar-content-inset) var(--mobile-sidebar-gap);
 }
 
+/* One right-hand rail on the phone; opening its panels never remounts or
+   resizes the work. Back floats independently above the left canvas. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-back {
+  position: absolute;
+  top: calc(8px + var(--mobile-content-safe-top));
+  left: max(8px, env(safe-area-inset-left, 0px));
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 50%;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: var(--shadow-pop);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] {
+  position: relative;
+  padding-right: 52px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail][data-immersive='true'] {
+  padding-right: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail][data-immersive='true'] > [data-project-index-panel] {
+  display: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > :is([data-project-index-panel], [data-project-response-rail]) {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 40;
+  max-width: calc(100% - 60px);
+  border-left: 1px solid var(--hairline);
+  border-right: 0;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-opener,
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] > .global-control-header {
+  height: calc(64px + var(--mobile-content-safe-top));
+  min-height: calc(64px + var(--mobile-content-safe-top));
+  max-height: calc(64px + var(--mobile-content-safe-top));
+  padding-top: var(--mobile-content-safe-top);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-opener {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-inline: 4px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-opener + .global-control-header {
+  height: 64px;
+  min-height: 64px;
+  max-height: 64px;
+  padding-top: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > [data-project-index-panel]):where(.reduce-translucency *, .high-contrast *) {
+  background: var(--surface-raised);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-combined-rail] > [data-project-index-panel]) {
+    background: var(--surface-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-project-index-back] ~ .project-index-search {
   padding-top: var(--mobile-sidebar-gap);
 }
