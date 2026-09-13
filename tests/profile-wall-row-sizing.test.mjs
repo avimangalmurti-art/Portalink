@@ -4,6 +4,7 @@ import test from 'node:test';
 import React from 'react';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { TouchSensor } from '@dnd-kit/core';
 
 const source = readFileSync(new URL('../src/components/profile/JustifiedImageWall.tsx', import.meta.url), 'utf8');
 
@@ -48,10 +49,59 @@ test('sensor dependencies stay stable across WEB, mobile browsing, holding, drag
     assert.equal(h.zoomEnabled, !reorderMode?.enabled, 'Reordering must not also resize the grid');
     assert.equal(sensors.length, 3);
     assert.equal(sensors[0].sensor, presentation === 'mobile' && reorderMode ? 'Touch' : 'Pointer');
-    if (sensors[0].sensor === 'Touch' && !reorderMode.enabled) {
-      assert.deepEqual({ ...sensors[0].options.activationConstraint }, { delay: 450, tolerance: 8 });
+    if (sensors[0].sensor === 'Touch') {
+      assert.deepEqual({ ...sensors[0].options.activationConstraint }, { delay: reorderMode.enabled ? 250 : 450, tolerance: 8 });
     } else assert.deepEqual({ ...sensors[0].options.activationConstraint }, { distance: 6 });
   }
+});
+
+test('mobile reorder cards allow vertical scrolling while WEB retains its drag surface', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = wallHarness(presentation, { enabled: true });
+    const card = h.card.type(h.card.props);
+    const activator = h.nodes(card).find(node => node.props.onTouchStart);
+    assert.ok(activator.props.className.includes(presentation === 'mobile' ? 'touch-pan-y' : 'touch-none'));
+    assert.equal(h.context.props.autoScroll, undefined, 'Keep dnd-kit edge scrolling enabled by default');
+  }
+});
+
+test('a swipe during reorder stays native; a stationary hold picks up the project', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  class Surface {
+    listeners = new Map();
+    addEventListener(name, listener) { this.listeners.set(name, [...(this.listeners.get(name) ?? []), listener]); }
+    removeEventListener(name, listener) { this.listeners.set(name, (this.listeners.get(name) ?? []).filter(fn => fn !== listener)); }
+  }
+  class Document extends Surface { getSelection() { return null; } }
+  class Element extends Surface { nodeType = 1; }
+  class TouchEvent {
+    cancelable = true; prevented = false;
+    constructor(target, y = 0) { this.target = target; this.touches = [{ clientX: 0, clientY: y }]; }
+    preventDefault() { this.prevented = true; }
+  }
+  const win = Object.assign(new Surface(), { Document, HTMLElement: Element, SVGElement: Element, TouchEvent, EventTarget: Surface });
+  const doc = Object.assign(new Document(), { defaultView: win });
+  const target = Object.assign(new Element(), { ownerDocument: doc });
+  const options = wallHarness('mobile', { enabled: true }).context.props.sensors[0].options;
+  let starts = 0, ends = 0, cancels = 0;
+  const create = () => new TouchSensor({ active: 'a', event: new TouchEvent(target), options,
+    onPending() {}, onAbort() {}, onMove() {}, onStart() { starts++; }, onCancel() { cancels++; }, onEnd() { ends++; },
+  });
+  const swipe = create();
+  const move = new TouchEvent(target, 24);
+  swipe.handleMove(move);
+  t.mock.timers.tick(300);
+  assert.equal(starts, 0);
+  assert.equal(cancels, 1);
+  assert.equal(move.prevented, false, 'Scrolling remains a browser gesture');
+  const hold = create();
+  t.mock.timers.tick(249); assert.equal(starts, 0);
+  t.mock.timers.tick(1); assert.equal(starts, 1);
+  const drag = new TouchEvent(target, 80);
+  hold.handleMove(drag);
+  assert.equal(drag.prevented, true, 'After pickup, movement belongs to the drag');
+  hold.handleEnd();
+  assert.equal(ends, 1);
 });
 
 test('holding starts only on artwork, then a completed drop moves the selected project', () => {

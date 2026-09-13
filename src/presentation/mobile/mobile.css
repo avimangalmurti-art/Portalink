@@ -682,55 +682,6 @@
   --mobile-content-safe-bottom: 12px;
 }
 
-[data-presentation='mobile'] [data-project-description-overlay] {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-  background: rgb(0 0 0 / 12%);
-}
-
-[data-presentation='mobile'] [data-project-description-overlay] [data-project-description-preview] {
-  width: min(380px, 100%);
-  max-height: min(480px, 100%);
-  min-height: min(160px, 100%);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 24px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 24px;
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  backdrop-filter: blur(24px) saturate(140%);
-  box-shadow: var(--shadow-pop);
-  outline: none;
-}
-
-[data-presentation='mobile'] [data-project-description-preview] > p {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-[data-presentation='mobile'] [data-project-description-preview]:where(.reduce-translucency *, .high-contrast *) {
-  background: var(--surface-raised) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  [data-presentation='mobile'] [data-project-description-preview] {
-    background: var(--surface-raised) !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-  }
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] {
   overflow: hidden;
 }

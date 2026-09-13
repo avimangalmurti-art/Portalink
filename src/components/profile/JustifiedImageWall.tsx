@@ -156,6 +156,7 @@ function SortableWallCard({
   shouldReduceMotion,
   reorderMode,
 }: SortableWallCardProps) {
+  const isMobile = usePresentation() === 'mobile';
   const canHoldToReorder = Boolean(reorderMode?.onStart) && !isDisabled;
   const canSort = !isDisabled && (isReordering || canHoldToReorder);
   const {
@@ -221,7 +222,7 @@ function SortableWallCard({
         aria-describedby={isReordering ? 'profile-project-reorder-instructions' : undefined}
         aria-label={isReordering ? `Project ${itemIndex + 1} of ${itemCount}; drag to reorder` : undefined}
         onKeyDown={isReordering ? handleKeyDown : undefined}
-        className={`w-full min-w-0 ${isReordering ? 'cursor-grab touch-none rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing' : ''}`}
+        className={`w-full min-w-0 ${isReordering ? `cursor-grab ${isMobile ? 'touch-pan-y' : 'touch-none'} rounded-[9px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:cursor-grabbing` : ''}`}
       >
         <div className={`relative w-full ${isReordering ? 'profile-project-reorder-card rounded-[8px] ring-2 ring-inset ring-[var(--accent-primary)]' : ''}`} style={isReordering ? {
           animationDelay: `${itemIndex % 5 * -75}ms`,
@@ -270,7 +271,8 @@ export function JustifiedImageWall({
   const shouldReduceMotion = useReducedMotion();
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
   const touchSensor = useSensor(SingleTouchSensor, {
-    activationConstraint: reorderMode?.enabled ? { distance: 6 } : { delay: 450, tolerance: 8 },
+    // A swipe scrolls; a brief stationary hold picks up a card for dragging.
+    activationConstraint: { delay: reorderMode?.enabled ? 250 : 450, tolerance: 8 },
   });
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: isMobile && !reorderMode?.enabled ? { delay: 450, tolerance: 8 } : { distance: 6 },
@@ -306,7 +308,7 @@ export function JustifiedImageWall({
   };
   return <div ref={view.ref} className="relative w-full">
       <ZoomReadout view={view} />
-      {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
+      {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
       <DndContext sensors={sensors} collisionDetection={gapAwareCollisionDetection} onDragStart={() => {
         if (!reorderMode?.enabled && !reorderMode?.disabled) reorderMode?.onStart?.();
       }} onDragEnd={handleDragEnd}>

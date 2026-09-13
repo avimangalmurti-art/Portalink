@@ -98,7 +98,6 @@ test('only the destination gets hold listeners; disabled rows remain ordinary bu
 
 const ReorderGroup = () => null;
 const MobileReorderList = () => null;
-const ProjectDescriptionPreview = () => null;
 function projectHarness() {
   const slots = []; let cursor = 0;
   const react = { ...React,
@@ -114,7 +113,6 @@ function projectHarness() {
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
-    if (name.endsWith('/ProjectDescriptionPreview')) return { ProjectDescriptionPreview };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({}) };
     return {};
@@ -243,17 +241,22 @@ test('touch tap, scroll and pinch cancel pickup; ordinary holds still drag and c
   assert.equal(doc.listeners.get('touchcancel').length, 0);
 });
 
-test('description previews apply to floating mobile rows for visitors and owners, preserving other lists', () => {
-  const h = projectHarness(); h.props.descriptionPreview = true;
+test('floating mobile rows only navigate, with owner reordering kept in the menu', () => {
+  const h = projectHarness(); h.props.mobileReorderFromMenu = true;
+  const selections = [];
+  h.props.onSelect = id => selections.push(id);
   let group = all(h.render()).find(node => node.type === MobileReorderList);
   const actions = { moveUp() {}, moveDown() {} };
   const row = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch, onMouseDown: activateMouse }, actions);
-  assert.equal(row.props.descriptionPreview, true);
+  assert.equal(row.props.reorderActivator, undefined);
   assert.equal(row.props.reorderActions, actions);
   let rendered = h.renderRow(row);
-  const preview = all(rendered).find(node => node.type === ProjectDescriptionPreview);
-  assert.equal(preview.props.children.props.onTouchStart, undefined);
-  assert.equal(preview.props.children.props.onMouseDown, undefined);
+  const title = all(rendered).find(node => node.type === 'button' && node.props.title === row.props.project.title);
+  for (const key of ['onTouchStart', 'onMouseDown', 'onPointerDown', 'onContextMenu', 'aria-haspopup']) {
+    assert.equal(title.props[key], undefined);
+  }
+  title.props.onClick();
+  assert.deepEqual(selections, [row.props.project.id]);
   all(rendered).find(node => node.props['data-row-menu'] !== undefined).props.onClick();
   rendered = h.renderRow(row);
   const moves = all(rendered).filter(node => node.props.role === 'menuitem').map(node => node.props.children).filter(label => typeof label === 'string');
@@ -261,13 +264,21 @@ test('description previews apply to floating mobile rows for visitors and owners
   h.props.isOwner = false;
   const visitorRows = all(h.render()).filter(node => node.props.project);
   assert.ok(visitorRows.length > 0);
-  assert.ok(visitorRows.every(node => node.props.descriptionPreview));
+  for (const visitorRow of visitorRows) {
+    const button = all(h.renderRow(visitorRow)).find(node => node.type === 'button');
+    assert.equal(button.props.onPointerDown, undefined);
+    assert.equal(button.props['aria-haspopup'], undefined);
+    button.props.onClick();
+    assert.equal(selections.at(-1), visitorRow.props.project.id);
+  }
   h.setPresentation('web');
-  assert.ok(all(h.render()).filter(node => node.props.project).every(node => !node.props.descriptionPreview));
-  h.setPresentation('mobile'); h.props.descriptionPreview = false;
-  assert.ok(all(h.render()).filter(node => node.props.project).every(node => !node.props.descriptionPreview));
+  assert.ok(all(h.render()).filter(node => node.props.project).every(node => !node.props.reorderActivator));
+  h.setPresentation('mobile'); h.props.isOwner = true; h.props.mobileReorderFromMenu = false;
+  group = all(h.render()).find(node => node.type === MobileReorderList);
+  const ordinaryRow = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch }, actions);
+  assert.equal(ordinaryRow.props.reorderActivator.onTouchStart, activateTouch);
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /<ProjectIndexList descriptionPreview=\{mobileProjectView\}/);
+  assert.match(source, /<ProjectIndexList mobileReorderFromMenu=\{mobileProjectView\}/);
 });
 
 

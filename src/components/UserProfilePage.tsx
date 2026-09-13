@@ -609,7 +609,7 @@ export function UserProfilePage({
       </header>}
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {isMobile && isReorderingProjects && <div data-profile-reorder-controls="" className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">
-        <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Drag to move. Tap outside the cards to save.'}</p>
+        <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Swipe to scroll. Hold a project to move it. Tap outside the cards to save.'}</p>
       </div>}
       {!isSharedView && (!isMobile || isMobileToolsOpen) && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">

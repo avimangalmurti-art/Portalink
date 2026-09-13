@@ -179,15 +179,18 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(back, 1);
   nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();
   tree = render(props);
+  assert.equal(button(tree, 'Go back'), undefined, 'The open project list already has Back to portals beside its title');
   const projectList = nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.index;
   nodes(projectList).find(node => node.type === Index).props.onSelect('second');
   render(props);
   tree = render(props);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'second');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, true);
+  assert.equal(button(tree, 'Go back'), undefined, 'Selecting another project keeps the duplicate Back hidden');
   nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onCloseIndex();
   tree = render(props);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, false);
+  assert.ok(button(tree, 'Go back'), 'Closing the list restores the content viewer Back button');
   button(projectList, 'Back to portals').props.onClick();
   assert.ok(button(projectList, 'Collapse document list'));
   assert.equal(portalReturns, 1);

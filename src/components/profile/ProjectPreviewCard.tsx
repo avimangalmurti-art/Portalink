@@ -7,6 +7,7 @@ import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { ProjectCover } from '../media/ProjectCover';
 import { CreatorAvatar } from './CreatorAvatar';
+import { PreviewCreatorName } from './PreviewCreatorName';
 import { ProjectHoverDetails, ProjectPreviewMetrics } from './ProjectHoverDetails';
 
 type Props = {
@@ -46,7 +47,7 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
   useEffect(() => { if (!preview.expanded) onCollapse?.(); }, [preview.expanded, onCollapse]);
   const creatorContent = <>
     <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="compact" className="h-7 w-7 shrink-0 text-[11px]" fallbackClassName="bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-0" />
-    <span className="min-w-0 truncate text-left text-[11px] font-semibold">{creator.name}</span>
+    <PreviewCreatorName name={creator.name} active={preview.expanded && showCreator} />
   </>;
   const creatorProps = {
     className: 'project-preview-creator flex min-w-0 items-center gap-2 text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
