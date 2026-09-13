@@ -250,7 +250,7 @@ export function ImageAttachment({
         event.preventDefault();
         moveFocusedPage(1);
       }
-    }} {...swipeHandlers} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={swipeStyle}>
+    }} {...swipeHandlers} data-mobile-focused-view={isMobile ? '' : undefined} className="premium-media-mode-enter relative h-full min-h-0 w-full overflow-hidden outline-none" style={swipeStyle}>
         <FocusedPageExitControl
           onExit={exitFocus}
           label="Exit single-image view"
@@ -265,8 +265,14 @@ export function ImageAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
+          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
         </ol>
+        {isMobile && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pages.length} isOwner={isOwner} target={{
+          projectId,
+          attachmentId: focusedPage.id,
+          pageIndex: focusedPageIndex,
+          label: focusedPage.displayName
+        }} /> : null}
       </div>;
   }
   /*

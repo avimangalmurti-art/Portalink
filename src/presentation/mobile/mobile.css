@@ -1023,6 +1023,45 @@
   bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 
+/* A fitted page owns the space between its controls. The footer stays outside
+   the zoom/pan viewport, so neither artwork nor controls can cover the other. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
+  --focused-control-top: max(8px, var(--mobile-content-safe-top, 0px));
+  display: flex;
+  flex-direction: column;
+  padding-top: calc(var(--focused-control-top) + 44px + 8px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > ol {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  overflow: hidden;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > :is(.premium-viewer-exit-control, [data-focused-page-count]) {
+  top: var(--focused-control-top);
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > .premium-viewer-exit-control {
+  left: max(8px, env(safe-area-inset-left, 0px));
+  width: 44px;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > .media-item-engagement--focused {
+  position: relative;
+  flex: none;
+  align-self: center;
+  left: auto;
+  bottom: auto;
+  margin-top: 8px;
+}
+
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
   height: 48px;
   flex-direction: column;

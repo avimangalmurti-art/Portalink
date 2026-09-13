@@ -445,7 +445,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       event.preventDefault();
       moveFocusedPage(1);
     }
-  }} {...swipeHandlers} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : swipeStyle}>
+  }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageNumber !== null ? '' : undefined} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : swipeStyle}>
     {focusedPageNumber !== null ? <FocusedPageExitControl
       onExit={exitFocus}
     /> : null}
@@ -473,7 +473,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
-          showMediaInteractions={showMediaInteractions}
+          showMediaInteractions={showMediaInteractions && !(isMobile && focusedPageNumber === pageNumber)}
           isOwner={isOwner}
           focusMemoryKey={focusedPageNumber === pageNumber ? `${memoryKey}:page:${pageNumber}` : undefined}
           onToggleFocus={focusPage}
@@ -481,5 +481,11 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         />
       </li>)}
     </ol>}
+    {isMobile && document && focusedPageNumber !== null && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pageCount} isOwner={isOwner} target={{
+      projectId,
+      attachmentId,
+      pageIndex: focusedPageNumber - 1,
+      label
+    }} /> : null}
   </div>;
 }

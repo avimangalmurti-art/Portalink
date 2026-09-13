@@ -167,7 +167,7 @@ export function DocumentAttachment({
           event.preventDefault();
           moveFocusedPage(1);
         }
-      }} {...swipeHandlers} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : swipeStyle}>
+      }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageIndex !== null ? '' : undefined} className={`${focusedPageIndex === null ? 'overflow-y-auto p-4 sm:p-6' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageIndex === null ? undefined : swipeStyle}>
         {focusedPageIndex !== null ? <FocusedPageExitControl
           onExit={exitFocus}
         /> : null}
@@ -215,7 +215,7 @@ export function DocumentAttachment({
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
-            {showMediaInteractions && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
+            {showMediaInteractions && !(isMobile && focusedPageIndex === index) && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
               attachmentId: attachment.id,
               pageIndex: index,
@@ -223,6 +223,12 @@ export function DocumentAttachment({
             }} />}
           </li>)}
         </ol>
+        {isMobile && focusedPageIndex !== null && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={renderedPages.length} isOwner={isOwner} target={{
+          projectId,
+          attachmentId: attachment.id,
+          pageIndex: focusedPageIndex,
+          label: attachment.displayName
+        }} /> : null}
       </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
