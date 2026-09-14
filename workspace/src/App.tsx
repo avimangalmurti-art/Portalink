@@ -55,6 +55,7 @@ import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
 import { canResumeRegistration } from './features/auth/registration';
 import { AppPresentation } from './presentation/AppPresentation';
+import { markMobileForwardNavigation } from './presentation/mobile/backNavigationTransition';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 
 // Expensive destinations are loaded only when opened. In particular, the
@@ -804,6 +805,8 @@ export function App() {
     if (!viewedProfileId) {
       return;
     }
+    // Opening a portal moves deeper, so the mobile workspace travels forward.
+    markMobileForwardNavigation();
     if (isSharedRoute) {
       nav.sharedCategory(viewedProfileId, categoryId);
       return;

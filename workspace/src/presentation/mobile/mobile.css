@@ -1783,24 +1783,38 @@
   }
 }
 
-/* A Back gesture returns to the previous screen. The leaving workspace stays
-   mounted for one transition, so it slides off to the right while the arriving
-   screen moves in behind it. */
-#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-back-navigation] .app-screen-layer.screen-exit {
+/* Moving between mobile screens. The leaving workspace stays mounted for one
+   transition so the two screens travel together: Back sends it off to the right,
+   and moving deeper sends it left behind the arriving screen. */
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back'] .app-screen-layer.screen-exit {
   z-index: 4;
   opacity: 1;
   transform: translate3d(100%, 0, 0);
 }
 
-#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-back-navigation] .app-screen-layer.screen-next {
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back'] .app-screen-layer.screen-next {
   opacity: 1;
   transform: translate3d(-24%, 0, 0);
 }
 
-/* Fallback for a Back that kept a single layer: move the arriving screen on its
-   own rather than leaving the change as an instant cut. */
-#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-back-navigation]:not(:has(> .app-screen-layer.screen-exit)) .app-screen-layer.screen-active > main {
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward'] .app-screen-layer.screen-exit {
+  opacity: 1;
+  transform: translate3d(-24%, 0, 0);
+}
+
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward'] .app-screen-layer.screen-next {
+  opacity: 1;
+  transform: translate3d(100%, 0, 0);
+}
+
+/* Fallback when the move kept a single layer: carry the arriving screen in on
+   its own rather than leaving the change as an instant cut. */
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back']:not(:has(> .app-screen-layer.screen-exit)) .app-screen-layer.screen-active > main {
   animation: portalink-mobile-back-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward']:not(:has(> .app-screen-layer.screen-exit)) .app-screen-layer.screen-active > main {
+  animation: portalink-mobile-forward-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes portalink-mobile-back-slide {
@@ -1813,8 +1827,18 @@
   }
 }
 
+@keyframes portalink-mobile-forward-slide {
+  from {
+    transform: translate3d(24%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] #app-viewport[data-mobile-back-navigation] .app-screen-layer.screen-active > main {
+  #root .codex-shell[data-presentation='mobile'] #app-viewport[data-mobile-screen-navigation] .app-screen-layer.screen-active > main {
     animation: none;
   }
 }

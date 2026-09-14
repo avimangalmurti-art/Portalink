@@ -1,60 +1,73 @@
 /**
- * Mobile Back transition signal.
+ * Mobile screen transition signal.
  *
- * Mobile profile destinations deliberately share one screen layer, so a Back
- * navigation would otherwise replace the workspace in place with no transition
- * at all. Marking the viewport lets the arriving screen animate, and the
- * subscribable mark lets `AppScreenLayers` keep the leaving workspace mounted
- * for exactly one transition so it can move off-screen behind it.
+ * Mobile profile destinations deliberately share one screen layer, so moving
+ * between them would otherwise replace the workspace in place with no
+ * transition at all. A direction mark lets `AppScreenLayers` keep the leaving
+ * workspace mounted for exactly one transition, and tells the stylesheet which
+ * way the two screens travel.
  *
  * This is a transient presentation signal. It never changes routing, history,
- * or which screen is authoritative.
+ * or which screen is authoritative, and an unmarked navigation keeps the
+ * existing single-workspace behavior.
  */
-const BACK_NAVIGATION_ATTRIBUTE = 'data-mobile-back-navigation';
-const BACK_NAVIGATION_MS = 300;
+export type MobileScreenDirection = 'back' | 'forward';
+
+const DIRECTION_ATTRIBUTE = 'data-mobile-screen-navigation';
+const DIRECTION_HOLD_MS = 300;
 /**
- * A Back gesture's navigation lands in the same task as the mark. A later
- * screen change is ordinary navigation, so the mark expires instead of being
- * consumed; a missed mark costs the animation, never correct navigation.
+ * A marked navigation lands in the same task as its mark. A later screen change
+ * is ordinary navigation, so the mark expires rather than being consumed; a
+ * missed mark costs the transition, never correct navigation.
  */
-const BACK_NAVIGATION_FRESH_MS = 120;
+const DIRECTION_FRESH_MS = 120;
 
 let clearTimer = 0;
 let markedAt = 0;
 const listeners = new Set<() => void>();
 
-export function markMobileBackNavigation(): void {
+function markDirection(direction: MobileScreenDirection): void {
   markedAt = Date.now();
   listeners.forEach((listener) => listener());
   if (typeof document === 'undefined') return;
   const viewport = document.getElementById('app-viewport');
   if (!viewport) return;
   window.clearTimeout(clearTimer);
-  // Restart the animation when Back runs again before the first one settles.
-  viewport.removeAttribute(BACK_NAVIGATION_ATTRIBUTE);
+  // Restart the transition when a second move begins before the first settles.
+  viewport.removeAttribute(DIRECTION_ATTRIBUTE);
   void viewport.offsetWidth;
-  viewport.setAttribute(BACK_NAVIGATION_ATTRIBUTE, '');
+  viewport.setAttribute(DIRECTION_ATTRIBUTE, direction);
   clearTimer = window.setTimeout(() => {
-    viewport.removeAttribute(BACK_NAVIGATION_ATTRIBUTE);
-  }, BACK_NAVIGATION_MS);
+    viewport.removeAttribute(DIRECTION_ATTRIBUTE);
+  }, DIRECTION_HOLD_MS);
 }
 
-export function subscribeMobileBackNavigation(listener: () => void): () => void {
+/** Returning to the previous screen: it arrives from the left. */
+export function markMobileBackNavigation(): void {
+  markDirection('back');
+}
+
+/** Moving deeper into the workspace: the new screen arrives from the right. */
+export function markMobileForwardNavigation(): void {
+  markDirection('forward');
+}
+
+export function subscribeMobileScreenNavigation(listener: () => void): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-export function getMobileBackNavigationMark(): number {
+export function getMobileScreenNavigationMark(): number {
   return markedAt;
 }
 
-/** Server rendering and tests without a clock never report a Back in flight. */
-export function getServerMobileBackNavigationMark(): number {
+/** Server rendering and tests without a clock never report a move in flight. */
+export function getServerMobileScreenNavigationMark(): number {
   return 0;
 }
 
-export function isMobileBackNavigationFresh(mark: number): boolean {
-  return mark > 0 && Date.now() - mark < BACK_NAVIGATION_FRESH_MS;
+export function isMobileScreenNavigationFresh(markedTime: number): boolean {
+  return markedTime > 0 && Date.now() - markedTime < DIRECTION_FRESH_MS;
 }
