@@ -210,8 +210,11 @@ point with server credentials is different: it can claim production jobs.
 
 ## Existing automation and remaining gaps
 
-[Quality CI](../.github/workflows/quality.yml) runs for reviewed development PRs
-and pushes to `main`; checkpoint branches must be excluded from both paths.
+[Quality CI](../.github/workflows/quality.yml) currently runs for pull requests
+and pushes to `main`. Checkpoint pushes do not match its push trigger. The
+recovery branch has no root workflow files and must never be opened as a PR.
+Before adding broader automation, explicitly exclude checkpoint sources from
+push, PR, and manual release paths; no CI configuration was changed in this pass.
 It runs typecheck, lint, build, and PDF-worker tests. It currently does not run
 the Node suite, PGlite database checks, or video-worker tests. The checkpoint
 tooling does not add those jobs or claim new application coverage. Adding them

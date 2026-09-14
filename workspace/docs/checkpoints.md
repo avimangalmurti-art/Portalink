@@ -2,9 +2,9 @@
 
 The checkpoint utility preserves recoverable source while Codex or Claude works
 in the shared desktop folder. Reviewed source remains GitHub `main`. Installation,
-the first checkpoint, and remote upload must be verified independently; see the
-dated evidence in [the current handoff](agent-handoff.md). Activation evidence is
-pending for this implementation until the owning agent records verification.
+the first checkpoint, and remote upload were verified on 2026-09-14; see the
+dated evidence in [the current handoff](agent-handoff.md). Use live status for
+current health rather than treating that historical evidence as a guarantee.
 
 ## Operation
 
@@ -48,7 +48,7 @@ build, SQL migration, Sites/worker deployment, signing, or release.
 
 ## Controls and status
 
-From the repository root in PowerShell, use the management script:
+From the repository root in Windows PowerShell, use the management script:
 
 ```powershell
 ./scripts/checkpoints/manage.ps1 -Action Status
@@ -62,13 +62,48 @@ both local capture and remote synchronization: an enabled task or locally saved
 snapshot alone does not prove GitHub has it. `Run` requests a checkpoint from
 the enabled task now; use `Status` to inspect its result. `Disable` pauses
 scheduled execution; an already running checkpoint may finish. `Enable` resumes
-the installed task. Neither is a restore command.
+the installed task. Neither is a restore command. Healthy status is `State: ok`
+with equal `LastLocalCommit` and `LastRemoteCommit`, a recent `LastAttemptAt`,
+and `LastTaskResult: 0`. `267009` means the task is currently running. A recent
+attempt with an old commit can simply mean no files changed. `ExcludedCount`
+counts additional exclusions among Git's candidates; Git-ignored untracked
+files were already omitted, so zero does not mean `.env.local` was included.
+
+The private store also contains `status.json`, `last-run.log`, and
+`last-error.log`. A launcher failure may create `launcher-error.log`; compare
+its timestamp with the latest successful attempt. A blocked scan produces
+`blocked-findings.json` containing paths/rules/line numbers, never secret values.
+Old diagnostic files may describe an earlier resolved failure; live status
+is authoritative.
 
 Initial installation uses `-Action Install` with the verified scanner path and
 SHA-256. Installation is disabled by default. `-RemoteVerified` records the
 operator's completed remote-integration review, and `-Activate` additionally
 enables scheduling. These setup options are not required when switching coding
 agents; `Enable` requires an installation whose remote integration was verified.
+
+The installed secret scanner is Gitleaks 8.30.1, with its executable SHA-256
+pinned in `scripts/checkpoints/policy.json`. It was downloaded from the official
+Gitleaks release and checked against the release archive checksum. The policy
+currently has no finding exceptions. Limits are 90 MiB per file, 512 MiB per
+snapshot, and 5,000 files. Archives, database dumps, executables, unknown binary
+formats, and redirected/symlinked paths stop capture for review.
+
+Run installation or reviewed updates from ordinary Windows PowerShell, outside
+the packaged Codex process. Windows can virtualize a packaged app's LocalAppData
+writes into its package cache, which Task Scheduler cannot see. This installation
+was completed in the native Windows namespace, and the scheduled runner was
+verified there. Do not create a second installation in Codex's package cache.
+To reinstall a reviewed update, wait until the task is idle and use:
+
+```powershell
+$checkpointScanner = Join-Path $env:LOCALAPPDATA 'Portalink\Checkpoints\bin\gitleaks.exe'
+./scripts/checkpoints/manage.ps1 -Action Install -ScannerPath $checkpointScanner -ScannerSha256 '17157e2ee8b76fc8b1d8bee607a250e34b8a8023c8bc81822d4b5ee4d78fcb7c' -RemoteVerified -Activate
+```
+
+Reconfirm the repository/integration scope before using `-RemoteVerified`.
+The installer preserves the private history and refuses a running task or a
+remaining run lock. It never changes the working branch.
 
 The task uses an installed copy so a source edit cannot silently change the
 background program. Review and deliberately install runner updates. Existing
@@ -106,10 +141,16 @@ git --git-dir="$checkpointStore" log --all --oneline -20
 $checkpointCommit = 'REPLACE_WITH_SELECTED_FULL_COMMIT_ID'
 git --git-dir="$checkpointStore" show "${checkpointCommit}:manifest.json"
 $recoveryArchive = Join-Path $recoveryFolder 'checkpoint.zip'
-git --git-dir="$checkpointStore" archive --format=zip --output="$recoveryArchive" $checkpointCommit workspace manifest.json README.md
+git -c core.autocrlf=false -c core.eol=lf --git-dir="$checkpointStore" archive --format=zip --output="$recoveryArchive" $checkpointCommit workspace manifest.json README.md
 if ($LASTEXITCODE -ne 0) { throw 'Checkpoint export failed.' }
 Expand-Archive -LiteralPath $recoveryArchive -DestinationPath (Join-Path $recoveryFolder 'candidate')
 ```
+
+The line-ending overrides prevent Windows Git from rewriting text during
+export. Validate exported files against the manifest's SHA-256 hashes before
+restoring; future Git attributes such as `export-ignore` or `export-subst` can
+also affect archives. If hashes differ, recover the original blobs with Git
+plumbing into the separate folder instead of treating the export as exact.
 
 If the private store is unavailable, explicitly fetch only the recovery branch
 into a **new bare repository inside that separate recovery folder**. Use the
@@ -136,3 +177,16 @@ only the reviewed recovery changes on a deliberate feature branch, run checks
 appropriate to those changes, and follow the normal review flow into `main`.
 Never replace the whole working folder or restore database state from this
 source checkpoint.
+
+## Focused verification
+
+```powershell
+node.exe --test tests/checkpoints.test.mjs
+```
+
+The tests use isolated temporary repositories and injected scan/upload failures;
+they do not contact production services. They cover partial staging, ignored
+and sensitive files, direct credential rejection, stable capture, offline retry,
+unchanged runs, fixed destination, hooks/filters, path escapes, and size limits.
+Real Windows task/upload and isolated recovery checks are recorded separately
+in the handoff. Application checks are not implied by these tooling tests.

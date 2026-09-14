@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:06:35.238Z",
+  "createdAt": "2026-09-14T10:12:23.147Z",
   "sourceHead": "af9b4b0563e518789671553361803e5d9cec0287",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "02f1dad4fee0111598ea70a2f830fb129a713d2f7b49c89a8f766ab7c5ebc6d3",
+  "payloadHash": "47bfbf269a31329aa6a2c7a32df957420790407e91927819aefd9f328a7212ed",
   "files": [
     {
       "path": ".env.example",
@@ -199,8 +199,8 @@
     },
     {
       "path": "docs/agent-handoff.md",
-      "sha256": "c4052b4d4af7afd333651062720815aaf6cf820877b207ef74140276b7070d4c",
-      "size": 3006,
+      "sha256": "cd00c1147b57ed12de7b4a2c986b84a3b6bc8f3959d0b00832ad59a80b83ba4d",
+      "size": 4302,
       "mode": "100644"
     },
     {
@@ -211,8 +211,8 @@
     },
     {
       "path": "docs/checkpoints.md",
-      "sha256": "96517673b056312f76ca1d3519b12def6229ed74a971050d794ee7fa6ff428c3",
-      "size": 7689,
+      "sha256": "2cdd1cc7247e82132f008d72251f9fc717b98edff54a5256877000e835ed670b",
+      "size": 10917,
       "mode": "100644"
     },
     {
@@ -229,8 +229,8 @@
     },
     {
       "path": "docs/development-workflow.md",
-      "sha256": "e09f505bd7633b7e702127221bc81d733aa23be08be76e546e155961546a2378",
-      "size": 12976,
+      "sha256": "0acb0e547e7eba1e2313a8ca73c74a36ed66f66277e60869603788876ccb7ad1",
+      "size": 13210,
       "mode": "100644"
     },
     {
