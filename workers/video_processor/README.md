@@ -23,6 +23,10 @@ and private media store. No Redis, public bucket, or second database is needed.
    Supabase project, start the worker, then publish the website playback changes.
    Do not apply the backfill until worker hosting is ready: otherwise existing
    unsupported videos will show queued with no converter running.
+   If the video pipeline migration was already applied, also apply
+   `supabase/migrations/202609140001_video_worker_permissions.sql` to remove any
+   direct browser-role grants on worker controls. This permission-only migration
+   leaves uploads and jobs unchanged; saving it to GitHub does not apply it.
 4. Verify a short MOV on a dedicated test project: queued → processing → completed,
    correct audio/video in WEB and MOBILE, unchanged original download, and public
    playback with no session. Confirm private/hidden content stays inaccessible.

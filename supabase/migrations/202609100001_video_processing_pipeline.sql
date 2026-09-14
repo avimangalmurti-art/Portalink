@@ -63,7 +63,7 @@ begin
   return new;
 end;
 $$;
-revoke all on function public.enqueue_video_attachment() from public;
+revoke all on function public.enqueue_video_attachment() from public, anon, authenticated;
 create trigger project_attachments_enqueue_video
 after insert or update of storage_path, size_bytes, mime_type, extension, file_name
 on public.project_attachments for each row execute function public.enqueue_video_attachment();
@@ -172,7 +172,7 @@ $$;
 
 revoke all on function public.claim_video_processing_job(integer), public.heartbeat_video_processing(uuid, uuid),
   public.complete_video_processing(uuid, uuid, text, integer, integer, double precision, bigint, jsonb),
-  public.fail_video_processing(uuid, uuid, text, boolean), public.retry_video_processing(text) from public;
+  public.fail_video_processing(uuid, uuid, text, boolean), public.retry_video_processing(text) from public, anon, authenticated;
 grant execute on function public.claim_video_processing_job(integer), public.heartbeat_video_processing(uuid, uuid),
   public.complete_video_processing(uuid, uuid, text, integer, integer, double precision, bigint, jsonb),
   public.fail_video_processing(uuid, uuid, text, boolean) to service_role;

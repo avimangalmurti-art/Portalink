@@ -127,7 +127,8 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // specific account overrides must stay behind the same boundary. A
         // presentation attribute also scopes body-portalled mobile controls,
         // with or without zero specificity for component-level overrides.
-        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?: |$)`);
+        // A compound host selector (:has(), data attributes, etc.) retains scope.
+        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
         assert.match(selector, boundary);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }

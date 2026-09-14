@@ -714,11 +714,6 @@
   padding-right: max(8px, env(safe-area-inset-right, 0px));
 }
 
-@keyframes mobile-project-panel-enter {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-index-panel] {
     animation: none;

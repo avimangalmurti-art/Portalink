@@ -13,11 +13,45 @@ test('video pipeline migration: backfill, visibility, token fencing, output inte
   const privateProject = '22222222-2222-4222-8222-222222222222';
   const source = `${owner}/original.mov`;
   const one = async (sql, params = []) => (await db.query(sql, params)).rows[0];
+  const workerFunctions = [
+    'public.claim_video_processing_job(integer)',
+    'public.heartbeat_video_processing(uuid,uuid)',
+    'public.complete_video_processing(uuid,uuid,text,integer,integer,double precision,bigint,jsonb)',
+    'public.fail_video_processing(uuid,uuid,text,boolean)',
+  ];
+  const restrictedFunctions = [...workerFunctions, 'public.enqueue_video_attachment()'];
+  const retryFunction = 'public.retry_video_processing(text)';
+  const canExecute = async (role, signature) => (await one(
+    "select has_function_privilege($1, $2, 'EXECUTE') allowed", [role, signature],
+  )).allowed;
+  const verifyWorkerPermissions = async () => {
+    for (const role of ['anon', 'authenticated']) {
+      for (const signature of restrictedFunctions) {
+        assert.equal(await canExecute(role, signature), false, `${role} must not execute ${signature}`);
+      }
+      assert.equal(await canExecute(role, retryFunction), role === 'authenticated');
+      await db.exec(`set role ${role}`);
+      try {
+        await assert.rejects(db.query('select * from claim_video_processing_job()'), /permission denied/);
+      } finally { await db.exec('reset role'); }
+    }
+    for (const signature of workerFunctions) {
+      assert.equal(await canExecute('service_role', signature), true, `service_role must execute ${signature}`);
+    }
+    // Prove the worker can still claim real queued work without consuming a fixture.
+    await db.exec('begin; set local role service_role');
+    try {
+      const claimed = await one('select * from claim_video_processing_job()');
+      assert.equal(claimed.status, 'processing');
+      assert.ok(claimed.lease_token);
+    } finally { await db.exec('rollback'); }
+  };
   try {
     await db.exec(`
       create role anon; create role authenticated; create role service_role bypassrls;
       create schema storage;
       grant usage on schema public, storage to anon, authenticated, service_role;
+      alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
       create function public.owns_profile(id uuid) returns boolean language sql stable as $$ select id::text = current_setting('test.owner', true) $$;
       create function public.can_view_profile(id uuid) returns boolean language sql stable as $$ select id <> '${privateOwner}'::uuid or public.owns_profile(id) $$;
       create function public.path_profile_id(path text) returns uuid language sql immutable as $$ select split_part(path, '/', 1)::uuid $$;
@@ -39,6 +73,16 @@ test('video pipeline migration: backfill, visibility, token fencing, output inte
       assert.equal((await one('select count(*)::int n from video_processing_jobs')).n, 2);
       const row = await one("select kind,status,storage_path from project_attachments where id='legacy'");
       assert.deepEqual(row, { kind: 'video', status: 'processing', storage_path: source });
+    });
+    await t.test('fresh installs revoke default browser grants while retaining worker and owner-retry access', verifyWorkerPermissions);
+    await t.test('forward migration repairs direct browser grants on already-installed functions', async () => {
+      const signatures = [...restrictedFunctions, retryFunction];
+      await db.exec(`grant execute on function ${signatures.join(', ')} to anon, authenticated`);
+      for (const role of ['anon', 'authenticated']) {
+        for (const signature of signatures) assert.equal(await canExecute(role, signature), true);
+      }
+      await db.exec(await fs.readFile(new URL('../supabase/migrations/202609140001_video_worker_permissions.sql', import.meta.url), 'utf8'));
+      await verifyWorkerPermissions();
     });
     await t.test('anonymous viewers see only public job status and cannot claim work', async () => {
       await db.exec('set role anon');
