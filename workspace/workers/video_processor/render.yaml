@@ -1,0 +1,18 @@
+# Explicit paid deployment; this file does not provision a service by itself.
+services:
+  - type: worker
+    name: portalink-video
+    runtime: docker
+    plan: 1c-2g
+    region: oregon
+    numInstances: 1
+    dockerContext: workers/video_processor
+    dockerfilePath: workers/video_processor/Dockerfile
+    autoDeployTrigger: "off"
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: VIDEO_JOB_TIMEOUT_SECONDS
+        value: "3600"

@@ -1,0 +1,33 @@
+import React, { useEffect, useState } from 'react';
+import { ResponsiveImage } from '../ui/ResponsiveImage';
+
+type CreatorAvatarProps = {
+  name: string;
+  avatar?: string | null;
+  className?: string;
+  fallbackClassName?: string;
+  shape?: 'circle' | 'compact' | 'squircle';
+};
+
+/**
+ * The creator's canonical profile image, with initials only when the profile
+ * genuinely has no usable image. The image is decorative wherever this appears
+ * because the creator's name is rendered beside it.
+ */
+export function CreatorAvatar({
+  name,
+  avatar,
+  className = 'h-9 w-9',
+  fallbackClassName = 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-[var(--hairline)]',
+  shape = 'circle'
+}: CreatorAvatarProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [avatar]);
+  const initials = name.split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('') || '?';
+  const showsImage = Boolean(avatar) && !imageFailed;
+  const shapeClassName = shape === 'squircle' ? 'squircle' : shape === 'compact' ? 'shape-compact' : 'rounded-full';
+
+  return <span aria-hidden="true" className={`relative flex shrink-0 overflow-hidden ${shapeClassName} ${className}`}>
+      {showsImage ? <ResponsiveImage src={avatar ?? ''} decorative width={128} height={128} sizes="128px" onError={() => setImageFailed(true)} className="h-full w-full object-cover" /> : <span className={`flex h-full w-full items-center justify-center ${shapeClassName} text-[0.7em] font-semibold ring-1 ring-inset ${fallbackClassName}`}>{initials}</span>}
+    </span>;
+}

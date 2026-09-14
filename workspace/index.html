@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="/favicon.ico?v=f74efbdf" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/portalink-favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/portalink-favicon-48.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180.png" />
+    <link rel="manifest" href="/site.webmanifest?v=f74efbdf" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <style>
+      html,
+      body,
+      #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+      }
+
+      #portalink-preboot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        min-height: 100dvh;
+        place-items: center;
+        overflow: hidden;
+        background-color: #f5eaf4;
+        background-image: none;
+        color: #000000;
+      }
+
+      #portalink-preboot img {
+        display: block;
+        width: min(100vw, 100dvh, 576px);
+        max-height: 100dvh;
+        height: auto;
+        object-fit: contain;
+      }
+
+    </style>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let mode = 'auto';
+        try {
+          const stored = window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
+          if (stored === 'light' || stored === 'dark' || stored === 'auto') mode = stored;
+        } catch {
+          // Storage can be unavailable in private browsing; System still works.
+        }
+        const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+        let resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
+        if (window.location.pathname.startsWith('/share/')) {
+          resolved = systemDark ? 'dark' : 'light';
+          try {
+            const profileId = window.location.pathname.split('/')[2];
+            const sharedTheme = window.localStorage.getItem(`portalink.publicTheme.${profileId}`);
+            if (sharedTheme === 'light' || sharedTheme === 'dark') resolved = sharedTheme;
+          } catch {
+            // The resolved system appearance remains the public-link fallback.
+          }
+        }
+        root.dataset.appearance = resolved;
+        root.style.colorScheme = resolved;
+      })();
+    </script>
+    <meta name="description" content="A creator platform for publishing work and discovering people, projects, and places." />
+    <meta name="application-name" content="portalinknetworks" />
+    <meta name="apple-mobile-web-app-title" content="portalinknetworks" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="portalinknetworks" />
+    <meta property="og:description" content="Publish work. Discover people, projects, and places." />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="portalinknetworks" />
+    <meta name="twitter:description" content="Publish work. Discover people, projects, and places." />
+    <meta name="twitter:image" content="/og.png" />
+    <title>portalink networks</title>
+  </head>
+  <body>
+    <div id="root">
+      <!-- The original video's first frame also covers startup before React. -->
+      <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
+        <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
+      </div>
+    </div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>

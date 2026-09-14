@@ -1,0 +1,681 @@
+export type City = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+// Browse cities, each with the coordinates used to rotate its globe so the
+// city sits at the centre of the sphere.
+export const cities: City[] = [{
+  name: 'Cape Town',
+  latitude: -33.92,
+  longitude: 18.42
+}, {
+  name: 'Johannesburg',
+  latitude: -26.2,
+  longitude: 28.05
+}, {
+  name: 'Durban',
+  latitude: -29.86,
+  longitude: 31.02
+}, {
+  name: 'Nairobi',
+  latitude: -1.29,
+  longitude: 36.82
+}, {
+  name: 'Lagos',
+  latitude: 6.52,
+  longitude: 3.38
+}, {
+  name: 'Accra',
+  latitude: 5.6,
+  longitude: -0.19
+}, {
+  name: 'Marrakesh',
+  latitude: 31.63,
+  longitude: -7.99
+}, {
+  name: 'Cairo',
+  latitude: 30.04,
+  longitude: 31.24
+}, {
+  name: 'Addis Ababa',
+  latitude: 9.01,
+  longitude: 38.76
+}, {
+  name: 'Dakar',
+  latitude: 14.72,
+  longitude: -17.47
+}, {
+  name: 'London',
+  latitude: 51.51,
+  longitude: -0.13
+}, {
+  name: 'Paris',
+  latitude: 48.86,
+  longitude: 2.35
+}, {
+  name: 'Berlin',
+  latitude: 52.52,
+  longitude: 13.4
+}, {
+  name: 'Milan',
+  latitude: 45.46,
+  longitude: 9.19
+}, {
+  name: 'Rome',
+  latitude: 41.9,
+  longitude: 12.5
+}, {
+  name: 'Madrid',
+  latitude: 40.42,
+  longitude: -3.7
+}, {
+  name: 'Barcelona',
+  latitude: 41.39,
+  longitude: 2.17
+}, {
+  name: 'Lisbon',
+  latitude: 38.72,
+  longitude: -9.14
+}, {
+  name: 'Porto',
+  latitude: 41.15,
+  longitude: -8.61
+}, {
+  name: 'Amsterdam',
+  latitude: 52.37,
+  longitude: 4.9
+}, {
+  name: 'Rotterdam',
+  latitude: 51.92,
+  longitude: 4.48
+}, {
+  name: 'Copenhagen',
+  latitude: 55.68,
+  longitude: 12.57
+}, {
+  name: 'Stockholm',
+  latitude: 59.33,
+  longitude: 18.07
+}, {
+  name: 'Oslo',
+  latitude: 59.91,
+  longitude: 10.75
+}, {
+  name: 'Helsinki',
+  latitude: 60.17,
+  longitude: 24.94
+}, {
+  name: 'Zurich',
+  latitude: 47.38,
+  longitude: 8.54
+}, {
+  name: 'Vienna',
+  latitude: 48.21,
+  longitude: 16.37
+}, {
+  name: 'Prague',
+  latitude: 50.08,
+  longitude: 14.44
+}, {
+  name: 'Warsaw',
+  latitude: 52.23,
+  longitude: 21.01
+}, {
+  name: 'Athens',
+  latitude: 37.98,
+  longitude: 23.73
+}, {
+  name: 'Istanbul',
+  latitude: 41.01,
+  longitude: 28.98
+}, {
+  name: 'Dubai',
+  latitude: 25.2,
+  longitude: 55.27
+}, {
+  name: 'Tel Aviv',
+  latitude: 32.09,
+  longitude: 34.78
+}, {
+  name: 'Mumbai',
+  latitude: 19.08,
+  longitude: 72.88
+}, {
+  name: 'Delhi',
+  latitude: 28.61,
+  longitude: 77.21
+}, {
+  name: 'Bangkok',
+  latitude: 13.76,
+  longitude: 100.5
+}, {
+  name: 'Ho Chi Minh City',
+  latitude: 10.82,
+  longitude: 106.63
+}, {
+  name: 'Jakarta',
+  latitude: -6.21,
+  longitude: 106.85
+}, {
+  name: 'Singapore',
+  latitude: 1.35,
+  longitude: 103.82
+}, {
+  name: 'Kuala Lumpur',
+  latitude: 3.14,
+  longitude: 101.69
+}, {
+  name: 'Hong Kong',
+  latitude: 22.32,
+  longitude: 114.17
+}, {
+  name: 'Shanghai',
+  latitude: 31.23,
+  longitude: 121.47
+}, {
+  name: 'Beijing',
+  latitude: 39.9,
+  longitude: 116.41
+}, {
+  name: 'Taipei',
+  latitude: 25.03,
+  longitude: 121.57
+}, {
+  name: 'Seoul',
+  latitude: 37.57,
+  longitude: 126.98
+}, {
+  name: 'Tokyo',
+  latitude: 35.68,
+  longitude: 139.65
+}, {
+  name: 'Kyoto',
+  latitude: 35.01,
+  longitude: 135.77
+}, {
+  name: 'Osaka',
+  latitude: 34.69,
+  longitude: 135.5
+}, {
+  name: 'Sydney',
+  latitude: -33.87,
+  longitude: 151.21
+}, {
+  name: 'Melbourne',
+  latitude: -37.81,
+  longitude: 144.96
+}, {
+  name: 'Auckland',
+  latitude: -36.85,
+  longitude: 174.76
+}, {
+  name: 'New York',
+  latitude: 40.71,
+  longitude: -74.01
+}, {
+  name: 'Brooklyn',
+  latitude: 40.68,
+  longitude: -73.94
+}, {
+  name: 'Los Angeles',
+  latitude: 34.05,
+  longitude: -118.24
+}, {
+  name: 'San Francisco',
+  latitude: 37.77,
+  longitude: -122.42
+}, {
+  name: 'Chicago',
+  latitude: 41.88,
+  longitude: -87.63
+}, {
+  name: 'Austin',
+  latitude: 30.27,
+  longitude: -97.74
+}, {
+  name: 'Miami',
+  latitude: 25.76,
+  longitude: -80.19
+}, {
+  name: 'Toronto',
+  latitude: 43.65,
+  longitude: -79.38
+}, {
+  name: 'Montreal',
+  latitude: 45.5,
+  longitude: -73.57
+}, {
+  name: 'Vancouver',
+  latitude: 49.28,
+  longitude: -123.12
+}, {
+  name: 'Mexico City',
+  latitude: 19.43,
+  longitude: -99.13
+}, {
+  name: 'Bogotá',
+  latitude: 4.71,
+  longitude: -74.07
+}, {
+  name: 'Lima',
+  latitude: -12.05,
+  longitude: -77.04
+}, {
+  name: 'Santiago',
+  latitude: -33.45,
+  longitude: -70.67
+}, {
+  name: 'Buenos Aires',
+  latitude: -34.6,
+  longitude: -58.38
+}, {
+  name: 'São Paulo',
+  latitude: -23.55,
+  longitude: -46.63
+}, {
+  name: 'Rio de Janeiro',
+  latitude: -22.91,
+  longitude: -43.17
+}, {
+  name: 'Reykjavik',
+  latitude: 64.15,
+  longitude: -21.94
+}, {
+  name: 'Dublin',
+  latitude: 53.35,
+  longitude: -6.26
+}, {
+  name: 'Glasgow',
+  latitude: 55.86,
+  longitude: -4.25
+}, {
+  name: 'Manchester',
+  latitude: 53.48,
+  longitude: -2.24
+}, {
+  name: 'Brussels',
+  latitude: 50.85,
+  longitude: 4.35
+}, {
+  name: 'Antwerp',
+  latitude: 51.22,
+  longitude: 4.4
+}, {
+  name: 'Hamburg',
+  latitude: 53.55,
+  longitude: 9.99
+}, {
+  name: 'Munich',
+  latitude: 48.14,
+  longitude: 11.58
+}, {
+  name: 'Basel',
+  latitude: 47.56,
+  longitude: 7.59
+}, {
+  name: 'Geneva',
+  latitude: 46.2,
+  longitude: 6.14
+}, {
+  name: 'Florence',
+  latitude: 43.77,
+  longitude: 11.26
+}, {
+  name: 'Naples',
+  latitude: 40.85,
+  longitude: 14.27
+}, {
+  name: 'Valencia',
+  latitude: 39.47,
+  longitude: -0.38
+}, {
+  name: 'Seville',
+  latitude: 37.39,
+  longitude: -5.98
+}, {
+  name: 'Budapest',
+  latitude: 47.5,
+  longitude: 19.04
+}, {
+  name: 'Kraków',
+  latitude: 50.06,
+  longitude: 19.94
+}, {
+  name: 'Bucharest',
+  latitude: 44.43,
+  longitude: 26.1
+}, {
+  name: 'Belgrade',
+  latitude: 44.79,
+  longitude: 20.45
+}, {
+  name: 'Zagreb',
+  latitude: 45.81,
+  longitude: 15.98
+}, {
+  name: 'Tallinn',
+  latitude: 59.44,
+  longitude: 24.75
+}, {
+  name: 'Riga',
+  latitude: 56.95,
+  longitude: 24.11
+}, {
+  name: 'Vilnius',
+  latitude: 54.69,
+  longitude: 25.28
+}, {
+  name: 'Gothenburg',
+  latitude: 57.71,
+  longitude: 11.97
+}, {
+  name: 'Bergen',
+  latitude: 60.39,
+  longitude: 5.32
+}, {
+  name: 'Tbilisi',
+  latitude: 41.72,
+  longitude: 44.79
+}, {
+  name: 'Beirut',
+  latitude: 33.89,
+  longitude: 35.5
+}, {
+  name: 'Amman',
+  latitude: 31.95,
+  longitude: 35.93
+}, {
+  name: 'Doha',
+  latitude: 25.29,
+  longitude: 51.53
+}, {
+  name: 'Abu Dhabi',
+  latitude: 24.45,
+  longitude: 54.38
+}, {
+  name: 'Riyadh',
+  latitude: 24.71,
+  longitude: 46.68
+}, {
+  name: 'Karachi',
+  latitude: 24.86,
+  longitude: 67.01
+}, {
+  name: 'Lahore',
+  latitude: 31.55,
+  longitude: 74.34
+}, {
+  name: 'Bengaluru',
+  latitude: 12.97,
+  longitude: 77.59
+}, {
+  name: 'Chennai',
+  latitude: 13.08,
+  longitude: 80.27
+}, {
+  name: 'Kolkata',
+  latitude: 22.57,
+  longitude: 88.36
+}, {
+  name: 'Colombo',
+  latitude: 6.93,
+  longitude: 79.86
+}, {
+  name: 'Kathmandu',
+  latitude: 27.72,
+  longitude: 85.32
+}, {
+  name: 'Dhaka',
+  latitude: 23.81,
+  longitude: 90.41
+}, {
+  name: 'Hanoi',
+  latitude: 21.03,
+  longitude: 105.85
+}, {
+  name: 'Manila',
+  latitude: 14.6,
+  longitude: 120.98
+}, {
+  name: 'Bali',
+  latitude: -8.41,
+  longitude: 115.19
+}, {
+  name: 'Phnom Penh',
+  latitude: 11.56,
+  longitude: 104.92
+}, {
+  name: 'Chiang Mai',
+  latitude: 18.79,
+  longitude: 98.99
+}, {
+  name: 'Shenzhen',
+  latitude: 22.54,
+  longitude: 114.06
+}, {
+  name: 'Guangzhou',
+  latitude: 23.13,
+  longitude: 113.26
+}, {
+  name: 'Chengdu',
+  latitude: 30.57,
+  longitude: 104.07
+}, {
+  name: 'Busan',
+  latitude: 35.18,
+  longitude: 129.08
+}, {
+  name: 'Sapporo',
+  latitude: 43.06,
+  longitude: 141.35
+}, {
+  name: 'Fukuoka',
+  latitude: 33.59,
+  longitude: 130.4
+}, {
+  name: 'Ulaanbaatar',
+  latitude: 47.89,
+  longitude: 106.91
+}, {
+  name: 'Almaty',
+  latitude: 43.24,
+  longitude: 76.89
+}, {
+  name: 'Tashkent',
+  latitude: 41.3,
+  longitude: 69.24
+}, {
+  name: 'Brisbane',
+  latitude: -27.47,
+  longitude: 153.03
+}, {
+  name: 'Perth',
+  latitude: -31.95,
+  longitude: 115.86
+}, {
+  name: 'Adelaide',
+  latitude: -34.93,
+  longitude: 138.6
+}, {
+  name: 'Wellington',
+  latitude: -41.29,
+  longitude: 174.78
+}, {
+  name: 'Christchurch',
+  latitude: -43.53,
+  longitude: 172.64
+}, {
+  name: 'Suva',
+  latitude: -18.14,
+  longitude: 178.44
+}, {
+  name: 'Honolulu',
+  latitude: 21.31,
+  longitude: -157.86
+}, {
+  name: 'Anchorage',
+  latitude: 61.22,
+  longitude: -149.9
+}, {
+  name: 'Seattle',
+  latitude: 47.61,
+  longitude: -122.33
+}, {
+  name: 'Portland',
+  latitude: 45.52,
+  longitude: -122.68
+}, {
+  name: 'Denver',
+  latitude: 39.74,
+  longitude: -104.99
+}, {
+  name: 'Santa Fe',
+  latitude: 35.69,
+  longitude: -105.94
+}, {
+  name: 'Minneapolis',
+  latitude: 44.98,
+  longitude: -93.27
+}, {
+  name: 'Detroit',
+  latitude: 42.33,
+  longitude: -83.05
+}, {
+  name: 'Philadelphia',
+  latitude: 39.95,
+  longitude: -75.17
+}, {
+  name: 'Boston',
+  latitude: 42.36,
+  longitude: -71.06
+}, {
+  name: 'Washington',
+  latitude: 38.91,
+  longitude: -77.04
+}, {
+  name: 'Atlanta',
+  latitude: 33.75,
+  longitude: -84.39
+}, {
+  name: 'New Orleans',
+  latitude: 29.95,
+  longitude: -90.07
+}, {
+  name: 'Houston',
+  latitude: 29.76,
+  longitude: -95.37
+}, {
+  name: 'Calgary',
+  latitude: 51.05,
+  longitude: -114.07
+}, {
+  name: 'Halifax',
+  latitude: 44.65,
+  longitude: -63.58
+}, {
+  name: 'Guadalajara',
+  latitude: 20.66,
+  longitude: -103.35
+}, {
+  name: 'Oaxaca',
+  latitude: 17.07,
+  longitude: -96.72
+}, {
+  name: 'Havana',
+  latitude: 23.11,
+  longitude: -82.37
+}, {
+  name: 'San Juan',
+  latitude: 18.47,
+  longitude: -66.11
+}, {
+  name: 'Panama City',
+  latitude: 8.98,
+  longitude: -79.52
+}, {
+  name: 'San José',
+  latitude: 9.93,
+  longitude: -84.09
+}, {
+  name: 'Quito',
+  latitude: -0.18,
+  longitude: -78.47
+}, {
+  name: 'Medellín',
+  latitude: 6.24,
+  longitude: -75.58
+}, {
+  name: 'Cusco',
+  latitude: -13.53,
+  longitude: -71.97
+}, {
+  name: 'La Paz',
+  latitude: -16.5,
+  longitude: -68.15
+}, {
+  name: 'Montevideo',
+  latitude: -34.9,
+  longitude: -56.16
+}, {
+  name: 'Asunción',
+  latitude: -25.26,
+  longitude: -57.58
+}, {
+  name: 'Salvador',
+  latitude: -12.97,
+  longitude: -38.5
+}, {
+  name: 'Brasília',
+  latitude: -15.79,
+  longitude: -47.88
+}, {
+  name: 'Windhoek',
+  latitude: -22.56,
+  longitude: 17.08
+}, {
+  name: 'Gaborone',
+  latitude: -24.63,
+  longitude: 25.92
+}, {
+  name: 'Maputo',
+  latitude: -25.97,
+  longitude: 32.57
+}, {
+  name: 'Harare',
+  latitude: -17.83,
+  longitude: 31.05
+}, {
+  name: 'Kampala',
+  latitude: 0.35,
+  longitude: 32.58
+}, {
+  name: 'Kigali',
+  latitude: -1.94,
+  longitude: 30.06
+}, {
+  name: 'Dar es Salaam',
+  latitude: -6.79,
+  longitude: 39.21
+}, {
+  name: 'Abidjan',
+  latitude: 5.36,
+  longitude: -4.01
+}, {
+  name: 'Tunis',
+  latitude: 36.81,
+  longitude: 10.18
+}, {
+  name: 'Algiers',
+  latitude: 36.75,
+  longitude: 3.06
+}, {
+  name: 'Casablanca',
+  latitude: 33.57,
+  longitude: -7.59
+}, {
+  name: 'Luanda',
+  latitude: -8.84,
+  longitude: 13.23
+}];
