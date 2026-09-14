@@ -1,5 +1,16 @@
 # Current agent handoff
 
+## Mobile project swipe Back — 2026-09-14
+
+- Current task: a left-to-right thumb swipe across project content returns to the previous screen on MOBILE. WEB retains its existing interactions. Codex owns writes in this checkout until this turn ends.
+- Baseline: historical local branch `codex/complete-messaging`, commit `ccf405cfd4152469e0439a7579310a0823fab653`, clean at task start. The approved checkpoint infrastructure was committed and pushed to `github/main` in that commit. This mobile change is local and uncommitted; inspect status before continuing.
+- Changed source: `src/components/media/useProjectBackSwipe.ts`, `ProjectMediaViewer.tsx`, and `src/components/profile/ProfileCategoryPage.tsx`. The overview gesture calls the existing navigation Back callback, not the media Close callback. Focused-page navigation, pinch/zoom, vertical scrolling, native controls, open panels, 3D manipulation and browser edge gestures retain their own handling.
+- Verification: 46 focused Node tests passed across `project-back-swipe`, `mobile-project-viewer`, `focused-page-swipe`, `content-zoom-boundary`, and `mobile-navigation`. Typecheck and the existing client/worker build passed. The Sites build helper had an npm launcher-path failure; direct `npm.cmd run build` completed successfully. Build retains its large-chunk warning.
+- Browser verification: local public project rendered at phone width, and synthetic TouchEvents against the actual viewer confirmed rightward Back and vertical-scroll noninterference. This is browser verification, not physical iPhone/Android touch or native video-control proof. An ignored local fixture is under `logs/swipe-back-qa/`. Existing unrelated `fetchPriority` React warning was observed.
+- Remaining work: physical-phone gesture check. No deployment, migration, backend change, or source commit/push in this mobile task. The independent four-minute checkpoint system was left alone; read live status for its latest checkpoint. Do not publish or promote unfinished work without the user's authorization.
+
+## Previous checkpoint infrastructure handoff
+
 Updated 2026-09-14 for the user-approved checkpoint infrastructure commit. This
 note records dated evidence; use live checkpoint status and Git inspection for
 current state. Identify the normal-history commit that introduced these files

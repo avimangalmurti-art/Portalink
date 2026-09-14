@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:35:45.156Z",
+  "createdAt": "2026-09-14T10:39:31.416Z",
   "sourceHead": "ccf405cfd4152469e0439a7579310a0823fab653",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "accca26ebc3d10b8a4864a6eb96d80764a2c2c5836f3ef031cbc9b9503441a43",
+  "payloadHash": "a6b015d81276fd5f11c381456257710c055385418c9912d29fea2ca5dd636e22",
   "files": [
     {
       "path": ".env.example",
@@ -199,8 +199,8 @@
     },
     {
       "path": "docs/agent-handoff.md",
-      "sha256": "2f9737dcce4251ca60fcdeb289cc2d72dbbc26263b2c02cdb124bcebb70cb10b",
-      "size": 4752,
+      "sha256": "2445eaf797fc0519defd5ce37013d68a3cf1b4c278535c1b4e28fcc1a9842c13",
+      "size": 6846,
       "mode": "100644"
     },
     {
@@ -3241,8 +3241,8 @@
     },
     {
       "path": "tests/mobile-project-viewer.test.mjs",
-      "sha256": "fbc0c8c8e5323f1907d137343ae67b585b234138e06212efcace1a11a23a5742",
-      "size": 17462,
+      "sha256": "aa204069957d8b738f2b8873b679721781e0913354249519e9678378695ec7c2",
+      "size": 20908,
       "mode": "100644"
     },
     {
