@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
+import { useProjectBackSwipe } from './useProjectBackSwipe';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
 import { EngagementBar, EngagementFeedback } from '../../features/engagement/EngagementBar';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
@@ -106,7 +107,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -280,6 +281,11 @@ export function ProjectMediaViewer({
     : active?.kind === 'document' && documentPageCount !== 1;
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
+  const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
+    enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
+    scope: `${projectId}:${active?.id ?? ''}`,
+    onBack: mobileNavigation?.onBack,
+  });
   const wheelDeltaRef = useRef(0);
   const lastDensityStepRef = useRef(0);
   const densityCommitTimerRef = useRef<number | null>(null);
@@ -493,7 +499,7 @@ export function ProjectMediaViewer({
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),

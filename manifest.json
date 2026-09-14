@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:19:43.179Z",
+  "createdAt": "2026-09-14T10:31:39.225Z",
   "sourceHead": "ccf405cfd4152469e0439a7579310a0823fab653",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "dbf0d03145d443bab709a278405977fbe75dc6aa0929706999cbde436a970d8b",
+  "payloadHash": "b07fa16e21ec982eeeccd2a7ac9eb26c5d8a7f289bf05a3f2a755a4dff6071e4",
   "files": [
     {
       "path": ".env.example",
@@ -1357,8 +1357,8 @@
     },
     {
       "path": "src/components/media/ProjectMediaViewer.tsx",
-      "sha256": "2711f391488eed0a50caeef8961788c3b6fbf0fdc6c40a7603cd05632bd3965b",
-      "size": 47581,
+      "sha256": "488501348ea9fafdd1ff3a6b146f69ff7edfad0d69cfedc22e65cc953d68163b",
+      "size": 47952,
       "mode": "100644"
     },
     {
@@ -1383,6 +1383,12 @@
       "path": "src/components/media/useFocusedPageSwipe.ts",
       "sha256": "7b36150af88dcc516bb868e469a48c55aa909021595aa371a9b288d15d1092a8",
       "size": 2947,
+      "mode": "100644"
+    },
+    {
+      "path": "src/components/media/useProjectBackSwipe.ts",
+      "sha256": "6b052bf27e3080cbb2c40730f1ba7b7ba16c7142c942af9eb7ef431a5605fea6",
+      "size": 5045,
       "mode": "100644"
     },
     {
@@ -1543,8 +1549,8 @@
     },
     {
       "path": "src/components/profile/ProfileCategoryPage.tsx",
-      "sha256": "690cb411b02aa4a2c555ff730047f560ee90528df577bab0c8873c52a4fca3d9",
-      "size": 47281,
+      "sha256": "dc624bda90ae5677cd31530d24718638a60d24d0e231d28e3cd000c49faf30a9",
+      "size": 47289,
       "mode": "100644"
     },
     {
