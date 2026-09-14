@@ -1807,38 +1807,6 @@
   transform: translate3d(100%, 0, 0);
 }
 
-/* Fallback when the move kept a single layer: carry the arriving screen in on
-   its own rather than leaving the change as an instant cut. */
-#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back']:not(:has(> .app-screen-layer.screen-exit)) .app-screen-layer.screen-active > main {
-  animation: portalink-mobile-back-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward']:not(:has(> .app-screen-layer.screen-exit)) .app-screen-layer.screen-active > main {
-  animation: portalink-mobile-forward-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes portalink-mobile-back-slide {
-  from {
-    transform: translate3d(-24%, 0, 0);
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes portalink-mobile-forward-slide {
-  from {
-    transform: translate3d(24%, 0, 0);
-  }
-
-  to {
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] #app-viewport[data-mobile-screen-navigation] .app-screen-layer.screen-active > main {
-    animation: none;
-  }
-}
+/* When the move keeps a single layer there is no outgoing screen to travel
+   against, so that case stays an instant change. A keyframe animation would
+   name a global identifier and escape this file's presentation scope. */

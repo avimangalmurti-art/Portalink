@@ -36,6 +36,7 @@ function harness(presentation = 'mobile') {
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useNavigationSwipe')) return navigation;
+    if (name.endsWith('/backNavigationTransition')) return { markMobileBackNavigation() {}, markMobileForwardNavigation() {} };
     assert.fail(name);
   });
   const back = () => calls.push('back');
