@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:12:23.147Z",
-  "sourceHead": "af9b4b0563e518789671553361803e5d9cec0287",
+  "createdAt": "2026-09-14T10:19:43.179Z",
+  "sourceHead": "ccf405cfd4152469e0439a7579310a0823fab653",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "47bfbf269a31329aa6a2c7a32df957420790407e91927819aefd9f328a7212ed",
+  "payloadHash": "dbf0d03145d443bab709a278405977fbe75dc6aa0929706999cbde436a970d8b",
   "files": [
     {
       "path": ".env.example",
@@ -199,8 +199,8 @@
     },
     {
       "path": "docs/agent-handoff.md",
-      "sha256": "cd00c1147b57ed12de7b4a2c986b84a3b6bc8f3959d0b00832ad59a80b83ba4d",
-      "size": 4302,
+      "sha256": "2f9737dcce4251ca60fcdeb289cc2d72dbbc26263b2c02cdb124bcebb70cb10b",
+      "size": 4752,
       "mode": "100644"
     },
     {
