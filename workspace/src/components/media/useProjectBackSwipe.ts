@@ -81,6 +81,12 @@ export function useProjectBackSwipe(surfaceRef: RefObject<HTMLElement>, { enable
   }, [active, scope, surfaceRef]);
 
   return {
+    onPointerDownCapture(event: PointerEvent<HTMLElement>) {
+      if (event.pointerType !== 'touch') {
+        gesture.current = null;
+        suppressClick.current = false;
+      }
+    },
     onPointerUpCapture(event: PointerEvent<HTMLElement>) {
       // Page tiles interpret touch pointer-up as double-tap. Consume the drag
       // before their handlers, even on browsers that deliver it before touchend.
@@ -90,6 +96,7 @@ export function useProjectBackSwipe(surfaceRef: RefObject<HTMLElement>, { enable
       }
     },
     onClickCapture(event: MouseEvent<HTMLElement>) {
+      if (event.detail === 0) { suppressClick.current = false; return; }
       if (!active || !suppressClick.current) return;
       suppressClick.current = false;
       event.preventDefault();
