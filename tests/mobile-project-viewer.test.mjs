@@ -12,9 +12,12 @@ function nodes(node) {
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {} } = {}) {
+function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [];
+  const swipeCalls = [], navigationCalls = [];
+  const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
+  const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React, useEffect() {}, useCallback: fn => fn,
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
     useState(initial) {
@@ -32,6 +35,10 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
     if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
+    if (name.endsWith('/useProjectBackSwipe')) return { useProjectBackSwipe: (surfaceRef, options) => {
+      swipeCalls.push({ surfaceRef, ...options });
+      return swipeHandlers;
+    } };
     if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: id => { serviceIds.push(id); return engagement; } };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: id => { serviceIds.push(id); return {}; } };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
@@ -39,18 +46,74 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
     return new Proxy({}, { get: () => () => null });
   } });
-  const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: 'video', displayName: id, typeLabel: 'Video' }));
+  const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { serviceIds, openIndex() { panel = 'index'; }, render() {
+  return { serviceIds, swipeCalls, swipeHandlers, navigationCalls, onBack, openIndex() { panel = 'index'; }, render() {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
-      mobileNavigation: mobile ? { index, isIndexOpen: panel === 'index', onOpenIndex: () => { panel = 'index'; }, onCloseIndex: () => { panel = null; } } : undefined,
+      mobileNavigation: mobile ? { index, isIndexOpen: panel === 'index', onOpenIndex: () => { panel = 'index'; }, onCloseIndex: () => { panel = null; }, onBack } : undefined,
       isRailOpen: panel === 'response', onRailOpenChange: open => { panel = open ? 'response' : null; },
-      processing: { resolveState: () => 'ready', resolveMessage: () => '', canRetry: () => false, retrying: [] }, onClose() {},
+      processing: { resolveState: () => 'ready', resolveMessage: () => '', canRetry: () => false, retrying: [] }, onClose,
     });
   } };
 }
+
+test('project overview attaches mobile swipe Back to the work stage and uses navigation rather than media Close', () => {
+  const h = harness();
+  const tree = h.render(), stage = withProp(tree, 'data-project-stage'), swipe = h.swipeCalls.at(-1);
+  assert.equal(swipe.enabled, true);
+  assert.equal(swipe.scope, 'project:first');
+  assert.equal(stage.ref, swipe.surfaceRef);
+  assert.equal(stage.props.onPointerUpCapture, h.swipeHandlers.onPointerUpCapture);
+  assert.equal(stage.props.onClickCapture, h.swipeHandlers.onClickCapture);
+  assert.equal(swipe.onBack, h.onBack);
+  assert.notEqual(swipe.onBack, nodes(tree).find(node => node.type === AttachmentRenderer).props.onClose);
+  swipe.onBack();
+  assert.deepEqual(h.navigationCalls, ['back']);
+  button(tree, 'second, Video').props.onClick();
+  h.render();
+  assert.equal(h.swipeCalls.at(-1).scope, 'project:second', 'Switching content must invalidate a gesture from the previous attachment');
+});
+
+test('mobile overview Back yields to focused pages, the project index and response popups', () => {
+  const h = harness();
+  let tree = h.render();
+  nodes(tree).find(node => node.type === AttachmentRenderer).props.onFocusModeChange(true);
+  tree = h.render();
+  assert.equal(h.swipeCalls.at(-1).enabled, false);
+  nodes(tree).find(node => node.type === AttachmentRenderer).props.onFocusModeChange(false);
+  tree = h.render();
+  assert.equal(h.swipeCalls.at(-1).enabled, true);
+  h.openIndex();
+  tree = h.render();
+  assert.equal(h.swipeCalls.at(-1).enabled, false);
+  button(tree, 'Close project list').props.onClick();
+  tree = h.render();
+  assert.equal(h.swipeCalls.at(-1).enabled, true);
+  for (const label of ['Show comments', 'Show project description']) {
+    button(tree, label).props.onClick();
+    tree = h.render();
+    assert.equal(h.swipeCalls.at(-1).enabled, false);
+    button(tree, 'Close project popup').props.onClick();
+    tree = h.render();
+    assert.equal(h.swipeCalls.at(-1).enabled, true);
+  }
+});
+
+test('overview swipe Back remains available on public mobile content but is disabled on WEB and 3D media', () => {
+  const shared = harness({ readOnlyShare: true });
+  shared.render();
+  assert.equal(shared.swipeCalls.at(-1).enabled, true);
+  assert.equal(shared.swipeCalls.at(-1).onBack, shared.onBack);
+  const web = harness({ mobile: false });
+  web.render();
+  assert.equal(web.swipeCalls.at(-1).enabled, false);
+  assert.equal(web.swipeCalls.at(-1).onBack, undefined);
+  const model = harness({ mediaKind: 'model3d' });
+  model.render();
+  assert.equal(model.swipeCalls.at(-1).enabled, false, 'Model manipulation must retain its horizontal gestures');
+});
 
 test('mobile keeps selected media while opening its floating project list and separate response popups', () => {
   const h = harness();
@@ -187,6 +250,9 @@ test('project workspace combines only resolved mobile projects and uses the exis
   let tree = render(props);
   assert.equal(withProp(tree, 'data-project-index-panel'), undefined);
   assert.ok(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, props.onBack);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, button(tree, 'Go back').props.onClick,
+    'Swiping and the existing floating Back button must use the same route callback');
   nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(true);
   tree = render(props);
   assert.equal(button(tree, 'Go back'), undefined, 'The project Back button must not overlap focused-page controls');

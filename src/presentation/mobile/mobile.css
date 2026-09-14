@@ -1782,3 +1782,31 @@
     --project-control-blur: none;
   }
 }
+
+/* Moving between mobile screens. The leaving workspace stays mounted for one
+   transition so the two screens travel together: Back sends it off to the right,
+   and moving deeper sends it left behind the arriving screen. */
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back'] .app-screen-layer.screen-exit {
+  z-index: 4;
+  opacity: 1;
+  transform: translate3d(100%, 0, 0);
+}
+
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='back'] .app-screen-layer.screen-next {
+  opacity: 1;
+  transform: translate3d(-24%, 0, 0);
+}
+
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward'] .app-screen-layer.screen-exit {
+  opacity: 1;
+  transform: translate3d(-24%, 0, 0);
+}
+
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-screen-navigation='forward'] .app-screen-layer.screen-next {
+  opacity: 1;
+  transform: translate3d(100%, 0, 0);
+}
+
+/* When the move keeps a single layer there is no outgoing screen to travel
+   against, so that case stays an instant change. A keyframe animation would
+   name a global identifier and escape this file's presentation scope. */

@@ -1,6 +1,12 @@
-import React, { useRef } from 'react';
+import React, { useRef, useSyncExternalStore } from 'react';
 import { useScreenTransition } from '../app/useScreenTransition';
 import { MobileBackScope } from './mobile/MobileBackNavigation';
+import {
+  getMobileScreenNavigationMark,
+  getServerMobileScreenNavigationMark,
+  isMobileScreenNavigationFresh,
+  subscribeMobileScreenNavigation
+} from './mobile/backNavigationTransition';
 import { usePresentation } from './usePresentation';
 
 type ScreenSnapshot = { mainClassName: string; ariaLabel: string; content: React.ReactNode };
@@ -16,9 +22,15 @@ export function AppScreenLayers({ screenKey, mobileProfileKey, snapshot, reduceM
   onScroll: React.UIEventHandler<HTMLElement>;
 }) {
   const presentation = usePresentation();
+  const navigationMark = useSyncExternalStore(subscribeMobileScreenNavigation, getMobileScreenNavigationMark, getServerMobileScreenNavigationMark);
   const identity = useRef({ screenKey, mobileProfileKey, layerKey: presentation === 'mobile' && mobileProfileKey ? mobileProfileKey : screenKey });
   if (identity.current.screenKey !== screenKey || identity.current.mobileProfileKey !== mobileProfileKey) {
-    const sameMobileProfile = presentation === 'mobile' && mobileProfileKey && identity.current.mobileProfileKey === mobileProfileKey;
+    // A marked move keeps the leaving workspace mounted for one transition so the
+    // two screens can travel together. Unmarked mobile navigation still retains
+    // the layer, so an expired or absent mark falls back to existing behavior.
+    const isDirectedNavigation = presentation === 'mobile' && !reduceMotion && !skipLayerTransition &&
+      isMobileScreenNavigationFresh(navigationMark);
+    const sameMobileProfile = !isDirectedNavigation && presentation === 'mobile' && mobileProfileKey && identity.current.mobileProfileKey === mobileProfileKey;
     const destinationKey = presentation === 'mobile' && mobileProfileKey ? mobileProfileKey : screenKey;
     // A retained mobile key may name an earlier WEB destination after resizing.
     const nextKey = destinationKey === identity.current.layerKey ? `${destinationKey}:next` : destinationKey;
