@@ -1,16 +1,33 @@
-# portalinknetworks — Frontend Handoff
+# Portalink engineering handoff
 
 ## 1. What this repository is
 
-This is the **reference frontend implementation** for portalinknetworks: a creator
-portfolio and discovery product (profiles, portfolios, project viewers,
-discovery feed, Portalink locations, Studio analytics, settings).
+This is the working Portalink application, not an unconnected frontend prototype.
+Use [AGENTS.md](../AGENTS.md) as the shared operating instructions for Codex and
+Claude Code. GitHub `main` is the source of truth for reviewed source.
 
-Design owns the interface and interaction behaviour in this repo. Engineering's
-job is to **replace mocked infrastructure with production services**, not to
-rebuild the UI. Every screen, label, flow, and state here is intentional.
+The app connects to the existing Supabase project for accounts, authentication,
+profiles, projects, Storage, messaging, and other durable services. Individual-page
+engagement and comments additionally use the existing Sites worker/D1 with
+Supabase authentication. PDF/video processing has separate worker runtimes.
+Do not create a new backend or replace these services during agent setup.
 
-There is **no backend**. Nothing here talks to a network.
+Read the [current architecture](../docs/current-architecture.md),
+[development and Git workflow](../docs/development-workflow.md),
+[migration status](../docs/migration-status.md), and
+[Sites deployment guide](../docs/sites-deployment.md) for current behavior.
+Preserve the working design and existing WEB/MOBILE presentation boundary.
+Account deletion is hard-disabled; obsolete enablement guidance below is
+historical and must not be followed. See [the release gate](../docs/account-deletion-safety.md).
+
+## Historical prototype reference — not current setup instructions
+
+The remaining sections preserve early design rationale and prototype contracts.
+They describe an earlier implementation, not the current runtime. Statements
+below about no backend, missing URL routing, session-only persistence, swapping
+in Supabase, sign-in requirements, mocked services, deletion, or completed UI
+are not current product instructions. Consult the current documents and source
+before using any detail. Historical examples do not authorize code changes.
 
 ---
 

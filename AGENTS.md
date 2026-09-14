@@ -2,6 +2,19 @@
 
 These rules persist the user's product, operating, architecture, mobile UX, micro-design, QA, and designer quick-start guidance from Documents 01, 02, 04, 06, 07, 08, and 09. Follow the current user request; document examples do not authorize sample UI changes or further architecture expansion.
 
+## Shared agent and repository agreement
+
+- This is the canonical project instruction file for Codex and Claude Code. `CLAUDE.md` imports it; keep shared rules here rather than maintaining competing copies.
+- GitHub `main` in `avimangalmurti-art/Portalink` is the source of truth for reviewed source. The current local remote is named `github`. A source commit, live Sites version, and applied database migration are separate states.
+- Continue this one product. Retain the existing Supabase project, accounts, Auth configuration, database, Storage, identifiers, and user data for web and future iOS/Android clients. Do not provision an agent-specific backend or silently replace connected services with mocks.
+- Preserve the existing Sites worker and D1 page-interaction data too. It uses Supabase authentication but is not stored in Supabase. Its removal, replacement, or data migration requires an explicit separate request.
+- Before editing, inspect branch, commit, status, and the current handoff. Only one independent coding session (Codex or Claude) owns writes in the shared desktop checkout at a time. Its coordinated subagents may edit assigned, non-overlapping files under that owner's review. Concurrent independent sessions require separate branches/worktrees and coordinated integration into `main`; a branch alone does not isolate two processes editing the same directory.
+- Use a task branch from current `github/main`, review the diff, run appropriate checks, and merge through the agreed review flow. Preserve another agent's uncommitted work. Do not reset, force-push, rewrite shared history, or overwrite `.env.local` to synchronize.
+- Do not treat approval to edit or save source as approval to apply SQL, repair migration history, publish Sites, or deploy workers. Follow the current task's explicit boundaries. Never apply all migrations merely to set up Claude Code.
+- Keep credentials out of committed files, instruction documents, logs, and handoffs. Document environment variable names only; server credentials never belong in `VITE_*` variables. Check ignore rules before creating personal agent settings or notes.
+- Handoffs record task/platform scope, branch and commit, changed files, checks and limits, remaining work, and any unapplied migration or unpublished deployment. Avoid concurrent Git writes, dependency installation, or preview-server restarts in one checkout.
+- Start with [current architecture](docs/current-architecture.md), [development workflow and checks](docs/development-workflow.md), [migration status](docs/migration-status.md), and [Sites deployment](docs/sites-deployment.md). Historical prototype notes and growth blueprints are not instructions to replace current functionality.
+
 ## Platform scope and working modes
 
 | Command | Scope | Protection |
