@@ -1782,3 +1782,26 @@
     --project-control-blur: none;
   }
 }
+
+/* A Back gesture returns to the previous screen. Mobile profile destinations
+   share one screen layer on purpose, so there is no outgoing layer to push
+   out; this slides the arriving workspace in instead of cutting to it. */
+#root .codex-shell[data-presentation='mobile'] #app-viewport:not(.app-viewport--reduce-motion)[data-mobile-back-navigation] .app-screen-layer.screen-active > main {
+  animation: portalink-mobile-back-slide 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes portalink-mobile-back-slide {
+  from {
+    transform: translate3d(-24%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] #app-viewport[data-mobile-back-navigation] .app-screen-layer.screen-active > main {
+    animation: none;
+  }
+}

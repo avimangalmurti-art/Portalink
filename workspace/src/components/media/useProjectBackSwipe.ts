@@ -1,6 +1,7 @@
 import { useEffect, useRef, type MouseEvent, type PointerEvent, type RefObject } from 'react';
 import { usePresentation } from '../../presentation/usePresentation';
 import { navigationSwipe } from '../../presentation/mobile/useNavigationSwipe';
+import { markMobileBackNavigation } from '../../presentation/mobile/backNavigationTransition';
 
 type Gesture = { id: number; x: number; y: number; time: number; horizontal: boolean };
 const controls = 'button, a, input, textarea, select, [contenteditable="true"], audio, iframe, model-viewer, [role="slider"], [role="menu"], [role="dialog"], [role="alertdialog"], [data-media-interaction]';
@@ -64,6 +65,8 @@ export function useProjectBackSwipe(surfaceRef: RefObject<HTMLElement>, { enable
       if (!available() || !current?.horizontal || event.touches.length !== 0) return;
       const touch = Array.from(event.changedTouches).find(item => item.identifier === current.id);
       if (touch && navigationSwipe(current, { x: touch.clientX, y: touch.clientY, time: event.timeStamp }) === 'right') {
+        // Marked before navigating so the arriving screen animates on its first paint.
+        markMobileBackNavigation();
         latest.current.onBack?.();
       }
     };

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:39:31.416Z",
+  "createdAt": "2026-09-14T19:19:30.924Z",
   "sourceHead": "ccf405cfd4152469e0439a7579310a0823fab653",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "a6b015d81276fd5f11c381456257710c055385418c9912d29fea2ca5dd636e22",
+  "payloadHash": "61630679e1532d105271c3af4abb179c6d67fc53640b96d991d1f447efa63cff",
   "files": [
     {
       "path": ".env.example",
@@ -1387,8 +1387,8 @@
     },
     {
       "path": "src/components/media/useProjectBackSwipe.ts",
-      "sha256": "951964b42dd41c4c6b2c3208264f22e504efb6acf1ef8b86ef7a4175c45300c4",
-      "size": 5308,
+      "sha256": "ea285be448ec9ce1c4fa464bbc543e3f8092fdc1069334cf0f6c09d5b427b925",
+      "size": 5527,
       "mode": "100644"
     },
     {
@@ -2454,9 +2454,15 @@
       "mode": "100644"
     },
     {
+      "path": "src/presentation/mobile/backNavigationTransition.ts",
+      "sha256": "b1c6b39f157a5c0b5513e5cf09c93f72189edc02eb85db4928bc9e8197c8b039",
+      "size": 1033,
+      "mode": "100644"
+    },
+    {
       "path": "src/presentation/mobile/mobile.css",
-      "sha256": "c76c5205d25705395816649403027725e972e5eeb4a85191da1ec72aba0b4e44",
-      "size": 63011,
+      "sha256": "b1e661eb42828ac3c8e0cb8047e7954a04c14fd627d638f93e5e870bb4cf7426",
+      "size": 63841,
       "mode": "100644"
     },
     {
