@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T19:43:29.330Z",
+  "createdAt": "2026-09-14T20:31:28.915Z",
   "sourceHead": "ccf405cfd4152469e0439a7579310a0823fab653",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "986d41877921f0df59b21306fee7eb5ba45043ef92d4f9882b8ef4d3d44bcd13",
+  "payloadHash": "555b0244228ac2f6904ef38c881b79ff9aa42a24aa536bd7911bbac7b72547da",
   "files": [
     {
       "path": ".env.example",
@@ -3463,8 +3463,8 @@
     },
     {
       "path": "vite.config.ts",
-      "sha256": "5046e09b7a55a45b3e3b443eb61534ba870ff43f9123b52d1bdb1283e69b22c3",
-      "size": 265,
+      "sha256": "2273eeb1eaa985c86eea49dfa615516d41306f8bbcde6188ce4560a12755063e",
+      "size": 452,
       "mode": "100644"
     },
     {
