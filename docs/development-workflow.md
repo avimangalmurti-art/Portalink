@@ -18,12 +18,14 @@ decisions in Git-tracked documentation, not solely in an agent's chat history.
 See [Claude's import documentation](https://code.claude.com/docs/en/memory#agentsmd)
 and [Codex's instruction documentation](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
-1. Read the latest handoff and inspect `git status --short --branch`,
+1. Read [the current handoff](agent-handoff.md) and inspect `git status --short --branch`,
    `git log -1 --oneline`, and the relevant diff before editing.
 2. One independent Codex or Claude session owns writes in this checkout at a time,
    including Git, installation, and preview-server operations. The other may
    review without changing files. The owning session may coordinate subagents
    on explicitly assigned, non-overlapping files and review their combined diff.
+   The checkpoint runner may observe files concurrently because its Git writes
+   stay in its separate private store; it cannot edit the working checkout.
 3. When clean and free of another agent's work, fetch `github` and create a task
    branch from current `github/main`. Use a descriptive name such as
    `codex/<task>` or `claude/<task>`. Placeholder names are not literal commands.
@@ -43,13 +45,32 @@ distinct preview port, and the same existing backend configuration. Confirm any
 additional Auth callback URL separately; do not change Auth during setup.
 Worktrees do not create a product fork or another Supabase project.
 
+### Switching between Codex and Claude
+
+A routine switch requires no Git commands from the user. Stop the previous
+writer, open the next agent in this same folder, and have it read AGENTS.md and
+[docs/agent-handoff.md](agent-handoff.md), inspect status and the relevant diff,
+then continue the authorized task. The next agent preserves uncommitted work.
+Switching agents does not require a commit, pull, branch change, checkpoint
+restore, or dependency installation. The branch/review steps above still govern
+new work and integration into `main`.
+
+[Automatic checkpoints](checkpoints.md) provide a separate recovery copy every
+four minutes while Windows is logged on and awake. They require no AI calls or
+Codex automation. The runner records observed files and source metadata; the
+owning agent still explains intent, checks, and remaining work in the handoff.
+Check the installation's reported status rather than assuming a checkpoint
+exists or has uploaded.
+
 If working from Windows, keep using its existing Node dependencies and PowerShell
 commands. Do not reuse the same `node_modules` tree from WSL/Linux. Do not move
 the OneDrive desktop folder or alter sync settings as part of agent onboarding.
 
 ## Handoff format
 
-Record these in the task/PR, with no secrets or real user-content examples:
+Update [docs/agent-handoff.md](agent-handoff.md) briefly at meaningful milestones
+and before yielding write ownership. Include these in the task/PR as relevant,
+with no secrets or real user-content examples:
 
 - Task, MOBILE/WEB/ALL scope, branch, starting and resulting commits.
 - Files changed and intended behavior; who owns further edits.
@@ -58,6 +79,10 @@ Record these in the task/PR, with no secrets or real user-content examples:
 - Migration files and verified application status, if relevant.
 - Sites version/source and worker deployment status, if relevant; say explicitly
   when changes have only been saved locally or pushed to GitHub.
+
+A checkpoint can capture the latest saved note, but does not write or interpret
+it. A crash between milestones can leave the note behind the observed files;
+the next agent must inspect the diff before acting.
 
 ## Local setup and environment
 
@@ -185,11 +210,20 @@ point with server credentials is different: it can claim production jobs.
 
 ## Existing automation and remaining gaps
 
-[Quality CI](../.github/workflows/quality.yml) runs on PRs and pushes to `main`.
+[Quality CI](../.github/workflows/quality.yml) currently runs for pull requests
+and pushes to `main`. Checkpoint pushes do not match its push trigger. The
+recovery branch has no root workflow files and must never be opened as a PR.
+Before adding broader automation, explicitly exclude checkpoint sources from
+push, PR, and manual release paths; no CI configuration was changed in this pass.
 It runs typecheck, lint, build, and PDF-worker tests. It currently does not run
-the Node suite, PGlite database checks, or video-worker tests. This documentation
-pass does not modify CI, install dependencies, or claim new coverage. Adding
-those CI jobs is a separate, reviewable tooling change.
+the Node suite, PGlite database checks, or video-worker tests. The checkpoint
+tooling does not add those jobs or claim new application coverage. Adding them
+remains a separate, reviewable tooling change.
+
+Keep `autosave/**` excluded from all application workflows and future Sites,
+worker, EAS, signing, and app-store release pipelines, including manual and
+PR-based triggers. Recovery snapshots are not release inputs. The checkpoint
+runner never executes project scripts, Git hooks, builds, migrations, or deploys.
 
 During the preceding source review on 2026-09-14, build/typecheck/lint and isolated
 database checks passed; the presentation test failure was corrected and its

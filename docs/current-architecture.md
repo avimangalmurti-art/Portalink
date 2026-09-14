@@ -23,10 +23,32 @@ The [Supabase client](../src/services/supabase/client.ts) fails closed when prod
 
 Some unfinished domains expose unavailable capabilities in production. Source code, a passing build, and old worker verification notes are not evidence of active hosted services. Account deletion remains hard-disabled in the client and [edge endpoint](../supabase/functions/delete-account/index.ts). Its replacement remains in `supabase/pending`, subject to the [separate release gate](account-deletion-safety.md).
 
+The page-interaction worker verifies sessions for writes and scopes saved-page
+lists to the account, but the inspected source does not verify the caller's
+access to the target project/attachment before returning page interactions or
+adding engagement/comments. Supabase authentication alone does not supply that
+authorization for D1. This source finding needs a separately scoped review;
+it is not a live endpoint audit or authorization to replace the store. Any future
+account-deletion design must also explicitly account for existing D1 records.
+
+The inspected client/worker source contains in-app notifications but no device
+push registration and delivery implementation. Native push is future work;
+this statement does not establish the configuration of hosted services.
+
 ## Future native clients
 
-Future clients should retain the same account/profile IDs, backend authorization rules, and shared product data. The current service contracts, domain types, and pure validation helpers identify useful reuse boundaries; no extraction or new application is required for the present workflow.
+Web, future iOS, and future Android clients continue one product with the same
+existing Supabase project, accounts, profile IDs, backend authorization rules,
+and shared data. Preserve the Sites worker/D1 data as well. The current service
+contracts, domain types, and pure validation helpers identify useful reuse
+boundaries; no extraction or new application is required for this tooling task.
 
-The browser implementation is not a portable native SDK. Auth uses browser location and storage; [registration](../src/features/auth/registration.ts) uses IndexedDB; upload interfaces accept `File`/`Blob`; and [multipart playback](../src/services/supabase/multipartMedia.ts) depends on a browser service worker. Native work would need deliberate adapters for storage, auth callbacks, uploads, media playback, and the existing page-interaction API. Its framework and packaging remain future decisions.
+The browser implementation is not a portable native SDK. Auth uses browser location and storage; [registration](../src/features/auth/registration.ts) uses IndexedDB; upload interfaces accept `File`/`Blob`; and [multipart playback](../src/services/supabase/multipartMedia.ts) depends on a browser service worker. Native work would need deliberate adapters for storage, auth callbacks, uploads, media playback, and the existing page-interaction API.
+
+[Native platform direction](native-platform-direction.md) records React Native
+with Expo as the leading candidate, still unselected and uninstalled. Consider
+a monorepo when native implementation begins; keep the current layout now.
+Portable domain logic, types, and contracts can be shared while each client
+keeps its appropriate presentation. This task adds no native app or backend.
 
 Follow [AGENTS.md](../AGENTS.md) for platform scope and safeguards, and [development workflow](development-workflow.md) for collaboration and verification. The historical [WEB/MOBILE report](web-mobile-architecture.md) records the initial extraction and its checks; its old test counts and deployment observations are dated evidence.
