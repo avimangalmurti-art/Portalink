@@ -265,7 +265,7 @@ async function writeCommit(config, snapshot, directory, parent) {
 
 export async function publishCheckpoint(config, localTip) {
   if (config.remoteUrl !== REMOTE || config.branch !== BRANCH) throw new CheckpointError('Checkpoint destination does not match the approved repository and branch.');
-  const options = ['-c', 'credential.helper=', '-c', `credential.helper="${slash(config.credentialHelperPath)}"`,
+  const options = ['-c', 'credential.helper=', '-c', `credential.helper=!"${slash(config.credentialHelperPath)}"`,
     '-c', 'credential.useHttpPath=false', '-c', 'http.followRedirects=false'];
   const remoteTip = () => {
     const r = git(config, [...options, 'ls-remote', '--refs', REMOTE, REF]);

@@ -196,6 +196,47 @@ test('scanner failure blocks Git object creation and publishing', async t => {
   assert.equal((await fs.readdir(f.storeRoot)).some(name => /^(capture|outgoing)-/.test(name)), false);
 });
 
+test('sensitive values in ordinary text are rejected before scanner or Git object creation', async t => {
+  // Assemble nonfunctional fixture values at runtime so this source contains no embedded credentials.
+  const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const cases = [
+    ['Supabase server-role JWT', () => [
+      encode({ alg: 'HS256', typ: 'JWT' }),
+      encode({ iss: 'synthetic-test', role: ['service', 'role'].join('_') }),
+      Buffer.from('synthetic-signature-never-valid').toString('base64url'),
+    ].join('.'), /Supabase server credential blocked/],
+    ['Supabase server key', () => ['sb', 'secret', 'x'.repeat(32)].join('_'),
+      /Sensitive key material blocked/],
+    ['private key material', () => [
+      ['-----BEGIN ', 'RSA ', 'PRIVATE ', 'KEY-----'].join(''),
+      'synthetic fixture material only',
+      ['-----END ', 'RSA ', 'PRIVATE ', 'KEY-----'].join(''),
+    ].join('\n'), /Sensitive key material blocked/],
+  ];
+  for (const [name, makeValue, expectedError] of cases) {
+    await t.test(name, async child => {
+      const f = await fixture(child);
+      const value = makeValue();
+      const content = `Unfinished configuration\n${value}\n`;
+      await f.write('notes.txt', content);
+      const before = await f.sourceState();
+      const objects = f.git(['count-objects', '-v']);
+      const result = await f.run();
+      assert.equal(result.state, 'blocked');
+      assert.match(result.error, expectedError);
+      assert.equal(await exists(path.join(f.storeRoot, 'checkpoint.git')), false);
+      assert.equal(f.git(['count-objects', '-v']), objects);
+      assert.deepEqual(f.calls.scans, []);
+      assert.deepEqual(f.calls.pushes, []);
+      assert.deepEqual(await f.sourceState(), before);
+      assert.equal(hash(await fs.readFile(path.join(f.sourceRoot, 'notes.txt'))), hash(content));
+      const status = await fs.readFile(path.join(f.storeRoot, 'status.json'), 'utf8');
+      assert.equal(status.includes(value), false, 'Blocked status must not contain sensitive fixture contents');
+      assert.equal((await fs.readdir(f.storeRoot)).some(entry => /^(capture|outgoing)-/.test(entry)), false);
+    });
+  }
+});
+
 test('scanner failure on a later run leaves prior checkpoint objects and refs untouched', async t => {
   const f = await fixture(t);
   await f.write('app.txt', 'first safe version\n');

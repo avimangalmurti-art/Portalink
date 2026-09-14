@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "createdAt": "2026-09-14T10:00:25.016Z",
+  "createdAt": "2026-09-14T10:06:35.238Z",
   "sourceHead": "af9b4b0563e518789671553361803e5d9cec0287",
   "sourceBranch": "codex/complete-messaging",
-  "payloadHash": "85582b217cf35c82cbfb9f5b64536eb576f6658a4ce70c43c1a6d51ebc9e069b",
+  "payloadHash": "02f1dad4fee0111598ea70a2f830fb129a713d2f7b49c89a8f766ab7c5ebc6d3",
   "files": [
     {
       "path": ".env.example",
@@ -931,8 +931,8 @@
     },
     {
       "path": "scripts/checkpoints/runner.mjs",
-      "sha256": "e7ad4f8b9bbb215efd943fbf0ed2a549382129fa2e33040fea87c1263a6e641b",
-      "size": 29202,
+      "sha256": "aa24cc237e2802cdcc0df88a92b267a81238b17fb4f47e3bd527bc9ecfae0105",
+      "size": 29203,
       "mode": "100644"
     },
     {
@@ -3061,8 +3061,8 @@
     },
     {
       "path": "tests/checkpoints.test.mjs",
-      "sha256": "a4f90b2b1c2f86d5e23010df8bad3a389838c5fc5e876822b148e05711556492",
-      "size": 20257,
+      "sha256": "27b89b0808bf638546abda29856e851a15258992b45e924bcbff1e9be3763c8c",
+      "size": 22457,
       "mode": "100644"
     },
     {
