@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Published startup improvements — 2026-09-19 (Sites version 252)
+
+- User authorized publication of the startup improvements below. Sites **version 252** succeeded at **2026-09-20 06:34:45 UTC**, deployment `appgdep_6aaf7e7c49c08191972a7a3f651aabc6`, at the existing [Portalink site](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Exact deployed source: `31c92a52dbddcae5ec5a632ed5225699b51f8173` (`Reduce first-load work and release ready content sooner`).
+- Release verification: all 84 focused tests passed again, read-only release-scope review found no blocker, and staged whitespace checks passed. Reused the immediately preceding successful client/server build; application source had not changed since the documented typecheck, lint and browser checks. A clean release checkout at the exact source revision and the verified build were staged under ignored `logs/`. The Windows package wrapper could not launch Bash; the official `prepare-site-build.cjs` helper and native tar produced and validated the same worker archive contract (126 files). Source/private files and unrelated user folders were excluded.
+- Source was fast-forwarded only to the existing Sites source mirror; GitHub `main` was not pushed or merged. The native deployment response confirms the successful public release and unchanged runtime environment revision 1. Existing Supabase/Auth, D1 `DB`, `r2: null`, PDF/video workers and checkpoint configuration remain intact. No SQL migration was added or manually applied, and no separate media-worker deployment occurred.
+- Codex queued the browser handoff to the existing live Site tab. Browser evidence and physical-device/authenticated-session limits remain as recorded below; this publication does not claim a new live content/API or iPhone cold-start timing test. The prior local-only record now describes published functionality. This release note is a subsequent documentation-only commit, outside the version 252 application build.
+
 ## Faster first opening on WEB and MOBILE — 2026-09-19 (local, unpublished)
 
 - Request: reduce the delay before content appears on first opening. Working branch is `codex/startup-loading`, based on the current published source and release record at `7edd246`; GitHub `main` is older and was not pulled over this work. Unrelated `.claude/` and both design folders are preserved.
