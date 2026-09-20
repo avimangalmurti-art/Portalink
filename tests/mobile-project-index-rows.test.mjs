@@ -25,6 +25,7 @@ function harness({ presentation = 'mobile', isOwner = false, mobileLayout, publi
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/ProjectCover')) return { ProjectCover };
+    if (name.endsWith('/projectPresentation')) return { getProjectCoverPreview: () => undefined };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({}) };
     return {};

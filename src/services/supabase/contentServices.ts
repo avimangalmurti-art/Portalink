@@ -387,11 +387,14 @@ async function hydrateProjects(
 
 async function loadProfiles(profileId?: string): Promise<Profile[]> {
   const client = requireSupabase();
-  const { data: authData } = await client.auth.getUser();
-  const viewerAccountId = authData.user?.id ?? null;
   let profileQuery = client.from('profiles').select('*').order('created_at', { ascending: false });
   if (profileId) profileQuery = profileQuery.eq('id', profileId);
-  const { data: profileData, error: profileError } = await profileQuery;
+  // Start independent reads together; verified identity still owns visibility.
+  const [{ data: authData }, { data: profileData, error: profileError }] = await Promise.all([
+    client.auth.getUser(),
+    profileQuery,
+  ]);
+  const viewerAccountId = authData.user?.id ?? null;
   if (profileError) throwProfileError(profileError, 'Profiles could not be loaded.');
   const profileRows = ((profileData ?? []) as unknown as ProfileRow[])
     .filter((row) => Boolean(profileId) || !row.is_private || row.account_id === viewerAccountId);
@@ -1149,7 +1152,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global') {
   }
 
   const [viewerRow, followResult, engagementResult, signalResult, preferenceResult] = await Promise.all([
-    client.from('profiles').select('id').eq('account_id', accountId).maybeSingle(),
+    client.from('profiles').select('id,location').eq('account_id', accountId).maybeSingle(),
     client.from('profile_follows').select('target_profile_id').eq('follower_account_id', accountId).eq('status', 'following'),
     client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId),
     client.from('discovery_signals').select('topic_key,interest_weight,curiosity_weight,last_interest_at,last_curiosity_at').eq('account_id', accountId),
@@ -1160,7 +1163,8 @@ async function discoveryContext(scope: 'global' | 'home' = 'global') {
   if (engagementResult.error) throw new Error(engagementResult.error.message);
   if (signalResult.error && !isMissingDiscoveryTable(signalResult.error)) throw new Error(signalResult.error.message);
   if (preferenceResult.error && !isMissingDiscoveryTable(preferenceResult.error)) throw new Error(preferenceResult.error.message);
-  const viewerId = (viewerRow.data as unknown as { id: string } | null)?.id;
+  const viewerProfile = viewerRow.data as unknown as Pick<Profile, 'id' | 'location'> | null;
+  const viewerId = viewerProfile?.id;
   const followedCreatorIds = ((followResult.data ?? []) as unknown as Array<{ target_profile_id: string }>).map((row) => row.target_profile_id);
   // Search can stay bounded to the recent global discovery pool. Home instead
   // asks the indexed project table for the viewer and every followed creator,
@@ -1169,7 +1173,8 @@ async function discoveryContext(scope: 'global' | 'home' = 'global') {
     ? await projectIdsForProfiles([...(viewerId ? [viewerId] : []), ...followedCreatorIds])
     : await latestProjectIds(120);
   const availableProjects = await projectViewsForIds(projectIds);
-  const viewerProfile = viewerId ? await supabaseProfileService.getProfile(viewerId) : null;
+  // Ranking only needs identity and location. Reloading the complete portfolio
+  // here would repeat projects, attachments and signing after the feed is ready.
   const explicitSignals: DiscoverySignal[] = signalResult.error ? [] : ((signalResult.data ?? []) as unknown as Array<{
     topic_key: string;
     interest_weight: number;

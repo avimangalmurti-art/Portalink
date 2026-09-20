@@ -11,6 +11,7 @@ import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobileReorderList, type MobileReorderActivator, type MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
+import { getProjectCoverPreview } from '../../utils/projectPresentation';
 type ProjectIndexListProps = {
   projects: ProjectEntry[];
   /** Each row reads in the face of the project it points at, keyed by id. */
@@ -211,7 +212,7 @@ function MobileProjectLabel({ project, isActive }: { project: ProjectEntry; isAc
   const validPublished = published && Number.isFinite(published.getTime()) ? published : null;
   return <>
     <span className="mobile-project-index-cover" aria-hidden="true">
-      <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={project.coverAspectRatio} sizes="160px" />
+      <ProjectCover source={project.cover} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={project.coverAspectRatio} sizes="160px" />
     </span>
     <span className="mobile-project-index-copy">
       <span className={`mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`}>{project.title}</span>

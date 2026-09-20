@@ -1,4 +1,3 @@
-import { Upload } from 'tus-js-client';
 import type { MediaService } from '../interfaces';
 import type {
   PersistedMedia,
@@ -112,6 +111,11 @@ async function uploadFileResumably(input: {
   if (error || !accessToken) {
     throw new Error(error?.message ?? 'Your session expired before the upload could start. Sign in and try again.');
   }
+  if (input.runtime.cancelRequested) return;
+
+  // Browsing must not download the resumable upload client. Retain cancellation
+  // if the owner closes/cancels while this first-use chunk is loading.
+  const { Upload } = await import('tus-js-client');
   if (input.runtime.cancelRequested) return;
 
   const projectId = new URL(requireSupabaseProjectUrl()).hostname.split('.')[0];

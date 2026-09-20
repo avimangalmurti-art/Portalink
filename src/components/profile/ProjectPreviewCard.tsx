@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
-import { getProjectAspectRatio } from '../../utils/projectPresentation';
+import { getProjectAspectRatio, getProjectCoverPreview } from '../../utils/projectPresentation';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { ProjectCover } from '../media/ProjectCover';
 import { CreatorAvatar } from './CreatorAvatar';
@@ -63,7 +63,7 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
   const artwork = <span className="project-preview-image absolute inset-0 block">
-    {cover ?? <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} />}
+    {cover ?? <ProjectCover source={project.cover} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} />}
   </span>;
   return <article ref={preview.ref} {...preview.events} data-project-preview="" data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>

@@ -7,7 +7,7 @@ const SPLASH_EXIT_SECONDS = 0.32;
 const MOBILE_SPLASH_TIMEOUT_MS = 3000;
 
 /** Platform artwork plays once; authentication still owns startup readiness. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onComplete: () => void; stillOnly?: boolean }) {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onComplete?: () => void; stillOnly?: boolean }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
   const viewportPresentation = useViewportPresentation();
@@ -26,7 +26,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onCom
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
-    onComplete();
+    onComplete?.();
   }, [onComplete]);
   const fail = useCallback(() => { setFailed(true); complete(); }, [complete]);
 

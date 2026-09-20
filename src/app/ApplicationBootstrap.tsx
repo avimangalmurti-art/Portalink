@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
@@ -30,23 +30,21 @@ function readSharedViewerProfileId(): string | null {
 
 /**
  * Session restoration is the application's real startup readiness boundary.
- * The short startup clip and session restoration run together. The application
- * mounts as soon as authentication is ready, then the splash crossfades once.
+ * The startup clip plays while session restoration runs, without imposing a
+ * minimum viewing time. Ready content must not wait for video playback/network.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
   const { pathname } = useLocation();
-  const [hasSplashMediaCompleted, setHasSplashMediaCompleted] = useState(false);
   const [hasStartupCompleted, setHasStartupCompleted] = useState(false);
-  const completeSplashMedia = useCallback(() => setHasSplashMediaCompleted(true), []);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
 
   useEffect(() => {
-    if (!auth.isInitializing && hasSplashMediaCompleted) setHasStartupCompleted(true);
-  }, [auth.isInitializing, hasSplashMediaCompleted]);
+    if (!auth.isInitializing) setHasStartupCompleted(true);
+  }, [auth.isInitializing]);
 
   useEffect(() => {
     try {
@@ -71,7 +69,7 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!hasStartupCompleted || auth.isInitializing ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplashMedia} stillOnly={hasStartupCompleted} /> : null}
+        {!hasStartupCompleted || auth.isInitializing ? <PortalinkSplashLoader key="portalink-splash" stillOnly={hasStartupCompleted} /> : null}
       </AnimatePresence>
     </>;
 }

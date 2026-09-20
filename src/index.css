@@ -1,14 +1,6 @@
 /* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-/* Multi-script coverage. Latin, Japanese (Kanji/Kana), Devanagari, and Siddham
-   (Bonji) are separate families because no single file carries all four; they
-   are composed into one stack via --script-fallback below, so a run mixing all
-   four scripts shapes correctly instead of falling through to last-resort
-   glyphs. */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Siddham&display=swap');
+/* The same external typefaces load without blocking paint in index.html.
+   Keep the multi-script fallback stack below while those fonts arrive. */
 
 /* CRITICAL: THE FOLLOWING TAILWIND IMPORTS MUST NEVER BE DELETED OR REORDERED — DO NOT DELETE THIS COMMENT */
 @import 'tailwindcss/base';

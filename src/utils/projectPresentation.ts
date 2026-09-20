@@ -1,5 +1,16 @@
 import type { Project } from '../types/domain';
 
+/** Use the existing rendered cover page without downloading the original PDF.
+ * Keep the document's identity, saved framing and original fallback intact. */
+export function getProjectCoverPreview(project: Project): string | undefined {
+  if (project.coverKind !== 'document') return undefined;
+  const cover = project.attachments?.find((attachment) => attachment.kind === 'document' && attachment.sourceUrl === project.cover);
+  const pageNumber = project.coverPageNumber ?? 1;
+  return cover?.metadata?.renderedPages?.find((page) =>
+    page.attachmentId === cover.id && page.withinDocumentIndex === pageNumber && page.sourceUrl,
+  )?.sourceUrl ?? undefined;
+}
+
 /**
  * Presentation derived from canonical project records.
  *

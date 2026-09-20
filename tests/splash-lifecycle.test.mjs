@@ -188,7 +188,7 @@ test('preboot selects the MOBILE poster at the canonical boundary and preserves 
   assert.doesNotMatch(preboot, /<video/);
 });
 
-test('startup waits for both session and media; navigation and auth retries never replay the video', () => {
+test('startup waits for verified session but never for media; navigation and auth retries never replay the video', () => {
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: false }, location = { pathname: '/' };
   const storage = new Map();
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
@@ -202,9 +202,8 @@ test('startup waits for both session and media; navigation and auth retries neve
   const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
   let [app, presence] = render();
   assert.equal(app, null); assert.equal(presence.props.children.props.stillOnly, false);
-  presence.props.children.props.onComplete();
-  [app, presence] = render();
-  assert.equal(app, null); assert.ok(presence.props.children);
+  // No video ended/play event is needed, even if the media never downloads.
+  assert.equal(presence.props.children.props.onComplete, undefined);
   auth.isInitializing = false;
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);

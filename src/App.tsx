@@ -9,7 +9,6 @@ import type { Id, ProjectLocation, ProjectView } from './types/domain';
 import type { AuthIntent } from './types/auth';
 import type { ViewerRole } from './types/viewer';
 import { useProjectResolution } from './features/projects/useProjectResolution';
-import { UserProfilePage } from './components/UserProfilePage';
 import { MobileProfileWorkspace } from './presentation/mobile/MobileProfileWorkspace';
 import { ActivityCollectionPage } from './components/profile/ActivityCollectionPage';
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
@@ -19,7 +18,6 @@ import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, us
 import { useLocation } from 'react-router-dom';
 import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
-import { ProfileCategoryPage } from './components/profile/ProfileCategoryPage';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
 import { IconPickerPage } from './components/profile/IconPickerPage';
 import { getTypefaceStack } from './data/typefaces';
@@ -64,6 +62,12 @@ import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
 const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
 const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
+// Profile editing, sorting and the full media viewer are not Home startup work.
+// These retain their existing state/props inside the screen's Suspense boundary.
+const loadProfilePage = () => import('./components/UserProfilePage').then((module) => ({ default: module.UserProfilePage }));
+const loadCategoryPage = () => import('./components/profile/ProfileCategoryPage').then((module) => ({ default: module.ProfileCategoryPage }));
+const UserProfilePage = React.lazy(loadProfilePage);
+const ProfileCategoryPage = React.lazy(loadCategoryPage);
 const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
 
 function readMainSidebarCollapsed(): boolean {
@@ -132,6 +136,16 @@ function AppContent() {
    * and reached with the browser's own Back and Forward buttons.
    */
   const route = useAppRoute();
+  useEffect(() => {
+    // A direct profile/project link fetches its UI alongside its data. Waiting
+    // until the profile record renders would introduce a new request waterfall.
+    if (['profile', 'category', 'project', 'sharedProfile', 'sharedCategory', 'sharedProject', 'portals'].includes(route.kind)) {
+      void loadProfilePage().catch(() => undefined);
+    }
+    if (['category', 'project', 'sharedCategory', 'sharedProject'].includes(route.kind)) {
+      void loadCategoryPage().catch(() => undefined);
+    }
+  }, [route.kind]);
   const nav = useRouteNavigator();
   const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject';
   const auth = useAuth();

@@ -88,7 +88,7 @@ export type DiscoverSections = {
 };
 
 export type ContentSphereInput = {
-  viewerProfile: Profile | null;
+  viewerProfile: Pick<Profile, 'id' | 'location'> | null;
   availableProjects: ProjectView[];
   followedCreatorIds: Id[];
   engagement: Array<{ projectId: Id; kind: 'like' | 'save' | 'repost'; createdAt: string }>;
