@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## Published project-viewing and splash updates — 2026-09-20 (Sites version 253)
+
+- User authorized publication of the five local passes below: reliable splash playback/fallback, mobile portal popup continuity, removal of mobile portal search, fluid content pinch and the editable Description sheet, plus the 4px lower mobile navigation. Sites **version 253** succeeded at **2026-09-20 09:49:29 UTC**, deployment `appgdep_6aafac2155308191a7a5ca46d592a2df`, at the existing [Portalink site](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Exact deployed source: `616651fd509873f8e06272b07a499da694918c5e` (`Refine mobile project viewing and reliable splash playback`). Earlier local-only entries are now included in this release.
+- Release verification: 68 focused tests, typecheck, client/server build and staged whitespace checks passed. Full lint in the clean release checkout passed with 0 errors / 86 existing warnings. The initial desktop-root lint traversed ignored QA fixtures and older release copies and failed there; those files are excluded from this release. Read-only release review found no blocker. Existing bundle-size warnings remain; browser evidence and physical-phone/authenticated-session limits remain as documented below.
+- Clean source checkout and verified build staged under ignored `logs/viewer-release-20260920`; no application source changed between build and source commit. Windows npm/Bash plugin wrappers could not run, so the existing npm build and official `prepare-site-build.cjs` plus native tar produced the validated worker archive (126 files). Private files, QA fixtures and unrelated user folders were excluded.
+- Source was fast-forwarded to the existing Sites source mirror only. GitHub `main` was not pushed or merged. Public audience, runtime environment revision 1, existing Supabase/Auth, D1 `DB`, `r2: null`, PDF/video workers and checkpoint settings remain unchanged. No SQL migration was added or manually applied, and no separate media-worker deployment occurred. Pre-existing port-5173 server retained.
+- This release record is a subsequent documentation-only commit outside the version 253 application build. Continue on `codex/splash-reliability`; preserve unrelated `.claude/` and both design folders.
+
 ## Lower mobile bottom navigation — 2026-09-20 (local, unpublished)
 
 - Moved the mobile floating navigation cluster 4px lower in `src/presentation/mobile/mobile.css`. Its content clearance follows the same offset; sizing, alignment, behavior and WEB styling are unchanged.
