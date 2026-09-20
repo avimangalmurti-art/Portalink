@@ -159,50 +159,77 @@ test('one registration form validates account and profile fields before the sing
   const hooks = hookRuntime(); const submitted = [];
   const mock = {isLoading: false, result: null, error: null, submit: async (...args) => submitted.push(args)};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
-    react: hooks.react, 'lucide-react': {}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}})},
+    react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}})},
     '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
     '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
     '../../presentation/usePresentation': {usePresentation: () => presentation},
     '../profile/useProfileOnboarding': {useAvatarSelection: () => ({avatar: null, error: null})}, '../profile/validation': validation,
+    '../../components/auth/MobileOnboarding': {MobileOnboardingAppearance:'Appearance', MobileOnboardingAction:'Action'},
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': {useSignUp: () => mock}, './validation': load('src/features/auth/validation.ts'),
   });
-  const render = () => hooks.render(() => SignUpForm({accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
+  let step = 'appearance';
+  const render = () => hooks.render(() => SignUpForm({step, onStepChange: next => {step = next;}, accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   let tree = render();
-  const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
-  assert.equal(Boolean(visibility), presentation === 'mobile');
-  visibility?.props.onChange(true);
-  tree = render();
+  if (presentation === 'mobile') {
+    assert.equal(nodes(tree).some(node => node.props?.id === 'auth-signup-email'), false);
+    await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'account');
+    tree = render();
+  }
   await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
-  for (const [key, value] of [['name', 'Creator'], ['location', 'City'], ['email', 'example@example.test'], ['password', 'test-password'], ['confirmation', 'different']]) {
+  for (const [key, value] of [['email', 'example@example.test'], ['password', 'test-password'], ['confirmation', 'different']]) {
     nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
   }
   tree = render(); await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
+  if (presentation === 'mobile') assert.equal(step, 'account', 'Mismatched passwords cannot advance.');
   nodes(tree).find(node => node.props?.id === 'auth-signup-confirmation').props.onChange('test-password');
   tree = render(); await tree.props.onSubmit({preventDefault() {}});
-  assert.equal(submitted.length, 1);
+  assert.equal(submitted.length, 0, 'Credentials alone never create an account.');
+  if (presentation === 'mobile') {
+    assert.equal(step, 'profile');
+    step = 'account'; tree = render();
+    assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-email').props.value, 'example@example.test');
+    assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-password').props.value, 'test-password');
+    await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'profile');
+  }
+  tree = render();
+  const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
+  assert.equal(Boolean(visibility), presentation === 'mobile');
+  visibility?.props.onChange(true);
+  for (const [key, value] of [['name', 'Creator'], ['location', 'City']]) {
+    nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
+  }
+  tree = render(); await Promise.all([tree.props.onSubmit({preventDefault() {}}), tree.props.onSubmit({preventDefault() {}})]);
+  assert.equal(submitted.length, 1, 'Repeated activation must not submit two accounts.');
   assert.equal(submitted[0][2].name, 'Creator');
   assert.equal(submitted[0][2].location, 'City');
   assert.equal(submitted[0][2].accentColor, '#0A84FF');
   assert.equal(submitted[0][2].isPrivate, presentation === 'mobile');
+  mock.result = {requiresEmailVerification:true, email:'example@example.test'};
+  render(); tree = render();
+  assert.equal(step, 'verification');
+  const success = nodes(tree).find(node => node.props?.title === 'Check your email');
+  assert.ok(success.props.description.includes('confirmation link'));
+  assert.equal(nodes(tree).some(node => node.type === 'Welcome'), false);
   }
 });
 
 test('email confirmation completes the saved profile once; a missing image asks for selection instead', async () => {
-  for (const mode of ['image', 'missing', 'no-image']) {
+  for (const mode of ['image', 'missing', 'no-image', 'mobile-welcome']) {
     const hooks = hookRuntime(), submissions = [], completed = [], cleaned = [];
     const image = new File(['synthetic-image'], 'photo.webp', {type: 'image/webp'});
     const select = () => {};
     const create = {status: 'idle', isLoading: false, createdProfile: null, async run(input) {submissions.push(input);}};
     const {ProfileOnboardingDialog} = load('src/features/profile/ProfileOnboardingDialog.tsx', {
-      react: hooks.react, 'lucide-react': {}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, hasAvatar: mode !== 'no-image'}}})},
+      react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, hasAvatar: mode === 'image' || mode === 'missing'}}})},
       '../../components/auth/AccountWelcomeSurface': {AccountWelcomeSurface: 'Surface'},
+      '../../components/auth/MobileOnboarding': {MobileOnboardingWelcome:'Welcome', MobileOnboardingAction:'Action'},
       '../auth/registration': {readRegistrationAvatar: async () => mode === 'image' ? {file: image, originalSource: image, crop: {zoom: 2}} : null, removeRegistrationAvatar: async key => cleaned.push(key)},
       '../../utils/publicAppearance': {DEFAULT_PUBLIC_APPEARANCE: {accentColor: '#0A84FF', mode: 'auto', systemGray: 'gray6'}},
       '../../components/profile/ProfileField': {ProfileField: 'ProfileField'}, '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/ui/Button': {Button: 'Button'},
       '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
-      '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' ? 'mobile' : 'web'},
+      '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' || mode === 'mobile-welcome' ? 'mobile' : 'web'},
       './useProfileOnboarding': {useAvatarSelection: () => ({select, avatar: null, error: null}), useCreateProfile: () => create}, './validation': validation,
     });
     const props = {isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete: id => completed.push(id)};
@@ -216,6 +243,13 @@ test('email confirmation completes the saved profile once; a missing image asks 
       if (mode === 'image') { assert.equal(submissions[0].avatar.file, image); assert.equal(submissions[0].avatar.crop.zoom, 2); }
       create.status = 'success'; create.createdProfile = {id: 'created'};
       render(); await tick(); render();
+      if (mode === 'mobile-welcome') {
+        assert.deepEqual(completed, [], 'Mobile must pause at Welcome after saving.');
+        const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
+        const welcome = nodes(render()).find(node => node.type === 'Welcome');
+        assert.ok(welcome);
+        welcome.props.onComplete(); welcome.props.onComplete();
+      }
       assert.deepEqual(completed, ['created']); assert.deepEqual(cleaned, [id]);
     } else {
       const tree = render();

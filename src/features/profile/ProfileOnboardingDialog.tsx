@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
+import { MobileOnboardingAction, MobileOnboardingWelcome } from '../../components/auth/MobileOnboarding';
 import { readRegistrationAvatar, removeRegistrationAvatar } from '../auth/registration';
 import { DEFAULT_PUBLIC_APPEARANCE } from '../../utils/publicAppearance';
 import type { PreparedAvatar } from '../../types/profile';
@@ -33,6 +34,7 @@ export function ProfileOnboardingDialog({
   onDismiss,
   onComplete,
   completionActionLabel = 'Open profile',
+  theme,
   accentColor,
   onAccentColorChange,
   highContrast,
@@ -47,6 +49,7 @@ export function ProfileOnboardingDialog({
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const autoStarted = useRef(false);
   const completed = useRef(false);
+  const cleaned = useRef(false);
   const errorRef = useRef<HTMLDivElement>(null);
   const avatar = useAvatarSelection();
   const create = useCreateProfile();
@@ -90,11 +93,14 @@ export function ProfileOnboardingDialog({
     return () => { current = false; };
   }, [isOpen, registration, selectAvatar]);
   useEffect(() => {
-    if (!registration || create.status !== 'success' || !create.createdProfile || completed.current) return;
-    completed.current = true;
-    void removeRegistrationAvatar(registration.id);
-    onComplete(create.createdProfile.id);
-  }, [registration, create.status, create.createdProfile, onComplete]);
+    if (!registration || create.status !== 'success' || !create.createdProfile) return;
+    if (!cleaned.current) { cleaned.current = true; void removeRegistrationAvatar(registration.id); }
+    // Mobile pauses at Welcome. Desktop retains its existing automatic return.
+    if (!isMobile && !completed.current) {
+      completed.current = true;
+      onComplete(create.createdProfile.id);
+    }
+  }, [registration, create.status, create.createdProfile, onComplete, isMobile]);
   useEffect(() => {
     // A submission failure takes focus, so it is never missed.
     if (create.status === 'error') {
@@ -139,12 +145,17 @@ export function ProfileOnboardingDialog({
       isSubmittingRef.current = false;
     }
   }
-  return <AccountWelcomeSurface title={isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
+  const complete = () => {
+    if (!create.createdProfile || completed.current) return;
+    completed.current = true;
+    onComplete(create.createdProfile.id);
+  };
+  return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isMobile ? (isComplete ? 'Welcome to Portalink' : 'Create your profile') : isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>
           {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
           {draftNotice && <p role="status" className="mb-4 text-sm text-[var(--text-secondary)]">{draftNotice}</p>}
-          {isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
+          {isComplete && create.createdProfile && isMobile ? <MobileOnboardingWelcome isPrototype={auth.session?.isPrototype} onComplete={complete} notice={avatar.avatar && !create.avatarPersisted ? <p role="status" className="text-sm text-[var(--text-secondary)]">Your chosen picture was not uploaded. {avatar.storageNotice}</p> : undefined} /> : isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
               <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
                 <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
                 <span className="min-w-0 flex-1">
@@ -160,7 +171,7 @@ export function ProfileOnboardingDialog({
                   Your chosen picture was previewed only and was not uploaded. {avatar.storageNotice}
                 </p>}
               <Button variant="primary" size="lg" fullWidth onClick={() => onComplete(create.createdProfile!.id)}>{completionActionLabel}</Button>
-            </div> : (draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate className="mt-5 flex flex-col gap-4">
+            </div> : (draftLoading || (registration && create.isLoading)) ? null : <form onSubmit={submit} noValidate className={isMobile ? 'mobile-onboarding-form' : 'mt-5 flex flex-col gap-4'}>
 
               {create.status === 'error' && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
                   <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
@@ -170,7 +181,7 @@ export function ProfileOnboardingDialog({
                   </span>
                 </div>}
 
-              <AvatarPicker presentation="featured" pending={avatar.avatar} error={avatar.error} disabled={isSubmitting} labelId="onboarding-avatar" storageNotice={avatar.storageNotice} onSelect={avatar.select} onClear={avatar.clear} />
+              <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} pending={avatar.avatar} error={avatar.error} disabled={isSubmitting} labelId="onboarding-avatar" storageNotice={avatar.storageNotice} onSelect={avatar.select} onClear={avatar.clear} />
 
               <ProfileField id="onboarding-name" label="Profile name" value={name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Your name" error={fieldErrors.name} disabled={isSubmitting} onChange={(value) => {
             setName(value);
@@ -190,9 +201,9 @@ export function ProfileOnboardingDialog({
 
               {isMobile && <ProfileVisibilityField id="onboarding-visibility" isPrivate={isPrivate} onChange={setIsPrivate} disabled={isSubmitting} />}
 
-              <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting} disabled={!canSubmit}>
+              {isMobile ? <MobileOnboardingAction busy={isSubmitting}>{isSubmitting ? 'Finishing setup…' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting} disabled={!canSubmit}>
                 {isSubmitting ? 'Finishing setup…' : 'Finish setup'}
-              </Button>
+              </Button>}
             </form>}
 
     </AccountWelcomeSurface>;

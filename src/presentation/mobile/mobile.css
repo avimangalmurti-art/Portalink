@@ -168,6 +168,128 @@
   font-size: 14px;
 }
 
+/* The mobile signup journey shares auth state, but has its own light/dark frame. */
+#root .codex-shell [data-mobile-onboarding] {
+  --onboarding-background: #0c0e0f;
+  --onboarding-text: #f8f8f8;
+  --onboarding-secondary: #b7b9bf;
+  --onboarding-field: #141618;
+  --onboarding-border: #424448;
+  background: var(--onboarding-background) !important;
+}
+#root .codex-shell [data-mobile-onboarding='light'] {
+  --onboarding-background: #fff;
+  --onboarding-text: #111214;
+  --onboarding-secondary: #62646a;
+  --onboarding-field: #fafafa;
+  --onboarding-border: #d7d9dd;
+}
+#root .codex-shell .auth-signin-experience[data-mobile-onboarding] > .account-welcome-card {
+  --text-primary: var(--onboarding-text);
+  --text-secondary: var(--onboarding-secondary);
+  --text-tertiary: var(--onboarding-secondary);
+  --surface-default: var(--onboarding-background);
+  --surface-sunken: var(--onboarding-field);
+  --surface-placeholder: var(--onboarding-border);
+  --hairline: var(--onboarding-border);
+  --hairline-strong: var(--onboarding-border);
+  --control-hover-surface: var(--onboarding-field);
+  background: var(--onboarding-background) !important;
+  color: var(--onboarding-text) !important;
+  color-scheme: dark;
+}
+#root .codex-shell .auth-signin-experience[data-mobile-onboarding='light'] > .account-welcome-card { color-scheme: light; }
+#root .codex-shell .auth-signin-experience[data-mobile-onboarding] > .account-welcome-card[data-welcome-contrast='true'] {
+  --text-primary: var(--onboarding-text);
+  --text-secondary: var(--onboarding-text);
+  --text-tertiary: var(--onboarding-text);
+  --hairline-strong: var(--onboarding-text);
+}
+#root .codex-shell [data-mobile-onboarding] > .account-welcome-card::before,
+#root .codex-shell [data-mobile-onboarding] > .account-welcome-card::after { content: none !important; }
+#root .codex-shell [data-mobile-onboarding] .account-welcome-close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: max(12px, env(safe-area-inset-left, 0px));
+  z-index: 3;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 9px;
+  color: var(--text-primary);
+}
+#root .codex-shell [data-mobile-onboarding] .account-welcome-content {
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  scroll-padding-top: 84px;
+}
+#root .codex-shell [data-mobile-onboarding] .account-welcome-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--onboarding-background);
+  flex: 0 0 auto;
+  min-height: 60px;
+  margin: 0 0 24px;
+  padding: 10px 24px 10px 40px;
+  text-align: left;
+}
+#root .codex-shell [data-mobile-onboarding] .account-welcome-heading h2 {
+  margin: 0;
+  font-size: clamp(21px, 5.7vw, 25px);
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: -.045em;
+  color: var(--text-primary);
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-body:not([hidden]),
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-form,
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-welcome {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: 16px;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-footer { margin-top: auto; padding-top: 24px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-signin { margin-top: auto; text-align: center; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-signin + .mobile-onboarding-footer { margin-top: 0; padding-top: 0; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-footer button {
+  position: relative;
+  min-height: 54px;
+  border-radius: 999px !important;
+  corner-shape: round;
+  font-size: 17px;
+  font-weight: 500;
+  padding-inline: 48px;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-footer button > svg:last-child:not(.animate-spin) { position: absolute; right: 20px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance { display: flex; flex-direction: column; gap: 8px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance legend { margin-bottom: 6px; font-size: 16px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px 6px; margin-bottom: 10px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches button {
+  display: grid;
+  place-items: center;
+  height: 48px;
+  min-width: 0;
+  padding: 5px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent !important;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches button span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches [aria-checked='true'] { box-shadow: inset 0 0 0 1.5px var(--text-primary); }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch label { font-size: 16px; font-weight: 400; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input { position: relative; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input > svg { position: absolute; top: 15px; left: 15px; pointer-events: none; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input input { min-height: 52px; padding-left: 50px; }
+#root .codex-shell [data-mobile-onboarding] :is(.text-control, .text-control-shell) { border-radius: 12px !important; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-art { display: flex; flex: 1 0 auto; align-items: center; justify-content: center; min-height: 0; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-art img { width: min(100%, 360px); max-height: 62dvh; object-fit: contain; mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg); }
+#root .codex-shell [data-mobile-onboarding='light'] .mobile-onboarding-art img { mix-blend-mode: multiply; filter: none; }
+
 /* Both navigation forms live outside the content's layout in one fixed layer. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer {
   position: fixed;
@@ -292,7 +414,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-floating-navigation, [data-project-reading-control], [data-project-reading-control] *) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-floating-navigation, .mobile-project-page-counter, [data-project-reading-control], [data-project-reading-control] *) {
     transition: none !important;
   }
 }
@@ -1977,6 +2099,11 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+#root .codex-shell[data-presentation='mobile'][data-project-reading] .mobile-project-page-counter {
+  transform: translateX(-56px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {

@@ -141,7 +141,7 @@ test('setup exposes large image selection, name and location and submits without
   let tree = render();
   const fields = nodes(tree).filter((node) => node.type === 'ProfileField');
   assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Where are you from?']);
-  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, 'featured');
+  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
   assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted, undefined);

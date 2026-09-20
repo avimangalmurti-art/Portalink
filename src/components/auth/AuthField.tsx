@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { AlertCircleIcon } from 'lucide-react';
+import { AlertCircleIcon, MailIcon, LockKeyholeIcon } from 'lucide-react';
 
 /**
  * A labelled auth input. Presentation only: it owns no state and knows nothing
@@ -10,6 +10,7 @@ import { AlertCircleIcon } from 'lucide-react';
  * `aria-describedby` and carries an icon — never colour alone.
  */
 export type AuthFieldProps = {
+  compact?: boolean;
   id: string;
   label: string;
   type: 'email' | 'password';
@@ -22,6 +23,7 @@ export type AuthFieldProps = {
   onChange: (value: string) => void;
 };
 export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function AuthField({
+  compact = false,
   id,
   label,
   type,
@@ -36,9 +38,13 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(' ');
+  const input = <input id={id} ref={ref} type={type} value={value} autoComplete={autoComplete} placeholder={placeholder ?? (compact ? label : undefined)} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} className="text-control h-10 w-full px-3 text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]" />;
   return <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</label>
-      <input id={id} ref={ref} type={type} value={value} autoComplete={autoComplete} placeholder={placeholder} disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} className="text-control h-10 w-full px-3 text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]" />
+      <label htmlFor={id} className={compact ? "sr-only" : "text-[13px] font-semibold text-[var(--text-primary)]"}>{label}</label>
+      {compact ? <div className="mobile-onboarding-input">
+        {type === 'email' ? <MailIcon size={22} aria-hidden="true" /> : <LockKeyholeIcon size={22} aria-hidden="true" />}
+        {input}
+      </div> : input}
       {hint && <p id={hintId} className="text-[12px] leading-relaxed text-[var(--text-secondary)]">{hint}</p>}
       {error && <p id={errorId} className="flex items-start gap-1.5 text-[12px] font-medium leading-relaxed text-[var(--text-primary)]">
           <AlertCircleIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
