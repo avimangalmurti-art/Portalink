@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
+import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
 import { useProjectBackSwipe } from './useProjectBackSwipe';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
@@ -16,6 +18,7 @@ import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { pinchDistance, pinchSteps } from '../../utils/pinchGesture';
+import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
@@ -82,6 +85,7 @@ export function ProjectMediaViewer({
   projectId,
   projectTitle,
   projectSummary,
+  descriptionEditor,
   publishedAt,
   credits = [],
   pageCount,
@@ -109,7 +113,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -299,17 +303,25 @@ export function ProjectMediaViewer({
   const lastDensityStepRef = useRef(0);
   const densityCommitTimerRef = useRef<number | null>(null);
   const densityCommitCallbackRef = useRef(onPagesPerRowCommit);
-  const densityPinchRef = useRef<{ distance: number; pages: number; next: number } | null>(null);
+  const densityPinchRef = useRef<{ distance: number; pages: number; next: number; motion: ContentPinchMotion | null } | null>(null);
+  const densitySettleRef = useRef<ContentPinchMotion | null>(null);
+  useLayoutEffect(() => {
+    densitySettleRef.current?.settle();
+    densitySettleRef.current = null;
+  }, [normalizedPagesPerRow]);
   useEffect(() => {
     densityCommitCallbackRef.current = onPagesPerRowCommit;
   }, [onPagesPerRowCommit]);
   useEffect(() => () => {
+    densityPinchRef.current?.motion?.cancel();
+    densitySettleRef.current?.cancel();
+    densitySettleRef.current = null;
     densityPinchRef.current = null;
     if (densityCommitTimerRef.current !== null) {
       window.clearTimeout(densityCommitTimerRef.current);
       densityCommitTimerRef.current = null;
     }
-  }, [projectId]);
+  }, [projectId, active?.id, isImmersive, isMobileViewer]);
   /**
    * The work surface itself is the density instrument for touch or trackpad
    * pinches. Browsers expose a trackpad pinch as a wheel event with `ctrlKey`;
@@ -321,7 +333,7 @@ export function ProjectMediaViewer({
    */
   useEffect(() => {
     const surface = densitySurfaceRef.current;
-    if (!surface || !hasPageLayout || !onPagesPerRowChange) {
+    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive) {
       return undefined;
     }
     const handleDensityWheel = (event: WheelEvent) => {
@@ -357,40 +369,54 @@ export function ProjectMediaViewer({
       }, 450);
     };
     const handleTouchStart = (event: TouchEvent) => {
+      densityPinchRef.current?.motion?.cancel();
       const distance = pinchDistance(event.touches);
-      densityPinchRef.current = distance === null ? null : { distance, pages: normalizedPagesPerRow, next: normalizedPagesPerRow };
+      densityPinchRef.current = distance === null ? null : { distance, pages: normalizedPagesPerRow, next: normalizedPagesPerRow,
+        motion: isMobileViewer ? beginContentPinch(surface, touchMidpoint(event.touches)) : null };
     };
     const handleTouchMove = (event: TouchEvent) => {
       const pinch = densityPinchRef.current;
       const distance = pinchDistance(event.touches);
       if (!pinch || distance === null) return;
       if (event.cancelable) event.preventDefault();
-      const next = normalizePagesPerRow(pinch.pages - pinchSteps(distance, pinch.distance));
+      if (isMobileViewer) pinch.motion?.update(Math.min(pinch.pages, Math.max(pinch.pages / 9, distance / pinch.distance)), touchMidpoint(event.touches));
+      const next = normalizePagesPerRow(isMobileViewer ? pinch.pages * pinch.distance / distance : pinch.pages - pinchSteps(distance, pinch.distance));
       if (next === pinch.next) return;
       pinch.next = next;
-      onPagesPerRowChange(next);
+      if (!isMobileViewer) onPagesPerRowChange(next);
     };
     const handleTouchEnd = () => {
       const pinch = densityPinchRef.current;
       densityPinchRef.current = null;
-      if (!pinch || pinch.next === pinch.pages) return;
+      if (!pinch) return;
+      if (pinch.next === pinch.pages) { pinch.motion?.settle(false); return; }
+      if (isMobileViewer) {
+        densitySettleRef.current = pinch.motion;
+        onPagesPerRowChange(pinch.next);
+      }
       if (densityCommitTimerRef.current !== null) window.clearTimeout(densityCommitTimerRef.current);
       densityCommitTimerRef.current = null;
       densityCommitCallbackRef.current?.(pinch.next);
+    };
+    const handleTouchCancel = () => {
+      const pinch = densityPinchRef.current;
+      if (!isMobileViewer) { handleTouchEnd(); return; }
+      densityPinchRef.current = null;
+      pinch?.motion?.settle(false);
     };
     surface.addEventListener('wheel', handleDensityWheel, { passive: false });
     surface.addEventListener('touchstart', handleTouchStart, { passive: true });
     surface.addEventListener('touchmove', handleTouchMove, { passive: false });
     surface.addEventListener('touchend', handleTouchEnd, { passive: true });
-    surface.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    surface.addEventListener('touchcancel', handleTouchCancel, { passive: true });
     return () => {
       surface.removeEventListener('wheel', handleDensityWheel);
       surface.removeEventListener('touchstart', handleTouchStart);
       surface.removeEventListener('touchmove', handleTouchMove);
       surface.removeEventListener('touchend', handleTouchEnd);
-      surface.removeEventListener('touchcancel', handleTouchEnd);
+      surface.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
+  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer]);
   const emptyMedia = <div data-premium-project-viewer="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
@@ -417,14 +443,7 @@ export function ProjectMediaViewer({
    * rather than leaving its freed space as empty canvas, and opening it contracts
    * the work back. The rail owns the only fixed dimension in the row.
    */
-  const sharedProjectInformation = <div id="shared-project-detail-panel" className="side-panel-content-inset flex flex-col gap-4 py-2">
-            <div>
-              <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
-            </div>
-            <div>
-              {!isMobileViewer && <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>}
-              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
-            </div>
+  const sharedProjectMetadata = <>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[12px] leading-snug">
               {pageCount !== null && <><dt className="text-[var(--text-tertiary)]">Pages</dt><dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{pageCount}</dd></>}
               {publishedLabel && <><dt className="text-[var(--text-tertiary)]">Published</dt><dd className="text-right font-medium text-[var(--text-primary)]">{publishedLabel}</dd></>}
@@ -438,6 +457,16 @@ export function ProjectMediaViewer({
                     </div>)}
                 </dl>
               </div>}
+  </>;
+  const sharedProjectInformation = <div id="shared-project-detail-panel" className="side-panel-content-inset flex flex-col gap-4 py-2">
+            <div>
+              <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
+            </div>
+            <div>
+              {!isMobileViewer && <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>}
+              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+            </div>
+            {sharedProjectMetadata}
           </div>;
   const sharedVerification = <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="side-panel-content-inset flex flex-col gap-4 py-2">
               <div className="flex items-start justify-between gap-3">
@@ -649,9 +678,10 @@ export function ProjectMediaViewer({
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'description' ? 'Project description' : mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'description' ? descriptionTriggerRef : mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MobileProjectDescriptionSheet key={projectId} projectId={projectId} description={projectSummary} typeface={contentTypefaceStack} details={readOnlyShare ? <><h3 className="font-semibold">{projectTitle}</h3>{sharedProjectMetadata}</> : undefined} editor={isOwner && !readOnlyShare ? descriptionEditor : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'description' ? 'Description' : mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
+          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
           <button type="button" data-comments-close="" aria-label="Close project popup" onClick={closeMobilePopup}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">

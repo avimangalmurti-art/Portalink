@@ -154,7 +154,8 @@ function PdfImagePage({
       return undefined;
     }
 
-    const bounds = host.getBoundingClientRect();
+    // Paint at the committed layout size, never an in-flight pinch transform.
+    const bounds = retainCanvasWhileLoading ? { width: host.clientWidth, height: host.clientHeight } : host.getBoundingClientRect();
     const availableWidth = bounds.width;
     const availableHeight = bounds.height;
     if (!Number.isFinite(availableWidth) || availableWidth <= 0) {
@@ -175,7 +176,7 @@ function PdfImagePage({
     const outputScale = Math.min(deviceScale, dimensionScale);
     const renderViewport = page.getViewport({ scale: cssScale * outputScale });
 
-    // Keep the focused mobile page painted until its replacement is ready.
+    // Keep mobile pages painted during pinch settling and page replacement.
     // Resizing the visible canvas first clears it and exposes a blank frame.
     const renderCanvas = retainCanvasWhileLoading ? canvas.ownerDocument.createElement('canvas') : canvas;
     renderCanvas.width = Math.max(1, Math.ceil(renderViewport.width));
@@ -506,7 +507,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           label={label}
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber}
-          retainCanvasWhileLoading={isMobile && focusedPageNumber === pageNumber}
+          retainCanvasWhileLoading={isMobile}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions && !isMobile}
           isOwner={isOwner}

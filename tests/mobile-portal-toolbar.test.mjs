@@ -25,9 +25,9 @@ function nodes(node) { return React.isValidElement(node) ? [node, ...React.Child
 const control = (tree, name) => nodes(tree).find(node => node.props['aria-label'] === name);
 function harness() {
   const calls = [];
-  const props = { category: { label: 'Photography', iconName: 'camera' }, query: '', layout: 'list', sort: 'recent', pagesPerRow: 1,
+  const props = { category: { label: 'Photography', iconName: 'camera' }, layout: 'list', sort: 'recent', pagesPerRow: 1,
     canAdjustPages: true, savingPages: false, onBack: () => calls.push(['back']),
-    onQuery: query => calls.push(['query', query]), onLayout: value => calls.push(['layout', value]),
+    onLayout: value => calls.push(['layout', value]),
     onSort: value => calls.push(['sort', value]), onPagesChange: value => calls.push(['pages', value]),
     onPagesCommit: value => calls.push(['commit', value]) };
   return { props, calls, render: () => MobilePortalProjectToolbar(props) };
@@ -47,16 +47,15 @@ test('MOBILE portal header uses its real icon/name, one Back action, and an opti
   assert.equal(nodes(tree).filter(node => node.props['aria-label'] === 'Back to portals').length, 1);
 });
 
-test('search, list/grid, and sorting expose real controlled actions without navigating', () => {
+test('mobile omits search while list/grid and sorting retain their controlled actions', () => {
   const h = harness(); let tree = h.render();
-  control(tree, 'Search projects in Photography').props.onChange({ target: { value: 'microscope' } });
+  assert.equal(nodes(tree).find(node => node.props.type === 'search'), undefined);
   control(tree, 'Show project grid').props.onClick();
   const sort = control(tree, 'Sort projects');
   assert.deepEqual(nodes(sort).filter(node => node.type === 'option').map(node => node.props.value), ['recent', 'title', 'saved']);
   sort.props.onChange({ target: { value: 'saved' } });
-  assert.deepEqual(h.calls, [['query', 'microscope'], ['layout', 'grid'], ['sort', 'saved']]);
-  Object.assign(h.props, { query: 'microscope', layout: 'grid', sort: 'saved' }); tree = h.render();
-  assert.equal(control(tree, 'Search projects in Photography').props.value, 'microscope');
+  assert.deepEqual(h.calls, [['layout', 'grid'], ['sort', 'saved']]);
+  Object.assign(h.props, { layout: 'grid', sort: 'saved' }); tree = h.render();
   assert.equal(control(tree, 'Sort projects').props.value, 'saved');
   assert.equal(control(tree, 'Show project list').props['aria-pressed'], true);
   control(tree, 'Show project list').props.onClick();

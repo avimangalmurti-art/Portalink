@@ -3,6 +3,7 @@ import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
+import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
 import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
@@ -543,6 +544,7 @@ export function UserProfilePage({
   const closePortalsRef = useRef(() => setActiveView('projects'));
   closePortalsRef.current = () => setActiveView('projects');
   const hasMobilePortalOverlay = Boolean(mobilePortalOverlay);
+  useMobilePortalPopupSize(profilePageRef, portalOverlayRef, hasMobilePortalOverlay);
   useEffect(() => {
     if (!hasMobilePortalOverlay) return;
     let press: { x: number; y: number; outside: boolean } | null = null;

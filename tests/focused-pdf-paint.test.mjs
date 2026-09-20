@@ -19,7 +19,7 @@ function harness(retainCanvasWhileLoading = true) {
     getContext() { return { drawImage: image => { this.painted = image.painted; } }; }
   }
   const canvas = new Canvas();
-  const host = { scrollTop: 0, scrollLeft: 0, getBoundingClientRect: () => ({ width: 390, height: 600 }) };
+  const host = { clientWidth: 390, clientHeight: 600, scrollTop: 0, scrollLeft: 0, getBoundingClientRect: () => ({ width: 390, height: 600 }) };
   const effect = (fn, deps) => {
     const index = cursor++, previous = slots[index];
     if (!previous || deps.some((value, i) => value !== previous.deps[i])) {

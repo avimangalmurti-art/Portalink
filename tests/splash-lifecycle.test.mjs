@@ -24,7 +24,7 @@ function hooks() {
       useEffect(effect, deps) {
         const i = cursor++;
         if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) {
-          slots[i]?.cleanup?.(); slots[i] = { deps };
+          slots[i]?.cleanup?.(); slots[i] = { deps, effect };
           effects.push(() => { slots[i].cleanup = effect(); });
         }
       },
@@ -36,6 +36,7 @@ function hooks() {
     timers,
     render(fn) { cursor = 0; return fn(); },
     flush() { effects.splice(0).forEach(fn => fn()); },
+    restartEffects() { slots.forEach(slot => { if (slot?.effect) { slot.cleanup?.(); slot.cleanup = slot.effect(); } }); },
     unmount() { slots.forEach(slot => slot?.cleanup?.()); },
   };
 }
@@ -46,30 +47,51 @@ function compile(path, imports, globals) {
   }).outputText, { exports, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, presentation = 'web' } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web' } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation;
+  const listeners = new Map(), docListeners = new Map(), frames = new Map();
+  let frameId = 0;
+  const document = {
+    hidden,
+    addEventListener(name, fn) { docListeners.set(name, fn); },
+    removeEventListener(name, fn) { if (docListeners.get(name) === fn) docListeners.delete(name); },
+  };
   const video = {
+    paused: true, ended: false, readyState: 0,
+    setAttribute() {},
+    addEventListener(name, fn) { listeners.set(name, fn); },
+    removeEventListener(name, fn) { if (listeners.get(name) === fn) listeners.delete(name); },
+    requestVideoFrameCallback: legacy ? undefined : fn => { const id = ++frameId; frames.set(id, fn); return id; },
+    cancelVideoFrameCallback(id) { frames.delete(id); },
     play() {
       plays++;
       if (throws) throw Error('playback unavailable');
+      if (play) return play(plays);
       return blocked ? Promise.reject(Error('autoplay blocked')) : Promise.resolve();
     },
-    pause() { pauses++; },
+    pause() { pauses++; this.paused = true; listeners.get('pause')?.(); },
   };
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
-  }, { window: h.window });
+  }, { window: h.window, document });
   const onComplete = () => completed++;
   return { ...h,
     render() {
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
-      if (tree.props.children.type === 'video') tree.props.children.ref.current = video;
-      h.flush(); return tree.props.children;
+      const [poster, media] = tree.props.children;
+      if (media) media.ref.current = video;
+      h.flush(); return { poster, media };
     },
+    start() { video.paused = false; video.readyState = 2; listeners.get('playing')?.(); },
+    paint() { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(fn => fn()); },
+    emit(name) { if (name === 'ended') video.ended = true; if (name === 'pause') video.paused = true; listeners.get(name)?.(); },
+    hide() { document.hidden = true; docListeners.get('visibilitychange')?.(); },
+    timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
+    listeners, docListeners, frames,
     setViewport(nextPresentation) { presentation = nextPresentation; },
     video,
     get completed() { return completed; }, get plays() { return plays; }, get pauses() { return pauses; },
@@ -78,9 +100,10 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   };
 }
 
-test('each platform plays only its own splash inline and muted once', () => {
+test('both platforms keep the poster painted and video hidden until a real frame is ready', () => {
   for (const presentation of ['web', 'mobile']) {
-    const h = loader({ presentation }), media = h.render(), mobile = presentation === 'mobile';
+    const h = loader({ presentation }), { poster, media } = h.render(), mobile = presentation === 'mobile';
+    assert.equal(poster.type, 'img');
     assert.equal(media.type, 'video');
     assert.equal(h.presentation, presentation);
     assert.equal(media.props.src, mobile ? '/portalink-splash-mobile.mp4' : '/portalink-splash.mp4');
@@ -89,48 +112,62 @@ test('each platform plays only its own splash inline and muted once', () => {
     assert.equal(media.props.height, mobile ? 720 : 576);
     assert.equal(media.props.muted, true); assert.equal(media.props.playsInline, true);
     assert.equal(media.props.autoPlay, true); assert.equal(media.props['aria-hidden'], 'true');
-    assert.equal(media.props.loop, undefined); assert.equal(media.props.controls, undefined);
+    assert.equal(media.props.loop, undefined); assert.equal(media.props.controls, false);
+    assert.equal(media.props.disableRemotePlayback, true); assert.equal(media.props.tabIndex, -1);
+    assert.equal(media.props.style.opacity, 0);
     assert.equal(h.video.muted, true); assert.equal(h.video.defaultMuted, true);
     assert.equal(h.plays, 1); assert.equal(h.completed, 0);
     h.render(); assert.equal(h.plays, 1);
-    media.props.onEnded(); media.props.onEnded(); assert.equal(h.completed, 1);
-    h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.pauses, 1);
+    h.start(); assert.equal(h.render().media.props.style.opacity, 0);
+    h.paint(); assert.equal(h.render().media.props.style.opacity, 1);
+    h.emit('ended'); h.emit('ended'); assert.equal(h.completed, 1);
+    assert.equal(h.render().media.props.style.opacity, 1, 'successful exit retains the final frame');
+    h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0);
   }
 });
 
-test('WEB retains its 880ms presentation and 320ms fade for the 1.2-second startup budget', () => {
+test('WEB starts its short presentation budget on the first frame, not during buffering', () => {
   const h = loader(); h.render();
-  const timer = [...h.timers.values()][0];
-  assert.equal(timer.delay, 880); assert.equal(h.exitDuration, 0.32);
-  assert.equal(timer.delay + h.exitDuration * 1000, 1200); timer.fn();
+  assert.equal([...h.timers.values()].some(t => t.delay === 880), false);
+  h.start(); h.paint();
+  assert.equal(h.exitDuration, 0.32); h.timer(880);
   assert.equal(h.completed, 1);
+  assert.equal(h.render().media.props.style.opacity, 1);
   h.unmount();
 });
 
-test('MOBILE finishes the full clip onEnded and has a bounded fallback if playback stalls', () => {
+test('MOBILE finishes onEnded and a hard deadline replaces a hung video with the poster', () => {
   for (const ended of [true, false]) {
-    const h = loader({ presentation: 'mobile' }), media = h.render();
-    assert.equal(h.timers.size, 1);
-    const timer = [...h.timers.values()][0];
-    assert.equal(timer.delay, 3000);
+    const h = loader({ presentation: 'mobile' }); h.render(); h.start(); h.paint();
     assert.equal(h.completed, 0);
-    if (ended) {
-      media.props.onEnded();
-      assert.equal(h.completed, 1, 'normal playback completes without waiting for the watchdog');
-    }
-    timer.fn();
-    media.props.onEnded();
-    assert.equal(h.completed, 1, 'the watchdog and media event cannot complete startup twice');
+    if (ended) h.emit('ended'); else h.timer(2200);
+    assert.equal(h.completed, 1);
+    assert.equal(Boolean(h.render().media), ended);
+    h.emit('ended'); assert.equal(h.completed, 1);
     h.unmount(); assert.equal(h.timers.size, 0);
   }
 });
 
+test('missing first frames use a still within 600ms, including a never-settling play promise', () => {
+  const h = loader({ play: () => new Promise(() => {}) }); h.render();
+  h.start(); const staleFrame = [...h.frames.values()][0];
+  h.timer(600); assert.equal(h.completed, 1); assert.equal(h.frames.size, 0);
+  staleFrame(); assert.equal(h.render().media, false);
+  assert.equal(h.timers.size, 0); h.unmount();
+});
+
+test('browsers without frame callbacks reveal only playing, decoded media', () => {
+  const h = loader({ legacy: true }); h.render(); h.emit('loadeddata');
+  assert.equal(h.render().media.props.style.opacity, 0);
+  h.start(); assert.equal(h.render().media.props.style.opacity, 1); h.unmount();
+});
+
 test('a viewport change during startup does not replace or restart the selected platform clip', () => {
   for (const presentation of ['web', 'mobile']) {
-    const h = loader({ presentation }), media = h.render();
+    const h = loader({ presentation }), { media } = h.render();
     const timer = [...h.timers.values()][0];
     h.setViewport(presentation === 'mobile' ? 'web' : 'mobile');
-    const next = h.render();
+    const { media: next } = h.render();
     assert.equal(h.presentation, presentation);
     assert.equal(next.props.src, media.props.src);
     assert.equal(next.props.poster, media.props.poster);
@@ -144,27 +181,50 @@ test('a viewport change during startup does not replace or restart the selected 
 test('media errors, rejected autoplay, and synchronous playback failures use the correct still without trapping startup', async () => {
   for (const presentation of ['web', 'mobile']) {
     for (const failure of ['error', 'blocked', 'throws']) {
-      const h = loader({ presentation, blocked: failure === 'blocked', throws: failure === 'throws' }), media = h.render();
-      if (failure === 'error') media.props.onError();
+      const h = loader({ presentation, blocked: failure === 'blocked', throws: failure === 'throws' }); h.render();
+      if (failure === 'error') h.emit('error');
       await Promise.resolve();
       assert.equal(h.completed, 1);
-      const still = h.render();
-      assert.equal(still.type, 'img');
-      assert.equal(still.props.src, presentation === 'mobile' ? '/portalink-splash-mobile-poster.png' : '/portalink-splash-poster.png');
+      const { poster, media } = h.render();
+      assert.equal(media, false); assert.equal(poster.type, 'img');
+      assert.equal(poster.props.src, presentation === 'mobile' ? '/portalink-splash-mobile-poster.png' : '/portalink-splash-poster.png');
       assert.equal(h.timers.size, 0);
-      media.props.onError(); media.props.onEnded(); assert.equal(h.completed, 1);
+      h.emit('error'); h.emit('ended'); assert.equal(h.completed, 1);
       h.unmount();
     }
   }
 });
 
+test('interruptions or backgrounding immediately remove video and cannot replay it on resume', () => {
+  for (const event of ['pause', 'waiting', 'stalled', 'hidden']) {
+    const h = loader(); h.render(); h.start(); h.paint();
+    if (event === 'hidden') h.hide(); else h.emit(event);
+    assert.equal(h.completed, 1); assert.equal(h.render().media, false);
+    assert.equal(h.plays, 1); assert.equal(h.timers.size, 0); h.unmount();
+  }
+  const background = loader({ hidden: true }); background.render();
+  assert.equal(background.plays, 0); assert.equal(background.completed, 1); background.unmount();
+});
+
+test('late promises from cleanup or StrictMode cannot fail a newer playback attempt', async () => {
+  let rejectOld;
+  const h = loader({ play: n => n === 1 ? new Promise((_, reject) => { rejectOld = reject; }) : Promise.resolve() });
+  h.render(); h.restartEffects(); assert.equal(h.plays, 2);
+  rejectOld(Error('aborted old playback')); await Promise.resolve();
+  assert.equal(h.completed, 0); assert.ok(h.render().media);
+  h.start(); h.listeners.get('pause')();
+  assert.equal(h.completed, 0, 'a queued pause from cleanup cannot fail resumed playback');
+  h.paint(); assert.equal(h.render().media.props.style.opacity, 1);
+  h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.frames.size, 0);
+});
+
 test('reduced motion and later session retries use platform stills without mounting or playing video', () => {
   for (const presentation of ['web', 'mobile']) {
     for (const options of [{ reduced: true }, { stillOnly: true }]) {
-      const h = loader({ presentation, ...options }), media = h.render(), mobile = presentation === 'mobile';
-      assert.equal(media.type, 'img');
-      assert.equal(media.props.src, mobile ? '/portalink-splash-mobile-poster.png' : '/portalink-splash-poster.png');
-      assert.equal(media.props.width, mobile ? 512 : 576); assert.equal(media.props.height, mobile ? 720 : 576);
+      const h = loader({ presentation, ...options }), { poster, media } = h.render(), mobile = presentation === 'mobile';
+      assert.equal(media, false); assert.equal(poster.type, 'img');
+      assert.equal(poster.props.src, mobile ? '/portalink-splash-mobile-poster.png' : '/portalink-splash-poster.png');
+      assert.equal(poster.props.width, mobile ? 512 : 576); assert.equal(poster.props.height, mobile ? 720 : 576);
       assert.equal(h.plays, 0); assert.equal(h.completed, 1); assert.equal(h.timers.size, 0);
       if (options.reduced) assert.equal(h.exitDuration, 0);
       h.unmount();
@@ -188,7 +248,8 @@ test('preboot selects the MOBILE poster at the canonical boundary and preserves 
   assert.doesNotMatch(preboot, /<video/);
 });
 
-test('startup waits for verified session but never for media; navigation and auth retries never replay the video', () => {
+test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
+  for (const first of ['auth', 'media']) {
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: false }, location = { pathname: '/' };
   const storage = new Map();
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
@@ -202,9 +263,16 @@ test('startup waits for verified session but never for media; navigation and aut
   const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
   let [app, presence] = render();
   assert.equal(app, null); assert.equal(presence.props.children.props.stillOnly, false);
-  // No video ended/play event is needed, even if the media never downloads.
-  assert.equal(presence.props.children.props.onComplete, undefined);
+  if (first === 'media') {
+    presence.props.children.props.onComplete(); [app, presence] = render();
+    assert.equal(app, null, 'completed intro cannot bypass session restoration');
+    assert.equal(presence.props.children.type, 'splash');
+  }
   auth.isInitializing = false;
+  [app, presence] = render();
+  assert.equal(app.type, 'app', 'data starts loading before the intro completes');
+  assert.equal(presence.props.children.type, 'splash');
+  presence.props.children.props.onComplete();
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
   location.pathname = '/messages'; [app, presence] = render();
@@ -214,4 +282,12 @@ test('startup waits for verified session but never for media; navigation and aut
   auth.isInitializing = false; [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
   h.unmount();
+  }
+});
+
+test('splash native controls are suppressed only inside the decorative startup video', () => {
+  const css = readFileSync(new URL('../src/index.css', import.meta.url), 'utf8');
+  assert.match(css, /\.portalink-splash-media\s*\{[^}]*grid-area:\s*1 \/ 1/);
+  assert.match(css, /\.portalink-splash-video\s*\{[^}]*pointer-events:\s*none/);
+  assert.match(css, /\.portalink-splash-video::-webkit-media-controls-start-playback-button\s*\{[^}]*display:\s*none !important/);
 });

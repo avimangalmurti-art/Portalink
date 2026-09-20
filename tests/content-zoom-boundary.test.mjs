@@ -50,8 +50,9 @@ test('app boundary contains browser zoom before popup handlers without swallowin
   assert.equal(listeners.size, 0);
 });
 
-function densityHarness({ readOnly = false } = {}) {
+function densityHarness({ readOnly = false, mobile = false } = {}) {
   let cursor = 0, effectCursor = 0, pages = 3, projectId = 'project';
+  const motions = [];
   const slots = [], effects = [], pending = [], listeners = new Map(), timers = new Map(), commits = [];
   let timerId = 0;
   const surface = {
@@ -72,10 +73,12 @@ function densityHarness({ readOnly = false } = {}) {
       }
     },
   };
+  react.useLayoutEffect = react.useEffect;
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const layout = compile('../src/features/projects/pageLayout.ts', () => ({}));
   const { ProjectMediaViewer } = compile('../src/components/media/ProjectMediaViewer.tsx', name => {
     if (name === 'react') return react;
+    if (name.endsWith('/contentPinchMotion')) return { touchMidpoint: touches => ({ x: touches[1].clientX / 2, y: 0 }), beginContentPinch: () => { const m = { updates: [], settled: [], cancelled: false, update(...args) { this.updates.push(args); }, settle(value) { this.settled.push(value); }, cancel() { this.cancelled = true; } }; motions.push(m); return m; } };
     if (name.endsWith('/pinchGesture')) return pinch;
     if (name.endsWith('/pageLayout')) return layout;
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
@@ -96,7 +99,7 @@ function densityHarness({ readOnly = false } = {}) {
   function render() {
     cursor = effectCursor = 0;
     attach(ProjectMediaViewer({ projectId, projectTitle: 'Work', attachments, pageCount: null,
-      responseRailWidth: { width: 52 }, singlePanel: null, pagesPerRow: pages, onPagesPerRowChange: setPages,
+      mobileNavigation: mobile ? { index: null, isIndexOpen: false } : undefined, responseRailWidth: { width: 52 }, singlePanel: null, pagesPerRow: pages, onPagesPerRowChange: setPages,
       onPagesPerRowCommit: readOnly ? undefined : commit,
       processing: { resolveState: () => 'ready', resolveMessage: () => '', canRetry: () => false, retrying: [] },
       isRailOpen: false, onRailOpenChange() {}, onClose() {},
@@ -105,7 +108,7 @@ function densityHarness({ readOnly = false } = {}) {
   }
   render();
   const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
-  return { commits, timers, listeners, render, get pages() { return pages; },
+  return { motions, commits, timers, listeners, render, get pages() { return pages; },
     start(distance) { listeners.get('touchstart')({ touches: touches(distance) }); },
     move(distance) {
       const event = { touches: touches(distance), cancelable: true, defaultPrevented: true, preventDefault() { this.prevented = true; } };
@@ -144,4 +147,23 @@ test('project gestures preserve native scrolling, read-only permissions and canc
   h.start(100); h.changeProject(); h.move(1);
   assert.equal(h.pages, 2, 'Old gesture cannot resize the next project');
   h.cleanup();
+});
+
+
+test('MOBILE pinch previews continuously without grid reflow, then commits once on release', () => {
+  const h = densityHarness({ mobile: true }); h.start(100);
+  h.move(112); h.move(125);
+  assert.equal(h.pages, 3); assert.deepEqual(h.commits, []);
+  assert.deepEqual(h.motions[0].updates.map(args => args[0]), [1.12, 1.25]);
+  h.end(); assert.equal(h.pages, 2); assert.deepEqual(h.commits, [2]);
+  h.render(); assert.equal(h.motions[0].settled.length, 1);
+  h.end(); assert.deepEqual(h.commits, [2]); h.cleanup();
+});
+
+test('MOBILE cancellation and project changes restore previews without saving', () => {
+  const h = densityHarness({ mobile: true }); h.start(100); h.move(160);
+  h.listeners.get('touchcancel')(); assert.equal(h.pages, 3);
+  assert.deepEqual(h.motions[0].settled, [false]); assert.deepEqual(h.commits, []);
+  h.start(100); h.move(60); h.changeProject();
+  assert.equal(h.motions[1].cancelled, true); h.end(); assert.deepEqual(h.commits, []); h.cleanup();
 });

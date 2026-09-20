@@ -1,0 +1,81 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+import React from 'react';
+import ts from 'typescript';
+
+function nodes(node) { return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : []; }
+function harness(owner = false) {
+  let cursor = 0, closes = 0, escape;
+  const slots = [], calls = [];
+  const style = { removeProperty(name) { delete this[name]; } };
+  const panel = { style, getBoundingClientRect: () => ({ height: 400 }), setAttribute() {}, removeAttribute() {} };
+  const viewport = { current: { getBoundingClientRect: () => ({ height: 800 }) } };
+  const editor = { projectId: null, mode: 'details', phase: 'idle', metadata: { summary: 'Original' }, fieldErrors: {}, isDirty: false, isSaving: false,
+    open(id, mode) { calls.push(['open', id, mode]); this.projectId = id; this.mode = mode; this.phase = 'editing'; },
+    setField(key, value) { calls.push(['field', key, value]); this.metadata[key] = value; this.isDirty = true; },
+    save() { calls.push(['save']); }, close() { calls.push(['close']); this.projectId = null; this.isDirty = false; return Promise.resolve(true); }, retryLoad() {} };
+  const react = { ...React, useEffect() {}, useRef(value) { return slots[cursor++] ??= { current: value }; },
+    useState(value) { const i = cursor++; if (!(i in slots)) slots[i] = value; return [slots[i], v => { slots[i] = typeof v === 'function' ? v(slots[i]) : v; }]; } };
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectDescriptionSheet.tsx', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true }
+  }).outputText, { exports, document: { querySelector: () => ({}) }, require(name) {
+    if (name === 'react') return react;
+    if (name === 'react-dom') return { createPortal: element => element };
+    if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => viewport };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close) => { escape = close; } };
+    return new Proxy({}, { get: () => () => null });
+  } });
+  const render = () => {
+    cursor = 0;
+    const tree = exports.MobileProjectDescriptionSheet({ projectId: 'work', description: 'Original', editor: owner ? editor : undefined, onClose: () => { closes++; } });
+    nodes(tree).find(n => n.type === 'section').ref.current = panel;
+    return tree;
+  };
+  const button = (label) => nodes(render()).find(n => n.type === 'button' && (n.props['aria-label'] === label || n.props.children === label));
+  const click = label => button(label).props.onClick({ stopPropagation() {} });
+  return { render, button, click, editor, calls, panel, escape: () => escape(), get closes() { return closes; } };
+}
+
+test('description opens at half height, expands by drag or accessible button, and leaves scrolling to its body', () => {
+  const h = harness(); const section = () => nodes(h.render()).find(n => n.type === 'section');
+  assert.equal(section().props['data-expanded'], undefined);
+  h.click('Expand description sheet'); assert.equal(section().props['data-expanded'], true);
+  h.click('Reduce description sheet');
+  const grabber = h.button('Expand description sheet');
+  const event = { pointerId: 1, isPrimary: true, button: 0, clientY: 400, currentTarget: { setPointerCapture() {} } };
+  grabber.props.onPointerDown(event); grabber.props.onPointerMove({ ...event, clientY: 120 });
+  assert.equal(h.panel.style.height, '680px'); grabber.props.onPointerUp(event);
+  assert.equal(section().props['data-expanded'], true);
+  assert.equal(h.panel.style.height, undefined);
+  assert.equal(h.button('Description options'), undefined, 'Visitors cannot edit');
+  h.escape(); assert.equal(h.closes, 1);
+});
+
+test('owner menu uses the existing editor and dirty close requires an explicit discard', async () => {
+  const h = harness(true); h.click('Description options'); h.click('Edit description');
+  assert.deepEqual(h.calls, [['open', 'work', 'description']]);
+  nodes(h.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'Changed description' } });
+  h.click('Close description'); assert.equal(h.closes, 0);
+  assert.ok(h.button('Keep editing')); h.click('Keep editing');
+  assert.equal(nodes(h.render()).find(n => n.type === 'textarea').props.value, 'Changed description');
+  const form = nodes(h.render()).find(n => n.type === 'form'); form.props.onSubmit({ preventDefault() {} });
+  assert.deepEqual(h.calls.at(-1), ['save']);
+  h.editor.failure = { message: 'Try again later' };
+  assert.ok(nodes(h.render()).some(n => n.props.role === 'alert' && n.props.children === 'Try again later'));
+  h.editor.isSaving = true; h.escape(); assert.equal(h.closes, 0);
+  h.editor.isSaving = false; h.click('Close description'); await h.click('Discard changes'); assert.equal(h.closes, 1);
+});
+
+test('cancelled drags restore the snap point and a saved description is shown from the canonical result', () => {
+  const h = harness(true); const grabber = h.button('Expand description sheet');
+  grabber.props.onPointerDown({ pointerId: 2, isPrimary: true, button: 0, clientY: 400, currentTarget: { setPointerCapture() {} } });
+  grabber.props.onPointerMove({ pointerId: 2, clientY: 100 }); grabber.props.onPointerCancel();
+  assert.equal(h.panel.style.height, undefined);
+  h.click('Description options'); h.click('Edit description');
+  h.editor.phase = 'saved'; h.editor.result = { project: { summary: 'Stored description' } };
+  assert.ok(nodes(h.render()).some(n => n.type === 'p' && n.props.children === 'Stored description'));
+  assert.ok(h.button('Done'));
+});

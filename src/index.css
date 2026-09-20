@@ -108,10 +108,24 @@ body,
 
 .portalink-splash-media {
   display: block;
+  grid-area: 1 / 1;
   width: min(100vw, 100dvh, 576px);
   height: auto;
   max-height: 100dvh;
   object-fit: contain;
+}
+
+/* Decorative startup media never offers native playback UI. The poster stays
+   underneath; only confirmed video frames are revealed by the loader. */
+.portalink-splash-video {
+  pointer-events: none;
+  user-select: none;
+}
+.portalink-splash-video::-webkit-media-controls,
+.portalink-splash-video::-webkit-media-controls-panel,
+.portalink-splash-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
 }
 
 /* Sensible defaults so any new page or component inherits the system. */

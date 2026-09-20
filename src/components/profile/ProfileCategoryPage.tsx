@@ -10,6 +10,7 @@ import { getTypefaceStack } from '../../data/typefaces';
 import { useElementSize } from '../../hooks/useElementSize';
 import { allocateProjectPanels, projectPanelGeometry, type ProjectPanel } from '../../utils/projectPanelLayout';
 import { ProjectMediaViewer } from '../media/ProjectMediaViewer';
+import { MobileProjectIndexPortal } from '../media/MobileProjectIndexPortal';
 import { resolveProjectAttachments } from '../../features/media/projectAttachments';
 import { canAuthor, type ViewerRole } from '../../types/viewer';
 import { useProjectArrangement } from '../../features/profile/useProjectArrangement';
@@ -83,7 +84,7 @@ export function ProfileCategoryPage({
 }: ProfileCategoryPageProps) {
   // Mobile panels are local to the portal and independent of WEB preferences.
   const isMobile = usePresentation() === 'mobile';
-  const mobileIndexOnly = isMobile && !sharedReadOnly && activeProjectId === null;
+  const mobileIndexOnly = isMobile && activeProjectId === null;
   const [mobilePanel, setMobilePanel] = useState<ProjectPanel | null>(null);
   useEffect(() => { setMobilePanel(null); }, [category.id, isMobile]);
   const projectIndexWidth = useResizablePanelWidth({
@@ -128,6 +129,8 @@ export function ProfileCategoryPage({
     if (workspace.width >= projectPanelGeometry.workMinimum + projectPanelGeometry.rail + minimum) setCompactPanel(null);
   }, [compactPanel, workspace.width, sharedReadOnly]);
   const [query, setQuery] = useState('');
+  // WEB search stays intact, but cannot invisibly filter the mobile popup.
+  const indexQuery = isMobile ? '' : query;
   const [mobileSort, setMobileSort] = useState<MobileProjectSort>('recent');
   const [mobileLayout, setMobileLayout] = useState<'list' | 'grid'>('list');
   /*
@@ -167,14 +170,17 @@ export function ProfileCategoryPage({
   const deletingProject = categoryProjects.find((project) => project.id === management.deletion.projectId) ?? null;
   const projects = useMemo(() => arrangement.arrange(categoryProjects, showsOwnerTools), [arrangement, categoryProjects, showsOwnerTools]);
   const visibleProjects = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
+    const normalized = indexQuery.trim().toLowerCase();
     const filtered = normalized ? projects.filter(project => `${project.title} ${project.summary}`.toLowerCase().includes(normalized)) : projects;
     if (!isMobile || mobileSort === 'saved') return filtered;
     return [...filtered].sort((a, b) => mobileSort === 'title' ? a.title.localeCompare(b.title) :
       (Date.parse(b.publishedAt ?? '') || 0) - (Date.parse(a.publishedAt ?? '') || 0));
-  }, [projects, query, isMobile, mobileSort]);
+  }, [projects, indexQuery, isMobile, mobileSort]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
   const mobileProjectView = isMobile && activeProject !== null;
+  useEffect(() => {
+    if (management.editor.mode === 'description' && management.editor.projectId && management.editor.projectId !== activeProjectId && !management.editor.isSaving) void management.editor.close();
+  }, [activeProjectId, management.editor]);
   const onIndexCollapsedChange = useCallback((collapsed: boolean) => {
     if (mobileProjectView) {
       setMobilePanel(collapsed ? null : 'index');
@@ -413,7 +419,7 @@ export function ProfileCategoryPage({
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined}
-            query={query} onQuery={setQuery} layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort}
+            layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort}
             pagesPerRow={pageLayoutDraft} canAdjustPages={activePageCount !== null && activePageCount > 1}
             savingPages={showsOwnerTools && typography.savingProjectId === activeProject?.id}
             onPagesChange={value => setPageLayoutDraft(normalizePagesPerRow(value))} onPagesCommit={commitPageLayout} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
@@ -540,10 +546,14 @@ export function ProfileCategoryPage({
 
         {!isIndexCollapsed && <nav data-project-index-list="" aria-label={`${category.label} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
             {showsOwnerTools && <SavedChangeNotice history={arrangement.history} />}
-            <ProjectIndexList mobileLayout={mobileLayout} mobileReorderFromMenu={isMobile} projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(query.trim()) || (isMobile && mobileSort !== 'saved')} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
+            {mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) && (
+              arrangement.isLoading ? <LoadingState label="Loading projects…" />
+                : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />
+            )}
+            <ProjectIndexList mobileLayout={mobileLayout} mobileReorderFromMenu={isMobile} projects={visibleProjects} typefaceStacks={projectTypefaceStacks} typefaceIds={projectTypefaceIds} hiddenIds={showsOwnerTools ? arrangement.hiddenIds : []} pinnedIds={arrangement.pinnedIds} isOwner={showsOwnerTools} mobileReorderDisabled={arrangement.isLoading || Boolean(arrangement.loadError) || arrangement.isSaving || Boolean(indexQuery.trim()) || (isMobile && mobileSort !== 'saved')} activeProjectId={activeProjectId} onReorder={(reordered) => arrangement.reorder(reordered.map((project) => project.id))} onToggleHidden={arrangement.toggleHidden} onTogglePinned={arrangement.togglePinned} onSelect={onSelectProject} onEdit={showsOwnerTools ? management.editor.open : undefined} onTypefaceChange={showsOwnerTools ? (projectId, typefaceId) => void typography.setTypeface(projectId, typefaceId) : undefined} onDelete={showsOwnerTools ? management.deletion.request : undefined} />
             {/* Nothing matched, said plainly rather than leaving an empty column. */}
-            {mobileIndexOnly && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !query.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
-            {!arrangement.isLoading && !arrangement.loadError && query.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
+            {mobileIndexOnly && !arrangement.isLoading && !arrangement.loadError && projects.length === 0 && !indexQuery.trim() && <EmptyState title={`No projects in ${category.label}`} description={showsOwnerTools ? 'Choose Add project to publish the first one.' : 'No work has been published in this category.'} />}
+            {!arrangement.isLoading && !arrangement.loadError && indexQuery.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
 
           </nav>}
         {!mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
@@ -558,19 +568,22 @@ export function ProfileCategoryPage({
           <InterfaceIcon icon={ListIcon} size="lg" weight="medium" />
         </button>
       </>}
-      {(!mobileProjectView || !activeProject) && projectIndexPanel}
+      {mobileIndexOnly ? <MobileProjectIndexPortal anchorRef={projectPresentationRef}>
+        <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={onBackToPortals} />
+        {projectIndexPanel}
+      </MobileProjectIndexPortal> : (!mobileProjectView || !activeProject) && projectIndexPanel}
 
             {/* Owner-only surfaces. They act on the canonical record through the
              management boundary; the service refuses an unauthorised write on
              its own, because nothing offered here can be trusted by a backend. */}
-            {showsOwnerTools && <ProjectEditorDialog management={management} />}
+            {showsOwnerTools && !(isMobile && management.editor.mode === 'description') && <ProjectEditorDialog management={management} />}
             {showsOwnerTools && deletingProject && <DeleteProjectDialog management={management} projectTitle={deletingProject.title} onDeleted={() => {
           // The record is gone, so this leaves the deleted project's URL and
           // returns to its category rather than rendering stale work.
           management.deletion.cancel();
           onSelectProject(null);
         }} />}
-      {!showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
+      {!mobileIndexOnly && !showsOwnerTools && (arrangement.isLoading || arrangement.loadError) ? <section className="flex min-w-0 flex-1 items-center justify-center px-4" aria-label="Loading project">
         {arrangement.isLoading ? <LoadingState label="Loading projects…" /> : <ErrorState title="Projects could not be loaded" description={arrangement.loadError ?? undefined} onRetry={arrangement.reload} />}
       </section> : activeProject ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 flex-col overflow-hidden bg-transparent" aria-label={`${activeProject.title} files`}>
           {/* Presentation follows each file's own media kind, never this
@@ -578,7 +591,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <div role="alert" className="max-w-[420px] text-center">
             <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>

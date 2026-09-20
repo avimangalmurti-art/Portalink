@@ -40,6 +40,7 @@
   --mobile-sidebar-header: 64px;
   --mobile-sidebar-content-inset: 8px;
   --mobile-dock-size: clamp(48px, 14vw, 56px);
+  --mobile-dock-bottom: calc(max(12px, var(--safe-area-bottom)) - 4px);
   --mobile-navigation-inset-start: max(12px, env(safe-area-inset-left, 0px));
   --mobile-navigation-inset-end: max(12px, env(safe-area-inset-right, 0px));
   --mobile-navigation-frame-width: 420px;
@@ -47,7 +48,7 @@
 
 /* Reserve the floating control's clearance only where this navigation exists. */
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-layer, .mobile-navigation-layer ~ .codex-workspace) {
-  --mobile-dock-clearance: calc(var(--mobile-dock-size) + 8px + max(12px, var(--safe-area-bottom)));
+  --mobile-dock-clearance: calc(var(--mobile-dock-size) + 8px + var(--mobile-dock-bottom));
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
@@ -253,7 +254,7 @@
   align-items: center;
   gap: 8px;
   inset-inline: 0;
-  bottom: max(12px, var(--safe-area-bottom));
+  bottom: var(--mobile-dock-bottom);
   pointer-events: none;
   touch-action: pan-y;
   opacity: 1;
@@ -730,7 +731,7 @@
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-portal-index-heading h2 {
@@ -762,40 +763,6 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-portal-index-control:active {
   background: var(--surface-pressed);
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-portal-index-search-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-portal-index-search {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  gap: 10px;
-  height: 44px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 14px !important;
-  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-portal-index-search:focus-within {
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 1px var(--focus-ring);
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-portal-index-search input {
-  min-width: 0;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-portal-index-layout {
@@ -1140,6 +1107,73 @@
   outline: none;
 }
 
+/* Project information opens halfway; expanded reading keeps the work above it. */
+[data-presentation='mobile'] [data-project-description-overlay] {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 85;
+  display: flex;
+  align-items: flex-end;
+  background: rgb(0 0 0 / 18%);
+}
+[data-presentation='mobile'] .mobile-project-description-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 50%;
+  max-height: calc(100% - max(40px, env(safe-area-inset-top)));
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  border-bottom: 0;
+  border-radius: 28px 28px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
+  outline: none;
+  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+[data-presentation='mobile'] .mobile-project-description-sheet[data-expanded] { height: 92%; }
+[data-presentation='mobile'] .mobile-project-description-sheet[data-dragging] { transition: none; }
+[data-presentation='mobile'] .project-description-grabber {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  touch-action: none;
+  cursor: ns-resize;
+}
+[data-presentation='mobile'] .project-description-grabber span { width: 36px; height: 5px; border-radius: 99px; background: var(--text-tertiary); opacity: 0.6; }
+[data-presentation='mobile'] .project-description-heading { position: relative; z-index: 1; display: flex; align-items: center; flex: none; gap: 4px; padding: 0 12px 10px 20px; background: var(--surface-raised); }
+[data-presentation='mobile'] .project-description-heading h2 { flex: 1; min-width: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
+[data-presentation='mobile'] .project-description-heading > button,
+[data-presentation='mobile'] .project-description-menu > button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; }
+[data-presentation='mobile'] .project-description-heading svg { width: 22px; height: 22px; }
+[data-presentation='mobile'] .project-description-menu { position: relative; }
+[data-presentation='mobile'] #project-description-actions { position: absolute; top: 44px; right: 0; min-width: 180px; padding: 6px; border: 1px solid var(--border-default); border-radius: 14px; background: var(--surface-raised); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); }
+[data-presentation='mobile'] #project-description-actions button { width: 100%; padding: 12px; text-align: left; border-radius: 8px; font-size: 16px; }
+[data-presentation='mobile'] .project-description-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 20px 24px; scroll-padding-block: 12px; }
+[data-presentation='mobile'] .project-description-body p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.6; }
+[data-presentation='mobile'] .project-description-details { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+[data-presentation='mobile'] .project-description-details :is(h3, dl, dt, dd) { font-size: 14px; overflow-wrap: anywhere; }
+[data-presentation='mobile'] .project-description-editor { display: flex; flex-direction: column; flex: 1; gap: 12px; min-height: 0; padding: 6px 20px 16px; overflow-y: auto; }
+[data-presentation='mobile'] .project-description-editor textarea { flex: 1; min-height: 80px; width: 100%; resize: none; padding: 12px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--control-rest-surface); color: var(--text-primary); font-size: 16px; line-height: 1.6; }
+[data-presentation='mobile'] .project-description-editor footer,
+[data-presentation='mobile'] .project-description-saved { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 12px; }
+[data-presentation='mobile'] .project-description-saved { padding: 12px 20px; }
+[data-presentation='mobile'] .project-description-discard { padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 12px; }
+[data-presentation='mobile'] .project-description-discard p { width: 100%; }
+[data-presentation='mobile'] :is(.project-description-editor footer, .project-description-discard, .project-description-saved) button { min-height: 44px; padding: 8px 16px; border-radius: 12px; background: var(--control-rest-surface); }
+[data-presentation='mobile'] .project-description-editor button[type='submit'] { background: var(--accent-primary); color: var(--accent-foreground); }
+[data-presentation='mobile'] .mobile-project-description-sheet button:disabled { opacity: 0.5; }
+[data-presentation='mobile'] .mobile-project-description-sheet :is(button, textarea, [tabindex]):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+@keyframes project-description-arrive { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  [data-presentation='mobile'] .mobile-project-description-sheet { animation: none; transition: none; }
+}
+
 [data-presentation='mobile'] .mobile-media-comments-sheet [data-comments-header] {
   flex: none;
   gap: 8px;
@@ -1392,10 +1426,12 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
+  --mobile-portal-popup-available: calc(100% - 24px - var(--mobile-content-safe-bottom));
   position: absolute;
   inset: 12px 16px auto;
   height: auto;
-  max-height: calc(100% - 24px - var(--mobile-content-safe-bottom));
+  min-height: min(280px, var(--mobile-portal-popup-available));
+  max-height: var(--mobile-portal-popup-available);
   overflow: hidden;
   border: 1px solid var(--hairline);
   border-radius: 24px;
@@ -1404,6 +1440,22 @@
   backdrop-filter: blur(22px) saturate(125%);
   box-shadow: var(--shadow-pop);
   pointer-events: auto;
+}
+
+/* Drilling into a portal keeps the chooser's frame, including its dock clearance. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay > [data-project-index-panel] {
+  --mobile-portal-popup-available: calc(100% - var(--mobile-project-panel-top) - 12px - var(--mobile-portal-popup-clearance, 0px));
+  left: 16px;
+  right: 16px;
+  bottom: auto;
+  height: var(--mobile-portal-popup-height, var(--mobile-portal-popup-available));
+  min-height: min(280px, var(--mobile-portal-popup-available));
+  max-height: var(--mobile-portal-popup-available);
+  border-color: var(--hairline) !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-portal-continuation] > [data-project-index-panel] {
+  animation: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay :is(.mobile-portals-list, .global-control-header) {

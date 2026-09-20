@@ -7,6 +7,7 @@ import ts from 'typescript';
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
+const MobileProjectDescriptionSheet = () => null;
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
@@ -19,7 +20,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
   const swipeCalls = [], navigationCalls = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
-  const react = { ...React, useEffect() {}, useCallback: fn => fn,
+  const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
     useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
     useState(initial) {
       const i = cursor++;
@@ -36,6 +37,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
+    if (name.endsWith('/MobileProjectDescriptionSheet')) return { MobileProjectDescriptionSheet };
     if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
     if (name.endsWith('/useProjectBackSwipe')) return { useProjectBackSwipe: (surfaceRef, options) => {
       swipeCalls.push({ surfaceRef, ...options });
@@ -97,7 +99,8 @@ test('mobile overview Back yields to focused pages, the project index and respon
     button(tree, label).props.onClick();
     tree = h.render();
     assert.equal(h.swipeCalls.at(-1).enabled, false);
-    button(tree, 'Close project popup').props.onClick();
+    if (label === 'Show project description') nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.onClose();
+    else button(tree, 'Close project popup').props.onClick();
     tree = h.render();
     assert.equal(h.swipeCalls.at(-1).enabled, true);
   }
@@ -145,7 +148,7 @@ test('mobile keeps selected media while opening its floating project list and se
   assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover), false);
   button(tree, 'Show project description').props.onClick();
   tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project description');
+  assert.equal(nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.projectId, 'project');
   assert.equal(nodes(tree).some(node => node.type === CommentThreadView), false);
   assert.equal(withProp(tree, 'data-project-work-column').props.style.display, undefined);
   h.openIndex();
@@ -174,7 +177,7 @@ test('shared mobile projects retain public details without social service reques
   let tree = h.render();
   button(tree, 'Show project description').props.onClick();
   tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Project description');
+  assert.equal(nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.projectId, 'project');
   assert.equal(button(tree, 'Show comments'), undefined);
   assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
   assert.ok(h.serviceIds.every(id => id === null));
@@ -249,6 +252,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const slots = [], effects = [], pendingEffects = [], selections = [], indexVisibility = [];
   const Viewer = () => null;
   const Index = () => null;
+  const IndexPortal = () => null;
+  let arrangementRead = {};
   const react = { ...React, useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
@@ -268,10 +273,11 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ ref: { current: null }, width: workspaceWidth }) };
     if (name.endsWith('/ResizablePanelHandle')) return { ResizablePanelHandle: () => null, useResizablePanelWidth: () => ({ preferredWidth: 315 }) };
     if (name.endsWith('/ProjectMediaViewer')) return { ProjectMediaViewer: Viewer };
+    if (name.endsWith('/MobileProjectIndexPortal')) return { MobileProjectIndexPortal: IndexPortal };
     if (name.endsWith('/ProjectIndexList')) return { ProjectIndexList: Index };
     if (name.endsWith('/MobilePortalProjectToolbar')) return { MobilePortalProjectToolbar };
     if (name.endsWith('/viewer')) return { canAuthor: role => role === 'owner' };
-    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false }) };
+    if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
     if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3 }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
@@ -329,10 +335,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
   toolbarProps().onSort('saved'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
   assert.equal(index().mobileReorderDisabled, false);
-  toolbarProps().onQuery('needle'); tree = render(props);
-  assert.deepEqual(Array.from(index().projects, project => project.id), ['second']);
-  assert.equal(index().mobileReorderDisabled, true, 'A partial search result is never reorderable');
-  toolbarProps().onQuery(''); toolbarProps().onLayout('grid'); tree = render(props);
+  assert.equal(nodes(toolbar(currentList())).find(node => node.props.type === 'search'), undefined);
+  toolbarProps().onLayout('grid'); tree = render(props);
   assert.equal(index().mobileLayout, 'grid');
   assert.deepEqual(props.profile.projects.map(project => project.id), ['work', 'second'], 'Browsing sorts never mutate stored order');
   tree = render({ ...props, viewerRole: 'owner' });
@@ -378,6 +382,23 @@ test('project workspace combines only resolved mobile projects and uses the exis
   tree = render({ ...props, activeProjectId: null, profile: { ...props.profile, projects: [] } });
   assert.equal(selections.length, selectionCount);
   assert.ok(button(toolbar(tree), 'Back to portals'));
+  assert.ok(nodes(tree).find(node => node.type === IndexPortal), 'Empty portals use the same floating frame');
+  button(tree, 'Close project list').props.onClick();
+  assert.equal(portalReturns, 3);
+  tree = render({ ...props, sharedReadOnly: true, activeProjectId: null, profile: { ...props.profile, projects: [] } });
+  assert.ok(nodes(tree).find(node => node.type === IndexPortal), 'Public empty portals also use the floating frame');
+  assert.equal(withProp(tree, 'data-project-index-panel').props['data-collapsed'], false);
+  let retried = 0;
+  arrangementRead = { loadError: 'Connection unavailable', reload: () => retried++ };
+  tree = render({ ...props, sharedReadOnly: true, activeProjectId: null, profile: { ...props.profile, projects: [] } });
+  const failedIndex = nodes(tree).find(node => node.type === IndexPortal);
+  nodes(failedIndex).find(node => node.props.title === 'Projects could not be loaded').props.onRetry();
+  assert.equal(retried, 1, 'Public portal retry stays inside the floating popup');
+  assert.equal(nodes(tree).find(node => node.props['aria-label'] === 'Loading project'), undefined);
+  arrangementRead = { isLoading: true };
+  tree = render({ ...props, sharedReadOnly: true, activeProjectId: null, profile: { ...props.profile, projects: [] } });
+  assert.ok(nodes(nodes(tree).find(node => node.type === IndexPortal)).find(node => node.props.label === 'Loading projects…'));
+  arrangementRead = {};
   tree = render({ ...props, activeProjectId: 'missing' });
   assert.equal(selections.length, selectionCount);
   assert.equal(tree.props['data-mobile-project-view'], undefined);
@@ -387,6 +408,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   presentation = 'web'; workspaceWidth = 1200;
   tree = render({ ...props, isIndexCollapsed: false });
   assert.ok(withProp(tree, 'data-project-index-panel'));
+  assert.equal(nodes(tree).find(node => node.type === IndexPortal), undefined, 'WEB retains its inline index');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation, undefined);
   assert.equal(button(tree, 'Go back'), undefined);
   assert.equal(button(tree, 'Back to portals'), undefined);
@@ -395,6 +417,27 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
   assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
+  // A WEB query must never become an invisible MOBILE filter after resizing.
+  for (const query of ['needle', 'no-matching-project']) {
+    const search = nodes(tree).find(node => node.props.type === 'search');
+    search.props.onChange({ target: { value: query } });
+    tree = render({ ...props, isIndexCollapsed: false });
+    const expected = query === 'needle' ? ['second'] : [];
+    assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), expected);
+    presentation = 'mobile'; workspaceWidth = 390;
+    tree = render(props);
+    nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();
+    tree = render(props);
+    toolbarProps().onSort('saved'); tree = render(props);
+    assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
+    assert.equal(index().mobileReorderDisabled, false);
+    assert.equal(nodes(tree).find(node => node.props.type === 'search'), undefined);
+    assert.equal(nodes(tree).find(node => node.type === 'p' && React.Children.toArray(node.props.children).some(child => typeof child === 'string' && child.includes('matches'))), undefined);
+    presentation = 'web'; workspaceWidth = 1200;
+    tree = render({ ...props, isIndexCollapsed: false });
+    assert.equal(nodes(tree).find(node => node.props.type === 'search').props.value, query);
+    assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), expected);
+  }
 });
 
 test('direct public-project Back remains public; existing browser history takes priority', () => {
