@@ -3,6 +3,7 @@ import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon,
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import type { PdfDocument } from './PdfPage';
 import { useProjectBackSwipe } from './useProjectBackSwipe';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
 import { EngagementBar, EngagementFeedback } from '../../features/engagement/EngagementBar';
@@ -261,6 +262,13 @@ export function ProjectMediaViewer({
    * one work, not five attachments.
    */
   const imagePages = attachments.filter((item) => item.kind === 'image');
+  const previewScope = `${projectId}:${active?.id ?? ''}`;
+  const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
+  const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
+    setPreviewPdf({ scope: previewScope, document });
+  }, [previewScope]);
+  const pagePreviewSources = active?.kind === 'image' ? imagePages.map(page => page.sourceUrl)
+    : (active?.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl);
   const switchable = attachments.filter((item) => item.kind !== 'image' || item.id === imagePages[0]?.id);
   useEffect(() => {
     const activeSwitchableIndex = switchable.findIndex((item) => item.id === active?.id || (active?.kind === 'image' && item.kind === 'image'));
@@ -499,7 +507,7 @@ export function ProjectMediaViewer({
   return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter surfaceRef={densitySurfaceRef} scope={`${projectId}:${active?.id ?? ''}`} />}
+      {isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
@@ -508,7 +516,7 @@ export function ProjectMediaViewer({
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia}
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says

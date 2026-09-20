@@ -3,6 +3,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
+import type { PdfDocument } from './PdfPage';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { useFocusedPageSwipe } from './useFocusedPageSwipe';
 import type { ProjectAttachment } from '../../types/domain';
@@ -33,6 +34,7 @@ export function DocumentAttachment({
   columns = 1,
   processing,
   onPageCountResolved,
+  onPreviewDocument,
   onFocusModeChange,
   controlsVisible = true,
   showMediaInteractions = true,
@@ -46,6 +48,7 @@ export function DocumentAttachment({
   projectId: string;
   columns?: number;
   onPageCountResolved?: (pageCount: number) => void;
+  onPreviewDocument?: (document: PdfDocument | null) => void;
   onFocusModeChange?: (focused: boolean) => void;
   controlsVisible?: boolean;
   showMediaInteractions?: boolean;
@@ -232,7 +235,7 @@ export function DocumentAttachment({
           pageIndex: focusedPageIndex,
           label: attachment.displayName
         }} /> : null}
-      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
+      </div> : <PdfImageDocument projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

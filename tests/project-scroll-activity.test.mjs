@@ -35,6 +35,8 @@ function harness() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, Element: Target,
     window: {
+      addEventListener(type, fn) { listeners.set(type, fn); },
+      removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
       setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, due: now + delay }); return id; },
       clearTimeout(id) { timers.delete(id); },
     },
@@ -159,7 +161,9 @@ test('native players, 3D controls, inputs and action buttons keep their taps; sc
   hide(h); assert.equal(h.videos[0].controls, false);
   h.tick(250); assert.equal(h.videos[0].controls, true);
   assert.equal(h.videos[0].paused, false); assert.equal(h.videos[0].currentTime, 32);
-  assert.ok(h.controlQueries.some(selector => selector.includes('[data-mobile-project-page-count]')));
+  assert.ok(h.controlQueries.every(selector => !selector.includes('[data-mobile-project-page-count]')));
+  assert.ok(h.controlQueries.some(selector => selector.includes('button:not([data-mobile-page-navigator] *)')),
+    'the counter and thumbnail buttons must stay usable while other chrome hides');
   const video = Object.assign(new Target(), { video: true });
   h.emit('pointerdown', video); h.emit('pointerup', video); h.tick(340); assert.equal(h.hidden, false, 'Visible native video taps stay with the player');
   const artwork = new Target();

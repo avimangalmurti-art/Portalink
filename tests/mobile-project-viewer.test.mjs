@@ -50,7 +50,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { serviceIds, swipeCalls, swipeHandlers, navigationCalls, onBack, openIndex() { panel = 'index'; }, render() {
+  return { attachments, serviceIds, swipeCalls, swipeHandlers, navigationCalls, onBack, openIndex() { panel = 'index'; }, render() {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -205,6 +205,22 @@ test('mobile overview uses the reading rail and real-page counter, while focused
   tree = h.render();
   assert.equal(nodes(tree).some(node => node.type === MobileProjectPageCounter), false);
   assert.equal(nodes(tree).some(node => node.type === EngagementBar), false);
+});
+
+test('mobile page previews use image order, available rendered pages, or the loaded PDF; WEB does not register previews', () => {
+  const images = harness({ mediaKind: 'image' });
+  images.attachments.forEach((page, index) => { page.sourceUrl = `image-${index + 1}`; });
+  const preview = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+  assert.deepEqual(Array.from(preview(images.render()).props.previewSources), ['image-1', 'image-2']);
+  const documents = harness({ mediaKind: 'document' });
+  documents.attachments[0].metadata = { renderedPages: [{ sourceUrl: 'page-1' }, {}, { sourceUrl: 'page-2' }] };
+  assert.deepEqual(Array.from(preview(documents.render()).props.previewSources), ['page-1', 'page-2']);
+  const pdf = { numPages: 30 };
+  nodes(documents.render()).find(node => node.type === AttachmentRenderer).props.onPreviewDocument(pdf);
+  assert.equal(preview(documents.render()).props.pdfDocument, pdf);
+  nodes(documents.render()).find(node => node.type === AttachmentRenderer).props.onPreviewDocument(null);
+  assert.equal(preview(documents.render()).props.pdfDocument, null);
+  assert.equal(nodes(harness({ mobile: false }).render()).find(node => node.type === AttachmentRenderer).props.onPreviewDocument, undefined);
 });
 
 test('project workspace combines only resolved mobile projects and uses the existing Back callback', () => {

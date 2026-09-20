@@ -58,7 +58,7 @@ test('saved appearance writes serialize, deduplicate and retry after a failed sa
   assert.deepEqual(writes, [['one', A.accentColor], ['one', B.accentColor], ['two', A.accentColor]]);
 });
 
-function hookHarness(initial = A, initialStatus = 'ready') {
+function hookHarness(initial = A, initialStatus = 'ready', initialPalette) {
   let cursor = 0, dirty = true, result, id = 'one', enabled = true;
   const slots = [], effects = [], timers = new Map(), writes = [];
   let timerId = 0, save = async () => undefined;
@@ -91,7 +91,7 @@ function hookHarness(initial = A, initialStatus = 'ready') {
   }).useCreatorAppearance;
   function render() {
     let turns = 0;
-    do { if (++turns > 30) throw Error('Render loop'); dirty = false; cursor = 0; result = hook(id, enabled); while (effects.length) effects.shift()(); } while (dirty);
+    do { if (++turns > 30) throw Error('Render loop'); dirty = false; cursor = 0; result = hook(id, enabled, initialPalette); while (effects.length) effects.shift()(); } while (dirty);
     return result;
   }
   return {
@@ -108,6 +108,30 @@ test('existing creator settings load without being overwritten by local defaults
   assert.deepEqual(plain(h.render().appearance), A);
   await h.render().flush();
   assert.equal(h.writes.length, 0);
+});
+
+test('a reloaded personal palette seeds only unsaved branding, never a saved creator profile', async () => {
+  const storage = new Map([['portalinknetworks.interfaceAppearance.mobile', JSON.stringify({ accentColor: B.accentColor, systemGray: B.systemGray })]]);
+  const { preferences } = publicModule(storage);
+  const { accentColor, systemGray } = preferences.readInterfaceAppearance('mobile');
+  const newProfile = hookHarness(null, 'ready', { accentColor, systemGray });
+  assert.equal(newProfile.render().appearance.accentColor, B.accentColor);
+  assert.equal(newProfile.render().appearance.systemGray, B.systemGray);
+  await newProfile.render().flush();
+  assert.equal(newProfile.writes[0][1].systemGray, B.systemGray);
+  const existing = hookHarness(A, 'ready', { accentColor, systemGray });
+  assert.deepEqual(plain(existing.render().appearance), A);
+  await existing.render().flush(); assert.equal(existing.writes.length, 0);
+});
+
+test('visitor appearance overrides are independent between web and mobile', () => {
+  const storage = new Map([['portalink.publicTheme.one', 'dark']]);
+  const { api } = publicModule(storage);
+  api.writeVisitorTheme('one', 'light', 'web');
+  assert.equal(api.readVisitorTheme('one', 'mobile'), 'dark');
+  api.writeVisitorTheme('one', 'dark', 'mobile');
+  assert.equal(api.readVisitorTheme('one', 'web'), 'light');
+  assert.equal(storage.get('portalink.publicTheme.one'), 'dark');
 });
 
 test('changes made while loading are merged into the saved creator appearance', async () => {

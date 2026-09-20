@@ -10,7 +10,8 @@ const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${numb
   bounds, getBoundingClientRect() { return this.bounds; } });
 
 function mount(pages = [], { delayedRef = false } = {}) {
-  let state = null, effect, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
+  const states = [], refs = [], documentEvents = new Map();
+  let stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
   const surface = { pages, bounds: rect(0, 800), querySelectorAll() { return this.pages; },
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
@@ -21,21 +22,30 @@ function mount(pages = [], { delayedRef = false } = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, {
     exports, require(name) {
-      if (name === 'react') return { ...React, useState: () => [state, fn => { state = fn(state); }], useLayoutEffect: fn => { effect = fn; } };
+      if (name === 'react') return { ...React,
+        useState: initial => { const index = stateIndex++; if (!(index in states)) states[index] = initial;
+          return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }]; },
+        useRef: initial => { const index = refIndex++; return refs[index] ??= { current: initial }; },
+        useId: () => 'page-previews', useEffect: fn => { visibilityEffect = fn; }, useLayoutEffect: fn => { effect = fn; } };
       if (name === 'lucide-react') return { Grid2X2Icon: () => null };
       if (name === '../ui/InterfaceIcon') return { InterfaceIcon: () => null };
+      if (name === './MobilePageThumbnails') return { MobilePageThumbnails: () => null };
       throw new Error(name);
     },
     MutationObserver: class { constructor(fn) { onMutation = fn; } observe() {} disconnect() { cleanedMutations = true; } },
     ResizeObserver: class { constructor(fn) { onResize = fn; } observe(node) { observed.add(node); } unobserve(node) { observed.delete(node); } disconnect() { cleanedResize = true; } },
     requestAnimationFrame: fn => { frame = fn; return 1; }, cancelAnimationFrame: () => { frame = null; },
     window: { innerWidth: 390, innerHeight: 800, addEventListener: (name, fn) => windowEvents.set(name, fn), removeEventListener: name => windowEvents.delete(name) },
+    Node: Object,
+    document: { addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
-  const render = (scope = 'project:images') => exports.MobileProjectPageCounter({ surfaceRef, scope });
+  const render = (scope = 'project:images') => { stateIndex = 0; refIndex = 0;
+    return exports.MobileProjectPageCounter({ surfaceRef, scope }); };
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
-  return { surface, surfaceRef, render, flush, events, observed, cleanup,
+  return { surface, surfaceRef, render, flush, events, observed, cleanup, refs, documentEvents,
+    visibility() { visibilityCleanup?.(); visibilityCleanup = visibilityEffect(); },
     mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll() { events.get('scroll')?.fn(); flush(); },
     get clean() { return cleanedMutations && cleanedResize && !frame && !events.size && !windowEvents.size; } };
 }
@@ -43,11 +53,11 @@ function mount(pages = [], { delayedRef = false } = {}) {
 test('shows the actual most-visible page while a nested renderer scrolls', () => {
   const one = page(1, 3, rect(0, 600)), two = page(2, 3, rect(602, 1202)), three = page(3, 3, rect(1204, 1804));
   const h = mount([one, two, three]); h.flush();
-  assert.equal(h.render().props['aria-label'], 'Page 1 of 3');
-  assert.equal(h.render().props.onClick, undefined, 'a counter must not pretend to offer an action');
+  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 3. Show page previews');
+  assert.equal(typeof h.render().props.children[0].props.onClick, 'function');
   assert.equal(h.events.get('scroll').opts.capture, true);
   one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
-  assert.equal(h.render().props['aria-label'], 'Page 2 of 3');
+  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 2 of 3. Show page previews');
   h.cleanup(); assert.equal(h.clean, true);
 });
 
@@ -56,7 +66,7 @@ test('waits for real page metadata and handles a delayed parent ref and asynchro
   h.surfaceRef.current = h.surface; h.flush();
   assert.equal(h.render(), null, 'no guessed total while the document is loading');
   h.surface.pages = [page(1, 12, rect(0, 600)), page(2, 12, rect(602, 1202))]; h.mutate();
-  assert.equal(h.render().props['aria-label'], 'Page 1 of 12');
+  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 12. Show page previews');
   assert.equal(h.render('another-project:document'), null, 'old count cannot leak across project/media changes');
   h.surface.pages = []; h.mutate();
   assert.equal(h.render(), null);
@@ -67,15 +77,38 @@ test('waits for real page metadata and handles a delayed parent ref and asynchro
 test('clips to the viewer and viewport and breaks multi-column ties by page number', () => {
   const h = mount([page(3, 6, rect(0, 400, 195, 390)), page(1, 6, rect(0, 400, 0, 195)), page(2, 6, rect(-900, 0))]);
   h.surface.bounds = rect(100, 700); h.flush();
-  assert.equal(h.render().props['aria-label'], 'Page 1 of 6');
+  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 6. Show page previews');
   h.surface.pages[0].bounds = rect(100, 650, 195, 390); h.resize();
-  assert.equal(h.render().props['aria-label'], 'Page 3 of 6');
+  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 3 of 6. Show page previews');
   h.cleanup();
 });
 
 test('ignores invalid metadata and hidden pages without a fake 1 of 1 fallback', () => {
   const h = mount([page(0, 4, rect(0, 600)), page(5, 4, rect(0, 600)), page(1.5, 4, rect(0, 600)), page(1, 4, rect(0, 0))]);
   h.flush(); assert.equal(h.render(), null); h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('tapping toggles page previews; outside click and Escape dismiss; project changes cannot carry the open panel', () => {
+  const h = mount([page(1, 3, rect(0, 600))]); h.flush();
+  const button = () => h.render().props.children[0];
+  button().props.onClick();
+  assert.equal(button().props['aria-expanded'], true);
+  assert.equal(h.render().props.children[1].props.total, 3);
+  const inside = {}; let restoredFocus = false;
+  h.refs[0].current = { contains: target => target === inside };
+  h.refs[1].current = { focus: () => { restoredFocus = true; } };
+  h.visibility();
+  h.documentEvents.get('click')({ target: inside });
+  assert.equal(button().props['aria-expanded'], true);
+  h.documentEvents.get('click')({ target: {} });
+  assert.equal(button().props['aria-expanded'], false);
+  button().props.onClick(); h.render(); h.visibility();
+  h.documentEvents.get('keydown')({ key: 'Escape', preventDefault() {}, stopPropagation() {} });
+  assert.equal(button().props['aria-expanded'], false); assert.equal(restoredFocus, true);
+  button().props.onClick(); assert.equal(h.render('other-project'), null);
+  button().props.onClick(); h.render(); h.visibility();
+  assert.equal(h.documentEvents.size, 0);
+  h.cleanup();
 });
 
 test('image, rendered-document and live-PDF renderers expose their actual page sequence without changing focus handlers', () => {

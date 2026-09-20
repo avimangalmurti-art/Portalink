@@ -82,12 +82,13 @@ test('both presentations keep the same provider, DOM host, and child element ide
   let presentation = 'web';
   const readingScopes = [];
   const context = React.createContext('web');
-  const { AppPresentation } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
+  const { AppPresentation, AppPresentationProvider } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
     if (name === 'react') return React;
     if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
-    if (name === './usePresentation') return { PresentationContext: context };
+    if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
     if (name.endsWith('.css')) return {};
@@ -97,15 +98,16 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const dialog = React.createElement('section', { key: 'publishing', role: 'dialog' });
   const children = [React.createElement('aside', { key: 'navigation' }), screen, dialog];
   const props = { className: 'app-shell codex-shell', 'data-layout-mode': 'adaptive', style: { color: 'inherit' }, children };
-  const web = AppPresentation(props);
+  const web = { provider: AppPresentationProvider({ children }), host: AppPresentation(props) };
   presentation = 'mobile';
-  const mobile = AppPresentation(props);
+  const mobile = { provider: AppPresentationProvider({ children }), host: AppPresentation(props) };
   assert.deepEqual(readingScopes, [[false, '/share/profile/project'], [true, '/share/profile/project']]);
-  assert.equal(web.type, context.Provider); assert.equal(mobile.type, web.type);
-  assert.equal(web.key, mobile.key);
+  assert.equal(web.provider.type, context.Provider); assert.equal(mobile.provider.type, web.provider.type);
+  assert.equal(web.provider.key, mobile.provider.key);
   for (const [tree, mode] of [[web, 'web'], [mobile, 'mobile']]) {
-    assert.equal(tree.props.value, mode);
-    const host = tree.props.children;
+    assert.equal(tree.provider.props.value, mode);
+    assert.equal(tree.provider.props.children, children);
+    const host = tree.host;
     assert.equal(host.type, 'div'); assert.equal(host.key, null);
     assert.equal(host.props.children, children);
     assert.equal(host.props.style, props.style);

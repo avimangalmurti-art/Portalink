@@ -5,6 +5,7 @@ import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
 import { useMobileDockScroll } from './useMobileDockScroll';
+import { useNavigationOutsideTap } from './useNavigationOutsideTap';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
@@ -48,6 +49,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const { pathname } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   useMobileDockScroll(hidden, pathname, dockRef);
   function setNavigationHidden(next: boolean) {
     setHidden(next);
@@ -55,6 +57,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   }
   function close() { setNavigationHidden(true); }
   function open() { setNavigationHidden(false); }
+  useNavigationOutsideTap(!hidden, layerRef, close);
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
@@ -72,12 +75,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
     home,
     profile,
   ];
-  return <div className="mobile-navigation-layer" data-mobile-navigation-layer="">
-    <button type="button" className="mobile-navigation-dismiss" hidden={hidden} tabIndex={-1} aria-label="Close side navigation" onClick={(event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    }} />
+  return <div ref={layerRef} className="mobile-navigation-layer" data-mobile-navigation-layer="">
     <aside id="mobile-main-navigation" className="mobile-navigation sidebar-starfield" data-mobile-navigation="" data-hidden={hidden} aria-label="Portalink navigation" {...closeSwipe}>
       {!hidden && <>
         <nav className="mobile-navigation-scroll scrollbar-hidden" aria-label="Main destinations">

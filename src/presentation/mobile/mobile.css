@@ -14,7 +14,7 @@
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
    Body-portalled menus carry the same presentation scope as the app. */
-:where([data-presentation='mobile']) :where(button, a[href], [role='button'], [role='tab'], [role='menuitem'], [role='option']):where(:not([data-preview-open], [data-portalink-tile], [data-profile-module], .project-preview-description, .content-corner-frame, .content-corner-group, [class~='group/media'], .mobile-navigation-dismiss, .mobile-project-index-dismiss, .mobile-profile-portal-dismiss)) {
+:where([data-presentation='mobile']) :where(button, a[href], [role='button'], [role='tab'], [role='menuitem'], [role='option']):where(:not([data-preview-open], [data-portalink-tile], [data-profile-module], .project-preview-description, .content-corner-frame, .content-corner-group, [class~='group/media'], .mobile-project-index-dismiss, .mobile-profile-portal-dismiss)) {
   border-radius: var(--shape-compact, 10px);
 }
 
@@ -26,6 +26,10 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] {
+  /* Use the same measured viewport for content and floating navigation.
+     CSS remains the pre-measurement fallback; WEB keeps its existing sizing. */
+  height: var(--mobile-viewport-height, 100dvh) !important;
+  min-height: 0;
   /* Let the canvas reach both display edges. Insets belong to controls and
      scroll-content ends, never to the viewport that clips the entire screen. */
   padding-block: 0;
@@ -167,30 +171,12 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer {
   position: fixed;
   z-index: 45;
-  inset-block: 0;
+  inset-block: 0 auto;
+  height: var(--mobile-viewport-height, 100%);
   inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
   max-width: var(--mobile-navigation-frame-width);
   margin-inline: auto;
   pointer-events: none;
-}
-
-/* A transparent dismissal surface catches the tap before it reaches content. */
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dismiss {
-  position: fixed;
-  z-index: 0;
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent !important;
-  box-shadow: none !important;
-  pointer-events: auto;
-  touch-action: manipulation;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dismiss[hidden] {
-  display: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation {
@@ -1871,17 +1857,16 @@
 [data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] .cover-filmstrip-item {
   width: 90px;
 }
-/* Project-view navigation: one compact control scale and one glass material.
-   These changes affect the floating controls, never the artwork's geometry. */
+/* Project-specific controls keep their compact glass material. The bottom
+   navigation uses the same shared styling as every other mobile screen. */
 #root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) {
   --project-control-surface: rgb(35 36 39 / 78%);
   --project-control-foreground: #f5f5f7;
   --project-control-blur: blur(22px) saturate(140%);
   --project-control-shadow: 0 4px 16px rgb(0 0 0 / 18%), inset 0 0 0 1px rgb(255 255 255 / 14%);
-  --mobile-dock-clearance: calc(var(--mobile-dock-size) + 16px + max(12px, var(--safe-area-bottom)));
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile, .mobile-project-back, [data-project-response-rail][data-rail-expanded='false']) {
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-project-back, [data-project-response-rail][data-rail-expanded='false']) {
   background: var(--project-control-surface) !important;
   -webkit-backdrop-filter: var(--project-control-blur);
   backdrop-filter: var(--project-control-blur);
@@ -1895,11 +1880,7 @@
   margin-top: calc(var(--safe-area-top) + 76px);
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-navigation-opener [data-interface-icon-frame] {
-  --interface-icon-size: 32px;
-}
-
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-dock-profile, .mobile-project-back) [data-interface-icon-frame] {
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-navigation-scroll, .mobile-project-back) [data-interface-icon-frame] {
   --interface-icon-size: 22px;
 }
 
@@ -1928,7 +1909,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 40px;
+  height: 44px;
   max-width: calc(100% - 148px);
   padding: 0 14px;
   border-radius: 999px;
@@ -1941,7 +1922,9 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  border: 0;
+  cursor: pointer;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -1949,46 +1932,93 @@
   color: inherit !important;
 }
 
-/* One dock surface while reading content; each destination keeps its actual state. */
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-floating-navigation:has(.mobile-navigation-opener[aria-expanded='false']) {
-  padding: 4px;
-  gap: 4px;
-  border-radius: 999px;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnails {
+  position: absolute;
+  z-index: 46;
+  top: calc(116px + var(--mobile-content-safe-top));
+  bottom: calc(var(--mobile-dock-clearance) + 12px);
+  left: var(--mobile-navigation-inset-start);
+  width: clamp(112px, 30vw, 144px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  border-radius: 24px;
   background: var(--project-control-surface);
+  color: var(--project-control-foreground);
   box-shadow: var(--project-control-shadow);
   -webkit-backdrop-filter: var(--project-control-blur);
   backdrop-filter: var(--project-control-blur);
+  scrollbar-width: thin;
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-navigation-quick-links {
-  gap: 4px;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-floating-navigation :is(.mobile-navigation-dock, .mobile-dock-profile) {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: 0 !important;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail[aria-current='page'] {
+  box-shadow: 0 0 0 3px var(--accent-text);
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-dock-destination, .mobile-dock-profile) {
-  color: var(--project-control-foreground) !important;
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-project-page-counter, .mobile-page-thumbnail):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) .mobile-navigation-opener[aria-expanded='false'] {
-  background: #f5f5f7 !important;
-  color: #252527 !important;
-  box-shadow: none;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--surface-sunken);
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-dock-destination, .mobile-dock-profile)[aria-current='page'] {
-  background: #f5f5f7 !important;
-  color: var(--accent-text) !important;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail-art :is(img, canvas) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]) :is(.mobile-dock-destination, .mobile-dock-profile) [data-interface-icon-frame] {
-  --interface-icon-size: 26px;
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail-art:not([data-preview-state='ready']) :is(img, canvas) {
+  visibility: hidden;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnail-number {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  min-width: 22px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 72%);
+  color: white;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-popup-trigger {

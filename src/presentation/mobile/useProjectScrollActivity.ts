@@ -15,8 +15,8 @@ const controlsSelector = [
   '[data-mobile-project-view] .premium-viewer-exit-control',
   '[data-mobile-project-view] [data-viewer-page-control]',
   '[data-mobile-project-view] [data-focused-page-count]',
-  '[data-mobile-project-page-count]',
-  '[data-mobile-project-view] button', '[data-mobile-project-view] audio',
+  // Page navigation remains available while all other reading controls hide.
+  '[data-mobile-project-view] button:not([data-mobile-page-navigator] *)', '[data-mobile-project-view] audio',
 ].join(',');
 
 /** One mobile reading state for app chrome and the media's native controls.
@@ -131,7 +131,9 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
     document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
-    document.addEventListener('pointerdown', down, true);
+    // Observe scroll intent alongside nonmodal navigation's window listener,
+    // before it shields background controls from a possible dismissal tap.
+    window.addEventListener('pointerdown', down, true);
     document.addEventListener('pointermove', move, true);
     document.addEventListener('pointerup', up, true);
     document.addEventListener('pointercancel', cancel, true);
@@ -142,7 +144,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       document.removeEventListener('scroll', scroll, true);
       document.removeEventListener('scrollend', scrollEnd, true);
       document.removeEventListener('wheel', wheel, true);
-      document.removeEventListener('pointerdown', down, true);
+      window.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointermove', move, true);
       document.removeEventListener('pointerup', up, true);
       document.removeEventListener('pointercancel', cancel, true);

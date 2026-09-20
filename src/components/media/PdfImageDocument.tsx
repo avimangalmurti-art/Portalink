@@ -24,6 +24,7 @@ type PdfImageDocumentProps = {
   onError: () => void;
   /** The PDF's immutable total, resolved from its own document catalog. */
   onPageCount?: (pageCount: number) => void;
+  onPreviewDocument?: (document: PdfDocument | null) => void;
   onFocusModeChange?: (focused: boolean) => void;
   memoryKey: string;
   controlsVisible?: boolean;
@@ -326,12 +327,16 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
   const settledPagesRef = useRef(new Set<number>());
   const [document, setDocument] = useState<PdfDocument | null>(null);
+  useEffect(() => {
+    onPreviewDocument?.(document);
+    return () => onPreviewDocument?.(null);
+  }, [document, onPreviewDocument]);
   const [pageCount, setPageCount] = useState(0);
   const [renderThrough, setRenderThrough] = useState(0);
   const linkedPageNumber = useCallback(() => {

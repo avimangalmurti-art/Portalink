@@ -1,15 +1,42 @@
-import React, { useLayoutEffect, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Grid2X2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { MobilePageThumbnails } from './MobilePageThumbnails';
+import type { PdfDocument } from './PdfPage';
 
 type PagePosition = { scope: string; current: number; total: number };
 
 /** Read the pages actually displayed by the current renderer, including lazy PDF pages. */
-export function MobileProjectPageCounter({ surfaceRef, scope }: {
+export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null }: {
   surfaceRef: React.RefObject<HTMLDivElement>;
   scope: string;
+  previewSources?: readonly (string | null | undefined)[];
+  pdfDocument?: PdfDocument | null;
 }) {
   const [position, setPosition] = useState<PagePosition | null>(null);
+  const [openScope, setOpenScope] = useState<string | null>(null);
+  const open = openScope === scope && position?.scope === scope;
+  const navigatorRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: MouseEvent) => {
+      if (event.target instanceof Node && !navigatorRef.current?.contains(event.target)) setOpenScope(null);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault(); event.stopPropagation();
+      setOpenScope(null);
+      triggerRef.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('click', outside, true);
+    document.addEventListener('keydown', escape, true);
+    return () => {
+      document.removeEventListener('click', outside, true);
+      document.removeEventListener('keydown', escape, true);
+    };
+  }, [open]);
 
   useLayoutEffect(() => {
     let surface: HTMLDivElement | null = null;
@@ -83,9 +110,13 @@ export function MobileProjectPageCounter({ surfaceRef, scope }: {
   }, [scope, surfaceRef]);
 
   if (!position || position.scope !== scope) return null;
-  return <span data-mobile-project-page-count="" className="mobile-project-page-counter"
-    aria-label={`Page ${position.current} of ${position.total}`}>
+  return <div ref={navigatorRef} data-mobile-page-navigator="">
+    <button ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
+    aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
+    aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpenScope(open ? null : scope)}>
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />
     <span>{position.current} of {position.total}</span>
-  </span>;
+    </button>
+    {open && <MobilePageThumbnails id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
+  </div>;
 }

@@ -4,7 +4,7 @@ Document 04 implementation, 2026-09-09. This is the minimum presentation boundar
 
 ## Boundary and selection
 
-`AppPresentation` replaces only the root JSX host in `App`. It always renders the same context provider and `div`, retains the existing root attributes and children, and adds `data-presentation="web"` or `data-presentation="mobile"`. It introduces no extra DOM wrapper. The existing navigation, workspace, screen layers and dialogs stay in their original positions.
+`AppPresentation.tsx` owns the stable presentation boundary. `AppPresentationProvider` wraps `AppContent` so its root appearance controller can consume the same context as its descendants. `AppPresentation` renders the single root `div`, retains its attributes and children, and adds `data-presentation="web"` or `data-presentation="mobile"`. Neither component is keyed by presentation and there is no extra DOM wrapper. The existing navigation, workspace, screen layers and dialogs stay in their original positions.
 
 One `useViewportPresentation` subscription chooses MOBILE when `(max-width: 639px)` matches and WEB otherwise. This reuses the compact-navigation breakpoint already present in Portalink. Without a browser or `matchMedia`, the fallback is WEB. A narrow desktop window can therefore use MOBILE; a wide phone/tablet can use WEB. There is no device-brand, installation, touch, route or account detection. The 390px and 430px QA sizes are samples, not additional product boundaries.
 
@@ -19,12 +19,18 @@ The host is intentionally stable across presentation changes: no platform key, a
 | Authentication, accounts, services, APIs, permissions and models | Existing shared implementation, unchanged. |
 | Application providers, route resolution, deep links and screen-transition state | Existing shared implementation, unchanged. |
 | Projects, profiles, messages, uploads, engagement and their controllers | Existing shared features; no WEB/MOBILE copies. |
-| Appearance tokens, semantic colors, common controls and feature styling | Shared. Existing responsive feature rules remain in place. |
+| Appearance tokens, semantic colors, common controls and feature styling | Shared rendering; personal appearance choices are stored independently for WEB and MOBILE. Existing responsive feature rules remain in place. |
 | Workspace inset, frame border/radius and shadow | Explicit scoped rules in `presentation/web/web.css` and `presentation/mobile/mobile.css`. |
 | Compact navigation behavior | Existing behavior driven by the single presentation context. |
 | Future intentionally divergent features | May consume the context and introduce a local presentation variant while retaining shared data and controllers. No feature-availability decisions were made here. |
 
 The extracted CSS preserves the old values. WEB retains its inset, border, rounded workspace and shadow; MOBILE retains its existing flush frame. Every new selector is guarded by the root presentation attribute. `:where(...)` adds no specificity, preserving the old cascade strength. Both files load together, but only the matching selectors apply. This is presentation isolation, not a separate application or separate build.
+
+### Independent personal appearance (2026-09-19)
+
+`useDeviceAppearance(presentation)` keeps two stable preference slots, saved as `portalinknetworks.interfaceAppearance.web` and `.mobile`. Each contains System/Light/Dark mode, accent colour, system grey, high contrast and reduced translucency. Existing legacy browser choices seed both slots once; future changes persist only the affected slot. Switching the presentation restores its settings without remounting the app or resetting a draft. Blocked storage keeps session choices; storage events update the corresponding platform slot. OS colour-scheme events still resolve each slot's System mode. These are browser-local settings, not account-synced or device-brand detection.
+
+Public website branding remains a separate, shared profile record. Explicit accent/grey choices retain the existing public-branding save path, but loading/changing that branding no longer overwrites either personal palette. Opening settings or changing theme does not silently save a palette variant. Unsaved profiles start from the active saved personal palette; existing profile branding wins when present. Shared-link light/dark overrides are also separated by platform (`portalink.publicTheme.<profileId>.<presentation>`), with unchanged legacy values as the initial fallback. The initial HTML uses the same 639px boundary and preference records to prevent an opposite-theme startup flash. No backend schema or auth changes are needed.
 
 WEB remains the protected reference experience. MOBILE now has an independently editable presentation boundary and stylesheet. Its initial UI is Portalink's existing compact layout, not a completed mobile design.
 

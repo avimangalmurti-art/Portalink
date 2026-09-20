@@ -10,6 +10,7 @@ import { ModelAttachment } from './ModelAttachment';
 import { GenericFileCard } from './GenericFileCard';
 import { ProcessingNotice } from './ProcessingNotice';
 import type { ProjectAttachment } from '../../types/domain';
+import type { PdfDocument } from './PdfPage';
 
 /**
  * The one place an attachment becomes a presentation.
@@ -27,6 +28,7 @@ export function AttachmentRenderer({
   artwork,
   processing,
   onDocumentPageCountResolved,
+  onPreviewDocument,
   onFocusModeChange,
   controlsVisible,
   showMediaInteractions = true,
@@ -75,7 +77,7 @@ export function AttachmentRenderer({
    */artwork?: {url: string;alt: string;}; /**
    * The live processing state for this asset, when the service has been asked.
    * Absent falls back to the record's own state.
-   */processing?: {state: ProjectAttachment['status'];message: string | null;canRetry: boolean;isRetrying: boolean;onRetry: () => void;}; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Lets the surrounding project viewer become immersive while one page is isolated. */onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean; /** Public presentation links omit account engagement entirely. */showMediaInteractions?: boolean; /** True when the authenticated profile owns the project. */isOwner?: boolean; /** Keeps public-share history separate from the signed-in workspace. */memoryScope?: string; /** A new value toggles overview and the last focused page. */pageViewToggleRequest?: number;onClose: () => void;}) {// The title reads as the work when the project holds a single file, and as
+   */processing?: {state: ProjectAttachment['status'];message: string | null;canRetry: boolean;isRetrying: boolean;onRetry: () => void;}; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void;onPreviewDocument?: (document: PdfDocument | null) => void; /** Lets the surrounding project viewer become immersive while one page is isolated. */onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean; /** Public presentation links omit account engagement entirely. */showMediaInteractions?: boolean; /** True when the authenticated profile owns the project. */isOwner?: boolean; /** Keeps public-share history separate from the signed-in workspace. */memoryScope?: string; /** A new value toggles overview and the last focused page. */pageViewToggleRequest?: number;onClose: () => void;}) {// The title reads as the work when the project holds a single file, and as
   // the file when it holds several.
   const title = attachment.displayName || projectTitle;const state = processing?.state ?? attachment.status; /**
    * A stored asset whose derived preview does not exist yet. Rendering a viewer
@@ -100,7 +102,7 @@ export function AttachmentRenderer({
           canRetry: processing?.canRetry ?? false,
           isRetrying: processing?.isRetrying ?? false,
           onRetry: processing?.onRetry ?? (() => undefined)
-        } : undefined} projectId={projectId} onPageCountResolved={(pageCount) => onDocumentPageCountResolved?.(attachment.id, pageCount)} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope} pageViewToggleRequest={pageViewToggleRequest} />
+        } : undefined} projectId={projectId} onPageCountResolved={(pageCount) => onDocumentPageCountResolved?.(attachment.id, pageCount)} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope} pageViewToggleRequest={pageViewToggleRequest} />
         </MediaFrame> : <PdfViewer fileName={title} pageCount={attachment.metadata?.pageCount ?? 6} onClose={onClose} />;
     case 'image':
       return <MediaFrame>

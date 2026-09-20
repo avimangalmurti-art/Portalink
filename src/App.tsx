@@ -26,7 +26,7 @@ import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
 import { resolveMacTokens } from './utils/macTokens';
-import { readContrastMode, readHighContrast, readIconColor, readLanguage, readReduceTranslucency, writeAccentColor, writeContrastMode, writeHighContrast, writeIconColor, writeLanguage, writeNavSystemGray, writeReduceTranslucency, type AppearanceTheme, type StoredAppearanceMode, type StoredContrastMode, type StoredIconColor, type StoredLanguage } from './utils/appearancePreferences';
+import { readLanguage, writeLanguage, type AppearanceTheme, type StoredAppearanceMode, type StoredLanguage } from './utils/appearancePreferences';
 import { useDeviceAppearance } from './hooks/useDeviceAppearance';
 import { useScreenInit } from './useScreenInit.js';
 import { useFollows } from './features/follows/useFollows';
@@ -54,7 +54,8 @@ import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
 import { canResumeRegistration } from './features/auth/registration';
-import { AppPresentation } from './presentation/AppPresentation';
+import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
+import { usePresentation } from './presentation/usePresentation';
 import { markMobileForwardNavigation } from './presentation/mobile/backNavigationTransition';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 
@@ -119,6 +120,11 @@ function toDetailView(view: ProjectView): FeatureCardApp {
 // opens no profile page at all, rather than a page assembled from a display name
 // and sample content.
 export function App() {
+  return <AppPresentationProvider><AppContent /></AppPresentationProvider>;
+}
+
+function AppContent() {
+  const presentation = usePresentation();
   /**
    * The URL is the destination. Everything a location can express — which
    * surface is open, whose profile, which category, which project, the search
@@ -129,11 +135,16 @@ export function App() {
   const nav = useRouteNavigator();
   const isSharedRoute = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject';
   const auth = useAuth();
-  const creatorAppearance = useCreatorAppearance(auth.viewerProfileId, !isSharedRoute);
-  const { accentColor, systemGray: navSystemGray } = creatorAppearance.appearance;
-  const { mode: appearanceMode, chooseMode: setAppearanceMode, theme, systemTheme } = useDeviceAppearance();
-  const setAccentColor = (value: string) => creatorAppearance.choose({ accentColor: value });
-  const setNavSystemGray = (value: string) => creatorAppearance.choose({ systemGray: value });
+  const { mode: appearanceMode, chooseMode: setAppearanceMode, chooseAppearance, theme, systemTheme,
+    accentColor, systemGray: navSystemGray, highContrast, reduceTranslucency } = useDeviceAppearance(presentation);
+  const creatorAppearance = useCreatorAppearance(auth.viewerProfileId, !isSharedRoute, { accentColor, systemGray: navSystemGray });
+  // Personal interface choices are separate on WEB and MOBILE. Explicit colour
+  // choices still update the creator's shared public branding, as before, but
+  // branding changes never overwrite either saved personal interface palette.
+  const setAccentColor = (value: string) => { chooseAppearance({ accentColor: value }); creatorAppearance.choose({ accentColor: value }); };
+  const setNavSystemGray = (value: string) => { chooseAppearance({ systemGray: value }); creatorAppearance.choose({ systemGray: value }); };
+  const setHighContrast = (value: boolean) => chooseAppearance({ highContrast: value });
+  const setReduceTranslucency = (value: boolean) => chooseAppearance({ reduceTranslucency: value });
   const sharedProfileId = isSharedRoute ? route.profileId : null;
   const sharedAppearanceQuery = useProfileQuery(sharedProfileId);
   const publicAppearance = sharedAppearanceQuery.profile?.publicAppearance ?? DEFAULT_PUBLIC_APPEARANCE;
@@ -143,27 +154,15 @@ export function App() {
   } = useLocation();
   const screenInit = useScreenInit();
   const activeDestination: NavigationDestination = route.kind === 'destination' ? route.destination : 'Today';
-  // Appearance settings persist, so the viewer's current configuration is what
-  // the product opens with. Out of the box, appearance follows the operating
-  // system; accessibility enhancements remain opt-in here and also respond to
-  // the corresponding system media features in CSS. A stored preference wins.
-  // Navigation-button accessibility preferences live at the root so the real
-  // navigation components resolve them instantly.
-  const [highContrast, setHighContrast] = useState(() => readHighContrast(false));
-  const [reduceTranslucency, setReduceTranslucency] = useState(() => readReduceTranslucency(false));
-  // The navigation buttons' system gray. Held by id, so the one choice resolves
-  // to its light or dark value as the appearance changes. System Gray 1 is the
-  // default — the base of the ladder, identical in both appearances.
-  const [contrastMode, setContrastMode] = useState<StoredContrastMode>(() => readContrastMode('default'));
-  const [iconColor, setIconColor] = useState<StoredIconColor>(() => readIconColor('default'));
   const [language, setLanguage] = useState<StoredLanguage>(() => readLanguage('auto'));
   // Creator branding is durable; visitor light/dark choices are local to each site.
   const [visitorThemes, setVisitorThemes] = useState<Record<string, AppearanceTheme>>({});
-  const visitorTheme = sharedProfileId ? visitorThemes[sharedProfileId] ?? readVisitorTheme(sharedProfileId) : null;
+  const visitorThemeKey = `${presentation}:${sharedProfileId}`;
+  const visitorTheme = sharedProfileId ? visitorThemes[visitorThemeKey] ?? readVisitorTheme(sharedProfileId, presentation) : null;
   const setSharedPortalinkTheme = (value: AppearanceTheme) => {
     if (!sharedProfileId) return;
-    writeVisitorTheme(sharedProfileId, value);
-    setVisitorThemes(themes => ({ ...themes, [sharedProfileId]: value }));
+    writeVisitorTheme(sharedProfileId, value, presentation);
+    setVisitorThemes(themes => ({ ...themes, [visitorThemeKey]: value }));
   };
   const interfaceTheme = isSharedRoute ? resolvePublicTheme(visitorTheme, systemTheme) : theme;
   const interfaceHighContrast = highContrast;
@@ -227,15 +226,6 @@ export function App() {
     document.body.classList.toggle('reduce-translucency', interfaceReduceTranslucency);
   }, [interfaceTheme, interfaceHighContrast, interfaceReduceTranslucency]);
   useEffect(() => {
-    writeAccentColor(accentColor);
-  }, [accentColor]);
-  useEffect(() => {
-    writeContrastMode(contrastMode);
-  }, [contrastMode]);
-  useEffect(() => {
-    writeIconColor(iconColor);
-  }, [iconColor]);
-  useEffect(() => {
     writeLanguage(language);
   }, [language]);
   // The document carries the locale and reading direction, so logical layout,
@@ -248,15 +238,6 @@ export function App() {
     document.documentElement.lang = requestedLocale;
     document.documentElement.dir = rtlLanguages.has(baseLanguage) ? 'rtl' : 'ltr';
   }, [language]);
-  useEffect(() => {
-    writeHighContrast(highContrast);
-  }, [highContrast]);
-  useEffect(() => {
-    writeReduceTranslucency(reduceTranslucency);
-  }, [reduceTranslucency]);
-  useEffect(() => {
-    writeNavSystemGray(navSystemGray);
-  }, [navSystemGray]);
   // Read before the first paint so both the sidebar and the feed start in the
   // user's last layout, without briefly rendering the opposite state.
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(readMainSidebarCollapsed);

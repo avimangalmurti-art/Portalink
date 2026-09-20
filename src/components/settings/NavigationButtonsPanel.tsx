@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { CheckIcon, ChevronDownIcon, RotateCcwIcon } from 'lucide-react';
 import { findNavAccent, findSystemGray, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
@@ -66,13 +66,8 @@ export function NavigationButtonsPanel({
     ? 'none'
     : `background-color 160ms ${ease}, color 160ms ${ease}, border-color 160ms ${ease}, box-shadow 160ms ${ease}`;
 
-  // The selected accent keeps its identity but resolves to the variant tuned
-  // for the current appearance, including live changes from System appearance.
-  useEffect(() => {
-    if (accent !== accentColor) {
-      onAccentColorChange(accent);
-    }
-  }, [accent, accentColor, onAccentColorChange]);
+  // Resolve swatches visually without saving a colour just because the viewer
+  // changed platform/theme or opened settings. Only explicit choices save.
 
   return (
     <section

@@ -1,6 +1,7 @@
 // Appearance preferences persist, so whatever the viewer has set in Control
 // Center is what the product opens with next time — their current settings
 // become the default rather than resetting to a built-in theme.
+import type { Presentation } from '../presentation/usePresentation';
 /**
  * The resolved appearance the interface is actually rendering in. Distinct from
  * `StoredAppearanceMode`, which may be 'auto' and has to be resolved against the
@@ -134,4 +135,42 @@ export function readReduceTranslucency(fallback: boolean): boolean {
 
 export function writeReduceTranslucency(enabled: boolean): void {
   write(REDUCE_TRANSLUCENCY_KEY, String(enabled));
+}
+
+export type InterfaceAppearance = {
+  mode: StoredAppearanceMode;
+  accentColor: string;
+  systemGray: string;
+  highContrast: boolean;
+  reduceTranslucency: boolean;
+};
+
+export function interfaceAppearanceKey(presentation: Presentation): string {
+  return `portalinknetworks.interfaceAppearance.${presentation}`;
+}
+
+/** Legacy values are a starting snapshot only; new choices never write them. */
+export function readInterfaceAppearance(presentation: Presentation): InterfaceAppearance {
+  const fallback: InterfaceAppearance = {
+    mode: readDeviceAppearanceMode(),
+    accentColor: readAccentColor('#0A84FF'),
+    systemGray: readNavSystemGray('gray6'),
+    highContrast: readHighContrast(false),
+    reduceTranslucency: readReduceTranslucency(false),
+  };
+  try {
+    const value = JSON.parse(read(interfaceAppearanceKey(presentation)) ?? 'null');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
+    return {
+      mode: ['light', 'dark', 'auto'].includes(value.mode) ? value.mode : fallback.mode,
+      accentColor: typeof value.accentColor === 'string' && /^#[\da-f]{6}$/i.test(value.accentColor) ? value.accentColor : fallback.accentColor,
+      systemGray: typeof value.systemGray === 'string' && /^gray(?:[2-6])?$/.test(value.systemGray) ? value.systemGray : fallback.systemGray,
+      highContrast: typeof value.highContrast === 'boolean' ? value.highContrast : fallback.highContrast,
+      reduceTranslucency: typeof value.reduceTranslucency === 'boolean' ? value.reduceTranslucency : fallback.reduceTranslucency,
+    };
+  } catch { return fallback; }
+}
+
+export function writeInterfaceAppearance(presentation: Presentation, value: InterfaceAppearance): void {
+  write(interfaceAppearanceKey(presentation), JSON.stringify(value));
 }

@@ -88,6 +88,7 @@ function navigationHarness(pathname = '/') {
   const icons = { SunIcon: () => null, MoonIcon: () => null };
   let cursor = 0;
   let scrollBinding;
+  let outsideBinding;
   const react = {
     ...React,
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
@@ -110,6 +111,7 @@ function navigationHarness(pathname = '/') {
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
       if (name === './useMobileDockScroll') return { useMobileDockScroll: (enabled, path, ref) => { scrollBinding = { enabled, path, ref }; } };
+      if (name === './useNavigationOutsideTap') return { useNavigationOutsideTap: (open, ref, close) => { outsideBinding = { open, ref, close }; } };
       if (name === '../../app/routes') return { buildPath: name => paths[name] };
       return new Proxy({}, { get: () => () => null });
     },
@@ -117,7 +119,7 @@ function navigationHarness(pathname = '/') {
   function render(props = {}) {
     cursor = 0;
     const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
-    const [dismiss, rail, floating] = React.Children.toArray(tree.props.children);
+    const [rail, floating] = React.Children.toArray(tree.props.children);
     const [toggle, dock] = React.Children.toArray(floating.props.children);
     const [group, profile] = React.Children.toArray(dock.props.children);
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
@@ -130,9 +132,9 @@ function navigationHarness(pathname = '/') {
     } };
     frames.splice(0).forEach(fn => fn());
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
-    return { layer: tree, dismiss, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
+    return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render, icons, get scrollBinding() { return scrollBinding; }, destination: element => exports.Destination(element.props) };
+  return { render, icons, get scrollBinding() { return scrollBinding; }, get outsideBinding() { return outsideBinding; }, destination: element => exports.Destination(element.props) };
 }
 
 test('browsing scroll owns the entire floating dock only while the side rail is closed', () => {
@@ -225,27 +227,25 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   assert.equal(navigationHarness().render().dock.props.hidden, false, 'a new app session starts with the dock');
 });
 
-test('an outside tap dismisses the side rail, restores the dock and consumes the tap', () => {
+test('outside dismissal restores the dock and focus without a content-blocking overlay', () => {
   const h = navigationHarness();
   let ui = h.render();
-  assert.equal(ui.dismiss.props.hidden, true, 'closed rail does not block content');
+  assert.equal(h.outsideBinding.open, false);
+  assert.equal(React.Children.count(ui.layer.props.children), 2, 'only the rail and dock occupy the nonmodal navigation layer');
   ui.toggle.props.onClick();
   ui = h.render();
-  assert.equal(ui.dismiss.props.hidden, false);
-  assert.equal(ui.dismiss.props.tabIndex, -1);
+  assert.equal(h.outsideBinding.open, true);
+  assert.equal(h.outsideBinding.ref, ui.layer.ref);
   assert.equal(ui.dock.props.hidden, true);
   // Actions inside the rail keep working without triggering dismissal.
   ui.appearance.props.onClick();
   ui = h.render();
   assert.equal(ui.rail.props['data-hidden'], false);
-  const event = click();
-  ui.dismiss.props.onClick(event);
+  h.outsideBinding.close();
   ui = h.render();
-  assert.equal(event.prevented, true);
-  assert.equal(event.stopped, true);
   assert.equal(ui.rail.props['data-hidden'], true);
   assert.equal(ui.dock.props.hidden, false);
-  assert.equal(ui.dismiss.props.hidden, true);
+  assert.equal(h.outsideBinding.open, false);
   assert.equal(ui.focused.at(-1), 'toggle');
 });
 
