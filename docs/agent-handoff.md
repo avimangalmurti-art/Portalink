@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## Published mobile onboarding and page counter - 2026-09-20 (Sites version 254)
+
+- User authorized publication of the two local passes below. Sites **version 254** succeeded at **2026-09-20 10:44:02 UTC**, deployment `appgdep_6aafb8ea671c819197a25ce236c3a102`, at the existing [Portalink site](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Exact deployed source: `a195a7aad6b39f9da60e04f3919be36d4a2bef71` (`Add mobile onboarding flow and reading counter transition`). The mobile onboarding flow and counter movement are now published.
+- Release verification reused the unchanged implementation's 29 onboarding/appearance/viewport tests, 19 page-counter/reading tests, typecheck and successful client/server build. Full lint in a clean release checkout passed with 0 errors / 86 existing warnings; whitespace and read-only release review passed. Browser evidence and physical-device/authenticated-session limits are recorded below. No new live-account creation or post-publication API/device test is claimed.
+- Exact source and verified build were isolated under ignored `logs/onboarding-release-20260920`. The established Windows packaging fallback used the official `prepare-site-build.cjs` and native tar; the archive was verified to contain 126 build/hosting files, unchanged D1 migration metadata and no source/private/QA files. Unrelated `.claude/` and both design folders were excluded.
+- Source was fast-forwarded only to the existing Sites source mirror. GitHub `main` was not pushed or merged. The successful native response confirms public publication and unchanged runtime environment revision 1; existing Supabase/Auth, D1 `DB`, `r2: null`, media workers and checkpoints remain unchanged. No SQL migration was added or manually applied, and no separate PDF/video worker deployment occurred. The existing port-5173 preview remains running.
+- This release record is a subsequent documentation-only commit outside the version 254 application build. Continue on `codex/splash-reliability`; preserve unrelated user folders.
+
 ## Mobile onboarding reference implemented - 2026-09-20 (local, unpublished)
 
 - User approved the supplied mobile reference as Appearance -> Create account -> Create your profile -> Welcome, in light and dark mode, preserving email verification, privacy and WEB. `AuthDialog.tsx` keeps one mounted signup state across its steps; account Continue validates credentials locally and profile Continue invokes the existing signup once with the full registration metadata. Internal Back preserves fields/avatar/privacy. Existing dirty-exit confirmation and duplicate-submit protections remain. Confirmation-required accounts show Check your email instead of Welcome.
