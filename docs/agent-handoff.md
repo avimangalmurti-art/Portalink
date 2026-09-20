@@ -1,5 +1,15 @@
 # Current agent handoff
 
+## Mobile startup video — 2026-09-19 (local, unpublished)
+
+- Request: replace only the MOBILE splash with the supplied `WhatsApp Video 2026-09-19 at 6.56.29 PM.mp4`. Continue `codex/mobile-portal-navigation` at `0413bc4`; preserve the published version 249 and unrelated untracked user folders.
+- Added `public/portalink-splash-mobile.mp4` (277,347 bytes, unmodified SHA-256 `4d282896474affcc138967c6b459690e2da80830679ecb5a1916ab86bb73b907`) and its extracted first-frame `portalink-splash-mobile-poster.png`. The clip is silent H.264/yuv420p, 512×720, 30fps, 1.5 seconds. Existing WEB media files are unchanged.
+- `PortalinkSplashLoader.tsx` uses the canonical `useViewportPresentation` before the app's presentation host exists; startup does not mount another host or alter auth/routing. Initial presentation is fixed for the short clip so rotation cannot restart it. Mobile plays once, muted/inline, finishes on `ended`, and has a 3-second stall guard. Reduced motion, later auth retries, failures and blocked autoplay use the mobile still without delaying readiness. WEB retains its original 880ms presentation + 320ms fade.
+- MOBILE CSS preserves the whole portrait video against its light background. `index.html` uses the matching mobile poster and the same 639px boundary before React starts, with the original WEB poster/layout as fallback. The viewport hook's documentation now acknowledges pre-shell use; its implementation is unchanged.
+- Checks: 17 focused splash/presentation/browser-surface tests passed; typecheck and client/server build passed. Standard lint passed with 0 errors; it also traverses ignored release/QA copies under `logs`. A second run with `--ignore-pattern logs` confirmed the actual app retains its 88 existing warnings and 0 errors. Tests cover both media selections, completion/watchdog, resize stability, failures, reduced motion, preboot matching, and unchanged auth readiness/retry behavior.
+- Browser: at 390px the new video reached `ended` at 1.5s, remained muted and used its mobile poster; at 430px preboot selected the same portrait poster and actual startup revealed Home after the splash. At 1280px the original WEB animation and pink backdrop remained. Viewport override reset. Ignored isolated QA fixture: `logs/mobile-splash-qa/`. Physical iPhone/PWA playback remains unverified.
+- Source changes remain uncommitted and unpublished. No backend, authentication, migration, worker, GitHub, or production changes in this pass.
+
 ## Published mobile release — 2026-09-19
 
 - Sites **version 249** successfully published at **2026-09-20 02:04:53 UTC** to the existing public [Portalink website](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Deployment: `appgdep_6aaf3f3c8d248191b8a757ffdb682586`.

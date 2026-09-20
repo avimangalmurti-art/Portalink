@@ -1,5 +1,16 @@
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
+/* The startup layer exists before the app host and carries the same scope. */
+[data-presentation='mobile'].portalink-splash {
+  background-color: #f8fdfc;
+}
+
+[data-presentation='mobile'].portalink-splash .portalink-splash-media {
+  width: 100vw;
+  height: 100dvh;
+  object-fit: contain;
+}
+
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
    Body-portalled menus carry the same presentation scope as the app. */

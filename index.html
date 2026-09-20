@@ -41,6 +41,14 @@
         object-fit: contain;
       }
 
+      #portalink-preboot picture { display: contents; }
+
+      /* Match the app's mobile boundary before React and its provider mount. */
+      @media (max-width: 639px) {
+        #portalink-preboot { background-color: #f8fdfc; }
+        #portalink-preboot img { width: 100vw; height: 100dvh; }
+      }
+
     </style>
     <script>
       (() => {
@@ -83,9 +91,12 @@
   </head>
   <body>
     <div id="root">
-      <!-- The original video's first frame also covers startup before React. -->
+      <!-- Match each platform's first video frame before React starts. -->
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
-        <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
+        <picture>
+          <source media="(max-width: 639px)" srcset="/portalink-splash-mobile-poster.png" width="512" height="720" />
+          <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
+        </picture>
       </div>
     </div>
     <script type="module" src="/src/index.tsx"></script>
