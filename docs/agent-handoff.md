@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## Published latest mobile and appearance fixes — 2026-09-19 (Sites version 251)
+
+- Sites **version 251** published successfully at **2026-09-20 06:01:56 UTC**, deployment `appgdep_6aaf76cc82688191a7b18319e10fa42a`, at the existing [Portalink site](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Exact deployed source is `1c112ac943b77ac7b4b7f31875f6211c27fa1511` (`Improve mobile navigation, page previews and device appearance`). The six local-only entries below are now included in this publication; their original implementation records are retained.
+- Release verification: 191 focused tests, typecheck, lint (0 errors / 86 existing warnings), clean-release client/server build and whitespace checks passed. Reviewed source was fast-forwarded to the existing Sites source mirror only. GitHub `main` was not pushed or merged. The clean release checkout and ignored archive are under `logs/`; unrelated `.claude/` and design folders were excluded.
+- Build/packaging: the clean checkout used the existing VITE-prefixed build configuration in memory; no `.env.local` was copied or changed. The plugin's npm/Bash wrappers failed on this Windows environment, so the installed npm CLI ran the unchanged build script, and the plugin's `prepare-site-build.cjs` staged the output before native Windows tar packaging. Required worker, client and hosting files were validated, along with exclusion of private/source files. Deployed bundle: `/assets/index-CyJH6v-h.js`; the supplied OG image hash remains `fdd1d9eb7c32b2d13525c32f1cdafa1bf538c2815b7335b5a098f30c9bafad22`.
+- The successful native deployment response confirms the live release, public audience and existing runtime environment revision 1. Supabase/Auth, D1 `DB`, `r2: null`, PDF/video workers and checkpoint settings are unchanged; no migration was added or manually applied. No separate worker-service release occurred. Browser evidence is the pre-publication WEB/MOBILE verification recorded below; no new live D1 API or physical-phone test is claimed. Fresh iPhone Safari startup/keyboard/rotation and recipient preview-cache behavior remain the user-device checks.
+- This publication record is a subsequent documentation-only commit, not part of the version 251 application build.
+
 ## Latest mobile and appearance release preparation — 2026-09-19
 
 - User authorized publication of all latest changes. This release includes the six local passes below: Safari startup height, supplied Hello World share artwork, scrolling with the main rail open, independent WEB/MOBILE appearance, consistent mobile bottom navigation, and persistent page count with thumbnail navigation.
