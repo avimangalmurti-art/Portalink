@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## Published mobile release — 2026-09-19
+
+- Sites **version 249** successfully published at **2026-09-20 02:04:53 UTC** to the existing public [Portalink website](https://portalinknetworksinc.avimangalmurti566055.chatgpt.site). Deployment: `appgdep_6aaf3f3c8d248191b8a757ffdb682586`.
+- Exact published source: `73ee72edf10fd1c75f58c2d2f2fdf3135d204042` (`Refine mobile portal panel and project viewing controls`). This includes the preceding `337947a` mobile transition work. The existing Sites source mirror was fast-forwarded, with no history rewrite. GitHub `main` remains `ccf405cfd4152469e0439a7579310a0823fab653`; publication did not push or merge GitHub source history. The later documentation-only release-record commit is not part of the deployed application build.
+- Final verification: 100 focused tests, typecheck, lint (0 errors / 88 existing warnings), and clean-checkout client/server build passed. Live shared-project checks at 390px showed the new page counter and portal toolbar with search, layout, sorting, thumbnails and dates; at 1280px the existing desktop project navigation remained and no mobile counter was mounted. The live asset `/assets/index-eIxiz8UZ.js` matches the clean release build. Temporary viewport override reset.
+- Limits: production browser was signed out, so authenticated engagement writes and owner actions were not exercised. Direct worker API probing received an edge challenge outside the browser and was blocked by the browser client; this release does not claim a fresh D1 API health check. Shared profile, project and PDF content did load. Physical-phone touch/PWA verification remains outstanding.
+- No SQL migration, Supabase/Auth change, PDF/video worker release, audience change, or checkpoint change. Sites keeps `d1: DB`, `r2: null`, and existing runtime environment revision 1. User folders remain untouched. Ignored release artifacts are under `logs/`; the temporary credential helper and release copy of `.env.local` were removed. The working project's `.env.local` is unchanged.
+
 ## Approved mobile release preparation — 2026-09-19
 
 - The user requested publication of the mobile portal navigation and content-control changes described below, including the existing mobile Back/forward transition baseline. Release source stays on `codex/mobile-portal-navigation`; unrelated untracked user folders are excluded.
