@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { UserProfilePage } from '../../components/UserProfilePage';
 
 /** Keep profile navigation stable while selected projects use the full canvas. */
@@ -8,7 +8,12 @@ export function MobileProfileWorkspace({ overview, children, view = 'projects', 
   view?: 'portals' | 'projects';
   projectSelected?: boolean;
 }) {
+  const [projectIndexOpen, setProjectIndexOpen] = useState(false);
+  const content = children && projectSelected ? React.cloneElement(children as React.ReactElement<{
+    onMobileIndexOpenChange?: (open: boolean) => void;
+  }>, { onMobileIndexOpenChange: setProjectIndexOpen }) : children;
   // The nested viewer keeps one React position when the viewport changes.
   // UserProfilePage makes this frame visually transparent on WEB.
-  return React.cloneElement(overview, { mobileContent: children, mobileContentView: view, mobileProjectSelected: projectSelected });
+  return React.cloneElement(overview, { mobileContent: content, mobileContentView: view, mobileProjectSelected: projectSelected,
+    mobileProjectIndexOpen: projectSelected && projectIndexOpen });
 }

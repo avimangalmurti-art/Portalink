@@ -51,6 +51,7 @@ type UserProfilePageProps = {
   mobileContentView?: 'portals' | 'projects';
   /** Selected projects take over the canvas without the profile header. */
   mobileProjectSelected?: boolean;
+  mobileProjectIndexOpen?: boolean;
   onMobileViewChange?: (view: ProfileContentView) => void;
   mobileWallScrollMemory?: { read: () => number; save: (top: number) => void };
   /**
@@ -377,6 +378,7 @@ export function UserProfilePage({
   mobileContent,
   mobileContentView,
   mobileProjectSelected = false,
+  mobileProjectIndexOpen = false,
   onMobileViewChange,
   mobileWallScrollMemory,
   viewerRole,
@@ -589,7 +591,7 @@ export function UserProfilePage({
   // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
-      <div className={isWebWorkspace || isMobileProject ? 'hidden' : 'profile-header-region contents'}>
+      <div data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
             <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
@@ -601,7 +603,7 @@ export function UserProfilePage({
           context above the identity/link row so menus opened from the toolbar
           cover later content instead of letting its icon buttons paint through. */}
       {!isSharedView && isMobile && <header className="mobile-profile-header">
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={!isMobileToolsOpen ? { projectCount, portalCount: profile.categories.length, activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null } : undefined} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={!isMobileToolsOpen ? { projectCount, portalCount: profile.categories.length, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null } : undefined} />
         {isReorderingProjects ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>

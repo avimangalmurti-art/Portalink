@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookmarkIcon, HeartIcon, Repeat2Icon, SendIcon } from 'lucide-react';
+import { BookmarkIcon, HeartIcon, Repeat2Icon, SendIcon, ShareIcon } from 'lucide-react';
 import { describeEngagement, ENGAGEMENT_KINDS } from '../../types/engagement';
 import type { EngagementKind } from '../../types/engagement';
 import type { ProjectEngagementLifecycle } from './useProjectEngagement';
@@ -59,9 +59,11 @@ export function EngagementBar({
    * beneath — for the project rail, where there is width and the counts are being
    * read rather than glanced at. `rail` stacks the icon controls vertically when
    * the project rail is collapsed.
-   */variant?: 'inline' | 'panel' | 'rail'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isRail = variant === 'rail';const shareColor = 'var(--engagement-share-selected)';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
+   * `viewer` is the mobile reading rail: neutral outlines and the essential
+   * like/save/share actions. Other presentations retain the semantic colours.
+   */variant?: 'inline' | 'panel' | 'rail' | 'viewer'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isViewer = variant === 'viewer';const isRail = variant === 'rail' || isViewer;const shareColor = isViewer ? 'var(--project-control-foreground, currentColor)' : 'var(--engagement-share-selected)';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
       <div className={isPanel ? `grid ${onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'side-panel-navigation-list items-center' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
-        {ENGAGEMENT_KINDS.map((kind) => {const Icon = ICONS[kind];const labels = describeEngagement(kind);
+        {ENGAGEMENT_KINDS.filter(kind => !isViewer || kind !== 'repost').map((kind) => {const Icon = ICONS[kind];const labels = describeEngagement(kind);
           const isEngaged = engagement.isEngaged(kind);
           const isPending = engagement.isPending(kind);
           const total = engagement.count(kind);
@@ -80,7 +82,7 @@ export function EngagementBar({
             stroke: semanticColor
           } : {
             fill: 'none',
-            stroke: semanticColor
+            stroke: isViewer ? 'var(--project-control-foreground, currentColor)' : semanticColor
           };
           if (isPanel) {
             /*
@@ -124,7 +126,7 @@ export function EngagementBar({
           </button> : <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} title={isShared ? 'Shared' : 'Share'} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
           color: shareColor
         }} className={`side-panel-compact-control flex items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isRail ? 'h-10 w-10' : 'w-8'}`}>
-            <InterfaceIcon icon={SendIcon} size={interfaceIconSize} weight="regular" keepColor fill={isShared ? shareColor : 'none'} stroke={shareColor} />
+            <InterfaceIcon icon={isViewer ? ShareIcon : SendIcon} size={interfaceIconSize} weight="regular" keepColor fill={isShared && !isViewer ? shareColor : 'none'} stroke={shareColor} />
           </button>)}
       </div>
 

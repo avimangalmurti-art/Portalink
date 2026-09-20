@@ -20,10 +20,22 @@ export function MobileProjectIndexPortal({ anchorRef, children }: { anchorRef: R
       for (const name of ['--mobile-content-safe-top', '--mobile-content-safe-bottom']) {
         overlayRef.current.style.setProperty(name, style.getPropertyValue(name));
       }
+      const header = anchorRef.current.closest('[data-profile-page]')?.querySelector<HTMLElement>('[data-profile-header]');
+      const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
+      if (headerBottom > 0) overlayRef.current.style.setProperty('--mobile-project-panel-top', `${headerBottom + 8}px`);
+      else overlayRef.current.style.removeProperty('--mobile-project-panel-top');
     };
-    updateInsets();
+    const observer = new ResizeObserver(updateInsets);
+    const initialize = () => {
+      updateInsets();
+      const header = anchorRef.current?.closest('[data-profile-page]')?.querySelector('[data-profile-header]');
+      if (header) observer.observe(header);
+    };
+    initialize();
+    // A new viewer's parent ref can attach after this portalled child's layout effect.
+    const frame = requestAnimationFrame(initialize);
     window.addEventListener('resize', updateInsets);
-    return () => window.removeEventListener('resize', updateInsets);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener('resize', updateInsets); };
   }, [anchorRef, host]);
   return createPortal(<div data-presentation="mobile">
     <div ref={overlayRef} data-saved-change-scope="" data-mobile-project-view="" data-mobile-combined-rail="" className="mobile-project-index-overlay">{children}</div>

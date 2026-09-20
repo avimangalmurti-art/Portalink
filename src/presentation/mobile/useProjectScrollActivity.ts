@@ -1,5 +1,10 @@
 import { useEffect, type RefObject } from 'react';
 
+const SCROLL_IDLE_DELAY = 250;
+// Overview pages use a 320ms double-tap window. Wait before treating a tap as
+// chrome control so both pointer-up events still reach their page renderer.
+const SINGLE_TAP_DELAY = 340;
+
 // Only interface surfaces: page/image buttons remain part of the artwork.
 const controlsSelector = [
   '.mobile-navigation-layer', '.shared-profile-sidebar', '.mobile-project-back',
@@ -10,18 +15,21 @@ const controlsSelector = [
   '[data-mobile-project-view] .premium-viewer-exit-control',
   '[data-mobile-project-view] [data-viewer-page-control]',
   '[data-mobile-project-view] [data-focused-page-count]',
+  '[data-mobile-project-page-count]',
   '[data-mobile-project-view] button', '[data-mobile-project-view] audio',
 ].join(',');
 
-/** One mobile reading state for the app chrome and the media's native controls.
- * Scroll never changes layout or playback; only a completed tap restores chrome.
+/** One mobile reading state for app chrome and the media's native controls.
+ * A single artwork tap toggles chrome; scrolling hides it until movement stops.
  */
 export function useProjectScrollActivity(enabled: boolean, pathname: string, navigation: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const frame = navigation.current?.closest<HTMLElement>('[data-presentation="mobile"]');
     if (!enabled || !frame) return;
-    let hidden = false, scrollIntent = false, consumeClick = false;
-    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean } | null = null;
+    let hidden = false, scrollIntent = false;
+    let idleTimer: number | undefined, tapTimer: number | undefined;
+    let pendingTap: { target: Element; x: number; y: number; time: number } | null = null;
+    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean; doubleTap: boolean } | null = null;
     const controls = new Map<HTMLElement, boolean | null>();
     const videos = new Map<HTMLVideoElement, boolean>();
     const modalOpen = () => Boolean(frame.querySelector('[aria-modal="true"], [role="menu"]'));
@@ -34,6 +42,9 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       return Boolean(view && !view.closest('[inert], .screen-exit, [aria-hidden="true"]')) &&
         !target.closest('[inert], [data-project-reading-control], input, textarea, select, [contenteditable="true"]');
     };
+    const tapSurface = (target: Element) => target.closest('[role="button"], [data-focused-page-scroll]') ?? target.closest('[data-project-stage]');
+    const clearTap = () => { window.clearTimeout(tapTimer); tapTimer = undefined; pendingTap = null; };
+    const clearIdle = () => { window.clearTimeout(idleTimer); idleTimer = undefined; };
     const syncControls = () => {
       frame.querySelectorAll<HTMLElement>(controlsSelector).forEach(element => {
         if (!controls.has(element)) { controls.set(element, null); element.setAttribute('data-project-reading-control', ''); }
@@ -44,6 +55,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       });
     };
     const restore = () => {
+      clearTap(); clearIdle();
       hidden = false; scrollIntent = false;
       frame.removeAttribute('data-project-reading');
       controls.forEach((previous, element) => {
@@ -51,22 +63,37 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       });
       videos.forEach((previous, video) => { video.controls = previous; }); videos.clear();
     };
-    const scroll = (event: Event) => {
-      if (!scrollIntent || !inStage(event.target) || modalOpen() ||
-        frame.querySelector('[data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
+    const hide = () => {
       hidden = true;
       syncControls();
       frame.setAttribute('data-project-reading', '');
     };
+    const scroll = (event: Event) => {
+      if (!scrollIntent || !inStage(event.target) || modalOpen() ||
+        frame.querySelector('[data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
+      clearTap();
+      hide();
+      clearIdle();
+      idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
+    };
+    const scrollEnd = (event: Event) => { if (scrollIntent && hidden && inStage(event.target)) restore(); };
     const wheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && (event.deltaX || event.deltaY) && inStage(event.target) && !modalOpen()) scrollIntent = true;
+      clearTap();
+      scrollIntent = !event.ctrlKey && !event.metaKey && Boolean(event.deltaX || event.deltaY) && inStage(event.target) && !modalOpen();
     };
     const down = (event: PointerEvent) => {
-      consumeClick = false;
+      const previous = pendingTap;
+      clearTap();
       if (!event.isPrimary) { gesture = null; scrollIntent = false; return; }
-      if (event.button !== 0 || !inFrame(event.target) || modalOpen()) return;
+      if (event.button !== 0 || !inFrame(event.target) || modalOpen()) { gesture = null; return; }
       scrollIntent = false;
-      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage: inStage(event.target) };
+      const stage = inStage(event.target);
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage,
+        // Let media players, links, editing fields and 3D canvases own their taps.
+        tap: stage && !event.target.closest('audio, iframe, model-viewer, canvas[role="img"], a[href], button, [role="slider"], [role="menu"], [role="dialog"], [contenteditable="true"]') &&
+          (!event.target.closest('video') || hidden),
+        doubleTap: Boolean(previous && event.timeStamp - previous.time < 320 &&
+          Math.hypot(event.clientX - previous.x, event.clientY - previous.y) < 24 && tapSurface(previous.target) === tapSurface(event.target)) };
     };
     const move = (event: PointerEvent) => {
       if (!gesture || gesture.id !== event.pointerId) return;
@@ -82,18 +109,18 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     };
     const up = (event: PointerEvent) => {
       const start = gesture; gesture = null;
-      if (!hidden || !start || start.id !== event.pointerId || start.moved ||
+      if (!start || !start.tap || start.doubleTap || start.id !== event.pointerId || start.moved || !inStage(event.target) ||
         event.timeStamp - start.time > 450 || Math.hypot(event.clientX - start.x, event.clientY - start.y) > 8 || modalOpen()) return;
-      restore(); consumeClick = true;
-      event.preventDefault(); event.stopPropagation();
-    };
-    const click = (event: MouseEvent) => {
-      if (!consumeClick) return;
-      consumeClick = false;
-      event.preventDefault(); event.stopImmediatePropagation();
+      const target = event.target;
+      pendingTap = { target, x: event.clientX, y: event.clientY, time: event.timeStamp };
+      tapTimer = window.setTimeout(() => {
+        clearTap();
+        if (!target.isConnected || !inStage(target) || modalOpen()) return;
+        if (hidden) restore(); else hide();
+      }, SINGLE_TAP_DELAY);
     };
     const key = (event: KeyboardEvent) => {
-      consumeClick = false;
+      clearTap();
       if (!hidden || !['Tab', 'Escape'].includes(event.key)) return;
       restore();
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
@@ -102,23 +129,23 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const observer = new MutationObserver(() => { if (hidden && modalOpen()) restore(); syncControls(); });
     observer.observe(frame, { childList: true, subtree: true });
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
+    document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
     document.addEventListener('pointerdown', down, true);
     document.addEventListener('pointermove', move, true);
     document.addEventListener('pointerup', up, true);
     document.addEventListener('pointercancel', cancel, true);
-    document.addEventListener('click', click, true);
     document.addEventListener('keydown', key, true);
     return () => {
       observer.disconnect(); restore();
       controls.forEach((_, element) => element.removeAttribute('data-project-reading-control'));
       document.removeEventListener('scroll', scroll, true);
+      document.removeEventListener('scrollend', scrollEnd, true);
       document.removeEventListener('wheel', wheel, true);
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointermove', move, true);
       document.removeEventListener('pointerup', up, true);
       document.removeEventListener('pointercancel', cancel, true);
-      document.removeEventListener('click', click, true);
       document.removeEventListener('keydown', key, true);
     };
   }, [enabled, pathname, navigation]);

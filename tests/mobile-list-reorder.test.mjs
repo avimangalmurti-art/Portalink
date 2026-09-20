@@ -148,9 +148,19 @@ test('visitor index has no reordering and WEB keeps its original drag group', ()
   assert.equal(all(h.render()).filter(node => node.type === ReorderGroup).length, 1);
 });
 
-test('mobile project writes are gated while loading, saving or searching a partial list', () => {
+test('project writes are gated during unavailable arrangements, partial search, and MOBILE display sorting', () => {
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /mobileReorderDisabled=\{arrangement\.isLoading \|\| Boolean\(arrangement\.loadError\) \|\| arrangement\.isSaving \|\| Boolean\(query\.trim\(\)\)\}/);
+  const expression = source.match(/mobileReorderDisabled=\{([^}]+)\}/)?.[1];
+  assert.ok(expression);
+  const evaluate = (overrides = {}) => vm.runInNewContext(expression, {
+    arrangement: { isLoading: false, loadError: null, isSaving: false }, query: '', isMobile: true, mobileSort: 'saved', ...overrides,
+  });
+  assert.equal(evaluate(), false);
+  for (const key of ['isLoading', 'loadError', 'isSaving']) assert.equal(evaluate({ arrangement: { [key]: key === 'loadError' ? 'Unavailable' : true } }), true);
+  assert.equal(evaluate({ query: 'filtered' }), true);
+  assert.equal(evaluate({ mobileSort: 'recent' }), true);
+  assert.equal(evaluate({ mobileSort: 'title' }), true);
+  assert.equal(evaluate({ isMobile: false, mobileSort: 'recent' }), false, 'MOBILE sorting never blocks WEB arrangement');
 });
 
 // Exercise the installed sensor's gesture lifecycle as well as our component
@@ -278,7 +288,7 @@ test('floating mobile rows only navigate, with owner reordering kept in the menu
   const ordinaryRow = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch }, actions);
   assert.equal(ordinaryRow.props.reorderActivator.onTouchStart, activateTouch);
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /<ProjectIndexList mobileReorderFromMenu=\{mobileProjectView\}/);
+  assert.match(source, /<ProjectIndexList[^>]*mobileReorderFromMenu=\{isMobile\}/);
 });
 
 

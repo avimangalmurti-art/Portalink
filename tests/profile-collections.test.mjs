@@ -405,6 +405,21 @@ test('selected mobile projects hide the profile header and restore it on return 
   }
 });
 
+test('opening mobile project navigation restores the same profile identity without relocating content', () => {
+  const child = React.createElement('section', { 'aria-label': 'Project viewer' });
+  for (const presentation of ['mobile', 'web']) {
+    const h = profileHarness('', { presentation });
+    for (const mobileProjectIndexOpen of [false, true, false]) {
+      const tree = h.render({ mobileContent: child, mobileProjectSelected: true, mobileProjectIndexOpen });
+      const header = React.Children.toArray(tree.props.children)[0];
+      const visible = presentation === 'mobile' && mobileProjectIndexOpen;
+      assert.equal(header.props.className, visible ? 'profile-header-region contents' : 'hidden');
+      assert.equal(header.props['data-mobile-project-header-preview'], visible ? '' : undefined);
+      assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children, child);
+    }
+  }
+});
+
 test('mobile view switches keep the same expanded profile tools and use one navigation callback', () => {
   const selected = [];
   const h = profileHarness('', { presentation: 'mobile', props: { onMobileViewChange: view => selected.push(view) } });
@@ -442,17 +457,26 @@ test('mobile profile count navigation always targets the viewed profile', () => 
 });
 
 test('workspace keeps one child position and only MOBILE displays the profile frame', () => {
+  let indexOpen = false;
   const { MobileProfileWorkspace } = compile('../src/presentation/mobile/MobileProfileWorkspace.tsx', name => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
-    if (name === 'react') return React;
+    if (name === 'react') return { ...React, useState: () => [indexOpen, value => { indexOpen = value; }] };
     return {};
   });
   const overview = React.createElement('profile', { profile: { id: 'viewed-creator' } });
   const child = React.createElement('project');
   const result = MobileProfileWorkspace({ overview, children: child, projectSelected: true });
   assert.equal(result.props.profile.id, 'viewed-creator');
-  assert.equal(result.props.mobileContent, child);
+  assert.equal(result.props.mobileContent.type, child.type);
+  assert.equal(result.props.mobileContent.key, child.key);
+  assert.equal(result.props.mobileProjectIndexOpen, false);
+  result.props.mobileContent.props.onMobileIndexOpenChange(true);
+  const opened = MobileProfileWorkspace({ overview, children: child, projectSelected: true });
+  assert.equal(opened.props.mobileProjectIndexOpen, true);
+  assert.equal(opened.props.mobileContent.type, child.type);
+  opened.props.mobileContent.props.onMobileIndexOpenChange(false);
+  assert.equal(MobileProfileWorkspace({ overview, children: child, projectSelected: true }).props.mobileProjectIndexOpen, false);
   assert.equal(result.props.mobileContentView, 'projects');
   assert.equal(result.props.mobileProjectSelected, true);
   const portals = MobileProfileWorkspace({ overview, children: React.createElement('portals'), view: 'portals' });

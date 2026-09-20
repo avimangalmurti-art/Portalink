@@ -10,6 +10,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobileReorderList, type MobileReorderActivator, type MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
+import { ProjectCover } from '../media/ProjectCover';
 type ProjectIndexListProps = {
   projects: ProjectEntry[];
   /** Each row reads in the face of the project it points at, keyed by id. */
@@ -25,6 +26,8 @@ type ProjectIndexListProps = {
   mobileReorderDisabled?: boolean;
   /** The floating MOBILE navigation list keeps reordering in its row menu. */
   mobileReorderFromMenu?: boolean;
+  /** MOBILE changes only the presentation of this same navigation list. */
+  mobileLayout?: 'list' | 'grid';
   onReorder: (projects: ProjectEntry[]) => void;
   onToggleHidden: (projectId: string) => void;
   onTogglePinned: (projectId: string) => void;
@@ -67,6 +70,7 @@ export function ProjectIndexList({
   isOwner,
   mobileReorderDisabled = false,
   mobileReorderFromMenu = false,
+  mobileLayout = 'list',
   onReorder,
   onToggleHidden,
   onTogglePinned,
@@ -117,7 +121,7 @@ export function ProjectIndexList({
 
   // A visitor reads a published index, so it is a plain list with no handles.
   if (!isOwner) {
-    return <div>
+    return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined}>
         {pinned.length > 0 && <>
             <SectionHeading label="Pinned" icon={PinIcon} />
             <ul className="side-panel-navigation-list m-0 list-none p-0">
@@ -164,7 +168,7 @@ export function ProjectIndexList({
         className="side-panel-navigation-list m-0 list-none p-0"
         onReorder={reordered => onReorder(combine(reordered))}
         renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={mobileReorderFromMenu ? undefined : activator} />} />;
-    return <div>
+    return <div data-mobile-project-layout={mobileLayout}>
       {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
       {rest.length > 0 && <>
         {(pinned.length > 0 || hidden.length > 0) && <SectionHeading label="Projects" icon={FolderIcon} />}
@@ -201,6 +205,21 @@ export function ProjectIndexList({
     </div>;
 }
 
+/** Mobile navigation shows the real cover and publication date without a preview popup. */
+function MobileProjectLabel({ project, isActive }: { project: ProjectEntry; isActive: boolean }) {
+  const published = project.publishedAt ? new Date(project.publishedAt) : null;
+  const validPublished = published && Number.isFinite(published.getTime()) ? published : null;
+  return <>
+    <span className="mobile-project-index-cover" aria-hidden="true">
+      <ProjectCover source={project.cover} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={project.coverAspectRatio} sizes="160px" />
+    </span>
+    <span className="mobile-project-index-copy">
+      <span className={`mobile-project-index-title ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)]'}`}>{project.title}</span>
+      {validPublished && <time className="mobile-project-index-date" dateTime={project.publishedAt}>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(validPublished)}</time>}
+    </span>
+  </>;
+}
+
 /** The shared row body: a tinted fill and weight mark the current document. */
 function ProjectLink({
   project,
@@ -217,17 +236,12 @@ function ProjectLink({
 
 
 }: {project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;onSelect: () => void;}) {
-  /*
-   * A row is the project's title and nothing else. The cover thumbnail, the audio
-   * length, and the waveform signature were removed: an index is read as a list of
-   * names, and per-row artwork and metadata made every row a small card competing
-   * with the work actually open beside it.
-   */
+  const isMobile = usePresentation() === 'mobile';
   return <div className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-        <span data-font-preview="" style={{
+        {isMobile ? <MobileProjectLabel project={project} isActive={isActive} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
-      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>
+      }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
       </button>
     </div>;
 }
@@ -297,9 +311,9 @@ function ProjectRow({
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
         <button {...reorderActivator} type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] py-1 pl-1.5 ${isMobile ? 'pr-14' : 'pr-10'} text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
-          <span data-font-preview="" style={{
+          {isMobile ? <MobileProjectLabel project={project} isActive={isActive} /> : <span data-font-preview="" style={{
           fontFamily: typefaceStack
-        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>
+        }} className={`cdx-dense-label min-w-0 flex-1 ${isActive ? 'font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-secondary)]'}`} title={project.title}>{project.title}</span>}
         </button>
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit

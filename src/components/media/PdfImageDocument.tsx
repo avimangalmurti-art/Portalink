@@ -243,6 +243,8 @@ function PdfImagePage({
 
   return <div
     ref={hostRef}
+    data-project-page-number={pageNumber}
+    data-project-page-total={document.numPages}
     data-focused-page-scroll={isFocused ? '' : undefined}
     data-focused-page-loading={retainCanvasWhileLoading && paintedPageNumber !== pageNumber ? '' : undefined}
     role={isFocused ? undefined : 'button'}
