@@ -288,9 +288,9 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media portalink-splash-video"
         style={{ opacity: showVideo ? 1 : 0 }} />}
       {landing && <div className="mobile-share-landing-actions" aria-busy={!landing.ready}>
-        <button type="button" className="mobile-share-signin" disabled={!landing.ready} onClick={landing.onSignIn}>Sign in</button>
         <button type="button" className="mobile-share-create" disabled={!landing.ready} onClick={landing.onCreateAccount}>Create account</button>
         <div className="mobile-share-secondary">
+          <button type="button" className="mobile-share-signin" disabled={!landing.ready} onClick={landing.onSignIn}>Sign in</button>
           <button type="button" className="mobile-share-forgot" disabled={!landing.ready} onClick={landing.onForgotPassword}>Forgot password?</button>
           <button type="button" className="mobile-share-guest" disabled={!landing.ready} onClick={landing.onContinue}>{landing.continueLabel}</button>
         </div>

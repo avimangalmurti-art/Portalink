@@ -517,9 +517,9 @@ test('mobile welcome loops without the splash deadline and keeps all entry actio
   const actions=tree.props.children[2];
   assert.equal(actions.props['aria-busy'],false);
   assert.equal(actions.props.children[0].props.disabled,false);
-  assert.equal(actions.props.children[0].props.children,'Sign in');
-  assert.equal(actions.props.children[1].props.children,'Create account');
-  assert.equal(actions.props.children[2].props.children[0].props.children,'Forgot password?');
+  assert.equal(actions.props.children[0].props.children,'Create account');
+  assert.equal(actions.props.children[1].props.children[0].props.children,'Sign in');
+  assert.equal(actions.props.children[1].props.children[1].props.children,'Forgot password?');
   h.start(); h.paint(); assert.equal(h.completed,1);
   assert.equal(h.timers.size,0,'no 2200ms deadline interrupts healthy playback');
   for(let cycle=0;cycle<5;cycle++) {

@@ -192,7 +192,7 @@
   color: #071326;
   font-family: 'IBM Plex Sans', sans-serif;
 }
-[data-presentation='mobile'] :is(.mobile-share-signin, .mobile-share-create) {
+[data-presentation='mobile'] .mobile-share-create {
   min-height: clamp(52px, 6.8dvh, 60px);
   width: 100%;
   border-radius: 999px;
@@ -200,11 +200,10 @@
   font-size: 20px;
   font-weight: 500;
 }
-[data-presentation='mobile'] .mobile-share-signin { background: #071326; color: #fff; }
-[data-presentation='mobile'] .mobile-share-create { background: transparent; color: #071326; }
+[data-presentation='mobile'] .mobile-share-create { background: #071326; color: #fff; }
 [data-presentation='mobile'] .mobile-share-secondary { display: flex; flex-direction: column; align-items: center; margin-top: 4px; }
 [data-presentation='mobile'] .mobile-share-secondary button { min-height: 44px; }
-[data-presentation='mobile'] .mobile-share-forgot { color: #6f7682; font-size: 16px; }
+[data-presentation='mobile'] :is(.mobile-share-signin, .mobile-share-forgot) { color: #6f7682; font-size: 16px; }
 [data-presentation='mobile'] .mobile-share-guest { color: #6f7682; font-size: 12px; }
 [data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
 [data-presentation='mobile'] .mobile-share-landing-actions button:disabled { opacity: .55; cursor: wait; }
