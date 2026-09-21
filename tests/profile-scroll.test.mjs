@@ -121,7 +121,7 @@ function zoomHarness(enabled = true) {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();
-  const view = useContentZoom(enabled);
+  const view = useContentZoom(4, enabled);
   view.ref.current = {
     addEventListener: (type, handler) => listeners.set(type, handler),
     removeEventListener: (type, handler) => { if (listeners.get(type) === handler) listeners.delete(type); },
@@ -151,7 +151,7 @@ test('deliberate pinch or modified-wheel zoom remains available and listeners cl
     let prevented = false;
     h.listeners.get('wheel')({ deltaY: -20, [modifier]: true, preventDefault() { prevented = true; } });
     assert.equal(prevented, true);
-    assert.equal(h.state[0], h.initial[0] + 1);
+    assert.equal(h.state[0].columns, 3);
     h.cleanup.forEach((cleanup) => cleanup?.());
     assert.equal(h.listeners.size, 0);
   }
@@ -167,12 +167,12 @@ test('phone pinches resize only overview content, stay bounded, and ignore singl
   };
   h.listeners.get('touchstart')({ touches: touches(100) });
   assert.equal(move(125).prevented, true);
-  assert.equal(h.state[0], h.initial[0] + 1);
-  move(10000); assert.equal(h.state[0], 6);
-  move(1); assert.equal(h.state[0], 0);
-  move(100); assert.equal(h.state[0], h.initial[0], 'Reversing a pinch restores its starting size');
+  assert.equal(h.state[0].columns, 3);
+  move(10000); assert.equal(h.state[0].columns, 2);
+  move(1); assert.equal(h.state[0].columns, 13);
+  move(100); assert.equal(h.state[0].columns, 4, 'Reversing a pinch restores its starting size');
   h.listeners.get('touchend')();
-  move(200); assert.equal(h.state[0], h.initial[0]);
+  move(200); assert.equal(h.state[0].columns, 4);
   h.listeners.get('touchstart')({ touches: [touches(100)[0]] });
   h.listeners.get('touchmove')({ touches: [touches(100)[0]], cancelable: true, preventDefault() { assert.fail('Single-finger scroll must remain native'); } });
   h.cleanup.forEach(cleanup => cleanup?.());

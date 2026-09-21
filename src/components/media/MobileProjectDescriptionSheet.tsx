@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontalIcon, XIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useDescriptionSheetScrollBoundary } from '../../hooks/useDescriptionSheetScrollBoundary';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 
@@ -11,12 +12,17 @@ type Props = {
   typeface?: string;
   details?: React.ReactNode;
   editor?: ProjectManagement['editor'];
+  /** Profile Bio shares this reading surface while editing in its own form. */
+  contentLabel?: string;
+  emptyMessage?: string;
+  onEditContent?: () => void;
   onClose: () => void;
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, description, typeface, details, editor, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, description, typeface, details, editor, contentLabel = 'Description', emptyMessage = 'This project has no description.', onEditContent, onClose }: Props) {
   const viewportRef = useDialogViewport();
+  useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
@@ -30,7 +36,8 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
   const moved = useRef(false);
   const editing = editor?.projectId === projectId && editor.mode === 'description';
   const phase = editor?.phase;
-  const canEdit = Boolean(editor);
+  const canEdit = Boolean(editor || onEditContent);
+  const label = contentLabel.toLowerCase();
   const busy = editing && editor.isSaving;
   const dismiss = (target: 'close' | 'edit' = 'close') => {
     if (busy) return;
@@ -71,7 +78,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
     onDoubleClick={stop} onTouchMove={stop} onWheel={stop} onKeyDown={stop}>
     <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby="project-description-title"
       tabIndex={-1} data-media-interaction="" data-expanded={expanded || undefined} className="mobile-project-description-sheet">
-      <button type="button" className="project-description-grabber" aria-label={expanded ? 'Reduce description sheet' : 'Expand description sheet'} aria-expanded={expanded}
+      <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
         onClick={() => { if (!moved.current) setExpanded(value => !value); moved.current = false; }}
         onPointerDown={event => {
           if (!event.isPrimary || event.button !== 0 || busy) return;
@@ -103,15 +110,15 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>
       <header className="project-description-heading">
-        <h2 id="project-description-title">Description</h2>
-        {editor && !editing && <div className="project-description-menu">
-          <button ref={optionsRef} type="button" aria-label="Description options" aria-expanded={menuOpen} aria-controls="project-description-actions"
+        <h2 id="project-description-title">{contentLabel}</h2>
+        {canEdit && !editing && <div className="project-description-menu">
+          <button ref={optionsRef} type="button" aria-label={`${contentLabel} options`} aria-expanded={menuOpen} aria-controls="project-description-actions"
             onClick={event => { stop(event); setMenuOpen(value => !value); }}><MoreHorizontalIcon aria-hidden="true" /></button>
           {menuOpen && <div id="project-description-actions">
-            <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); setExpanded(true); editor.open(projectId, 'description'); }}>Edit description</button>
+            <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); if (editor) { setExpanded(true); editor.open(projectId, 'description'); } else onEditContent?.(); }}>{`Edit ${label}`}</button>
           </div>}
         </div>}
-        <button type="button" aria-label="Close description" disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>
+        <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>
       </header>
       {discard ? <div className="project-description-discard" role="alert">
         <p>Discard your description changes?</p>
@@ -128,8 +135,8 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
             disabled={busy || !editor.isDirty || editor.phase === 'loading'} aria-busy={busy}>{busy ? 'Saving…' : 'Save'}</button>}
         </footer>
       </form> : <>
-        <div className="project-description-body scrollbar-overlay" tabIndex={0} aria-label="Project description text">
-          <p data-font-preview="" style={{ fontFamily: typeface }}>{saved ? editor.result?.project.summary : description || 'This project has no description.'}</p>
+        <div className="project-description-body scrollbar-overlay" tabIndex={0} aria-label={contentLabel === 'Description' ? 'Project description text' : `${contentLabel} text`}>
+          <p data-font-preview="" style={{ fontFamily: typeface }}>{saved ? editor.result?.project.summary : description || emptyMessage}</p>
           {details && <div className="project-description-details">{details}</div>}
         </div>
         {saved && <footer className="project-description-saved"><span role="status">Description saved</span><button ref={doneRef} type="button" onClick={() => { void editor.close(); }}>Done</button></footer>}

@@ -20,12 +20,17 @@ export function useNavigationSwipe(direction: 'left' | 'right', onSwipe: () => v
   const suppressClick = useRef(false);
   return {
     onPointerDownCapture(event: PointerEvent<HTMLElement>) {
+      gesture.current = null;
       suppressClick.current = false;
       if (!event.isPrimary || event.pointerType === 'mouse') return;
       // React portal events bubble through this component even when the menu
       // lives outside its DOM. Such gestures belong to the menu, not the rail.
       const target = event.target as Element;
       if (!event.currentTarget.contains(target) || target.closest('[role="menu"], [role="dialog"], [role="alertdialog"], input, textarea, select, [contenteditable="true"]')) return;
+      // A compressed quick-navigation capsule owns horizontal panning. A dock
+      // whose destinations already fit keeps the existing sidebar swipe.
+      const dock = target.closest<HTMLElement>('.mobile-navigation-dock');
+      if (dock && dock.scrollWidth > dock.clientWidth) return;
       gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, axis: 'pending' };
     },
     onPointerMoveCapture(event: PointerEvent<HTMLElement>) {

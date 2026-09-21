@@ -31,6 +31,7 @@ export function AttachmentRenderer({
   onPreviewDocument,
   onFocusModeChange,
   controlsVisible,
+  videoActive,
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
@@ -67,7 +68,7 @@ export function AttachmentRenderer({
 
 
 
-}: {projectId: string;attachment: ProjectAttachment; /**
+}: {projectId: string;attachment: ProjectAttachment;videoActive?: boolean; /**
    * Every image the project holds, in order. A multi-image piece is ONE piece,
    * so it is read as stacked pages rather than as separate files. Absent falls
    * back to the active attachment alone.
@@ -110,7 +111,7 @@ export function AttachmentRenderer({
         </MediaFrame>;
     case 'video':
       return <MediaFrame>
-          <VideoAttachment attachment={attachment} conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
+          <VideoAttachment attachment={attachment} active={videoActive} conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
         </MediaFrame>;
     case 'model3d':
       return <MediaFrame>

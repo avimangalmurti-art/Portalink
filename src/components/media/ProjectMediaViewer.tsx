@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, HeartIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
+import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
+import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
 import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
@@ -82,6 +84,7 @@ export function ProjectMediaViewer({
   responseRailWidth,
   singlePanel,
   mobileNavigation,
+  videoSequence,
   projectId,
   projectTitle,
   projectSummary,
@@ -113,7 +116,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -131,9 +134,13 @@ export function ProjectMediaViewer({
   const deepLinkedAttachmentId = typeof window === 'undefined'
     ? null
     : new URLSearchParams(window.location.search).get('media');
-  const [activeId, setActiveId] = useState<string | null>(() => deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)
-    ? deepLinkedAttachmentId
-    : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
+  const resolveInitialAttachment = () => deepLinkedAttachmentId && attachments.some(attachment => attachment.id === deepLinkedAttachmentId)
+    ? deepLinkedAttachmentId : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null;
+  const [selection, setSelection] = useState(() => ({ scope: viewerMemoryKey, id: resolveInitialAttachment() }));
+  // Resolve a newly navigated project before paint, rather than briefly mounting
+  // its first (possibly non-video) attachment before the memory effect runs.
+  const activeId = selection.scope === viewerMemoryKey ? selection.id : resolveInitialAttachment();
+  const setActiveId = useCallback((id: string | null) => setSelection({ scope: viewerMemoryKey, id }), [viewerMemoryKey]);
   /**
    * Which of the two readings of the work the rail is showing. They share the one
    * area rather than stacking, because both are prose about the same piece and a
@@ -149,6 +156,14 @@ export function ProjectMediaViewer({
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
   const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
+  const [mobileEngagementOpen, setMobileEngagementOpen] = useState(false);
+  const mobileEngagementRef = useRef<HTMLElement>(null);
+  const mobileEngagementToggleRef = useRef<HTMLButtonElement>(null);
+  const closeMobileEngagement = useCallback(() => {
+    setMobileEngagementOpen(false);
+    mobileEngagementToggleRef.current?.focus({ preventScroll: true });
+  }, []);
+  useNavigationOutsideTap(isMobileViewer && mobileEngagementOpen && !mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive, mobileEngagementRef, closeMobileEngagement);
   const popupAnchorRef = useRef<HTMLDivElement>(null);
   const descriptionTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -157,6 +172,7 @@ export function ProjectMediaViewer({
   const closeMobilePopup = useCallback(() => setMobilePopup(null), []);
   useEffect(() => {
     setMobilePopup(null);
+    setMobileEngagementOpen(false);
   }, [projectId, isMobileViewer, mobileNavigation?.isIndexOpen, isImmersive]);
   useEffect(() => {
     setSharedInfoPanel('project');
@@ -170,7 +186,7 @@ export function ProjectMediaViewer({
     const rememberedAttachmentId = readViewerMemory(viewerMemoryKey).activeAttachmentId;
     setActiveId(rememberedAttachmentId && attachments.some((attachment) => attachment.id === rememberedAttachmentId) ? rememberedAttachmentId : null);
     setIsProjectShared(false);
-  }, [attachmentIdsKey, attachments, deepLinkedAttachmentId, viewerMemoryKey]);
+  }, [attachmentIdsKey, attachments, deepLinkedAttachmentId, viewerMemoryKey, setActiveId]);
   const revealControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
@@ -539,7 +555,17 @@ export function ProjectMediaViewer({
       {isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
-          {active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+          {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
+            videos={videoSequence.entries} activeId={`${projectId}:${active.id}`} onSelect={entry => {
+              updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
+              if (entry.projectId === projectId) setActiveId(entry.attachment.id);
+              else videoSequence.onSelectProject(entry.projectId);
+            }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
+              attachment={entry.attachment} videoActive={playing} showMediaInteractions={!readOnlyShare} isOwner={isOwner && entry.projectId === projectId}
+              processing={entry.projectId === projectId ? {
+                state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
+                isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
+              } : undefined} onClose={onClose} />} /> : active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
@@ -591,7 +617,10 @@ export function ProjectMediaViewer({
       {mobileNavigation?.isIndexOpen ? !isImmersive && <MobileProjectIndexPortal anchorRef={viewerRootRef}>
         <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={mobileNavigation.onCloseIndex} />
         {mobileNavigation.index}
-      </MobileProjectIndexPortal> : isMobileViewer ? <aside data-project-response-rail="" data-rail-expanded="false" aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto">
+      </MobileProjectIndexPortal> : isMobileViewer ? <aside ref={mobileEngagementRef} data-project-response-rail="" data-rail-expanded="false" data-mobile-engagement-open={mobileEngagementOpen ? 'true' : 'false'} aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto" onKeyDown={event => {
+        if (event.key === 'Escape' && mobileEngagementOpen && !mobilePopup) { event.preventDefault(); event.stopPropagation(); closeMobileEngagement(); }
+      }}>
+        <div id="mobile-project-engagement-actions" data-mobile-engagement-content="" hidden={!mobileEngagementOpen}>
         <div ref={popupAnchorRef} data-mobile-project-popup-controls="" className="side-panel-navigation-list items-center">
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>
@@ -611,6 +640,10 @@ export function ProjectMediaViewer({
             <InterfaceIcon icon={AlertCircleIcon} size="lg" weight="medium" />
           </button>
         </div>}
+        </div>
+        <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobileEngagementOpen(open => !open)}>
+          <InterfaceIcon icon={mobileEngagementOpen ? XIcon : HeartIcon} size="lg" weight="regular" />
+        </button>
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>

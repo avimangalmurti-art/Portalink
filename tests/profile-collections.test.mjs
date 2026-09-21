@@ -184,6 +184,7 @@ function profileHarness(search = '', options = {}) {
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
+    if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1 };
     if (name.endsWith('/viewer')) return { canAuthor: (role) => role === 'owner', needsAccount: (role) => role === 'guest' };
@@ -377,10 +378,9 @@ test('mobile project lists retain profile identity and tools, and count controls
     assert.deepEqual(selectedViews, ['portals', 'projects', 'followers', 'following']);
     assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Edit profile'), viewerRole === 'owner');
     if (viewerRole === 'owner') {
-      nodes(tree).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
-      tree = h.render();
+      assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
       assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Cards per row'), false);
-      assert.equal(nodes(tree).some(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')), false);
+      assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Reorder projects').props.disabled, true);
     }
   }
 });
@@ -501,7 +501,7 @@ test('workspace keeps one child position and only MOBILE displays the profile fr
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.className, 'contents');
 });
 
-test('mobile profile links appear below the action row only while Profile options is open', () => {
+test('mobile profile links appear above the action row only while Profile options is open', () => {
   const links = [{ label: 'Website', href: 'https://example.com', iconName: 'globe' }];
   for (const viewerRole of ['owner', 'visitor']) {
     const h = profileHarness('', { presentation: 'mobile', viewerRole, links,
@@ -518,12 +518,11 @@ test('mobile profile links appear below the action row only while Profile option
     const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
     const children = React.Children.toArray(tools.props.children.props.children);
     const linkRow = children.find(node => node.props?.['data-mobile-profile-links'] !== undefined);
-    assert.equal(children.at(-1), linkRow);
     assert.equal(linkRow.props.children.type, 'PlatformGrid');
     assert.equal(linkRow.props.children.props.links, links);
     if (viewerRole === 'owner') {
       const actions = children.find(node => node.props?.['data-profile-owner-actions'] !== undefined);
-      assert.ok(children.indexOf(actions) < children.indexOf(linkRow));
+      assert.ok(children.indexOf(linkRow) < children.indexOf(actions));
     }
     toggle().props.onClick();
     tree = h.render();
@@ -567,13 +566,15 @@ test('mobile owner reorder is available through the three dots with no passive h
   assert.equal(wall(owner.render()).props.reorderMode, undefined);
   for (const options of [{ viewerRole: 'visitor' }, { viewerRole: 'guest' }, { props: { mobileContent: React.createElement('project') } }]) {
     const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, ...options });
-    assert.equal(reorderControl(openProfileOptions(h)), undefined);
+    const control = reorderControl(openProfileOptions(h));
+    if (options.props) assert.equal(control.props.disabled, true);
+    else assert.equal(control, undefined);
     assert.equal(wall(h.render())?.props.reorderMode, undefined);
     assert.equal(h.outside().enabled, false);
   }
   for (const view of ['portals', 'followers', 'following']) {
     const h = profileHarness(`view=${view}`, { presentation: 'mobile', projects: reorderProjects });
-    assert.equal(reorderControl(openProfileOptions(h)), undefined);
+    assert.equal(reorderControl(openProfileOptions(h)).props.disabled, true);
     assert.equal(wall(h.render())?.props.reorderMode, undefined);
   }
   const shared = profileHarness('', { presentation: 'mobile', projects: reorderProjects, isSharedView: true }).render();
@@ -591,6 +592,34 @@ test('mobile owner reorder is available through the three dots with no passive h
   nodes(web.render()).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
   nodes(web.render()).find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')).props.onClick();
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
+});
+
+test('mobile owner header shows exactly the five ordered icon actions and uses real callbacks', () => {
+  const calls = [];
+  const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, props: {
+    onEditProfile: () => calls.push('edit'), onCollaboration: () => calls.push('collaboration'),
+    onOpenActivity: () => calls.push('activity'), onAddCategory: () => calls.push('add'),
+    shareUrl: 'https://example.com/share/owner', onBeforeShare: async () => calls.push('prepare-share'),
+  } });
+  let tree = openProfileOptions(h);
+  const row = nodes(tree).find(node => node.props?.['data-profile-owner-actions'] !== undefined);
+  const actions = React.Children.toArray(row.props.children);
+  assert.deepEqual(actions.map(node => node.type === 'ProfileShareMenu' ? 'Copy public link' : node.props['aria-label']),
+    ['Bio', 'Collaboration', 'Edit profile', 'Copy public link', 'Reorder projects']);
+  assert.equal(actions[3].props.compact, true);
+  assert.equal(actions[3].props.shareUrl, 'https://example.com/share/owner');
+  assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
+  assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
+  actions[1].props.onClick(); actions[2].props.onClick();
+  assert.deepEqual(calls, ['collaboration', 'edit']);
+  actions[0].props.onClick();
+  tree = h.render();
+  const bio = nodes(tree).find(node => node.type === 'MobileProjectDescriptionSheet');
+  assert.equal(bio.props.contentLabel, 'Bio');
+  assert.equal(bio.props.emptyMessage, 'No bio yet.');
+  bio.props.onEditContent();
+  assert.deepEqual(calls, ['collaboration', 'edit', 'edit']);
+  assert.equal(nodes(h.render()).some(node => node.type === 'MobileProjectDescriptionSheet'), false);
 });
 
 test('three-dot reorder entry keeps duplicate outside saves and retry recovery intact', async () => {

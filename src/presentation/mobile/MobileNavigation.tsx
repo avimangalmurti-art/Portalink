@@ -29,9 +29,9 @@ function NavigationOrientationIcon(props: React.SVGProps<SVGSVGElement>) {
   </svg>;
 }
 
-function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' | 'dock' | 'profile' }) {
+function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' | 'dock' }) {
   const shared = {
-    className: `mobile-nav-destination nav-button ${variant === 'rail' ? 'shape-compact' : variant === 'profile' ? 'mobile-dock-profile' : 'mobile-dock-destination'}`,
+    className: `mobile-nav-destination nav-button ${variant === 'rail' ? 'shape-compact' : 'mobile-dock-destination'}`,
     'aria-label': item.disabled ? `${item.label} unavailable` : item.label,
     'aria-current': item.active ? 'page' as const : undefined,
     title: item.disabled ? `${item.label} is not available yet` : item.label,
@@ -90,9 +90,8 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
       <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
       <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
         <div className="mobile-navigation-dock">
-          {[messages, home].map(item => <Destination key={item.label} item={item} variant="dock" />)}
+          {[messages, studio, home, profile].map(item => <Destination key={item.label} item={item} variant="dock" />)}
         </div>
-        <Destination item={profile} variant="profile" />
       </motion.nav>
     </div>
   </div>;

@@ -68,6 +68,60 @@ test('portaled account menus and editable controls keep their own gestures', () 
   }
 });
 
+test('an overflowing quick-navigation capsule keeps horizontal gestures and clicks for native scrolling', () => {
+  for (const [direction, from, to] of [['right', 10, 70], ['left', 70, 10]]) {
+    let captured = 0;
+    const p = harness().useNavigationSwipe(direction, () => assert.fail('Native dock scrolling must not toggle the sidebar'));
+    const dock = { clientWidth: 70, scrollWidth: 144 };
+    const overrides = {
+      target: { closest: selector => selector === '.mobile-navigation-dock' ? dock : null },
+      currentTarget: { contains: () => true, setPointerCapture() { captured++; } },
+    };
+    // A previous unfinished press must not leak into the excluded dock gesture.
+    p.onPointerDownCapture(pointer(from, 10, 0));
+    p.onPointerDownCapture(pointer(from, 10, 100, overrides));
+    p.onPointerMoveCapture(pointer(to, 10, 130, overrides));
+    p.onPointerUpCapture(pointer(to, 10, 160, overrides));
+    assert.equal(captured, 0);
+    const event = click(); p.onClickCapture(event);
+    assert.equal(event.prevented, false);
+    assert.equal(event.stopped, false);
+  }
+});
+
+test('a quick-navigation capsule with no horizontal overflow retains sidebar swipes', () => {
+  for (const scrollWidth of [143, 144]) {
+    let toggled = 0, captured = 0;
+    const p = harness().useNavigationSwipe('right', () => toggled++);
+    const dock = { clientWidth: 144, scrollWidth };
+    const overrides = {
+      target: { closest: selector => selector === '.mobile-navigation-dock' ? dock : null },
+      currentTarget: { contains: () => true, setPointerCapture() { captured++; } },
+    };
+    p.onPointerDownCapture(pointer(10, 10, 0, overrides));
+    p.onPointerMoveCapture(pointer(70, 10, 30, overrides));
+    p.onPointerUpCapture(pointer(70, 10, 60, overrides));
+    assert.equal(toggled, 1);
+    assert.equal(captured, 1);
+    const event = click(); p.onClickCapture(event);
+    assert.equal(event.prevented, true);
+    assert.equal(event.stopped, true);
+  }
+});
+
+test('a newly ignored press clears any unfinished sidebar gesture', () => {
+  for (const overrides of [
+    { pointerType: 'mouse' }, { isPrimary: false },
+    { currentTarget: { contains: () => false } },
+    { target: { closest: () => ({ role: 'menu' }) } },
+  ]) {
+    const p = harness().useNavigationSwipe('right', () => assert.fail('The previous press must have been cleared'));
+    p.onPointerDownCapture(pointer(10, 10, 0));
+    p.onPointerDownCapture(pointer(10, 10, 100, overrides));
+    p.onPointerUpCapture(pointer(70, 10, 160));
+  }
+});
+
 test('destination callbacks never receive the click event as a message recipient', () => {
   const exports = {};
   const source = fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8');
@@ -121,7 +175,8 @@ function navigationHarness(pathname = '/') {
     const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, floating] = React.Children.toArray(tree.props.children);
     const [toggle, dock] = React.Children.toArray(floating.props.children);
-    const [group, profile] = React.Children.toArray(dock.props.children);
+    const [group] = React.Children.toArray(dock.props.children);
+    const profile = React.Children.toArray(group.props.children).find(child => child.props.item.label === 'Profile');
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
     const railItems = railNav ? React.Children.toArray(railNav.props.children) : [];
     const railToggle = railItems.find(child => child.props['aria-controls'] === rail.props.id) ?? null;
@@ -164,7 +219,7 @@ test('mobile sidebar ends with Profile and has no Back destination', () => {
   assert.equal(destinations.at(-1), 'Profile');
   assert.equal(destinations.includes('Back'), false);
   assert.ok(ui.appearance);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Home']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);
 });
 
 test('the mobile appearance control switches the shared theme both ways and updates its icon and label', () => {
@@ -203,8 +258,8 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   assert.equal(layerType, 'div');
   assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Home']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), []);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Studio']);
   for (const expectedHidden of [false, true, false, true]) {
     ui.toggle.props.onClick(); ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], expectedHidden);
@@ -278,9 +333,10 @@ test('rail and dock swipes alternate navigation without activating destinations 
   }
 });
 
-test('the separate Profile button preserves signed-in links and signed-out entry', () => {
+test('Profile shares the destination capsule and preserves signed-in links and signed-out entry', () => {
   const h = navigationHarness(); let requested = 0;
   const guest = h.render({ onProfile: () => requested++ }).profile;
+  assert.match(guest.props.className, /mobile-dock-destination/);
   assert.equal(guest.type, 'button'); guest.props.onClick(); assert.equal(requested, 1);
   const member = h.render({ profileHref: '/p/my-profile', isProfileActive: true }).profile;
   assert.equal(member.type, 'a'); assert.equal(member.props.to, '/p/my-profile');

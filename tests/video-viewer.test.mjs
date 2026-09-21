@@ -60,9 +60,19 @@ test('queued and failed conversion never blocks an available original; missing s
 });
 
 const ErrorState = () => null, LoadingState = () => null;
-function harness(attachment = { ...original, kind: 'video' }, conversion) {
+function harness(attachment = { ...original, kind: 'video' }, conversion, mobile = true) {
   const slots = []; let cursor = 0, refreshes = 0;
-  const react = { ...React, useState: initial => {
+  let active = true;
+  const pending = [];
+  const calls = [];
+  const nativeVideo = { play() { calls.push('play'); return Promise.resolve(); }, pause() { calls.push('pause'); } };
+  const react = { ...React, useRef(initial) { const index = cursor++; return slots[index] ??= { current: initial }; },
+    useEffect(effect, deps) {
+      const index = cursor++, old = slots[index];
+      if (!old || deps.some((value, i) => !Object.is(value, old.deps[i]))) pending.push(() => {
+        old?.cleanup?.(); slots[index] = { deps, cleanup: effect() };
+      });
+    }, useState: initial => {
     const index = cursor++;
     if (!(index in slots)) slots[index] = initial;
     return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
@@ -72,9 +82,16 @@ function harness(attachment = { ...original, kind: 'video' }, conversion) {
     if (name.endsWith('/videoPlayback')) return playback;
     if (name.endsWith('/StateViews')) return { ErrorState, LoadingState };
     if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => ({ invalidateProfiles: () => refreshes++ }) };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => mobile ? 'mobile' : 'web' };
     return { Button: () => null };
   });
-  return { render() { cursor = 0; const element = VideoAttachment({ attachment, conversion }); return element.type(element.props); }, get refreshes() { return refreshes; } };
+  return { calls, setActive(value) { active = value; }, render() {
+    cursor = 0; const element = VideoAttachment({ attachment, conversion, active }); const tree = element.type(element.props);
+    const video = find(tree, 'video');
+    if (video) video.ref.current = nativeVideo;
+    while (pending.length) pending.shift()();
+    return tree;
+  }, get refreshes() { return refreshes; } };
 }
 function all(node) {
   if (!React.isValidElement(node)) return [];
@@ -92,8 +109,37 @@ test('selected videos autoplay muted inline and retain native playback controls'
   assert.doesNotMatch(video.props.className, /opacity-0|hidden/);
   assert.equal(video.props.autoPlay, true);
   assert.equal(video.props.muted, true);
+  assert.equal(video.props.loop, true);
   video.props.onPlay();
   assert.equal(find(h.render(), LoadingState), undefined);
+});
+
+test('scrolling plays only the selected video and ordinary renders preserve manual pause', () => {
+  const h = harness();
+  h.render();
+  assert.deepEqual(h.calls, ['play']);
+  h.render();
+  assert.deepEqual(h.calls, ['play'], 'A parent rerender must not restart playback');
+  h.setActive(false);
+  const inactive = find(h.render(), 'video');
+  assert.equal(inactive.props.autoPlay, false);
+  assert.equal(h.calls.at(-1), 'pause');
+  let paused = false;
+  inactive.props.onPlay({ currentTarget: { pause() { paused = true; } } });
+  assert.equal(paused, true, 'An inactive clip cannot continue playing over the selected one');
+  h.setActive(true);
+  const active = find(h.render(), 'video');
+  assert.equal(active.props.loop, true);
+  assert.equal(active.props.autoPlay, true);
+  assert.equal(h.calls.at(-1), 'play');
+});
+
+test('WEB retains its native single-video autoplay behavior', () => {
+  const h = harness(undefined, undefined, false);
+  const video = find(h.render(), 'video');
+  assert.equal(video.props.loop, undefined);
+  assert.equal(video.props.autoPlay, true);
+  assert.deepEqual(h.calls, []);
 });
 
 test('a failed converted copy falls back to the original and stops after both fail', () => {

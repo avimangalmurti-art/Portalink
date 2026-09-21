@@ -6,7 +6,7 @@ import React from 'react';
 import ts from 'typescript';
 
 function nodes(node) { return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : []; }
-function harness(owner = false) {
+function harness(owner = false, props = {}) {
   let cursor = 0, closes = 0, escape;
   const slots = [], calls = [];
   const style = { removeProperty(name) { delete this[name]; } };
@@ -30,7 +30,7 @@ function harness(owner = false) {
   } });
   const render = () => {
     cursor = 0;
-    const tree = exports.MobileProjectDescriptionSheet({ projectId: 'work', description: 'Original', editor: owner ? editor : undefined, onClose: () => { closes++; } });
+    const tree = exports.MobileProjectDescriptionSheet({ projectId: 'work', description: 'Original', editor: owner ? editor : undefined, onClose: () => { closes++; }, ...props });
     nodes(tree).find(n => n.type === 'section').ref.current = panel;
     return tree;
   };
@@ -52,6 +52,22 @@ test('description opens at half height, expands by drag or accessible button, an
   assert.equal(h.panel.style.height, undefined);
   assert.equal(h.button('Description options'), undefined, 'Visitors cannot edit');
   h.escape(); assert.equal(h.closes, 1);
+});
+
+test('profile Bio shares sheet sizing and dismissal but opens the profile editor for changes', () => {
+  let edits = 0;
+  const h = harness(false, { contentLabel: 'Bio', description: '', emptyMessage: 'No bio yet.', onEditContent: () => edits++ });
+  const section = () => nodes(h.render()).find(node => node.type === 'section');
+  assert.equal(section().props['data-expanded'], undefined);
+  assert.ok(nodes(h.render()).some(node => node.type === 'h2' && node.props.children === 'Bio'));
+  assert.ok(nodes(h.render()).some(node => node.type === 'p' && node.props.children === 'No bio yet.'));
+  h.click('Expand bio sheet');
+  assert.equal(section().props['data-expanded'], true);
+  h.click('Bio options'); h.click('Edit bio');
+  assert.equal(edits, 1);
+  assert.deepEqual(h.calls, [], 'Bio does not invoke project editing services');
+  h.click('Close bio');
+  assert.equal(h.closes, 1);
 });
 
 test('owner menu uses the existing editor and dirty close requires an explicit discard', async () => {

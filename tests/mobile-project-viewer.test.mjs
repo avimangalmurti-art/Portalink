@@ -8,6 +8,7 @@ import ts from 'typescript';
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
 const MobileProjectDescriptionSheet = () => null;
+const MobileVideoSequence = () => null;
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
@@ -17,7 +18,8 @@ const button = (tree, label) => nodes(tree).find(node => node.type === 'button' 
 function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [];
-  const swipeCalls = [], navigationCalls = [];
+  const viewerMemory = new Map(), memoryWrites = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
@@ -34,11 +36,15 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
   }).outputText, { exports, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
+    if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
     if (name.endsWith('/MobileProjectDescriptionSheet')) return { MobileProjectDescriptionSheet };
     if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
+    if (name.endsWith('/useNavigationOutsideTap')) return { useNavigationOutsideTap: (open, layer, onClose) => {
+      outsideCalls.push({ open, layer, onClose });
+    } };
     if (name.endsWith('/useProjectBackSwipe')) return { useProjectBackSwipe: (surfaceRef, options) => {
       swipeCalls.push({ surfaceRef, ...options });
       return swipeHandlers;
@@ -46,19 +52,26 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: id => { serviceIds.push(id); return engagement; } };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: id => { serviceIds.push(id); return {}; } };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
-    if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
+    if (name.endsWith('/viewerMemory')) return {
+      readViewerMemory: key => viewerMemory.get(key) ?? {},
+      updateViewerMemory(key, patch) {
+        viewerMemory.set(key, { ...viewerMemory.get(key), ...patch });
+        memoryWrites.push([key, patch.activeAttachmentId]);
+      },
+    };
     if (name.endsWith('/projectContinuity')) return { projectContinuityStyle: () => ({}) };
     return new Proxy({}, { get: () => () => null });
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { attachments, serviceIds, swipeCalls, swipeHandlers, navigationCalls, onBack, openIndex() { panel = 'index'; }, render() {
+  return { attachments, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
       mobileNavigation: mobile ? { index, isIndexOpen: panel === 'index', onOpenIndex: () => { panel = 'index'; }, onCloseIndex: () => { panel = null; }, onBack } : undefined,
       isRailOpen: panel === 'response', onRailOpenChange: open => { panel = open ? 'response' : null; },
       processing: { resolveState: () => 'ready', resolveMessage: () => '', canRetry: () => false, retrying: [] }, onClose,
+      ...overrides,
     });
   } };
 }
@@ -78,6 +91,61 @@ test('project overview attaches mobile swipe Back to the work stage and uses nav
   button(tree, 'second, Video').props.onClick();
   h.render();
   assert.equal(h.swipeCalls.at(-1).scope, 'project:second', 'Switching content must invalidate a gesture from the previous attachment');
+});
+
+test('video scrolling remembers its attachment before canonical navigation and opens mixed-media targets without a first-frame fallback', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ readOnlyShare }), navigations = [];
+    const image = { id: 'target-image', kind: 'image', displayName: 'Artwork', typeLabel: 'Image' };
+    const targetVideos = ['target-video', 'target-video-2'].map(id => ({ id, kind: 'video', displayName: id, typeLabel: 'Video' }));
+    const entries = [
+      { projectId: 'project', projectTitle: 'Work', attachment: h.attachments[0] },
+      ...targetVideos.map(attachment => ({ projectId: 'target', projectTitle: 'Target project', attachment })),
+    ];
+    const memoryScope = readOnlyShare ? 'shared' : 'workspace';
+    const videoSequence = { scope: `${memoryScope}:creator:portal`, entries, onSelectProject(id) {
+      assert.equal(h.viewerMemory.get(`${memoryScope}:project:${id}`).activeAttachmentId, 'target-video',
+        'The selected video must already be remembered when the route handler runs');
+      navigations.push(id);
+    } };
+    const sequence = tree => nodes(tree).find(node => node.type === MobileVideoSequence);
+    const opening = sequence(h.render({ videoSequence }));
+    assert.equal(opening.props.activeId, 'project:first');
+    opening.props.onSelect(entries[1]);
+    assert.deepEqual(navigations, ['target']);
+    assert.deepEqual(h.memoryWrites.at(-1), [`${memoryScope}:project:target`, 'target-video']);
+
+    const targetProps = { videoSequence, projectId: 'target', projectTitle: 'Target project', attachments: [image, ...targetVideos] };
+    // This harness does not run effects: this is the target route's first render.
+    const target = sequence(h.render(targetProps));
+    assert.ok(target, 'The video sequence must remain mounted although the target project begins with an image');
+    assert.equal(target.key, opening.key, 'Cross-project navigation retains the same sequence identity');
+    assert.equal(target.props.activeId, 'target:target-video');
+    assert.deepEqual(h.serviceIds.slice(-2), readOnlyShare ? [null, null] : ['target', 'target']);
+    const playing = target.props.renderVideo(entries[1], true);
+    assert.equal(playing.props.projectId, 'target');
+    assert.equal(playing.props.attachment.id, 'target-video');
+    assert.equal(playing.props.videoActive, true);
+    assert.equal(target.props.renderVideo(entries[0], false).props.videoActive, false);
+
+    target.props.onSelect(entries[2]);
+    assert.deepEqual(navigations, ['target'], 'Changing videos inside one project does not navigate again');
+    assert.equal(sequence(h.render(targetProps)).props.activeId, 'target:target-video-2');
+    assert.deepEqual(h.memoryWrites.at(-1), [`${memoryScope}:project:target`, 'target-video-2']);
+  }
+});
+
+test('video sequences leave WEB and non-video mobile attachments in their existing viewers', () => {
+  for (const options of [{ mobile: false }, { mediaKind: 'document' }, { mediaKind: 'image' }, { mediaKind: 'audio' }]) {
+    const h = harness(options);
+    const videoSequence = { scope: 'creator:portal', entries: [
+      { projectId: 'project', attachment: { id: 'video-one', kind: 'video' } },
+      { projectId: 'other', attachment: { id: 'video-two', kind: 'video' } },
+    ], onSelectProject() { assert.fail('Unrelated viewers must not navigate through videos'); } };
+    const tree = h.render({ videoSequence });
+    assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
+    assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment, h.attachments[0]);
+  }
 });
 
 test('mobile overview Back yields to focused pages, the project index and response popups', () => {
@@ -161,6 +229,107 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   const tree = h.render();
   assert.equal(nodes(tree).find(node => node.type === MediaCommentsPopover).props.label, 'Engagement update');
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
+});
+
+test('the mobile engagement toggle opens and closes local controls without changing WEB rail preferences', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ readOnlyShare });
+    const props = { onRailOpenChange: () => assert.fail('The mobile toggle must not change WEB rail preferences') };
+    let tree = h.render(props);
+    const toggle = button(tree, 'Show project engagement');
+    const content = withProp(tree, 'data-mobile-engagement-content');
+    assert.ok(toggle);
+    assert.equal(toggle.props['aria-expanded'], false);
+    assert.equal(toggle.props['aria-controls'], content.props.id);
+    assert.equal(content.props.hidden, true);
+    assert.equal(h.outsideCalls.at(-1).open, false);
+    toggle.props.onClick();
+    tree = h.render(props);
+    const expandedToggle = button(tree, 'Hide project engagement');
+    assert.equal(expandedToggle.ref, toggle.ref, 'One persistent button owns both states');
+    assert.equal(expandedToggle.props['aria-expanded'], true);
+    assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, false);
+    assert.equal(withProp(tree, 'data-project-response-rail').props['data-mobile-engagement-open'], 'true');
+    assert.equal(h.outsideCalls.at(-1).open, true);
+    assert.equal(h.outsideCalls.at(-1).layer, withProp(tree, 'data-project-response-rail').ref);
+    assert.ok(button(tree, 'Show project description'));
+    assert.equal(Boolean(button(tree, 'Show comments')), !readOnlyShare);
+    assert.equal(Boolean(button(tree, 'Show AI verification services')), readOnlyShare);
+    assert.equal(nodes(tree).some(node => node.type === EngagementBar), !readOnlyShare);
+    expandedToggle.props.onClick();
+    tree = h.render(props);
+    assert.equal(button(tree, 'Show project engagement').props['aria-expanded'], false);
+    assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
+    assert.equal(h.outsideCalls.at(-1).open, false);
+  }
+});
+
+test('Escape and outside dismissal close engagement and return focus to its toggle', () => {
+  const h = harness();
+  let tree = h.render(), focused = 0;
+  const toggle = button(tree, 'Show project engagement');
+  toggle.ref.current = { focus(options) { assert.equal(options.preventScroll, true); focused++; } };
+  const key = value => ({ key: value, prevented: false, stopped: false,
+    preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; } });
+  const closedEscape = key('Escape');
+  withProp(tree, 'data-project-response-rail').props.onKeyDown(closedEscape);
+  assert.equal(closedEscape.prevented, false);
+  toggle.props.onClick();
+  tree = h.render();
+  const otherKey = key('ArrowDown');
+  withProp(tree, 'data-project-response-rail').props.onKeyDown(otherKey);
+  assert.equal(otherKey.prevented, false);
+  const escape = key('Escape');
+  withProp(tree, 'data-project-response-rail').props.onKeyDown(escape);
+  tree = h.render();
+  assert.equal(escape.prevented, true);
+  assert.equal(escape.stopped, true);
+  assert.equal(focused, 1);
+  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
+  button(tree, 'Show project engagement').props.onClick();
+  h.render();
+  const outside = h.outsideCalls.at(-1);
+  assert.equal(outside.open, true);
+  outside.onClose();
+  tree = h.render();
+  assert.equal(focused, 2);
+  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
+  assert.equal(h.outsideCalls.at(-1).open, false);
+});
+
+test('the description modal suspends engagement outside dismissal and owns Escape until it closes', () => {
+  const h = harness();
+  let tree = h.render();
+  button(tree, 'Show project engagement').props.onClick();
+  tree = h.render();
+  assert.equal(h.outsideCalls.at(-1).open, true);
+  button(tree, 'Show project description').props.onClick();
+  tree = h.render();
+  assert.equal(h.outsideCalls.at(-1).open, false);
+  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, false);
+  withProp(tree, 'data-project-response-rail').props.onKeyDown({ key: 'Escape',
+    preventDefault() { assert.fail('Escape belongs to the description modal'); },
+    stopPropagation() { assert.fail('Escape belongs to the description modal'); } });
+  nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.onClose();
+  tree = h.render();
+  assert.equal(button(tree, 'Hide project engagement').props['aria-expanded'], true);
+  assert.equal(h.outsideCalls.at(-1).open, true);
+  h.openIndex();
+  tree = h.render();
+  assert.equal(h.outsideCalls.at(-1).open, false);
+  assert.equal(button(tree, 'Hide project engagement'), undefined);
+});
+
+test('WEB retains its response rail without the mobile engagement toggle for workspace and public views', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({ mobile: false, readOnlyShare });
+    const tree = h.render();
+    assert.equal(button(tree, 'Show project engagement'), undefined);
+    assert.equal(button(tree, 'Hide project engagement'), undefined);
+    assert.equal(withProp(tree, 'data-mobile-engagement-content'), undefined);
+    assert.ok(withProp(tree, 'data-project-response-rail'));
+    assert.equal(h.outsideCalls.at(-1).open, false);
+  }
 });
 
 test('empty mobile projects keep their project-list access; WEB keeps its existing empty state', () => {
@@ -281,15 +450,17 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
     if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3 }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
-    if (name.endsWith('/projectAttachments')) return { resolveProjectAttachments: () => [] };
+    if (name.endsWith('/projectAttachments')) return { resolveProjectAttachments: project => project.attachments ?? [] };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
     if (name.endsWith('/useAssetProcessing')) return { useAssetProcessing: () => ({ statuses: {} }) };
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
   });
   const props = { profile: { id: 'owner', projects: Object.freeze([
-      { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2 },
-      { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2 },
+      { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2,
+        attachments: [{ id: 'work-image', kind: 'image' }, { id: 'work-video', kind: 'video' }] },
+      { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2,
+        attachments: [{ id: 'second-video', kind: 'video' }, { id: 'second-audio', kind: 'audio' }] },
     ]) },
     category: { id: 'portal', label: 'Portal', iconName: 'camera' }, viewerRole: 'visitor', activeProjectId: 'work',
     onBack: () => back++, onBackToPortals: () => portalReturns++, onSelectProject(id, replace) { selections.push([id, replace]); props.activeProjectId = id; },
@@ -310,6 +481,24 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, props.onBack);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, button(tree, 'Go back').props.onClick,
     'Swiping and the existing floating Back button must use the same route callback');
+  const videoSequence = () => nodes(tree).find(node => node.type === Viewer).props.videoSequence;
+  assert.equal(videoSequence().scope, 'workspace:owner:portal');
+  assert.deepEqual(Array.from(videoSequence().entries, entry => entry.attachment.id), ['work-video', 'second-video']);
+  arrangementRead = { arrange: projects => projects.filter(project => project.id !== 'hidden').reverse() };
+  tree = render({ ...props, profile: { ...props.profile, projects: [
+    { id: 'hidden', categoryId: 'portal', title: 'Hidden work', attachments: [{ id: 'hidden-video', kind: 'video' }] },
+    ...props.profile.projects,
+    { id: 'elsewhere', categoryId: 'other-portal', title: 'Other portal', attachments: [{ id: 'elsewhere-video', kind: 'video' }] },
+  ] } });
+  assert.deepEqual(Array.from(videoSequence().entries, entry => `${entry.projectId}:${entry.attachment.id}`),
+    ['second:second-video', 'work:work-video'], 'Only videos in the arranged, visibility-filtered current portal reach the sequence');
+  videoSequence().onSelectProject('second');
+  assert.deepEqual(selections.at(-1), ['second', true], 'Scrolling replaces the canonical project route without adding history entries');
+  arrangementRead = {};
+  props.activeProjectId = 'work';
+  tree = render({ ...props, sharedReadOnly: true });
+  assert.equal(videoSequence().scope, 'shared:owner:portal', 'Public browsing has its own sequence identity');
+  tree = render(props);
   nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(true);
   tree = render(props);
   assert.equal(button(tree, 'Go back'), undefined, 'The project Back button must not overlap focused-page controls');
@@ -410,6 +599,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.ok(withProp(tree, 'data-project-index-panel'));
   assert.equal(nodes(tree).find(node => node.type === IndexPortal), undefined, 'WEB retains its inline index');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation, undefined);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.videoSequence, undefined, 'WEB does not receive a video sequence');
   assert.equal(button(tree, 'Go back'), undefined);
   assert.equal(button(tree, 'Back to portals'), undefined);
   assert.equal(toolbar(tree), undefined, 'WEB keeps its existing toolbar');

@@ -50,6 +50,11 @@ test('landing signup preserves a destination once, cancellation clears it and or
   assert.equal(render().consumePendingIntent(),intent); assert.equal(render().consumePendingIntent(),null);
   render().requestAuthenticatedDestination(intent);
   assert.equal(render().pendingView,'signIn');
+  render().closeAuth();
+  render().requestAuthenticatedDestination(intent, 'forgotPassword');
+  assert.equal(render().pendingView,'forgotPassword'); assert.equal(render().gateMessage,null);
+  render().requestAuth('signIn');
+  assert.equal(render().peekPendingIntent(),intent, 'returning from password help retains the shared destination');
 });
 
 test('registration metadata is normalized and never becomes an ownership or verification claim', () => {

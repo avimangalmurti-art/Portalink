@@ -19,7 +19,7 @@ test('an inherited final-row height is capped before it can overflow', () => {
   assert.match(source, /width: height \* entry\.ratio/);
 });
 
-function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWidth, scaleColumns = columns => columns } = {}) {
+function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWidth, selectedColumns } = {}) {
   let starts = 0, zoomEnabled;
   const placeholder = new Proxy({}, { get: (_, key) => key });
   const exports = {};
@@ -33,7 +33,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWid
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       if (name.endsWith('/SingleTouchSensor')) return { SingleTouchSensor: 'Touch' };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width }) };
-      if (name.endsWith('/useContentZoom')) return { useContentZoom: enabled => { zoomEnabled = enabled; return { scaleColumns }; } };
+      if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled) => { zoomEnabled = enabled; return { columns: enabled && selectedColumns !== undefined ? selectedColumns : Math.max(2, Math.min(13, base)) }; } };
       return placeholder;
     },
   });
@@ -135,10 +135,12 @@ test('mobile Home retains columns and source order while the sidebar scales each
   }
 });
 
-test('physical narrow screens and intentional zoom still adapt; WEB ignores the mobile capacity basis', () => {
+test('Home and profile walls honor 2–13 viewer columns even on narrow screens; WEB ignores mobile capacity', () => {
   const columns = (mode, options) => wallHarness(mode, undefined, options).list.props['data-profile-wall-columns'];
-  assert.equal(columns('mobile', { width: 224, columnCapacityWidth: 280 }), 1);
-  assert.equal(columns('mobile', { width: 295, columnCapacityWidth: 351, scaleColumns: () => 1 }), 1);
-  assert.equal(columns('mobile', { width: 295 }), 1, 'Profile and City keep their existing sizing');
+  assert.equal(columns('mobile', { width: 224, columnCapacityWidth: 280 }), 2);
+  for (const mode of ['mobile', 'web']) for (const selectedColumns of [2, 7, 13]) {
+    assert.equal(columns(mode, { width: 295, columnCapacityWidth: 351, selectedColumns }), selectedColumns);
+  }
+  assert.equal(columns('mobile', { width: 295 }), 2);
   assert.equal(columns('web', { width: 351, columnCapacityWidth: 100 }), 3);
 });

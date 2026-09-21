@@ -63,7 +63,7 @@ type AuthContextValue = {
    * and the destination is remembered independently of the sheet so cancelling
    * cannot bounce the person back into the same request.
    */
-  requestAuthenticatedDestination: (intent: AuthIntent, view?: 'signIn' | 'signUp') => void;
+  requestAuthenticatedDestination: (intent: AuthIntent, view?: 'signIn' | 'signUp' | 'forgotPassword') => void;
   /** Why the sheet opened, when it opened because of a gated destination. */
   gateMessage: string | null;
   /** Reads the pending destination and clears it, so it resolves exactly once. */
@@ -272,7 +272,7 @@ export function AuthProvider({
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(null);
   }, []);
-  const requestAuthenticatedDestination = useCallback((intent: AuthIntent, view: 'signIn' | 'signUp' = 'signIn') => {
+  const requestAuthenticatedDestination = useCallback((intent: AuthIntent, view: 'signIn' | 'signUp' | 'forgotPassword' = 'signIn') => {
     pendingIntentRef.current = intent;
     setGateMessage(view === 'signIn' ? describeIntent(intent) : null);
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

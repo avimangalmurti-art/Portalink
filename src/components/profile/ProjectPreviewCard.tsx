@@ -38,7 +38,9 @@ type Props = {
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
-  const preview = useContentPreview(disabled);
+  // Tiny overview thumbnails open the work directly; their text/actions cannot
+  // fit inside the thumbnail. Normal-size cards retain the existing preview.
+  const preview = useContentPreview(disabled, 80);
   const reduceMotion = useReducedMotion();
   const [settled, setSettled] = useState(false);
   const extensionRef = useRef<HTMLDivElement>(null);

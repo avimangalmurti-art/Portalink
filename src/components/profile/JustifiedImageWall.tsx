@@ -50,7 +50,6 @@ import { SingleTouchSensor } from '../../presentation/mobile/SingleTouchSensor';
 
 /** The gutter, on both axes. Tight enough to read as a wall rather than tiles. */
 const GAP = 4;
-const MIN_COLUMNS = 3;
 const MAX_COLUMNS = 9;
 const MIN_READABLE_CARD_WIDTH = 112;
 export type WallItem = {
@@ -263,7 +262,6 @@ export function JustifiedImageWall({
    * is untouched, and the zoom only scales how many land in a row. Frames keep
    * their own proportions either way — nothing is cropped to zoom.
    */
-  const view = useContentZoom<HTMLDivElement>(!reorderMode?.enabled);
   // Hiding the phone rail enlarges the same two columns instead of shrinking
   // the artwork to squeeze in a third. The saved WEB density remains intact.
   const isMobile = usePresentation() === 'mobile';
@@ -282,18 +280,14 @@ export function JustifiedImageWall({
   // when resizing. PointerSensor wins mouse activation on WEB; MouseSensor is
   // its fallback and complements TouchSensor on the owner's mobile profile.
   const sensors = useSensors(isMobile && reorderMode ? touchSensor : pointerSensor, mouseSensor, keyboardSensor);
-  // Three is the standard minimum in the profile workspace. Only a genuinely
-  // narrow viewport may reduce the rendered count so cards never become
-  // unreadable; the saved 3–9 preference itself remains unchanged.
+  // Capacity chooses the initial layout only. A deliberate viewer pinch may
+  // show thumbnails all the way to 13 across, independently of saved density.
   const capacityWidth = isMobile ? columnCapacityWidth ?? width : width;
   const responsiveCapacity = capacityWidth > 0
     ? Math.max(1, Math.floor((capacityWidth + GAP) / (readableCardWidth + GAP)))
     : MAX_COLUMNS;
-  // On phones zoom starts from the columns actually visible, so enlarging a
-  // two-column feed can reach one column instead of hitting the WEB minimum.
-  const preferredColumns = Math.max(isMobile ? 1 : MIN_COLUMNS, Math.min(MAX_COLUMNS,
-    view.scaleColumns(isMobile ? Math.min(columns, responsiveCapacity) : columns)));
-  const effectiveColumns = Math.min(preferredColumns, responsiveCapacity);
+  const view = useContentZoom<HTMLDivElement>(Math.min(columns, responsiveCapacity), !reorderMode?.enabled, columns);
+  const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) {
       return [];

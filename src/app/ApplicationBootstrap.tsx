@@ -64,7 +64,7 @@ export function ApplicationBootstrap() {
     if (!auth.isInitializing && hasSplashCompleted && !holdLanding) setHasStartupCompleted(true);
   }, [auth.isInitializing, hasSplashCompleted, holdLanding]);
 
-  const startAccount = (view: 'signIn' | 'signUp') => {
+  const startAccount = (view: 'signIn' | 'signUp' | 'forgotPassword') => {
     if (landingPath && landingPath !== '/') auth.requestAuthenticatedDestination({ kind: 'route', path: landingPath, label: 'view shared content' }, view);
     else auth.requestAuth(view);
   };
@@ -95,9 +95,10 @@ export function ApplicationBootstrap() {
         {!hasStartupCompleted || auth.isInitializing ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
           hidden={Boolean(landingPath && (auth.pendingView || auth.isAuthenticated || isRecovery || presentation !== 'mobile'))}
           landing={holdLanding ? {
-            ready: hasSplashCompleted && !auth.isInitializing,
+            ready: !auth.isInitializing,
             onCreateAccount: () => startAccount('signUp'),
             onSignIn: () => startAccount('signIn'),
+            onForgotPassword: () => startAccount('forgotPassword'),
             onContinue: () => { setHasLeftLanding(true); if (!auth.isInitializing) setHasStartupCompleted(true); },
             continueLabel: landingPath === '/' ? 'Continue as guest' : 'View shared content',
           } : undefined} /> : null}

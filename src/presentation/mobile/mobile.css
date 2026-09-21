@@ -1,5 +1,156 @@
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
+/* The header editor uses the same glass material as the portal chooser. */
+#root .profile-editor-overlay[data-presentation='mobile'] {
+  top: var(--dialog-viewport-top, 0px);
+  bottom: auto;
+  height: var(--dialog-viewport-height, 100dvh);
+  padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px));
+  background: rgb(0 0 0 / 0.16);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-editor-dialog {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  border: 1px solid var(--hairline) !important;
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%) !important;
+  backdrop-filter: blur(22px) saturate(125%) !important;
+  box-shadow: var(--shadow-pop) !important;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-editor-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: transparent;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-editor-header h2 {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] :is(.mobile-profile-editor-back, .mobile-profile-editor-save) {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-editor-save {
+  padding: 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--link-text, #0a84ff);
+}
+#root .profile-editor-overlay[data-presentation='mobile'] button:disabled { opacity: 0.45; }
+#root .profile-editor-overlay[data-presentation='mobile'] :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-editor-scroll {
+  padding: 8px 16px 20px;
+  overscroll-behavior-y: contain;
+  scroll-padding-block: 16px;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-editor-layout { gap: 18px; }
+#root .profile-editor-overlay[data-presentation='mobile'] [data-profile-editor-section] { padding: 0; border-radius: 0; }
+#root .profile-editor-overlay[data-presentation='mobile'] [data-profile-editor-section='identity'] { gap: 16px; }
+#root .profile-editor-overlay[data-presentation='mobile'] [data-profile-editor-section='identity'] label { font-size: 15px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .text-control-shell {
+  min-height: 44px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-inset) 36%, transparent);
+}
+#root .profile-editor-overlay[data-presentation='mobile'] :is(input:not([type='range']), textarea) { font-size: 16px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 4px;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: 22%;
+  background: var(--surface-sunken);
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 32px;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-controls { display: grid; gap: 6px; min-width: 0; }
+#root .profile-editor-overlay[data-presentation='mobile'] :is(.mobile-profile-avatar-action, .mobile-profile-avatar-zoom, .mobile-profile-visibility) {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-inset) 36%, transparent);
+  font-size: 13px;
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-action svg { width: 20px; height: 20px; flex-shrink: 0; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-zoom label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-zoom input { width: 100%; min-width: 0; height: 34px; accent-color: var(--accent-primary); }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility { position: relative; gap: 6px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility span { flex: 1; min-width: 0; font-size: 10px; line-height: 1.25; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility strong { display: block; font-size: 12px; font-weight: 500; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility svg { flex-shrink: 0; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility select { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-visibility:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-status { grid-column: 1 / -1; font-size: 12px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-status p { display: flex; gap: 6px; margin-top: 4px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-reset { min-height: 44px; color: var(--accent-text); }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio { position: relative; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio textarea { height: 92px; padding-bottom: 28px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio-count { position: absolute; right: 12px; top: 94px; font-size: 11px; color: var(--text-secondary); pointer-events: none; }
+#root .profile-editor-overlay[data-presentation='mobile'] [data-profile-editor-section='links'] { border-top: 1px solid var(--hairline-strong); padding-top: 12px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-heading { align-items: center; gap: 8px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-heading legend { font-size: 16px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-list { gap: 8px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-add { min-height: 44px; font-size: 14px; border: 0; background: transparent; color: var(--link-text, #0a84ff); padding-right: 0; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-link-editor-row--compact { padding: 4px 8px; border: 1px solid var(--hairline-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-inset) 36%, transparent); }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-link-edit { font-size: 14px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-link-icon svg { width: 26px; height: 26px; }
+#root .profile-editor-overlay[data-presentation='mobile'] .profile-link-details:not([hidden]) { padding: 8px 2px; border-top: 1px solid var(--hairline); }
+#root .profile-editor-overlay[data-presentation='mobile']:where(.reduce-translucency *, .high-contrast *) .profile-editor-dialog {
+  background: var(--surface-raised) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .profile-editor-overlay[data-presentation='mobile'] .profile-editor-dialog {
+    background: var(--surface-raised) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
 /* The startup layer exists before the app host and carries the same scope. */
 [data-presentation='mobile'].portalink-splash {
   background-color: #f8fdfc;
@@ -11,47 +162,55 @@
   object-fit: contain;
 }
 
-/* One landing surface: the original clip settles into its final artwork and
-   then reveals the action. The media never unmounts between those states. */
+/* A looping welcome above reachable account actions, on the same surface. */
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;
   background: #f8fdfc !important;
-  padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  height: 100dvh;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
   width: 100%;
   height: 100%;
   min-height: 0;
   max-height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
-@media (max-height: 560px) {
-  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { object-fit: contain; }
+@media (min-height: 561px) {
+  /* The supplied clip contains generous blank margins around the artwork. */
+  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { transform: scale(1.4); }
 }
 [data-presentation='mobile'] .mobile-share-landing-actions {
-  position: absolute;
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
-  left: max(24px, env(safe-area-inset-left, 0px));
-  right: max(24px, env(safe-area-inset-right, 0px));
+  position: relative;
+  z-index: 1;
+  grid-area: 2 / 1;
+  width: 78%;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   color: #071326;
   font-family: 'IBM Plex Sans', sans-serif;
 }
-[data-presentation='mobile'] .mobile-share-create {
-  min-height: 56px;
+[data-presentation='mobile'] :is(.mobile-share-signin, .mobile-share-create) {
+  min-height: clamp(52px, 6.8dvh, 60px);
   width: 100%;
   border-radius: 999px;
-  background: #071326;
-  color: #fff;
-  font-size: 19px;
+  border: 1.5px solid #071326;
+  font-size: 20px;
   font-weight: 500;
 }
-[data-presentation='mobile'] .mobile-share-secondary { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; }
-[data-presentation='mobile'] .mobile-share-secondary button { min-height: 44px; font-size: 14px; }
+[data-presentation='mobile'] .mobile-share-signin { background: #071326; color: #fff; }
+[data-presentation='mobile'] .mobile-share-create { background: transparent; color: #071326; }
+[data-presentation='mobile'] .mobile-share-secondary { display: flex; flex-direction: column; align-items: center; margin-top: 4px; }
+[data-presentation='mobile'] .mobile-share-secondary button { min-height: 44px; }
+[data-presentation='mobile'] .mobile-share-forgot { color: #6f7682; font-size: 16px; }
+[data-presentation='mobile'] .mobile-share-guest { color: #6f7682; font-size: 12px; }
 [data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
+[data-presentation='mobile'] .mobile-share-landing-actions button:disabled { opacity: .55; cursor: wait; }
 
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
@@ -65,6 +224,15 @@
    body-portalled editors carrying their own presentation scope. */
 [data-presentation='mobile'] :is(input, textarea, select, [contenteditable='true'], [contenteditable='plaintext-only']):not([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file'], [type='hidden']) {
   font-size: max(16px, 1rem) !important;
+}
+
+/* This menu is portalled to body. Center independently of its arrival transform. */
+[data-presentation='mobile'].account-menu-popover {
+  top: 50dvh !important;
+  left: 50% !important;
+  translate: -50% -50%;
+  max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px)));
+  overflow-y: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] {
@@ -242,10 +410,18 @@
 }
 #root .codex-shell .auth-signin-experience[data-mobile-onboarding='light'] > .account-welcome-card { color-scheme: light; }
 #root .codex-shell .auth-signin-experience[data-mobile-onboarding] > .account-welcome-card[data-welcome-contrast='true'] {
+  --onboarding-text: #fff;
   --text-primary: var(--onboarding-text);
   --text-secondary: var(--onboarding-text);
   --text-tertiary: var(--onboarding-text);
+  --hairline: var(--onboarding-text);
   --hairline-strong: var(--onboarding-text);
+}
+#root .codex-shell .auth-signin-experience[data-mobile-onboarding='light'] > .account-welcome-card[data-welcome-contrast='true'] {
+  --onboarding-text: #000;
+}
+#root .codex-shell [data-mobile-onboarding] > .account-welcome-card[data-welcome-solid='true'] {
+  --interface-glass-opacity: 100%;
 }
 #root .codex-shell [data-mobile-onboarding] > .account-welcome-card::before,
 #root .codex-shell [data-mobile-onboarding] > .account-welcome-card::after { content: none !important; }
@@ -308,14 +484,40 @@
 }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-footer button > svg:last-child:not(.animate-spin) { position: absolute; right: 20px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance { display: flex; flex-direction: column; gap: 22px; width: min(100%, 330px); margin-inline: auto; }
-#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-brand {
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-preview {
   margin: clamp(8px, 2dvh, 24px) 0 clamp(14px, 3dvh, 32px);
-  color: var(--text-primary);
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(125deg, var(--onboarding-background) 8%, var(--accent-primary) 48%, var(--onboarding-background) 88%);
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-brand {
+  margin: 0;
+  padding: 14px 0;
+  border: 2px solid var(--control-border);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--nav-button-background) var(--interface-glass-opacity, 76%), transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  color: var(--control-text);
   font-size: clamp(46px, 12.8vw, 64px);
   font-weight: 750;
   letter-spacing: -.055em;
   line-height: .96;
   text-align: center;
+}
+#root .codex-shell [data-mobile-onboarding] [data-welcome-solid='true'] .mobile-onboarding-brand {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#root .codex-shell [data-mobile-onboarding] [data-welcome-contrast='true'] .mobile-onboarding-brand {
+  border-color: var(--control-text);
+}
+#root .codex-shell [data-mobile-onboarding] [data-welcome-contrast='true'] .mobile-onboarding-swatches [aria-checked='true'] {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 1px;
+}
+#root .codex-shell [data-mobile-onboarding] [data-welcome-contrast='true'] .appearance-switch-track {
+  border-color: var(--text-primary) !important;
 }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance legend { margin-bottom: 6px; font-size: 16px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px 4px; }
@@ -335,6 +537,43 @@
 #root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-footer svg { display: none; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch label { font-size: 16px; font-weight: 400; }
+/* Fit the appearance step to Safari's visible height, not the full device height.
+   Keep the existing overflow fallback for enlarged accessibility text. */
+#root .codex-shell [data-mobile-onboarding]:has([data-onboarding-step='appearance']) {
+  --appearance-height: calc(var(--dialog-viewport-height, 100dvh) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  --appearance-gap: clamp(6px, calc(var(--appearance-height) * .04 - 18px), 22px);
+}
+#root .codex-shell [data-mobile-onboarding]:has([data-onboarding-step='appearance']) .account-welcome-heading {
+  position: static;
+  min-height: 44px;
+  margin-bottom: var(--appearance-gap);
+  padding-block: 6px;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-form[data-onboarding-step='appearance'] {
+  gap: var(--appearance-gap);
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance {
+  gap: var(--appearance-gap, 22px);
+}
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-preview {
+  flex: none;
+  margin-block: 0;
+}
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-brand {
+  padding-block: 6px;
+  font-size: clamp(28px, calc(var(--appearance-height) * .11 - 34px), 52px);
+}
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-swatches button {
+  height: clamp(44px, calc(var(--appearance-height) * .04 + 18px), 48px);
+}
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-footer {
+  flex: none;
+  padding-block: 0;
+}
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-footer button {
+  min-height: 48px;
+  padding-block: 10px;
+}
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input { position: relative; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input > svg { position: absolute; top: 15px; left: 15px; pointer-events: none; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input input { min-height: 52px; padding-left: 50px; }
@@ -425,7 +664,7 @@
   position: absolute;
   z-index: 1;
   display: grid;
-  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr) var(--mobile-dock-size);
+  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   inset-inline: 0;
@@ -476,7 +715,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
   grid-column: 2 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--mobile-dock-size);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
@@ -488,7 +727,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: 2px;
@@ -541,7 +780,7 @@
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-dock-profile) {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener {
   display: grid;
   place-items: center;
   width: var(--mobile-dock-size);
@@ -572,12 +811,7 @@
   transform: rotate(-90deg);
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-dock-profile[aria-current='page'] {
-  background: var(--surface-raised) !important;
-  color: var(--accent-text) !important;
-}
-
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-dock-destination, .mobile-dock-profile) [data-interface-icon-frame] {
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination [data-interface-icon-frame] {
   --interface-icon-size: 24px;
 }
 
@@ -891,6 +1125,13 @@
   background: var(--surface-canvas);
 }
 
+/* Keep the portal frame steady, but expose artwork behind its outside-tap
+   target instead of suggesting another profile or main-navigation action. */
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-index-overlay > [data-project-index-panel][data-collapsed='false']) :is([data-profile-header], .mobile-navigation-layer) {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay .mobile-project-index-dismiss {
   background: rgb(0 0 0 / 8%) !important;
 }
@@ -951,9 +1192,20 @@
   flex-wrap: wrap;
   gap: 0 10px;
   margin-top: 8px;
+  margin-bottom: 8px;
+  padding-block: 8px;
+  border-block: 1px solid color-mix(in srgb, var(--text-primary) 20%, transparent);
   min-height: 44px;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portal-index-view-controls {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin-left: auto;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-portal-index-sort {
@@ -1290,24 +1542,37 @@
   display: flex;
   align-items: flex-end;
   background: rgb(0 0 0 / 18%);
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 [data-presentation='mobile'] .mobile-project-description-sheet {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 50%;
   max-height: calc(100% - max(40px, env(safe-area-inset-top)));
   overflow: hidden;
-  border: 1px solid var(--border-default);
-  border-bottom: 0;
-  border-radius: 28px 28px 0 0;
+  overscroll-behavior: none;
+  border: 1px solid var(--border-default) !important;
+  border-bottom: 0 !important;
+  border-radius: 28px 28px 0 0 !important;
   padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface-raised);
+  background: var(--surface-raised) !important;
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
   transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
   animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+/* Override generic floating-dialog paint and all-corner rounding only here. */
+#root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
+  border: 1px solid var(--border-default) !important;
+  border-bottom: 0 !important;
+  border-radius: 28px 28px 0 0 !important;
+  background: var(--surface-raised) !important;
 }
 [data-presentation='mobile'] .mobile-project-description-sheet[data-expanded] { height: 92%; }
 [data-presentation='mobile'] .mobile-project-description-sheet[data-dragging] { transition: none; }
@@ -1321,19 +1586,42 @@
   cursor: ns-resize;
 }
 [data-presentation='mobile'] .project-description-grabber span { width: 36px; height: 5px; border-radius: 99px; background: var(--text-tertiary); opacity: 0.6; }
-[data-presentation='mobile'] .project-description-heading { position: relative; z-index: 1; display: flex; align-items: center; flex: none; gap: 4px; padding: 0 12px 10px 20px; background: var(--surface-raised); }
-[data-presentation='mobile'] .project-description-heading h2 { flex: 1; min-width: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
+[data-presentation='mobile'] .project-description-heading { position: relative; z-index: 1; display: flex; align-items: center; flex: none; gap: 4px; padding: 0 12px 10px 20px; background: transparent; }
+[data-presentation='mobile'] .project-description-heading h2 { flex: 1; min-width: 0; margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; }
 [data-presentation='mobile'] .project-description-heading > button,
-[data-presentation='mobile'] .project-description-menu > button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; }
-[data-presentation='mobile'] .project-description-heading svg { width: 22px; height: 22px; }
-[data-presentation='mobile'] .project-description-menu { position: relative; }
+[data-presentation='mobile'] .project-description-menu > button { flex: none; width: 44px; height: 44px; margin: 0; padding: 0; display: grid; place-items: center; line-height: 1; border-radius: 50%; }
+[data-presentation='mobile'] .project-description-heading svg { display: block; width: 22px; height: 22px; margin: 0; }
+[data-presentation='mobile'] .project-description-menu { position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 44px; height: 44px; }
 [data-presentation='mobile'] #project-description-actions { position: absolute; top: 44px; right: 0; min-width: 180px; padding: 6px; border: 1px solid var(--border-default); border-radius: 14px; background: var(--surface-raised); box-shadow: 0 8px 24px rgb(0 0 0 / 18%); }
 [data-presentation='mobile'] #project-description-actions button { width: 100%; padding: 12px; text-align: left; border-radius: 8px; font-size: 16px; }
-[data-presentation='mobile'] .project-description-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 20px 24px; scroll-padding-block: 12px; }
+[data-presentation='mobile'] .project-description-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: none; padding: 8px 20px 24px; scroll-padding-block: 12px; }
 [data-presentation='mobile'] .project-description-body p { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; line-height: 1.6; }
 [data-presentation='mobile'] .project-description-details { display: flex; flex-direction: column; gap: 16px; margin-top: 24px; }
+/* Videos form a continuous vertical sequence; other media keep their readers. */
+[data-presentation='mobile'] .mobile-video-sequence {
+  container-type: size;
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+}
+[data-presentation='mobile'] .mobile-video-sequence > section {
+  display: flex;
+  flex-direction: column;
+  height: min(78cqh, calc((100cqw - 24px) / var(--video-aspect-ratio) + 52px));
+  min-height: 160px;
+  margin-block: 8px;
+  scroll-snap-align: center;
+}
+[data-presentation='mobile'] .mobile-video-sequence-media { flex: 1; min-height: 0; }
+[data-presentation='mobile'] .mobile-video-sequence-media video { height: 100%; object-fit: contain; }
+[data-presentation='mobile'] .mobile-video-sequence-placeholder { height: 100%; background: #000; }
+[data-presentation='mobile'] .mobile-video-sequence-title { flex: none; margin: 0; padding: 4px 12px; font-size: 14px; line-height: 20px; color: var(--text-primary); }
 [data-presentation='mobile'] .project-description-details :is(h3, dl, dt, dd) { font-size: 14px; overflow-wrap: anywhere; }
-[data-presentation='mobile'] .project-description-editor { display: flex; flex-direction: column; flex: 1; gap: 12px; min-height: 0; padding: 6px 20px 16px; overflow-y: auto; }
+[data-presentation='mobile'] .project-description-editor { display: flex; flex-direction: column; flex: 1; gap: 12px; min-height: 0; padding: 6px 20px 16px; overflow-y: auto; overscroll-behavior: none; }
 [data-presentation='mobile'] .project-description-editor textarea { flex: 1; min-height: 80px; width: 100%; resize: none; padding: 12px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--control-rest-surface); color: var(--text-primary); font-size: 16px; line-height: 1.6; }
 [data-presentation='mobile'] .project-description-editor footer,
 [data-presentation='mobile'] .project-description-saved { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 12px; }
@@ -1780,7 +2068,7 @@
   justify-content: space-between;
 }
 
-/* Five owner actions share one row, with two slots for Like and Repost. */
+/* Bio, Collaboration, Edit profile, Copy public link and Reorder projects. */
 #root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] {
   position: relative;
   display: grid;
@@ -1795,13 +2083,6 @@
   min-width: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] > .profile-action-engagement {
-  display: grid;
-  grid-column: span 2;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: inherit;
-}
-
 #root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] .profile-action-button {
   width: 100%;
   min-width: 44px;
@@ -1810,6 +2091,19 @@
   justify-content: center;
   gap: 0;
   padding-inline: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-bio-info-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] .profile-share-error {
@@ -1951,7 +2245,7 @@
   outline-offset: -3px;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile):where(.reduce-translucency *) {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener):where(.reduce-translucency *) {
   background: var(--surface-raised) !important;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -1962,7 +2256,7 @@
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener, .mobile-dock-profile) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener) {
     background: var(--surface-raised) !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -1975,10 +2269,6 @@
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-navigation-dock, .mobile-dock-destination, .mobile-navigation-opener):where(.high-contrast *) {
   --mobile-navigation-item-shadow: inset 0 0 0 1px var(--text-primary);
   box-shadow: inset 0 0 0 1px var(--text-primary) !important;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-dock-profile:where(.high-contrast *) {
-  box-shadow: inset 0 0 0 1px var(--text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2120,8 +2410,27 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back.mobile-project-portal-preview {
-  top: calc(64px + var(--mobile-content-safe-top));
+  position: fixed;
+  top: auto;
+  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  left: auto;
+  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 52px);
 }
+
+/* Two project controls share the dock's baseline and have their own right-hand
+   slots. All main destinations remain available, with native scrolling on
+   narrow phones instead of smaller touch targets. */
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-floating-navigation {
+  inset-inline-end: 104px;
+  touch-action: pan-x pan-y;
+}
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock {
+  grid-template-columns: repeat(4, minmax(44px, 1fr));
+  overflow-x: auto;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock::-webkit-scrollbar { display: none; }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back [data-interface-icon-frame] {
   --interface-icon-size: 26px;
@@ -2355,6 +2664,42 @@
   background: color-mix(in srgb, var(--text-primary) 10%, transparent) !important;
   transform: none;
 }
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
+  position: fixed;
+  top: auto;
+  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  right: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
+  width: 44px !important;
+  max-width: 56px;
+  max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--safe-area-top) - var(--mobile-dock-bottom) - 16px);
+  padding: 0;
+  align-items: center;
+  border-radius: 24px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open='true'] {
+  width: 56px !important;
+  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
+  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2 - 4px);
+  padding: 4px;
+}
+[data-presentation='mobile'] [data-mobile-engagement-content] { flex: 0 0 auto; width: 48px; }
+[data-presentation='mobile'] [data-mobile-engagement-content][hidden] { display: none; }
+[data-presentation='mobile'] .mobile-project-engagement-toggle {
+  display: flex;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  background: transparent;
+}
+[data-presentation='mobile'] .mobile-project-engagement-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
 #root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]):where(.reduce-translucency, .high-contrast, .reduce-translucency *, .high-contrast *) {
   --project-control-surface: #242426;

@@ -5,7 +5,7 @@ import { BentoFeedGrid } from './BentoFeedGrid';
 import type { BentoCellItem } from './BentoFeedGrid';
 import { JustifiedImageWall } from '../profile/JustifiedImageWall';
 import { usePresentation } from '../../presentation/usePresentation';
-import { getProjectAspectRatio, resolveFeedSpan } from '../../utils/projectPresentation';
+import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
 import { RotateCwIcon, SearchIcon, XIcon } from 'lucide-react';
@@ -107,9 +107,6 @@ export function HomeFeed({
 
   const cells: BentoCellItem[] = projects.map((view, index) => ({
     key: view.project.id,
-    span: (columns) => resolveFeedSpan({
-      aspectRatio: getProjectAspectRatio(view.project),
-    }, columns),
     content: <ProjectFeedCard
       view={view}
       onOpenProject={onOpenProject}

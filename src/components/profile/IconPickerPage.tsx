@@ -1,7 +1,7 @@
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React from 'react';
-import { AlertCircleIcon, ArrowLeftIcon, CheckIcon, Loader2Icon } from 'lucide-react';
-import { categoryIconNames, getCategoryIcon } from './categoryIcons';
+import { AlertCircleIcon, ArrowLeftIcon } from 'lucide-react';
+import { PortalIconLibrary } from './PortalIconLibrary';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 type IconPickerPageProps = {
   categoryLabel: string;
@@ -58,21 +58,7 @@ export function IconPickerPage({
           </span>
         </div>}
 
-      <ul className="mt-6 grid list-none grid-cols-4 gap-3 p-0 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
-        {categoryIconNames.map((iconName) => {
-        const Icon = getCategoryIcon(iconName);
-        const isSelected = iconName === currentIconName;
-        const isPending = isSaving && savingIconName === iconName;
-        return <li key={iconName} className="list-none">
-              {/* Disabled while a write is in flight, so the same icon cannot be
-               saved twice and a second choice cannot overtake the first. */}
-              <button type="button" onClick={() => onSelect(iconName)} disabled={isSaving} aria-pressed={isSelected} aria-busy={isPending || undefined} aria-label={`Use the ${iconName} icon`} className={`shape-container relative flex aspect-square w-full items-center justify-center border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed ${isSaving && !isPending ? 'opacity-45' : ''} ${isSelected ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'border-[var(--hairline)] bg-[var(--surface-raised)] text-[var(--text-primary)] hover:border-[var(--hairline-strong)] hover:bg-[var(--surface-hover)]'}`}>
-                {isPending ? <InterfaceIcon icon={Loader2Icon} size="lg" weight="medium" keepColor className="animate-spin motion-reduce:animate-none" /> : <InterfaceIcon icon={Icon} size="xl" weight="medium" keepColor />}
-                {isSelected && !isPending && <InterfaceIcon icon={CheckIcon} size="sm" weight="semibold" keepColor className="absolute right-1.5 top-1.5 text-[var(--accent-foreground)]" />}
-              </button>
-            </li>;
-      })}
-      </ul>
+      <PortalIconLibrary selected={currentIconName} onSelect={onSelect} disabled={isSaving} pendingName={savingIconName} />
       </div>
     </div>;
 }

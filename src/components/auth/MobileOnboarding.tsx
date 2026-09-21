@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRightIcon, CheckIcon } from 'lucide-react';
 import type { AccountAppearanceProps } from './AccountWelcomeSurface';
-import { findNavAccent, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
+import { findNavAccent, isLightSurface, navAccents, resolveNavButtonTokens, systemGrays } from '../../data/navButtonTokens';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { Button } from '../ui/Button';
@@ -12,7 +12,12 @@ export function MobileOnboardingAppearance(props: AccountAppearanceProps) {
   const theme = props.theme ?? 'dark';
   const selected = findNavAccent(props.accentColor);
   return <div className="mobile-onboarding-appearance">
-    <p className="mobile-onboarding-brand">Portalink<br />Networks</p>
+    {/* Preview the same neutral material as navigation without making the form
+        itself translucent over the page behind it. */}
+    <div className="mobile-onboarding-preview" role="group" aria-label="Appearance preview"
+      style={resolveNavButtonTokens(theme, props.accentColor, props.highContrast, props.reduceTranslucency, props.systemGray ?? 'gray') as React.CSSProperties}>
+      <p className="mobile-onboarding-brand">Portalink<br />Networks</p>
+    </div>
     <fieldset><legend>Accent colour</legend>
       <div role="radiogroup" aria-label="Accent colour" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
         {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onAccentColorChange(option[theme])}>

@@ -1,4 +1,5 @@
 import React from 'react';
+import portalIconCatalog from '../../data/portal-icon-catalog.json';
 import { ApertureIcon, AppWindowIcon, AtomIcon, AudioLinesIcon, BotIcon, BoxIcon, BrainCircuitIcon, Building2Icon, BookOpenIcon, BrushIcon, CameraIcon, CircuitBoardIcon, CircleDashedIcon, ClapperboardIcon, Code2Icon, CoffeeIcon, CompassIcon, CuboidIcon, DatabaseIcon, DumbbellIcon, FilmIcon, FlaskConicalIcon, Flower2Icon, Gamepad2Icon, GlobeIcon, GraduationCapIcon, GuitarIcon, HammerIcon, HeadphonesIcon, ImageIcon, LandmarkIcon, LayersIcon, LeafIcon, LightbulbIcon, MapIcon, Mic2Icon, MicroscopeIcon, MonitorIcon, MountainIcon, MusicIcon, NotebookPenIcon, PaletteIcon, PenToolIcon, PianoIcon, PlaneIcon, PresentationIcon, RocketIcon, RulerIcon, ScissorsIcon, ShapesIcon, ShoppingBagIcon, SparklesIcon, TerminalIcon, TreesIcon, TrophyIcon, TypeIcon, VideoIcon, WrenchIcon } from 'lucide-react';
 import { FaLinkedinIn } from 'react-icons/fa6';
 import { SiBehance, SiDiscord, SiDribbble, SiFacebook, SiGithub, SiInstagram, SiMedium, SiPinterest, SiReddit, SiSnapchat, SiSoundcloud, SiSpotify, SiThreads, SiTiktok, SiTwitch, SiVimeo, SiX, SiYoutube } from 'react-icons/si';
@@ -117,6 +118,21 @@ const brandLabels: Record<string, string> = {
 
 export const categoryIconNames = Object.keys(iconsByName);
 
+export function getPortalIconLabel(name: string): string {
+  return name.replace(/^lucide:/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+}
+
+// Keep existing saved names and profile-link choices unchanged. New choices use
+// a namespace so names like "book", "pen", and "x" cannot change old artwork.
+export const portalIconNames = [...categoryIconNames, ...portalIconCatalog.names.filter(name => !categoryIconNames.includes(name)).map(name => `lucide:${name}`)];
+const libraryNames = new Set(portalIconCatalog.names);
+const libraryComponents = new Map<string, CategoryIconComponent>();
+
+export function searchPortalIcons(query: string): string[] {
+  const words = query.toLowerCase().trim().split(/[\s_-]+/).filter(Boolean);
+  return words.length ? portalIconNames.filter(name => words.every(word => getPortalIconLabel(name).toLowerCase().includes(word))) : portalIconNames;
+}
+
 export type ProfileLinkIconOption = {
   name: string;
   label: string;
@@ -135,5 +151,20 @@ export const profileLinkIconOptions: ProfileLinkIconOption[] = [
 export const profileLinkIconNames = profileLinkIconOptions.map((option) => option.name);
 
 export function getCategoryIcon(iconName: string): CategoryIconComponent {
-  return profileBrandIcons[iconName] ?? iconsByName[iconName] ?? ShapesIcon;
+  if (Object.prototype.hasOwnProperty.call(profileBrandIcons, iconName)) return profileBrandIcons[iconName];
+  if (Object.prototype.hasOwnProperty.call(iconsByName, iconName)) return iconsByName[iconName];
+  const name = typeof iconName === 'string' && iconName.startsWith('lucide:') ? iconName.slice(7) : '';
+  if (!libraryNames.has(name)) return ShapesIcon;
+  let Icon = libraryComponents.get(name);
+  if (!Icon) {
+    Icon = function LibraryIcon(props: React.SVGProps<SVGSVGElement>) {
+      return React.createElement('svg', {
+        xmlns: 'http://www.w3.org/2000/svg', width: 24, height: 24, viewBox: '0 0 24 24',
+        fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+        'aria-hidden': true, focusable: false, ...props,
+      }, React.createElement('use', { href: `${portalIconCatalog.sprite}#${name}` }));
+    };
+    libraryComponents.set(name, Icon);
+  }
+  return Icon;
 }

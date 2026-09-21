@@ -6,7 +6,7 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
-import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon, BookmarkIcon, CheckIcon, ChevronDownIcon, ClockIcon, GripVerticalIcon, HandshakeIcon, HeartIcon, Loader2Icon, LockIcon, MoreHorizontalIcon, MoveIcon, PencilIcon, PlusIcon, Repeat2Icon, Settings2Icon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -31,6 +31,7 @@ import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrd
 import { useReorderOutsideTap } from '../features/profile/useReorderOutsideTap';
 import { useProfileConnections } from '../features/follows/useProfileConnections';
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
+import { MobileProjectDescriptionSheet } from './media/MobileProjectDescriptionSheet';
 
 /**
  * A creator's profile overview.
@@ -84,6 +85,8 @@ type UserProfilePageProps = {
   /** Opens the published project represented by a profile image. */
   onOpenProject: (projectId: string, categoryId: string, options?: { openComments?: boolean }) => void;
   onEditProfile?: () => void;
+  /** Existing Messages entry point, with its normal account gate. */
+  onCollaboration?: () => void;
   /** Stable read-only URL intended for people who do not have an account. */
   shareUrl?: string;
   onBeforeShare?: () => Promise<void>;
@@ -387,6 +390,7 @@ export function UserProfilePage({
   onSignInRequest,
   onOpenProject,
   onEditProfile,
+  onCollaboration,
   shareUrl,
   onBeforeShare,
   isSharedView = false,
@@ -437,7 +441,9 @@ export function UserProfilePage({
   const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count);
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
-  useEffect(() => setIsMobileToolsOpen(false), [profile.id]);
+  const [isBioOpen, setIsBioOpen] = useState(false);
+  useEffect(() => { setIsMobileToolsOpen(false); setIsBioOpen(false); }, [profile.id]);
+  useEffect(() => { if (!isMobile) setIsBioOpen(false); }, [isMobile]);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
   const manageTriggerRef = useRef<HTMLButtonElement>(null);
@@ -666,8 +672,17 @@ export function UserProfilePage({
                   </ul>
                 </div>}
             </div>}
-          {/* Activity and owner controls read as one right-hand cluster. */}
+          {isMobile && profileLinks.length > 0 && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
+            <PlatformGrid links={profileLinks} profileName={displayName} />
+          </div>}
+          {/* Mobile owner actions follow the profile links in one icon row. */}
           <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
+            {isMobile && <button type="button" onClick={() => setIsBioOpen(true)} aria-label="Bio" title="Bio" aria-haspopup="dialog" className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)]">
+              <span aria-hidden="true" className="profile-bio-info-icon">i</span>
+            </button>}
+            {isMobile && showsOwnerTools && <button type="button" onClick={onCollaboration} disabled={!onCollaboration} aria-label="Collaboration" title="Collaboration" className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)] disabled:opacity-45">
+              <InterfaceIcon icon={HandshakeIcon} size="sm" weight="medium" />
+            </button>}
             {/* A signed-in visitor can follow. A guest is told plainly that this
                needs an account rather than being shown a control that silently
                fails, and reading the work stays open either way. */}
@@ -701,7 +716,7 @@ export function UserProfilePage({
                 Sign in to follow
               </button>}
             {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
-            {showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="profile-action-engagement side-panel-control-row">
+            {!isMobile && showsOwnerTools && onOpenActivity ? <div role="group" aria-label="Profile engagement collections" className="profile-action-engagement side-panel-control-row">
                 {ENGAGEMENT_KINDS.filter((kind) => kind !== 'save').map((kind) => {
               const Icon = ACTIVITY_ICONS[kind];
               const labels = describeActivityCollection(kind);
@@ -711,12 +726,17 @@ export function UserProfilePage({
                   </button>;
             })}
               </div> : null}
-            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} compact={isMobile} /> : null}
+            {!isMobile && showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} /> : null}
             {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className={isMobile ? 'sr-only' : undefined}>Edit profile</span>
               </button> : null}
-            {showsOwnerTools ? <div className="relative">
+            {isMobile && showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} compact /> : null}
+            {isMobile && showsOwnerTools && <button type="button" data-profile-reorder-start="" aria-label="Reorder projects" title="Reorder projects" disabled={!showsMobileReorder || !canReorderProjects} onClick={startReordering}
+              className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)] disabled:opacity-45">
+              <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
+            </button>}
+            {!isMobile && showsOwnerTools ? <div className="relative">
                 <button ref={manageTriggerRef} type="button" onClick={() => setIsManageOpen((open) => !open)} aria-label="Manage profile" title={isMobile ? 'Manage profile' : undefined} aria-expanded={isManageOpen} aria-haspopup="dialog" className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={Settings2Icon} size="sm" weight="medium" />
                   <span className={isMobile ? 'sr-only' : undefined}>Manage</span>
@@ -754,18 +774,12 @@ export function UserProfilePage({
                   </div> : null}
               </div> : null}
           </div>
-          {showsMobileReorder && <button type="button" data-profile-reorder-start="" aria-label="Reorder projects" disabled={!canReorderProjects} onClick={startReordering}
-            className="flex min-h-11 w-full basis-full items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] px-3 text-left text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45">
-            <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
-            Reorder projects
-          </button>}
-          {isMobile && profileLinks.length > 0 && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
-            <PlatformGrid links={profileLinks} profileName={displayName} />
-          </div>}
         </div>
       </header>}
 
       </div>
+      {isMobile && isBioOpen && <MobileProjectDescriptionSheet projectId={profile.id} description={profile.headline} contentLabel="Bio" emptyMessage="No bio yet." onClose={() => setIsBioOpen(false)}
+        onEditContent={showsOwnerTools && onEditProfile ? () => { setIsBioOpen(false); onEditProfile(); } : undefined} />}
       {/* Naming the category and choosing its mark happens before the record is
          created, so an abandoned attempt leaves nothing behind. */}
       {isAddingCategory && onAddCategory && <NewCategoryDialog onCancel={() => setIsAddingCategory(false)} onCreate={(label, iconName) => {

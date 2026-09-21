@@ -23,28 +23,30 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
       </button>
       <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
       <h2 title={category.label}>{category.label}</h2>
-      <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>
-        <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />
-      </button>
       {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
     </div>
     <div className="mobile-portal-index-preferences">
-      <label className="mobile-portal-index-sort"><span>Sort:</span>
+      <label className="mobile-portal-index-sort">
         <select value={sort} aria-label="Sort projects" onChange={event => onSort(event.target.value as MobileProjectSort)}>
           <option value="recent">Recent</option><option value="title">Name</option><option value="saved">Saved order</option>
         </select><InterfaceIcon icon={ChevronDownIcon} size="sm" />
       </label>
-      {canAdjustPages && <label className="mobile-portal-index-density">
-        <span>Pages/row {pagesPerRow}</span>
-        <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={pagesPerRow} disabled={savingPages}
-          onChange={event => onPagesChange(Number(event.currentTarget.value))}
-          onPointerUp={event => onPagesCommit(Number(event.currentTarget.value))}
-          onKeyUp={event => onPagesCommit(Number(event.currentTarget.value))}
-          onBlur={event => onPagesCommit(Number(event.currentTarget.value))}
-          aria-label="Pages per row" aria-valuetext={`${pagesPerRow} ${pagesPerRow === 1 ? 'page' : 'pages'} per row`} />
-      </label>}
+      <div className="mobile-portal-index-view-controls">
+        <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>
+          <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />
+        </button>
+        {canAdjustPages && <label className="mobile-portal-index-density">
+          <span>Pages/row {pagesPerRow}</span>
+          <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={pagesPerRow} disabled={savingPages}
+            onChange={event => onPagesChange(Number(event.currentTarget.value))}
+            onPointerUp={event => onPagesCommit(Number(event.currentTarget.value))}
+            onKeyUp={event => onPagesCommit(Number(event.currentTarget.value))}
+            onBlur={event => onPagesCommit(Number(event.currentTarget.value))}
+            aria-label="Pages per row" aria-valuetext={`${pagesPerRow} ${pagesPerRow === 1 ? 'page' : 'pages'} per row`} />
+        </label>}
+      </div>
     </div>
   </header>;
 }

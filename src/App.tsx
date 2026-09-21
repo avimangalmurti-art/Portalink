@@ -1136,7 +1136,7 @@ function AppContent() {
         // feed. Navigate directly so the Portal index opens alongside the chosen
         // project; discovery-only return state would intentionally collapse it.
         nav.project(viewedProfile.id, categoryId, projectId);
-      }} onEditProfile={isOwnerMode ? () => setIsProfileEditorOpen(true) : undefined} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
+      }} onEditProfile={isOwnerMode ? () => setIsProfileEditorOpen(true) : undefined} onCollaboration={isOwnerMode ? () => openMessages() : undefined} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
         nonce: (request?.nonce ?? 0) + 1,
         label,
         iconName
