@@ -9,7 +9,6 @@
 export const HANDLE_MIN_LENGTH = 3;
 export const HANDLE_MAX_LENGTH = 20;
 export const NAME_MAX_LENGTH = 48;
-export const HEADLINE_MAX_LENGTH = 80;
 export const LOCATION_MAX_LENGTH = 48;
 
 /**
@@ -56,17 +55,6 @@ export function validateHandle(value: string): string | null {
   }
   return null;
 }
-export function validateHeadline(value: string): string | null {
-  const headline = value.trim();
-  if (!headline) {
-    return 'Add a short line describing what you make.';
-  }
-  if (headline.length > HEADLINE_MAX_LENGTH) {
-    return `Use ${HEADLINE_MAX_LENGTH} characters or fewer.`;
-  }
-  return null;
-}
-
 /** Optional field: only length is checked. */
 export function validateLocation(value: string): string | null {
   if (value.trim().length > LOCATION_MAX_LENGTH) {

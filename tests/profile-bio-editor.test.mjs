@@ -36,11 +36,23 @@ test('Bio reads fresh data and saves only headline, keeping the confirmed value 
   await s.open(); assert.equal(s.h.value.value, 'Updated bio'); assert.equal(s.h.value.isDirty, false);
 });
 
-test('Bio is optional and clearing it persists; oversized text is rejected without a write', async () => {
-  const s = setup(); await s.open(); await s.change('x'.repeat(81)); await s.save();
-  assert.match(s.h.value.error, /80/); assert.equal(s.writes.length, 0);
+test('Bio remains optional and clearing it persists', async () => {
+  const s = setup(); await s.open();
   await s.change('   '); await s.save();
   assert.equal(s.writes[0].input.headline, ''); assert.equal(s.h.value.savedValue, '');
+});
+
+test('long, multiline Unicode Bios save and reopen intact without a character cap', async () => {
+  const s = setup();
+  for (const bio of ['x'.repeat(81), 'A longer biography 🌍\n第二段 — creative work.\n'.repeat(500).trim()]) {
+    await s.open();
+    assert.equal(s.h.value.maxLength, undefined);
+    await s.change(bio); await s.save();
+    assert.equal(s.h.value.error, null); assert.equal(s.h.value.phase, 'saved');
+    assert.equal(s.writes.at(-1).input.headline, bio);
+    await s.h.value.close(); await s.open();
+    assert.equal(s.h.value.value, bio); assert.equal(s.h.value.isDirty, false);
+  }
 });
 
 test('failed save preserves the draft and allows retry without a success notification', async () => {

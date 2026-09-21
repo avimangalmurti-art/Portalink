@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
-import { HEADLINE_MAX_LENGTH, validateHeadline } from './validation';
 import type { SheetTextEditor } from '../../components/media/MobileProjectDescriptionSheet';
 
 /** Bio owns only headline; other profile edits must never be overwritten here. */
@@ -46,7 +45,7 @@ export function useProfileBioEditor(profileId: string, canEdit: boolean): SheetT
   const isDirty = phase === 'editing' && value.trim() !== (original ?? '').trim();
   return {
     isEditing: phase !== 'idle', phase, value, error, isDirty,
-    isSaving: phase === 'saving', maxLength: HEADLINE_MAX_LENGTH,
+    isSaving: phase === 'saving',
     savedValue: original,
     open: () => { void open(); },
     retryLoad: () => { void open(); },
@@ -66,8 +65,6 @@ export function useProfileBioEditor(profileId: string, canEdit: boolean): SheetT
     async save() {
       if (!canEdit || saving.current || !isDirty) return;
       const headline = value.trim();
-      const validationError = headline ? validateHeadline(headline) : null;
-      if (validationError) { setError(validationError); return; }
       saving.current = true;
       const request = ++generation.current;
       setPhase('saving');

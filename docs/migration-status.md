@@ -2,7 +2,7 @@
 
 Recorded on 2026-09-14 from repository source at commit `5512bd0` and the evidence linked below. This documentation pass did not connect to a database, inspect a live migration ledger, apply SQL, or change deployment state.
 
-There are **28 Supabase migration files**, one excluded account-deletion SQL candidate, and one separate Sites/D1 migration file. A file in Git establishes the intended change; it does not establish that a database received it. A successful isolated test establishes behavior in its synthetic database. A manual dashboard application record establishes a recorded application, but does not prove a migration-ledger entry or that the current schema still matches it.
+Updated 2026-09-21 to add the Bio migration and its approved production application. There are **29 Supabase migration files**, one excluded account-deletion SQL candidate, and one separate Sites/D1 migration file. A file in Git establishes the intended change; it does not establish that a database received it. A successful isolated test establishes behavior in its synthetic database. A manual dashboard application record establishes a recorded application, but does not prove a migration-ledger entry or that the current schema still matches it.
 
 See [current architecture](current-architecture.md), [development workflow](development-workflow.md), and [Sites deployment](sites-deployment.md) for the related application and release boundaries. Publishing the frontend or merging GitHub `main` does not apply Supabase migrations.
 
@@ -15,8 +15,9 @@ See [current architecture](current-architecture.md), [development workflow](deve
 | Recorded pending at an earlier date | A dated source note says the work was pending then. It is historical evidence, not a fresh production check. |
 | Forward fix saved; application unverified | The correction exists in Git. Our permission-fix work did not apply it to production; out-of-band application has not been checked. |
 | Excluded review candidate | Intentionally outside the migration directory and subject to a separate release gate. |
+| Prepared locally; not applied | The current task prepared and tested the migration in isolation, but has not applied it to the existing Supabase project. |
 
-**Live Supabase migration-ledger status is unverified for every row below.** Neither chronological filenames nor the existence of later migrations proves that earlier files were applied.
+The 2026-09-21 read-only catalog check found no `supabase_migrations.schema_migrations` table in the existing project. No migration history was created or repaired. Historical application statuses below remain unchanged; the Bio row records its separate manual application and verified schema result. Neither chronological filenames nor the existence of later migrations proves that earlier files were applied.
 
 ## Supabase migration inventory
 
@@ -52,8 +53,11 @@ All filenames below are under `supabase/migrations/`.
 | [202609100001_video_processing_pipeline.sql](../supabase/migrations/202609100001_video_processing_pipeline.sql) | Recorded pending at an earlier date | [Video worker notes](../workers/video_processor/README.md) dated 2026-09-10 record migration/worker deployment as pending hosting. Current production installation is unknown. Original file was corrected in `5512bd0`; see the video section below. |
 | [202609130001_private_content_boundary.sql](../supabase/migrations/202609130001_private_content_boundary.sql) | Recorded manual application | [September 13 implementation notes, activation items 1–2](apple-experience-audit-implementation.md#activation-order-and-remaining-limits) record authenticated dashboard application on 2026-09-13, matching six function bodies and live API checks. No ledger receipt is recorded here. |
 | [202609140001_video_worker_permissions.sql](../supabase/migrations/202609140001_video_worker_permissions.sql) | Forward fix saved; application unverified | Added in `5512bd0`. Our permission-fix work applied no production SQL. Requires existing video functions; verify installation and current ACLs before scheduling application. |
+| [202609210001_unbounded_profile_bio.sql](../supabase/migrations/202609210001_unbounded_profile_bio.sql) | Recorded manual application; schema verified | Applied by the owning Codex task on 2026-09-21 around 10:31 UTC through the authenticated SQL Editor for the existing Portalink Networks project after explicit user approval. Pre-check confirmed the 0–80 constraint. The transaction returned success; post-check confirmed zero `profiles_headline_check` constraints, `text`, NOT NULL, empty-string default and RLS still enabled. Only that constraint was dropped; no content rows were read/changed and no other migrations ran. Migration ledger table was absent and was not created. Isolated full-schema tests cover long/Unicode/empty Bios, preserved existing rows and denied non-owner writes. |
 
 The verification scripts under `scripts/` and database tests under `tests/` use synthetic schemas/accounts. For example, [the private-content verifier](../scripts/verify-private-content-database.mjs) loads the migration history into PGlite. Its success does not report the linked project's state.
+
+The focused [Bio database test](../tests/profile-bio-db.test.mjs) uses the existing isolated PGlite runtime via `PGLITE_MODULE_PATH`: set that environment variable to the installed runtime's `dist/index.js`, then run `node.exe --test tests/profile-bio-db.test.mjs`. It skips when the runtime is unavailable; it never connects to Supabase. The test also executes [profile onboarding SQL validation](../tests/profile-onboarding.sql) against a temporary table in that isolated database.
 
 ## Video pipeline and permission correction
 
@@ -81,7 +85,7 @@ Before any initial video activation, coordinate worker hosting with the queue/ba
 
 | Artifact | System | Application status |
 | --- | --- | --- |
-| [drizzle/0000_media_interactions.sql](../drizzle/0000_media_interactions.sql) | Sites worker's D1 database; creates media engagement/comment tables and indexes. | Unknown from this pass. It is outside the 28 Supabase files and outside the Supabase migration ledger. |
+| [drizzle/0000_media_interactions.sql](../drizzle/0000_media_interactions.sql) | Sites worker's D1 database; creates media engagement/comment tables and indexes. | Unknown from this pass. It is outside the Supabase files and outside the Supabase migration ledger. |
 
 [The Sites worker](../src/sites-worker.ts) also has an `ensureSchema` routine that creates these tables and indexes when its database is used. Consequently, table existence alone would not prove that `0000_media_interactions.sql` ran through a migration tool. Verify D1's own deployment/migration records and catalog separately through the authorized Sites workflow. Do not send this SQLite/D1 SQL to Supabase.
 

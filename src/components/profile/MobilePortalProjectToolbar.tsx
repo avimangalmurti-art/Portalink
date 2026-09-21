@@ -38,7 +38,7 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
           <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />
         </button>
         {canAdjustPages && <label className="mobile-portal-index-density">
-          <span>Pages/row {pagesPerRow}</span>
+          <span>Pages/row <span className="mobile-portal-index-page-count">{pagesPerRow}</span></span>
           <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={pagesPerRow} disabled={savingPages}
             onChange={event => onPagesChange(Number(event.currentTarget.value))}
             onPointerUp={event => onPagesCommit(Number(event.currentTarget.value))}

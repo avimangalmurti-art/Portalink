@@ -255,11 +255,9 @@ function AccountMenuTrigger({
   const menuFocus = useMenuFocus({ open: isOpen, menuRef, triggerRef, onOpen: () => setIsOpen(true), onClose: closeMenu });
   useEffect(() => { if (!isOpen) return; window.addEventListener('resize', positionMenu); return () => window.removeEventListener('resize', positionMenu); }, [isOpen, positionMenu]);
   async function inviteFriend() {
-    // Invites use the public viewer route, so a recipient never lands inside the
-    // sender's account workspace. The public page already offers its own Join
-    // the Portalink Network path for anyone who wants an account.
-    const publicProfileHref = profileHref?.replace(/^\/p\//, '/share/');
-    const inviteUrl = publicProfileHref ? new URL(publicProfileHref, window.location.origin).toString() : window.location.origin;
+    // Invitations enter welcome/onboarding independently of any creator profile.
+    // The marker also releases a recipient's previous shared-profile context.
+    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, window.location.origin).toString();
     if (navigator.share) {
       try {
         await navigator.share({

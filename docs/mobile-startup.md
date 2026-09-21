@@ -5,6 +5,8 @@ Portalink has two intentional mobile entry experiences:
 - A restored signed-in session shows the supplied Hello World video for a 1500ms startup budget, with no extra fade or account buttons. Content can load underneath. If authentication is still unresolved at the deadline, the existing loading state waits for verification; startup must not bypass it.
 - A guest opening `/` or a supported `/share/...` URL sees the same animation looping until they choose Sign in, Create account, password help, or guest viewing. Ordinary fragments such as `#projects` do not bypass welcome. Account forms temporarily hide and pause the welcome; returning resumes it. Recovery/callback URLs retain their dedicated flow.
 
+Invite a friend shares `/?welcome=1` on the current site origin, through both native sharing and clipboard fallback. This explicit root invitation clears an old shared-profile session context after guest-session restoration, so it cannot redirect a recipient into a previously viewed creator's profile. The mobile recipient sees Hello World → Create account → Choose appearance and the existing onboarding flow. Copy public link remains a separate `/share/:profileId` link. Existing signed-in, authentication callback, password recovery and desktop entry behavior remain unchanged. Opening a new invitation shows welcome again; choosing Continue as guest does not repeatedly reopen it within that visit.
+
 `ApplicationBootstrap.tsx` selects the flow. `PortalinkSplashLoader.tsx` owns playback. The desktop clip, timing, poster and fallback remain intentionally different.
 
 ## Media and recovery

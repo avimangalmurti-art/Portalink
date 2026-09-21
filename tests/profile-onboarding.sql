@@ -15,12 +15,11 @@ begin
   if (select headline from onboarding_profile_validation where handle = 'profile_test_2') <> 'Existing headline' then
     raise exception 'Existing headlines must be preserved';
   end if;
-  begin
-    insert into onboarding_profile_validation (account_id, name, handle, headline)
-      values (gen_random_uuid(), 'Invalid profile', 'profile_test_3', repeat('x', 81));
-    raise exception 'Overlong headlines must still be rejected';
-  exception when check_violation then null;
-  end;
+  insert into onboarding_profile_validation (account_id, name, handle, headline)
+    values (gen_random_uuid(), 'Long bio profile', 'profile_test_3', repeat('x', 20000));
+  if (select headline from onboarding_profile_validation where handle = 'profile_test_3') <> repeat('x', 20000) then
+    raise exception 'Long Bios must be preserved in full';
+  end if;
 end;
 $$;
 rollback;

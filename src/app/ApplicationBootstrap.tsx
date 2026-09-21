@@ -42,10 +42,13 @@ export function ApplicationBootstrap() {
   const { pathname, search = '', hash = '' } = useLocation();
   const presentation = useViewportPresentation();
   const [openingPresentation] = useState(presentation);
+  const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
+  const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
+  const isWelcomeInvite = pathname === '/' && new URLSearchParams(search).get('welcome') === '1' && !isAuthCallback && !isRecovery;
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
   const [landingPath] = useState(() => presentation === 'mobile'
-    && !/[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash)
+    && !isAuthCallback
     ? readSharedReturnPath(pathname + search) ?? (pathname === '/' ? '/' : null) : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
@@ -53,10 +56,9 @@ export function ApplicationBootstrap() {
   const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
-  const sessionSharedProfileId = readSharedViewerProfileId();
+  const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
-  const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const holdLanding = Boolean(landingPath && !hasLeftLanding && presentation === 'mobile' && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
 
   useEffect(() => {
@@ -78,7 +80,7 @@ export function ApplicationBootstrap() {
 
   useEffect(() => {
     try {
-      if (auth.isAuthenticated) {
+      if (auth.isAuthenticated || (isWelcomeInvite && !auth.isInitializing)) {
         window.sessionStorage.removeItem(SHARED_VIEWER_PROFILE_KEY);
       } else if (routeSharedProfileId && routeSharedProfileId !== sessionSharedProfileId) {
         window.sessionStorage.setItem(SHARED_VIEWER_PROFILE_KEY, routeSharedProfileId);
@@ -87,7 +89,7 @@ export function ApplicationBootstrap() {
       // Storage can be unavailable in strict privacy modes. The shared route
       // remains read-only even when the extra same-tab boundary cannot persist.
     }
-  }, [auth.isAuthenticated, routeSharedProfileId, sessionSharedProfileId]);
+  }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
   const shouldRedirect = !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
   const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !holdLanding && !hasPresentedLanding && !isRecovery;

@@ -60,7 +60,7 @@ function compile(path, imports, globals) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
+  }).outputText, { exports, URLSearchParams, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false } = {}) {
@@ -379,8 +379,9 @@ test('splash native controls are suppressed only inside the decorative startup v
   assert.match(css, /\.portalink-splash-video::-webkit-media-controls-start-playback-button\s*\{[^}]*display:\s*none !important/);
 });
 
-function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false } = {}) {
+function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId } = {}) {
   const h = hooks(), requested = [], location = {pathname:path,search,hash}, storage = new Map();
+  if (storedProfileId) storage.set('portalink.sharedViewerProfileId', storedProfileId);
   let rendered;
   const auth = {isInitializing:true,isAuthenticated:authenticated,pendingView:recovery?'resetPassword':null,
     requestAuthenticatedDestination(intent,view) { requested.push({intent,view}); auth.pendingView=view; },
@@ -396,8 +397,36 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
   }, {window:{...h.window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,location,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
+  return {auth,requested,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
 }
+
+test('invites open root welcome without a previous shared-profile redirect or account destination', () => {
+  const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator'});
+  h.render(); h.auth.isInitializing=false;
+  let splash=h.render(); assert.equal(h.app.type,'app');
+  assert.equal(h.storage.has('portalink.sharedViewerProfileId'),false);
+  assert.equal(splash.props.landing.continueLabel,'Continue as guest');
+  for (const [action,view] of [['onCreateAccount','signUp'],['onSignIn','signIn'],['onForgotPassword','forgotPassword']]) {
+    splash.props.landing[action](); assert.deepEqual(h.requested.at(-1),{view});
+    assert.equal(h.render().props.hidden,true);
+    h.auth.pendingView=null; splash=h.render(); assert.equal(splash.props.hidden,false);
+  }
+  splash.props.landing.onContinue(); assert.equal(h.render(),null);
+  assert.equal(h.render(),null,'the welcome marker cannot reopen a dismissed landing');
+  const reopened=sharedBootstrap({path:'/',search:'?welcome=1'}); reopened.auth.isInitializing=false;
+  assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
+});
+
+test('invitation marker does not override signed-in, WEB, recovery or authentication callback flows', () => {
+  for (const options of [{authenticated:true},{presentation:'web'},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
+    const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator',...options});
+    h.render(); h.auth.isInitializing=false;
+    assert.equal(h.render().props.landing,undefined);
+    if (options.recovery || options.hash || options.search) assert.equal(h.storage.get('portalink.sharedViewerProfileId'),'previous-creator');
+  }
+  const ordinary=sharedBootstrap({path:'/',search:'',storedProfileId:'previous-creator'}); ordinary.auth.isInitializing=false;
+  ordinary.render(); assert.equal(ordinary.app.type,'redirect','ordinary guest navigation keeps its existing shared-profile boundary');
+});
 
 test('restored MOBILE sessions keep a visible video-only intro until its timed completion', () => {
   const h=sharedBootstrap(); let splash=h.render();
