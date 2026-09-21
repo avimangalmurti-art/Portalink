@@ -8,7 +8,7 @@ import { createAppearanceWriter, DEFAULT_PUBLIC_APPEARANCE, normalizePublicAppea
 /** Restore account branding first; only legacy, unsaved profiles adopt local settings. */
 export function useCreatorAppearance(profileId: string | null, enabled: boolean, initialPalette?: Pick<PublicAppearance, 'accentColor' | 'systemGray'>) {
   const { profiles } = useServices();
-  const { cacheProfile } = useProfileData();
+  const { invalidateProfiles } = useProfileData();
   const query = useProfileQuery(enabled ? profileId : null);
   const [appearance, setAppearance] = useState<PublicAppearance>(() => normalizePublicAppearance({
     accentColor: readAccentColor('#0A84FF'), systemGray: readNavSystemGray('gray6'), mode: readAppearanceMode('auto'), ...initialPalette,
@@ -24,9 +24,11 @@ export function useCreatorAppearance(profileId: string | null, enabled: boolean,
   const current = useRef({ profileId, enabled, appearance, readyProfileId });
   current.current = { profileId, enabled, appearance, readyProfileId };
   const write = useMemo(() => createAppearanceWriter(async (id, value) => {
-    const profile = await profiles.updateProfile(id, { publicAppearance: value });
-    cacheProfile(profile);
-  }), [profiles, cacheProfile]);
+    await profiles.updateProfile(id, { publicAppearance: value });
+    // A full response can predate a simultaneous name, privacy or order save.
+    // Refetch current data rather than replacing it with that older snapshot.
+    invalidateProfiles();
+  }), [profiles, invalidateProfiles]);
 
   useEffect(() => {
     if (!profileId) { setReadyProfileId(null); savedKey.current = ''; setSaving(false); setSaveError(null); return; }

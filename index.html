@@ -47,16 +47,13 @@
       }
 
       #portalink-preboot picture { display: contents; }
-      #portalink-preboot .mobile-startup-status { display: none; }
-
-      /* No obsolete full-screen still before the mobile welcome mounts. */
+      /* The same looping clip is visible before JavaScript on mobile. */
       @media (max-width: 639px) {
         #portalink-preboot { background-color: #f8fdfc; }
-        #portalink-preboot picture { display: none; }
-        #portalink-preboot .mobile-startup-status {
-          display: block;
-          font: 16px/1.5 system-ui, sans-serif;
-          color: #6f7682;
+        #portalink-preboot img {
+          width: 100vw;
+          height: 100dvh;
+          object-fit: contain;
         }
       }
 
@@ -113,14 +110,12 @@
   </head>
   <body>
     <div id="root">
-      <!-- WEB retains its first frame; MOBILE goes straight to its welcome. -->
+      <!-- WEB retains its first frame; MOBILE repeats the supplied animation. -->
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
         <picture>
-          <!-- Inline blank avoids downloading the hidden WEB poster on phones. -->
-          <source media="(max-width: 639px)" srcset="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" />
+          <source media="(max-width: 639px)" srcset="/portalink-welcome-loop.webp?v=6dceb1fd" type="image/webp" />
           <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
         </picture>
-        <span class="mobile-startup-status" aria-hidden="true">Opening Portalink…</span>
       </div>
     </div>
     <script type="module" src="/src/index.tsx"></script>

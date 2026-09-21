@@ -31,7 +31,7 @@ import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrd
 import { useReorderOutsideTap } from '../features/profile/useReorderOutsideTap';
 import { useProfileConnections } from '../features/follows/useProfileConnections';
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
-import { MobileProjectDescriptionSheet } from './media/MobileProjectDescriptionSheet';
+import { ProfileBioSheet } from '../features/profile/ProfileBioSheet';
 
 /**
  * A creator's profile overview.
@@ -315,12 +315,14 @@ function ProfileIdentityAndLinks({
   displayName,
   links,
   showLinks = true,
+  onOpenBio,
   summaryCounts
 }: {
   profile: Profile;
   displayName: string;
   links: ProfileLink[];
   showLinks?: boolean;
+  onOpenBio?: () => void;
   summaryCounts?: { projectCount: number; portalCount: number; activeView: ProfileContentView; onSelect: (view: 'projects' | 'portals') => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
@@ -338,7 +340,7 @@ function ProfileIdentityAndLinks({
         </div>
       </div>
       {showLinks && <div className="min-w-0 flex-1 self-center">
-        {links.length > 0 ? <PlatformGrid links={links} profileName={displayName} /> : null}
+        {links.length > 0 || onOpenBio ? <PlatformGrid links={links} profileName={displayName} onOpenBio={onOpenBio} /> : null}
       </div>}
     </div>;
 }
@@ -602,7 +604,7 @@ export function UserProfilePage({
       <div data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       {isSharedView && <header className="user-profile-canvas ps-panel-toolbar w-full">
           <section aria-label={`${displayName} information`} className="flex min-h-16 w-full items-center px-3 py-2 text-left">
-            <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} />
+            <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} onOpenBio={isMobile ? () => setIsBioOpen(true) : undefined} />
           </section>
         </header>}
       {/* One 8px rhythm through the strip, and it shares the content column's
@@ -672,14 +674,11 @@ export function UserProfilePage({
                   </ul>
                 </div>}
             </div>}
-          {isMobile && profileLinks.length > 0 && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
-            <PlatformGrid links={profileLinks} profileName={displayName} />
+          {isMobile && <div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
+            <PlatformGrid links={profileLinks} profileName={displayName} onOpenBio={() => setIsBioOpen(true)} />
           </div>}
           {/* Mobile owner actions follow the profile links in one icon row. */}
           <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
-            {isMobile && <button type="button" onClick={() => setIsBioOpen(true)} aria-label="Bio" title="Bio" aria-haspopup="dialog" className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)]">
-              <span aria-hidden="true" className="profile-bio-info-icon">i</span>
-            </button>}
             {isMobile && showsOwnerTools && <button type="button" onClick={onCollaboration} disabled={!onCollaboration} aria-label="Collaboration" title="Collaboration" className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)] disabled:opacity-45">
               <InterfaceIcon icon={HandshakeIcon} size="sm" weight="medium" />
             </button>}
@@ -778,8 +777,8 @@ export function UserProfilePage({
       </header>}
 
       </div>
-      {isMobile && isBioOpen && <MobileProjectDescriptionSheet projectId={profile.id} description={profile.headline} contentLabel="Bio" emptyMessage="No bio yet." onClose={() => setIsBioOpen(false)}
-        onEditContent={showsOwnerTools && onEditProfile ? () => { setIsBioOpen(false); onEditProfile(); } : undefined} />}
+      {isMobile && isBioOpen && <ProfileBioSheet key={profile.id} profileId={profile.id} bio={profile.headline}
+        canEdit={showsOwnerTools && !isSharedView} onClose={() => setIsBioOpen(false)} />}
       {/* Naming the category and choosing its mark happens before the record is
          created, so an abandoned attempt leaves nothing behind. */}
       {isAddingCategory && onAddCategory && <NewCategoryDialog onCancel={() => setIsAddingCategory(false)} onCreate={(label, iconName) => {

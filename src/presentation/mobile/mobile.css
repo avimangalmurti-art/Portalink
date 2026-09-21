@@ -127,9 +127,6 @@
 #root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-status { grid-column: 1 / -1; font-size: 12px; }
 #root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-status p { display: flex; gap: 6px; margin-top: 4px; }
 #root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-avatar-reset { min-height: 44px; color: var(--accent-text); }
-#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio { position: relative; }
-#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio textarea { height: 92px; padding-bottom: 28px; }
-#root .profile-editor-overlay[data-presentation='mobile'] .mobile-profile-bio-count { position: absolute; right: 12px; top: 94px; font-size: 11px; color: var(--text-secondary); pointer-events: none; }
 #root .profile-editor-overlay[data-presentation='mobile'] [data-profile-editor-section='links'] { border-top: 1px solid var(--hairline-strong); padding-top: 12px; }
 #root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-heading { align-items: center; gap: 8px; }
 #root .profile-editor-overlay[data-presentation='mobile'] .profile-links-editor-heading legend { font-size: 16px; }
@@ -376,6 +373,40 @@
 #root .codex-shell[data-presentation='mobile'] .account-welcome-view-link {
   min-height: 44px;
   font-size: 14px;
+}
+
+/* Returning-member sign-in keeps the starfield, with a quiet branded form. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] .account-welcome-content {
+  padding-top: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] .account-welcome-heading {
+  margin-bottom: 22px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] .account-welcome-heading h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 400;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] .mobile-signin-mark {
+  display: block;
+  width: clamp(104px, 34vw, 148px);
+  height: auto;
+  aspect-ratio: 1;
+  margin: 0 auto 24px;
+  border-radius: 20px;
+  object-fit: contain;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] form {
+  gap: 18px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] .text-control {
+  border-radius: 18px !important;
+  corner-shape: round;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-signin] form button[type='submit'] {
+  border-radius: 999px !important;
+  corner-shape: round;
+  font-size: 16px;
 }
 
 /* The mobile signup journey shares auth state, but has its own light/dark frame. */
@@ -2068,7 +2099,7 @@
   justify-content: space-between;
 }
 
-/* Bio, Collaboration, Edit profile, Copy public link and Reorder projects. */
+/* Bio lives first in the links row; owner tools follow below. */
 #root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] {
   position: relative;
   display: grid;

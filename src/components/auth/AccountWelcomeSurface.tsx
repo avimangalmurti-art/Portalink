@@ -22,9 +22,10 @@ export type AccountAppearanceProps = {
 };
 
 /** One welcome scene for every step of the account journey. */
-export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, onStepBack, showAppearance = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
+export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, mobileSignIn = false, onStepBack, showAppearance = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
   title: string;
   mobileOnboarding?: boolean;
+  mobileSignIn?: boolean;
   onStepBack?: () => void;
   showAppearance?: boolean;
   busy?: boolean;
@@ -35,6 +36,7 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
   const viewportRef = useDialogViewport();
   const isMobile = usePresentation() === 'mobile';
   const onboarding = isMobile && mobileOnboarding;
+  const signIn = isMobile && mobileSignIn;
   const mobileRef = useRef(isMobile);
   mobileRef.current = isMobile;
   const sheetRef = useRef<HTMLElement>(null);
@@ -78,7 +80,7 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
     confirmationRef.current?.querySelector('button')?.focus();
   }, [pendingLeave]);
   const selected = findNavAccent(accentColor);
-  return <div ref={viewportRef} data-mobile-onboarding={onboarding ? theme : undefined} className="modal-scrim auth-signin-experience account-welcome-overlay fixed inset-x-0 z-[80] flex items-center justify-center p-4" style={{
+  return <div ref={viewportRef} data-mobile-onboarding={onboarding ? theme : undefined} data-mobile-signin={signIn || undefined} className="modal-scrim auth-signin-experience account-welcome-overlay fixed inset-x-0 z-[80] flex items-center justify-center p-4" style={{
     top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)',
   }} onPointerDown={event => { if (event.target === event.currentTarget) dismiss(); }}>
     <section ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} aria-busy={busy} data-welcome-contrast={highContrast} data-welcome-solid={reduceTranslucency}
@@ -87,9 +89,10 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       <button type="button" aria-label={isMobile ? 'Back' : 'Close'} disabled={busy} onClick={onboarding && onStepBack && !pendingLeave ? onStepBack : dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40">{onboarding ? <ChevronLeftIcon size={26} aria-hidden="true" /> : isMobile ? <><ArrowLeftIcon size={20} aria-hidden="true" /><span>Back</span></> : <XIcon size={18} aria-hidden="true" />}</button>
       <div ref={contentRef} className="account-welcome-content scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
         <header className="account-welcome-heading mb-5 text-center">
-          {!onboarding && <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>}
+          {!onboarding && !signIn && <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>}
           <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
         </header>
+        {signIn && <img className="mobile-signin-mark" src="/icons/portalink-app-512.png" alt="Portalink" width={512} height={512} />}
         {showAppearance && <div className="account-welcome-appearance mb-5">
           <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Accent color" className="account-welcome-colors">
             {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} aria-label={option.label} title={option.label}

@@ -92,8 +92,9 @@ function focusEnvironment() {
     matches(selector) { return selector === ':disabled' && this.disabled; }
     getClientRects() { return this.hidden ? [] : [{}]; }
     querySelectorAll() { return this.children.flatMap((child) => [child, ...child.querySelectorAll()]); }
-    focus() {
+    focus(options) {
       if (this.disabled || this.hidden || this.visibility === 'hidden') return;
+      this.focusOptions = options;
       document.activeElement = this; dispatch('focusin', { target: this });
     }
   }
@@ -136,6 +137,22 @@ test('a newly disabled or hidden focused control cannot release modal focus', ()
   assert.equal(env.document.activeElement, dialog);
   env.key('Tab'); assert.equal(env.document.activeElement, dialog);
   close();
+});
+
+test('animated sheets can retain focus without scrolling the overlay on open, trap or close', () => {
+  const env = focusEnvironment();
+  const opener = new env.Element(); opener.focus();
+  const dialog = new env.Element(null, true); dialog.tabIndex = -1;
+  const first = new env.Element(dialog), last = new env.Element(dialog);
+  const close = env.containModalFocus(dialog, () => {}, true);
+  assert.equal(dialog.focusOptions.preventScroll, true);
+  env.key('Tab'); assert.equal(first.focusOptions.preventScroll, true);
+  env.key('Tab', true); assert.equal(last.focusOptions.preventScroll, true);
+  opener.focus(); assert.equal(env.document.activeElement, last);
+  assert.equal(last.focusOptions.preventScroll, true);
+  close();
+  assert.equal(env.document.activeElement, opener);
+  assert.equal(opener.focusOptions.preventScroll, true);
 });
 
 test('project editor Escape uses existing dirty and transfer safeguards', () => {

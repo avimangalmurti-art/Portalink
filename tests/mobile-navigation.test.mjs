@@ -209,14 +209,16 @@ test('browsing scroll owns the entire floating dock only while the side rail is 
   assert.equal(h.scrollBinding.enabled, true);
 });
 
-test('mobile sidebar ends with Profile and has no Back destination', () => {
+test('mobile sidebar reverses its destinations while preserving the bottom dock order', () => {
   const h = navigationHarness('/portals');
   let ui = h.render();
   assert.equal(ui.dock.props.hidden, false);
   ui.toggle.props.onClick();
-  ui = h.render();
+  ui = h.render({ settings: React.createElement('button', { 'aria-label': 'Settings' }), liveControl: React.createElement('button', { 'aria-label': 'Leave live session' }) });
   const destinations = ui.railItems.filter(child => child.props.item).map(child => child.props.item.label);
-  assert.equal(destinations.at(-1), 'Profile');
+  assert.deepEqual(destinations, ['Profile', 'Home', 'Messages', 'Studio', 'Videos', 'Search', 'Portalink', 'Bookmarks', 'Analytics', 'Switch to light appearance']);
+  assert.equal(ui.railItems[0].props['aria-label'], 'Leave live session');
+  assert.equal(ui.railItems.at(-2).props['aria-label'], 'Settings');
   assert.equal(destinations.includes('Back'), false);
   assert.ok(ui.appearance);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);

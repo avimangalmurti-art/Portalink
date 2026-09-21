@@ -35,9 +35,10 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const [signupStep, setSignupStep] = useState<MobileSignupStep>('appearance');
   useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep('appearance'); }, [auth.pendingView]);
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
+  const mobileSignIn = isMobile && auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} mobileSignIn={mobileSignIn} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !mobileSignIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...props} {...formProps} step={signupStep} onStepChange={setSignupStep} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}

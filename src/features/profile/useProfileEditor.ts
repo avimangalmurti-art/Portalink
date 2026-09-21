@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { validateHeadline, validateLocation, validateProfileLinkLabel, validateProfileLinkUrl, validateProfileName } from './validation';
+import { validateLocation, validateProfileLinkLabel, validateProfileLinkUrl, validateProfileName } from './validation';
 import { useAvatarSelection } from './useProfileOnboarding';
 import { DEFAULT_PROFILE_LINK_ICON, MAX_PROFILE_LINKS, mergeProfileLinks, normalizeProfileLink } from './profileLinks';
 import type { Id, Profile, ProfileLink, UpdateProfileInput } from '../../types/domain';
@@ -21,7 +21,6 @@ import type { Id, Profile, ProfileLink, UpdateProfileInput } from '../../types/d
 export type ProfileEditorFields = {
   name: string;
   location: string;
-  headline: string;
   isPrivate: boolean;
   links: EditableProfileLink[];
 };
@@ -32,7 +31,6 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
   return {
     name: profile.name,
     location: profile.location ?? '',
-    headline: profile.headline ?? '',
     isPrivate: profile.isPrivate === true,
     links: mergeProfileLinks(profile.links, profile.socialLinks).map((link, index) => ({
       ...link,
@@ -57,7 +55,6 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string | null;
     location?: string | null;
-    headline?: string | null;
   }>({});
   const [linkErrors, setLinkErrors] = useState<Record<string, ProfileLinkFieldError>>({});
   /*
@@ -104,7 +101,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     // the moment it is selected.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-  const setField = useCallback((key: 'name' | 'location' | 'headline', value: string) => {
+  const setField = useCallback((key: 'name' | 'location', value: string) => {
     setFields((current) => current ? {
       ...current,
       [key]: value
@@ -187,7 +184,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (fields.location.trim() !== original.location.trim()) {
       return true;
     }
-    if (fields.headline.trim() !== original.headline.trim() || fields.isPrivate !== original.isPrivate) {
+    if (fields.isPrivate !== original.isPrivate) {
       return true;
     }
     return JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(original.links));
@@ -214,8 +211,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     }
     const nextErrors = {
       name: validateProfileName(fields.name),
-      location: validateLocation(fields.location),
-      headline: fields.headline.trim() ? validateHeadline(fields.headline) : null
+      location: validateLocation(fields.location)
     };
     const nextLinkErrors = Object.fromEntries(fields.links.map((link) => [link.id, {
       label: validateProfileLinkLabel(link.label),
@@ -226,19 +222,20 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     return !Object.values(nextErrors).some(Boolean) && !Object.values(nextLinkErrors).some((errors) => Boolean(errors.label || errors.href));
   }, [fields]);
   const submit = useCallback(async () => {
-    if (!fields || !validate()) {
+    if (!fields || !loadedProfile || !validate()) {
       return;
     }
     await save.run({
-      name: fields.name.trim(),
-      location: fields.location.trim(),
-      // Unchanged fields must not overwrite an independent visibility edit.
-      ...(fields.headline.trim() !== (loadedProfile?.headline ?? '') ? { headline: fields.headline.trim() } : {}),
+      // Only edited fields are written: another tab or profile surface may
+      // have saved newer values while this editor was open.
+      ...(fields.name.trim() !== loadedProfile?.name.trim() ? { name: fields.name.trim() } : {}),
+      ...(fields.location.trim() !== (loadedProfile?.location ?? '').trim() ? { location: fields.location.trim() } : {}),
       ...(fields.isPrivate !== (loadedProfile?.isPrivate === true) ? { isPrivate: fields.isPrivate } : {}),
-      links: persistentLinks(fields.links),
-      // The custom links above now own these destinations. Clearing the legacy
-      // field prevents the same migrated link from appearing twice later.
-      socialLinks: {},
+      ...(JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(fieldsFromProfile(loadedProfile).links)) ? {
+        links: persistentLinks(fields.links),
+        // Migrate legacy destinations only when the link list is edited.
+        socialLinks: {},
+      } : {}),
       // Sent only when one was actually chosen, so saving a name never quietly
       // rewrites the picture.
       ...(avatar.avatar ? {

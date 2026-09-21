@@ -1,6 +1,7 @@
 import { membershipSignature, useSavedChangeHistory, type HistoryWriteMode, type SavedChangeActions } from '../../hooks/useSavedChangeHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
+import { useProfileData } from '../../contexts/ProfileDataContext';
 import type { Id, Project, ProjectArrangement } from '../../types/domain';
 
 /**
@@ -60,6 +61,7 @@ function messageFor(error: unknown, fallback: string): string {
 
 export function useProjectArrangement(profileId: Id | null, categoryId: Id | null, isOwner: boolean, canonicalIds: Id[] = []): ProjectArrangementState {
   const { projects: projectService } = useServices();
+  const { invalidateProfiles } = useProfileData();
   const [arrangement, setArrangement] = useState<ProjectArrangement | null>(null);
   const canonicalMembership = membershipSignature(canonicalIds);
   const scope = `${profileId ?? ''}:${categoryId ?? ''}:${canonicalMembership}`;
@@ -116,19 +118,28 @@ export function useProjectArrangement(profileId: Id | null, categoryId: Id | nul
 
   const save = useCallback(async (next: ProjectArrangement, previous: ProjectArrangement | null, mode: HistoryWriteMode = 'change', label = 'Change project arrangement'): Promise<boolean> => {
     if (!profileId || !categoryId || !isOwner || isLoading || loadError) return false;
-    const operation = begin(mode);
+    const operation = begin(mode) ?? (mode !== 'change' ? begin('change') : null);
     if (!operation) return false;
+    // Retry may start before the failure reconciliation read has returned.
+    // That older read must never overwrite this newer write's result.
+    loadVersion.current++;
     setArrangement(next); setSaveError(null); setRetrySave(null);
     try {
       await projectService.saveProjectArrangement(profileId, categoryId, next);
+      invalidateProfiles();
       if (!isCurrent(operation)) return false;
+      setLoadedScope(scope); setIsLoading(false); setLoadError(null);
       complete(operation, previous, next, label); return true;
     } catch (error) {
+      invalidateProfiles();
       if (!isCurrent(operation)) return false;
       setArrangement(previous); setSaveError(messageFor(error, 'That change could not be saved.'));
+      // Individual row writes can partially succeed. Read the stored state,
+      // retaining the attempted arrangement for an explicit retry.
+      load();
       setRetrySave(() => () => { void save(next, previous, mode, label); }); return false;
     } finally { finish(operation); }
-  }, [begin, complete, finish, isCurrent, projectService, profileId, categoryId, isOwner, isLoading, loadError]);
+  }, [begin, complete, finish, isCurrent, projectService, profileId, categoryId, isOwner, isLoading, loadError, invalidateProfiles, load, scope]);
 
   const order = arrangement?.projectOrder ?? [];
   const hiddenIds = arrangement?.hiddenProjectIds ?? [];

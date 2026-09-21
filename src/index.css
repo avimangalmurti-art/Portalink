@@ -115,8 +115,8 @@ body,
   object-fit: contain;
 }
 
-/* Decorative startup media never offers native playback UI. The poster stays
-   underneath; only confirmed video frames are revealed by the loader. */
+/* Decorative startup media never offers native playback UI. The MOBILE animated
+   fallback (WEB poster) stays underneath until confirmed video frames arrive. */
 .portalink-splash-video {
   pointer-events: none;
   user-select: none;

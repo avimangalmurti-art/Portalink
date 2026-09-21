@@ -111,16 +111,15 @@ function harness(overrides = {}, options = {}) {
   };
 }
 
-test('bio and visibility are staged locally and saved together only on submit', async () => {
+test('visibility is staged locally and saved only on submit; Bio is not part of Edit profile', async () => {
   const h = harness();
   await h.flush();
   assert.equal(h.current.phase, 'editing');
   assert.equal(h.current.isDirty, false);
   assert.equal(h.current.canSave, false);
-  h.current.setField('headline', '  Updated bio  ');
   h.current.setVisibility(true);
   await h.flush();
-  assert.equal(h.current.fields.headline, '  Updated bio  ');
+  assert.equal(Object.hasOwn(h.current.fields, 'headline'), false);
   assert.equal(h.current.fields.isPrivate, true);
   assert.equal(h.current.isDirty, true);
   assert.equal(h.current.canSave, true);
@@ -131,7 +130,7 @@ test('bio and visibility are staged locally and saved together only on submit', 
   await h.submit();
   assert.equal(h.writes.length, 1);
   assert.equal(h.writes[0].id, 'creator');
-  assert.equal(h.writes[0].input.headline, 'Updated bio');
+  assert.equal(Object.hasOwn(h.writes[0].input, 'headline'), false);
   assert.equal(h.writes[0].input.isPrivate, true);
   assert.equal(h.invalidations, 1);
   assert.equal(h.current.phase, 'saved');
@@ -153,7 +152,7 @@ test('a name-only save omits unchanged bio and privacy, preserving independent e
   for (const overrides of [{}, { headline: undefined, isPrivate: undefined }]) {
     const h = harness(overrides);
     await h.flush();
-    assert.equal(h.current.fields.headline, h.record.headline ?? '');
+    assert.equal(Object.hasOwn(h.current.fields, 'headline'), false);
     assert.equal(h.current.fields.isPrivate, false);
     h.current.setField('name', '  Updated Name  ');
     // Another profile surface may save these fields while this editor is open.
@@ -170,27 +169,11 @@ test('a name-only save omits unchanged bio and privacy, preserving independent e
   }
 });
 
-test('an optional bio can be cleared, while the 80-character limit remains enforced', async () => {
-  const cleared = harness();
-  await cleared.flush();
-  cleared.current.setField('headline', '   ');
-  await cleared.flush();
-  await cleared.submit();
-  assert.equal(cleared.current.fieldErrors.headline, null);
-  assert.equal(cleared.writes[0].input.headline, '');
-
-  const limited = harness();
-  await limited.flush();
-  limited.current.setField('headline', 'x'.repeat(81));
-  await limited.flush();
-  await limited.submit();
-  assert.match(limited.current.fieldErrors.headline, /80/);
-  assert.equal(limited.writes.length, 0);
-  limited.current.setField('headline', `  ${'x'.repeat(80)}  `);
-  await limited.flush();
-  assert.equal(limited.current.fieldErrors.headline, null);
-  await limited.submit();
-  assert.equal(limited.writes[0].input.headline, 'x'.repeat(80));
+test('existing Bio text cannot block saving unrelated profile fields', async () => {
+  const h = harness({ headline: 'x'.repeat(81) });
+  await h.flush(); h.current.setField('name', 'Updated Name'); await h.flush(); await h.submit();
+  assert.deepEqual(h.writes[0].input, { name: 'Updated Name' });
+  assert.equal(h.record.headline, 'x'.repeat(81));
 });
 
 test('closing discards unsaved fields, visibility, avatar, validation errors and save state', async () => {
@@ -198,7 +181,6 @@ test('closing discards unsaved fields, visibility, avatar, validation errors and
   await h.flush();
   const linkId = h.current.fields.links[0].id;
   h.current.setField('name', '');
-  h.current.setField('headline', 'Unsaved bio');
   h.current.setVisibility(true);
   h.current.setProfileLink(linkId, { href: 'javascript:alert(1)' });
   h.chooseAvatar({ file: { name: 'replacement.webp' } });
@@ -221,7 +203,7 @@ test('closing discards unsaved fields, visibility, avatar, validation errors and
   await h.flush();
   assert.equal(h.reads, 2);
   assert.equal(h.current.fields.name, 'Original Name');
-  assert.equal(h.current.fields.headline, 'Original bio');
+  assert.equal(h.record.headline, 'Original bio');
   assert.equal(h.current.fields.isPrivate, false);
   assert.equal(h.current.fields.links[0].href, 'example.com');
   assert.equal(h.current.isDirty, false);
@@ -294,4 +276,14 @@ test('existing name, location and link validation still prevents invalid service
   assert.equal(h.writes[0].input.location, 'New City');
   assert.deepEqual(h.writes[0].input.links, [{ label: 'My Work', href: 'example.com/work', iconName: 'globe' }]);
   assert.deepEqual(h.writes[0].input.socialLinks, {});
+});
+
+test('failed profile save keeps edits for retry and only confirms persisted values on reopen', async () => {
+  let fail=true; const h=harness({}, {updateProfile:async()=>{if(fail)throw Error('Save denied');}});
+  await h.flush(); h.current.setField('name','Saved name'); h.current.setField('location','Saved city'); h.current.setVisibility(true);
+  await h.flush(); await h.submit(); assert.equal(h.current.phase,'failed'); assert.equal(h.invalidations,0);
+  assert.equal(h.current.fields.name,'Saved name'); assert.equal(h.record.name,'Original Name');
+  fail=false; await h.submit(); assert.equal(h.current.phase,'saved'); assert.equal(h.invalidations,1);
+  h.setOpen(false); await h.flush(); h.setOpen(true); await h.flush();
+  assert.equal(h.current.fields.name,'Saved name'); assert.equal(h.current.fields.location,'Saved city'); assert.equal(h.current.fields.isPrivate,true);
 });

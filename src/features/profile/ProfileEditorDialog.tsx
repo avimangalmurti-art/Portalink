@@ -9,7 +9,7 @@ import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useProfileEditor } from './useProfileEditor';
 import { ProfileLinksEditor } from './ProfileLinksEditor';
-import { HEADLINE_MAX_LENGTH, LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
+import { LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { usePresentation } from '../../presentation/usePresentation';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
@@ -174,10 +174,6 @@ export function ProfileEditorDialog({
 
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
               <ProfileField id="profile-editor-city" label={isMobile ? 'City, country' : 'Portalink city'} value={fields.location} optional={!isMobile} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder={isMobile ? 'City, country' : 'City for location discovery'} error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
-              {isMobile ? <div className="mobile-profile-bio">
-                <ProfileField id="profile-editor-bio" label="Bio" multiline value={fields.headline} maxLength={HEADLINE_MAX_LENGTH} placeholder="Tell the world about yourself…" error={fieldErrors.headline} disabled={isBusy} onChange={value => editor.setField('headline', value)} />
-                <span className="mobile-profile-bio-count" aria-hidden="true">{fields.headline.length}/{HEADLINE_MAX_LENGTH}</span>
-              </div> : null}
               </section>
 
               <section data-profile-editor-section="links" aria-label="Profile destinations" className="min-w-0 rounded-[14px] p-4">

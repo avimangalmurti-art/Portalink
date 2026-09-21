@@ -147,10 +147,10 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     setFailure(null);
     try {
       const result = await attempt();
-      if (!stillCurrent()) return null;
       // Every surface reads the canonical record, so one invalidation updates
       // the sidebar, the profile, and the category page together.
       invalidateProfiles();
+      if (!stillCurrent()) return null;
       return result;
     } catch (error) {
       if (!stillCurrent()) return null;

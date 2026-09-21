@@ -594,7 +594,7 @@ test('mobile owner reorder is available through the three dots with no passive h
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
 });
 
-test('mobile owner header shows exactly the five ordered icon actions and uses real callbacks', () => {
+test('mobile owner header keeps Bio first with links and the remaining owner actions below', () => {
   const calls = [];
   const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, props: {
     onEditProfile: () => calls.push('edit'), onCollaboration: () => calls.push('collaboration'),
@@ -605,21 +605,61 @@ test('mobile owner header shows exactly the five ordered icon actions and uses r
   const row = nodes(tree).find(node => node.props?.['data-profile-owner-actions'] !== undefined);
   const actions = React.Children.toArray(row.props.children);
   assert.deepEqual(actions.map(node => node.type === 'ProfileShareMenu' ? 'Copy public link' : node.props['aria-label']),
-    ['Bio', 'Collaboration', 'Edit profile', 'Copy public link', 'Reorder projects']);
-  assert.equal(actions[3].props.compact, true);
-  assert.equal(actions[3].props.shareUrl, 'https://example.com/share/owner');
+    ['Collaboration', 'Edit profile', 'Copy public link', 'Reorder projects']);
+  assert.equal(actions[2].props.compact, true);
+  assert.equal(actions[2].props.shareUrl, 'https://example.com/share/owner');
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
-  actions[1].props.onClick(); actions[2].props.onClick();
+  actions[0].props.onClick(); actions[1].props.onClick();
   assert.deepEqual(calls, ['collaboration', 'edit']);
-  actions[0].props.onClick();
+  nodes(tree).find(node => node.type === 'PlatformGrid').props.onOpenBio();
   tree = h.render();
-  const bio = nodes(tree).find(node => node.type === 'MobileProjectDescriptionSheet');
-  assert.equal(bio.props.contentLabel, 'Bio');
-  assert.equal(bio.props.emptyMessage, 'No bio yet.');
-  bio.props.onEditContent();
-  assert.deepEqual(calls, ['collaboration', 'edit', 'edit']);
-  assert.equal(nodes(h.render()).some(node => node.type === 'MobileProjectDescriptionSheet'), false);
+  const bio = nodes(tree).find(node => node.type === 'ProfileBioSheet');
+  assert.equal(bio.props.canEdit, true);
+  assert.equal(bio.props.profileId, 'owner');
+  assert.equal(bio.props.onEditContent, undefined, 'Bio never navigates to Edit profile');
+  assert.deepEqual(calls, ['collaboration', 'edit']);
+  bio.props.onClose();
+  assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
+});
+
+test('mobile Bio is available to owners, visitors and guests, with no links and on shared profiles', () => {
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    for (const isSharedView of [false, true]) {
+      const h = profileHarness('', { presentation: 'mobile', viewerRole, isSharedView });
+      const tree = isSharedView ? h.render() : openProfileOptions(h);
+      const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+      const grid = nodes(isSharedView ? identity.type(identity.props) : tree).find(node => node.type === 'PlatformGrid');
+      assert.equal(grid.props.links.length, 0);
+      grid.props.onOpenBio();
+      const sheet = nodes(h.render()).find(node => node.type === 'ProfileBioSheet');
+      assert.equal(sheet.props.canEdit, viewerRole === 'owner' && !isSharedView, 'Editing is owner-only, independent of Edit profile navigation');
+      sheet.props.onClose();
+      assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
+    }
+  }
+  const web = profileHarness('', { presentation: 'web', links: [{ label: 'Website', href: 'https://example.com' }] }).render();
+  const identity = nodes(web).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+  assert.equal(nodes(identity.type(identity.props)).find(node => node.type === 'PlatformGrid').props.onOpenBio, undefined);
+});
+
+test('profile links place Bio before external links without changing their destinations', () => {
+  let opened = 0;
+  const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
+    if (name === 'react') return React;
+    if (name.endsWith('/profileLinks')) return { profileLinkHref: href => href };
+    if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
+    return placeholder;
+  });
+  const props = { profileName: 'Creator', links: [{ label: 'Website', href: 'https://example.com' }] };
+  const grid = PlatformGrid({ ...props, onOpenBio: () => opened++ });
+  const tiles = React.Children.toArray(grid.props.children);
+  assert.equal(tiles[0].props.children.props['aria-label'], 'Bio');
+  tiles[0].props.children.props.onClick();
+  assert.equal(opened, 1);
+  assert.equal(tiles[1].props.children.props.href, 'https://example.com');
+  assert.equal(tiles[1].props.children.props.target, '_blank');
+  assert.equal(nodes(PlatformGrid(props)).some(node => node.type === 'button'), false);
 });
 
 test('three-dot reorder entry keeps duplicate outside saves and retry recovery intact', async () => {

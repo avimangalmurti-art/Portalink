@@ -25,7 +25,10 @@ function harness(owner = false, props = {}) {
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: element => element };
     if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => viewport };
-    if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close) => { escape = close; } };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close, preventScroll) => {
+      assert.equal(preventScroll, true, 'Sliding sheets must not scroll their overlay to the translated focus target');
+      escape = close;
+    } };
     return new Proxy({}, { get: () => () => null });
   } });
   const render = () => {
@@ -54,9 +57,14 @@ test('description opens at half height, expands by drag or accessible button, an
   h.escape(); assert.equal(h.closes, 1);
 });
 
-test('profile Bio shares sheet sizing and dismissal but opens the profile editor for changes', () => {
-  let edits = 0;
-  const h = harness(false, { contentLabel: 'Bio', description: '', emptyMessage: 'No bio yet.', onEditContent: () => edits++ });
+test('profile Bio edits, saves and cancels within the same sheet without project services or navigation', async () => {
+  const editor = { isEditing: false, phase: 'idle', value: '', isDirty: false, isSaving: false, maxLength: 80,
+    open() { this.isEditing = true; this.phase = 'editing'; },
+    onChange(value) { this.value = value; this.isDirty = true; },
+    save() { this.phase = 'saved'; this.savedValue = this.value; this.isDirty = false; },
+    async close() { this.isEditing = false; this.phase = 'idle'; this.isDirty = false; return true; },
+  };
+  const h = harness(false, { contentLabel: 'Bio', description: '', emptyMessage: 'No bio yet.', textEditor: editor });
   const section = () => nodes(h.render()).find(node => node.type === 'section');
   assert.equal(section().props['data-expanded'], undefined);
   assert.ok(nodes(h.render()).some(node => node.type === 'h2' && node.props.children === 'Bio'));
@@ -64,7 +72,19 @@ test('profile Bio shares sheet sizing and dismissal but opens the profile editor
   h.click('Expand bio sheet');
   assert.equal(section().props['data-expanded'], true);
   h.click('Bio options'); h.click('Edit bio');
-  assert.equal(edits, 1);
+  assert.equal(h.closes, 0);
+  let input = nodes(h.render()).find(n => n.type === 'textarea');
+  assert.equal(input.props['aria-label'], 'Bio'); assert.equal(input.props.maxLength, 80);
+  input.props.onChange({ target: { value: 'New bio' } });
+  h.click('Cancel'); assert.ok(h.button('Keep editing'));
+  await h.click('Discard changes'); assert.equal(h.closes, 0); assert.ok(h.button('Bio options'));
+  h.click('Bio options'); h.click('Edit bio');
+  input = nodes(h.render()).find(n => n.type === 'textarea');
+  input.props.onChange({ target: { value: 'Saved bio' } });
+  nodes(h.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.ok(nodes(h.render()).some(n => n.type === 'p' && n.props.children === 'Saved bio'));
+  assert.ok(nodes(h.render()).some(n => n.props.role === 'status' && React.Children.toArray(n.props.children).join('') === 'Bio saved'));
+  h.click('Done'); assert.equal(h.closes, 0);
   assert.deepEqual(h.calls, [], 'Bio does not invoke project editing services');
   h.click('Close bio');
   assert.equal(h.closes, 1);

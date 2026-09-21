@@ -4,7 +4,7 @@ const layers: HTMLElement[] = [];
 const focusableSelector = 'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
 /** Shared keyboard lifecycle; dismissal policy still belongs to each editor. */
-export function containModalFocus(dialog: HTMLElement, onEscape: () => void): () => void {
+export function containModalFocus(dialog: HTMLElement, onEscape: () => void, preventScroll = false): () => void {
   const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   layers.push(dialog);
   const isTop = () => layers[layers.length - 1] === dialog;
@@ -17,7 +17,7 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void): ()
   const focusInside = () => {
     if (!isTop()) return;
     const target = lastFocus.isConnected && dialog.contains(lastFocus) && available(lastFocus) ? lastFocus : controls()[0] ?? dialog;
-    target.focus();
+    target.focus({ preventScroll });
   };
   const onFocus = (event: FocusEvent) => {
     if (!isTop() || !(event.target instanceof HTMLElement)) return;
@@ -43,28 +43,28 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void): ()
       const active = document.activeElement;
       if (!first || !dialog.contains(active) || active === dialog || (event.shiftKey ? active === first : active === last)) {
         event.preventDefault();
-        (event.shiftKey ? last ?? dialog : first ?? dialog).focus();
+        (event.shiftKey ? last ?? dialog : first ?? dialog).focus({ preventScroll });
       }
     }
   };
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('focusin', onFocus);
-  if (!dialog.contains(document.activeElement)) dialog.focus();
+  if (!dialog.contains(document.activeElement)) dialog.focus({ preventScroll });
   return () => {
     const wasTop = isTop();
     const index = layers.indexOf(dialog);
     if (index >= 0) layers.splice(index, 1);
     document.removeEventListener('keydown', onKey, true);
     document.removeEventListener('focusin', onFocus);
-    if (wasTop && opener?.isConnected) opener.focus();
+    if (wasTop && opener?.isConnected) opener.focus({ preventScroll });
   };
 }
 
-export function useModalFocus(open: boolean, dialogRef: RefObject<HTMLElement>, onEscape: () => void): void {
+export function useModalFocus(open: boolean, dialogRef: RefObject<HTMLElement>, onEscape: () => void, preventScroll = false): void {
   const escapeRef = useRef(onEscape);
   escapeRef.current = onEscape;
   useEffect(() => {
     if (!open || !dialogRef.current) return;
-    return containModalFocus(dialogRef.current, () => escapeRef.current());
-  }, [open, dialogRef]);
+    return containModalFocus(dialogRef.current, () => escapeRef.current(), preventScroll);
+  }, [open, dialogRef, preventScroll]);
 }

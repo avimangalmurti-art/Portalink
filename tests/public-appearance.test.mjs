@@ -61,7 +61,7 @@ test('saved appearance writes serialize, deduplicate and retry after a failed sa
 function hookHarness(initial = A, initialStatus = 'ready', initialPalette) {
   let cursor = 0, dirty = true, result, id = 'one', enabled = true;
   const slots = [], effects = [], timers = new Map(), writes = [];
-  let timerId = 0, save = async () => undefined;
+  let timerId = 0, invalidations = 0, save = async () => undefined;
   let query = { status: initialStatus, profile: { publicAppearance: initial }, error: null, retry() {} };
   const react = {
     useState(initial) {
@@ -82,7 +82,7 @@ function hookHarness(initial = A, initialStatus = 'ready', initialPalette) {
   };
   const { api, preferences } = publicModule();
   const profileData = { useProfileQuery: () => query, useProfileData: () => cache };
-  const cache = { cacheProfile() {} };
+  const cache = { invalidateProfiles() { invalidations++; }, cacheProfile() { assert.fail('A delayed appearance response must never replace the whole profile'); } };
   const services = { profiles: { async updateProfile(profileId, input) { writes.push([profileId, plain(input.publicAppearance)]); await save(profileId, input.publicAppearance); } } };
   const hook = compile('../src/features/profile/useCreatorAppearance.ts', {
     setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id),
@@ -95,7 +95,7 @@ function hookHarness(initial = A, initialStatus = 'ready', initialPalette) {
     return result;
   }
   return {
-    render, writes, setSave: fn => { save = fn; },
+    render, writes, setSave: fn => { save = fn; }, get invalidations() { return invalidations; },
     choose: patch => { render().choose(patch); return render(); },
     setQuery: value => { query = { ...query, ...value }; return render(); },
     navigate: (nextId, active = true) => { id = nextId; enabled = active; return render(); },
@@ -191,6 +191,7 @@ test('public bootstrap honors a newly opened creator link while retaining guest 
   const api = compile('../src/app/ApplicationBootstrap.tsx', {
     window: { sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, setTimeout: () => 1 },
     require: name => name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
+      : name.includes('useViewportPresentation') ? { useViewportPresentation: () => 'web' }
       : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` } : {},
   });
   assert.notEqual(api.ApplicationBootstrap().type, 'redirect');
@@ -225,4 +226,14 @@ test('a welcome-screen color choice survives sign-in without changing a public c
   h.choose({accentColor: A.accentColor});
   await h.render().flush();
   assert.equal(h.writes.length, 1);
+});
+
+test('a delayed appearance save refetches current identity instead of caching its older profile snapshot', async () => {
+  const h=hookHarness(); let finish;
+  h.setSave(()=>new Promise(resolve=>{finish=resolve;}));
+  const pending=h.choose(B).flush(); await h.settle();
+  h.setQuery({profile:{name:'New name',isPrivate:true,publicAppearance:A}});
+  finish({name:'Old name',isPrivate:false,publicAppearance:B}); await pending; await h.settle();
+  assert.equal(h.invalidations,1); // cacheProfile itself fails the test if called.
+  assert.deepEqual(plain(h.render().appearance),B);
 });

@@ -604,7 +604,6 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async updateProfile(profileId, input) {
-    const current = await this.getProfile(profileId);
     const { data: authData } = await requireSupabase().auth.getUser();
     if (!authData.user) throw new ProfileServiceError('permission_denied', 'Sign in before changing your profile.');
     const update: Record<string, unknown> = {};
@@ -621,7 +620,7 @@ export const supabaseProfileService: ProfileService = {
       update.public_appearance = appearance;
     }
     if (input.avatar) update.avatar_url = await uploadAvatar(authData.user.id, input.avatar);
-    if (Object.keys(update).length === 0) return current;
+    if (Object.keys(update).length === 0) return this.getProfile(profileId);
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.user.id).select('id').single();
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
@@ -653,7 +652,7 @@ export const supabaseProfileService: ProfileService = {
           icon_name: arrangement.categoryIcons[categoryId] ?? 'FolderIcon',
         })
         .eq('id', categoryId)
-        .eq('profile_id', profileId),
+        .eq('profile_id', profileId).select('id').single(),
     );
     const results = await Promise.all(writes);
     const failed = results.find((result) => result.error);
@@ -700,7 +699,7 @@ export const supabaseProfileService: ProfileService = {
       .from('portfolio_categories')
       .update({ label: label.trim() })
       .eq('id', categoryId)
-      .eq('profile_id', profileId);
+      .eq('profile_id', profileId).select('id').single();
     if (error) throw new CategoryMutationError(error.code === '23505' ? 'duplicate_label' : 'unknown', error.message);
     const profile = await this.getProfile(profileId);
     const category = profile.categories.find((item) => item.id === categoryId);
@@ -713,7 +712,7 @@ export const supabaseProfileService: ProfileService = {
       .from('portfolio_categories')
       .update({ icon_name: iconName })
       .eq('id', categoryId)
-      .eq('profile_id', profileId);
+      .eq('profile_id', profileId).select('id').single();
     if (error) throw new CategoryMutationError('unknown', error.message);
     const profile = await this.getProfile(profileId);
     const category = profile.categories.find((item) => item.id === categoryId);
@@ -813,7 +812,7 @@ export const supabaseProjectService: ProjectService = {
     if (design.pagesPerRow !== undefined && (!Number.isInteger(design.pagesPerRow) || design.pagesPerRow < MIN_PAGES_PER_ROW || design.pagesPerRow > MAX_PAGES_PER_ROW)) {
       throw new ProjectMutationError('invalid_metadata', `Pages per row must be between ${MIN_PAGES_PER_ROW} and ${MAX_PAGES_PER_ROW}.`);
     }
-    const { error } = await requireSupabase().from('projects').update({ design }).eq('id', projectId);
+    const { error } = await requireSupabase().from('projects').update({ design }).eq('id', projectId).select('id').single();
     if (error) throw new ProjectMutationError(error.code === '42501' ? 'permission_denied' : 'network', error.message);
     return design;
   },
@@ -842,7 +841,7 @@ export const supabaseProjectService: ProjectService = {
       .from('projects')
       .update({ position: index - next.length })
       .eq('id', projectId)
-      .eq('profile_id', profileId)));
+      .eq('profile_id', profileId).select('id').single()));
     const failed = results.find((result) => result.error);
     if (failed?.error) throw new Error(failed.error.message);
   },
@@ -874,7 +873,7 @@ export const supabaseProjectService: ProjectService = {
     const profileRows = (profileData ?? []) as unknown as Array<{ id: string; category_id: string; position: number }>;
     const categoryRows = profileRows.filter((row) => row.category_id === categoryId);
     const categoryIds = categoryRows.map((row) => row.id);
-    if (arrangement.projectOrder.length !== categoryIds.length || arrangement.projectOrder.some((projectId) => !categoryIds.includes(projectId))) {
+    if (arrangement.projectOrder.length !== categoryIds.length || new Set(arrangement.projectOrder).size !== categoryIds.length || arrangement.projectOrder.some((projectId) => !categoryIds.includes(projectId))) {
       throw new Error('That arrangement refers to work this category does not hold.');
     }
 
@@ -891,7 +890,7 @@ export const supabaseProjectService: ProjectService = {
               is_pinned: arrangement.pinnedProjectIds.includes(projectId),
             }
           : { position: index - mergedOrder.length };
-        return client.from('projects').update(update).eq('id', projectId).eq('profile_id', profileId);
+        return client.from('projects').update(update).eq('id', projectId).eq('profile_id', profileId).select('id').single();
       }));
       const failed = results.find((result) => result.error);
       if (failed?.error) throw new Error(failed.error.message);
@@ -903,7 +902,7 @@ export const supabaseProjectService: ProjectService = {
         position,
         is_hidden: arrangement.hiddenProjectIds.includes(projectId),
         is_pinned: arrangement.pinnedProjectIds.includes(projectId),
-      }).eq('id', projectId).eq('profile_id', profileId).eq('category_id', categoryId),
+      }).eq('id', projectId).eq('profile_id', profileId).eq('category_id', categoryId).select('id').single(),
     ));
     const failed = results.find((result) => result.error);
     if (failed?.error) throw new Error(failed.error.message);

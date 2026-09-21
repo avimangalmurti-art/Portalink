@@ -7,12 +7,15 @@ const SPLASH_EXIT_SECONDS = 0.32;
 const FIRST_FRAME_TIMEOUT_MS = 600;
 const SPLASH_TIMEOUT_MS = 2200;
 const WEB_PLAYBACK_MS = 880;
+const MOBILE_RETURNING_SPLASH_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, landing }: {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing }: {
   onComplete?: () => void;
   stillOnly?: boolean;
   hidden?: boolean;
+  /** Initial mobile session restoration/returning user, never the guest welcome. */
+  timedIntro?: boolean;
   landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
@@ -22,15 +25,17 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const [presentation] = useState(viewportPresentation);
   const isMobile = presentation === 'mobile';
   const loopLanding = isMobile && Boolean(landing);
-  const playbackHidden = loopLanding && hidden;
+  const fixedMobileIntro = isMobile && timedIntro && !loopLanding && !stillOnly;
+  const playbackHidden = isMobile && hidden;
   const playbackHiddenRef = useRef(playbackHidden);
   playbackHiddenRef.current = playbackHidden;
-  const videoSrc = isMobile ? '/portalink-splash-mobile.mp4' : '/portalink-splash.mp4';
-  const posterSrc = isMobile ? '/portalink-splash-mobile-poster.png' : '/portalink-splash-poster.png';
+  const videoSrc = isMobile ? '/portalink-splash-mobile.mp4?v=4d282896' : '/portalink-splash.mp4';
+  const posterSrc = isMobile ? '/portalink-welcome-loop.webp?v=6dceb1fd' : '/portalink-splash-poster.png';
   const mediaWidth = isMobile ? 512 : 576;
   const mediaHeight = isMobile ? 720 : 576;
   const shouldReduceMotion = useReducedMotion();
-  const showStill = shouldReduceMotion || stillOnly;
+  // MOBILE always uses the requested animation; motion preferences still remove the exit fade.
+  const showStill = !isMobile && (shouldReduceMotion || stillOnly);
   const videoRef = useRef<HTMLVideoElement>(null);
   const reported = useRef(false);
   const [failed, setFailed] = useState(false);
@@ -42,84 +47,111 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     reported.current = true;
     onComplete?.();
   }, [onComplete]);
+  // The returning-user surface lasts 1.5s in total, including loading. Neither
+  // playback events nor failures restart/shorten it, and there is no extra fade.
   useEffect(() => {
-    if (showStill || failed) { complete(); return; }
+    if (!fixedMobileIntro) return;
+    const timer = window.setTimeout(complete, MOBILE_RETURNING_SPLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [fixedMobileIntro, complete]);
+  const completePlayback = useCallback(() => {
+    if (!fixedMobileIntro) complete();
+  }, [fixedMobileIntro, complete]);
+  useEffect(() => {
+    if (showStill || failed) { completePlayback(); return; }
     const video = videoRef.current;
-    if (!video) { complete(); return; }
-    if (loopLanding) {
-      // Loading may outlast the first-frame budget on a cold mobile visit.
-      // Keep the video mounted so delayed frames can replace the still without
-      // reloading. Only actual media/autoplay errors end this playback attempt.
+    if (!video) { completePlayback(); return; }
+    if (isMobile) {
+      // Keep the same clip mounted through interruptions. The animated copy
+      // underneath also works when Safari declines video autoplay.
       let active = true;
       let suspended = true;
       let attempt = 0;
+      let retries = 0;
       let frame: number | undefined;
       let watchdog: number | undefined;
+      let retryTimer: number | undefined;
       const clearPending = () => {
         window.clearTimeout(watchdog);
+        window.clearTimeout(retryTimer);
         if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
         frame = undefined;
       };
+      const canPlay = () => active && !playbackHiddenRef.current && !document.hidden;
       const suspend = () => {
         suspended = true;
         attempt++;
         clearPending();
+        setShowVideo(false);
         video.pause();
       };
       const fail = () => {
         if (!active || suspended) return;
-        if (playbackHiddenRef.current || document.hidden) { suspend(); return; }
         suspend();
-        setShowVideo(false);
-        setFailed(true);
-        complete();
-      };
-      const showLoadingStill = () => {
-        if (!active || suspended) return;
-        if (playbackHiddenRef.current || document.hidden) { suspend(); return; }
-        setShowVideo(false);
-        complete();
+        if (!canPlay()) return;
+        completePlayback();
+        // Bounded retries; further recovery waits for foreground, connectivity
+        // or an actual gesture. Never spin on an autoplay policy rejection.
+        if (retries++ < 2) retryTimer = window.setTimeout(resume, 800);
       };
       const playing = () => {
         if (!active || suspended || frame !== undefined) return;
         const currentAttempt = attempt;
         const reveal = () => {
+          frame = undefined;
           if (!active || suspended || currentAttempt !== attempt || video.paused || video.readyState < 2) return;
           clearPending();
+          retries = 0;
           setShowVideo(true);
-          complete();
+          completePlayback();
         };
         if (video.requestVideoFrameCallback) frame = video.requestVideoFrameCallback(reveal);
         else reveal();
       };
       const resume = () => {
-        if (!active || playbackHidden || document.hidden || !suspended) return;
+        if (!canPlay() || !suspended) return;
+        clearPending();
         suspended = false;
         const currentAttempt = ++attempt;
-        watchdog = window.setTimeout(showLoadingStill, FIRST_FRAME_TIMEOUT_MS);
+        watchdog = window.setTimeout(fail, SPLASH_TIMEOUT_MS);
         try {
+          if (video.error) video.load();
           void video.play()?.catch(() => { if (currentAttempt === attempt) fail(); });
         } catch { fail(); }
         if (!video.paused && video.readyState >= 2) playing();
       };
+      const recover = () => {
+        if (!canPlay()) return;
+        retries = 0;
+        if (!video.paused && video.readyState >= 2) { playing(); return; }
+        suspend();
+        resume();
+      };
       const paused = () => {
         if (suspended || !video.paused) return;
-        if (document.hidden || playbackHiddenRef.current) suspend(); else fail();
+        if (!canPlay()) suspend(); else fail();
       };
       const waiting = () => {
         if (!active || suspended) return;
         clearPending();
-        watchdog = window.setTimeout(showLoadingStill, SPLASH_TIMEOUT_MS);
+        setShowVideo(false);
+        watchdog = window.setTimeout(fail, SPLASH_TIMEOUT_MS);
       };
       const stalled = () => { if (video.readyState < 3) waiting(); };
-      const visibilityChanged = () => { if (document.hidden) suspend(); else resume(); };
+      const visibilityChanged = () => { if (document.hidden) suspend(); else recover(); };
       video.addEventListener('playing', playing);
       video.addEventListener('loadeddata', playing);
       video.addEventListener('pause', paused);
+      video.addEventListener('ended', paused);
       video.addEventListener('waiting', waiting);
       video.addEventListener('stalled', stalled);
       video.addEventListener('error', fail);
       document.addEventListener('visibilitychange', visibilityChanged);
+      document.addEventListener('pointerup', recover);
+      document.addEventListener('keydown', recover);
+      window.addEventListener('pageshow', recover);
+      window.addEventListener('pagehide', suspend);
+      window.addEventListener('online', recover);
       video.muted = true;
       video.defaultMuted = true;
       video.playsInline = true;
@@ -130,16 +162,23 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         video.removeEventListener('playing', playing);
         video.removeEventListener('loadeddata', playing);
         video.removeEventListener('pause', paused);
+        video.removeEventListener('ended', paused);
         video.removeEventListener('waiting', waiting);
         video.removeEventListener('stalled', stalled);
         video.removeEventListener('error', fail);
         document.removeEventListener('visibilitychange', visibilityChanged);
+        document.removeEventListener('pointerup', recover);
+        document.removeEventListener('keydown', recover);
+        window.removeEventListener('pageshow', recover);
+        window.removeEventListener('pagehide', suspend);
+        window.removeEventListener('online', recover);
         suspend();
       };
     }
     let active = true;
     let settled = false;
     let revealed = false;
+    let attempt = 0;
     let frame: number | undefined;
     let playbackTimer: number | undefined;
     const clearPending = () => {
@@ -156,11 +195,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       if (fallback) { setShowVideo(false); setFailed(true); }
       // Keep the final painted frame for the fade on successful completion.
       video.pause();
-      complete();
+      completePlayback();
     };
     const fail = () => finish(true);
-    const firstFrameTimer = window.setTimeout(fail, FIRST_FRAME_TIMEOUT_MS);
-    const deadline = window.setTimeout(fail, SPLASH_TIMEOUT_MS);
+    // While identity is unresolved, keep late frames available: a confirmed
+    // guest may switch this same video into the looping welcome.
+    const firstFrameTimer = fixedMobileIntro ? undefined : window.setTimeout(fail, FIRST_FRAME_TIMEOUT_MS);
+    const deadline = fixedMobileIntro ? undefined : window.setTimeout(fail, SPLASH_TIMEOUT_MS);
     const reveal = () => {
       frame = undefined;
       if (!active || settled || revealed || video.paused || video.readyState < 2) return;
@@ -179,11 +220,20 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     const paused = () => {
       // Cleanup can queue a pause event that arrives after a new play attempt.
       if (!video.paused) return;
-      if (video.ended) ended(); else fail();
+      if (video.ended) ended(); else if (!fixedMobileIntro) fail();
     };
-    const waiting = () => { if (revealed) fail(); };
-    const stalled = () => { if (revealed && video.readyState < 3) fail(); };
-    const visibilityChanged = () => { if (document.hidden) fail(); };
+    const waiting = () => { if (revealed && !fixedMobileIntro) fail(); };
+    const stalled = () => { if (revealed && !fixedMobileIntro && video.readyState < 3) fail(); };
+    const play = () => {
+      const currentAttempt = ++attempt;
+      const reject = () => { if (currentAttempt === attempt) fail(); };
+      try { void video.play()?.catch(reject); } catch { reject(); }
+      if (!video.paused && video.readyState >= 2) playing();
+    };
+    const visibilityChanged = () => {
+      if (document.hidden) { if (fixedMobileIntro) { attempt++; video.pause(); } else fail(); }
+      else if (fixedMobileIntro && active && !settled) play();
+    };
     video.addEventListener('playing', playing);
     video.addEventListener('loadeddata', playing);
     video.addEventListener('ended', ended);
@@ -196,13 +246,11 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     video.defaultMuted = true;
     video.playsInline = true;
     video.setAttribute('webkit-playsinline', '');
-    if (document.hidden) fail();
-    else {
-      try { void video.play()?.catch(fail); } catch { fail(); }
-      if (!video.paused && video.readyState >= 2) playing();
-    }
+    if (document.hidden) { if (!fixedMobileIntro) fail(); }
+    else play();
     return () => {
       active = false;
+      attempt++;
       clearPending();
       video.removeEventListener('playing', playing);
       video.removeEventListener('loadeddata', playing);
@@ -214,7 +262,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       document.removeEventListener('visibilitychange', visibilityChanged);
       video.pause();
     };
-  }, [showStill, failed, complete, isMobile, loopLanding, playbackHidden]);
+  }, [showStill, failed, complete, completePlayback, fixedMobileIntro, isMobile, loopLanding, playbackHidden]);
 
   return (
     <motion.div
@@ -232,10 +280,10 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       className="portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden"
       initial={false}
       exit={{ opacity: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0 : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}
     >
-      <img src={posterSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media" />
-      {!showStill && !failed && <video key={presentation} ref={videoRef} src={videoSrc} poster={posterSrc} autoPlay={!playbackHidden} loop={loopLanding || undefined} muted playsInline preload="auto"
+      <img src={posterSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media" style={isMobile && showVideo ? { visibility: 'hidden' } : undefined} />
+      {!showStill && !failed && <video key={presentation} ref={videoRef} src={videoSrc} poster={isMobile ? undefined : posterSrc} autoPlay={!playbackHidden} loop={isMobile || undefined} muted playsInline preload="auto"
         controls={false} disablePictureInPicture disableRemotePlayback tabIndex={-1}
         aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media portalink-splash-video"
         style={{ opacity: showVideo ? 1 : 0 }} />}
