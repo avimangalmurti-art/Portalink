@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
+import { useModalFocus } from '../../hooks/useModalFocus';
 
 const SPLASH_EXIT_SECONDS = 0.32;
 const FIRST_FRAME_TIMEOUT_MS = 600;
@@ -8,7 +9,12 @@ const SPLASH_TIMEOUT_MS = 2200;
 const WEB_PLAYBACK_MS = 880;
 
 /** Platform artwork plays once; authentication still owns startup readiness. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onComplete?: () => void; stillOnly?: boolean }) {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, landing }: {
+  onComplete?: () => void;
+  stillOnly?: boolean;
+  hidden?: boolean;
+  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onContinue: () => void; continueLabel: string };
+}) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
   const viewportPresentation = useViewportPresentation();
@@ -25,6 +31,8 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onCom
   const reported = useRef(false);
   const [failed, setFailed] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
+  const landingRef = useRef<HTMLDivElement>(null);
+  useModalFocus(Boolean(landing) && !hidden, landingRef, () => landing?.onContinue());
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
@@ -115,11 +123,17 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onCom
 
   return (
     <motion.div
+      ref={landingRef}
       data-portalink-splash="true"
       data-presentation={presentation}
-      role="status"
-      aria-live="polite"
-      aria-label="Portalink Networks is opening"
+      data-share-landing={landing ? 'true' : undefined}
+      role={landing ? 'dialog' : 'status'}
+      aria-modal={landing && !hidden ? true : undefined}
+      aria-live={landing ? undefined : 'polite'}
+      aria-label={landing ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
+      aria-hidden={hidden || undefined}
+      tabIndex={landing ? -1 : undefined}
+      style={hidden ? { display: 'none' } : undefined}
       className="portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden"
       initial={false}
       exit={{ opacity: 0 }}
@@ -130,6 +144,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false }: { onCom
         controls={false} disablePictureInPicture disableRemotePlayback tabIndex={-1}
         aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media portalink-splash-video"
         style={{ opacity: showVideo ? 1 : 0 }} />}
+      {landing && <div className="mobile-share-landing-actions" style={{ visibility: landing.ready ? 'visible' : 'hidden' }}>
+        <button type="button" className="mobile-share-create" onClick={landing.onCreateAccount}>Create an account</button>
+        <div className="mobile-share-secondary">
+          <button type="button" onClick={landing.onSignIn}>Sign in</button>
+          <button type="button" onClick={landing.onContinue}>{landing.continueLabel}</button>
+        </div>
+      </div>}
     </motion.div>
   );
 }

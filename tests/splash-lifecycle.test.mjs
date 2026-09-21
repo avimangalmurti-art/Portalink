@@ -13,7 +13,7 @@ function hooks() {
       useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
       useState(initial) {
         const i = cursor++;
-        slots[i] ??= { value: initial };
+        slots[i] ??= { value: typeof initial === 'function' ? initial() : initial };
         return [slots[i].value, value => { slots[i].value = value; }];
       },
       useCallback(callback, deps) {
@@ -75,6 +75,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
+    '../../hooks/useModalFocus': { useModalFocus() {} },
   }, { window: h.window, document });
   const onComplete = () => completed++;
   return { ...h,
@@ -259,6 +260,8 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
+    '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
+    '../features/auth/registration': { readSharedReturnPath: () => undefined },
   }, { window: { ...h.window, sessionStorage: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } } });
   const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
   let [app, presence] = render();
@@ -290,4 +293,59 @@ test('splash native controls are suppressed only inside the decorative startup v
   assert.match(css, /\.portalink-splash-media\s*\{[^}]*grid-area:\s*1 \/ 1/);
   assert.match(css, /\.portalink-splash-video\s*\{[^}]*pointer-events:\s*none/);
   assert.match(css, /\.portalink-splash-video::-webkit-media-controls-start-playback-button\s*\{[^}]*display:\s*none !important/);
+});
+
+function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false } = {}) {
+  const h = hooks(), requested = [], location = {pathname:path,search,hash}, storage = new Map();
+  const auth = {isInitializing:true,isAuthenticated:authenticated,pendingView:recovery?'resetPassword':null,
+    requestAuthenticatedDestination(intent,view) { requested.push({intent,view}); auth.pendingView=view; },
+    requestAuth(view) { requested.push({view}); auth.pendingView=view; }};
+  const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
+    react:h.react, 'framer-motion':{AnimatePresence:'presence'},
+    'react-router-dom':{Navigate:'redirect',matchPath:(_, pathname)=>pathname.startsWith('/share/')?{params:{profileId:pathname.split('/')[2]}}:null,useLocation:()=>location},
+    '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
+    '../contexts/AuthContext':{useAuth:()=>auth},
+    './routes':{routes:{sharedProject:{},sharedProfileCategory:{},sharedProfile:{}},buildPath:(_,p)=>`/share/${p.profileId}`},
+    './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
+    '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
+    '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
+  }, {window:{...h.window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
+  return {auth,requested,location,setPresentation(value){presentation=value;},render(){const tree=h.render(ApplicationBootstrap);h.flush();return tree.props.children[1].props.children;}};
+}
+
+test('mobile landing reveals actions after video and auth, then opens appearance without replaying on cancellation', () => {
+  for (const first of ['media','auth']) {
+    const h=sharedBootstrap(); let splash=h.render(); assert.equal(splash.props.landing.ready,false);
+    if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
+    splash=h.render(); assert.equal(splash.props.landing.ready,false);
+    if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
+    splash=h.render(); assert.equal(splash.props.landing.ready,true);
+    splash.props.landing.onCreateAccount(); splash=h.render();
+    assert.equal(h.requested[0].view,'signUp'); assert.equal(h.requested[0].intent.path,'/share/a/c/b/c?page=2');
+    assert.equal(splash.props.hidden,true); assert.equal(splash.props.stillOnly,false);
+    for(const view of ['signIn','forgotPassword','signUp']) {h.auth.pendingView=view;assert.equal(h.render().props.hidden,true);}
+    h.auth.pendingView=null; splash=h.render();
+    assert.equal(splash.props.hidden,false); assert.equal(splash.props.landing.ready,true); assert.equal(splash.props.stillOnly,false);
+    splash.props.landing.onContinue(); h.render(); assert.equal(h.render(),null);
+    h.location.pathname='/share/other'; assert.equal(h.render(),null);
+  }
+});
+
+test('authenticated visitors, recovery, WEB and callback URLs never hold the landing', () => {
+  for(const options of [{authenticated:true},{recovery:true},{presentation:'web'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
+    const h=sharedBootstrap(options); let splash=h.render(); assert.equal(splash.props.landing,undefined);
+    splash.props.onComplete(); h.auth.isInitializing=false; h.render(); assert.equal(h.render(),null);
+    h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);
+  }
+});
+
+test('sign in or resizing to WEB ends the opening landing permanently', () => {
+  for(const action of ['signin','resize']) {
+    const h=sharedBootstrap();h.auth.isInitializing=false;h.render().props.onComplete();
+    const splash=h.render();
+    if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
+    else h.setPresentation('web');
+    assert.equal(h.render().props.hidden,true);assert.equal(h.render(),null);
+    h.auth.isAuthenticated=false;h.setPresentation('mobile');assert.equal(h.render(),null);
+  }
 });

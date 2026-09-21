@@ -63,11 +63,13 @@ type AuthContextValue = {
    * and the destination is remembered independently of the sheet so cancelling
    * cannot bounce the person back into the same request.
    */
-  requestAuthenticatedDestination: (intent: AuthIntent) => void;
+  requestAuthenticatedDestination: (intent: AuthIntent, view?: 'signIn' | 'signUp') => void;
   /** Why the sheet opened, when it opened because of a gated destination. */
   gateMessage: string | null;
   /** Reads the pending destination and clears it, so it resolves exactly once. */
   consumePendingIntent: () => AuthIntent | null;
+  /** Snapshot for registration metadata; reading must not consume navigation. */
+  peekPendingIntent: () => AuthIntent | null;
   /**
    * The address last typed into any auth form, so moving between sign in, sign
    * up, and recovery — or returning after a failure — never asks for it twice.
@@ -270,18 +272,19 @@ export function AuthProvider({
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(null);
   }, []);
-  const requestAuthenticatedDestination = useCallback((intent: AuthIntent) => {
+  const requestAuthenticatedDestination = useCallback((intent: AuthIntent, view: 'signIn' | 'signUp' = 'signIn') => {
     pendingIntentRef.current = intent;
-    setGateMessage(describeIntent(intent));
+    setGateMessage(view === 'signIn' ? describeIntent(intent) : null);
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(null);
-    setPendingView('signIn');
+    setPendingView(view);
   }, []);
   const consumePendingIntent = useCallback(() => {
     const taken = pendingIntentRef.current;
     pendingIntentRef.current = null;
     return taken;
   }, []);
+  const peekPendingIntent = useCallback(() => pendingIntentRef.current, []);
   const closeAuth = useCallback(() => {
     clearPasswordRecoveryReturn();
     setPendingView(null);
@@ -320,9 +323,10 @@ export function AuthProvider({
     requestAuthenticatedDestination,
     gateMessage,
     consumePendingIntent,
+    peekPendingIntent,
     rememberedEmail,
     rememberEmail: setRememberedEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
+  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberedEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -51,7 +51,7 @@ import { canAccessProfile } from './domain/contentPlacement';
 import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
 import { DEFAULT_PUBLIC_APPEARANCE, readVisitorTheme, resolvePublicTheme, writeVisitorTheme } from './utils/publicAppearance';
-import { canResumeRegistration } from './features/auth/registration';
+import { canResumeRegistration, readSharedReturnPath } from './features/auth/registration';
 import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
 import { usePresentation } from './presentation/usePresentation';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
@@ -472,7 +472,8 @@ function AppContent() {
     const id = auth.user?.registration?.id;
     if (!id || resumedRegistration.current === id || !canResumeRegistration(auth.session, auth.pendingView)) return;
     resumedRegistration.current = id;
-    deferredIntentRef.current = auth.consumePendingIntent() ?? deferredIntentRef.current;
+    const returnPath = readSharedReturnPath(auth.user?.registration?.returnPath);
+    deferredIntentRef.current = auth.consumePendingIntent() ?? (returnPath ? { kind: 'route', path: returnPath, label: 'view shared content' } : deferredIntentRef.current);
     setIsOnboardingOpen(true);
     if (auth.pendingView) auth.closeAuth();
   }, [auth]);
@@ -1219,7 +1220,7 @@ function AppContent() {
       </InteractionSafePresence>
 
       {/* The auth surface is application-level: any control can request it. */}
-      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <AuthDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} />}
+      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <AuthDialog registrationReturnPath={presentation === 'mobile' && isSharedRoute ? readSharedReturnPath(pathname + search) : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} />}
 
       {/* Editing is owner-only: it can only ever target the viewer's own id. */}
       <ProfileEditorDialog isOpen={isProfileEditorOpen && isOwnerMode} profileId={auth.viewerProfileId} onClose={() => setIsProfileEditorOpen(false)} onSaved={() => setIsProfileEditorOpen(false)} />

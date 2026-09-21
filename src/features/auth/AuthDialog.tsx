@@ -15,6 +15,7 @@ import { usePasswordReset, usePasswordUpdate, useSignUp } from './useAuthFlows';
 import { validateEmail, validateNewPassword, validatePasswordConfirmation, validateRequiredPassword } from './validation';
 import { MobileOnboardingAction, MobileOnboardingAppearance, type MobileSignupStep } from '../../components/auth/MobileOnboarding';
 import { usePresentation } from '../../presentation/usePresentation';
+import { readSharedReturnPath } from './registration';
 
 const titles: Record<AuthView, string> = {
   signIn: 'Sign in', signUp: 'Create your account',
@@ -25,7 +26,7 @@ const mobileSignupTitles: Record<MobileSignupStep, string> = {
   appearance: 'Choose appearance', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
 };
 
-export function AuthDialog(props: AccountAppearanceProps) {
+export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string }) {
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
@@ -36,7 +37,7 @@ export function AuthDialog(props: AccountAppearanceProps) {
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'profile' ? 'account' : 'appearance') : undefined} showAppearance={!mobileSignup && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...props} {...formProps} step={signupStep} onStepChange={setSignupStep} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
@@ -161,13 +162,17 @@ function SignInForm(props: FormProps) {
       </div>
     </form>;
 }
-function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSignupStep; onStepChange: (step: MobileSignupStep) => void }) {
+function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSignupStep; onStepChange: (step: MobileSignupStep) => void; registrationReturnPath?: string }) {
   const { firstFieldRef, onStepChange } = props;
   const isMobile = usePresentation() === 'mobile';
   const auth = useAuth();
   const signUp = useSignUp();
   const avatar = useAvatarSelection();
   const registrationId = useRef(crypto.randomUUID());
+  const [registrationReturnPath] = useState(() => {
+    const intent = auth.peekPendingIntent();
+    return isMobile ? readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath) : undefined;
+  });
   const submittingRef = useRef(false);
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
@@ -195,11 +200,11 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     if (signUp.isLoading || submittingRef.current) {
       return;
     }
-    if (isMobile && props.step === 'appearance') { props.onStepChange('account'); return; }
-    if (isMobile && props.step === 'account') {
-      const accountErrors = { email: validateEmail(email), password: validateNewPassword(password), confirmation: validatePasswordConfirmation(password, confirmation) };
-      setFieldErrors(accountErrors);
-      if (!Object.values(accountErrors).some(Boolean)) props.onStepChange('profile');
+    if (isMobile && props.step === 'appearance') { props.onStepChange('profile'); return; }
+    if (isMobile && props.step === 'profile') {
+      const profileErrors = { name: validateProfileName(name), location: validateLocation(location) };
+      setFieldErrors(profileErrors);
+      if (!Object.values(profileErrors).some(Boolean) && !avatar.error) props.onStepChange('account');
       return;
     }
     const nextErrors = {
@@ -211,16 +216,17 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     };
     setFieldErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean) || avatar.error) {
-      if (isMobile && (nextErrors.email || nextErrors.password || nextErrors.confirmation)) props.onStepChange('account');
+      if (isMobile && (nextErrors.name || nextErrors.location || avatar.error)) props.onStepChange('profile');
       return;
     }
     submittingRef.current = true;
     try {
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar) }, avatar.avatar);
+        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar),
+        ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);
     } finally { submittingRef.current = false; }
   }
-  return <form onSubmit={submit} noValidate className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
+  return <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? props.step : undefined} className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
       {signUp.error && <FormError message={signUp.error.message} />}
       {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props} />}
       {(!isMobile || props.step === 'profile') && <>
@@ -254,7 +260,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     }} />
       </>}
       {isMobile && props.step === 'appearance' && <div className="mobile-onboarding-signin"><ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} /></div>}
-      {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
+      {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
         {signUp.isLoading ? 'Creating account…' : 'Create account'}
       </Button>}
       {!isMobile && <ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} />}

@@ -12,6 +12,7 @@ export function MobileOnboardingAppearance(props: AccountAppearanceProps) {
   const theme = props.theme ?? 'dark';
   const selected = findNavAccent(props.accentColor);
   return <div className="mobile-onboarding-appearance">
+    <p className="mobile-onboarding-brand">Portalink<br />Networks</p>
     <fieldset><legend>Accent colour</legend>
       <div role="radiogroup" aria-label="Accent colour" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
         {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onAccentColorChange(option[theme])}>

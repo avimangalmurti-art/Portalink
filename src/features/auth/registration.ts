@@ -13,7 +13,25 @@ export type RegistrationProfile = {
   isPrivate?: boolean;
   accentColor: string;
   hasAvatar: boolean;
+  /** Optional public destination to resume after email confirmation and setup. */
+  returnPath?: string;
 };
+
+/** Navigation only: accept local public routes and explicitly safe viewer state. */
+export function readSharedReturnPath(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048) return;
+  const pathname = value.split(/[?#]/, 1)[0];
+  if (!/^\/share\/[a-z0-9_-]{1,128}(?:\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
+  const url = new URL(value, 'https://portalink.invalid');
+  const safe = new URL(url.pathname.replace(/\/$/, ''), url.origin);
+  const view = url.searchParams.get('view');
+  const page = url.searchParams.get('page');
+  const media = url.searchParams.get('media');
+  if (view === 'projects' || view === 'portals') safe.searchParams.set('view', view);
+  if (page && /^[1-9]\d{0,4}$/.test(page)) safe.searchParams.set('page', page);
+  if (media && /^[a-z0-9_-]{1,128}$/i.test(media)) safe.searchParams.set('media', media);
+  return safe.pathname + safe.search;
+}
 
 export function readRegistrationProfile(value: unknown): RegistrationProfile | undefined {
   if (!value || typeof value !== 'object') return;
@@ -24,7 +42,8 @@ export function readRegistrationProfile(value: unknown): RegistrationProfile | u
     || typeof data.accentColor !== 'string' || !/^#[a-f0-9]{6}$/i.test(data.accentColor)
     || typeof data.hasAvatar !== 'boolean'
     || (data.isPrivate !== undefined && typeof data.isPrivate !== 'boolean')) return;
-  return { version: 1, id: data.id, name: data.name.trim(), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, hasAvatar: data.hasAvatar };
+  const returnPath = readSharedReturnPath(data.returnPath);
+  return { version: 1, id: data.id, name: data.name.trim(), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, hasAvatar: data.hasAvatar, ...(returnPath ? { returnPath } : {}) };
 }
 
 export function canResumeRegistration(session: AuthSession | null, view: string | null): boolean {

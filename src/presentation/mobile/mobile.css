@@ -11,6 +11,48 @@
   object-fit: contain;
 }
 
+/* One landing surface: the original clip settles into its final artwork and
+   then reveals the action. The media never unmounts between those states. */
+[data-presentation='mobile'].portalink-splash[data-share-landing] {
+  outline: none;
+  background: #f8fdfc !important;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: cover;
+}
+@media (max-height: 560px) {
+  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { object-fit: contain; }
+}
+[data-presentation='mobile'] .mobile-share-landing-actions {
+  position: absolute;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  left: max(24px, env(safe-area-inset-left, 0px));
+  right: max(24px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #071326;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+[data-presentation='mobile'] .mobile-share-create {
+  min-height: 56px;
+  width: 100%;
+  border-radius: 999px;
+  background: #071326;
+  color: #fff;
+  font-size: 19px;
+  font-weight: 500;
+}
+[data-presentation='mobile'] .mobile-share-secondary { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 24px; }
+[data-presentation='mobile'] .mobile-share-secondary button { min-height: 44px; font-size: 14px; }
+[data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
+
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
    Body-portalled menus carry the same presentation scope as the app. */
@@ -265,21 +307,32 @@
   padding-inline: 48px;
 }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-footer button > svg:last-child:not(.animate-spin) { position: absolute; right: 20px; }
-#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance { display: flex; flex-direction: column; gap: 8px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance { display: flex; flex-direction: column; gap: 22px; width: min(100%, 330px); margin-inline: auto; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-brand {
+  margin: clamp(8px, 2dvh, 24px) 0 clamp(14px, 3dvh, 32px);
+  color: var(--text-primary);
+  font-size: clamp(46px, 12.8vw, 64px);
+  font-weight: 750;
+  letter-spacing: -.055em;
+  line-height: .96;
+  text-align: center;
+}
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-appearance legend { margin-bottom: 6px; font-size: 16px; }
-#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px 6px; margin-bottom: 10px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px 4px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches button {
   display: grid;
   place-items: center;
   height: 48px;
   min-width: 0;
-  padding: 5px;
+  padding: 2px;
   border: 0;
   border-radius: 12px;
   background: transparent !important;
 }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches button span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 9px; }
-#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches [aria-checked='true'] { box-shadow: inset 0 0 0 1.5px var(--text-primary); }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-swatches button:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-footer { width: min(100%, 250px); align-self: center; padding-top: 8px; padding-bottom: 16px; }
+#root .codex-shell [data-mobile-onboarding] [data-onboarding-step='appearance'] .mobile-onboarding-footer svg { display: none; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 12px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-switch label { font-size: 16px; font-weight: 400; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input { position: relative; }

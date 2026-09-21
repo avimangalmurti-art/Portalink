@@ -21,6 +21,37 @@ const draft = { version: 1, id, name: '  Example Creator  ', location: '  City  
 const session = (account = 'a', extra = {}) => ({ user: { id: account, isEmailVerified: true, profileId: '', registration: draft, ...extra } });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
+test('shared registration return paths survive confirmation without persisting tokens or allowing redirects', () => {
+  for (const path of ['/share/creator?view=portals', '/share/creator/c/portal', '/share/creator/c/portal/project?page=2&media=image-1']) {
+    assert.equal(registration.readSharedReturnPath(path), path);
+    const saved = JSON.parse(JSON.stringify({...draft, returnPath:path}));
+    assert.equal(registration.readRegistrationProfile(saved).returnPath, path);
+  }
+  for (const path of ['https://example.test/share/a', '//example.test/share/a', '/share/a/../../messages', '/share/%2e%2e', '/share/a\\b', '/messages', '/p/a', null, 2]) {
+    assert.equal(registration.readSharedReturnPath(path), undefined);
+    assert.equal(registration.readRegistrationProfile({...draft, returnPath:path}).returnPath, undefined);
+  }
+  assert.equal(registration.readSharedReturnPath('/share/a?code=private&access_token=private&next=https://example.test&view=portals#access_token=private'), '/share/a?view=portals');
+});
+
+test('landing signup preserves a destination once, cancellation clears it and ordinary gates still sign in', async () => {
+  const hooks = hookRuntime();
+  const {AuthProvider} = load('src/contexts/AuthContext.tsx', {
+    react: hooks.react, './ServicesContext': {useServices: () => ({auth:{getSession:async()=>null,onAuthStateChange:()=>()=>{}}})}, '../types/auth': authTypes,
+    '../utils/passwordRecoveryReturn': {isPasswordRecoveryReturn: () => false, clearPasswordRecoveryReturn() {}},
+  }, {window:{location:{href:'http://example.test'}},document:{activeElement:null},HTMLElement:class{}});
+  const render = () => hooks.render(() => AuthProvider({children:null})).props.value;
+  render(); await tick();
+  const intent = {kind:'route',path:'/share/a/c/b/c',label:'view shared content'};
+  render().requestAuthenticatedDestination(intent, 'signUp');
+  assert.equal(render().pendingView,'signUp'); assert.equal(render().gateMessage,null);
+  render().closeAuth(); assert.equal(render().consumePendingIntent(),null);
+  render().requestAuthenticatedDestination(intent, 'signUp');
+  assert.equal(render().consumePendingIntent(),intent); assert.equal(render().consumePendingIntent(),null);
+  render().requestAuthenticatedDestination(intent);
+  assert.equal(render().pendingView,'signIn');
+});
+
 test('registration metadata is normalized and never becomes an ownership or verification claim', () => {
   const value = registration.readRegistrationProfile({ ...draft, accountId: 'victim', profileId: 'victim-profile', isEmailVerified: true });
   assert.equal(value.name, 'Example Creator');
@@ -159,46 +190,64 @@ test('one registration form validates account and profile fields before the sing
   const hooks = hookRuntime(); const submitted = [];
   const mock = {isLoading: false, result: null, error: null, submit: async (...args) => submitted.push(args)};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
-    react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}})},
+    react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}, peekPendingIntent: () => ({kind:'route',path:'/share/original/c/portal?page=2&access_token=do-not-persist'})})},
     '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
     '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
     '../../presentation/usePresentation': {usePresentation: () => presentation},
+    './registration': registration,
     '../profile/useProfileOnboarding': {useAvatarSelection: () => ({avatar: null, error: null})}, '../profile/validation': validation,
     '../../components/auth/MobileOnboarding': {MobileOnboardingAppearance:'Appearance', MobileOnboardingAction:'Action'},
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': {useSignUp: () => mock}, './validation': load('src/features/auth/validation.ts'),
   });
   let step = 'appearance';
-  const render = () => hooks.render(() => SignUpForm({step, onStepChange: next => {step = next;}, accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
+  const render = () => hooks.render(() => SignUpForm({step, onStepChange: next => {step = next;}, registrationReturnPath: '/share/creator/c/portal/project?page=2&access_token=do-not-persist', accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   let tree = render();
   if (presentation === 'mobile') {
     assert.equal(nodes(tree).some(node => node.props?.id === 'auth-signup-email'), false);
-    await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'account');
+    await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'profile');
     tree = render();
+    assert.equal(nodes(tree).some(node => node.props?.id === 'auth-signup-email'), false, 'Profile comes before credentials.');
   }
   await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
+  if (presentation === 'mobile') assert.equal(step, 'profile', 'A missing profile name cannot advance.');
+  const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
+  assert.equal(Boolean(visibility), presentation === 'mobile');
+  visibility?.props.onChange(true);
+  for (const [key, value] of [['name', 'Creator'], ['location', 'City']]) {
+    nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
+  }
+  tree = render(); await tree.props.onSubmit({preventDefault() {}});
+  assert.equal(submitted.length, 0, 'Profile details are a draft until the final account screen submits.');
+  if (presentation === 'mobile') {
+    assert.equal(step, 'account');
+    step = 'profile'; tree = render();
+    assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-name').props.value, 'Creator');
+    assert.equal(nodes(tree).find(node => node.type === 'ProfileVisibilityField').props.isPrivate, true);
+    step = 'appearance'; tree = render(); await tree.props.onSubmit({preventDefault() {}});
+    assert.equal(step, 'profile'); tree = render(); await tree.props.onSubmit({preventDefault() {}});
+    assert.equal(step, 'account');
+  }
+  tree = render();
   for (const [key, value] of [['email', 'example@example.test'], ['password', 'test-password'], ['confirmation', 'different']]) {
     nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
   }
   tree = render(); await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
   if (presentation === 'mobile') assert.equal(step, 'account', 'Mismatched passwords cannot advance.');
   nodes(tree).find(node => node.props?.id === 'auth-signup-confirmation').props.onChange('test-password');
-  tree = render(); await tree.props.onSubmit({preventDefault() {}});
-  assert.equal(submitted.length, 0, 'Credentials alone never create an account.');
   if (presentation === 'mobile') {
-    assert.equal(step, 'profile');
+    step = 'profile'; tree = render();
+    nodes(tree).find(node => node.props?.id === 'auth-signup-name').props.onChange('');
+    step = 'account'; tree = render(); await tree.props.onSubmit({preventDefault() {}});
+    assert.equal(submitted.length, 0);
+    assert.equal(step, 'profile', 'Final validation returns hidden profile errors to their field.');
+    tree = render(); nodes(tree).find(node => node.props?.id === 'auth-signup-name').props.onChange('Creator');
+    tree = render(); await tree.props.onSubmit({preventDefault() {}});
     step = 'account'; tree = render();
     assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-email').props.value, 'example@example.test');
     assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-password').props.value, 'test-password');
-    await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'profile');
-  }
-  tree = render();
-  const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
-  assert.equal(Boolean(visibility), presentation === 'mobile');
-  visibility?.props.onChange(true);
-  for (const [key, value] of [['name', 'Creator'], ['location', 'City']]) {
-    nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
+    assert.equal(nodes(tree).find(node => node.type === 'Action').props.children, 'Create account');
   }
   tree = render(); await Promise.all([tree.props.onSubmit({preventDefault() {}}), tree.props.onSubmit({preventDefault() {}})]);
   assert.equal(submitted.length, 1, 'Repeated activation must not submit two accounts.');
@@ -206,6 +255,7 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(submitted[0][2].location, 'City');
   assert.equal(submitted[0][2].accentColor, '#0A84FF');
   assert.equal(submitted[0][2].isPrivate, presentation === 'mobile');
+  assert.equal(submitted[0][2].returnPath, presentation === 'mobile' ? '/share/original/c/portal?page=2' : undefined, 'The captured entry wins over a category auto-select or later URL change.');
   mock.result = {requiresEmailVerification:true, email:'example@example.test'};
   render(); tree = render();
   assert.equal(step, 'verification');
