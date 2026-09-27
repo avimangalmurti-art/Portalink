@@ -13,7 +13,7 @@ function events(properties = {}) {
   };
 }
 
-function mount({ presentation = 'mobile', visual = true, previous = '' } = {}) {
+function mount({ presentation = 'mobile', visual = true, previous = '', standalone = false, legacyStandalone = false } = {}) {
   let effect, nextId = 1, editing = false;
   const frames = new Map(), timers = new Map(), values = new Map();
   if (previous) values.set('--mobile-viewport-height', [previous, 'important']);
@@ -25,11 +25,15 @@ function mount({ presentation = 'mobile', visual = true, previous = '' } = {}) {
   };
   const viewport = events({ height: 700, scale: 1 });
   const window = events({ innerHeight: 780, innerWidth: 390,
+    matchMedia: () => ({ matches: standalone }), navigator: { standalone: legacyStandalone },
     visualViewport: visual ? viewport : undefined,
     requestAnimationFrame(callback) { const id = nextId++; frames.set(id, callback); return id; },
     cancelAnimationFrame(id) { frames.delete(id); },
     setTimeout(callback) { const id = nextId++; timers.set(id, callback); return id; },
     clearTimeout(id) { timers.delete(id); },
+  });
+  if (standalone || legacyStandalone) Object.defineProperty(window, 'visualViewport', {
+    get() { throw new Error('Standalone must not measure the launch viewport'); },
   });
   const document = events({ activeElement: { matches: () => editing } });
   const exports = {};
@@ -140,4 +144,17 @@ test('WEB installs no viewport listeners or size override', () => {
   const h = mount({ presentation: 'web', previous: '650px' });
   assert.equal(h.height(), '650px'); assert.equal(h.cleanup, undefined);
   for (const queue of [h.frames, h.timers, h.window.listeners, h.viewport.listeners, h.document.listeners]) assert.equal(queue.size, 0);
+});
+
+test('standalone keeps CSS sizing through a short launch, swipe, keyboard and restoration', () => {
+  for (const options of [{ standalone: true }, { legacyStandalone: true }]) {
+    const h = mount(options);
+    assert.equal(h.height(), ''); assert.equal(h.cleanup, undefined);
+    for (const event of ['resize', 'orientationchange', 'pageshow', 'splash-exit']) h.window.emit(event);
+    h.viewport.height = 430; h.viewport.emit('resize'); h.viewport.emit('scroll');
+    h.focus(true); h.frame(); h.focus(false); h.settle();
+    h.viewport.height = 844; h.viewport.emit('resize'); h.frame();
+    assert.equal(h.height(), '', 'no pixel override at launch or after a gesture');
+    for (const queue of [h.frames, h.timers, h.window.listeners, h.viewport.listeners, h.document.listeners]) assert.equal(queue.size, 0);
+  }
 });

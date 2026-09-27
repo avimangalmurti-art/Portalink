@@ -114,6 +114,6 @@ export function ApplicationBootstrap() {
             continueLabel: landingPath === '/' ? 'Continue as guest' : 'View shared content',
           } : undefined} /> : null}
       </AnimatePresence>
-      {timedIntroEnded && auth.isInitializing && <div className="fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label="Opening Portalink…" /></div>}
+      {timedIntroEnded && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label="Opening Portalink…" /></div>}
     </>;
 }

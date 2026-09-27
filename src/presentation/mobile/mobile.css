@@ -149,13 +149,23 @@
   }
 }
 /* The startup layer exists before the app host and carries the same scope. */
+[data-presentation='mobile'].portalink-startup-wait {
+  height: var(--mobile-launch-height, 100dvh);
+  min-height: var(--mobile-launch-height, 100dvh);
+  background-color: #f8fdfc;
+  overflow: hidden;
+}
 [data-presentation='mobile'].portalink-splash {
   background-color: #f8fdfc;
+  height: var(--mobile-launch-height, 100dvh);
+  min-height: var(--mobile-launch-height, 100dvh);
+  overscroll-behavior: none;
 }
 
 [data-presentation='mobile'].portalink-splash .portalink-splash-media {
   width: 100vw;
-  height: 100dvh;
+  height: var(--mobile-launch-height, 100dvh);
+  max-height: var(--mobile-launch-height, 100dvh);
   object-fit: contain;
 }
 
@@ -163,7 +173,7 @@
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;
   background: #f8fdfc !important;
-  height: 100dvh;
+  height: var(--mobile-launch-height, 100dvh);
   min-height: 0;
   grid-template-rows: minmax(0, 1fr) auto;
   padding-top: max(12px, env(safe-area-inset-top, 0px));
@@ -703,6 +713,18 @@
   touch-action: pan-y;
   opacity: 1;
   transition: opacity 160ms ease;
+}
+
+/* Insets pad the fixed control wrapper, never enlarge the installed shell. */
+#root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) {
+  --mobile-dock-bottom: env(safe-area-inset-bottom, 0px);
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) .mobile-floating-navigation {
+  position: fixed;
+  inset-inline: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-navigation-frame-width)) / 2) max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
+  bottom: 0;
+  padding-bottom: var(--mobile-dock-bottom);
 }
 
 /* Browsing briefly tucks away the entire dock without moving the page. */
@@ -2464,7 +2486,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back.mobile-project-portal-preview {
   position: fixed;
   top: auto;
-  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
   left: auto;
   right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 52px);
 }
@@ -2475,6 +2497,9 @@
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-floating-navigation {
   inset-inline-end: 104px;
   touch-action: pan-x pan-y;
+}
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview):where(html[data-standalone] *) .mobile-floating-navigation {
+  inset-inline-end: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 104px);
 }
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock {
   grid-template-columns: repeat(4, minmax(44px, 1fr));
@@ -2720,7 +2745,7 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
   position: fixed;
   top: auto;
-  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
   right: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
   width: 44px !important;
   max-width: 56px;
@@ -2732,7 +2757,7 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open='true'] {
   width: 56px !important;
   right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
-  bottom: calc(100% - var(--mobile-viewport-height, 100dvh) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2 - 4px);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2 - 4px);
   padding: 4px;
 }
 [data-presentation='mobile'] [data-mobile-engagement-content] { flex: 0 0 auto; width: 48px; }

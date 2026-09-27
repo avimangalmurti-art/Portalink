@@ -4,11 +4,16 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const HEIGHT_PROPERTY = '--mobile-viewport-height';
 
-/** Reconcile Safari's initial/toolbar viewport without waiting for a swipe. */
+/** Browser tabs follow toolbar changes; installed apps keep CSS's stable 100vh. */
 export function useMobileViewportFrame(presentation: Presentation, frameRef: RefObject<HTMLDivElement>) {
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (presentation !== 'mobile' || !frame) return;
+
+    // iOS can report a short VisualViewport until the first gesture. Never bake
+    // that measurement into the installed shell (dialogs still track keyboards).
+    if (window.matchMedia?.('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean })?.standalone) return;
 
     const previous = frame.style.getPropertyValue(HEIGHT_PROPERTY);
     const priority = frame.style.getPropertyPriority(HEIGHT_PROPERTY);

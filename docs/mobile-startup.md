@@ -17,18 +17,34 @@ Invite a friend shares `/?welcome=1` on the current site origin, through both na
 - Mobile video stays mounted on pauses/errors. At most two automatic retries follow a failure; foreground, page restoration, connectivity and user interaction allow another attempt. Hidden or unmounted surfaces pause playback, invalidate pending promises and clear retries/listeners.
 - Per the latest product request, mobile startup/welcome always selects moving media, including when a reduced-motion preference previously selected a still. Reduced motion still suppresses the exit fade. Desktop reduced-motion behavior is unchanged.
 
-The old mobile PNG is no longer referenced by active application source or HTML. Retaining that file temporarily allows cached older application bundles to resolve their old fallback URL. The unused React `SplashScreen.tsx` has been removed. Other static brand icons, onboarding artwork and social link-preview images have separate purposes and must not be deleted to fix video playback.
+The old `portalink-splash-mobile-poster.png` is no longer referenced by active application source or HTML. Retaining that file temporarily allows cached older application bundles to resolve their old fallback URL. The unused React `SplashScreen.tsx` has been removed. Other static brand icons, onboarding artwork and social link-preview images have separate purposes and must not be deleted to fix video playback.
+
+## Home Screen launch and layout
+
+In MOBILE standalone mode, the outer document, app frame and startup layers use a stable `100vh` height. The HTML identifies standalone mode before React through `(display-mode: standalone)` or iOS `navigator.standalone`. `useMobileViewportFrame.ts` skips viewport measurements in that mode so a temporarily short launch-time `visualViewport.height` cannot become the shell height. Safe-area insets pad controls inside the frame; they are not added to its height. The installed navigation wrapper stays fixed to the bottom with safe-area padding.
+
+Ordinary browser tabs retain dynamic viewport sizing and the existing toolbar/rotation measurement behavior. The separate `useDialogViewport.ts` hook is unchanged and continues tracking the visible viewport for keyboards and dialogs. WEB presentation remains separate.
+
+`index.html` declares 28 `apple-touch-startup-image` links for 14 phone size/DPR combinations in portrait and landscape. Their opaque PNGs in `public/startup/` fill each matching device canvas with `#f8fdfc`, matching the mobile preboot, splash, authentication-wait layer and manifest background. Regenerate both PNGs and the marked HTML link block with `node.exe scripts/generate-apple-startup.mjs`; the script uses Node built-ins and creates no new artwork. Keep dimensions, DPR and orientation media queries together when updating coverage. Apple documents the [launch-image link](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html) and [device screen dimensions](https://developer.apple.com/design/human-interface-guidelines/layout).
+
+These startup backgrounds are static images shown by iOS before the web application can render. The supplied moving media takes over when the HTML/application runs; the startup PNGs do not replace its animation or become video posters.
 
 ## What this cannot control
 
 Safari may reject video autoplay. The animated fallback keeps this application surface moving in that case, but a browser can still suspend rendering in the background and unavailable network assets cannot be displayed before they load. No guarantee of uninterrupted playback in every browser state is possible.
 
-iOS may show its saved launch screenshot before the home-screen web application executes. Website JavaScript cannot animate or replace that operating-system snapshot. Verify cold launch, foreground restoration, Low Power Mode and actual Safari keyboard behavior on a physical iPhone after publication. The manifest starts at `/`; the application declares no Apple startup-image tag.
+iOS controls launch-image selection and caching and may still show a saved launch screenshot before the Home Screen web application executes. Website JavaScript cannot animate that operating-system phase. The declared startup images cover the listed phone sizes; local browser checks do not prove their selection on a physical iPhone. The manifest continues to start at `/`.
 
 The existing `/portalink-media-reader.js` service worker only handles large project files under `/__portalink_media/`. It does not cache HTML, the application shell or splash assets. Do not unregister it or clear account storage to troubleshoot this animation. Shared profile/project routes are not expiring splash URLs; signed storage URLs for actual project files are a separate system.
 
 ## Verification and publishing
 
-Run `node.exe --test tests/splash-lifecycle.test.mjs` and the related account-entry/registration/dialog checks, typecheck and build. The splash tests cover fixed timing, guest looping, failure recovery, page restoration, callback cleanup and animation integrity. Test real components with blocked playback locally, plus WEB preservation. Simulation is not physical-iPhone proof.
+Run `node.exe --test tests/splash-lifecycle.test.mjs tests/mobile-viewport-frame.test.mjs tests/apple-startup.test.mjs` and the related account-entry/registration/dialog checks, typecheck and build. The splash tests cover fixed timing, guest looping, failure recovery, page restoration, callback cleanup and animation integrity. Viewport tests distinguish standalone CSS sizing from browser measurements; startup tests check PNG dimensions, opacity, color, integrity and pre-React standalone detection. Test real components with blocked playback locally, plus WEB preservation. Simulation is not physical-iPhone proof.
+
+After publication, retest on a physical iPhone:
+
+1. Remove the old Home Screen icon, open the current published site in Safari and add a fresh Home Screen icon so the installation can pick up the new launch metadata.
+2. Force-quit the installed app from the app switcher, then cold-launch it from that icon. Check the startup background and animation transition, full-height frame and bottom controls before touching or swiping the page.
+3. Repeat foreground restoration, supported orientations and Low Power Mode. Open the account forms and check the actual keyboard, reachable actions and dismissal. Record the device/iOS version and any remaining launch snapshot or sizing issue.
 
 Source edits are not automatically live. Check the current handoff and Sites deployment status before telling the user a fix is published. Existing open tabs can retain the previously loaded JavaScript until navigation/reload; do not confuse that with an expired link. Publishing follows the existing documented Sites flow and needs the user's authorization.
