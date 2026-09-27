@@ -18,9 +18,9 @@ const layoutDefaults = compile('../src/utils/panelLayoutDefaults.ts', () => ({})
 
 // Render the real component and exercise its handlers without creating users,
 // changing live data, or requiring a browser. Only hooks and external UI are stubbed.
-function harness() {
+function harness(initialPresentation = 'web') {
   const state = [];
-  let cursor = 0;
+  let cursor = 0, presentation = initialPresentation;
   let width;
   const calls = [];
   const react = { ...React,
@@ -34,6 +34,8 @@ function harness() {
   const { SharedProfileSidebar } = compile('../src/components/profile/SharedProfileSidebar.tsx', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/MobileSharedProfileDrawer')) return { MobileSharedProfileDrawer: 'mobile-shared-drawer' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
     if (name === '../../utils/panelLayoutDefaults') return layoutDefaults;
@@ -56,7 +58,7 @@ function harness() {
     activeCategoryId: null, theme: 'light', onThemeChange: (theme) => calls.push(theme),
     onOpenCategory: (id) => calls.push(id), onSignIn: () => calls.push('sign-in'), onCreateAccount: () => calls.push('sign-up'),
   };
-  return { calls, render(changes = {}) { cursor = 0; return SharedProfileSidebar({ ...props, ...changes }); } };
+  return { calls, setPresentation(value) { presentation = value; }, render(changes = {}) { cursor = 0; return SharedProfileSidebar({ ...props, ...changes }); } };
 }
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
@@ -140,4 +142,70 @@ test('empty public portfolios still offer expansion and return-to-profile', () =
   assert.equal(portals(tree).length, 0);
   assert.equal(toggle(tree).props['aria-label'], 'Expand navigation');
   assert.equal(home(tree).props.to, '/share/empty');
+});
+
+test('MOBILE uses a full-content drawer without overwriting the WEB collapse preference', () => {
+  const h = harness();
+  toggle(h.render()).props.onClick();
+  assert.equal(h.render().props['data-collapsed'], 'true');
+  h.setPresentation('mobile');
+  const wrapper = h.render({ activeCategoryId: 'photos' });
+  assert.equal(wrapper.type, 'mobile-shared-drawer');
+  assert.equal(wrapper.props.name, 'Creator Name');
+  const close = () => h.calls.push('close');
+  const tree = wrapper.props.children(close);
+  assert.equal(tree.props['data-mobile-shared-sidebar'], true);
+  assert.equal(tree.props['data-collapsed'], 'false');
+  assert.equal(tree.props.style, undefined);
+  assert.equal(toggle(tree).props['aria-label'], 'Close profile navigation');
+  assert.equal(nodes(tree).some(node => node.type === 'resize-handle'), false);
+  assert.equal(portals(tree)[0].props['aria-current'], 'page');
+  assert.ok(nodes(portals(tree)[0]).some(node => node.props?.children === 'Photography'));
+  const profileLink = nodes(tree).find(node => node.props?.className === 'mobile-shared-profile-home sidebar-pill-row');
+  assert.equal(profileLink.props.to, '/share/creator');
+  profileLink.props.onClick();
+  portals(tree)[0].props.onClick();
+  toggle(tree).props.onClick();
+  assert.deepEqual(h.calls, ['close', 'close', 'photos', 'close']);
+  h.setPresentation('web');
+  const web = h.render();
+  assert.equal(web.type, 'aside');
+  assert.equal(web.props['data-collapsed'], 'true');
+  assert.equal(web.props['data-mobile-shared-sidebar'], undefined);
+  assert.equal(nodes(web).some(node => node.type === 'mobile-shared-drawer'), false);
+});
+
+test('MOBILE auth actions close the drawer and settings menu before opening the account flow', () => {
+  for (const action of ['sign-up', 'sign-in']) {
+    const h = harness('mobile');
+    const close = () => h.calls.push('close');
+    let wrapper = h.render(), tree = wrapper.props.children(close);
+    nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
+    wrapper = h.render(); tree = wrapper.props.children(close);
+    const menu = nodes(tree).find(node => node.props?.role === 'menu');
+    nodes(menu).filter(node => node.props?.role === 'menuitem')[action === 'sign-up' ? 0 : 1].props.onClick();
+    assert.deepEqual(h.calls, ['close', action]);
+    wrapper = h.render(); tree = wrapper.props.children(close);
+    assert.equal(nodes(tree).some(node => node.props?.role === 'menu'), false);
+    nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
+    h.render().props.onClose();
+    assert.equal(nodes(h.render().props.children(close)).some(node => node.props?.role === 'menu'), false,
+      'Backdrop, route or gesture dismissal also clears a previously open settings popup');
+  }
+});
+
+test('MOBILE Escape dismisses Settings before closing the profile drawer', () => {
+  const h = harness('mobile');
+  const close = () => h.calls.push('close');
+  let wrapper = h.render(), tree = wrapper.props.children(close);
+  nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
+  wrapper = h.render(); tree = wrapper.props.children(close);
+  assert.ok(nodes(tree).some(node => node.props?.role === 'menu'));
+  wrapper.props.onEscape(close);
+  wrapper = h.render(); tree = wrapper.props.children(close);
+  assert.equal(nodes(tree).some(node => node.props?.role === 'menu'), false);
+  assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props['aria-expanded'], false);
+  assert.deepEqual(h.calls, [], 'The first Escape leaves the parent navigation drawer open');
+  wrapper.props.onEscape(close);
+  assert.deepEqual(h.calls, ['close'], 'With Settings dismissed, the next Escape closes the drawer');
 });

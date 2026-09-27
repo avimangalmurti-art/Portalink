@@ -176,13 +176,52 @@ function controlInk(surface: string, highContrast: boolean): string {
   return contrast(dark) > contrast(light) ? dark : light;
 }
 
+type Rgb = [number, number, number];
+const hexRgb = (hex: string): Rgb => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16)) as Rgb;
+const rgbHex = (rgb: Rgb): string => `#${rgb.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+const mixRgb = (rgb: Rgb, target: Rgb, amount: number): Rgb => rgb.map((channel, index) => Math.round(channel + (target[index] - channel) * amount)) as Rgb;
+
+/** Resolve the existing rgba fallbacks onto the actual canvas, not a guessed theme ink. */
+function solidNavigationSurface(color: string, canvas: string): string {
+  if (/^#[\da-f]{6}$/i.test(color)) return color;
+  const match = color.match(/^rgba?\(([^)]+)\)$/);
+  const parts = match?.[1].split(',').map(Number);
+  if (!parts || parts.length < 3 || !parts.every(Number.isFinite)) return canvas;
+  return rgbHex(mixRgb(hexRgb(canvas), parts.slice(0, 3) as Rgb, parts[3] ?? 1));
+}
+
+function navigationContrast(first: string, second: string): number {
+  const a = luminance(first), b = luminance(second);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+/** Accent utilities target the page canvas; navigation must test its own material. */
+function navigationAccent(accent: string, backgrounds: string[], fallback: string): string {
+  const value = accent.trim();
+  const hex = /^#[\da-f]{6}$/i.test(value) ? value
+    : /^#[\da-f]{3}$/i.test(value) ? `#${value.slice(1).split('').map((channel) => channel + channel).join('')}`
+      : solidNavigationSurface(value, fallback);
+  const original = hexRgb(hex);
+  const readable = (candidate: string) => backgrounds.every((surface) => navigationContrast(candidate, surface) >= 4.5);
+  if (readable(hex)) return rgbHex(original);
+  // Choose the smallest tonal adjustment that passes on both the selected fill
+  // and every possible background behind the 92%-opaque resting material.
+  for (let step = 1; step <= 100; step += 1) {
+    for (const target of [[0, 0, 0], [255, 255, 255]] as Rgb[]) {
+      const candidate = rgbHex(mixRgb(original, target, step / 100));
+      if (readable(candidate)) return candidate;
+    }
+  }
+  return fallback;
+}
+
 /**
  * Resolves the neutral control design tokens for the current appearance,
  * accent, and accessibility preferences. Navigation keeps its historical token
  * names, while the `--control-*` family is the platform-wide contract used by
  * toolbars, panels, dialogs, list rows, and content previews.
  */
-export function resolveNavButtonTokens(appearance: NavAppearance, _accent: string, highContrast: boolean, reduceTranslucency: boolean, systemGrayId?: string): Record<string, string> {
+export function resolveNavButtonTokens(appearance: NavAppearance, accent: string, highContrast: boolean, reduceTranslucency: boolean, systemGrayId?: string): Record<string, string> {
   const isDark = appearance === 'dark';
   // A chosen system gray replaces the navigation surface outright, and the ink
   // is re-derived from it so the labels stay legible on whichever gray it is.
@@ -223,7 +262,35 @@ export function resolveNavButtonTokens(appearance: NavAppearance, _accent: strin
   }
   const hoverText = grayBackground ? controlInk(tokens.hover, highContrast) : tokens.text;
   const pressedText = grayBackground ? controlInk(tokens.pressed, highContrast) : tokens.text;
+  const canvas = isDark ? '#000000' : '#FFFFFF';
+  const navigationRest = solidNavigationSurface(tokens.background, canvas);
+  const navigationHover = solidNavigationSurface(tokens.hover, canvas);
+  const navigationPressed = solidNavigationSurface(tokens.pressed, canvas);
+  const opaqueNavigation = highContrast || reduceTranslucency;
+  const material = (surface: string) => opaqueNavigation ? surface : `rgba(${hexRgb(surface).join(', ')}, 0.92)`;
+  // Match the project capsule: lift the gray in Dark and deepen it in Light.
+  // Selection stays visibly neutral; only its contrast-checked ink uses accent.
+  const navigationSelected = rgbHex(mixRgb(hexRgb(navigationRest), isDark ? [255, 255, 255] : [0, 0, 0], 0.1));
+  const restingBounds = opaqueNavigation ? [navigationRest] : [
+    rgbHex(mixRgb([0, 0, 0], hexRgb(navigationRest), 0.92)),
+    rgbHex(mixRgb([255, 255, 255], hexRgb(navigationRest), 0.92)),
+  ];
+  const navigationSelectedInk = navigationAccent(accent, [...restingBounds, navigationSelected], tokens.text);
   return {
+    // Dedicated navigation material. Legacy --nav-button/--control contracts
+    // below retain their values for panels, forms and unrelated controls.
+    '--navigation-surface': material(navigationRest),
+    '--navigation-foreground': tokens.text,
+    '--navigation-hover-surface': material(navigationHover),
+    '--navigation-hover-foreground': hoverText,
+    '--navigation-pressed-surface': material(navigationPressed),
+    '--navigation-pressed-foreground': pressedText,
+    '--navigation-selected-surface': navigationSelected,
+    '--navigation-selected-foreground': navigationSelectedInk,
+    '--navigation-border': tokens.border,
+    '--navigation-focus-ring': navigationSelectedInk,
+    '--navigation-blur': opaqueNavigation ? 'none' : 'blur(22px) saturate(140%)',
+    '--navigation-shadow': `0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0 0 1px ${tokens.border}`,
     '--nav-button-background': tokens.background,
     '--nav-button-background-hover': tokens.hover,
     '--nav-button-background-pressed': tokens.pressed,

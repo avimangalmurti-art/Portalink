@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useAuth } from '../../contexts/AuthContext';
-import { saveRegistrationAvatar, type RegistrationProfile } from './registration';
+import { saveRegistrationDraft, markRegistrationVerification, type RegistrationProfile } from './registration';
 import type { PreparedAvatar } from '../../types/profile';
 import { toAuthError } from '../../types/auth';
 import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUpResult } from '../../types/auth';
@@ -27,8 +27,8 @@ export function useSignUp() {
     setError(null);
     try {
       if (registration) {
-        try { await saveRegistrationAvatar(registration.id, avatar); }
-        catch { throw new Error('Your profile image could not be kept for email confirmation. Try again or remove the image.'); }
+        try { await saveRegistrationDraft(registration, email, avatar); }
+        catch { throw new Error('Your signup details could not be saved for email confirmation. Please try again before continuing.'); }
       }
       const next = await auth.signUp({
         email,
@@ -36,6 +36,11 @@ export function useSignUp() {
         registration
       });
       setResult(next);
+      if (registration && next.requiresEmailVerification) {
+        // The complete draft was committed before signup. A status-cache failure
+        // must not turn an accepted signup into a second account request.
+        await markRegistrationVerification(registration.id).catch(() => undefined);
+      }
       if (next.session) await session.refreshSession(next.session.user.id);
     } catch (caught) {
       setError(toAuthError(caught));

@@ -3,10 +3,11 @@ import { useServices } from '../../contexts/ServicesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { normalizeHandle } from './validation';
-import type { AvatarRejectionCode, CreateProfileInput, HandleCheckStatus, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
+import type { CreateProfileInput, HandleCheckStatus, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
 import type { Profile } from '../../types/domain';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registration';
+import { AVATAR_REJECTIONS, validateAvatarFile } from './avatarValidation';
 
 /**
  * The onboarding feature boundary.
@@ -15,14 +16,6 @@ import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registrat
  * a database or a storage bucket; swapping the service is the only change a
  * real backend requires.
  */
-
-const ACCEPTED_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
-const AVATAR_REJECTIONS: Record<AvatarRejectionCode, string> = {
-  unsupported_type: 'Choose a PNG, JPEG, WebP, or GIF image.',
-  too_large: 'Choose an image under 4 MB.',
-  unreadable: 'That file could not be read. Choose another.'
-};
 
 /** Whether the signed-in account still needs a profile. */
 export function useProfileOnboardingStatus(): ProfileOnboardingStatus {
@@ -50,7 +43,7 @@ export type AvatarSelection = {
    * nothing to warn about.
    */
   storageNotice: string | null;
-  select: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => void;
+  select: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => boolean;
   clear: () => void;
 };
 
@@ -95,15 +88,12 @@ export function useAvatarSelection(): AvatarSelection {
   }, []);
   const select = useCallback((file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => {
     if (!file) {
-      return;
+      return false;
     }
-    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
-      setError(AVATAR_REJECTIONS.unsupported_type);
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError(AVATAR_REJECTIONS.too_large);
-      return;
+    const rejection = validateAvatarFile(file);
+    if (rejection) {
+      setError(rejection);
+      return false;
     }
     try {
       setError(null);
@@ -127,8 +117,10 @@ export function useAvatarSelection(): AvatarSelection {
           ...dimensions
         } : current);
       }).catch(() => undefined);
+      return true;
     } catch {
       setError(AVATAR_REJECTIONS.unreadable);
+      return false;
     }
   }, [replacePreview]);
   const clear = useCallback(() => {
@@ -252,7 +244,9 @@ export function useCreateProfile() {
     if (!accountId) {
       throw new Error('Sign in before creating a profile.');
     }
-    if (input.creationKey) await saveRegistrationAvatar(input.creationKey, input.avatar ?? null);
+    // The complete signup draft was saved before sending confirmation. A local
+    // cache failure here must not prevent the authenticated Storage/profile save.
+    if (input.creationKey && input.avatar) await saveRegistrationAvatar(input.creationKey, input.avatar).catch(() => undefined);
     const result = await createOrResumeProfile(services, accountId, input);
     // Only now does the account own a profile.
     await auth.linkProfile(result.profile.id);

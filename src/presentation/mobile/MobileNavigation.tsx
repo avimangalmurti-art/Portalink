@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
@@ -46,7 +46,7 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
 export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
   const [hidden, setHidden] = useState(true);
   const reduceMotion = useReducedMotion();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<HTMLDivElement>(null);
@@ -57,7 +57,23 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   }
   function close() { setNavigationHidden(true); }
   function open() { setNavigationHidden(false); }
-  useNavigationOutsideTap(!hidden, layerRef, close);
+  // An outside gesture keeps its own focus (especially a tapped form field).
+  useNavigationOutsideTap(!hidden, layerRef, () => setHidden(true));
+  // The destination owns focus after navigation, including query-only changes.
+  useEffect(() => setHidden(true), [pathname, search]);
+  useEffect(() => {
+    if (hidden) return;
+    const key = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const target = event.target;
+      if (target instanceof Element && !layerRef.current?.contains(target) && target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      event.preventDefault();
+      setHidden(true);
+      if (layerRef.current?.contains(document.activeElement)) toggle.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [hidden]);
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };

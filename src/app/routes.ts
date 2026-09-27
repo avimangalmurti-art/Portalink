@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -49,6 +49,12 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/p/:profileId',
     params: ['profileId'],
     description: 'A creator profile: identity, stats, and portfolio categories.'
+  },
+  profileEditor: {
+    id: 'profileEditor',
+    path: '/profile/edit',
+    params: [],
+    description: 'Edit the authenticated account’s own creator profile.'
   },
   profileCategory: {
     id: 'profileCategory',

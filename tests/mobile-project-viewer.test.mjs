@@ -9,6 +9,7 @@ const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThread
 const MobileProjectPageCounter = () => null;
 const MobileProjectDescriptionSheet = () => null;
 const MobileVideoSequence = () => null;
+const MobileVideoFrame = () => null;
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
@@ -37,6 +38,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name === 'react') return react;
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
+    if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
@@ -96,6 +98,7 @@ test('project overview attaches mobile swipe Back to the work stage and uses nav
 test('video scrolling remembers its attachment before canonical navigation and opens mixed-media targets without a first-frame fallback', () => {
   for (const readOnlyShare of [false, true]) {
     const h = harness({ readOnlyShare }), navigations = [];
+    const creator = { name: 'Source creator', avatar: 'source-creator-avatar.jpg' };
     const image = { id: 'target-image', kind: 'image', displayName: 'Artwork', typeLabel: 'Image' };
     const targetVideos = ['target-video', 'target-video-2'].map(id => ({ id, kind: 'video', displayName: id, typeLabel: 'Video' }));
     const entries = [
@@ -109,23 +112,31 @@ test('video scrolling remembers its attachment before canonical navigation and o
       navigations.push(id);
     } };
     const sequence = tree => nodes(tree).find(node => node.type === MobileVideoSequence);
-    const opening = sequence(h.render({ videoSequence }));
+    const openingTree = h.render({ videoSequence, creator });
+    const opening = sequence(openingTree);
     assert.equal(opening.props.activeId, 'project:first');
+    assert.equal(opening.props.creator, creator);
+    assert.equal(nodes(openingTree).some(node => node.type === MobileVideoFrame), false,
+      'A queue owns one metadata frame per entry, without an extra frame around the entire queue');
     opening.props.onSelect(entries[1]);
     assert.deepEqual(navigations, ['target']);
     assert.deepEqual(h.memoryWrites.at(-1), [`${memoryScope}:project:target`, 'target-video']);
 
-    const targetProps = { videoSequence, projectId: 'target', projectTitle: 'Target project', attachments: [image, ...targetVideos] };
+    const targetProps = { videoSequence, creator, projectId: 'target', projectTitle: 'Target project', attachments: [image, ...targetVideos] };
     // This harness does not run effects: this is the target route's first render.
     const target = sequence(h.render(targetProps));
     assert.ok(target, 'The video sequence must remain mounted although the target project begins with an image');
     assert.equal(target.key, opening.key, 'Cross-project navigation retains the same sequence identity');
     assert.equal(target.props.activeId, 'target:target-video');
+    assert.equal(target.props.creator, creator, 'Canonical project navigation retains the source creator');
     assert.deepEqual(h.serviceIds.slice(-2), readOnlyShare ? [null, null] : ['target', 'target']);
     const playing = target.props.renderVideo(entries[1], true);
     assert.equal(playing.props.projectId, 'target');
     assert.equal(playing.props.attachment.id, 'target-video');
+    assert.equal(playing.props.projectTitle, 'Target project');
     assert.equal(playing.props.videoActive, true);
+    assert.equal(target.props.renderVideo(entries[0], false).props.projectTitle, 'Work',
+      'Neighboring clips retain their own project titles after the active project changes');
     assert.equal(target.props.renderVideo(entries[0], false).props.videoActive, false);
 
     target.props.onSelect(entries[2]);
@@ -135,15 +146,40 @@ test('video scrolling remembers its attachment before canonical navigation and o
   }
 });
 
-test('video sequences leave WEB and non-video mobile attachments in their existing viewers', () => {
+test('single mobile videos use their project title and source creator with or without a one-entry queue', () => {
+  for (const readOnlyShare of [false, true]) {
+    for (const hasQueue of [false, true]) {
+      const h = harness({ readOnlyShare });
+      const creator = { name: 'The uploader', avatar: 'uploader-avatar.jpg' };
+      const attachment = { ...h.attachments[0], displayName: 'camera-original-file.mp4' };
+      const projectTitle = 'The uploaded project';
+      const videoSequence = hasQueue ? { scope: 'creator:portal', entries: [
+        { projectId: 'project', projectTitle, attachment },
+      ], onSelectProject() { assert.fail('A single video must not navigate through a queue'); } } : undefined;
+      const tree = h.render({ creator, projectTitle, attachments: [attachment], videoSequence });
+      const frames = nodes(tree).filter(node => node.type === MobileVideoFrame);
+      assert.equal(frames.length, 1);
+      assert.equal(frames[0].props.creator, creator);
+      assert.equal(frames[0].props.sourceTitle, projectTitle);
+      assert.notEqual(frames[0].props.sourceTitle, attachment.displayName);
+      assert.equal(frames[0].props.children.type, AttachmentRenderer);
+      assert.equal(frames[0].props.children.props.attachment, attachment);
+      assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
+    }
+  }
+});
+
+test('video metadata and sequences leave WEB and non-video mobile attachments in their existing viewers', () => {
   for (const options of [{ mobile: false }, { mediaKind: 'document' }, { mediaKind: 'image' }, { mediaKind: 'audio' }]) {
     const h = harness(options);
     const videoSequence = { scope: 'creator:portal', entries: [
       { projectId: 'project', attachment: { id: 'video-one', kind: 'video' } },
       { projectId: 'other', attachment: { id: 'video-two', kind: 'video' } },
     ], onSelectProject() { assert.fail('Unrelated viewers must not navigate through videos'); } };
-    const tree = h.render({ videoSequence });
+    const tree = h.render({ videoSequence, creator: { name: 'Source creator', avatar: 'creator.jpg' } });
     assert.equal(nodes(tree).some(node => node.type === MobileVideoSequence), false);
+    assert.equal(nodes(tree).some(node => node.type === MobileVideoFrame), false);
+    assert.equal(nodes(tree).some(node => node.props.className === 'mobile-video-single'), false);
     assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.attachment, h.attachments[0]);
   }
 });
@@ -264,7 +300,7 @@ test('the mobile engagement toggle opens and closes local controls without chang
   }
 });
 
-test('Escape and outside dismissal close engagement and return focus to its toggle', () => {
+test('Escape returns focus to the engagement toggle; outside dismissal preserves content focus', () => {
   const h = harness();
   let tree = h.render(), focused = 0;
   const toggle = button(tree, 'Show project engagement');
@@ -292,7 +328,7 @@ test('Escape and outside dismissal close engagement and return focus to its togg
   assert.equal(outside.open, true);
   outside.onClose();
   tree = h.render();
-  assert.equal(focused, 2);
+  assert.equal(focused, 1, 'content-origin dismissal must not steal focus from the first tap or gesture');
   assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
   assert.equal(h.outsideCalls.at(-1).open, false);
 });
@@ -456,7 +492,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/panelLayoutDefaults')) return { panelLayoutDefaults: {} };
     return new Proxy({}, { get: () => () => null });
   });
-  const props = { profile: { id: 'owner', projects: Object.freeze([
+  const props = { profile: { id: 'owner', name: 'Viewed creator', avatar: 'viewed-creator-avatar.jpg', projects: Object.freeze([
       { id: 'work', categoryId: 'portal', title: 'Alpha', summary: 'Earlier project', publishedAt: '2026-09-10T12:00:00Z', pageCount: 2,
         attachments: [{ id: 'work-image', kind: 'image' }, { id: 'work-video', kind: 'video' }] },
       { id: 'second', categoryId: 'portal', title: 'Zulu', summary: 'Needle in the newer project', publishedAt: '2026-09-14T12:00:00Z', pageCount: 2,
@@ -478,12 +514,16 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(indexVisibility.at(-1), false);
   assert.equal(withProp(tree, 'data-project-index-panel'), undefined);
   assert.ok(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.name, props.profile.name,
+    'A visitor sees the viewed profile creator, independent of their own account identity');
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.avatar, props.profile.avatar);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, props.onBack);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, button(tree, 'Go back').props.onClick,
     'Swiping and the existing floating Back button must use the same route callback');
   const videoSequence = () => nodes(tree).find(node => node.type === Viewer).props.videoSequence;
   assert.equal(videoSequence().scope, 'workspace:owner:portal');
   assert.deepEqual(Array.from(videoSequence().entries, entry => entry.attachment.id), ['work-video', 'second-video']);
+  assert.deepEqual(Array.from(videoSequence().entries, entry => entry.projectTitle), ['Alpha', 'Zulu']);
   arrangementRead = { arrange: projects => projects.filter(project => project.id !== 'hidden').reverse() };
   tree = render({ ...props, profile: { ...props.profile, projects: [
     { id: 'hidden', categoryId: 'portal', title: 'Hidden work', attachments: [{ id: 'hidden-video', kind: 'video' }] },
@@ -498,6 +538,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
   props.activeProjectId = 'work';
   tree = render({ ...props, sharedReadOnly: true });
   assert.equal(videoSequence().scope, 'shared:owner:portal', 'Public browsing has its own sequence identity');
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.name, props.profile.name);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.avatar, props.profile.avatar);
   tree = render(props);
   nodes(tree).find(node => node.type === Viewer).props.onPageFocusModeChange(true);
   tree = render(props);
@@ -530,6 +572,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(props.profile.projects.map(project => project.id), ['work', 'second'], 'Browsing sorts never mutate stored order');
   tree = render({ ...props, viewerRole: 'owner' });
   assert.equal(toolbarProps().onCreate, props.onCreateProject, 'The owner receives the existing creation callback');
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.name, props.profile.name,
+    'Permission changes must not change the displayed source creator');
   tree = render(props);
   nodes(projectList).find(node => node.type === Index).props.onSelect('second');
   render(props);

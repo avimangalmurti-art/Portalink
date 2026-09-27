@@ -8,6 +8,7 @@ import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
+import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
 import { useAvatarSelection } from '../profile/useProfileOnboarding';
 import { validateProfileName, validateLocation, NAME_MAX_LENGTH, LOCATION_MAX_LENGTH } from '../profile/validation';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
@@ -15,7 +16,8 @@ import { usePasswordReset, usePasswordUpdate, useSignUp } from './useAuthFlows';
 import { validateEmail, validateNewPassword, validatePasswordConfirmation, validateRequiredPassword } from './validation';
 import { MobileOnboardingAction, MobileOnboardingAppearance, type MobileSignupStep } from '../../components/auth/MobileOnboarding';
 import { usePresentation } from '../../presentation/usePresentation';
-import { readSharedReturnPath } from './registration';
+import { readRegistrationDraft, readSharedReturnPath } from './registration';
+import type { SignUpResult } from '../../types/auth';
 
 const titles: Record<AuthView, string> = {
   signIn: 'Sign in', signUp: 'Create your account',
@@ -35,10 +37,10 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const [signupStep, setSignupStep] = useState<MobileSignupStep>('appearance');
   useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep('appearance'); }, [auth.pendingView]);
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
-  const mobileSignIn = isMobile && auth.pendingView === 'signIn';
+  const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} mobileSignIn={mobileSignIn} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !mobileSignIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...props} {...formProps} step={signupStep} onStepChange={setSignupStep} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
@@ -155,7 +157,7 @@ function SignInForm(props: FormProps) {
       }));
     }} />
       <Button type="submit" variant="primary" size="lg" fullWidth isLoading={isSubmitting}>
-        {isSubmitting ? 'Signing in…' : 'Sign in'}
+        {isSubmitting ? 'Signing in…' : auth.error?.code === 'session_not_ready' ? 'Try signing in again' : 'Sign in'}
       </Button>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <ViewLink disabled={isSubmitting} label="Forgot password?" onSelect={() => props.onViewChange('forgotPassword')} />
@@ -169,8 +171,8 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   const auth = useAuth();
   const signUp = useSignUp();
   const avatar = useAvatarSelection();
-  const registrationId = useRef(crypto.randomUUID());
-  const [registrationReturnPath] = useState(() => {
+  const registrationId = useRef<string>(crypto.randomUUID());
+  const [registrationReturnPath, setRegistrationReturnPath] = useState(() => {
     const intent = auth.peekPendingIntent();
     return isMobile ? readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath) : undefined;
   });
@@ -182,23 +184,74 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-
-  useFormActivity(signUp.isLoading, props, !signUp.result && Boolean(name || location || isPrivate || avatar.avatar || password));
+  const [draftLoading, setDraftLoading] = useState(true);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const [restoredResult, setRestoredResult] = useState<SignUpResult | null>(null);
+  const result = signUp.result ?? restoredResult;
+  const passwordsMismatch = confirmation.length > 0 && password !== confirmation;
+  const mismatchMessage = passwordsMismatch ? 'Passwords don’t match' : null;
+  const selectAvatar = avatar.select;
+  const initialEmail = useRef(auth.rememberedEmail);
+  const restoreActions = useRef({ selectAvatar, onStepChange, onAccentColorChange: props.onAccentColorChange, onSystemGrayChange: props.onSystemGrayChange });
+  restoreActions.current = { selectAvatar, onStepChange, onAccentColorChange: props.onAccentColorChange, onSystemGrayChange: props.onSystemGrayChange };
 
   useEffect(() => {
-    if (signUp.result?.requiresEmailVerification) onStepChange('verification');
-  }, [signUp.result?.requiresEmailVerification, onStepChange]);
+    let current = true;
+    setDraftLoading(true);
+    setDraftError(null);
+    void readRegistrationDraft(initialEmail.current || undefined).then(saved => {
+      if (!current || !saved) return;
+      registrationId.current = saved.registration.id;
+      setName(saved.registration.name);
+      setLocation(saved.registration.location);
+      setIsPrivate(saved.registration.isPrivate === true);
+      setEmail(saved.email);
+      setRegistrationReturnPath(path => path ?? saved.registration.returnPath);
+      if (saved.registration.hasAvatar && !saved.avatar && !saved.requiresEmailVerification) {
+        setDraftError('Your saved profile picture could not be restored. Please try again before continuing. Your other details are still saved.');
+        return;
+      }
+      if (saved.avatar) restoreActions.current.selectAvatar(saved.avatar.file, { originalSource: saved.avatar.originalSource, crop: saved.avatar.crop });
+      restoreActions.current.onAccentColorChange(saved.registration.accentColor);
+      if (saved.registration.systemGray) restoreActions.current.onSystemGrayChange?.(saved.registration.systemGray);
+      if (saved.requiresEmailVerification) setRestoredResult({ email: saved.email, requiresEmailVerification: true, session: null });
+      else restoreActions.current.onStepChange('account');
+    }).catch(() => {
+      if (current) setDraftError('Your saved signup could not be restored. Please try again.');
+    }).finally(() => { if (current) setDraftLoading(false); });
+    return () => { current = false; };
+  }, [restoreAttempt]);
+
+  useFormActivity(signUp.isLoading || draftLoading, props, !result && Boolean(name || location || isPrivate || avatar.avatar || password));
+
+  useEffect(() => {
+    if (result?.requiresEmailVerification) onStepChange('verification');
+  }, [result?.requiresEmailVerification, onStepChange]);
+
+  if (draftLoading) return <p role="status">Restoring signup…</p>;
+  if (draftError) return <FormError message={draftError} onRetry={() => setRestoreAttempt(value => value + 1)} />;
 
   // Confirmation and an immediate session are distinct provider outcomes.
-  if (signUp.result) {
+  if (result) {
     return <div className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
-        <FormSuccess title={signUp.result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={signUp.result.requiresEmailVerification ? `Open the confirmation link sent to ${signUp.result.email} to finish creating your account and profile.` : "Your account is ready. We’re finishing your profile."} />
-        {signUp.result.requiresEmailVerification && <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>}
+        <FormSuccess title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `Open the confirmation link sent to ${result.email} to finish creating your account and profile. Your profile details are saved.` : "Your account is ready. We’re finishing your profile."} />
+        {result.requiresEmailVerification && <>
+          <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>
+          <ViewLink label="Use a different email" onSelect={() => {
+            // Start another attempt without deleting the first pending account's
+            // draft or letting its confirmation pick up a different photo.
+            registrationId.current = crypto.randomUUID();
+            setRestoredResult(null); signUp.reset(); setEmail('');
+            setPassword(''); setConfirmation(''); setFieldErrors({});
+            onStepChange('account');
+          }} />
+        </>}
       </div>;
   }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (signUp.isLoading || submittingRef.current) {
+    if (signUp.isLoading || draftLoading || draftError || submittingRef.current) {
       return;
     }
     if (isMobile && props.step === 'appearance') { props.onStepChange('profile'); return; }
@@ -213,7 +266,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       location: validateLocation(location),
       email: validateEmail(email),
       password: validateNewPassword(password),
-      confirmation: validatePasswordConfirmation(password, confirmation)
+      confirmation: mismatchMessage ?? validatePasswordConfirmation(password, confirmation)
     };
     setFieldErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean) || avatar.error) {
@@ -223,21 +276,26 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     submittingRef.current = true;
     try {
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, hasAvatar: Boolean(avatar.avatar),
+        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
         ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);
     } finally { submittingRef.current = false; }
   }
   return <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? props.step : undefined} className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
       {signUp.error && <FormError message={signUp.error.message} />}
-      {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props} />}
+      {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props}>
+        <MobileOnboardingAction busy={signUp.isLoading}>Continue</MobileOnboardingAction>
+      </MobileOnboardingAppearance>}
       {(!isMobile || props.step === 'profile') && <>
       <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
-      <ProfileField id="auth-signup-name" label="Profile name" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
-      <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
-      {isMobile && <ProfileVisibilityField id="auth-signup-visibility" isPrivate={isPrivate} onChange={setIsPrivate} disabled={signUp.isLoading} />}
+      <ProfileField id="auth-signup-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
+      {isMobile ? <ProfileLocationPicker id="auth-signup-location" value={location} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} /> : <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />}
+      {isMobile && <ProfileVisibilityField id="auth-signup-visibility" collapsible isPrivate={isPrivate} onChange={setIsPrivate} disabled={signUp.isLoading} />}
       </>}
       {(!isMobile || props.step === 'account') && <>
       <AuthField compact={isMobile} ref={firstFieldRef} id="auth-signup-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={signUp.isLoading} onChange={(value) => {
+      // Even an uncertain request may have sent a confirmation. Another email
+      // must not replace that pending account's saved picture under the same ID.
+      if (value.trim().toLowerCase() !== email.trim().toLowerCase()) registrationId.current = crypto.randomUUID();
       setEmail(value);
       auth.rememberEmail(value);
       setFieldErrors((current) => ({
@@ -245,14 +303,15 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
         email: null
       }));
     }} />
-      <AuthField compact={isMobile} id="auth-signup-password" label="Password" type="password" value={password} autoComplete="new-password" hint="At least 8 characters." error={fieldErrors.password} disabled={signUp.isLoading} onChange={(value) => {
+      <AuthField compact={isMobile} revealPassword id="auth-signup-password" label="Password" type="password" value={password} autoComplete="new-password" hint="At least 8 characters." error={fieldErrors.password} disabled={signUp.isLoading} onChange={(value) => {
       setPassword(value);
       setFieldErrors((current) => ({
         ...current,
-        password: null
+        password: null,
+        confirmation: null
       }));
     }} />
-      <AuthField compact={isMobile} id="auth-signup-confirmation" label="Confirm password" type="password" value={confirmation} autoComplete="new-password" error={fieldErrors.confirmation} disabled={signUp.isLoading} onChange={(value) => {
+      <AuthField compact={isMobile} revealPassword liveError id="auth-signup-confirmation" label="Confirm password" type="password" value={confirmation} autoComplete="new-password" error={mismatchMessage ?? (confirmation ? null : fieldErrors.confirmation)} disabled={signUp.isLoading} onChange={(value) => {
       setConfirmation(value);
       setFieldErrors((current) => ({
         ...current,
@@ -260,8 +319,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       }));
     }} />
       </>}
-      {isMobile && props.step === 'appearance' && <div className="mobile-onboarding-signin"><ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} /></div>}
-      {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
+      {isMobile ? props.step !== 'appearance' && <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
         {signUp.isLoading ? 'Creating account…' : 'Create account'}
       </Button>}
       {!isMobile && <ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} />}

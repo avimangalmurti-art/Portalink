@@ -63,10 +63,10 @@ function compile(path, imports, globals) {
   }).outputText, { exports, URLSearchParams, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
-  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map();
+  const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
   let frameId = 0;
@@ -93,12 +93,12 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
-    '../../hooks/useModalFocus': { useModalFocus() {} },
+    '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
   }, { window: h.window, document });
   const onComplete = () => completed++;
   return { ...h,
     render() {
-      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, hidden: surfaceHidden }));
+      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
       const [poster, media] = tree.props.children;
@@ -113,7 +113,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     setHidden(value) { surfaceHidden = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
-    listeners, docListeners, windowListeners, frames,
+    listeners, docListeners, windowListeners, frames, modalCalls,
     restore() { windowListeners.get('pageshow')?.(); },
     leave() { windowListeners.get('pagehide')?.(); },
     gesture() { docListeners.get('pointerup')?.(); },
@@ -124,6 +124,72 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     get presentation() { return renderedPresentation; },
   };
 }
+
+test('embedded Hello World media uses the looping mobile clip on both platforms without a startup overlay or landing focus', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = loader({ presentation, welcomeMedia: true });
+    let { tree, poster, media } = h.render();
+    const mediaKey = media.key;
+    assert.equal(tree.props.className, 'portalink-welcome-media');
+    assert.equal(tree.props['data-portalink-splash'], undefined);
+    assert.equal(tree.props['data-share-landing'], undefined);
+    assert.equal(tree.props['data-presentation'], presentation);
+    assert.equal(tree.props.role, 'img');
+    assert.equal(tree.props['aria-label'], 'Hello World — Portalink');
+    assert.equal(tree.props['aria-live'], undefined);
+    assert.equal(tree.props['aria-modal'], undefined);
+    assert.equal(tree.props.tabIndex, undefined);
+    assert.equal(tree.props.children[2], undefined);
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
+    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=4d282896');
+    assert.equal(media.props.poster, undefined);
+    assert.equal(media.props.loop, true);
+    assert.equal(media.props.controls, false);
+    assert.equal(media.props.width, 512);
+    assert.equal(media.props.height, 720);
+    assert.equal(h.modalCalls.some(Boolean), false);
+    assert.equal([...h.timers.values()].some(timer => [600, 880, 1500].includes(timer.delay)), false,
+      'Embedded media must not schedule first-frame or startup exit budgets');
+    h.start(); h.paint();
+    assert.equal(h.render().media.props.style.opacity, 1);
+    assert.equal(h.timers.size, 0, 'Healthy embedded playback has no deadline');
+    // A prolonged interruption can trigger playback recovery, but cannot expire the embedded surface.
+    h.emit('waiting'); h.timer(2200); h.timer(800); h.start(); h.paint();
+    ({ tree, poster, media } = h.render());
+    assert.equal(tree.props.className, 'portalink-welcome-media');
+    assert.equal(media.key, mediaKey);
+    assert.equal(media.props.loop, true);
+    assert.equal(media.props.style.opacity, 1);
+    assert.equal(h.timers.size, 0);
+    assert.equal(h.modalCalls.some(Boolean), false);
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
+    h.unmount();
+    assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0); assert.equal(h.windowListeners.size, 0);
+  }
+});
+
+test('embedded welcome media keeps an animated fallback after blocked autoplay and bounded retries on MOBILE and WEB', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = loader({ presentation, welcomeMedia: true, blocked: true });
+    h.render(); await Promise.resolve();
+    for (let retry = 0; retry < 2; retry++) { h.timer(800); await Promise.resolve(); }
+    const { tree, poster, media } = h.render();
+    assert.equal(h.plays, 3);
+    assert.equal(h.timers.size, 0, 'Repeated policy rejection stops retries without expiring the form media');
+    assert.equal(tree.props.className, 'portalink-welcome-media');
+    assert.equal(tree.props['data-portalink-splash'], undefined);
+    assert.equal(tree.props['aria-live'], undefined);
+    assert.equal(media.type, 'video');
+    assert.equal(media.props.loop, true);
+    assert.equal(media.props.poster, undefined);
+    assert.equal(media.props.style.opacity, 0);
+    assert.equal(poster.type, 'img');
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
+    assert.notEqual(poster.props.style?.visibility, 'hidden');
+    assert.equal(h.modalCalls.some(Boolean), false);
+    h.unmount(); assert.equal(h.frames.size, 0); assert.equal(h.timers.size, 0);
+  }
+});
 
 test('both platforms keep their fallback visible until a real video frame is ready', () => {
   for (const presentation of ['web', 'mobile']) {

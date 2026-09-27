@@ -10,12 +10,14 @@ const WEB_PLAYBACK_MS = 880;
 const MOBILE_RETURNING_SPLASH_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing }: {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing, welcomeMedia = false }: {
   onComplete?: () => void;
   stillOnly?: boolean;
   hidden?: boolean;
   /** Initial mobile session restoration/returning user, never the guest welcome. */
   timedIntro?: boolean;
+  /** Reuse the looping Hello World media inside the sign-in form, without a launch overlay. */
+  welcomeMedia?: boolean;
   landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
@@ -23,7 +25,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const viewportPresentation = useViewportPresentation();
   // Finish the opening animation if the phone rotates during its short run.
   const [presentation] = useState(viewportPresentation);
-  const isMobile = presentation === 'mobile';
+  const isMobile = presentation === 'mobile' || welcomeMedia;
   const loopLanding = isMobile && Boolean(landing);
   const fixedMobileIntro = isMobile && timedIntro && !loopLanding && !stillOnly;
   const playbackHidden = isMobile && hidden;
@@ -267,17 +269,17 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   return (
     <motion.div
       ref={landingRef}
-      data-portalink-splash="true"
+      data-portalink-splash={welcomeMedia ? undefined : 'true'}
       data-presentation={presentation}
       data-share-landing={landing ? 'true' : undefined}
-      role={landing ? 'dialog' : 'status'}
+      role={welcomeMedia ? 'img' : landing ? 'dialog' : 'status'}
       aria-modal={landing && !hidden ? true : undefined}
-      aria-live={landing ? undefined : 'polite'}
-      aria-label={landing ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
+      aria-live={landing || welcomeMedia ? undefined : 'polite'}
+      aria-label={welcomeMedia ? 'Hello World — Portalink' : landing ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
       aria-hidden={hidden || undefined}
       tabIndex={landing ? -1 : undefined}
       style={hidden ? { display: 'none' } : undefined}
-      className="portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden"
+      className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
       exit={{ opacity: 0 }}
       transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}

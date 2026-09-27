@@ -7,7 +7,7 @@ const SINGLE_TAP_DELAY = 340;
 
 // Only interface surfaces: page/image buttons remain part of the artwork.
 const controlsSelector = [
-  '.mobile-navigation-layer', '.shared-profile-sidebar', '.mobile-project-back',
+  '.mobile-navigation-layer', '.shared-profile-sidebar:not([data-mobile-shared-sidebar])', '.mobile-project-back',
   '[data-mobile-project-view] [data-project-index-panel]',
   '[data-mobile-project-view] [data-project-response-rail]',
   '.mobile-project-index-dismiss', '[data-mobile-project-view] [data-project-file-strip]',
@@ -61,7 +61,12 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       controls.forEach((previous, element) => {
         if (previous !== null) { element.inert = previous; controls.set(element, null); }
       });
-      videos.forEach((previous, video) => { video.controls = previous; }); videos.clear();
+      videos.forEach((previous, video) => {
+        // A first tap (or queue selection) may change the player's desired
+        // controls while scrolling. Restore that state, never the stale one.
+        const requested = video.getAttribute('data-video-controls-requested');
+        video.controls = requested === null ? previous : requested === 'true';
+      }); videos.clear();
     };
     const hide = () => {
       hidden = true;
@@ -131,8 +136,8 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
     document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
-    // Observe scroll intent alongside nonmodal navigation's window listener,
-    // before it shields background controls from a possible dismissal tap.
+    // Observe the original content gesture alongside nonmodal navigation;
+    // closing navigation does not consume the page's scroll or tap intent.
     window.addEventListener('pointerdown', down, true);
     document.addEventListener('pointermove', move, true);
     document.addEventListener('pointerup', up, true);

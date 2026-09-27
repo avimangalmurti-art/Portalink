@@ -4,12 +4,11 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { EyeIcon, EyeOffIcon, Loader2Icon, MoreHorizontalIcon, PencilIcon, ShapesIcon, Trash2Icon } from 'lucide-react';
 import type { CategoryDeletionCapability, PortfolioCategory } from '../../types/domain';
-import { resolveAccentTokens } from '../../utils/accentTokens';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { usePresentation } from '../../presentation/usePresentation';
 
 /** Shared owner menu; mobile exposes its trigger without requiring hover. */
-export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete, onMoveUp, onMoveDown }: {
+export function CategoryOptionsMenu({ category, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete, onMoveUp, onMoveDown }: {
   category: PortfolioCategory;
   accentColor: string;
   theme: 'light' | 'dark';
@@ -102,8 +101,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
 
+          {/* The shell host keeps menus outside row clipping without a second theme. */}
           {isMenuOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" data-mobile-portal-menu={mobile ? '' : undefined} role={isConfirmingDelete ? 'alertdialog' : 'menu'} aria-modal={isConfirmingDelete || undefined} aria-describedby={isConfirmingDelete ? `delete-portal-${category.id}-description` : undefined} aria-label={isConfirmingDelete ? `Delete ${category.label}` : `${category.label} options`} style={{
-        ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: mobile ? `max(env(safe-area-inset-top, 0px), ${menuPosition.top}px)` : menuPosition.top,
         left: menuPosition.left,
@@ -114,7 +113,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
           maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px)',
           overflowY: 'auto' as const
         } : {})
-      }} className={`side-panel-popover theme-${theme} accent-theme ${mobile ? 'w-[224px]' : 'w-[164px]'} overflow-hidden rounded-[10px] border border-[var(--hairline)] py-1 text-[var(--text-primary)]`}>
+      }} className={`side-panel-popover ${mobile ? 'w-[224px]' : 'w-[164px]'} overflow-hidden rounded-[10px] border border-[var(--hairline)] py-1 text-[var(--text-primary)]`}>
               {isConfirmingDelete ? <div className="px-3 py-2">
                   <p className="m-0 text-[12px] font-semibold leading-snug text-[var(--text-primary)]">Delete “{category.label}”?</p>
                   {/* Consequences come from the service, so this never promises an
@@ -173,6 +172,6 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
                   </button>
                 </>}
                 </>}
-            </div>, document.body)}
+            </div>, document.querySelector('.app-shell') ?? document.body)}
         </div>;
 }

@@ -151,18 +151,7 @@
           // Storage can be unavailable in private browsing; System still works.
         }
         const systemDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-        let resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
-        if (window.location.pathname.startsWith('/share/')) {
-          resolved = systemDark ? 'dark' : 'light';
-          try {
-            const profileId = window.location.pathname.split('/')[2];
-            const sharedTheme = window.localStorage.getItem(`portalink.publicTheme.${profileId}.${presentation}`)
-              ?? window.localStorage.getItem(`portalink.publicTheme.${profileId}`);
-            if (sharedTheme === 'light' || sharedTheme === 'dark') resolved = sharedTheme;
-          } catch {
-            // The resolved system appearance remains the public-link fallback.
-          }
-        }
+        const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
       })();

@@ -1,0 +1,171 @@
+/* One navigation material and state grammar. Geometry remains in the WEB and
+   MOBILE frames; all colours come from the active Settings appearance record. */
+#root .codex-shell[data-presentation] {
+  --sidebar-primary-control: 44px;
+  --project-control-surface: var(--navigation-surface);
+  --project-control-foreground: var(--navigation-foreground);
+  --project-control-blur: var(--navigation-blur);
+  --project-control-shadow: var(--navigation-shadow);
+}
+
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface, .shared-profile-sidebar, [data-project-index-panel],
+  [data-project-response-rail], [data-project-file-strip],
+  .mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener,
+  .mobile-shared-drawer-opener, .mobile-project-back,
+  .mobile-project-page-counter, .mobile-page-thumbnails
+) {
+  --text-primary: var(--navigation-foreground);
+  --text-secondary: var(--navigation-foreground);
+  --text-tertiary: var(--navigation-foreground);
+  --sky-ink: var(--navigation-foreground);
+  background: var(--navigation-surface) !important;
+  color: var(--navigation-foreground);
+  border-color: var(--navigation-border) !important;
+  box-shadow: var(--navigation-shadow);
+  -webkit-backdrop-filter: var(--navigation-blur) !important;
+  backdrop-filter: var(--navigation-blur) !important;
+}
+
+/* The public drawer stays an opaque foreground surface as requested. */
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel,
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-profile-sidebar {
+  background: var(--control-rest-surface) !important;
+  color: var(--navigation-foreground);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* These are navigation controls, not form, media-playback or engagement actions.
+   State variables keep the same precedence in every rail without swallowing
+   touches or replacing any component's action/disabled logic. */
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface .nav-button, .sidebar-surface [data-category-row], .sidebar-surface [data-structural-toggle],
+  .shared-profile-sidebar .nav-button, .shared-profile-sidebar [data-category-row],
+  .shared-profile-sidebar [data-structural-toggle], .mobile-shared-profile-home,
+  .mobile-navigation-scroll > button, .mobile-navigation-scroll > a,
+  .mobile-dock-destination, .mobile-navigation-opener, .mobile-shared-drawer-opener,
+  [data-project-index-panel] .project-index-row > button,
+  [data-project-index-toggle], .mobile-project-back, .mobile-project-page-counter,
+  .mobile-project-popup-trigger, .mobile-project-engagement-toggle,
+  [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
+) {
+  min-width: 44px;
+  min-height: 44px;
+  border: 0 !important;
+  background: var(--navigation-item-surface, var(--navigation-item-rest-surface, transparent)) !important;
+  color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
+  box-shadow: var(--navigation-item-shadow, none) !important;
+  transition: var(--navigation-control-transition, background-color 160ms ease, color 160ms ease);
+}
+
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface .nav-button, .sidebar-surface [data-category-row], .sidebar-surface [data-structural-toggle],
+  .shared-profile-sidebar .nav-button, .shared-profile-sidebar [data-category-row],
+  .shared-profile-sidebar [data-structural-toggle], .mobile-shared-profile-home,
+  .mobile-navigation-scroll > button, .mobile-navigation-scroll > a,
+  .mobile-dock-destination, .mobile-navigation-opener, .mobile-shared-drawer-opener,
+  [data-project-index-panel] .project-index-row > button,
+  [data-project-index-toggle], .mobile-project-back, .mobile-project-page-counter,
+  .mobile-project-popup-trigger, .mobile-project-engagement-toggle,
+  [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
+) :is(svg, span, [data-interface-icon-frame]) {
+  color: inherit !important;
+}
+
+/* Zero-specificity state scopes inherit the control selector's precedence. */
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+) :where(button, a):is([aria-current='page'], [aria-current='true'], [aria-pressed='true']),
+#root .codex-shell[data-presentation] :where(.mobile-project-popup-trigger, .mobile-project-page-counter, .mobile-project-engagement-toggle)[aria-expanded='true'] {
+  --navigation-item-surface: var(--navigation-selected-surface);
+  --navigation-item-foreground: var(--navigation-selected-foreground);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell[data-presentation] :is(
+    .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
+    .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+  ) :where(button, a):not(:disabled, [aria-disabled='true']):hover,
+  #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):hover {
+    --navigation-item-surface: var(--navigation-hover-surface);
+    --navigation-item-foreground: var(--navigation-hover-foreground);
+  }
+}
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+) :where(button, a):not(:disabled, [aria-disabled='true']):active,
+#root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):active {
+  --navigation-item-surface: var(--navigation-pressed-surface);
+  --navigation-item-foreground: var(--navigation-pressed-foreground);
+}
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+) :where(button, a):is(:disabled, [aria-disabled='true']) {
+  opacity: .4;
+  cursor: not-allowed;
+}
+#root .codex-shell[data-presentation] :is(
+  .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+) :where(button, a):focus-visible,
+#root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):focus-visible {
+  outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
+  outline-offset: -3px;
+}
+
+/* Standalone controls have their own glass; children of a bar share its glass. */
+#root .codex-shell[data-presentation] :is(.mobile-navigation-opener, .mobile-shared-drawer-opener, .mobile-project-back, .mobile-project-page-counter) {
+  --navigation-item-rest-surface: var(--navigation-surface);
+  --navigation-item-shadow: var(--navigation-shadow);
+  border-radius: 999px;
+}
+#root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar) .nav-button {
+  border-radius: 12px;
+}
+#root .codex-shell[data-presentation] .mobile-project-page-counter {
+  --navigation-control-transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+#root .codex-shell[data-presentation] :is(.nav-button, [data-structural-toggle], .mobile-project-back, .mobile-project-popup-trigger, .mobile-project-engagement-toggle) {
+  transform: none !important;
+}
+#root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer, [data-project-response-rail], .mobile-project-back) [data-interface-icon-frame] {
+  --interface-icon-size: 24px;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation] {
+    --navigation-surface: var(--control-rest-surface) !important;
+    --navigation-blur: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation] :is(.nav-button, .mobile-navigation-opener, .mobile-project-popup-trigger, .mobile-project-page-counter) { transition: none !important; }
+}
+
+/* Icon-only collapsed rows keep the same centered 44px target as their peers. */
+#root .codex-shell[data-presentation='web'] .shared-profile-sidebar #shared-profile-portals li:has(> [data-category-row]) {
+  min-width: var(--sidebar-primary-control);
+}
+
+/* Header chrome shares its rail instead of introducing another theme surface. */
+#root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar, [data-project-index-panel], [data-project-response-rail]) > .global-control-header {
+  background: transparent !important;
+  color: var(--navigation-foreground);
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* A navigation search field must use ink against its own chosen gray, too. */
+#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) input {
+  background: var(--control-rest-surface) !important;
+  color: var(--control-text) !important;
+  border-color: var(--navigation-border) !important;
+}
+#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) input::placeholder {
+  color: var(--control-text);
+  opacity: .7;
+}

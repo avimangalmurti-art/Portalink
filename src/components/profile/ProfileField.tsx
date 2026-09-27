@@ -26,6 +26,7 @@ export type ProfileFieldProps = {
    * carried by an asterisk or by colour alone.
    */
   required?: boolean;
+  requiredIndicator?: 'text' | 'asterisk';
   placeholder?: string;
   inputMode?: 'text' | 'numeric';
   autoComplete?: string;
@@ -45,6 +46,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
   multiline = false,
   optional = false,
   required = false,
+  requiredIndicator = 'text',
   placeholder,
   inputMode,
   autoComplete,
@@ -69,7 +71,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
       <label htmlFor={id} className="flex items-baseline gap-1.5 text-[14px] font-medium text-[var(--text-primary)]">
         {label}
         {optional && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Optional</span>}
-        {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Required</span>}
+        {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">{requiredIndicator === 'asterisk' ? <><span aria-hidden="true" className="text-[var(--accent-text)]">*</span><span className="sr-only">Required</span></> : 'Required'}</span>}
       </label>
       {multiline ? <textarea id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 ${fieldClass}`} /> : <div className={`${shellClass} h-10`}>
           {prefix && <span aria-hidden="true" className="shrink-0 text-[14px] text-[var(--text-tertiary)]">{prefix}</span>}

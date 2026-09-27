@@ -28,10 +28,12 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
       </button>}
     </div>
     <div className="mobile-portal-index-preferences">
-      <label className="mobile-portal-index-sort">
+      <label className="mobile-portal-index-control mobile-portal-index-layout mobile-portal-index-sort">
+        <span aria-hidden="true">{sort === 'recent' ? 'Recent' : sort === 'title' ? 'Name' : 'Saved order'}</span>
+        <InterfaceIcon icon={ChevronDownIcon} size="sm" />
         <select value={sort} aria-label="Sort projects" onChange={event => onSort(event.target.value as MobileProjectSort)}>
           <option value="recent">Recent</option><option value="title">Name</option><option value="saved">Saved order</option>
-        </select><InterfaceIcon icon={ChevronDownIcon} size="sm" />
+        </select>
       </label>
       <div className="mobile-portal-index-view-controls">
         <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>

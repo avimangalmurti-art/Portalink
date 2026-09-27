@@ -16,6 +16,7 @@ class Target {
       : selector === '[role="button"], [data-focused-page-scroll]' ? false : this.outgoing || this.control;
     return matches ? this : null;
   }
+  getAttribute(key) { return this.attributes.get(key) ?? null; }
   setAttribute(key, value) { this.attributes.set(key, value); }
   removeAttribute(key) { this.attributes.delete(key); }
 }
@@ -24,7 +25,7 @@ function harness() {
   let now = 0, timerId = 0;
   const timers = new Map(), controlQueries = [];
   const listeners = new Map(), controls = [new Target({ control: true }), new Target({ control: true, inert: true })];
-  const videos = [{ controls: true, currentTime: 32, paused: false }];
+  const videos = [Object.assign(new Target(), { controls: true, currentTime: 32, paused: false })];
   const frame = new Target();
   frame.contains = target => target instanceof Target && target.mobile;
   frame.querySelector = selector => selector.includes('aria-modal') ? modal : focused;
@@ -169,6 +170,23 @@ test('native players, 3D controls, inputs and action buttons keep their taps; sc
   const artwork = new Target();
   h.emit('pointerdown', artwork); h.emit('pointerup', artwork); h.tick(340); assert.equal(h.hidden, true);
   h.emit('pointerdown', video); h.emit('pointerup', video); h.tick(340); assert.equal(h.hidden, false, 'A video with its controls hidden can reveal them');
+  h.unmount();
+});
+
+test('scroll restoration respects the current requested video controls instead of a stale snapshot', () => {
+  const h = harness(), video = h.videos[0];
+  video.controls = false; video.setAttribute('data-video-controls-requested', 'false');
+  h.render(); hide(h); h.tick(250);
+  assert.equal(video.controls, false, 'Finishing a scroll must not reveal untouched playback controls');
+  hide(h);
+  video.setAttribute('data-video-controls-requested', 'true');
+  h.emit('scrollend');
+  assert.equal(video.controls, true, 'A first tap during reading mode supersedes the captured false value');
+  hide(h);
+  video.setAttribute('data-video-controls-requested', 'false');
+  h.emit('keydown', undefined, { key: 'Escape' });
+  assert.equal(video.controls, false, 'A reset clip must not inherit the previous revealed state');
+  assert.equal(video.currentTime, 32); assert.equal(video.paused, false);
   h.unmount();
 });
 

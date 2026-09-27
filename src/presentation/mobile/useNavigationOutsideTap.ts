@@ -1,61 +1,45 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
-/** Dismiss the nonmodal rail on a tap, without putting a hit target over content. */
+/** Observe content interaction without taking ownership of the original gesture. */
 export function useNavigationOutsideTap(open: boolean, layer: RefObject<HTMLElement | null>, onClose: () => void) {
   const close = useRef(onClose);
   close.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    let press: { id: number; x: number; y: number; released: boolean } | null = null;
-    const outside = (target: EventTarget | null) => target instanceof Element && layer.current &&
-      !layer.current.contains(target) && !layer.current.closest('[inert], [aria-hidden="true"]') &&
-      !target.closest('[role="menu"], [role="dialog"], [role="alertdialog"], .modal-scrim');
-    const cancel = () => { press = null; };
-    const down = (event: PointerEvent) => {
-      press = event.isPrimary && event.button === 0 && outside(event.target)
-        ? { id: event.pointerId, x: event.clientX, y: event.clientY, released: false } : null;
-      // Do not start a content drag/long-press that a dismissal would leave
-      // unfinished. Native panning still works: never preventDefault here.
-      if (press) event.stopPropagation();
+    let dismissed = false;
+    const outside = (target: EventTarget | null) => {
+      const navigation = layer.current;
+      if (!navigation || navigation.closest('[inert], [aria-hidden="true"]')) return false;
+      if (target === document || target === window) return true;
+      return target instanceof Element && !navigation.contains(target) &&
+        !target.closest('[role="menu"], [role="dialog"], [role="alertdialog"], .modal-scrim');
     };
-    const move = (event: PointerEvent) => {
-      if (press && event.pointerId === press.id && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8) cancel();
-    };
-    const up = (event: PointerEvent) => {
-      if (!press || event.pointerId !== press.id) return;
-      if (!outside(event.target) || Math.hypot(event.clientX - press.x, event.clientY - press.y) > 8) { cancel(); return; }
-      press.released = true;
-      // Run before document/React page handlers: a dismissal tap must not also
-      // enter a page's double-tap tracking or hide the restored bottom dock.
-      // Down/move/cancel and real scrolling always retain their native behavior.
-      event.stopPropagation();
-    };
-    const click = (event: MouseEvent) => {
-      const dismiss = press?.released && outside(event.target);
-      cancel();
-      if (!dismiss) return;
-      event.preventDefault();
-      event.stopPropagation();
+    const dismiss = (event: Event) => {
+      if (dismissed || !outside(event.target)) return;
+      dismissed = true;
+      // No prevention, propagation stop, pointer capture or focus restoration:
+      // the same down must reach the page's controls, pan and pinch handlers.
       close.current();
     };
-    window.addEventListener('pointerdown', down, true);
-    window.addEventListener('pointermove', move, true);
-    window.addEventListener('pointerup', up, true);
-    window.addEventListener('pointercancel', cancel, true);
-    window.addEventListener('click', click, true);
-    window.addEventListener('scroll', cancel, { capture: true, passive: true });
-    window.addEventListener('wheel', cancel, { capture: true, passive: true });
-    window.addEventListener('blur', cancel);
+    const down = (event: PointerEvent) => {
+      if (event.isPrimary && event.button === 0) dismiss(event);
+    };
+    const click = (event: MouseEvent) => {
+      // Keyboard / assistive activation has no pointerdown. Pointer gestures
+      // that began inside navigation must stay with it even if released outside.
+      if (event.detail === 0) dismiss(event);
+    };
+    const options = { capture: true, passive: true };
+    window.addEventListener('pointerdown', down, options);
+    window.addEventListener('click', click, options);
+    window.addEventListener('scroll', dismiss, options);
+    window.addEventListener('wheel', dismiss, options);
     return () => {
       window.removeEventListener('pointerdown', down, true);
-      window.removeEventListener('pointermove', move, true);
-      window.removeEventListener('pointerup', up, true);
-      window.removeEventListener('pointercancel', cancel, true);
       window.removeEventListener('click', click, true);
-      window.removeEventListener('scroll', cancel, true);
-      window.removeEventListener('wheel', cancel, true);
-      window.removeEventListener('blur', cancel);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('wheel', dismiss, true);
     };
   }, [open, layer]);
 }

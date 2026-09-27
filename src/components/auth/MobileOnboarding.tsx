@@ -8,7 +8,7 @@ import { Button } from '../ui/Button';
 
 export type MobileSignupStep = 'appearance' | 'account' | 'profile' | 'verification';
 
-export function MobileOnboardingAppearance(props: AccountAppearanceProps) {
+export function MobileOnboardingAppearance(props: AccountAppearanceProps & { children?: React.ReactNode }) {
   const theme = props.theme ?? 'dark';
   const selected = findNavAccent(props.accentColor);
   return <div className="mobile-onboarding-appearance">
@@ -18,13 +18,6 @@ export function MobileOnboardingAppearance(props: AccountAppearanceProps) {
       style={resolveNavButtonTokens(theme, props.accentColor, props.highContrast, props.reduceTranslucency, props.systemGray ?? 'gray') as React.CSSProperties}>
       <p className="mobile-onboarding-brand">Portalink<br />Networks</p>
     </div>
-    <fieldset><legend>Accent colour</legend>
-      <div role="radiogroup" aria-label="Accent colour" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
-        {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onAccentColorChange(option[theme])}>
-          <span style={{ backgroundColor: option[theme] }}>{selected.id === option.id && <CheckIcon size={18} aria-hidden="true" style={{ color: isLightSurface(option[theme]) ? '#1c1c1e' : '#fff' }} />}</span>
-        </button>)}
-      </div>
-    </fieldset>
     {props.onSystemGrayChange && <fieldset><legend>System grey</legend>
       <div role="radiogroup" aria-label="System grey" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
         {systemGrays.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={(props.systemGray ?? 'gray') === option.id} tabIndex={(props.systemGray ?? 'gray') === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onSystemGrayChange?.(option.id)}>
@@ -32,8 +25,16 @@ export function MobileOnboardingAppearance(props: AccountAppearanceProps) {
         </button>)}
       </div>
     </fieldset>}
+    <fieldset><legend>Accent colour</legend>
+      <div role="radiogroup" aria-label="Accent colour" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
+        {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onAccentColorChange(option[theme])}>
+          <span style={{ backgroundColor: option[theme] }}>{selected.id === option.id && <CheckIcon size={18} aria-hidden="true" style={{ color: isLightSurface(option[theme]) ? '#1c1c1e' : '#fff' }} />}</span>
+        </button>)}
+      </div>
+    </fieldset>
     <div className="mobile-onboarding-switch"><label htmlFor="onboarding-contrast">High contrast</label><AppearanceSwitch id="onboarding-contrast" label="High contrast" isOn={props.highContrast} onToggle={() => props.onHighContrastChange(!props.highContrast)} /></div>
     <div className="mobile-onboarding-switch"><label htmlFor="onboarding-translucency">Reduce translucency</label><AppearanceSwitch id="onboarding-translucency" label="Reduce translucency" isOn={props.reduceTranslucency} onToggle={() => props.onReduceTranslucencyChange(!props.reduceTranslucency)} /></div>
+    {props.children}
   </div>;
 }
 

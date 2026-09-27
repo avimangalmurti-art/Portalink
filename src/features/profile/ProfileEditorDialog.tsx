@@ -1,18 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronDownIcon, LockKeyholeIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronDownIcon, LockKeyholeIcon } from 'lucide-react';
 import { ProfileField } from '../../components/profile/ProfileField';
-import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { MobileProfileAvatarEditor } from '../../components/profile/MobileProfileAvatarEditor';
-import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useProfileEditor } from './useProfileEditor';
 import { ProfileLinksEditor } from './ProfileLinksEditor';
 import { LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
-import { useModalFocus } from '../../hooks/useModalFocus';
 import { usePresentation } from '../../presentation/usePresentation';
-import { useDialogViewport } from '../../hooks/useDialogViewport';
+import './profileEditorPage.css';
 
 /**
  * The owner's identity editor.
@@ -24,38 +20,25 @@ import { useDialogViewport } from '../../hooks/useDialogViewport';
  * Presentation only: every rule, request, and state transition comes from
  * `useProfileEditor`. Owner-only rendering is decided by the caller from
  * `auth.viewerProfileId`, and remains frontend permission UX — real
- * authorization is Supabase RLS, later.
+ * authorization remains enforced by the existing profile service and Supabase RLS.
  */
-type ProfileEditorDialogProps = {
-  isOpen: boolean;
+type ProfileEditorPageProps = {
   profileId: string | null;
   onClose: () => void;
   onSaved: () => void;
 };
-export function ProfileEditorDialog({
-  isOpen,
+export function ProfileEditorPage({
   profileId,
   onClose,
   onSaved
-}: ProfileEditorDialogProps) {
-  const editor = useProfileEditor(profileId, isOpen);
+}: ProfileEditorPageProps) {
+  const editor = useProfileEditor(profileId, true);
   const isMobile = usePresentation() === 'mobile';
-  const viewportRef = useDialogViewport(isOpen);
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const shouldReduceMotion = useReducedMotion();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
-  const dialogRef = useRef<HTMLElement>(null);
-  // The profile editor is lightweight and reversible until Save. Dismissal is
-  // immediate; reopening reads the canonical saved profile again.
-  useModalFocus(isOpen, dialogRef, onClose);
-  useEffect(() => {
-    if (isOpen && editor.phase === 'editing' && !isMobile) {
-      const frame = requestAnimationFrame(() => firstFieldRef.current?.focus());
-      return () => cancelAnimationFrame(frame);
-    }
-    return undefined;
-  }, [isOpen, editor.phase, isMobile]);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus({ preventScroll: true }); }, []);
   useEffect(() => {
     // A failed save takes focus, so it is never missed.
     if (editor.phase === 'failed') {
@@ -64,68 +47,26 @@ export function ProfileEditorDialog({
   }, [editor.phase]);
   const hasSaved = editor.phase === 'saved';
   useEffect(() => {
-    if (!isOpen || !hasSaved) {
+    if (!hasSaved) {
       return undefined;
     }
     // Success is only ever reported after the service resolved.
     const timer = window.setTimeout(onSaved, 700);
     return () => window.clearTimeout(timer);
-  }, [isOpen, hasSaved, onSaved]);
-  if (!isOpen) {
-    return null;
-  }
+  }, [hasSaved, onSaved]);
   const {
     fields,
     fieldErrors,
     linkErrors
   } = editor;
   const isBusy = editor.phase === 'saving';
-  const canSubmit = editor.canSave && (!isMobile || (!hasSaved && !avatarBusy && !editor.avatar.error));
-  return <AnimatePresence>
-      <motion.div ref={viewportRef} data-presentation={isMobile ? 'mobile' : 'web'} className="profile-editor-overlay modal-scrim fixed inset-0 z-[80] flex items-center justify-center overflow-hidden bg-black/48 p-3 backdrop-blur-[12px]" initial={{
-      opacity: 0
-    }} animate={{
-      opacity: 1
-    }} exit={{
-      opacity: 0
-    }} transition={{
-      duration: shouldReduceMotion ? 0 : 0.18,
-      ease: [0.22, 1, 0.36, 1]
-    }} onPointerDown={(event) => {
-      if (event.target === event.currentTarget) {
-        onClose();
-      }
-    }}>
-        <motion.section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-editor-title" className="profile-editor-dialog flex max-h-[calc(100dvh-24px)] w-full max-w-[820px] flex-col overflow-hidden rounded-[18px] text-[var(--text-primary)]" initial={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.985
-      }} animate={{
-        opacity: 1,
-        scale: 1
-      }} exit={shouldReduceMotion ? {
-        opacity: 0
-      } : {
-        opacity: 0,
-        scale: 0.99
-      }} transition={{
-        duration: shouldReduceMotion ? 0 : 0.18,
-        ease: [0.22, 1, 0.36, 1]
-      }}>
-          {isMobile ? <header className="mobile-profile-editor-header">
-            <button type="button" onClick={onClose} aria-label="Back" disabled={isBusy} className="mobile-profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
-            <h2 id="profile-editor-title">Edit profile</h2>
-            <button type="submit" form="profile-editor-form" className="mobile-profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
-          </header> : <header className="flex shrink-0 items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-6">
-            <div>
-              <h2 id="profile-editor-title" className="text-[18px] font-semibold leading-tight">Edit profile</h2>
-              <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-secondary)]">Refine how your identity and destinations appear across Portalink.</p>
-            </div>
-            <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
-              <InterfaceIcon icon={XIcon} weight="medium" />
-            </button>
-          </header>}
+  const canSubmit = editor.canSave && !hasSaved && !avatarBusy && !editor.avatar.error;
+  return <section data-presentation={isMobile ? 'mobile' : 'web'} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col text-[var(--text-primary)]">
+          <header className="profile-editor-header">
+            <button type="button" onClick={onClose} aria-label="Back" disabled={isBusy || avatarBusy} className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
+            <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">Edit profile</h1>
+            <button type="submit" form="profile-editor-form" className="profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
+          </header>
 
           {editor.loadError ? <div className="px-6 pb-6">
               <ErrorState title="Unable to load profile" description={editor.loadError} />
@@ -161,7 +102,7 @@ export function ProfileEditorDialog({
                save that changes only a name leaves the picture alone. What
                becomes of the file is reported in the transport's own words
                rather than asserted here. */}
-              {isMobile ? <MobileProfileAvatarEditor pending={editor.avatar.avatar} error={editor.avatar.error} currentUrl={editor.profile?.avatar} currentInitials={(editor.profile?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('')} disabled={isBusy} storageNotice={editor.avatar.storageNotice} onSelect={editor.avatar.select} onClear={editor.avatar.clear} onBusyChange={setAvatarBusy}>
+              <MobileProfileAvatarEditor pending={editor.avatar.avatar} error={editor.avatar.error} currentUrl={editor.profile?.avatar} currentInitials={(editor.profile?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('')} disabled={isBusy} storageNotice={editor.avatar.storageNotice} onSelect={editor.avatar.select} onClear={editor.avatar.clear} onBusyChange={setAvatarBusy}>
                 <label className="mobile-profile-visibility">
                   <LockKeyholeIcon aria-hidden="true" size={20} />
                   <span>Account visibility<strong>{fields.isPrivate ? 'Private' : 'Public'}</strong></span>
@@ -170,7 +111,7 @@ export function ProfileEditorDialog({
                     <option value="public">Public</option><option value="private">Private</option>
                   </select>
                 </label>
-              </MobileProfileAvatarEditor> : <AvatarPicker pending={editor.avatar.avatar} error={editor.avatar.error} currentUrl={editor.profile?.avatar} currentInitials={(editor.profile?.name ?? '').split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('')} disabled={isBusy} storageNotice={editor.avatar.storageNotice} onSelect={editor.avatar.select} onClear={editor.avatar.clear} />}
+              </MobileProfileAvatarEditor>
 
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
               <ProfileField id="profile-editor-city" label={isMobile ? 'City, country' : 'Portalink city'} value={fields.location} optional={!isMobile} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder={isMobile ? 'City, country' : 'City for location discovery'} error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
@@ -182,15 +123,6 @@ export function ProfileEditorDialog({
               </div>
             </div>
 
-              {!isMobile ? <footer className="profile-editor-footer flex shrink-0 items-center justify-end gap-2 border-t border-[var(--hairline)] px-5 py-4 sm:px-6">
-                <Button variant="secondary" size="lg" disabled={isBusy} onClick={onClose}>Cancel</Button>
-                <Button id="profile-editor-save" type="submit" variant="primary" size="lg" isLoading={isBusy} disabled={!editor.canSave}>
-                  {isBusy ? 'Saving…' : 'Save changes'}
-                </Button>
-              </footer> : null}
             </form>}
-
-        </motion.section>
-      </motion.div>
-    </AnimatePresence>;
+        </section>;
 }

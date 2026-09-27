@@ -1,13 +1,15 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import type { ProjectAttachment } from '../../types/domain';
+import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 
 export type VideoSequenceEntry = { projectId: string; projectTitle: string; attachment: ProjectAttachment };
 const videoSequenceId = (entry: VideoSequenceEntry) => `${entry.projectId}:${entry.attachment.id}`;
 
 /** Native vertical scrolling through the portal's already accessible videos. */
-export function MobileVideoSequence({ videos, activeId, onSelect, renderVideo }: {
+export function MobileVideoSequence({ videos, activeId, creator, onSelect, renderVideo }: {
   videos: VideoSequenceEntry[];
   activeId: string;
+  creator?: VideoCreator;
   onSelect: (video: VideoSequenceEntry) => void;
   renderVideo: (video: VideoSequenceEntry, active: boolean) => React.ReactNode;
 }) {
@@ -66,10 +68,9 @@ export function MobileVideoSequence({ videos, activeId, onSelect, renderVideo }:
   return <div ref={surfaceRef} className="mobile-video-sequence" aria-label="Videos" tabIndex={0} onScroll={selectVisible}>
     {videos.map((video, index) => <section key={videoSequenceId(video)} data-video-id={videoSequenceId(video)} aria-label={`${video.projectTitle}: ${video.attachment.displayName}`}
       style={{ '--video-aspect-ratio': video.attachment.metadata?.aspectRatio || (video.attachment.metadata?.widthPixels && video.attachment.metadata?.heightPixels ? video.attachment.metadata.widthPixels / video.attachment.metadata.heightPixels : 9 / 16) } as React.CSSProperties}>
-      <div className="mobile-video-sequence-media">{Math.abs(index - activeIndex) <= 1
+      <MobileVideoFrame creator={creator} sourceTitle={video.projectTitle}>{Math.abs(index - activeIndex) <= 1
         ? renderVideo(video, index === activeIndex)
-        : <div className="mobile-video-sequence-placeholder" aria-label={video.attachment.displayName} />}</div>
-      <p className="mobile-video-sequence-title">{video.projectTitle}</p>
+        : <div className="mobile-video-sequence-placeholder" aria-label={video.attachment.displayName} />}</MobileVideoFrame>
     </section>)}
   </div>;
 }

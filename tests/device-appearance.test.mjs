@@ -127,16 +127,20 @@ test('unavailable storage, missing media APIs and server rendering remain usable
   assert.equal(harness({ server: true }).render().theme, 'light');
 });
 
-test('initial HTML agrees with the device setting and public overrides before React loads', () => {
+test('initial HTML uses the device setting on every route and ignores retired public theme overrides', () => {
   const bootstrap = read('../index.html').match(/<script>\s*([\s\S]*?)<\/script>/)[1];
   for (const dark of [false, true]) for (const path of ['/', '/share/creator']) {
     const storage = new Map([['portalinknetworks.appearanceMode', dark ? 'light' : 'dark']]);
-    const root = { dataset: {}, style: {} };
-    const window = { location: { pathname: path }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('color-scheme') && dark }) };
+    const root = { dataset: {}, style: {}, toggleAttribute() {} };
+    const window = { navigator: {}, location: { pathname: path }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('color-scheme') && dark }) };
     vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
     assert.equal(root.dataset.appearance, dark ? 'dark' : 'light');
     assert.equal(root.style.colorScheme, root.dataset.appearance);
-    storage.set(path === '/' ? DEVICE_KEY : 'portalink.publicTheme.creator', 'light');
+    storage.set('portalink.publicTheme.creator', dark ? 'light' : 'dark');
+    storage.set('portalink.publicTheme.creator.web', dark ? 'light' : 'dark');
+    vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
+    assert.equal(root.dataset.appearance, dark ? 'dark' : 'light');
+    storage.set(DEVICE_KEY, 'light');
     vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
     assert.equal(root.dataset.appearance, 'light');
   }
@@ -183,8 +187,8 @@ test('preboot chooses the same platform record and preserves legacy fallback for
   for (const width of [390, 430, 639, 640, 1280]) {
     const scope = width <= 639 ? 'mobile' : 'web';
     const storage = new Map([[DEVICE_KEY, 'dark'], [scopedKey('web'), '{"mode":"light"}'], [scopedKey('mobile'), '{"mode":"dark"}']]);
-    const root = { dataset: {}, style: {} };
-    const window = { location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
+    const root = { dataset: {}, style: {}, toggleAttribute() {} };
+    const window = { navigator: {}, location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
     const run = () => vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
     for (const corrupt of ['{broken', '{"mode":"invalid"}']) {
@@ -192,7 +196,90 @@ test('preboot chooses the same platform record and preserves legacy fallback for
       assert.equal(harness({ storage }).render(scope).mode, 'dark');
     }
     window.location.pathname = '/share/creator';
-    storage.set('portalink.publicTheme.creator.web', 'light'); storage.set('portalink.publicTheme.creator.mobile', 'dark');
+    storage.set(scopedKey(scope), JSON.stringify({ mode: scope === 'web' ? 'light' : 'dark' }));
+    storage.set('portalink.publicTheme.creator.web', 'dark'); storage.set('portalink.publicTheme.creator.mobile', 'light');
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
   }
+});
+
+// Evaluate the shell's actual appearance expressions with the real preference
+// hook and token resolvers, without mocking the rest of the routed application.
+const appSource = read('../src/App.tsx');
+const appAst = ts.createSourceFile('App.tsx', appSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function appNode(predicate) {
+  let result;
+  const visit = node => { if (result) return; if (predicate(node)) result = node; else ts.forEachChild(node, visit); };
+  visit(appAst);
+  assert.ok(result, 'Expected application appearance expression');
+  return result;
+}
+const appInitializer = name => appNode(node => ts.isVariableDeclaration(node) && node.name.getText(appAst) === name).initializer.getText(appAst);
+const interfaceNames = ['interfaceTheme', 'interfaceHighContrast', 'interfaceReduceTranslucency', 'interfaceNavSystemGray', 'interfaceAccentColor'];
+const shellClass = appNode(node => ts.isJsxOpeningElement(node) && node.tagName.getText(appAst) === 'AppPresentation')
+  .attributes.properties.find(node => node.name?.getText(appAst) === 'className').initializer.expression.getText(appAst);
+const shellAppearanceCode = ts.transpileModule(`
+  ${interfaceNames.map(name => `const ${name} = ${appInitializer(name)};`).join('\n')}
+  result = { style: ${appInitializer('rootTokenStyle')}, className: ${shellClass}, theme: interfaceTheme };
+`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+const tokenResolvers = {
+  ...compile('../src/data/navButtonTokens.ts', {}),
+  ...compile('../src/utils/accentTokens.ts', {}),
+  ...compile('../src/utils/macTokens.ts', {}),
+};
+function shellAppearance(appearance, kind) {
+  const context = { ...tokenResolvers, ...appearance, navSystemGray: appearance.systemGray,
+    isSharedRoute: kind.startsWith('shared'), route: { kind, profileId: 'creator' },
+    // Deliberately disagree with every viewer preference to catch route leaks.
+    publicAppearance: { accentColor: '#0A84FF', systemGray: 'gray6', mode: 'light' },
+    visitorTheme: appearance.theme === 'dark' ? 'light' : 'dark',
+    resolvePublicTheme: visitorTheme => visitorTheme,
+    useMemo: fn => fn(), getTypefaceStack: () => 'interface font', result: null,
+  };
+  vm.runInNewContext(shellAppearanceCode, context);
+  return JSON.parse(JSON.stringify(context.result));
+}
+
+test('Home, profile, project and shared shell appearance follows active Settings in Light, Dark and System', () => {
+  const h = harness();
+  for (const scope of ['mobile', 'web']) for (const mode of ['light', 'dark', 'auto']) {
+    h.render(scope).chooseAppearance({ mode, accentColor: '#FF375F', systemGray: 'gray3', highContrast: true, reduceTranslucency: true });
+    for (const dark of [false, true]) {
+      h.setDevice(dark);
+      const appearance = h.render(scope);
+      const baseline = shellAppearance(appearance, 'home');
+      assert.equal(baseline.theme, mode === 'auto' ? (dark ? 'dark' : 'light') : mode);
+      assert.equal(baseline.style['--accent-color'], '#FF375F');
+      assert.equal(baseline.style['--control-rest-surface'], tokenResolvers.systemGrays.find(gray => gray.id === 'gray3')[baseline.theme]);
+      for (const route of ['profile', 'project', 'sharedProfile', 'sharedCategory', 'sharedProject']) {
+        const actual = shellAppearance(appearance, route);
+        assert.deepEqual(actual.style, baseline.style, `${scope}/${mode}/${route}`);
+        assert.equal(actual.theme, baseline.theme);
+        assert.ok(actual.className.includes(`theme-${baseline.theme}`));
+        assert.ok(actual.className.includes('high-contrast'));
+        assert.ok(actual.className.includes('reduce-translucency'));
+      }
+    }
+  }
+  h.dispose();
+});
+
+test('shared navigation theme action updates active Settings only, leaving creator and legacy visitor preferences intact', () => {
+  const storage = new Map([['portalink.publicTheme.creator.mobile', 'dark'], ['portalink.publicTheme.creator', 'dark']]);
+  const h = harness({ storage });
+  h.render('web').chooseMode('dark'); h.render('web');
+  const creator = Object.freeze({ accentColor: '#FF375F', systemGray: 'gray4', mode: 'dark' });
+  const sharedSidebar = appNode(node => ts.isJsxSelfClosingElement(node) && node.tagName.getText(appAst) === 'SharedProfileSidebar');
+  const callback = sharedSidebar.attributes.properties.find(node => node.name?.getText(appAst) === 'onThemeChange').initializer.expression.getText(appAst);
+  const chooseTheme = appNode(node => ts.isFunctionDeclaration(node) && node.name?.text === 'chooseTheme').getText(appAst);
+  const context = { setAppearanceMode: h.render('mobile').chooseMode, publicAppearance: creator, result: null };
+  vm.runInNewContext(ts.transpileModule(`${chooseTheme}\nresult = ${callback};`, {}).outputText, context);
+  context.result('light');
+  assert.equal(h.render('mobile').mode, 'light');
+  assert.equal(h.render('web').mode, 'dark');
+  assert.equal(saved(storage, 'mobile').mode, 'light');
+  assert.equal(saved(storage, 'web').mode, 'dark');
+  assert.equal(storage.get('portalink.publicTheme.creator.mobile'), 'dark');
+  assert.equal(storage.get('portalink.publicTheme.creator'), 'dark');
+  assert.deepEqual(creator, { accentColor: '#FF375F', systemGray: 'gray4', mode: 'dark' });
+  h.dispose();
 });

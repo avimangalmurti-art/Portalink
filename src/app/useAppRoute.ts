@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 import { buildPath, destinationFromSlug, destinationPath, routes } from './routes';
 import { activityKindFromSlug, activitySlugForKind } from '../types/engagement';
@@ -19,6 +19,8 @@ import { beginProjectContinuity } from '../utils/projectContinuity';
  */
 export type AppRoute = {
   kind: 'home';
+} | {
+  kind: 'profileEditor';
 } | {
   kind: 'destination';
   destination: NavigationDestination;
@@ -86,11 +88,13 @@ export type AppRoute = {
  * belong to a creator. Reading a public profile, category, or project is open to
  * guests; these are the account itself and the creator's own tools.
  */
-export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights']);
+export const PROTECTED_ROUTE_KINDS: ReadonlySet<AppRoute['kind']> = new Set(['messages', 'saved', 'notifications', 'insights', 'profileEditor']);
 
 /** What the person was reaching for, for the auth gate's wording. */
 export function describeRoute(route: AppRoute): string {
   switch (route.kind) {
+    case 'profileEditor':
+      return 'edit your profile';
     case 'studio':
       return 'open Studio';
     case 'messages':
@@ -106,6 +110,7 @@ export function describeRoute(route: AppRoute): string {
   }
 }
 function parse(pathname: string, search: string): AppRoute {
+  if (matchPath(routes.profileEditor.path, pathname)) return { kind: 'profileEditor' };
   // Most specific first: a project path also matches its category path.
   const sharedProject = matchPath(routes.sharedProject.path, pathname);
   if (sharedProject?.params.profileId && sharedProject.params.categoryId && sharedProject.params.projectId) {
@@ -271,6 +276,9 @@ export function useAppRoute(): AppRoute {
  */
 export function useRouteNavigator() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
   return useMemo(() => ({
     /** `replace` when Home is a correction rather than a step — signing out of
      *  an account-only surface, say — so Back does not return to it. */
@@ -287,6 +295,25 @@ export function useRouteNavigator() {
     profile: (profileId: Id) => navigate(buildPath('profile', {
       profileId
     })),
+    profileEditor: () => {
+      const current = locationRef.current;
+      if (matchPath(routes.profileEditor.path, current.pathname)) return;
+      navigate(routes.profileEditor.path, {
+        state: { profileEditorReturn: `${current.pathname}${current.search}${current.hash}` }
+      });
+    },
+    closeProfileEditor: (profileId: Id | null) => {
+      const state: unknown = locationRef.current.state;
+      const returnPath = state && typeof state === 'object' && 'profileEditorReturn' in state ? state.profileEditorReturn : null;
+      // History state survives refresh. Only an entry pushed by Edit profile
+      // earns browser Back; a pasted URL must stay in the app instead.
+      if (typeof returnPath === 'string' && returnPath.startsWith('/') && !returnPath.startsWith('//') &&
+        !matchPath(routes.profileEditor.path, returnPath.split(/[?#]/)[0]) && window.history.state?.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate(profileId ? buildPath('profile', { profileId }) : routes.home.path, { replace: true });
+      }
+    },
     sharedProfile: (profileId: Id) => navigate(buildPath('sharedProfile', {
       profileId
     })),

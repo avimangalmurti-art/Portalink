@@ -131,6 +131,8 @@ export function AuthProvider({
   const hasPresentedRecoveryRef = useRef(false);
   // Guards against a second submit while a request is in flight.
   const isSigningInRef = useRef(false);
+  const acceptedSessionVersionRef = useRef(0);
+  const signInGenerationRef = useRef(0);
   useEffect(() => {
     let isCurrent = true;
     let receivedAuthEvent = false;
@@ -139,6 +141,7 @@ export function AuthProvider({
       if (!isCurrent) {
         return;
       }
+      acceptedSessionVersionRef.current += 1;
       if (next?.isPasswordRecovery && !hasPresentedRecoveryRef.current) {
         hasPresentedRecoveryRef.current = true;
         pendingViewRef.current = 'resetPassword';
@@ -148,11 +151,16 @@ export function AuthProvider({
       if (!next) hasPresentedRecoveryRef.current = false;
       sessionRef.current = next;
       setSession(next);
+      setError(null);
       setPhase(next ? 'authenticated' : 'unauthenticated');
     };
-    const unsubscribe = auth.onAuthStateChange((next) => {
+    const unsubscribe = auth.onAuthStateChange((next, failure) => {
       receivedAuthEvent = true;
       acceptSession(next);
+      if (isCurrent && failure) {
+        setError(failure);
+        setPhase('failed');
+      }
     });
     auth.getSession().then((next) => {
       if (!receivedAuthEvent) acceptSession(next);
@@ -165,6 +173,7 @@ export function AuthProvider({
     });
     return () => {
       isCurrent = false;
+      signInGenerationRef.current += 1;
       unsubscribe();
     };
   }, [auth, initializeAttempt]);
@@ -176,26 +185,43 @@ export function AuthProvider({
       return null;
     }
     isSigningInRef.current = true;
+    const sessionVersion = acceptedSessionVersionRef.current;
+    const generation = signInGenerationRef.current;
+    const startingSession = sessionRef.current;
+    const sessionChanged = () => acceptedSessionVersionRef.current !== sessionVersion || sessionRef.current !== startingSession;
     setPhase('authenticating');
     setError(null);
     try {
       const next = await auth.signIn(input);
+      if (generation !== signInGenerationRef.current) return null;
+      const current = sessionRef.current;
+      // The SDK can publish SIGNED_IN before this request finishes mapping its
+      // profile. That same account may finish the form, but a newer sign-out,
+      // recovery session or different account must win over this older result.
+      let committed = next;
+      if (sessionChanged()) {
+        if (!current || current.user.id !== next.user.id || current.isPasswordRecovery) return null;
+        committed = current;
+      }
       // Committing the session and closing the sheet happen HERE, in the one
       // place that knows the attempt succeeded. The caller must not close the
       // sheet itself: `closeAuth` treats a close while still signed out as a
       // cancellation and drops the pending destination, and React has not
       // re-rendered yet at the moment an awaiting caller would run.
       isAuthenticatedRef.current = true;
-      sessionRef.current = next;
-      setSession(next);
+      sessionRef.current = committed;
+      setSession(committed);
       setPhase('authenticated');
       // Focus must not return to the Sign in button that no longer applies;
       // the destination view takes it instead.
       openerRef.current = null;
       setPendingView(null);
       setGateMessage(null);
-      return next;
+      return committed;
     } catch (caught) {
+      // A late profile-read failure cannot erase a session already accepted
+      // from the SDK, or replace the outcome of an explicit sign-out.
+      if (generation !== signInGenerationRef.current || sessionChanged()) return null;
       setError(toAuthError(caught));
       // Still signed out — the attempt failed, nothing changed. The sheet stays
       // open on the form so the error is visible and can be corrected.
@@ -206,6 +232,7 @@ export function AuthProvider({
     }
   }, [auth]);
   const signOut = useCallback(async () => {
+    signInGenerationRef.current += 1;
     setPhase('signing-out');
     setError(null);
     try {
@@ -252,6 +279,7 @@ export function AuthProvider({
     }
   }, [auth]);
   const completeAccountDeletion = useCallback(() => {
+    signInGenerationRef.current += 1;
     sessionRef.current = null;
     setSession(null);
     setPhase('unauthenticated');

@@ -6,31 +6,36 @@ import ts from 'typescript';
 
 class Element {
   constructor(scope = 'content') { this.scope = scope; }
-  closest(selector) { return selector.split(', ').includes(this.scope) ? this : null; }
+  closest(selector) { return selector.split(',').map(value => value.trim()).includes(this.scope) ? this : null; }
+  focus() { assert.fail('Outside dismissal must not move focus'); }
+  blur() { assert.fail('Outside dismissal must not blur content'); }
+  setPointerCapture() { assert.fail('Outside dismissal must not capture the content pointer'); }
+  releasePointerCapture() { assert.fail('Outside dismissal must not alter content pointer capture'); }
 }
 function harness() {
   const listeners = new Map(), refs = [], exports = {};
   let cursor = 0, deps, pending, cleanup, closed = 0, inert = false;
-  const layer = { current: { contains: target => target.scope === 'navigation', closest: () => inert } };
+  const layer = { current: Object.assign(new Element('navigation'), { contains: target => target.scope === 'navigation', closest: () => inert }) };
+  const document = { activeElement: new Element() };
+  const window = {
+    addEventListener(type, fn, options) { listeners.set(type, { fn, options }); },
+    removeEventListener(type, fn, options) {
+      assert.equal(listeners.get(type).fn, fn);
+      const capture = options => Boolean(typeof options === 'object' ? options.capture : options);
+      assert.equal(capture(listeners.get(type).options), capture(options));
+      listeners.delete(type);
+    },
+  };
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useNavigationOutsideTap.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
-  }).outputText, { exports, Element,
-    window: {
-      addEventListener(type, fn, options) { listeners.set(type, { fn, options }); },
-      removeEventListener(type, fn, options) {
-        assert.equal(listeners.get(type).fn, fn);
-        const capture = options => Boolean(typeof options === 'object' ? options.capture : options);
-        assert.equal(capture(listeners.get(type).options), capture(options));
-        listeners.delete(type);
-      },
-    },
+  }).outputText, { exports, Element, document, window,
     require: () => ({
       useRef(value) { return refs[cursor++] ??= { current: value }; },
       useEffect(fn, next) { if (!deps || next.some((v, i) => v !== deps[i])) { pending = fn; deps = next; } },
     }),
   });
   return {
-    listeners, layer,
+    listeners, layer, document, window,
     get closed() { return closed; },
     inert(value) { inert = value; },
     render(open = true, close = () => closed++) {
@@ -38,8 +43,9 @@ function harness() {
       if (pending) { cleanup?.(); cleanup = pending(); pending = null; }
     },
     emit(type, target = new Element(), extra = {}, bubble) {
-      const event = { target, pointerId: 1, button: 0, isPrimary: true, clientX: 200, clientY: 300,
-        prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra };
+      const event = { type, target, currentTarget: target, pointerId: 1, button: 0, isPrimary: true, detail: 1, clientX: 200, clientY: 300,
+        prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; },
+        stopImmediatePropagation() { this.stopped = true; }, ...extra };
       listeners.get(type)?.fn(event);
       if (!event.stopped) bubble?.(event);
       return event;
@@ -47,76 +53,140 @@ function harness() {
     unmount() { cleanup?.(); cleanup = null; },
   };
 }
-const tap = (h, target) => {
-  h.emit('pointerdown', target);
-  const release = h.emit('pointerup', target);
-  const click = h.emit('click', target);
-  return { release, click };
+const assertPassive = (event, message = event.type) => {
+  assert.equal(event.prevented, false, `${message}: native behavior must remain available`);
+  assert.equal(event.stopped, false, `${message}: content must receive the original event`);
 };
 
-test('an outside tap dismisses once and is consumed before page pointer-up and click handlers', () => {
+test('content pointerdown closes immediately once and preserves the original down, move, up and click flow', () => {
   const h = harness(); h.render();
-  const content = new Element();
-  const down = h.emit('pointerdown', content, {}, () => assert.fail('Dismissal must not start a background drag or long-press'));
-  assert.equal(down.prevented, false, 'Native panning remains available');
-  assert.equal(down.stopped, true);
-  assert.equal(h.emit('pointermove', content, { clientY: 304 }).stopped, false);
-  const release = h.emit('pointerup', content, {}, () => assert.fail('Dismissal entered artwork double-tap or reading-mode handling'));
-  assert.equal(release.stopped, true);
-  assert.equal(release.prevented, false, 'Keep the following browser click');
-  const click = h.emit('click', content, {}, () => assert.fail('Content activated behind sidebar'));
-  assert.equal(click.prevented, true); assert.equal(click.stopped, true); assert.equal(h.closed, 1);
-  assert.equal(h.emit('click', content).prevented, false, 'No stale dismissal');
+  const content = new Element(), received = [];
+  const down = h.emit('pointerdown', content, {}, event => {
+    assert.equal(h.closed, 1, 'Navigation closes before the content press starts its own interaction');
+    received.push(event);
+  });
+  assertPassive(down);
+  assert.equal(received[0], down, 'Content receives the original pointerdown, not a replay');
+  for (const [type, extra] of [['pointermove', { clientY: 360 }], ['pointerup', { clientY: 360 }], ['click', {}]]) {
+    const event = h.emit(type, content, extra, value => received.push(value));
+    assertPassive(event);
+    assert.equal(received.at(-1), event);
+  }
+  assert.deepEqual(received.map(event => event.type), ['pointerdown', 'pointermove', 'pointerup', 'click']);
+  assert.equal(h.closed, 1, 'A gesture may emit several events before React removes the open listeners');
   h.unmount();
 });
 
-test('panning, native scroll, wheel and pointer cancellation pass through and keep the rail open', () => {
-  for (const [type, extra] of [['pointermove', { clientY: 360 }], ['pointercancel', {}], ['scroll', {}], ['wheel', {}], ['blur', {}]]) {
+test('keyboard and assistive content activation close once without consuming the action', () => {
+  const h = harness(); h.render();
+  let activated = 0;
+  const event = h.emit('click', new Element(), { detail: 0 }, () => activated++);
+  assertPassive(event);
+  assert.equal(activated, 1);
+  assert.equal(h.closed, 1);
+  assertPassive(h.emit('click', new Element(), { detail: 0 }));
+  assert.equal(h.closed, 1);
+  h.unmount();
+});
+
+test('an inside-origin gesture ending over content does not turn its trailing click into outside dismissal', () => {
+  const h = harness(); h.render();
+  assertPassive(h.emit('click', new Element(), { detail: 1 }));
+  assert.equal(h.closed, 0, 'Ordinary clicks rely on their original primary pointerdown');
+  assertPassive(h.emit('pointerdown', new Element('navigation')));
+  assertPassive(h.emit('pointermove', new Element(), { clientY: 450 }));
+  assertPassive(h.emit('pointerup', new Element(), { clientY: 450 }));
+  let activated = 0;
+  assertPassive(h.emit('click', new Element(), { detail: 1 }, () => activated++));
+  assert.equal(activated, 1);
+  assert.equal(h.closed, 0);
+  h.unmount();
+});
+
+test('content wheel and scroll close passively without waiting for a completed tap', () => {
+  for (const type of ['wheel', 'scroll']) {
+    for (const surface of ['element', 'document', 'window']) {
+      const h = harness(); h.render();
+      assert.equal(h.listeners.get(type).options.passive, true);
+      let scrolled = 0;
+      assertPassive(h.emit(type, surface === 'element' ? new Element() : h[surface], {}, () => scrolled++));
+      assert.equal(h.closed, 1, `${type} on ${surface} must dismiss navigation`);
+      assert.equal(scrolled, 1);
+      assertPassive(h.emit(type));
+      assert.equal(h.closed, 1);
+      h.unmount();
+    }
+  }
+});
+
+test('navigation controls and portaled menus, dialogs and scrims retain their own gestures and scrolling', () => {
+  for (const scope of ['navigation', '[role="menu"]', '[role="dialog"]', '[role="alertdialog"]', '.modal-scrim']) {
     const h = harness(); h.render();
-    const down = h.emit('pointerdown'); assert.equal(down.prevented, false);
-    const movement = h.emit(type, undefined, extra); assert.equal(movement.prevented || movement.stopped, false, type);
-    const release = h.emit('pointerup'); assert.equal(release.prevented || release.stopped, false, type);
-    assert.equal(h.emit('click').prevented, false); assert.equal(h.closed, 0);
+    const target = new Element(scope), received = [];
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'click', 'wheel', 'scroll']) {
+      assertPassive(h.emit(type, target, {}, event => received.push(event.type)), `${scope} ${type}`);
+    }
+    assert.equal(received.length, 6);
+    assert.equal(h.closed, 0, `${scope} must not dismiss the navigation underneath it`);
     h.unmount();
   }
 });
 
-test('rail actions and portaled settings, menus and dialogs keep their gestures', () => {
+test('multi-pointer gestures, cancellations and non-primary buttons are never intercepted', () => {
   const h = harness(); h.render();
-  for (const scope of ['navigation', '[role="menu"]', '[role="dialog"]', '[role="alertdialog"]', '.modal-scrim']) {
-    const { release, click } = tap(h, new Element(scope));
-    assert.equal(release.stopped || click.prevented || click.stopped, false, scope);
+  for (const extra of [{ isPrimary: false, pointerId: 2 }, { button: 2 }, { button: 1 }]) {
+    assertPassive(h.emit('pointerdown', new Element(), extra));
   }
-  assert.equal(h.closed, 0); h.unmount();
+  assert.equal(h.closed, 0, 'Only the primary content press dismisses navigation');
+  const delivered = [];
+  for (const [type, extra] of [
+    ['pointerdown', {}], ['pointerdown', { isPrimary: false, pointerId: 2 }],
+    ['pointermove', { pointerId: 1, clientX: 160 }], ['pointermove', { pointerId: 2, clientX: 240 }],
+    ['pointercancel', { pointerId: 1 }], ['pointerup', { pointerId: 2 }], ['click', { detail: 0 }],
+  ]) assertPassive(h.emit(type, new Element(), extra, event => delivered.push(event)));
+  assert.equal(delivered.length, 7, 'Pinch/drag recognizers retain every original contact and cancellation');
+  assert.equal(h.closed, 1);
+  h.unmount();
 });
 
-test('inside-origin drags, large release movement, pinch and non-primary buttons are not outside taps', () => {
+test('inert or missing navigation and non-element events do not dismiss or alter content', () => {
   const h = harness(); h.render();
-  h.emit('pointerdown', new Element('navigation')); h.emit('pointerup'); h.emit('click');
-  h.emit('pointerdown'); h.emit('pointerup', undefined, { clientY: 450 }); h.emit('click');
-  h.emit('pointerdown'); h.emit('pointerdown', undefined, { isPrimary: false, pointerId: 2 }); h.emit('pointerup'); h.emit('click');
-  h.emit('pointerdown', undefined, { button: 2 }); h.emit('pointerup'); h.emit('click');
-  h.emit('pointerdown'); h.emit('pointerup', new Element('[role="dialog"]')); h.emit('click');
-  assert.equal(h.closed, 0); h.unmount();
+  h.inert(true);
+  for (const type of ['pointerdown', 'click', 'wheel', 'scroll']) assertPassive(h.emit(type));
+  for (const target of [h.document, h.window]) assertPassive(h.emit('scroll', target));
+  assert.equal(h.closed, 0, 'A modal owning inert navigation remains in charge');
+  h.inert(false);
+  for (const type of ['pointerdown', 'click', 'wheel', 'scroll']) assertPassive(h.emit(type, null));
+  assert.equal(h.closed, 0);
+  h.layer.current = null;
+  for (const type of ['pointerdown', 'click', 'wheel', 'scroll']) assertPassive(h.emit(type));
+  assert.equal(h.closed, 0);
+  h.unmount();
 });
 
-test('a fresh completed tap is required; inert navigation and keyboard activation are left alone', () => {
-  const h = harness(); h.render();
-  assert.equal(h.emit('click', undefined, { detail: 0 }).prevented, false);
-  h.emit('pointerdown'); assert.equal(h.emit('click').prevented, false);
-  h.emit('pointerdown'); assert.equal(h.emit('pointerup', undefined, { pointerId: 2 }).stopped, false);
-  assert.equal(h.emit('click').prevented, false);
-  h.inert(true); assert.equal(tap(h).click.prevented, false); h.inert(false);
-  h.layer.current = null; assert.equal(tap(h).click.prevented, false);
-  assert.equal(h.closed, 0); h.unmount();
-});
-
-test('only the open rail listens and cleanup removes all listeners; rerenders use the latest close callback', () => {
+test('closed navigation has no listeners; cleanup is complete and new openings use the latest close callback', () => {
   const h = harness(); h.render(false); assert.equal(h.listeners.size, 0);
-  h.render(); assert.equal(h.listeners.size, 8);
-  assert.equal(h.listeners.get('pointerup').options, true, 'Window capture precedes document reading and React artwork handlers');
-  for (const type of ['scroll', 'wheel']) assert.equal(h.listeners.get(type).options.passive, true);
-  let next = 0; h.render(true, () => next++); tap(h); assert.equal(next, 1); assert.equal(h.closed, 0);
+  h.render();
+  for (const type of ['pointerdown', 'click', 'wheel', 'scroll']) assert.ok(h.listeners.has(type));
+  assert.equal(h.listeners.size, 4);
+  for (const { options } of h.listeners.values()) {
+    assert.equal(options.capture, true);
+    assert.equal(options.passive, true);
+  }
+  for (const type of ['focus', 'focusin', 'blur']) assert.equal(h.listeners.has(type), false, 'Dismissal must not manage content focus');
+  let next = 0;
+  h.render(true, () => next++);
+  assertPassive(h.emit('pointerdown'));
+  assert.equal(next, 1); assert.equal(h.closed, 0);
+  h.render(true, () => next += 10);
+  assertPassive(h.emit('click', new Element(), { detail: 0 }));
+  assert.equal(next, 1, 'Rerendering an already-dismissed opening does not re-arm it');
   h.render(false); assert.equal(h.listeners.size, 0);
-  h.render(); h.unmount(); assert.equal(h.listeners.size, 0);
+  let contentReceived = false;
+  assertPassive(h.emit('pointerdown', new Element(), {}, () => { contentReceived = true; }));
+  assert.equal(contentReceived, true);
+  h.render(true, () => next += 10);
+  assertPassive(h.emit('click', new Element(), { detail: 0 }));
+  assert.equal(next, 11, 'A genuinely reopened navigation can dismiss again');
+  h.unmount(); assert.equal(h.listeners.size, 0);
 });

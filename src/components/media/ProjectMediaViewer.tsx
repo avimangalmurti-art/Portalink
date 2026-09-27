@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, HeartIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
+import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
@@ -85,6 +86,7 @@ export function ProjectMediaViewer({
   singlePanel,
   mobileNavigation,
   videoSequence,
+  creator,
   projectId,
   projectTitle,
   projectSummary,
@@ -116,7 +118,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -163,7 +165,7 @@ export function ProjectMediaViewer({
     setMobileEngagementOpen(false);
     mobileEngagementToggleRef.current?.focus({ preventScroll: true });
   }, []);
-  useNavigationOutsideTap(isMobileViewer && mobileEngagementOpen && !mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive, mobileEngagementRef, closeMobileEngagement);
+  useNavigationOutsideTap(isMobileViewer && mobileEngagementOpen && !mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive, mobileEngagementRef, () => setMobileEngagementOpen(false));
   const popupAnchorRef = useRef<HTMLDivElement>(null);
   const descriptionTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -549,6 +551,13 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
+  const activeMedia = active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+          state: processing.resolveState(active),
+          message: processing.resolveMessage(active),
+          canRetry: processing.canRetry(active),
+          isRetrying: processing.retrying.includes(active.id),
+          onRetry: () => void processing.retry(active.id)
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
   return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
@@ -556,7 +565,7 @@ export function ProjectMediaViewer({
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
-            videos={videoSequence.entries} activeId={`${projectId}:${active.id}`} onSelect={entry => {
+            videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
               updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
               else videoSequence.onSelectProject(entry.projectId);
@@ -565,13 +574,7 @@ export function ProjectMediaViewer({
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
-              } : undefined} onClose={onClose} />} /> : active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
-          state: processing.resolveState(active),
-          message: processing.resolveMessage(active),
-          canRetry: processing.canRetry(active),
-          isRetrying: processing.retrying.includes(active.id),
-          onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia}
+              } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div> : activeMedia}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says

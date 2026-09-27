@@ -139,6 +139,27 @@ function navigationHarness(pathname = '/') {
   const slots = [];
   const frames = [];
   const focused = [];
+  const effects = [];
+  const listeners = new Map();
+  let search = '', dirty = false;
+  const document = {
+    activeElement: null,
+    addEventListener(type, listener, options) {
+      const entries = listeners.get(type) ?? [];
+      entries.push({ listener, options }); listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      const entries = (listeners.get(type) ?? []).filter(entry => entry.listener !== listener);
+      if (entries.length) listeners.set(type, entries); else listeners.delete(type);
+    },
+  };
+  class Element {
+    constructor(name, { insideNavigation = false, role = null } = {}) { Object.assign(this, { name, insideNavigation, role }); }
+    closest(selector) { return this.role && selector.includes(`[role="${this.role}"]`) ? this : null; }
+    focus(options) { assert.equal(options.preventScroll, true); focused.push(this.name); document.activeElement = this; }
+  }
+  const toggleElement = new Element('toggle', { insideNavigation: true });
+  const layerElement = { contains: target => Boolean(target?.insideNavigation) };
   const icons = { SunIcon: () => null, MoonIcon: () => null };
   let cursor = 0;
   let scrollBinding;
@@ -146,7 +167,16 @@ function navigationHarness(pathname = '/') {
   const react = {
     ...React,
     useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; },
-    useState(value) { const i = cursor++; if (!(i in slots)) slots[i] = value; return [slots[i], next => { slots[i] = next; }]; },
+    useState(value) { const i = cursor++; if (!(i in slots)) slots[i] = value; return [slots[i], next => {
+      const value = typeof next === 'function' ? next(slots[i]) : next;
+      if (!Object.is(slots[i], value)) { slots[i] = value; dirty = true; }
+    }]; },
+    useEffect(callback, deps) {
+      const i = cursor++, previous = slots[i];
+      if (!previous || deps.some((dep, index) => !Object.is(dep, previous.deps[index]))) effects.push(() => {
+        previous?.cleanup?.(); slots[i] = { deps, cleanup: callback() };
+      });
+    },
   };
   const swipe = {};
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/useNavigationSwipe.ts', import.meta.url), 'utf8'), {
@@ -157,11 +187,11 @@ function navigationHarness(pathname = '/') {
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText + '\nexports.Destination = Destination;', {
-    exports, requestAnimationFrame: fn => frames.push(fn),
+    exports, document, Element, requestAnimationFrame: fn => frames.push(fn),
     require: name => {
       if (name === 'react') return react;
       if (name === 'lucide-react') return icons;
-      if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname }) };
+      if (name === 'react-router-dom') return { Link: 'a', useLocation: () => ({ pathname, search }) };
       if (name === 'framer-motion') return { motion: { nav: 'nav' }, useReducedMotion: () => true };
       if (name === './useNavigationSwipe') return swipe;
       if (name === './useMobileDockScroll') return { useMobileDockScroll: (enabled, path, ref) => { scrollBinding = { enabled, path, ref }; } };
@@ -172,6 +202,7 @@ function navigationHarness(pathname = '/') {
   });
   function render(props = {}) {
     cursor = 0;
+    dirty = false;
     const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, floating] = React.Children.toArray(tree.props.children);
     const [toggle, dock] = React.Children.toArray(floating.props.children);
@@ -180,16 +211,26 @@ function navigationHarness(pathname = '/') {
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
     const railItems = railNav ? React.Children.toArray(railNav.props.children) : [];
     const railToggle = railItems.find(child => child.props['aria-controls'] === rail.props.id) ?? null;
-    toggle.ref.current = { focus(options) {
-      assert.equal(floating.props.hidden, undefined, 'the toggle is always mounted outside the hidden destinations');
-      assert.equal(options.preventScroll, true);
-      focused.push('toggle');
-    } };
+    assert.equal(floating.props.hidden, undefined, 'the toggle is always mounted outside the hidden destinations');
+    toggle.ref.current = toggleElement;
+    tree.ref.current = layerElement;
+    effects.splice(0).forEach(effect => effect());
+    if (dirty) return render(props);
     frames.splice(0).forEach(fn => fn());
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
     return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
-  return { render, icons, get scrollBinding() { return scrollBinding; }, get outsideBinding() { return outsideBinding; }, destination: element => exports.Destination(element.props) };
+  return { render, icons, document, listeners, focused,
+    target: (name, options) => new Element(name, options),
+    navigate: (nextPath, nextSearch = '') => { pathname = nextPath; search = nextSearch; },
+    keydown(overrides = {}) {
+      const event = { key: 'Escape', target: document.activeElement, defaultPrevented: false,
+        preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; }, ...overrides };
+      for (const { listener } of listeners.get('keydown') ?? []) listener(event);
+      return event;
+    },
+    unmount: () => { for (const slot of slots) slot?.cleanup?.(); },
+    get pendingFrames() { return frames.length; }, get scrollBinding() { return scrollBinding; }, get outsideBinding() { return outsideBinding; }, destination: element => exports.Destination(element.props) };
 }
 
 test('browsing scroll owns the entire floating dock only while the side rail is closed', () => {
@@ -284,7 +325,7 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   assert.equal(navigationHarness().render().dock.props.hidden, false, 'a new app session starts with the dock');
 });
 
-test('outside dismissal restores the dock and focus without a content-blocking overlay', () => {
+test('outside dismissal restores the dock without scheduling focus away from the underlying action', () => {
   const h = navigationHarness();
   let ui = h.render();
   assert.equal(h.outsideBinding.open, false);
@@ -298,12 +339,98 @@ test('outside dismissal restores the dock and focus without a content-blocking o
   ui.appearance.props.onClick();
   ui = h.render();
   assert.equal(ui.rail.props['data-hidden'], false);
+  const focusedBeforeDismissal = [...ui.focused];
+  assert.deepEqual(focusedBeforeDismissal, ['toggle'], 'Explicit opening still focuses the persistent toggle');
   h.outsideBinding.close();
+  assert.equal(h.pendingFrames, 0, 'Outside dismissal must not queue toggle focus after the clicked page control focuses');
   ui = h.render();
   assert.equal(ui.rail.props['data-hidden'], true);
   assert.equal(ui.dock.props.hidden, false);
   assert.equal(h.outsideBinding.open, false);
-  assert.equal(ui.focused.at(-1), 'toggle');
+  assert.deepEqual(ui.focused, focusedBeforeDismissal);
+  h.render();
+  assert.deepEqual(ui.focused, focusedBeforeDismissal, 'Later renders cannot restore focus left by outside dismissal');
+});
+
+test('pathname and query navigation close the rail without stealing focus from the new destination', () => {
+  const h = navigationHarness('/messages');
+  for (const [pathname, search] of [['/p/creator', ''], ['/messages', '?conversation=one'], ['/messages', '?conversation=two']]) {
+    h.render().toggle.props.onClick();
+    let ui = h.render();
+    assert.equal(ui.rail.props['data-hidden'], false);
+    const destination = h.target('destination');
+    h.document.activeElement = destination;
+    const focusBefore = [...h.focused];
+    h.navigate(pathname, search);
+    ui = h.render();
+    assert.equal(ui.rail.props['data-hidden'], true);
+    assert.equal(ui.dock.props.hidden, false);
+    assert.equal(h.outsideBinding.open, false);
+    assert.equal(h.document.activeElement, destination);
+    assert.deepEqual(h.focused, focusBefore);
+    assert.equal(h.pendingFrames, 0);
+  }
+  h.unmount();
+});
+
+test('ordinary sidebar control taps and unchanged routes keep navigation open', () => {
+  const h = navigationHarness('/p/creator');
+  let settingsOpened = 0;
+  const settings = React.createElement('button', { 'aria-label': 'Settings', onClick: () => settingsOpened++ });
+  h.render().toggle.props.onClick();
+  let ui = h.render({ settings });
+  const target = h.target('settings', { insideNavigation: true });
+  ui.rail.props.onPointerDownCapture(pointer(60, 10, 0, { target }));
+  ui.rail.props.onPointerUpCapture(pointer(60, 10, 90, { target }));
+  const tap = click(); ui.rail.props.onClickCapture(tap);
+  assert.equal(tap.prevented, false);
+  ui.railItems.find(item => item.props['aria-label'] === 'Settings').props.onClick();
+  ui.appearance.props.onClick();
+  h.navigate('/p/creator');
+  ui = h.render({ settings, theme: 'light' });
+  assert.equal(settingsOpened, 1);
+  assert.equal(ui.rail.props['data-hidden'], false);
+  assert.equal(h.outsideBinding.open, true);
+  assert.deepEqual(ui.railItems.filter(item => item.props.item?.disabled).map(item => item.props.item.label), ['Studio', 'Videos', 'Search']);
+  for (const item of ui.railItems.filter(item => item.props.item?.disabled)) assert.equal(h.destination(item).props.disabled, true);
+  h.unmount();
+});
+
+test('Escape closes the rail and returns focus only when navigation currently owns it', () => {
+  for (const insideNavigation of [false, true]) {
+    const h = navigationHarness();
+    h.render().toggle.props.onClick(); h.render();
+    const active = h.target(insideNavigation ? 'navigation item' : 'page input', { insideNavigation });
+    h.document.activeElement = active;
+    const before = h.focused.length;
+    const event = h.keydown();
+    assert.equal(event.defaultPrevented, true);
+    assert.equal(event.stopped, undefined, 'Escape is observed at document bubble phase without a propagation trap.');
+    assert.equal(h.pendingFrames, 0);
+    assert.equal(h.render().rail.props['data-hidden'], true);
+    assert.equal(h.focused.length, before + Number(insideNavigation));
+    assert.equal(h.document.activeElement.name, insideNavigation ? 'toggle' : 'page input');
+    assert.equal(h.listeners.has('keydown'), false);
+    assert.equal(h.keydown().defaultPrevented, false, 'A closed rail does not claim Escape.');
+    h.unmount();
+  }
+});
+
+test('Escape respects handled keys and external dialogs or menus, and removes its listener on unmount', () => {
+  const h = navigationHarness();
+  h.render().toggle.props.onClick(); h.render();
+  assert.equal(h.listeners.get('keydown').length, 1);
+  for (const { options } of h.listeners.get('keydown')) assert.notEqual(typeof options === 'object' ? options?.capture : options, true);
+  for (const override of [{ key: 'Tab' }, { defaultPrevented: true },
+    ...['menu', 'dialog', 'alertdialog'].map(role => ({ target: h.target(role, { role }) }))]) {
+    const before = h.focused.length;
+    const event = h.keydown(override);
+    assert.equal(event.defaultPrevented, override.defaultPrevented ?? false);
+    assert.equal(h.render().rail.props['data-hidden'], false);
+    assert.equal(h.focused.length, before);
+  }
+  h.unmount();
+  assert.equal(h.listeners.has('keydown'), false);
 });
 
 test('Portals is absent from both mobile navigation forms even on the portals route', () => {
@@ -333,6 +460,7 @@ test('rail and dock swipes alternate navigation without activating destinations 
     assert.equal(event.prevented, true);
     assert.equal(event.stopped, true);
   }
+  assert.deepEqual(ui.focused, ['toggle', 'toggle'], 'Deliberate sidebar swipes retain the existing focus return');
 });
 
 test('Profile shares the destination capsule and preserves signed-in links and signed-out entry', () => {

@@ -21,7 +21,6 @@ import { AiMarkIcon } from './AiMarkIcon';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import { CategoryOptionsMenu } from './profile/CategoryOptionsMenu';
-import { resolveAccentTokens } from '../utils/accentTokens';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
 import { CreatorAvatar } from './profile/CreatorAvatar';
@@ -193,8 +192,6 @@ function PersonalFooterLinks({ collapsed, activityActive, insightsActive }: {col
 
 function AccountMenuTrigger({
   collapsed,
-  accentColor,
-  theme,
   isAuthenticated,
   isAuthActionPending,
   accountName,
@@ -303,13 +300,13 @@ function AccountMenuTrigger({
       <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
         <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
       </button>
+      {/* Escape the sidebar's clipping while inheriting the live shell tokens. */}
       {isOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" role="menu" aria-label="Account and settings" style={{
-        ...resolveAccentTokens(accentColor, theme),
         position: 'fixed',
         top: position.top,
         left: position.left,
         zIndex: 10000
-      }} className={`account-menu-popover theme-${theme} accent-theme w-[min(326px,calc(100vw-16px))] overflow-hidden rounded-[22px] p-3 text-[var(--text-primary)]`}>
+      }} className="account-menu-popover w-[min(326px,calc(100vw-16px))] overflow-hidden rounded-[22px] p-3 text-[var(--text-primary)]">
           {isAuthenticated && profileHref ? <Link to={profileHref} role="menuitem" onClick={closeMenu} className="account-menu-identity flex h-10 w-full items-center gap-2.5 rounded-[12px] px-1.5 text-left font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <CreatorAvatar name={shownName} avatar={accountAvatar} shape="compact" className="h-7 w-7 shrink-0 text-[10px]" />
               <span className="min-w-0 flex-1 truncate text-[15px]">{shownName}</span>
@@ -337,7 +334,7 @@ function AccountMenuTrigger({
             <span className="min-w-0 flex-1">{isAuthenticated ? isSigningOut || isAuthActionPending ? 'Logging out…' : 'Log out' : 'Log in'}</span>
           </button>
           <span className="sr-only" aria-live="polite">{inviteStatus === 'copied' ? 'Invite link copied.' : ''}</span>
-        </div>, document.body)}
+        </div>, document.querySelector('.app-shell') ?? document.body)}
     </>;
 }
 function CategoryRowContent({

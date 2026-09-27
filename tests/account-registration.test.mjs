@@ -142,28 +142,258 @@ function hookRuntime() {
     useCallback(fn, deps) { return react.useMemo(() => fn, deps); },
     useEffect(fn, deps) { const index = cursor++; if (!equal(slots[index]?.deps, deps)) effects.push(() => { slots[index]?.cleanup?.(); slots[index] = {deps, cleanup: fn()}; }); },
   };
-  return {react, render(fn) {cursor = 0; const result = fn(); effects.splice(0).forEach(effect => effect()); return result;}};
+  return {react, render(fn) {cursor = 0; const result = fn(); effects.splice(0).forEach(effect => effect()); return result;},
+    unmount() { for (const slot of slots) slot?.cleanup?.(); }};
 }
 
-test('signup saves the image before requesting an account and handles verified/pending sessions truthfully', async () => {
-  for (const mode of ['pending', 'verified', 'storage-failure']) {
+const formNodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(formNodes)];
+const signupField = (tree, key) => formNodes(tree).find(node => node.props?.id === `auth-signup-${key}`);
+
+function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount } = {}) {
+  const hooks = hookRuntime(), reads = [], selectedAvatars = [], appearanceChanges = [];
+  let step = 'appearance';
+  const avatar = { avatar: null, error: null,
+    select(file, details = {}) { avatar.avatar = { file, ...details }; selectedAvatars.push(avatar.avatar); },
+    clear() { avatar.avatar = null; },
+  };
+  const authContext = { rememberedEmail, rememberEmail(value) { authContext.rememberedEmail = value; },
+    peekPendingIntent: () => null, refreshSession: async () => true };
+  const draftApi = { ...registration,
+    async readRegistrationDraft(email) {
+      reads.push(email);
+      if (readDraft) return readDraft(email);
+      return !email || store.saved?.email === email ? store.saved : null;
+    },
+    async saveRegistrationDraft(profile, email, picture) {
+      store.saved = { registration: { ...profile }, email, avatar: picture, requiresEmailVerification: false };
+    },
+    async markRegistrationVerification(key) {
+      assert.equal(key, store.saved.registration.id);
+      store.saved.requiresEmailVerification = true;
+    },
+  };
+  const asyncAction = load('src/hooks/useAsyncAction.ts', { react: hooks.react });
+  const authFlows = load('src/features/auth/useAuthFlows.ts', {
+    react: hooks.react, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,
+    '../../contexts/AuthContext': { useAuth: () => authContext }, './registration': draftApi,
+    '../../contexts/ServicesContext': { useServices: () => ({ auth: { async signUp(input) {
+      submitted.push(input);
+      if (requestAccount) return requestAccount(input);
+      return { email: input.email, requiresEmailVerification: true, session: null };
+    } } }) },
+  });
+  const { SignUpForm } = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
+    react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
+    '../../contexts/AuthContext': { useAuth: () => authContext },
+    '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {},
+    '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' }, '../../components/profile/ProfileField': { ProfileField: 'ProfileField' },
+    '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
+    '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation }, './registration': draftApi,
+    '../profile/useProfileOnboarding': { useAvatarSelection: () => avatar }, '../profile/validation': validation,
+    '../../components/auth/MobileOnboarding': { MobileOnboardingAppearance: 'Appearance', MobileOnboardingAction: 'Action' },
+    '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': authFlows, './validation': load('src/features/auth/validation.ts'),
+  });
+  const props = { accentColor: '#0A84FF', systemGray: 'gray6', firstFieldRef: { current: null },
+    onStepChange(next) { step = next; }, onBusyChange() {}, onDirtyChange() {}, onViewChange() {},
+    onAccentColorChange(value) { props.accentColor = value; appearanceChanges.push(['accent', value]); },
+    onSystemGrayChange(value) { props.systemGray = value; appearanceChanges.push(['gray', value]); },
+  };
+  return { props, avatar, reads, selectedAvatars, appearanceChanges, get step() { return step; },
+    render() { return hooks.render(() => SignUpForm({ ...props, step })); },
+    showStep(next) { step = next; }, unmount: hooks.unmount,
+  };
+}
+
+test('fresh signup remount restores pending details and picture without repeating the accepted account request', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const store = { saved: null }, submitted = [];
+    const image = new File(['restorable-image'], 'profile.webp', { type: 'image/webp' });
+    const original = new File(['original-image'], 'original.png', { type: 'image/png' });
+    const crop = { x: 0, y: 0, width: 100, height: 100, zoom: 2 };
+    const first = signupRestoreHarness({ store, submitted, presentation });
+    first.render(); await tick();
+    first.showStep('profile');
+    let tree = first.render();
+    signupField(tree, 'name').props.onChange('Saved Creator');
+    signupField(tree, 'location').props.onChange('San Francisco, US');
+    first.avatar.select(image, { originalSource: original, crop });
+    if (presentation === 'mobile') formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.onChange(true);
+    first.showStep('account'); tree = first.render();
+    for (const [key, value] of [['email', 'saved@example.test'], ['password', 'do-not-store-password'], ['confirmation', 'do-not-store-password']]) {
+      signupField(tree, key).props.onChange(value);
+    }
+    tree = first.render(); await tree.props.onSubmit({ preventDefault() {} });
+    first.render();
+    assert.equal(submitted.length, 1);
+    const savedId = store.saved.registration.id;
+    assert.equal(store.saved.requiresEmailVerification, true);
+    assert.equal(JSON.stringify(store.saved).includes('do-not-store-password'), false);
+    first.unmount();
+
+    const restored = signupRestoreHarness({ store, submitted, presentation });
+    assert.equal(restored.render().props.role, 'status');
+    await tick(); restored.render(); tree = restored.render();
+    assert.equal(restored.step, 'verification');
+    assert.equal(formNodes(tree).find(node => node.props?.title === 'Check your email').props.description.includes('saved@example.test'), true);
+    assert.equal(formNodes(tree).some(node => node.type === 'form' || node.type === 'AuthField'), false,
+      'Accepted signup resumes its verification notice, not another account form');
+    assert.equal(restored.avatar.avatar.file, image);
+    assert.equal(restored.avatar.avatar.originalSource, original);
+    assert.equal(restored.avatar.avatar.crop, crop);
+    assert.deepEqual(restored.appearanceChanges, [['accent', '#0A84FF'], ['gray', 'gray6']]);
+    restored.render(); await tick(); restored.render();
+    assert.equal(submitted.length, 1, 'Restoring and rerendering cannot request another account');
+    assert.equal(store.saved.registration.id, savedId);
+    assert.deepEqual(restored.reads, [undefined], 'Restoration reads once per mount, not on each render');
+    restored.unmount();
+  }
+});
+
+test('an unsubmitted saved draft restores all editable fields and reuses its id only after new passwords are entered', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const image = new File(['saved-avatar'], 'saved.webp', { type: 'image/webp' });
+    const savedRegistration = { ...draft, name: 'Restored Creator', location: 'London, GB', isPrivate: true,
+      accentColor: '#FF375F', systemGray: 'gray4', hasAvatar: true, returnPath: '/share/creator/c/portal/project' };
+    const store = { saved: { registration: savedRegistration, email: 'saved@example.test', avatar: { file: image }, requiresEmailVerification: false } };
+    const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, rememberedEmail: 'saved@example.test' });
+    h.render(); await tick(); let tree = h.render();
+    assert.equal(h.step, 'account');
+    assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
+    assert.equal(signupField(tree, 'password').props.value, '');
+    assert.equal(signupField(tree, 'confirmation').props.value, '');
+    await tree.props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted.length, 0, 'Restored profile data is not authorization to submit an account');
+    h.showStep('profile'); tree = h.render();
+    assert.equal(signupField(tree, 'name').props.value, savedRegistration.name);
+    assert.equal(signupField(tree, 'location').props.value, savedRegistration.location);
+    assert.equal(formNodes(tree).find(node => node.type === 'AvatarPicker').props.pending.file, image);
+    if (presentation === 'mobile') assert.equal(formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.isPrivate, true);
+    h.showStep('account'); tree = h.render();
+    signupField(tree, 'password').props.onChange('new-password');
+    signupField(tree, 'confirmation').props.onChange('new-password');
+    tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted.length, 1);
+    assert.equal(submitted[0].registration.id, id);
+    assert.equal(submitted[0].registration.isPrivate, true);
+    assert.equal(submitted[0].registration.accentColor, savedRegistration.accentColor);
+    assert.equal(submitted[0].registration.systemGray, savedRegistration.systemGray);
+    assert.equal(submitted[0].registration.returnPath, savedRegistration.returnPath);
+    assert.equal(store.saved.avatar.file, image);
+    assert.equal(JSON.stringify(store.saved).includes('new-password'), false);
+    assert.deepEqual(h.reads, ['saved@example.test']);
+    h.unmount();
+  }
+});
+
+test('failed draft restoration exposes retry and does not open a blank form or submit an account', async () => {
+  const submitted = [], store = { saved: null }; let fail = true;
+  const h = signupRestoreHarness({ store, submitted, readDraft: async () => {
+    if (fail) throw new Error('storage unavailable');
+    return null;
+  } });
+  h.render(); await tick(); let tree = h.render();
+  assert.equal(tree.props.message, 'Your saved signup could not be restored. Please try again.');
+  assert.equal(formNodes(tree).some(node => node.type === 'form' || node.type === 'AuthField'), false);
+  assert.deepEqual(submitted, []);
+  fail = false; tree.props.onRetry(); h.render(); await tick(); tree = h.render();
+  assert.equal(tree.type, 'form');
+  assert.equal(h.step, 'appearance');
+  assert.equal(h.reads.length, 2);
+  h.unmount();
+});
+
+test('changing the normalized signup email after an uncertain failure starts a separate registration draft', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const firstImage = new File(['first-image'], 'first.webp', { type: 'image/webp' });
+    const secondImage = new File(['second-image'], 'second.webp', { type: 'image/webp' });
+    const store = { saved: { registration: { ...draft, hasAvatar: true }, email: 'first@example.test', avatar: { file: firstImage }, requiresEmailVerification: false } };
+    const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, requestAccount: async () => {
+      throw new Error('Response lost after the provider may have accepted signup');
+    } });
+    h.render(); await tick(); let tree = h.render();
+    signupField(tree, 'password').props.onChange('test-password');
+    signupField(tree, 'confirmation').props.onChange('test-password');
+    tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    const firstSaved = store.saved;
+    assert.equal(submitted.length, 1);
+    assert.equal(submitted[0].registration.id, id);
+    tree = h.render();
+    signupField(tree, 'email').props.onChange(' FIRST@EXAMPLE.TEST ');
+    tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted[1].registration.id, id, 'Whitespace and letter case retain the same account attempt');
+    tree = h.render();
+    signupField(tree, 'email').props.onChange('second@example.test');
+    h.showStep('profile'); tree = h.render();
+    formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(secondImage);
+    h.showStep('account'); tree = h.render();
+    await tree.props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted.length, 3);
+    assert.notEqual(submitted[2].registration.id, id, 'A different account email must not reuse the uncertain attempt’s photo key');
+    assert.equal(store.saved.registration.id, submitted[2].registration.id);
+    assert.equal(store.saved.email, 'second@example.test');
+    assert.equal(store.saved.avatar.file, secondImage);
+    assert.equal(firstSaved.registration.id, id);
+    assert.equal(firstSaved.avatar.file, firstImage);
+    h.unmount();
+  }
+});
+
+test('a pre-verification draft with a missing promised picture stays blocked until restoration succeeds', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const store = { saved: { registration: { ...draft, hasAvatar: true }, email: 'saved@example.test', avatar: null, requiresEmailVerification: false } };
+    const submitted = [], h = signupRestoreHarness({ store, submitted, presentation });
+    h.render(); await tick(); let tree = h.render();
+    assert.match(tree.props.message, /saved profile picture could not be restored/);
+    assert.equal(typeof tree.props.onRetry, 'function');
+    assert.equal(formNodes(tree).some(node => node.type === 'form' || node.type === 'AuthField'), false);
+    assert.deepEqual(submitted, []);
+    assert.equal(store.saved.registration.hasAvatar, true, 'Restoration failure must not silently erase the photo promise');
+    const image = new File(['available-again'], 'saved.webp', { type: 'image/webp' });
+    store.saved.avatar = { file: image };
+    tree.props.onRetry(); h.render(); await tick(); tree = h.render();
+    assert.equal(tree.type, 'form');
+    assert.equal(h.step, 'account');
+    assert.equal(h.avatar.avatar.file, image);
+    assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
+    assert.equal(signupField(tree, 'password').props.value, '');
+    assert.deepEqual(submitted, [], 'Recovering the photo does not itself request an account');
+    h.unmount();
+  }
+});
+
+test('signup saves the complete draft before requesting an account and handles verified/pending sessions truthfully', async () => {
+  for (const mode of ['pending', 'verified', 'storage-failure', 'marker-failure']) {
     const hooks = hookRuntime(), calls = [];
     const asyncAction = load('src/hooks/useAsyncAction.ts', {react: hooks.react});
     const {useSignUp} = load('src/features/auth/useAuthFlows.ts', {
       react: hooks.react, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,
       '../../contexts/ServicesContext': {useServices: () => ({auth: {async signUp(input) {
         calls.push('signup'); assert.equal(input.registration.name, draft.name);
-        return {email: input.email, requiresEmailVerification: mode === 'pending', session: mode === 'verified' ? session() : null};
+        return {email: input.email, requiresEmailVerification: mode !== 'verified', session: mode === 'verified' ? session() : null};
       }}})},
       '../../contexts/AuthContext': {useAuth: () => ({async refreshSession() {calls.push('refresh'); return false;}})},
-      './registration': {async saveRegistrationAvatar(key) {assert.equal(key, id); calls.push('save-image'); if (mode === 'storage-failure') throw new Error('full');}},
+      './registration': {
+        async saveRegistrationDraft(profile, email, avatar) {
+          assert.equal(profile, draft); assert.equal(email, 'example@example.test'); assert.equal(avatar, null);
+          assert.equal(arguments.length, 3, 'Passwords must not be passed to draft persistence');
+          calls.push('save-draft'); if (mode === 'storage-failure') throw new Error('full');
+        },
+        async markRegistrationVerification(key) {
+          assert.equal(key, id); calls.push('mark-verification');
+          if (mode === 'marker-failure') throw new Error('status cache unavailable');
+        },
+      },
     });
     let action = hooks.render(useSignUp);
     await action.submit('example@example.test', 'synthetic-test-password', draft, null);
     action = hooks.render(useSignUp);
-    assert.deepEqual(calls, mode === 'storage-failure' ? ['save-image'] : mode === 'verified' ? ['save-image', 'signup', 'refresh'] : ['save-image', 'signup']);
+    assert.deepEqual(calls, mode === 'storage-failure' ? ['save-draft'] : mode === 'verified' ? ['save-draft', 'signup', 'refresh'] : ['save-draft', 'signup', 'mark-verification']);
     assert.equal(action.status, mode === 'storage-failure' ? 'error' : 'success');
-    if (mode !== 'storage-failure') assert.equal(action.result.requiresEmailVerification, mode === 'pending');
+    if (mode !== 'storage-failure') {
+      assert.equal(action.result.requiresEmailVerification, mode !== 'verified');
+      assert.equal(action.error, null, 'A failed verification marker must not turn accepted signup into a retry');
+    }
   }
 });
 
@@ -194,21 +424,27 @@ test('one registration form validates account and profile fields before the sing
   for (const presentation of ['web', 'mobile']) {
   const hooks = hookRuntime(); const submitted = [];
   const mock = {isLoading: false, result: null, error: null, submit: async (...args) => submitted.push(args)};
+  const selectAvatar = () => {};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}, peekPendingIntent: () => ({kind:'route',path:'/share/original/c/portal?page=2&access_token=do-not-persist'})})},
     '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
     '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
+    '../../components/profile/ProfileLocationPicker': {ProfileLocationPicker: 'ProfileLocationPicker'},
     '../../presentation/usePresentation': {usePresentation: () => presentation},
-    './registration': registration,
-    '../profile/useProfileOnboarding': {useAvatarSelection: () => ({avatar: null, error: null})}, '../profile/validation': validation,
+    './registration': {...registration, readRegistrationDraft: async () => null},
+    '../profile/useProfileOnboarding': {useAvatarSelection: () => ({avatar: null, error: null, select: selectAvatar})}, '../profile/validation': validation,
     '../../components/auth/MobileOnboarding': {MobileOnboardingAppearance:'Appearance', MobileOnboardingAction:'Action'},
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': {useSignUp: () => mock}, './validation': load('src/features/auth/validation.ts'),
   });
   let step = 'appearance';
-  const render = () => hooks.render(() => SignUpForm({step, onStepChange: next => {step = next;}, registrationReturnPath: '/share/creator/c/portal/project?page=2&access_token=do-not-persist', accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
+  const onStepChange = next => {step = next;};
+  const render = () => hooks.render(() => SignUpForm({step, onStepChange, registrationReturnPath: '/share/creator/c/portal/project?page=2&access_token=do-not-persist', accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   let tree = render();
+  assert.equal(tree.props.role, 'status');
+  assert.equal(tree.props.onSubmit, undefined, 'Draft restoration completes before an editable signup appears');
+  await tick(); tree = render();
   if (presentation === 'mobile') {
     assert.equal(nodes(tree).some(node => node.props?.id === 'auth-signup-email'), false);
     await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'profile');
@@ -235,12 +471,31 @@ test('one registration form validates account and profile fields before the sing
     assert.equal(step, 'account');
   }
   tree = render();
+  const field = key => nodes(tree).find(node => node.props?.id === `auth-signup-${key}`);
+  assert.equal(field('password').props.revealPassword, true);
+  assert.equal(field('confirmation').props.revealPassword, true);
+  assert.equal(field('confirmation').props.liveError, true);
+  assert.equal(field('email').props.revealPassword, undefined);
+  assert.equal(field('password').props.liveError, undefined);
+  assert.notEqual(field('confirmation').props.error, 'Passwords don’t match');
   for (const [key, value] of [['email', 'example@example.test'], ['password', 'test-password'], ['confirmation', 'different']]) {
     nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
   }
-  tree = render(); await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
+  tree = render();
+  assert.equal(field('confirmation').props.error, 'Passwords don’t match', 'Mismatch appears before any submit or blur');
+  await tree.props.onSubmit({preventDefault() {}}); assert.equal(submitted.length, 0);
   if (presentation === 'mobile') assert.equal(step, 'account', 'Mismatched passwords cannot advance.');
-  nodes(tree).find(node => node.props?.id === 'auth-signup-confirmation').props.onChange('test-password');
+  field('password').props.onChange('different'); tree = render();
+  assert.equal(field('confirmation').props.error, null, 'Correcting Password clears the previous submitted mismatch');
+  field('password').props.onChange('test-password'); tree = render();
+  assert.equal(field('confirmation').props.error, 'Passwords don’t match', 'Editing Password also recomputes mismatch');
+  field('confirmation').props.onChange(''); tree = render();
+  assert.equal(field('confirmation').props.error, null, 'Empty confirmation does not show a live mismatch');
+  await tree.props.onSubmit({preventDefault() {}}); tree = render();
+  assert.equal(submitted.length, 0, 'Empty confirmation still blocks submission');
+  assert.equal(field('confirmation').props.error, 'Re-enter your password.');
+  field('confirmation').props.onChange('test-password'); tree = render();
+  assert.equal(field('confirmation').props.error, null, 'Correcting Confirm password clears its error immediately');
   if (presentation === 'mobile') {
     step = 'profile'; tree = render();
     nodes(tree).find(node => node.props?.id === 'auth-signup-name').props.onChange('');
@@ -274,18 +529,19 @@ test('email confirmation completes the saved profile once; a missing image asks 
   for (const mode of ['image', 'missing', 'no-image', 'mobile-welcome']) {
     const hooks = hookRuntime(), submissions = [], completed = [], cleaned = [];
     const image = new File(['synthetic-image'], 'photo.webp', {type: 'image/webp'});
-    const select = () => {};
-    const create = {status: 'idle', isLoading: false, createdProfile: null, async run(input) {submissions.push(input);}};
+    const avatar = { avatar: null, error: null, select(file, details) { avatar.avatar = { file, ...details }; }, clear() { avatar.avatar = null; } };
+    const create = {status: 'idle', isLoading: false, createdProfile: null, avatarPersisted: mode === 'image', async run(input) {submissions.push(input);}};
     const {ProfileOnboardingDialog} = load('src/features/profile/ProfileOnboardingDialog.tsx', {
-      react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, hasAvatar: mode === 'image' || mode === 'missing'}}})},
+      react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({user: {id: 'a', registration: {...draft, isPrivate: true, systemGray: 'gray4', hasAvatar: mode === 'image' || mode === 'missing'}}})},
       '../../components/auth/AccountWelcomeSurface': {AccountWelcomeSurface: 'Surface'},
       '../../components/auth/MobileOnboarding': {MobileOnboardingWelcome:'Welcome', MobileOnboardingAction:'Action'},
-      '../auth/registration': {readRegistrationAvatar: async () => mode === 'image' ? {file: image, originalSource: image, crop: {zoom: 2}} : null, removeRegistrationAvatar: async key => cleaned.push(key)},
+      '../auth/registration': {readRegistrationAvatar: async () => mode === 'image' ? {file: image, originalSource: image, crop: {zoom: 2}} : null, removeRegistrationDraft: async key => cleaned.push(key)},
       '../../utils/publicAppearance': {DEFAULT_PUBLIC_APPEARANCE: {accentColor: '#0A84FF', mode: 'auto', systemGray: 'gray6'}},
       '../../components/profile/ProfileField': {ProfileField: 'ProfileField'}, '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/ui/Button': {Button: 'Button'},
       '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
+      '../../components/profile/ProfileLocationPicker': {ProfileLocationPicker: 'ProfileLocationPicker'},
       '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' || mode === 'mobile-welcome' ? 'mobile' : 'web'},
-      './useProfileOnboarding': {useAvatarSelection: () => ({select, avatar: null, error: null}), useCreateProfile: () => create}, './validation': validation,
+      './useProfileOnboarding': {useAvatarSelection: () => avatar, useCreateProfile: () => create}, './validation': validation,
     });
     const props = {isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete: id => completed.push(id)};
     const render = () => hooks.render(() => ProfileOnboardingDialog(props));
@@ -295,6 +551,7 @@ test('email confirmation completes the saved profile once; a missing image asks 
       assert.equal(submissions[0].name, draft.name);
       assert.equal(submissions[0].creationKey, id);
       assert.equal(submissions[0].isPrivate, true, 'Email confirmation retains the mobile selection even on desktop.');
+      assert.equal(submissions[0].publicAppearance.systemGray, 'gray4');
       if (mode === 'image') { assert.equal(submissions[0].avatar.file, image); assert.equal(submissions[0].avatar.crop.zoom, 2); }
       create.status = 'success'; create.createdProfile = {id: 'created'};
       render(); await tick(); render();
@@ -309,13 +566,173 @@ test('email confirmation completes the saved profile once; a missing image asks 
     } else {
       const tree = render();
       assert.equal(tree.props.busy, false);
-      assert.equal(JSON.stringify(tree).includes('Choose your profile image again'), true);
+      assert.equal(JSON.stringify(tree).includes('Your saved profile picture could not be restored yet'), true);
       assert.equal(JSON.stringify(tree).includes(draft.name), true);
       const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
       const visibility = nodes(tree).find(node => node.type === 'ProfileVisibilityField');
       assert.equal(visibility.props.isPrivate, true);
       await nodes(tree).find(node => node.type === 'form').props.onSubmit({preventDefault() {}});
-      assert.equal(submissions[0].isPrivate, true, 'Retrying without the saved image preserves privacy.');
+      assert.equal(submissions.length, 0, 'A missing promised image cannot silently produce an empty-avatar profile');
+      nodes(tree).find(node => node.type === 'AvatarPicker').props.onClear();
+      await nodes(render()).find(node => node.type === 'form').props.onSubmit({preventDefault() {}});
+      assert.equal(submissions[0].isPrivate, true, 'Explicitly removing the saved image preserves privacy.');
+      assert.equal(submissions[0].publicAppearance.systemGray, 'gray4');
+      assert.equal(submissions[0].publicAppearance.accentColor, draft.accentColor);
+      assert.equal(submissions[0].avatar, undefined);
     }
   }
+});
+
+function profileResumeHarness({ initialRegistration, readAvatar = async () => null } = {}) {
+  const hooks = hookRuntime(), submissions = [], reads = [], cleaned = [], completed = [];
+  let currentRegistration = initialRegistration;
+  const avatar = { avatar: null, error: null,
+    select(file, details = {}) { avatar.avatar = { file, ...details }; avatar.error = null; }, clear() { avatar.avatar = null; avatar.error = null; },
+  };
+  const create = { status: 'idle', isLoading: false, createdProfile: null, avatarPersisted: false,
+    async run(input) { submissions.push(input); },
+  };
+  const { ProfileOnboardingDialog } = load('src/features/profile/ProfileOnboardingDialog.tsx', {
+    react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
+    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a', registration: currentRegistration } }) },
+    '../../components/auth/AccountWelcomeSurface': { AccountWelcomeSurface: 'Surface' },
+    '../../components/auth/MobileOnboarding': { MobileOnboardingWelcome: 'Welcome', MobileOnboardingAction: 'Action' },
+    '../auth/registration': {
+      async readRegistrationAvatar(key) { reads.push(key); return readAvatar(key); },
+      async removeRegistrationDraft(key) { cleaned.push(key); },
+    },
+    '../../utils/publicAppearance': { DEFAULT_PUBLIC_APPEARANCE: { accentColor: '#0A84FF', mode: 'auto', systemGray: 'gray6' } },
+    '../../components/profile/ProfileField': { ProfileField: 'ProfileField' }, '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' },
+    '../../components/ui/Button': { Button: 'Button' }, '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
+    '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
+    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
+    './useProfileOnboarding': { useAvatarSelection: () => avatar, useCreateProfile: () => create }, './validation': validation,
+  });
+  const props = { isOpen: true, accentColor: '#FFFFFF', onAccentColorChange() {}, onDismiss() {}, onComplete: key => completed.push(key) };
+  const render = () => hooks.render(() => ProfileOnboardingDialog(props));
+  return { render, create, avatar, submissions, reads, cleaned, completed,
+    setRegistration(value) { currentRegistration = value; },
+    async settle() { render(); await tick(); render(); await tick(); return render(); },
+    unmount: hooks.unmount,
+  };
+}
+
+test('late registration metadata hydrates untouched fields once and never overwrites edits or auto-submits them', async () => {
+  const savedImage = new File(['saved-image'], 'saved.webp', { type: 'image/webp' });
+  const editedImage = new File(['new-image'], 'new.webp', { type: 'image/webp' });
+  const incoming = { ...draft, name: 'Saved name', location: 'Saved city', isPrivate: true,
+    accentColor: '#FF375F', systemGray: 'gray4', hasAvatar: true };
+  for (const edited of [null, 'name', 'location', 'isPrivate', 'avatar']) {
+    const h = profileResumeHarness({ readAvatar: async () => ({ file: savedImage }) });
+    let tree = h.render();
+    if (edited === 'name' || edited === 'location') {
+      formNodes(tree).find(node => node.props?.id === `onboarding-${edited}`).props.onChange(`Edited ${edited}`);
+    } else if (edited === 'isPrivate') {
+      formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.onChange(false);
+    } else if (edited === 'avatar') {
+      formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(editedImage);
+    }
+    h.setRegistration(incoming); tree = await h.settle();
+    assert.equal(h.submissions.length, edited ? 0 : 1, 'Late metadata must not authorize submission of an edited form');
+    assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-name').props.value, edited === 'name' ? 'Edited name' : incoming.name);
+    assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-location').props.value, edited === 'location' ? 'Edited location' : incoming.location);
+    assert.equal(formNodes(tree).find(node => node.type === 'ProfileVisibilityField').props.isPrivate, edited !== 'isPrivate');
+    assert.equal(h.avatar.avatar.file, edited === 'avatar' ? editedImage : savedImage);
+    assert.deepEqual(h.reads, edited === 'avatar' ? [] : [id], 'A locally selected picture must not be replaced from storage');
+    if (edited) await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    assert.equal(h.submissions.length, 1);
+    assert.equal(h.submissions[0].creationKey, id);
+    assert.equal(h.submissions[0].publicAppearance.accentColor, incoming.accentColor);
+    assert.equal(h.submissions[0].publicAppearance.systemGray, incoming.systemGray);
+    assert.equal(h.submissions[0].avatar.file, edited === 'avatar' ? editedImage : savedImage);
+    h.setRegistration({ ...incoming, name: 'Later metadata must not replace the form' });
+    tree = await h.settle();
+    assert.equal(formNodes(tree).find(node => node.props?.id === 'onboarding-name').props.value, edited === 'name' ? 'Edited name' : incoming.name);
+    assert.equal(h.submissions.length, 1, 'Repeated metadata updates do not create another profile');
+    h.unmount();
+  }
+});
+
+test('a missing saved picture can be restored or explicitly replaced without losing the pending profile', async () => {
+  const image = new File(['restored-image'], 'restored.webp', { type: 'image/webp' });
+  const incoming = { ...draft, name: 'Saved creator', isPrivate: true, hasAvatar: true, systemGray: 'gray4' };
+  for (const recovery of ['restore', 'replace']) {
+    let storedImage = null;
+    const h = profileResumeHarness({ initialRegistration: incoming, readAvatar: async () => storedImage });
+    let tree = await h.settle();
+    assert.equal(tree.props.busy, false);
+    assert.equal(h.submissions.length, 0);
+    await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    assert.equal(h.submissions.length, 0);
+    assert.deepEqual(h.cleaned, [], 'A missing picture never deletes the recoverable registration');
+    if (recovery === 'restore') {
+      storedImage = { file: image };
+      formNodes(tree).find(node => node.type === 'button' && node.props.children === 'Restore saved picture').props.onClick();
+      tree = await h.settle();
+      assert.equal(h.reads.length, 2);
+    } else {
+      formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(image);
+      tree = await h.settle();
+      assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false,
+        'A valid replacement clears the missing-photo notice and its stale retry action');
+      await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+    }
+    assert.equal(h.submissions.length, 1);
+    assert.equal(h.submissions[0].creationKey, id);
+    assert.equal(h.submissions[0].avatar.file, image);
+    assert.equal(h.submissions[0].name, incoming.name);
+    assert.equal(h.submissions[0].isPrivate, true);
+    assert.equal(h.submissions[0].publicAppearance.accentColor, incoming.accentColor);
+    assert.equal(h.submissions[0].publicAppearance.systemGray, incoming.systemGray);
+    h.create.status = 'success'; h.create.createdProfile = { id: 'created', avatar: '' };
+    await h.settle();
+    assert.deepEqual(h.cleaned, [], 'A successful profile without its promised upload must retain recovery data');
+    h.create.avatarPersisted = true;
+    await h.settle(); await h.settle();
+    assert.deepEqual(h.cleaned, [id], 'Confirmed picture persistence removes only this registration once');
+    h.unmount();
+  }
+});
+
+test('restoring the saved picture after an invalid replacement clears the error and cannot get stuck loading', async () => {
+  const image = new File(['restored-image'], 'restored.webp', { type: 'image/webp' });
+  let storedImage = null;
+  const h = profileResumeHarness({ initialRegistration: { ...draft, hasAvatar: true }, readAvatar: async () => storedImage });
+  let tree = await h.settle();
+  formNodes(tree).find(node => node.type === 'AvatarPicker').props.onSelect(new File(['invalid'], 'invalid.txt', { type: 'text/plain' }));
+  // Model the rejection delivered by useAvatarSelection without importing its image APIs.
+  h.avatar.avatar = null; h.avatar.error = 'Choose a PNG, JPEG, WebP, or GIF image.';
+  tree = h.render();
+  await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(h.submissions.length, 0);
+  storedImage = { file: image };
+  formNodes(tree).find(node => node.type === 'button' && node.props.children === 'Restore saved picture').props.onClick();
+  tree = await h.settle();
+  assert.equal(h.reads.length, 2, 'Retry must read the saved picture even though replacement marked the avatar as touched');
+  assert.equal(tree.props.busy, false);
+  assert.equal(h.avatar.error, null);
+  assert.equal(h.avatar.avatar.file, image);
+  assert.equal(h.submissions.length, 1);
+  assert.equal(h.submissions[0].avatar.file, image);
+  assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false);
+  await h.settle();
+  assert.equal(h.submissions.length, 1);
+  h.unmount();
+});
+
+test('explicitly removing a promised picture permits completion and cleans its draft only after success', async () => {
+  const h = profileResumeHarness({ initialRegistration: { ...draft, hasAvatar: true } });
+  let tree = await h.settle();
+  formNodes(tree).find(node => node.type === 'AvatarPicker').props.onClear();
+  tree = h.render();
+  assert.equal(formNodes(tree).some(node => node.type === 'button' && node.props.children === 'Restore saved picture'), false);
+  await formNodes(tree).find(node => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(h.submissions.length, 1);
+  assert.equal(h.submissions[0].avatar, undefined);
+  assert.equal(h.submissions[0].creationKey, id);
+  assert.deepEqual(h.cleaned, [], 'Explicit removal is not proof that profile creation succeeded');
+  h.create.status = 'success'; h.create.createdProfile = { id: 'created', avatar: '' };
+  await h.settle(); await h.settle();
+  assert.deepEqual(h.cleaned, [id], 'A completed deliberate no-picture profile must not resurrect its old promised photo');
+  h.unmount();
 });

@@ -60,7 +60,7 @@ html[data-appearance='light'] {
 }
 html[data-appearance='dark'] {
   color-scheme: dark;
-  background-color: #1e1e1e;
+  background-color: #000000;
 }
 body {
   background-color: inherit;
@@ -475,8 +475,8 @@ textarea {
   --label-quinary: rgba(255, 255, 255, 0.24);
   --label-seximal: rgba(255, 255, 255, 0.14);
   --separator: rgba(255, 255, 255, 0.18);
-  --surface-shell: #1e1e1e;
-  --surface-canvas: #1e1e1e;
+  --surface-shell: #000000;
+  --surface-canvas: #000000;
   --surface-raised: #262626;
   --surface-sunken: var(--fill-tertiary);
   --surface-placeholder: var(--fill-primary);
@@ -557,7 +557,7 @@ textarea {
 .theme-dark {
   --portalink-bg-primary: #000000;
   --star-rgb: 255, 255, 255;
-  --sky-bg: #171719;
+  --sky-bg: #000000;
   --sky-ink: #f5f5f7;
 }
 /* ── High Contrast ──────────────────────────────────────────────────────────
@@ -722,8 +722,8 @@ textarea {
    the resolved document appearance here so those surfaces never fall back to
    light tokens while the application is dark. */
 html[data-appearance='dark'] {
-  --background-primary: #1e1e1e;
-  --background-secondary: #1e1e1e;
+  --background-primary: #000000;
+  --background-secondary: #000000;
   --surface-default: #262626;
   --surface-raised: #262626;
   --surface-sunken: rgba(255, 255, 255, 0.05);
@@ -3863,9 +3863,9 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell {
   --codex-workspace-inset: 6px;
   --codex-workspace-border-width: 1px;
-  --codex-shell-bg: #f1f1ef;
-  --codex-sidebar-bg: #f1f1ef;
-  --codex-workspace-bg: #fafaf9;
+  --codex-shell-bg: #FFFFFF;
+  --codex-sidebar-bg: #FFFFFF;
+  --codex-workspace-bg: #FFFFFF;
   --codex-panel-bg: #f4f4f2;
   --codex-control-bg: rgba(31, 31, 29, 0.055);
   --codex-control-hover: rgba(31, 31, 29, 0.075);
@@ -3910,9 +3910,9 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .codex-shell.theme-dark {
-  --codex-shell-bg: #181818;
-  --codex-sidebar-bg: #212120;
-  --codex-workspace-bg: #181818;
+  --codex-shell-bg: #000000;
+  --codex-sidebar-bg: #000000;
+  --codex-workspace-bg: #000000;
   --codex-panel-bg: #202020;
   --codex-control-bg: rgba(255, 255, 255, 0.055);
   --codex-control-hover: rgba(255, 255, 255, 0.085);
@@ -5038,51 +5038,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   .account-menu-popover {
     animation: none;
   }
-}
-
-/* Profile sections share the dialog surface; link rows group by tone while
-   the actual fields retain their own input and validation boundaries. */
-.profile-editor-dialog {
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 88%), transparent);
-  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
-  box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.28),
-    0 6px 24px rgba(0, 0, 0, 0.16);
-  -webkit-backdrop-filter: blur(32px) saturate(130%);
-  backdrop-filter: blur(32px) saturate(130%);
-}
-
-.profile-editor-dialog [data-profile-editor-section] {
-  background: transparent;
-  box-shadow: none;
-}
-
-.profile-editor-dialog .profile-link-editor-row {
-  background: var(--surface-inset);
-  box-shadow: none;
-}
-
-.profile-editor-footer {
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
-  backdrop-filter: blur(20px) saturate(120%);
-}
-
-/* Save is a constructive action, so it uses the platform's system blue rather
-   than a danger-like red. The shared Button disabled state continues to make
-   it available only when the form contains a valid change. */
-#profile-editor-save {
-  border: 0 !important;
-  background: #0a84ff !important;
-  color: #ffffff !important;
-}
-
-#profile-editor-save:hover:not(:disabled) {
-  background: #409cff !important;
-}
-
-#profile-editor-save:active:not(:disabled) {
-  background: #0071e3 !important;
 }
 
 /* ── Premium project viewing ───────────────────────────────────────────────

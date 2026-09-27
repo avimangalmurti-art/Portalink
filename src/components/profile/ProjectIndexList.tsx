@@ -319,7 +319,7 @@ function ProjectRow({
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
-        <div className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
+        <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
           <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>

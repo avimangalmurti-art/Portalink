@@ -61,21 +61,42 @@ test('queued and failed conversion never blocks an available original; missing s
 
 const ErrorState = () => null, LoadingState = () => null;
 function harness(attachment = { ...original, kind: 'video' }, conversion, mobile = true) {
-  const slots = []; let cursor = 0, refreshes = 0;
-  let active = true;
+  const slots = []; let cursor = 0, refreshes = 0, changed = false;
+  let active = true, playError = null;
   const pending = [];
-  const calls = [];
-  const nativeVideo = { play() { calls.push('play'); return Promise.resolve(); }, pause() { calls.push('pause'); } };
+  const calls = [], playbackAttempts = [];
+  const attributes = new Map();
+  const nativeVideo = {
+    muted: true, defaultMuted: true, controls: false, paused: true, dataset: {},
+    play() {
+      calls.push('play'); playbackAttempts.push({ muted: this.muted, defaultMuted: this.defaultMuted });
+      if (playError) return Promise.reject(playError);
+      this.paused = false; return Promise.resolve();
+    },
+    pause() { calls.push('pause'); this.paused = true; },
+    closest() { return null; },
+    getAttribute(name) { return attributes.get(name) ?? null; },
+    setAttribute(name, value) {
+      attributes.set(name, String(value));
+      if (name === 'data-video-controls-requested') this.dataset.videoControlsRequested = String(value);
+    },
+    removeAttribute(name) { attributes.delete(name); },
+  };
+  let committedProps = {};
+  const effect = (callback, deps) => {
+    const index = cursor++, old = slots[index];
+    if (!old || deps.some((value, i) => !Object.is(value, old.deps[i]))) pending.push(() => {
+      old?.cleanup?.(); slots[index] = { deps, cleanup: callback() };
+    });
+  };
   const react = { ...React, useRef(initial) { const index = cursor++; return slots[index] ??= { current: initial }; },
-    useEffect(effect, deps) {
-      const index = cursor++, old = slots[index];
-      if (!old || deps.some((value, i) => !Object.is(value, old.deps[i]))) pending.push(() => {
-        old?.cleanup?.(); slots[index] = { deps, cleanup: effect() };
-      });
-    }, useState: initial => {
+    useEffect: effect, useLayoutEffect: effect, useState: initial => {
     const index = cursor++;
-    if (!(index in slots)) slots[index] = initial;
-    return [slots[index], value => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
+    if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial;
+    return [slots[index], value => {
+      const next = typeof value === 'function' ? value(slots[index]) : value;
+      changed ||= !Object.is(slots[index], next); slots[index] = next;
+    }];
   } };
   const { VideoAttachment } = compile('../src/components/media/VideoAttachment.tsx', name => {
     if (name === 'react') return react;
@@ -85,11 +106,31 @@ function harness(attachment = { ...original, kind: 'video' }, conversion, mobile
     if (name.endsWith('/usePresentation')) return { usePresentation: () => mobile ? 'mobile' : 'web' };
     return { Button: () => null };
   });
-  return { calls, setActive(value) { active = value; }, render() {
-    cursor = 0; const element = VideoAttachment({ attachment, conversion, active }); const tree = element.type(element.props);
-    const video = find(tree, 'video');
-    if (video) video.ref.current = nativeVideo;
-    while (pending.length) pending.shift()();
+  return { calls, playbackAttempts, nativeVideo, setActive(value) { active = value; },
+    rejectPlay(error) { playError = error; },
+    event(extra = {}) {
+      return { currentTarget: nativeVideo, target: nativeVideo, prevented: false, stopped: false,
+        preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra };
+    },
+    render() {
+    let tree, renders = 0;
+    do {
+      assert.ok(renders++ < 10, 'Effects must settle without a render loop');
+      changed = false; cursor = 0;
+      const element = VideoAttachment({ attachment, conversion, active }); tree = element.type(element.props);
+      const video = find(tree, 'video');
+      if (video) {
+        video.ref.current = nativeVideo;
+        for (const name of ['muted', 'controls']) {
+          if (!Object.is(committedProps[name], video.props[name])) nativeVideo[name] = Boolean(video.props[name]);
+        }
+        const requested = video.props['data-video-controls-requested'];
+        if (requested !== undefined) nativeVideo.setAttribute('data-video-controls-requested', requested);
+        else nativeVideo.removeAttribute('data-video-controls-requested');
+        committedProps = video.props;
+      }
+      while (pending.length) pending.shift()();
+    } while (changed);
     return tree;
   }, get refreshes() { return refreshes; } };
 }
@@ -100,18 +141,81 @@ function all(node) {
 const find = (tree, type) => all(tree).find(node => node.type === type);
 const error = code => ({ currentTarget: { error: { code } } });
 
-test('selected videos autoplay muted inline and retain native playback controls', () => {
+test('MOBILE videos first render unmuted inline without playback overlays', () => {
   const h = harness();
   const video = find(h.render(), 'video');
-  assert.equal(video.props.controls, true);
+  assert.equal(video.props.controls, false);
+  assert.equal(video.props['data-video-controls-requested'], false);
   assert.equal(video.props.playsInline, true);
   assert.equal(video.props.src, 'original.mov');
   assert.doesNotMatch(video.props.className, /opacity-0|hidden/);
   assert.equal(video.props.autoPlay, true);
-  assert.equal(video.props.muted, true);
+  assert.equal(video.props.muted, false);
   assert.equal(video.props.loop, true);
-  video.props.onPlay();
+  assert.equal(h.nativeVideo.muted, false);
+  assert.equal(h.nativeVideo.defaultMuted, false);
+  assert.deepEqual(h.playbackAttempts, [{ muted: false, defaultMuted: false }]);
+  video.props.onPlay(h.event());
   assert.equal(find(h.render(), LoadingState), undefined);
+});
+
+test('the first tap reveals native controls and requests playback within that gesture only', () => {
+  const h = harness();
+  let video = find(h.render(), 'video');
+  const before = h.calls.length;
+  video.props.onClick(h.event());
+  assert.equal(h.calls.length, before + 1, 'The user-activation handler must call play synchronously');
+  assert.equal(h.calls.at(-1), 'play');
+  video = find(h.render(), 'video');
+  assert.equal(video.props.controls, true);
+  assert.equal(video.props['data-video-controls-requested'], true);
+  assert.equal(video.props.disableRemotePlayback, undefined);
+  assert.doesNotMatch(video.props.controlsList ?? '', /noremoteplayback/);
+  h.nativeVideo.paused = true;
+  const revealedCalls = h.calls.length;
+  video.props.onClick(h.event()); h.render();
+  assert.equal(h.calls.length, revealedCalls, 'Native pause and seeking taps must not restart playback');
+  assert.equal(h.nativeVideo.paused, true);
+});
+
+test('Enter and Space reveal controls accessibly without taking over later native keyboard input', () => {
+  for (const key of ['Enter', ' ']) {
+    const h = harness(); let video = find(h.render(), 'video');
+    assert.equal(video.props.tabIndex, 0);
+    const before = h.calls.length;
+    const unrelated = h.event({ key: 'ArrowRight' }); video.props.onKeyDown(unrelated);
+    assert.equal(h.calls.length, before); assert.equal(unrelated.prevented, false);
+    const activation = h.event({ key }); video.props.onKeyDown(activation);
+    assert.equal(h.calls.length, before + 1, `${JSON.stringify(key)} must play synchronously`);
+    assert.equal(activation.prevented, true);
+    video = find(h.render(), 'video');
+    assert.equal(video.props.controls, true);
+    const nativeKey = h.event({ key }); video.props.onKeyDown(nativeKey); h.render();
+    assert.equal(h.calls.length, before + 1);
+    assert.equal(nativeKey.prevented, false, 'Revealed native controls retain keyboard behavior');
+  }
+});
+
+test('a blocked autoplay remains clean and playable and the first tap can retry with sound', async () => {
+  const h = harness({ ...original, metadata: { playbackVideo: { sourceUrl: 'converted.mp4' } } });
+  const rejection = new Error('Playback requires user activation'); rejection.name = 'NotAllowedError';
+  h.rejectPlay(rejection);
+  let tree = h.render(); await Promise.resolve(); tree = h.render();
+  let video = find(tree, 'video');
+  assert.equal(video.props.src, 'converted.mp4');
+  assert.equal(video.props.controls, false);
+  assert.equal(video.props['data-video-controls-requested'], false);
+  assert.equal(video.props.muted, false);
+  assert.equal(find(tree, ErrorState), undefined);
+  assert.equal(h.refreshes, 0);
+  h.rejectPlay(null);
+  const before = h.calls.length; video.props.onClick(h.event());
+  assert.equal(h.calls.length, before + 1);
+  await Promise.resolve(); tree = h.render(); video = find(tree, 'video');
+  assert.equal(video.props.src, 'converted.mp4');
+  assert.equal(video.props.controls, true);
+  assert.equal(find(tree, ErrorState), undefined);
+  assert.ok(h.playbackAttempts.every(attempt => !attempt.muted && !attempt.defaultMuted));
 });
 
 test('scrolling plays only the selected video and ordinary renders preserve manual pause', () => {
@@ -134,11 +238,36 @@ test('scrolling plays only the selected video and ordinary renders preserve manu
   assert.equal(h.calls.at(-1), 'play');
 });
 
+test('moving away clears controls and returning resets sound without persisting manual mute', () => {
+  const h = harness();
+  let video = find(h.render(), 'video'); video.props.onClick(h.event());
+  video = find(h.render(), 'video'); assert.equal(video.props.controls, true);
+  h.nativeVideo.muted = true; h.nativeVideo.defaultMuted = true;
+  const before = h.calls.length;
+  h.render();
+  assert.equal(h.nativeVideo.muted, true, 'Ordinary rerenders preserve this clip’s manual mute');
+  assert.equal(h.calls.length, before);
+  h.setActive(false); video = find(h.render(), 'video');
+  assert.equal(video.props.controls, false);
+  assert.equal(video.props['data-video-controls-requested'], false);
+  assert.equal(h.calls.at(-1), 'pause');
+  const inactiveCalls = h.calls.length;
+  video.props.onClick(h.event()); video.props.onKeyDown(h.event({ key: 'Enter' })); h.render();
+  assert.equal(h.calls.length, inactiveCalls, 'A neighboring inactive clip cannot start itself');
+  h.setActive(true); video = find(h.render(), 'video');
+  assert.equal(video.props.controls, false);
+  assert.equal(video.props['data-video-controls-requested'], false);
+  assert.equal(h.nativeVideo.muted, false); assert.equal(h.nativeVideo.defaultMuted, false);
+  assert.deepEqual(h.playbackAttempts.at(-1), { muted: false, defaultMuted: false });
+});
+
 test('WEB retains its native single-video autoplay behavior', () => {
   const h = harness(undefined, undefined, false);
   const video = find(h.render(), 'video');
   assert.equal(video.props.loop, undefined);
   assert.equal(video.props.autoPlay, true);
+  assert.equal(video.props.controls, true);
+  assert.equal(video.props.muted, true);
   assert.deepEqual(h.calls, []);
 });
 
@@ -150,7 +279,7 @@ test('a failed converted copy falls back to the original and stops after both fa
   video = find(h.render(), 'video');
   assert.equal(video.props.src, 'original.mov');
   assert.equal(video.props.autoPlay, true);
-  assert.equal(video.props.muted, true);
+  assert.equal(video.props.muted, false);
   video.props.onError(error(4));
   assert.equal(find(h.render(), 'video'), undefined);
   assert.match(find(h.render(), ErrorState).props.title, /could not play/);

@@ -61,7 +61,7 @@ export function AvatarPicker({
       }} />
       {featured ? <>
         <button type="button" disabled={disabled} onClick={() => inputRef.current?.click()} className="flex flex-col items-center gap-3 rounded-[16px] p-1 text-[14px] font-medium text-[var(--text-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-45" aria-label={selectedUrl ? 'Replace profile image' : 'Choose profile image'}>
-          <span className="flex h-[clamp(104px,21dvh,144px)] w-[clamp(104px,21dvh,144px)] items-center justify-center overflow-hidden rounded-[22px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">
+          <span className={`flex h-[clamp(104px,21dvh,144px)] w-[clamp(104px,21dvh,144px)] items-center justify-center overflow-hidden rounded-[22px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${presentation === 'onboarding' ? 'border border-[var(--hairline-strong)]' : ''}`}>
             {selectedUrl ? <ResponsiveImage src={selectedUrl} alt="Selected profile image" width={144} height={144} sizes="144px" priority className="h-full w-full object-cover" /> : presentation === 'onboarding' ? <CameraIcon className="h-10 w-10" aria-hidden="true" /> : <ImageIcon className="h-10 w-10" aria-hidden="true" />}
           </span>
           <span id={labelId} className={presentation === 'onboarding' && !selectedUrl ? 'sr-only' : undefined}>{selectedUrl ? 'Change profile image' : 'Choose profile image'}</span>

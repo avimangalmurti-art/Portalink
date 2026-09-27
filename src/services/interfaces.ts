@@ -16,7 +16,7 @@ import type { AppearancePreferences, CategoryDeletionCapability, CreateCategoryI
 import type { AssetProcessingStatus, DeleteProjectResult, DraftMetadata, ProcessingCapability, ProjectDraft, PublishProjectInput, PublishResult, StartUploadInput, UpdateProjectInput, UpdateProjectResult, UploadCapability, UploadOperation, UploadOutcome } from '../types/publishing';
 import type { EngagementKind, EngagementMutation, ProjectEngagement } from '../types/engagement';
 import type { Comment, ProjectComments } from '../types/comments';
-import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecurityState, AuthRecoverySession, AuthSession, ChangeEmailInput, ChangeEmailResult, ChangePasswordInput, ChangePasswordResult, DeleteAccountInput, DeleteAccountResult, PasswordResetRequestInput, PasswordResetRequestResult, ResendVerificationInput, ResendVerificationResult, SignInInput, SignUpInput, SignUpResult, UpdatePasswordInput } from '../types/auth';
+import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecurityState, AuthError, AuthRecoverySession, AuthSession, ChangeEmailInput, ChangeEmailResult, ChangePasswordInput, ChangePasswordResult, DeleteAccountInput, DeleteAccountResult, PasswordResetRequestInput, PasswordResetRequestResult, ResendVerificationInput, ResendVerificationResult, SignInInput, SignUpInput, SignUpResult, UpdatePasswordInput } from '../types/auth';
 import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../types/profile';
 import type { GeographicBounds, GeographicLod, GeographicResult } from '../types/geography';
 import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode } from '../types/discovery';
@@ -37,7 +37,8 @@ export interface AuthService {
   /** The session as it stands right now, or null when signed out. */
   getSession(): Promise<AuthSession | null>;
   /** Subscribe to session changes. Returns its own unsubscribe. */
-  onAuthStateChange(listener: (session: AuthSession | null) => void): () => void;
+  /** A lookup failure can clear a stale identity without pretending the user signed out. */
+  onAuthStateChange(listener: (session: AuthSession | null, error?: AuthError) => void): () => void;
   signIn(input: SignInInput): Promise<AuthSession>;
   /** Never returns a session when the address must be confirmed first. */
   signUp(input: SignUpInput): Promise<SignUpResult>;
