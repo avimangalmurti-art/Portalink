@@ -13,7 +13,7 @@
   [data-project-response-rail], [data-project-file-strip],
   .mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener,
   .mobile-shared-drawer-opener, .mobile-project-back,
-  .mobile-project-page-counter, .mobile-page-thumbnails
+  .mobile-project-page-counter, .mobile-page-thumbnails, .account-menu-popover
 ) {
   --text-primary: var(--navigation-foreground);
   --text-secondary: var(--navigation-foreground);
@@ -42,16 +42,19 @@
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface .nav-button, .sidebar-surface [data-category-row], .sidebar-surface [data-structural-toggle],
   .shared-profile-sidebar .nav-button, .shared-profile-sidebar [data-category-row],
-  .shared-profile-sidebar [data-structural-toggle], .mobile-shared-profile-home,
+  .shared-profile-sidebar [data-structural-toggle], .shared-profile-sidebar [data-shared-profile-home], .mobile-shared-profile-home,
   .mobile-navigation-scroll > button, .mobile-navigation-scroll > a,
   .mobile-dock-destination, .mobile-navigation-opener, .mobile-shared-drawer-opener,
-  [data-project-index-panel] .project-index-row > button,
+  [data-project-index-panel] .project-index-row > button, [data-project-index-back] > button,
+  [data-project-index-panel] .global-control-header button, [data-project-file-strip] > button,
+  .account-menu-popover :is(.account-menu-row, .account-menu-identity),
   [data-project-index-toggle], .mobile-project-back, .mobile-project-page-counter,
   .mobile-project-popup-trigger, .mobile-project-engagement-toggle,
   [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
 ) {
-  min-width: 44px;
-  min-height: 44px;
+  /* Shared headers previously fixed a smaller !important minimum. */
+  min-width: 44px !important;
+  min-height: 44px !important;
   border: 0 !important;
   background: var(--navigation-item-surface, var(--navigation-item-rest-surface, transparent)) !important;
   color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
@@ -62,10 +65,12 @@
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface .nav-button, .sidebar-surface [data-category-row], .sidebar-surface [data-structural-toggle],
   .shared-profile-sidebar .nav-button, .shared-profile-sidebar [data-category-row],
-  .shared-profile-sidebar [data-structural-toggle], .mobile-shared-profile-home,
+  .shared-profile-sidebar [data-structural-toggle], .shared-profile-sidebar [data-shared-profile-home], .mobile-shared-profile-home,
   .mobile-navigation-scroll > button, .mobile-navigation-scroll > a,
   .mobile-dock-destination, .mobile-navigation-opener, .mobile-shared-drawer-opener,
-  [data-project-index-panel] .project-index-row > button,
+  [data-project-index-panel] .project-index-row > button, [data-project-index-back] > button,
+  [data-project-index-panel] .global-control-header button, [data-project-file-strip] > button,
+  .account-menu-popover :is(.account-menu-row, .account-menu-identity),
   [data-project-index-toggle], .mobile-project-back, .mobile-project-page-counter,
   .mobile-project-popup-trigger, .mobile-project-engagement-toggle,
   [data-project-response-rail] > .global-control-header > button:not([data-keep-color])
@@ -76,9 +81,10 @@
 /* Zero-specificity state scopes inherit the control selector's precedence. */
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
-  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
+  [data-project-file-strip], .account-menu-popover
 ) :where(button, a):is([aria-current='page'], [aria-current='true'], [aria-pressed='true']),
-#root .codex-shell[data-presentation] :where(.mobile-project-popup-trigger, .mobile-project-page-counter, .mobile-project-engagement-toggle)[aria-expanded='true'] {
+#root .codex-shell[data-presentation] :where(.mobile-project-popup-trigger, .mobile-project-page-counter, .mobile-project-engagement-toggle, .nav-button[aria-haspopup])[aria-expanded='true'] {
   --navigation-item-surface: var(--navigation-selected-surface);
   --navigation-item-foreground: var(--navigation-selected-foreground);
 }
@@ -86,7 +92,8 @@
 @media (hover: hover) and (pointer: fine) {
   #root .codex-shell[data-presentation] :is(
     .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
-    .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+    .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
+    [data-project-file-strip], .account-menu-popover
   ) :where(button, a):not(:disabled, [aria-disabled='true']):hover,
   #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):hover {
     --navigation-item-surface: var(--navigation-hover-surface);
@@ -95,7 +102,8 @@
 }
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
-  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
+  [data-project-file-strip], .account-menu-popover
 ) :where(button, a):not(:disabled, [aria-disabled='true']):active,
 #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):active {
   --navigation-item-surface: var(--navigation-pressed-surface);
@@ -103,14 +111,16 @@
 }
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
-  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
+  [data-project-file-strip], .account-menu-popover
 ) :where(button, a):is(:disabled, [aria-disabled='true']) {
   opacity: .4;
   cursor: not-allowed;
 }
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
-  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail]
+  .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
+  [data-project-file-strip], .account-menu-popover
 ) :where(button, a):focus-visible,
 #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):focus-visible {
   outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
@@ -132,8 +142,13 @@
 #root .codex-shell[data-presentation] :is(.nav-button, [data-structural-toggle], .mobile-project-back, .mobile-project-popup-trigger, .mobile-project-engagement-toggle) {
   transform: none !important;
 }
-#root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer, [data-project-response-rail], .mobile-project-back) [data-interface-icon-frame] {
+#root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer, [data-project-response-rail], [data-project-index-panel], [data-project-file-strip], .account-menu-popover, .mobile-project-back) [data-interface-icon-frame] {
   --interface-icon-size: 24px;
+}
+/* Older document headers still render Lucide SVGs without InterfaceIcon. */
+#root .codex-shell[data-presentation] [data-project-index-panel] .global-control-header button > svg {
+  width: 24px;
+  height: 24px;
 }
 
 @media (prefers-reduced-transparency: reduce) {
@@ -160,10 +175,19 @@
 }
 
 /* A navigation search field must use ink against its own chosen gray, too. */
-#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) input {
+#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) input:not([type='range']) {
   background: var(--control-rest-surface) !important;
   color: var(--control-text) !important;
   border-color: var(--navigation-border) !important;
+}
+#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) .text-control-shell:has(input[type='search']) {
+  --text-primary: var(--control-text);
+  --text-tertiary: var(--control-text);
+  background: var(--control-rest-surface) !important;
+  color: var(--control-text);
+}
+#root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) .text-control-shell input[type='search'] {
+  background: transparent !important;
 }
 #root .codex-shell[data-presentation] :is(.sidebar-surface, [data-project-index-panel]) input::placeholder {
   color: var(--control-text);

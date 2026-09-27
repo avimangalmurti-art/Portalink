@@ -49,8 +49,8 @@ test('main, project and details headers all opt into the public alignment contra
 test('all public header controls share fixed geometry without pressed-state movement', () => {
   const tokens = declarations(scope);
   assert.equal(tokens['--shared-header-height'], '64px');
-  assert.equal(tokens['--shared-header-control'], '40px');
-  assert.equal(tokens['--shared-header-glyph'], '18px');
+  assert.equal(tokens['--shared-header-control'], '44px');
+  assert.equal(tokens['--shared-header-glyph'], '24px');
   const header = declarations(`${scope} [data-shared-navigation-header]`);
   for (const size of ['height', 'min-height', 'max-height']) assert.equal(header[size], 'var(--shared-header-height)');
   assert.equal(header['padding-block'], '0');
@@ -69,10 +69,10 @@ test('all public header controls share fixed geometry without pressed-state move
   assert.equal(control.padding, '0');
   assert.equal(control['margin-block'], '0');
   assert.equal(control.transform, 'none');
-  // Every 40px control has 12px above/below it in the 64px header, regardless
+  // Every 44px control has 10px above/below it in the 64px header, regardless
   // of the rail's horizontal width or theme. This is a source-level contract,
   // not a substitute for claiming browser pixel measurements.
-  assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 12);
+  assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 10);
 });
 
 test('information glyph stays on the header centerline without losing Plex Mono', () => {

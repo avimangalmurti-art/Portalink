@@ -4741,43 +4741,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   color: var(--control-pressed-text) !important;
 }
 
-/* Navigation rests on its parent surface. The saved gray still tints it, but
-   does not turn each destination into a separate card. Keep 40px hit targets. */
-#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']) {
-  background: color-mix(in srgb, var(--control-rest-surface) 12%, transparent) !important;
-  color: var(--text-primary) !important;
-  box-shadow: none !important;
-}
-#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page'])
-  :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
-  color: var(--text-secondary) !important;
-}
-@media (hover: hover) and (pointer: fine) {
-  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover {
-    background: color-mix(in srgb, var(--control-hover-surface) 30%, var(--codex-sidebar-bg)) !important;
-  }
-  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover
-    :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
-    color: var(--text-primary) !important;
-  }
-}
-
-/* A selected Portal in the signed-in navigation is ink-only. This override
-   follows the platform-wide ps-* selected-state rules above so those generic
-   controls cannot restore a rounded fill or inset edge afterward. */
-#root .codex-shell .sidebar-surface
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn)[aria-current='page'] {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
 /* Copy confirmation follows the same ink-only language as a selected Portal.
    The pointer remains over the button after clicking, so this rule also settles
    the platform-wide hover fill until the confirmation resets. */
@@ -4796,38 +4759,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   color: var(--accent-text) !important;
 }
 
-/* Shared Portalink navigation is a system-blue surface. Keep its selected
-   identity glyph aligned with the selected label after the global neutral
-   control palette has resolved all standard button icons. */
-#root .codex-shell .shared-profile-sidebar button[aria-current='page']
-  :where([data-interface-icon-frame], [data-interface-icon]) {
-  color: var(--accent-text) !important;
-}
-
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:hover,
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page'],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']:hover {
-  border: 0 !important;
-  box-shadow: none !important;
-}
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page'],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']:hover {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  color: var(--accent-text) !important;
-}
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']
-  :is(span, svg, [data-interface-icon-frame], [data-interface-icon]) {
-  color: var(--accent-text) !important;
-}
-
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
 /* Portal row overflow controls keep a quiet fill on hover, never the generic
    sidebar button outline. The keyboard-only focus ring remains untouched. */
 @media (hover: hover) and (pointer: fine) {
@@ -4840,8 +4771,8 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell.shared-portalink-shell {
   --shared-header-height: 64px;
-  --shared-header-control: 40px;
-  --shared-header-glyph: 18px;
+  --shared-header-control: 44px;
+  --shared-header-glyph: 24px;
 }
 
 
@@ -4891,7 +4822,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 /* The text-based Plex Mono information mark must not inherit the panel's
-   larger body-copy line box; its circle uses the same 18px icon frame. */
+   larger body-copy line box; its circle uses the shared navigation icon frame. */
 .codex-shell.shared-portalink-shell [data-shared-navigation-header] [data-shared-info-glyph] {
   box-sizing: border-box;
   font-size: 12px;
@@ -4909,14 +4840,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell.shared-portalink-shell [data-shared-header-title] {
   font-size: 16px !important;
   line-height: 1.05 !important;
-}
-
-.codex-shell.shared-portalink-shell [data-shared-profile-home],
-.codex-shell.shared-portalink-shell [data-shared-profile-home]:hover,
-.codex-shell.shared-portalink-shell [data-shared-profile-home]:active {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
 }
 
 .codex-shell.shared-portalink-shell [data-shared-brand-sign-in],
@@ -4947,38 +4870,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   box-shadow: none !important;
-}
-
-/* The document-list expander belongs directly to the navigation rail. It never
-   becomes a darker tile; only its icon colour and keyboard focus communicate
-   interaction in both the open and collapsed forms. */
-#root .codex-shell button[data-project-index-toggle],
-#root .codex-shell button[data-project-index-toggle]:hover,
-#root .codex-shell button[data-project-index-toggle]:active {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Opening and closing a navigation region is structural, so the same quiet
-   system grey is used by the main, project, information, and engagement rails.
-   These controls never compete with content actions by brightening or filling. */
-#root .codex-shell button[data-structural-toggle],
-#root .codex-shell button[data-structural-toggle]:hover,
-#root .codex-shell button[data-structural-toggle]:active {
-  color: var(--gray) !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-#root .codex-shell button[data-structural-toggle]
-  :is(svg, [data-interface-icon-frame], [data-interface-icon]) {
-  color: inherit !important;
 }
 
 /* The sidebar gear opens one compact account surface instead of leaving the
