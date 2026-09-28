@@ -4,7 +4,7 @@ import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { validateLocation, validateProfileLinkLabel, validateProfileLinkUrl, validateProfileName } from './validation';
 import { useAvatarSelection } from './useProfileOnboarding';
-import { DEFAULT_PROFILE_LINK_ICON, MAX_PROFILE_LINKS, mergeProfileLinks, normalizeProfileLink } from './profileLinks';
+import { DEFAULT_PROFILE_LINK_ICON, MAX_PROFILE_LINKS, isProfileLinkAction, resolveProfileLinks, normalizeProfileLink } from './profileLinks';
 import type { Id, Profile, ProfileLink, UpdateProfileInput } from '../../types/domain';
 
 /**
@@ -32,7 +32,7 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
     name: profile.name,
     location: profile.location ?? '',
     isPrivate: profile.isPrivate === true,
-    links: mergeProfileLinks(profile.links, profile.socialLinks).map((link, index) => ({
+    links: resolveProfileLinks(profile.links, profile.socialLinks).map((link, index) => ({
       ...link,
       id: `profile-link-${index}`
     }))
@@ -114,7 +114,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
   const setVisibility = useCallback((isPrivate: boolean) => {
     setFields((current) => current ? { ...current, isPrivate } : current);
   }, []);
-  const setProfileLink = useCallback((linkId: string, patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>>) => {
+  const setProfileLink = useCallback((linkId: string, patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName' | 'hidden'>>) => {
     setFields((current) => current ? {
       ...current,
       links: current.links.map((link) => link.id === linkId ? { ...link, ...patch } : link)
@@ -129,7 +129,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     }));
   }, []);
   const addProfileLink = useCallback((): string | null => {
-    if (!fields || fields.links.length >= MAX_PROFILE_LINKS) return null;
+    if (!fields || fields.links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS) return null;
     const id = `profile-link-new-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     setFields({
       ...fields,
@@ -140,7 +140,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
   const removeProfileLink = useCallback((linkId: string) => {
     setFields((current) => current ? {
       ...current,
-      links: current.links.filter((link) => link.id !== linkId)
+      links: current.links.flatMap((link) => link.id !== linkId ? [link] : isProfileLinkAction(link.action) ? [{ ...link, hidden: true }] : [])
     } : current);
     setLinkErrors((current) => {
       const next = { ...current };
@@ -214,8 +214,8 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
       location: validateLocation(fields.location)
     };
     const nextLinkErrors = Object.fromEntries(fields.links.map((link) => [link.id, {
-      label: validateProfileLinkLabel(link.label),
-      href: validateProfileLinkUrl(link.href)
+      label: isProfileLinkAction(link.action) ? null : validateProfileLinkLabel(link.label),
+      href: isProfileLinkAction(link.action) ? null : validateProfileLinkUrl(link.href)
     }]));
     setFieldErrors(nextErrors);
     setLinkErrors(nextLinkErrors);

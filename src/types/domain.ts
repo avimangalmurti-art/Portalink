@@ -24,11 +24,16 @@ export type ProfileStat = {
   label: string;
   value: string;
 };
+export type ProfileLinkAction = 'bio' | 'collaboration' | 'message';
 export type ProfileLink = {
   label: string;
   href: string;
   /** Reuses the Portal icon vocabulary; absent legacy records use `globe`. */
   iconName?: string;
+  /** Built-in destinations use callbacks, never the external href. */
+  action?: ProfileLinkAction;
+  /** Preserve removed defaults so they stay removed across devices. */
+  hidden?: boolean;
 };
 
 export type PublicAppearance = {

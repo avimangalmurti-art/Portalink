@@ -56,7 +56,7 @@ function harness(initialPresentation = 'web') {
       { id: 'type', label: 'Typography', iconName: 'type' },
     ] },
     activeCategoryId: null, theme: 'light', onThemeChange: (theme) => calls.push(theme),
-    onOpenCategory: (id) => calls.push(id), onSignIn: () => calls.push('sign-in'), onCreateAccount: () => calls.push('sign-up'),
+    onOpenCategory: (id) => calls.push(id), onSettingsOpen: () => calls.push('settings'),
   };
   return { calls, setPresentation(value) { presentation = value; }, render(changes = {}) { cursor = 0; return SharedProfileSidebar({ ...props, ...changes }); } };
 }
@@ -126,10 +126,7 @@ test('settings and theme remain usable in the collapsed rail for both themes', (
     assert.deepEqual(h.calls, [theme === 'dark' ? 'light' : 'dark']);
     nodes(tree).find((node) => node.props?.['aria-label'] === 'Open settings').props.onClick();
     tree = h.render({ theme });
-    const menu = nodes(tree).find((node) => node.props?.role === 'menu');
-    assert.match(menu.props.className, /w-56 max-w-/);
-    nodes(menu).filter((node) => node.props?.role === 'menuitem')[1].props.onClick();
-    assert.equal(h.calls.at(-1), 'sign-in');
+    assert.equal(h.calls.at(-1), 'settings');
     assert.ok(!nodes(h.render({ theme })).some((node) => node.props?.role === 'menu'));
   }
 });
@@ -175,37 +172,13 @@ test('MOBILE uses a full-content drawer without overwriting the WEB collapse pre
   assert.equal(nodes(web).some(node => node.type === 'mobile-shared-drawer'), false);
 });
 
-test('MOBILE auth actions close the drawer and settings menu before opening the account flow', () => {
-  for (const action of ['sign-up', 'sign-in']) {
-    const h = harness('mobile');
-    const close = () => h.calls.push('close');
-    let wrapper = h.render(), tree = wrapper.props.children(close);
-    nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
-    wrapper = h.render(); tree = wrapper.props.children(close);
-    const menu = nodes(tree).find(node => node.props?.role === 'menu');
-    nodes(menu).filter(node => node.props?.role === 'menuitem')[action === 'sign-up' ? 0 : 1].props.onClick();
-    assert.deepEqual(h.calls, ['close', action]);
-    wrapper = h.render(); tree = wrapper.props.children(close);
-    assert.equal(nodes(tree).some(node => node.props?.role === 'menu'), false);
-    nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
-    h.render().props.onClose();
-    assert.equal(nodes(h.render().props.children(close)).some(node => node.props?.role === 'menu'), false,
-      'Backdrop, route or gesture dismissal also clears a previously open settings popup');
-  }
-});
-
-test('MOBILE Escape dismisses Settings before closing the profile drawer', () => {
+test('MOBILE Settings closes the drawer and navigates directly without a popup', () => {
   const h = harness('mobile');
   const close = () => h.calls.push('close');
-  let wrapper = h.render(), tree = wrapper.props.children(close);
-  nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props.onClick();
-  wrapper = h.render(); tree = wrapper.props.children(close);
-  assert.ok(nodes(tree).some(node => node.props?.role === 'menu'));
-  wrapper.props.onEscape(close);
-  wrapper = h.render(); tree = wrapper.props.children(close);
-  assert.equal(nodes(tree).some(node => node.props?.role === 'menu'), false);
-  assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings').props['aria-expanded'], false);
-  assert.deepEqual(h.calls, [], 'The first Escape leaves the parent navigation drawer open');
-  wrapper.props.onEscape(close);
-  assert.deepEqual(h.calls, ['close'], 'With Settings dismissed, the next Escape closes the drawer');
+  const tree = h.render().props.children(close);
+  const settings = nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings');
+  assert.equal(settings.props['aria-haspopup'], undefined);
+  settings.props.onClick();
+  assert.deepEqual(h.calls, ['close', 'settings']);
+  assert.equal(nodes(h.render().props.children(close)).some(node => node.props?.role === 'menu'), false);
 });

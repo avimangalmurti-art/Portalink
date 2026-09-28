@@ -103,15 +103,6 @@
   font-size: max(16px, 1rem) !important;
 }
 
-/* This menu is portalled to body. Center independently of its arrival transform. */
-[data-presentation='mobile'].account-menu-popover {
-  top: 50dvh !important;
-  left: 50% !important;
-  translate: -50% -50%;
-  max-height: calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px)));
-  overflow-y: auto;
-}
-
 #root .codex-shell[data-presentation='mobile'] {
   /* Use the same measured viewport for content and floating navigation.
      CSS remains the pre-measurement fallback; WEB keeps its existing sizing. */

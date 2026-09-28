@@ -183,7 +183,7 @@ function navigationHarness(pathname = '/') {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, { exports: swipe, require: () => react });
   const exports = {};
-  const paths = { home: '/', portals: '/portals', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/appearance' };
+  const paths = { home: '/', portals: '/portals', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/settings' };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText + '\nexports.Destination = Destination;', {

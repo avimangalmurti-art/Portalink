@@ -91,7 +91,9 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const shouldRedirect = !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
+  const settingsPath = pathname.replace(/\/+$/, '');
+  const isPublicSettings = settingsPath === routes.controlCenter.path || settingsPath === '/appearance';
+  const shouldRedirect = !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
   const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !holdLanding && !hasPresentedLanding && !isRecovery;
 
   return <>

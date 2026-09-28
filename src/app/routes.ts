@@ -130,9 +130,9 @@ export const routes: Record<RouteId, RouteDefinition> = {
   },
   controlCenter: {
     id: 'controlCenter',
-    path: '/appearance',
+    path: '/settings',
     params: [],
-    description: 'Control Center, opened from the sidebar. Public: it configures this browser.'
+    description: 'Full-screen Settings, opened directly from the sidebar. Public browser preferences and gated account actions.'
   },
   saved: {
     id: 'saved', path: '/saved', params: [],

@@ -408,7 +408,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
     '../components/ui/StateViews': { LoadingState: 'loading' },
     '../contexts/AuthContext': { useAuth: () => auth },
-    './routes': { routes: { sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
+    './routes': { routes: { controlCenter: {path:'/settings'}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
@@ -458,7 +458,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
     '../components/ui/StateViews':{LoadingState:'loading'},
     '../contexts/AuthContext':{useAuth:()=>auth},
-    './routes':{routes:{sharedProject:{},sharedProfileCategory:{},sharedProfile:{}},buildPath:(_,p)=>`/share/${p.profileId}`},
+    './routes':{routes:{controlCenter:{path:'/settings'},sharedProject:{},sharedProfileCategory:{},sharedProfile:{}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
@@ -679,4 +679,18 @@ test('sign in or resizing to WEB ends the opening landing permanently', () => {
     assert.equal(h.render().props.hidden,true);assert.equal(h.render(),null);
     h.auth.isAuthenticated=false;h.setPresentation('mobile');assert.equal(h.render(),null);
   }
+});
+
+
+test('shared visitors can open Settings while the public-view boundary remains intact elsewhere', () => {
+  for (const path of ['/settings','/settings/','/appearance','/appearance/']) {
+    const h=sharedBootstrap({path,search:'',storedProfileId:'creator'});
+    h.auth.isInitializing=false; h.render();
+    assert.equal(h.app.type,'app');
+    assert.equal(h.storage.get('portalink.sharedViewerProfileId'),'creator');
+  }
+  const h=sharedBootstrap({path:'/',search:'',storedProfileId:'creator'});
+  h.auth.isInitializing=false;h.render();
+  assert.equal(h.app.type,'redirect');
+  assert.equal(h.app.props.to,'/share/creator');
 });

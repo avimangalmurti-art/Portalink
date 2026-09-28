@@ -1,0 +1,38 @@
+/* One identity footprint in both disclosure states and on public profiles. */
+#root .codex-shell .profile-compact-header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  color: var(--text-primary);
+}
+#root .codex-shell .profile-compact-header .profile-identity-and-links { flex: 1; min-width: 0; gap: 0; }
+#root .codex-shell .profile-compact-header .profile-identity-main { flex: 1; min-width: 0; gap: 14px; align-items: flex-start; }
+#root .codex-shell .profile-compact-header .profile-identity-avatar { width: 76px; height: 76px; min-width: 76px; min-height: 76px; border-radius: 22%; overflow: hidden; border: 1px solid var(--hairline); }
+#root .codex-shell .profile-compact-header .profile-identity-copy { flex: 1; min-width: 0; padding-inline-end: 38px; }
+#root .codex-shell .profile-compact-header .profile-identity-copy h1 { margin-top: 4px; font-size: 18px; line-height: 1.25; font-weight: 650; white-space: normal; overflow-wrap: anywhere; }
+#root .codex-shell .profile-compact-header .profile-identity-copy p { font-size: 14px; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; }
+#root .codex-shell .profile-header-options { position: absolute; inset-inline-end: 8px; top: 12px; display: grid; place-items: center; width: 44px; min-height: 44px; border-radius: 12px; background: transparent; color: var(--text-primary); }
+#root .codex-shell .profile-summary-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin-top: 3px; margin-inline-end: -38px; color: var(--text-secondary); font-size: 13px; line-height: 1.3; }
+#root .codex-shell .profile-summary-counts .profile-count-control { position: relative; display: inline-flex; align-items: center; gap: .25em; flex: 0 0 auto; min-width: 0; min-height: 44px; padding: 0; white-space: nowrap; background: transparent; border: 0; border-radius: 0; color: var(--text-secondary); }
+#root .codex-shell .profile-summary-counts .profile-count-control + .profile-count-control::before { content: '·'; margin-inline: 7px; color: var(--text-tertiary); }
+#root .codex-shell .profile-summary-counts .profile-count-control[aria-pressed='true'] { color: var(--accent-text); }
+#root .codex-shell .profile-summary-counts .profile-count-control:disabled { opacity: .45; }
+#root .codex-shell #profile-navigation-tools { min-height: 0; padding: 0 12px 12px; border: 0; background: transparent; box-shadow: none; }
+#root .codex-shell #profile-navigation-tools > .side-panel-control-row { row-gap: 10px; }
+#root .codex-shell #profile-navigation-tools .profile-link-icons { width: auto; margin: 0; justify-content: flex-start; gap: 10px; }
+#root .codex-shell #profile-navigation-tools .profile-link-icons :is(button,a) { width: 44px; height: 44px; min-width: 44px; min-height: 44px; color: var(--text-primary); }
+#root .codex-shell #profile-navigation-tools .profile-link-icons svg { width: 22px; height: 22px; }
+#root .codex-shell #profile-navigation-tools [data-profile-owner-actions] { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-flow: row; width: 100%; flex-basis: 100%; gap: 6px; }
+#root .codex-shell #profile-navigation-tools [data-profile-owner-actions] .profile-action-button { display: flex; justify-content: center; width: 100%; min-width: 0; height: 44px; padding: 0; border-radius: 10px; border: 1px solid var(--hairline); background: var(--surface-raised); }
+#root .codex-shell #profile-navigation-tools [data-profile-owner-actions] .profile-action-button svg { width: 22px; height: 22px; }
+#root .codex-shell :is(.profile-header-options,.profile-count-control):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+#root .codex-shell .profile-header-options:hover { background: var(--surface-hover); }
+@media (max-width: 430px) {
+  #root .codex-shell .profile-compact-header { padding: 10px; }
+  #root .codex-shell .profile-compact-header .profile-identity-main { gap: 12px; }
+  #root .codex-shell .profile-compact-header .profile-identity-copy h1 { font-size: 16px; }
+  #root .codex-shell .profile-compact-header .profile-identity-copy p { font-size: 13px; }
+  #root .codex-shell .profile-compact-header[data-expanded] .profile-summary-counts { font-size: 12px; }
+}

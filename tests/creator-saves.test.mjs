@@ -95,7 +95,7 @@ test('creator save button is absent on own profile and shows selected state for 
 test('footer utilities have real routes and selected states in both sidebar sizes', () => {
   const source = read('../src/components/Sidebar.tsx');
   const start = source.indexOf('function PersonalFooterLinks');
-  const end = source.indexOf('function AccountMenuTrigger', start);
+  const end = source.indexOf('function SettingsTrigger', start);
   const component = source.slice(start, end).replace('function PersonalFooterLinks', 'export function PersonalFooterLinks');
   const code = ts.transpileModule(component, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
   const exports = {};
@@ -132,7 +132,7 @@ test('saved library has distinct Projects and Creators collections with a privat
 test('shared profile stays minimal and owner header no longer duplicates Saved', () => {
   const profile = read('../src/components/UserProfilePage.tsx');
   assert.match(profile, /!showsOwnerTools && !isSharedView && <CreatorSaveButton/);
-  assert.match(profile, /ENGAGEMENT_KINDS\.filter\(\(kind\) => kind !== 'save'\)/);
+  assert.doesNotMatch(profile, /ENGAGEMENT_KINDS/);
   const accountQuery = read('../src/features/library/useAccountQuery.ts');
   assert.match(accountQuery, /result\?\.account === account && result\?\.query === query/);
   assert.match(accountQuery, /current = false/);

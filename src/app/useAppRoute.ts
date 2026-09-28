@@ -196,7 +196,7 @@ function parse(pathname: string, search: string): AppRoute {
       kind: 'unknown'
     };
   }
-  if (matchPath(routes.controlCenter.path, pathname)) {
+  if (matchPath(routes.controlCenter.path, pathname) || matchPath('/appearance', pathname)) {
     return {
       kind: 'controlCenter'
     };
@@ -369,7 +369,21 @@ export function useRouteNavigator() {
       if (recipientId) params.set('recipient', recipientId);
       navigate(`${routes.messages.path}${params.size ? `?${params.toString()}` : ''}`, { replace });
     },
-    controlCenter: () => navigate(routes.controlCenter.path),
+    controlCenter: () => {
+      const current = locationRef.current;
+      if (matchPath(routes.controlCenter.path, current.pathname) || matchPath('/appearance', current.pathname)) return;
+      navigate(routes.controlCenter.path, { state: { settingsReturn: `${current.pathname}${current.search}${current.hash}` } });
+    },
+    closeSettings: () => {
+      const state: unknown = locationRef.current.state;
+      const returnPath = state && typeof state === 'object' && 'settingsReturn' in state ? state.settingsReturn : null;
+      if (typeof returnPath === 'string' && returnPath.startsWith('/') && !returnPath.startsWith('//') &&
+        ![routes.controlCenter.path, '/appearance'].includes(returnPath.split(/[?#]/)[0].replace(/\/+$/, '')) && window.history.state?.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate(routes.home.path, { replace: true });
+      }
+    },
     /** Browser history owns Back. Nothing reconstructs the trail by hand. */
     back: () => navigate(-1),
     to: (path: string, replace = false, viewTransition = false) => navigate(path, {

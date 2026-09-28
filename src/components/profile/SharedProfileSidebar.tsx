@@ -1,7 +1,6 @@
-import { useMenuFocus } from '../../hooks/useMenuFocus';
 import { useCompactNavigation } from '../../hooks/useCompactNavigation';
-import React, { useEffect, useRef, useState } from 'react';
-import { HomeIcon, LogInIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon, UserPlusIcon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { HomeIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -19,15 +18,14 @@ type SharedProfileSidebarProps = {
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
   onOpenCategory: (categoryId: string) => void;
-  onSignIn: () => void;
-  onCreateAccount: () => void;
+  onSettingsOpen: () => void;
 };
 
 /**
  * The shell used by a shared profile URL. It deliberately contains only the
  * creator and their public Portal navigation: no Home, account, messaging,
  * network, publishing, following, or platform-discovery controls. The footer
- * offers the one intentional exit: sign in or create a Portalink account.
+ * opens Settings, where visitors can also sign in or create a Portalink account.
  */
 export function SharedProfileSidebar({
   profile,
@@ -35,8 +33,7 @@ export function SharedProfileSidebar({
   theme,
   onThemeChange,
   onOpenCategory,
-  onSignIn,
-  onCreateAccount
+  onSettingsOpen
 }: SharedProfileSidebarProps) {
   const isMobile = usePresentation() === 'mobile';
   const sharedSidebarWidth = useResizablePanelWidth({
@@ -47,7 +44,6 @@ export function SharedProfileSidebar({
     maxWidth: 360,
     viewportReserve: 320
   });
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   // This is the public viewer's visit, not the owner's saved workspace layout.
   // Preserve the choice between shared routes.
   const [preferredCollapsed, setIsCollapsed] = useState(false);
@@ -58,15 +54,6 @@ export function SharedProfileSidebar({
   }, []);
   const compactNavigation = useCompactNavigation(preferredCollapsed, setIsCollapsed);
   const isCollapsed = !isMobile && compactNavigation.collapsed;
-  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
-  const settingsMenuRef = useRef<HTMLDivElement>(null);
-
-  const settingsMenuFocus = useMenuFocus({ open: isSettingsOpen, menuRef: settingsMenuRef, triggerRef: settingsTriggerRef, onOpen: () => setIsSettingsOpen(true), onClose: () => setIsSettingsOpen(false) });
-  const openAuth = (request: () => void, closeDrawer?: () => void) => {
-    closeDrawer?.();
-    setIsSettingsOpen(false);
-    request();
-  };
   const toggleLabel = isMobile ? 'Close profile navigation' : isCollapsed ? 'Expand navigation' : 'Collapse navigation';
   const renderSidebar = (closeDrawer?: () => void) => <aside data-mobile-shared-sidebar={isMobile || undefined} data-resizable-panel="" data-collapsed={isCollapsed ? 'true' : 'false'} style={isMobile || isCollapsed ? undefined : { width: `${sharedSidebarWidth.width}px` }} aria-label={`${profile.name} shared profile navigation`} className={`shared-profile-sidebar sidebar-starfield relative flex h-full min-h-0 shrink-0 flex-col bg-transparent transition-[width] duration-150 motion-reduce:transition-none ${isCollapsed ? 'w-[48px] sm:w-[52px]' : ''}`}>
       <div data-shared-navigation-header="" className={`global-control-header shrink-0 ${isCollapsed ? 'justify-center' : 'px-2'}`}>
@@ -74,7 +61,7 @@ export function SharedProfileSidebar({
           {!isCollapsed ? <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link> : null}
-          <button type="button" onClick={() => { setIsSettingsOpen(false); if (closeDrawer) closeDrawer(); else compactNavigation.toggle(); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" onClick={() => { if (closeDrawer) closeDrawer(); else compactNavigation.toggle(); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={isCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
           </button>
         </div>
@@ -111,17 +98,7 @@ export function SharedProfileSidebar({
 
       <div data-shared-account-footer="" className={`relative z-40 shrink-0 border-t border-[var(--hairline)] py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
         <div className={`relative items-center ${isCollapsed ? 'flex flex-col gap-1.5' : 'grid grid-cols-2 gap-[var(--side-panel-row-gap)]'}`}>
-          {isSettingsOpen ? <div ref={settingsMenuRef} tabIndex={-1} role="menu" aria-label="Portalink account options" data-shared-account-menu="" className={`account-menu-popover absolute bottom-full mb-2 overflow-hidden rounded-[12px] p-1.5 text-[var(--text-primary)] ${isCollapsed ? 'left-1 w-56 max-w-[calc(100vw-16px)]' : 'left-1 right-1'}`}>
-              <button type="button" role="menuitem" onClick={() => openAuth(onCreateAccount, closeDrawer)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={UserPlusIcon} size="sm" weight="medium" /></span>
-                <span className="whitespace-nowrap leading-none">Create an account</span>
-              </button>
-              <button type="button" role="menuitem" onClick={() => openAuth(onSignIn, closeDrawer)} className="account-menu-row side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                <span aria-hidden="true" className="flex h-5 w-5 shrink-0 items-center justify-center"><InterfaceIcon icon={LogInIcon} size="sm" weight="medium" /></span>
-                <span className="whitespace-nowrap leading-none">Sign in</span>
-              </button>
-            </div> : null}
-          <button ref={settingsTriggerRef} onKeyDown={settingsMenuFocus.onTriggerKeyDown} type="button" onClick={() => setIsSettingsOpen((open) => !open)} aria-label={isSettingsOpen ? 'Close settings' : 'Open settings'} aria-haspopup="menu" aria-expanded={isSettingsOpen} className={`nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+          <button type="button" onClick={() => { closeDrawer?.(); onSettingsOpen(); }} aria-label="Open settings" className={`nav-button ${isCollapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control'} shape-compact flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
             {isMobile && <span>Settings</span>}
           </button>
@@ -133,6 +110,5 @@ export function SharedProfileSidebar({
       </div>
       {!isMobile && !isCollapsed ? <ResizablePanelHandle side="right" value={sharedSidebarWidth.width} min={180} max={360} onResize={sharedSidebarWidth.updateWidth} onResizeEnd={sharedSidebarWidth.commitWidth} onReset={sharedSidebarWidth.resetWidth} label="Resize shared profile navigation. Double-click to restore the default width." /> : null}
     </aside>;
-  return isMobile ? <MobileSharedProfileDrawer name={profile.name} onClose={() => setIsSettingsOpen(false)}
-    onEscape={(close) => { if (isSettingsOpen) setIsSettingsOpen(false); else close(); }}>{renderSidebar}</MobileSharedProfileDrawer> : renderSidebar();
+  return isMobile ? <MobileSharedProfileDrawer name={profile.name} onClose={() => undefined}>{renderSidebar}</MobileSharedProfileDrawer> : renderSidebar();
 }

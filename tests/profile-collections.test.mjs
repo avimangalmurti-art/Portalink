@@ -15,10 +15,11 @@ function compile(path, imports, globals = {}) {
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
+const linkHelpers = compile('../src/features/profile/profileLinks.ts', () => ({profileLinkIconNames:['globe','instagram','soundcloud']}));
 const placeholder = new Proxy({}, { get: (_, key) => key });
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
-  return [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
+  return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
 
 function serviceHarness(owner = 'owner', failure = null) {
@@ -196,7 +197,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
     if (name.endsWith('/projectGridDensity')) return { MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
-    if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => options.links ?? [] };
+    if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
   }, { URLSearchParams, window: { localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
@@ -209,6 +210,7 @@ function profileHarness(search = '', options = {}) {
 
 test('count controls replace the project area, report real Portal count, and restore from the profile URL', () => {
   const h = profileHarness('keep=value');
+  openProfileOptions(h);
   for (const view of ['portals', 'followers', 'following']) {
     const stats = nodes(h.render()).find((node) => node.type?.name === 'ProfileStats');
     assert.equal(stats.props.portalCount, 1);
@@ -298,7 +300,7 @@ test('both mobile portal counts float the supplied chooser above the wall and pr
         nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
       } else {
         const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-        const summary = nodes(identity.type(identity.props)).find(node => node.props?.['aria-label'] === 'Profile summary');
+        const summary = nodes(identity.type(identity.props)).find(node => node.props?.['aria-label'] === 'Profile content');
         nodes(summary).filter(node => node.type === 'button')[1].props.onClick();
       }
       const portalTree = h.render();
@@ -309,7 +311,7 @@ test('both mobile portal counts float the supplied chooser above the wall and pr
       const element = {};
       underlay.ref(element);
       assert.equal(element.inert, true, 'Underlying cards must not receive taps or focus');
-      assert.ok(nodes(portalTree).some(node => node.props?.className === 'mobile-profile-header'));
+      assert.ok(nodes(portalTree).some(node => node.props?.className === 'profile-compact-header'));
       assert.equal(new URLSearchParams(h.search()).get('view'), 'portals');
       assert.equal(new URLSearchParams(h.search()).get('keep'), 'value');
       assert.equal(h.navigation.at(-1).replace, false);
@@ -522,7 +524,7 @@ test('mobile profile links appear above the action row only while Profile option
     const children = React.Children.toArray(tools.props.children.props.children);
     const linkRow = children.find(node => node.props?.['data-mobile-profile-links'] !== undefined);
     assert.equal(linkRow.props.children.type, 'PlatformGrid');
-    assert.equal(linkRow.props.children.props.links, links);
+    assert.deepEqual(JSON.parse(JSON.stringify(linkRow.props.children.props.links.filter(link => !link.action))), links);
     if (viewerRole === 'owner') {
       const actions = children.find(node => node.props?.['data-profile-owner-actions'] !== undefined);
       assert.ok(children.indexOf(linkRow) < children.indexOf(actions));
@@ -534,14 +536,16 @@ test('mobile profile links appear above the action row only while Profile option
   }
 });
 
-test('WEB and shared public profiles retain their existing visible identity links', () => {
-  const links = [{ label: 'Website', href: 'https://example.com' }];
-  for (const options of [{ presentation: 'web' }, { presentation: 'mobile', isSharedView: true }]) {
-    const tree = profileHarness('', { ...options, links }).render();
-    const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-    const grid = nodes(identity.type(identity.props)).find(node => node.type === 'PlatformGrid');
-    assert.equal(grid.props.links, links);
-    assert.equal(nodes(tree).some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
+test('WEB and shared profiles start compact and expand the same three standard links', () => {
+  const links = [{ label: 'Website', href: 'https://example.com', iconName:'globe' }];
+  for (const options of [{presentation:'web'}, {presentation:'mobile',isSharedView:true}, {presentation:'web',isSharedView:true}]) {
+    const h=profileHarness('', {...options, links});
+    assert.equal(nodes(h.render()).some(node=>node.type==='PlatformGrid'),false);
+    const tree=openProfileOptions(h);
+    const grid=nodes(tree).find(node=>node.type==='PlatformGrid');
+    assert.deepEqual(Array.from(grid.props.links.slice(0,3),link=>link.action),['bio','collaboration','message']);
+    assert.equal(grid.props.links[3].href,links[0].href);
+    if(options.isSharedView) assert.equal(nodes(tree).some(n=>n.props?.['data-profile-owner-actions']!==undefined),false);
   }
 });
 
@@ -592,8 +596,7 @@ test('mobile owner reorder is available through the three dots with no passive h
   }
   const web = profileHarness('', { presentation: 'web', projects: reorderProjects });
   assert.equal(reorderControl(web.render()), undefined);
-  nodes(web.render()).find(node => node.props?.['aria-label'] === 'Manage profile').props.onClick();
-  nodes(web.render()).find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Reorder projects')).props.onClick();
+  reorderControl(openProfileOptions(web)).props.onClick();
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
 });
 
@@ -608,12 +611,12 @@ test('mobile owner header keeps Bio first with links and the remaining owner act
   const row = nodes(tree).find(node => node.props?.['data-profile-owner-actions'] !== undefined);
   const actions = React.Children.toArray(row.props.children);
   assert.deepEqual(actions.map(node => node.type === 'ProfileShareMenu' ? 'Copy public link' : node.props['aria-label']),
-    ['Collaboration', 'Edit profile', 'Copy public link', 'Reorder projects']);
-  assert.equal(actions[2].props.compact, true);
-  assert.equal(actions[2].props.shareUrl, 'https://example.com/share/owner');
+    ['Edit profile', 'Copy public link', 'Reorder projects']);
+  assert.equal(actions[1].props.compact, true);
+  assert.equal(actions[1].props.shareUrl, 'https://example.com/share/owner');
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
-  actions[0].props.onClick(); actions[1].props.onClick();
+  nodes(tree).find(node=>node.type==='PlatformGrid').props.onCollaboration(); actions[0].props.onClick();
   assert.deepEqual(calls, ['collaboration', 'edit']);
   nodes(tree).find(node => node.type === 'PlatformGrid').props.onOpenBio();
   tree = h.render();
@@ -630,10 +633,10 @@ test('mobile Bio is available to owners, visitors and guests, with no links and 
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     for (const isSharedView of [false, true]) {
       const h = profileHarness('', { presentation: 'mobile', viewerRole, isSharedView });
-      const tree = isSharedView ? h.render() : openProfileOptions(h);
+      const tree = openProfileOptions(h);
       const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-      const grid = nodes(isSharedView ? identity.type(identity.props) : tree).find(node => node.type === 'PlatformGrid');
-      assert.equal(grid.props.links.length, 0);
+      const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
+      assert.equal(grid.props.links.length, 3);
       grid.props.onOpenBio();
       const sheet = nodes(h.render()).find(node => node.type === 'ProfileBioSheet');
       assert.equal(sheet.props.canEdit, viewerRole === 'owner' && !isSharedView, 'Editing is owner-only, independent of Edit profile navigation');
@@ -641,28 +644,27 @@ test('mobile Bio is available to owners, visitors and guests, with no links and 
       assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
     }
   }
-  const web = profileHarness('', { presentation: 'web', links: [{ label: 'Website', href: 'https://example.com' }] }).render();
-  const identity = nodes(web).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-  assert.equal(nodes(identity.type(identity.props)).find(node => node.type === 'PlatformGrid').props.onOpenBio, undefined);
+  const h = profileHarness('', { presentation: 'web' });
+  assert.equal(typeof nodes(openProfileOptions(h)).find(node => node.type === 'PlatformGrid').props.onOpenBio, 'function');
 });
 
 test('profile links place Bio before external links without changing their destinations', () => {
   let opened = 0;
   const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
     if (name === 'react') return React;
-    if (name.endsWith('/profileLinks')) return { profileLinkHref: href => href };
+    if (name.endsWith('/profileLinks')) return linkHelpers;
     if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
     return placeholder;
   });
-  const props = { profileName: 'Creator', links: [{ label: 'Website', href: 'https://example.com' }] };
+  const props = { profileName: 'Creator', links: linkHelpers.resolveProfileLinks([{ label: 'Website', href: 'https://example.com' }], {}) };
   const grid = PlatformGrid({ ...props, onOpenBio: () => opened++ });
   const tiles = React.Children.toArray(grid.props.children);
   assert.equal(tiles[0].props.children.props['aria-label'], 'Bio');
   tiles[0].props.children.props.onClick();
   assert.equal(opened, 1);
-  assert.equal(tiles[1].props.children.props.href, 'https://example.com');
-  assert.equal(tiles[1].props.children.props.target, '_blank');
-  assert.equal(nodes(PlatformGrid(props)).some(node => node.type === 'button'), false);
+  assert.equal(tiles[3].props.children.props.href, 'https://example.com');
+  assert.equal(tiles[3].props.children.props.target, '_blank');
+  assert.equal(nodes(PlatformGrid(props)).filter(node => node.type === 'button' && node.props.disabled).length, 3);
 });
 
 test('three-dot reorder entry keeps duplicate outside saves and retry recovery intact', async () => {
@@ -707,5 +709,20 @@ test('profile reorder drop, Done, Cancel and outside save never change the activ
     assert.deepEqual(h.projectOrder.order, finish === 'Cancel' ? ['a', 'b'] : ['b', 'a']);
     assert.equal(saved, finish === 'Cancel' ? 0 : 1);
     assert.equal(reset, finish === 'Cancel' ? 2 : 1);
+  }
+});
+
+test('public and visitor headers show connection counts without opening owner-only lists', () => {
+  for (const presentation of ['mobile', 'web']) {
+    for (const options of [{ viewerRole: 'guest', isSharedView: true }, { viewerRole: 'visitor' }]) {
+      const h = profileHarness('view=followers', { ...options, presentation });
+      openProfileOptions(h);
+      const stats = nodes(h.render()).find(node => node.type?.name === 'ProfileStats');
+      assert.equal(stats.props.activeView, 'projects');
+      const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
+      assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'span', 'span']);
+      assert.equal(controls[2].props.onClick, undefined);
+      assert.equal(controls[3].props.onClick, undefined);
+    }
   }
 });

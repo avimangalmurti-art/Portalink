@@ -165,3 +165,27 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   assert.match(app, /snapshot=\{\{[^}]*content: screenContent/);
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });
+
+
+test('Settings is a public page with an appearance compatibility URL and safe Back behavior', () => {
+  for (const path of ['/settings', '/settings/', '/appearance', '/appearance/']) {
+    const h = harness(path);
+    assert.equal(h.routing.useAppRoute().kind, 'controlCenter');
+    assert.equal(h.routing.PROTECTED_ROUTE_KINDS.has('controlCenter'), false);
+    h.nav().closeSettings();
+    assert.deepEqual(plain(h.calls), [['/', { replace: true }]]);
+  }
+  const h = harness('/share/creator/c/portal/project?page=2#page', null, 3);
+  h.nav().controlCenter();
+  assert.deepEqual(plain(h.calls), [['/settings', { state: { settingsReturn: '/share/creator/c/portal/project?page=2#page' } }]]);
+  h.nav().controlCenter();
+  assert.equal(h.calls.length, 1);
+  const refreshed = harness('/settings', plain(h.location().state), h.history.state.idx);
+  refreshed.nav().closeSettings();
+  assert.deepEqual(refreshed.calls, [[-1, undefined]]);
+  for (const value of ['//outside.test', 'https://outside.test', '/settings', '/appearance']) {
+    const invalid = harness('/settings', {settingsReturn:value}, 2);
+    invalid.nav().closeSettings();
+    assert.deepEqual(plain(invalid.calls), [['/', {replace:true}]]);
+  }
+});

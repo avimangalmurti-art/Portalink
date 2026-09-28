@@ -1,8 +1,18 @@
-import type { ProfileLink } from '../../types/domain';
+import type { ProfileLink, ProfileLinkAction } from '../../types/domain';
 import { profileLinkIconNames } from '../../components/profile/categoryIcons';
 
 export const DEFAULT_PROFILE_LINK_ICON = 'globe';
 export const MAX_PROFILE_LINKS = 20;
+
+export const STANDARD_PROFILE_LINKS: readonly ProfileLink[] = [
+  { action: 'bio', label: 'Bio', iconName: 'info', href: '' },
+  { action: 'collaboration', label: 'Collaboration', iconName: 'handshake', href: '' },
+  { action: 'message', label: 'Message', iconName: 'messages-square', href: '' },
+];
+
+export function isProfileLinkAction(action: unknown): action is ProfileLinkAction {
+  return action === 'bio' || action === 'collaboration' || action === 'message';
+}
 
 const legacyPlatforms: Record<string, { label: string; iconName: string }> = {
   instagram: { label: 'Instagram', iconName: 'instagram' },
@@ -48,6 +58,10 @@ export function profileLinkHref(href: string): string {
 }
 
 export function normalizeProfileLink(link: ProfileLink): ProfileLink {
+  if (isProfileLinkAction(link.action)) {
+    const standard = STANDARD_PROFILE_LINKS.find(item => item.action === link.action);
+    if (standard) return { ...standard, hidden: link.hidden === true };
+  }
   return {
     label: link.label.trim(),
     href: link.href.trim(),
@@ -65,6 +79,7 @@ export function mergeProfileLinks(
   socialLinks: Record<string, string> | undefined,
 ): ProfileLink[] {
   const merged = (links ?? [])
+    .filter(link => !isProfileLinkAction(link.action))
     .map(normalizeProfileLink)
     .filter((link) => Boolean(link.label && link.href && link.href !== '#'));
   const destinations = new Set(merged.map((link) => profileLinkHref(link.href).toLowerCase()));
@@ -83,4 +98,21 @@ export function mergeProfileLinks(
   });
 
   return merged.slice(0, MAX_PROFILE_LINKS);
+}
+
+/** Missing built-ins default on; explicit hidden records survive every save. */
+export function resolveProfileLinks(links: readonly ProfileLink[] | undefined, socialLinks: Record<string, string> | undefined): ProfileLink[] {
+  const result: ProfileLink[] = [];
+  const seenActions = new Set<ProfileLinkAction>();
+  const external = mergeProfileLinks(links, socialLinks);
+  for (const link of links ?? []) {
+    if (isProfileLinkAction(link.action)) {
+      if (!seenActions.has(link.action)) result.push(normalizeProfileLink(link));
+      seenActions.add(link.action);
+    } else {
+      const index = external.findIndex(item => item.href === link.href.trim() && item.label === link.label.trim());
+      if (index >= 0) result.push(...external.splice(index, 1));
+    }
+  }
+  return [...STANDARD_PROFILE_LINKS.filter(link => link.action && !seenActions.has(link.action)).map(normalizeProfileLink), ...result, ...external];
 }
