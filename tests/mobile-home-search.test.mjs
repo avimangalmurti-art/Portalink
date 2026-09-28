@@ -34,7 +34,7 @@ function harness(presentation = 'mobile', props = {}) {
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner' }) };
-    if (name.endsWith('/ProfileDataContext')) return { useProfileQuery: () => ownerProfile };
+    if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
     if (name.endsWith('/useFeed')) return { useFeed(locationId) {
       feedArguments.push(locationId);

@@ -1,12 +1,15 @@
 import { requireSupabase } from '../../services/supabase/client';
 
 /** Shared transport for page actions and the account's saved-page library. */
-export async function mediaInteractionRequest<T>(path: string, init?: RequestInit, requireAccount = false): Promise<T> {
+export async function mediaInteractionRequest<T>(path: string, init?: RequestInit, requireAccount = false, expectedAccount?: string | null): Promise<T> {
   let token: string | null = null;
+  let account: string | null = null;
   try {
     const { data } = await requireSupabase().auth.getSession();
     token = data.session?.access_token ?? null;
+    account = data.session?.user.id ?? null;
   } catch { /* An optional public read can proceed without a session. */ }
+  if (expectedAccount !== undefined && account !== expectedAccount) throw new Error('Your account changed. Please try again.');
   if (requireAccount && !token) throw new Error('Sign in to continue.');
   const headers = new Headers(init?.headers);
   headers.set('accept', 'application/json');

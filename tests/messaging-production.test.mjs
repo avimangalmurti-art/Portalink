@@ -77,7 +77,7 @@ test('activity is a single actionable destination rather than a duplicate messag
 test('an unavailable sending RPC fails closed without inserting a message directly', async () => {
   let inserts = 0;
   const client = {
-    auth: { getUser: async () => ({ data: { user: { id: 'account' } } }) },
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'account' } } } }) },
     from(table) {
       if (table === 'profiles') return { select: () => ({ eq: () => ({ single: async () => ({ data: { id: 'viewer' } }) }) }) };
       return { insert() { inserts++; throw new Error('Unguarded insert'); } };
@@ -98,7 +98,7 @@ test('deleted participants remain readable and removed attachments never receive
     direct_messages:[surviving,removed],
     direct_message_attachments:[{id:'old',message_id:'removed',storage_path:null,removed_at:'2026-09-01'},{id:'kept',message_id:'surviving',storage_path:'viewer/chat/kept.png',file_name:'kept.png',mime_type:'image/png',size_bytes:10}],
   };
-  const client={auth:{getUser:async()=>({data:{user:{id:'account'}}})},from(table){
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:'account'}}}})},from(table){
     const q={select(){return q;},eq(){return q;},or(){return q;},order(){return q;},range(){return q;},limit(){return q;},in(_key,values){assert.ok(values.every(v=>v!==null));return q;},single:async()=>({data:{id:'viewer'}}),then:resolve=>Promise.resolve({data:tables[table]??[],error:null}).then(resolve)};
     return q;
   },rpc:async()=>({data:[{conversation_id:'chat',last_message:surviving,last_incoming_at:removed.created_at}]}),storage:{from:()=>({createSignedUrls:async paths=>{signed.push(...paths);return {data:paths.map(path=>({path,signedUrl:'https://example.test/kept'}))};}})}};

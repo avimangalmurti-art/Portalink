@@ -5,10 +5,21 @@ import { displayedPageWidth } from './mediaToolbarLayout';
 export function useMediaPageSize() {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ pageWidth: 0, hostWidth: 0 });
+  const [isVisible, setIsVisible] = useState(false);
 
   useLayoutEffect(() => {
     const host = ref.current?.parentElement;
     if (!host) return;
+    // Observe the page, not its controls: a tall document page can be visible
+    // while its toolbar is still below the viewport.
+    const visibility = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setIsVisible(true);
+        visibility?.disconnect();
+      }
+    }, { rootMargin: '400px' });
+    if (visibility) visibility.observe(host);
+    else setIsVisible(true);
     let surface: HTMLImageElement | HTMLCanvasElement | null = null;
     let frame = 0;
     const measure = () => {
@@ -48,11 +59,12 @@ export function useMediaPageSize() {
     measure();
     return () => {
       resize.disconnect();
+      visibility?.disconnect();
       children.disconnect();
       host.removeEventListener('load', schedule, true);
       cancelAnimationFrame(frame);
     };
   }, []);
 
-  return { ref, ...size };
+  return { ref, isVisible, ...size };
 }

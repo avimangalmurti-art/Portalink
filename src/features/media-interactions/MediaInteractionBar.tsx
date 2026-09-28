@@ -43,14 +43,14 @@ export function MediaInteractionBar({
     ...target,
     label: `Page ${target.pageIndex + 1}`
   }), [target.attachmentId, target.pageIndex, target.projectId]);
-  const activity = useMediaInteractions(presentedTarget);
+  const { ref: engagementRef, pageWidth, hostWidth, isVisible } = useMediaPageSize();
+  const activity = useMediaInteractions(presentedTarget, isVisible);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsId = useId();
   const closeComments = useCallback(() => setCommentsOpen(false), []);
-  const { ref: engagementRef, pageWidth, hostWidth } = useMediaPageSize();
   const counts = [...ACTIONS.map(({ kind }) => displayCount(activity.record.counts[kind])), displayCount(activity.record.comments.length)];
   const counter = !isMobileFocused && placement === 'focused' && pageCount && pageCount > 1
     ? `${target.pageIndex + 1} / ${pageCount}` : null;
@@ -104,7 +104,7 @@ export function MediaInteractionBar({
           aria-pressed={engaged}
           aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}${count > 0 ? ` (${count})` : ''}`}
           title={`${label}: ${count}`}
-          disabled={activity.pendingKind === kind}
+          disabled={activity.pendingKind === kind || activity.isResolvingEngagement}
           data-keep-color=""
           style={{ color }}
           onClick={() => activity.toggle(kind)}
@@ -154,6 +154,13 @@ export function MediaInteractionBar({
     {counter ? <span data-media-page-count="" aria-label={`Page ${target.pageIndex + 1} of ${pageCount}`} className="premium-viewer-page-counter premium-viewer-page-counter--inline pointer-events-none shrink-0 rounded-full px-2 py-1 text-center text-[12px] font-medium tabular-nums text-white" style={{ width: counterWidth }}>{counter}</span> : null}
     </div>
 
+    {activity.failure && activity.isResolvingEngagement && !commentsOpen ? <button
+      type="button"
+      onClick={() => void activity.retry()}
+      aria-label={`Retry page activity for ${presentedTarget.label}`}
+      className="min-h-11 max-w-full rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-3 text-[12px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+    >Activity unavailable · Retry</button> : null}
+
     {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
       <header data-comments-header="" className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">
         <div className="min-w-0">
@@ -170,7 +177,7 @@ export function MediaInteractionBar({
           {activity.record.comments.map((comment) => <li key={comment.id} data-comment="" className="group/comment">
             <div className="flex items-start gap-2">
               <span data-comment-avatar="" className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[9px] font-semibold text-white/70">
-                {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" className="h-full w-full object-cover" /> : comment.authorName.slice(0, 1).toUpperCase()}
+                {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" loading="lazy" decoding="async" width={24} height={24} className="h-full w-full object-cover" /> : comment.authorName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
@@ -206,7 +213,8 @@ export function MediaInteractionBar({
         </div>
         {activity.failure ? <p data-comment-failure="" role="alert" className="mt-2 text-[10px] leading-relaxed text-[#ff6961]">
           {activity.failure}
-          <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button>
+          <button type="button" onClick={() => void activity.retry()} className="ml-1.5 min-h-11 font-semibold text-white/65 underline focus-visible:outline focus-visible:outline-2">Try again</button>
+          {!activity.isResolvingEngagement ? <button type="button" onClick={activity.dismissFailure} className="ml-1.5 font-semibold text-white/65 underline focus:outline-none">Dismiss</button> : null}
         </p> : null}
       </form>
     </MediaCommentsPopover> : null}

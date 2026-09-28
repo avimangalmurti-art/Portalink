@@ -31,7 +31,7 @@ function serviceHarness(owner = 'owner', failure = null) {
       calls.push({ rpc: name, args });
       return { data: [{ id: 'person', name: 'Person Name', handle: 'person', avatar_url: 'avatar.jpg' }], error: null };
     },
-    auth: { getUser: async () => ({ data: { user: { id: 'account' } }, error: null }) },
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'account' } } }, error: null }) },
     from(table) {
       const operations = [];
       const query = {};

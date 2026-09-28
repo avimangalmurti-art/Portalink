@@ -84,6 +84,44 @@ function harness() {
   };
 }
 
+test('remembering typed email keeps auth context identity stable and is current when auth views change', async () => {
+  const h = harness(); await h.initialize();
+  const context = h.render();
+  const writes = h.stateWrites;
+  for (const value of ['a', 'account@', 'account@example.test']) context.rememberEmail(value);
+  assert.equal(h.stateWrites, writes, 'Email memory must not schedule provider state updates.');
+  assert.equal(h.render(), context, 'Unrelated auth consumers keep the same context value.');
+  assert.equal(context.rememberedEmail, 'account@example.test', 'Even an existing reference reads the latest journey address.');
+  for (const view of ['signIn', 'signUp', 'forgotPassword', 'signIn']) {
+    h.render().requestAuth(view);
+    const next = h.render();
+    assert.equal(next.pendingView, view);
+    assert.equal(next.rememberedEmail, 'account@example.test');
+    assert.equal(next.rememberEmail, context.rememberEmail);
+  }
+  h.render().closeAuth();
+  assert.equal(h.render().rememberedEmail, 'account@example.test');
+  h.unmount();
+});
+
+test('email memory clears only after confirmed logout or account deletion and never contains a password', async () => {
+  const h = harness(); await h.initialize(session());
+  h.render().rememberEmail('account@example.test');
+  const failed = h.render().signOut();
+  h.signOuts[0].reject(new Error('offline'));
+  assert.equal(await failed, false);
+  assert.equal(h.render().rememberedEmail, 'account@example.test');
+  const successful = h.render().signOut();
+  h.signOuts[1].resolve();
+  assert.equal(await successful, true);
+  assert.equal(h.render().rememberedEmail, '');
+  h.render().rememberEmail('new@example.test');
+  h.render().completeAccountDeletion();
+  assert.equal(h.render().rememberedEmail, '');
+  assert.equal(Object.keys(h.render()).some(key => /password/i.test(key)), false);
+  h.unmount();
+});
+
 test('an ordinary sign-in closes the form and preserves its destination for one consumption', async () => {
   const h = harness(); await h.initialize();
   const pending = h.begin();

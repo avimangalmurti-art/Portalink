@@ -18,6 +18,10 @@ function setup(options = {}) {
     Object.assign(records[id], input);
     return { ...records[id] };
   } } };
+  if (options.lightweight) services.profiles.updateProjectGridLayout = async (id, columns) => {
+    const result = await services.profiles.updateProfile(id, { projectGridColumns: columns });
+    return { id: result.id, projectGridColumns: result.projectGridColumns };
+  };
   const profileData = { invalidateProfiles() { invalidations++; } };
   const react = Object.fromEntries(['useState', 'useEffect', 'useMemo', 'useCallback'].map(name =>
     [name, (...args) => active[name](...args)]));
@@ -171,4 +175,16 @@ test('canonical density refreshes when no local choice is outstanding, without s
   assert.equal(h.value.columns, 6); assert.equal(s.writes.length, 0);
   h.update(null, false); await h.flush(); assert.equal(h.value.columns, 2);
   h.value.setColumns(4); await h.flush(); assert.equal(s.writes.length, 0);
+});
+
+test('the lightweight Home writer shares the same serialized density state and persists only columns', async () => {
+  const first = deferred();
+  const s = setup({ lightweight: true, save: (_id, _input, count) => count === 1 ? first.promise : undefined });
+  const home = s.mount(); home.value.setColumns(5); home.value.setColumns(13); await home.flush();
+  home.dispose();
+  const profile = s.mount({ id: 'owner', projectGridColumns: 2 }); await profile.flush();
+  assert.equal(profile.value.columns, 13); assert.equal(s.writes.length, 1);
+  first.resolve(); await profile.flush();
+  assert.deepEqual(s.writes.map(write => write.input), [{ projectGridColumns: 5 }, { projectGridColumns: 13 }]);
+  assert.equal(s.records.owner.projectGridColumns, 13); assert.equal(s.invalidations, 2);
 });

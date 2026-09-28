@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { AppDetailPage } from './components/AppDetailPage';
 import type { ProductDetailState } from './components/AppDetailPage';
 import type { FeatureCardApp } from './components/FeatureCard';
 import { HomeFeed } from './components/home/HomeFeed';
@@ -19,7 +18,6 @@ import { useLocation } from 'react-router-dom';
 import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
-import { IconPickerPage } from './components/profile/IconPickerPage';
 import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
@@ -31,16 +29,12 @@ import { useFollows } from './features/follows/useFollows';
 import { useLiveSessions } from './features/live/useLiveSessions';
 import { useCategoryManagement } from './features/profile/useCategoryManagement';
 import { useAuth } from './contexts/AuthContext';
-import { AuthDialog } from './features/auth/AuthDialog';
 import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
 import { AlertCircleIcon } from 'lucide-react';
 import { InteractionSafePresence } from './components/ui/InteractionSafePresence';
 import { FeatureInDesignPage } from './components/FeatureInDesignPage';
-import { PortalsPage } from './features/profile/PortalsPage';
 import { useProfileOnboardingStatus } from './features/profile/useProfileOnboarding';
-import { ProfileOnboardingDialog } from './features/profile/ProfileOnboardingDialog';
-import { ProfileEditorPage } from './features/profile/ProfileEditorDialog';
-import { PublishProjectDialog } from './features/publishing/PublishProjectDialog';
+import { DeferredDialog, DeferredSurface, DeferredSurfaceBoundary } from './components/ui/DeferredDialog';
 import { PublishConfirmation } from './features/publishing/PublishConfirmation';
 import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
 import { AppScreenLayers } from './presentation/AppScreenLayers';
@@ -60,6 +54,13 @@ import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
 const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
 const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
+const AppDetailPage = React.lazy(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
+const IconPickerPage = React.lazy(() => import('./components/profile/IconPickerPage').then(module => ({ default: module.IconPickerPage })));
+const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
+const ProfileEditorPage = React.lazy(() => import('./features/profile/ProfileEditorDialog').then(module => ({ default: module.ProfileEditorPage })));
+const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
+const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
 const loadProfilePage = () => import('./components/UserProfilePage').then((module) => ({ default: module.UserProfilePage }));
@@ -1151,7 +1152,15 @@ function AppContent() {
     (categoryPage || ((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady) || (isPortalsOpen && canShowOwnPortalsWorkspace))
       ? `mobile-profile-${auth.user?.id ?? 'guest'}-${viewedProfile.id}-${isSharedRoute}` : undefined;
   const screenContent = <div data-screen-scroll={isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'nested' : 'page'} className={`feed-starfield min-h-full ${isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'h-full' : ''}`}>
-      <React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
+      <DeferredSurfaceBoundary active resetKey={screenTransitionKey} onClose={() => {
+        if (isProfileEditorRoute) closeProfileEditor();
+        else if (isControlCenterOpen) nav.closeSettings();
+        else if (iconPickerCategoryId) {
+          management.dismissFailure();
+          setAttemptedIconName(null);
+          setIconPickerCategoryId(null);
+        } else nav.back();
+      }}><React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
       {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
@@ -1164,7 +1173,7 @@ function AppContent() {
         </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed emptyAction={{ label: auth.isAuthenticated ? 'Open your profile' : 'Sign in', onClick: openOwnProfile }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
       })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
-      </React.Suspense>
+      </React.Suspense></DeferredSurfaceBoundary>
     </div>;
   const rootTokenStyle = useMemo(() => ({
     '--accent-color': interfaceAccentColor,
@@ -1217,16 +1226,16 @@ function AppContent() {
       </div>
       </div>
 
-      <InteractionSafePresence isPresent={Boolean(selectedApp)}>
+      <DeferredSurface active={Boolean(selectedApp)} onClose={closeAppDetail}><InteractionSafePresence isPresent={Boolean(selectedApp)}>
         {selectedApp && <AppDetailPage app={selectedApp} savedState={productDetailStateRef.current} onStateChange={saveProductDetailState} onBack={closeAppDetail} onOpenCreator={(creator) => openFeedCreator(creator.id)} />}
-      </InteractionSafePresence>
+      </InteractionSafePresence></DeferredSurface>
 
       {/* The auth surface is application-level: any control can request it. */}
-      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <AuthDialog registrationReturnPath={presentation === 'mobile' ? (isSharedRoute ? readSharedReturnPath(pathname + search) : settingsReturnPath) : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} />}
+      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog registrationReturnPath={presentation === 'mobile' ? (isSharedRoute ? readSharedReturnPath(pathname + search) : settingsReturnPath) : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      <PublishProjectDialog isOpen={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
+      <DeferredDialog active={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} onClose={() => { setIsPublishOpen(false); setPublishTargetCategoryId(null); }}><PublishProjectDialog isOpen={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
         setIsPublishOpen(false);
         setPublishTargetCategoryId(null);
       }} onPublished={(result, title) => {
@@ -1244,11 +1253,11 @@ function AppContent() {
           nav.project(auth.viewerProfileId, targetCategoryId, result.projectId);
         }
         requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
-      }} />
+      }} /></DeferredDialog>
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
-      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
+      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
         setIsOnboardingOpen(false);
         // Abandoning onboarding abandons the journey it interrupted.
         deferredIntentRef.current = null;
@@ -1263,7 +1272,7 @@ function AppContent() {
           return;
         }
         openProfile(profileId);
-      }} />}
+      }} /></DeferredSurface>}
 
       </MobileBackProvider>
     </AppPresentation>;

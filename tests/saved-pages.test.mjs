@@ -22,6 +22,8 @@ function load(path, imports = {}, globals = {}) {
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec(read('../drizzle/0000_media_interactions.sql'));
+  sqlite.exec(read('../drizzle/0001_saved_media_read_index.sql'));
   return { sqlite, binding: {
     prepare(sql) {
       let values = [];

@@ -78,7 +78,11 @@ export type HomeDiscovery = {
   projects: RankedProjectView[];
   sphere: ContentSphere;
   homeMode: HomeFeedMode;
+  /** Null/absent means every eligible project has been loaded. */
+  nextCursor?: ProjectFeedCursor | null;
 };
+
+export type ProjectFeedCursor = { publishedAt: string; id: Id };
 
 export type DiscoverSections = {
   sphere: ContentSphere;

@@ -41,10 +41,13 @@ export function useNotifications(): NotificationsState {
       setItems(next);
       setError(null);
       setStatus('success');
+      return true;
     } catch {
-      if (version !== request.current || background) return;
-      setError('Activity could not be loaded. Check the connection and try again.');
-      setStatus('error');
+      if (version === request.current && !background) {
+        setError('Activity could not be loaded. Check the connection and try again.');
+        setStatus('error');
+      }
+      return false;
     }
   }, [account, service]);
 
@@ -59,11 +62,17 @@ export function useNotifications(): NotificationsState {
 
   useEffect(() => {
     if (!account) return undefined;
-    const refresh = () => { if (document.visibilityState === 'visible') void load(true); };
-    const unsubscribe = service.subscribeToNotifications(refresh);
-    const timer = window.setInterval(refresh, 30_000);
+    let connected = false;
+    let refreshTimer: number | undefined;
+    const refresh = () => { if (document.visibilityState === 'visible') void load(true).then((success) => { if (success === false) connected = false; }); };
+    const schedule = () => { window.clearTimeout(refreshTimer); refreshTimer = window.setTimeout(refresh, 150); };
+    const unsubscribe = service.subscribeToNotifications(schedule, (ready) => {
+      connected = ready;
+      if (ready) schedule();
+    });
+    const timer = window.setInterval(() => { if (!connected) refresh(); }, 30_000);
     document.addEventListener('visibilitychange', refresh);
-    return () => { unsubscribe(); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    return () => { unsubscribe(); window.clearTimeout(refreshTimer); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
   }, [account, load, service]);
 
   async function markRead(id: string) {

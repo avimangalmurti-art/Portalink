@@ -19,7 +19,7 @@ import type { Comment, ProjectComments } from '../types/comments';
 import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecurityState, AuthError, AuthRecoverySession, AuthSession, ChangeEmailInput, ChangeEmailResult, ChangePasswordInput, ChangePasswordResult, DeleteAccountInput, DeleteAccountResult, PasswordResetRequestInput, PasswordResetRequestResult, ResendVerificationInput, ResendVerificationResult, SignInInput, SignUpInput, SignUpResult, UpdatePasswordInput } from '../types/auth';
 import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../types/profile';
 import type { GeographicBounds, GeographicLod, GeographicResult } from '../types/geography';
-import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode } from '../types/discovery';
+import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode, ProjectFeedCursor } from '../types/discovery';
 import type { ReportingPeriodId } from '../data/studioAnalytics';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
@@ -126,6 +126,9 @@ export interface ProfileService {
    * distinguish "no such profile" from a profile it can open.
    */
   getProfile(profileId: Id): Promise<Profile>;
+  /** A lightweight layout read/write for Home; never a partial Profile cache entry. */
+  getProjectGridLayout?(profileId: Id): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;
+  updateProjectGridLayout?(profileId: Id, columns: number): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;
   /** The profile owned by an account, or null when it has not been created yet. */
   getProfileForAccount(accountId: Id): Promise<Profile | null>;
   listProfiles(): Promise<Profile[]>;
@@ -305,7 +308,7 @@ export interface MediaService {
  */
 export interface DiscoveryService {
   /** One coherent Home snapshot: ranking, hero, and the sphere that produced it. */
-  getHomeDiscovery(): Promise<HomeDiscovery>;
+  getHomeDiscovery(cursor?: ProjectFeedCursor): Promise<HomeDiscovery>;
   /** Persists an understandable Home objective, never raw scoring weights. */
   setHomeFeedMode(mode: HomeFeedMode): Promise<HomeDiscovery>;
   /** Bounded, separately ranked Discover zones. */
@@ -448,7 +451,7 @@ export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
   markRead(notificationId: Id): Promise<void>;
   markAllRead(): Promise<void>;
-  subscribeToNotifications(onChange: () => void): () => void;
+  subscribeToNotifications(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;
 }
 /** Private bookmarks; identity comes from the session, never an argument. */
 export interface CreatorSaveService {
@@ -474,7 +477,7 @@ export interface MessagingService {
   markConversationRead(conversationId: Id, throughCreatedAt: string): Promise<void>;
   /** Supabase Realtime when available; callers retain a refresh fallback. */
   subscribeToMessages(conversationId: Id, onMessage: (message: DirectMessage) => void, onStatus?: (connected: boolean) => void, onRefresh?: () => void): () => void;
-  subscribeToConversationChanges(onChange: () => void): () => void;
+  subscribeToConversationChanges(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;
   subscribeToTyping(conversationId: Id, onTyping: (profileId: Id, isTyping: boolean) => void): () => void;
   broadcastTyping(conversationId: Id, profileId: Id, isTyping: boolean): void;
   getPreferences(): Promise<MessagingPreferences>;

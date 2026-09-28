@@ -45,11 +45,20 @@ type AttachmentRow = {
 type ReactionRow = { message_id: string; profile_id: string; emoji: string };
 
 const typingChannels = new Map<string, RealtimeChannel>();
+let activityCapability: Promise<boolean> | null = null;
+async function hasScopedActivity(): Promise<boolean> {
+  // Capability contains no account data. Legacy databases keep their working
+  // subscriptions until this separately approved migration is installed.
+  activityCapability ??= Promise.resolve(requireSupabase().rpc('messaging_realtime_version'))
+    .then(({ data, error }) => !error && data === 1).catch(() => false);
+  return activityCapability;
+}
 
 async function viewerProfileId(): Promise<string> {
-  const { data: authData, error: authError } = await requireSupabase().auth.getUser();
-  if (authError || !authData.user) throw new Error('Sign in to use messages.');
-  const { data, error } = await requireSupabase().from('profiles').select('id').eq('account_id', authData.user.id).single();
+  const { data: authData, error: authError } = await requireSupabase().auth.getSession();
+  if (authError || !authData.session?.user) throw new Error('Sign in to use messages.');
+  // This is only a client query key. Every table/RPC still verifies access with RLS.
+  const { data, error } = await requireSupabase().from('profiles').select('id').eq('account_id', authData.session.user.id).single();
   if (error || !data) throw new Error('Create your profile before using messages.');
   return (data as { id: string }).id;
 }
@@ -403,25 +412,53 @@ export const supabaseMessagingService: MessagingService = {
 
   subscribeToMessages(conversationId, onMessage, onStatus, onRefresh) {
     const client = requireSupabase();
+    let stopped = false;
+    const channels: RealtimeChannel[] = [];
+    void hasScopedActivity().then((scoped) => {
+    if (stopped) return;
+    let changesReady = false;
+    let activityReady = !scoped;
+    const report = () => { if (!stopped) onStatus?.(changesReady && activityReady); };
     const channel = client.channel(`direct-messages:${conversationId}:${crypto.randomUUID()}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` }, (payload) => {
         onMessage(directMessage(payload.new as MessageRow));
         onRefresh?.();
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` }, () => onRefresh?.())
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, () => onRefresh?.())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_message_reactions' }, () => onRefresh?.())
-      .subscribe((status) => onStatus?.(status === 'SUBSCRIBED'));
-    return () => { void client.removeChannel(channel); };
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_reads', filter: `conversation_id=eq.${conversationId}` }, () => onRefresh?.());
+    if (!scoped) {
+      // DELETE row filters are unsupported; use these only for legacy servers.
+      channel.on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'direct_messages' }, () => onRefresh?.())
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_message_reactions' }, () => onRefresh?.());
+    }
+    channels.push(channel);
+    channel.subscribe((status) => { changesReady = status === 'SUBSCRIBED'; report(); });
+    if (scoped) {
+      const activity = client.channel(`direct-activity:${conversationId}`, { config: { private: true } })
+        .on('broadcast', { event: 'changed' }, ({ payload }) => {
+          if (!stopped && payload?.conversationId === conversationId) onRefresh?.();
+        });
+      channels.push(activity);
+      activity.subscribe((status) => { activityReady = status === 'SUBSCRIBED'; report(); });
+    }
+    });
+    return () => { stopped = true; for (const channel of channels) void client.removeChannel(channel); };
   },
 
-  subscribeToConversationChanges(onChange) {
+  subscribeToConversationChanges(onChange, onStatus) {
     const client = requireSupabase();
-    const channel = client.channel(`direct-conversations:${crypto.randomUUID()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversations' }, () => onChange())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_reads' }, () => onChange())
-      .subscribe();
-    return () => { void client.removeChannel(channel); };
+    let stopped = false;
+    let channel: RealtimeChannel | null = null;
+    void Promise.all([viewerProfileId(), hasScopedActivity()]).then(([profileId, scoped]) => {
+      if (stopped) return;
+      channel = client.channel(`direct-conversations:${profileId}:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversations', filter: `participant_one_profile_id=eq.${profileId}` }, onChange)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversations', filter: `participant_two_profile_id=eq.${profileId}` }, onChange)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_reads', filter: `profile_id=eq.${profileId}` }, onChange);
+      if (scoped) channel.on('postgres_changes', { event: '*', schema: 'public', table: 'direct_conversation_states', filter: `profile_id=eq.${profileId}` }, onChange);
+      channel.subscribe((status) => { if (!stopped) onStatus?.(scoped && status === 'SUBSCRIBED'); });
+    }).catch(() => { if (!stopped) onStatus?.(false); });
+    return () => { stopped = true; if (channel) void client.removeChannel(channel); };
   },
 
   subscribeToTyping(conversationId, onTyping) {

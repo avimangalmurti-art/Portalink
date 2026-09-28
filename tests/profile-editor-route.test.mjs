@@ -152,8 +152,10 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
     isProfileEditorRoute: true, routeStateView: null,
     auth: { isAuthenticated: true, viewerProfileId: 'owned-profile' },
     ProfileEditorPage, closeProfileEditor: close, LoadingState: () => null,
+    DeferredSurfaceBoundary: 'DeferredSurfaceBoundary', screenTransitionKey: 'profile-editor-owned-profile',
   });
-  const page = screen.props.children.props.children;
+  assert.equal(screen.props.children.type, 'DeferredSurfaceBoundary');
+  const page = screen.props.children.props.children.props.children;
   assert.equal(page.type, ProfileEditorPage);
   assert.equal(page.props.profileId, 'owned-profile');
   assert.equal(page.props.onClose, close);

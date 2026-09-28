@@ -46,7 +46,8 @@ async function savePending(state: DensityState, service: ProfileService, id: str
       try {
         // Density is an independent profile field; never resend profile data
         // or project ordering from a possibly stale render.
-        await service.updateProfile(id, { projectGridColumns: columns });
+        if (service.updateProjectGridLayout) await service.updateProjectGridLayout(id, columns);
+        else await service.updateProfile(id, { projectGridColumns: columns });
         invalidateProfiles();
         if (state.pending === columns) state.pending = null;
       } catch (error) {

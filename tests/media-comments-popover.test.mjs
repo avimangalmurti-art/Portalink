@@ -197,3 +197,87 @@ test('scrolling tracks the anchor and unmount removes viewport and document list
   assert.equal(env.viewport.listenerCount(), 0);
   assert.equal(env.observers[0].observed.length, 0);
 });
+
+function interactionBarHarness(mode) {
+  const states = [];
+  let cursor = 0, retries = 0, dismissals = 0;
+  const activity = {
+    record: { engaged: { like: false, save: false, repost: false }, counts: { like: 0, save: 0, repost: 0 }, comments: [] },
+    pendingKind: null, isResolvingEngagement: true, isLoading: false, isPostingComment: false,
+    failure: 'Page activity is offline.', commentResumeToken: 0, shareState: 'idle',
+    retry: () => { retries++; }, dismissFailure: () => { dismissals++; },
+    toggle() {}, share() {}, postComment() {}, deleteComment() {},
+  };
+  const react = { ...React,
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in states)) states[index] = initial;
+      return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
+    },
+    useRef: initial => ({ current: initial }), useId: () => 'comments-id',
+    useEffect() {}, useLayoutEffect() {}, useMemo: fn => fn(), useCallback: fn => fn,
+  };
+  const popover = () => null;
+  const icon = () => null;
+  const { MediaInteractionBar } = load('../src/features/media-interactions/MediaInteractionBar.tsx', {
+    react,
+    'lucide-react': Object.fromEntries(['BookmarkIcon', 'HeartIcon', 'Loader2Icon', 'MessageCircleIcon', 'Repeat2Icon', 'SendIcon', 'Trash2Icon', 'XIcon'].map(name => [name, icon])),
+    '../../components/ui/InterfaceIcon': { InterfaceIcon: icon },
+    './useMediaInteractions': { useMediaInteractions: () => activity },
+    './mediaToolbarLayout': {
+      mediaToolbarLayout: () => ({ width: 200, unit: 40, slots: [1, 1, 1, 1, 1] }),
+      mobileFocusedMediaToolbarLayout: () => ({ width: 200, unit: 40, slots: [1, 1, 1, 1, 1] }),
+    },
+    '../../presentation/usePresentation': { usePresentation: () => mode },
+    './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth: 390, hostWidth: 390, isVisible: true }) },
+    './MediaCommentsPopover': { MediaCommentsPopover: popover },
+  });
+  const render = () => {
+    cursor = 0;
+    return MediaInteractionBar({ target: { projectId: 'project', attachmentId: 'attachment', pageIndex: 0, label: 'Original source' } });
+  };
+  return { activity, render, popover, get retries() { return retries; }, get dismissals() { return dismissals; } };
+}
+
+function descendants(node) {
+  if (!React.isValidElement(node)) return [];
+  return [node, ...React.Children.toArray(node.props.children).flatMap(descendants)];
+}
+
+for (const mode of ['mobile', 'web']) {
+  test(`${mode} exposes first-read retry outside closed Comments and keeps recovery reachable inside`, () => {
+    const env = interactionBarHarness(mode);
+    let nodes = descendants(env.render());
+    const actions = nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):/.test(node.props['aria-label'] ?? ''));
+    assert.equal(actions.length, 3);
+    assert.ok(actions.every(node => node.props.disabled));
+    assert.equal(nodes.some(node => node.type === env.popover), false);
+    const retry = nodes.find(node => node.props['aria-label'] === 'Retry page activity for Page 1');
+    assert.ok(retry, 'Retry is reachable without opening Comments');
+    assert.equal(retry.type, 'button');
+    assert.equal(retry.props.disabled, undefined);
+    retry.props.onClick(); assert.equal(env.retries, 1);
+
+    nodes.find(node => node.props['aria-label'] === 'Show comments for Page 1').props.onClick();
+    nodes = descendants(env.render());
+    assert.equal(nodes.some(node => node.type === env.popover), true);
+    assert.equal(nodes.some(node => node.props['aria-label'] === 'Retry page activity for Page 1'), false);
+    const insideRetry = nodes.find(node => node.type === 'button' && node.props.children === 'Try again');
+    assert.ok(insideRetry);
+    insideRetry.props.onClick(); assert.equal(env.retries, 2);
+    assert.equal(nodes.some(node => node.type === 'button' && node.props.children === 'Dismiss'), false,
+      'Unresolved failure cannot be dismissed while engagement remains blocked');
+
+    env.activity.isResolvingEngagement = false;
+    nodes = descendants(env.render());
+    const dismiss = nodes.find(node => node.type === 'button' && node.props.children === 'Dismiss');
+    assert.ok(dismiss, 'Ordinary post-load failures retain their dismiss action');
+    dismiss.props.onClick(); assert.equal(env.dismissals, 1);
+    assert.ok(nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):/.test(node.props['aria-label'] ?? '')).every(node => !node.props.disabled));
+
+    env.activity.failure = null;
+    nodes = descendants(env.render());
+    assert.equal(nodes.some(node => node.type === 'button' && node.props.children === 'Try again'), false);
+    assert.equal(nodes.some(node => node.props.role === 'alert'), false);
+  });
+}

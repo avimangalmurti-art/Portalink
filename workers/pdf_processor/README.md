@@ -47,6 +47,21 @@ starting the worker. The migration is the ingestion handler and queue contract.
 - Supabase's global Storage setting is the only file-size boundary; Portalink does not impose a second per-file ceiling.
 - Encrypted, empty, fake, and unreadable PDFs fail without rendering.
 - Each page is rendered independently with a timeout and memory ceiling.
-- Output is RGB WebP, quality 85, at 200 DPI up to 2048 px on either axis.
-- A page failure removes every output from that attempt before recording failure.
+- Output is RGB WebP, quality 85, encoder effort 4, at 200 DPI up to 2048 px on either axis.
+- A page failure attempts cleanup before recording failure; see the concurrency limitation below.
 - Original source objects are never modified or deleted by the processor.
+
+## Performance and concurrency boundary
+
+The 2026-09-28 change reduces WebP encoding effort from 6 to 4 without changing
+quality, dimensions, child-process isolation, memory caps or timeouts. It does
+not introduce parallel PDF jobs, rendering pools or concurrent uploads.
+
+The existing PDF RPCs identify jobs without a per-attempt lease token, and page
+paths are reused with upsert. A stalled earlier attempt or uncertain completion
+can race a later attempt's writes/cleanup. Before increasing concurrency, prepare
+a coordinated database/worker change for token-fenced progress/completion/failure,
+immutable attempt paths, and conservative uncertain-completion cleanup. A generic
+process-pool future timeout is not a replacement for the current killable child
+process or its hard resource limits. No such protocol or deployment change is
+included in the encoder adjustment.

@@ -6,7 +6,7 @@ import ts from 'typescript';
 
 function harness() {
   const calls=[];let signedIn=true, writeError=null;
-  const client={auth:{getUser:async()=>({data:{user:signedIn?{id:'account'}:null}})},
+  const client={auth:{getSession:async()=>({data:{session:signedIn?{user:{id:'account'}}:null}})},
     from(table){
       const ops=[];const query={};
       for(const op of ['select','eq','order','delete','range','in','or']) query[op]=(...args)=>{ops.push([op,...args]);return query;};

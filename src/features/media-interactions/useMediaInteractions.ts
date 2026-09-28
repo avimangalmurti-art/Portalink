@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
+import { readMediaInteraction } from './mediaInteractionBatch';
 
 export type MediaEngagementKind = 'like' | 'save' | 'repost';
 
@@ -21,7 +22,7 @@ export type MediaComment = {
   canDelete: boolean;
 };
 
-type MediaInteractionRecord = {
+export type MediaInteractionRecord = {
   engaged: Record<MediaEngagementKind, boolean>;
   counts: Record<MediaEngagementKind, number>;
   comments: MediaComment[];
@@ -71,11 +72,12 @@ function takePendingAction(key: string): PendingMediaAction | null {
   }
 }
 
-export function useMediaInteractions(target: MediaInteractionTarget) {
+export function useMediaInteractions(target: MediaInteractionTarget, enabled = true) {
   const auth = useAuth();
   const key = targetKey(target);
   const [record, setRecord] = useState<MediaInteractionRecord>(EMPTY_RECORD);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [pendingKind, setPendingKind] = useState<MediaEngagementKind | null>(null);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -83,35 +85,27 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
   const [shareState, setShareState] = useState<'idle' | 'shared'>('idle');
   const loadTokenRef = useRef(0);
 
-  const targetQuery = useMemo(() => {
-    const query = new URLSearchParams({
-      projectId: target.projectId,
-      attachmentId: target.attachmentId,
-      pageIndex: String(target.pageIndex)
-    });
-    return query.toString();
-  }, [target.attachmentId, target.pageIndex, target.projectId]);
-
   const load = useCallback(async () => {
     const token = loadTokenRef.current + 1;
     loadTokenRef.current = token;
     setIsLoading(true);
     setFailure(null);
     try {
-      const next = await apiRequest<MediaInteractionRecord>(`/api/media-interactions?${targetQuery}`);
-      if (loadTokenRef.current === token) setRecord(next);
+      const next = await readMediaInteraction(target, auth.user?.id ?? null);
+      if (loadTokenRef.current === token) { setRecord(next); setHasLoaded(true); }
     } catch (error) {
       if (loadTokenRef.current === token) setFailure(error instanceof Error ? error.message : 'This page activity is temporarily unavailable.');
     } finally {
       if (loadTokenRef.current === token) setIsLoading(false);
     }
-  }, [targetQuery]);
+  }, [target, auth.user?.id]);
 
   useEffect(() => {
     setRecord(EMPTY_RECORD);
-    void load();
+    setHasLoaded(false);
+    if (enabled) void load();
     return () => { loadTokenRef.current += 1; };
-  }, [auth.user?.id, key, load]);
+  }, [auth.user?.id, key, load, enabled]);
 
   const gateGuest = useCallback((action: PendingMediaAction['action']) => {
     const url = mediaDeepLink(target);
@@ -128,6 +122,9 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
       gateGuest(kind);
       return;
     }
+    if (!hasLoaded && !replayed) return;
+    // A read begun before this write must not replace its optimistic/result state.
+    loadTokenRef.current += 1;
     const before = record;
     setPendingKind(kind);
     setFailure(null);
@@ -142,13 +139,15 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
         body: JSON.stringify({ ...target, kind, engaged })
       }, true);
       setRecord(next);
+      setHasLoaded(true);
     } catch (error) {
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That action could not be completed.');
     } finally {
       setPendingKind(null);
+      setIsLoading(false);
     }
-  }, [auth.isAuthenticated, gateGuest, record, target]);
+  }, [auth.isAuthenticated, gateGuest, hasLoaded, record, target]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -172,6 +171,7 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
       return false;
     }
     setIsPostingComment(true);
+    loadTokenRef.current += 1;
     setFailure(null);
     try {
       const next = await apiRequest<MediaInteractionRecord>('/api/media-interactions/comments', {
@@ -179,16 +179,19 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
         body: JSON.stringify({ ...target, body: trimmed })
       }, true);
       setRecord(next);
+      setHasLoaded(true);
       return true;
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'Your comment could not be posted.');
       return false;
     } finally {
       setIsPostingComment(false);
+      setIsLoading(false);
     }
   }, [auth.isAuthenticated, gateGuest, target]);
 
   const deleteComment = useCallback(async (commentId: string) => {
+    loadTokenRef.current += 1;
     setFailure(null);
     const before = record;
     setRecord((current) => ({ ...current, comments: current.comments.filter((comment) => comment.id !== commentId) }));
@@ -198,9 +201,12 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
         body: JSON.stringify(target)
       }, true);
       setRecord(next);
+      setHasLoaded(true);
     } catch (error) {
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That comment could not be removed.');
+    } finally {
+      setIsLoading(false);
     }
   }, [record, target]);
 
@@ -226,6 +232,7 @@ export function useMediaInteractions(target: MediaInteractionTarget) {
   return {
     record,
     isLoading,
+    isResolvingEngagement: auth.isAuthenticated && !hasLoaded,
     pendingKind,
     isPostingComment,
     failure,

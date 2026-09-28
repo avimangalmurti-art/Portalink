@@ -9,7 +9,7 @@ export function deferred() {
 }
 
 /** Executes the real hook with controlled effects, service responses and clock events. */
-export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = { invalidateProfiles() {} }) {
+export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = { invalidateProfiles() {} }, dependencies = {}) {
   const slots = [];
   const intervals = new Map();
   const timeouts = new Map();
@@ -54,6 +54,7 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
       clearTimeout(id) { timeouts.delete(id); },
     },
     require(name) {
+      if (Object.hasOwn(dependencies, name)) return dependencies[name];
       if (name === 'react') return react;
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
       if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };

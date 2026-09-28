@@ -45,6 +45,21 @@ FFmpeg. Temporary disk must accommodate original plus conversion output; larger
 uploads may require a worker with more temporary storage. Rebuild periodically
 for FFmpeg security updates. Originals are never overwritten or deleted by this worker.
 
+Compatible H.264/yuv420p, square-pixel progressive video up to 1920px (supported
+Baseline/Main/High profile and level at most 4.2), with AAC-LC mono/stereo or no
+audio, is remuxed into faststart MP4 without re-encoding. Rotation/display-matrix,
+anamorphic, larger, unusual-format and incompatible-audio inputs use the existing
+normalization transcode. Remux output is re-probed and decoded for verification;
+failed copies fall back to conversion under the same job deadline. Embedded
+metadata is still stripped and original bytes remain untouched.
+
+Multipart output uploads use two bounded requests (at most two 40 MiB payloads
+in flight). The main thread continues lease heartbeats while waiting; the
+manifest is uploaded after all parts succeed. All in-flight requests drain
+before cleanup, which stays confined to the attempt's token namespace. Existing
+HTTP timeouts, completion guards and ambiguous-completion retention still apply.
+Worker count and hosting configuration are unchanged; source edits do not deploy it.
+
 ## Retry and recovery
 
 - Each claim receives a fresh lease token; heartbeats keep it valid for 180 seconds.

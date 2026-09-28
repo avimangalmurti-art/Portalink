@@ -11,7 +11,7 @@ import type { Id, ProjectLocation } from '../../types/domain';
 import { RotateCwIcon, SearchIcon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
-import { useProfileQuery } from '../../contexts/ProfileDataContext';
+import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
 import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
 
 type HomeFeedProps = {
@@ -75,9 +75,9 @@ export function HomeFeed({
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const { viewerProfileId } = useAuth();
-  const ownerProfile = useProfileQuery(locationId ? null : viewerProfileId);
-  const density = useProjectGridDensity(ownerProfile.profile, !locationId && Boolean(viewerProfileId));
-  const layoutReady = Boolean(locationId) || !viewerProfileId || ownerProfile.profile?.id === viewerProfileId;
+  const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
+  const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
+  const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchDraft, setSearchDraft] = useState('');
@@ -194,8 +194,8 @@ export function HomeFeed({
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
-            {!layoutReady && (ownerProfile.status === 'error' || ownerProfile.status === 'not-found'
-              ? <ErrorState title="Your Home layout could not be loaded" description={ownerProfile.error ?? undefined} onRetry={ownerProfile.retry} />
+            {!layoutReady && (ownerLayout.status === 'error'
+              ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
               : <LoadingState label="Loading your Home layout" />)}
             {feed.status === 'loading' && projects.length === 0
               ? <LoadingState label="Loading your Home feed" />
@@ -230,6 +230,13 @@ export function HomeFeed({
                 />
               : <BentoFeedGrid key={viewerProfileId ?? 'guest'} items={cells} columns={locationId ? undefined : density.columns} onColumnsChange={locationId ? undefined : density.setColumns} />
               : null}
+            {feed.nextCursor && <div className="flex flex-col items-center gap-2 py-5">
+              {feed.loadMoreError && <p role="status" className="text-[13px] text-[var(--text-secondary)]">{feed.loadMoreError}</p>}
+              <button type="button" className="min-h-11 rounded-full border border-[var(--border-subtle)] px-6 py-2 text-[var(--text-primary)] disabled:opacity-50"
+                disabled={feed.isLoadingMore || feed.isRefreshing} aria-busy={feed.isLoadingMore} onClick={feed.loadMore}>
+                {feed.isLoadingMore ? 'Loading…' : feed.loadMoreError ? 'Retry loading more' : 'Load more'}
+              </button>
+            </div>}
           </section>
         </div>
       </div>

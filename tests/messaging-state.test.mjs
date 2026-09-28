@@ -144,6 +144,7 @@ test('summary changes retain the same realtime subscription and refresh removes 
   assert.equal(subscription.closed, false);
   messages = [message('old'), message('new', 'a', 'alice', 3)];
   subscription.onRefresh();
+  hook.runTimeouts();
   await hook.flush();
   assert.deepEqual(Array.from(hook.value.messages, (item) => item.id), ['old', 'new']);
   hook.dispose();
@@ -325,6 +326,6 @@ test('a failed privacy save restores the previous setting', async () => {
   await hook.flush();
   assert.equal(hook.value.preferences.permission, 'requests');
   assert.equal(hook.value.isSavingPreferences, false);
-  assert.equal(hook.value.error, 'Message privacy could not be saved.');
+  assert.equal(hook.value.error, 'Could not save');
   hook.dispose();
 });

@@ -13,12 +13,12 @@ import { SocialServiceError } from '../../types/social';
 import { requireSupabase } from './client';
 
 async function currentAccountId(required: boolean): Promise<string | null> {
-  const { data, error } = await requireSupabase().auth.getUser();
-  if (error || !data.user) {
+  const { data, error } = await requireSupabase().auth.getSession();
+  if (error || !data.session?.user) {
     if (required) throw new Error('unauthenticated');
     return null;
   }
-  return data.user.id;
+  return data.session.user.id;
 }
 
 async function currentProfileId(required: boolean): Promise<string | null> {
@@ -283,7 +283,7 @@ export const supabaseCommentService: CommentService = {
   },
 };
 
-async function engagementSummary(projectId: string): Promise<ProjectEngagement> {
+async function legacyEngagementSummary(projectId: string): Promise<ProjectEngagement> {
   const accountId = await currentAccountId(false);
   const [summary, own] = await Promise.all([
     requireSupabase().rpc('project_engagement_summary', { p_project_id: projectId }),
@@ -306,11 +306,64 @@ async function engagementSummary(projectId: string): Promise<ProjectEngagement> 
   };
 }
 
+type EngagementSummaryRow = {
+  project_id: string;
+  viewer_liked: boolean; viewer_saved: boolean; viewer_reposted: boolean;
+  like_count: number; save_count: number; repost_count: number;
+};
+
+async function engagementSummaries(projectIds: string[]): Promise<ProjectEngagement[]> {
+  const ids = [...new Set(projectIds)];
+  const records: ProjectEngagement[] = [];
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const page = ids.slice(offset, offset + 200);
+    const { data, error } = await requireSupabase().rpc('project_engagement_summaries', { p_project_ids: page });
+    if (error?.code === 'PGRST202' || error?.code === '42883') {
+      // Source may be deployed before the separately approved RPC migration.
+      records.push(...await Promise.all(page.map(legacyEngagementSummary)));
+    } else {
+      if (error) throw new EngagementServiceError('network', error.message);
+      records.push(...((data ?? []) as EngagementSummaryRow[]).map((row) => ({
+        projectId: row.project_id, isLiked: row.viewer_liked, isSaved: row.viewer_saved, isReposted: row.viewer_reposted,
+        likeCount: Number(row.like_count), saveCount: Number(row.save_count), repostCount: Number(row.repost_count),
+      })));
+    }
+  }
+  return records;
+}
+
+type PendingEngagement = { id: string; resolve: (value: ProjectEngagement) => void; reject: (error: unknown) => void };
+const pendingEngagements = new Map<string | null, PendingEngagement[]>();
+
+async function engagementSummary(projectId: string): Promise<ProjectEngagement> {
+  const account = await currentAccountId(false);
+  return new Promise((resolve, reject) => {
+    const pending = pendingEngagements.get(account);
+    if (pending) { pending.push({ id: projectId, resolve, reject }); return; }
+    const queued = [{ id: projectId, resolve, reject }];
+    pendingEngagements.set(account, queued);
+    setTimeout(() => {
+      pendingEngagements.delete(account);
+      void (async () => {
+        try {
+          if (await currentAccountId(false) !== account) throw new Error('Your account changed. Please try again.');
+          const rows = await engagementSummaries(queued.map((item) => item.id));
+          if (await currentAccountId(false) !== account) throw new Error('Your account changed. Please try again.');
+          const byId = new Map(rows.map((row) => [row.projectId, row]));
+          for (const item of queued) {
+            const row = byId.get(item.id);
+            if (row) item.resolve(row);
+            else item.reject(new EngagementServiceError('permission_denied', 'This project is not available.'));
+          }
+        } catch (error) { for (const item of queued) item.reject(error); }
+      })();
+    }, 12);
+  });
+}
+
 export const supabaseEngagementService: EngagementService = {
   getProjectEngagement: engagementSummary,
-  async getProjectEngagements(projectIds) {
-    return Promise.all(projectIds.map(engagementSummary));
-  },
+  getProjectEngagements: engagementSummaries,
   async setEngagement(mutation) {
     const accountId = await currentAccountId(false);
     if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in before engaging with work.');
@@ -319,7 +372,9 @@ export const supabaseEngagementService: EngagementService = {
       ? await table.upsert({ account_id: accountId, project_id: mutation.projectId, kind: mutation.kind }, { onConflict: 'account_id,project_id,kind' })
       : await table.delete().eq('account_id', accountId).eq('project_id', mutation.projectId).eq('kind', mutation.kind);
     if (result.error) throw new EngagementServiceError(result.error.code === '42501' ? 'permission_denied' : 'network', result.error.message);
-    return engagementSummary(mutation.projectId);
+    const [record] = await engagementSummaries([mutation.projectId]);
+    if (!record) throw new EngagementServiceError('permission_denied', 'This project is not available.');
+    return record;
   },
   async listEngagedProjectIds(kind) {
     const accountId = await currentAccountId(false);
@@ -359,17 +414,18 @@ export const supabaseNotificationService: NotificationService = {
       .update({ read_at: new Date().toISOString() }).eq('account_id', accountId).is('read_at', null);
     if (error) throw new Error(error.message);
   },
-  subscribeToNotifications(onChange) {
+  subscribeToNotifications(onChange, onStatus) {
     const client = requireSupabase();
     let stopped = false;
     let remove: (() => void) | null = null;
-    void client.auth.getUser().then(({ data }) => {
-      if (stopped || !data.user) return;
-      const channel = client.channel(`notifications:${data.user.id}:${crypto.randomUUID()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `account_id=eq.${data.user.id}` }, () => onChange())
-        .subscribe();
+    void client.auth.getSession().then(({ data }) => {
+      if (stopped) return;
+      if (!data.session?.user) { onStatus?.(false); return; }
+      const channel = client.channel(`notifications:${data.session.user.id}:${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `account_id=eq.${data.session.user.id}` }, () => onChange())
+        .subscribe((status) => { if (!stopped) onStatus?.(status === 'SUBSCRIBED'); });
       remove = () => { void client.removeChannel(channel); };
-    });
+    }).catch(() => { if (!stopped) onStatus?.(false); });
     return () => { stopped = true; remove?.(); };
   },
 };

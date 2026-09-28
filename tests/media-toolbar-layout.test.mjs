@@ -100,7 +100,9 @@ test('page measurement follows lazy images, zoom, replacement and cleanup withou
   const hooks = load('useMediaPageSize.ts', {
     react: {
       useRef: () => ({ current: { parentElement: host } }),
-      useState: () => [state, (update) => { state = update(state); }],
+      useState: (initial) => typeof initial === 'boolean'
+        ? [initial, () => {}]
+        : [state, (update) => { state = typeof update === 'function' ? update(state) : update; }],
       useLayoutEffect: (effect) => { layoutEffect = effect; }
     },
     './mediaToolbarLayout': layoutModule

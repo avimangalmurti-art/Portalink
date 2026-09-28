@@ -1,4 +1,5 @@
 import { requireSupabase } from './client';
+import { cachedMediaSource, signedMediaUrls } from './mediaUrlCache';
 import { MANIFEST_SUFFIX, multipartSpec, partPath, readMultipartSpec } from '../../../public/portalink-media-core.js';
 import type { MultipartSpec } from '../../../public/portalink-media-core.js';
 
@@ -32,14 +33,18 @@ export function ensureMultipartReader(): Promise<void> {
 }
 
 export async function multipartSource(path: string, spec: MultipartSpec, fileName: string, mimeType: string): Promise<string> {
+  return cachedMediaSource(JSON.stringify([path, spec, fileName, mimeType]), () => createMultipartSource(path, spec, fileName, mimeType), 5 * 3600_000);
+}
+
+async function createMultipartSource(path: string, spec: MultipartSpec, fileName: string, mimeType: string): Promise<string> {
   await ensureMultipartReader();
   const urls: string[] = [];
   // Storage signing requests are bounded even for a file containing many parts.
   for (let start = 0; start < spec.partCount; start += 100) {
     const paths = Array.from({ length: Math.min(100, spec.partCount - start) }, (_, index) => partPath(path, start + index));
-    const { data, error } = await requireSupabase().storage.from(BUCKET).createSignedUrls(paths, 6 * 3600);
-    if (error) throw new Error(error.message);
-    const signed = new Map((data ?? []).map((item) => [item.path, item.signedUrl]));
+    // Renew parts if necessary so a new five-hour virtual URL cannot outlive
+    // signing tokens cached by an earlier viewing session.
+    const signed = await signedMediaUrls(BUCKET, paths, 5 * 3600_000);
     for (const item of paths) {
       const address = signed.get(item);
       if (!address) throw new Error('Some parts of this file are unavailable. Refresh the project and try again.');

@@ -35,11 +35,12 @@ test('Home ranking uses existing identity/location without reloading the full po
   };
   const projects = [{ project: { id: 'real-project' } }];
   const run = serviceFunction('discoveryContext', {
-    requireSupabase: () => ({ auth: { getUser: async () => { authReads++; return { data: { user: { id: 'account' } } }; } },
+    requireSupabase: () => ({ auth: { getSession: async () => { authReads++; return { data: { session: { user: { id: 'account' } } } }; } },
       from: table => query({ data: rows[table], error: null }),
     }),
     projectIdsForProfiles: async ids => { requested = ids; return ['real-project']; },
     projectViewsForIds: async () => projects,
+    readFeedPage: async () => null,
     supabaseProfileService: { getProfile: () => { profileReads++; throw new Error('Duplicate portfolio request'); } },
     buildUserContentSphere: input => { ranked = input; return 'sphere'; },
     asHomeFeedMode: mode => mode,
@@ -53,20 +54,22 @@ test('Home ranking uses existing identity/location without reloading the full po
 
 test('guest Home stays empty and request failures are not hidden by the faster path', async () => {
   const guest = serviceFunction('discoveryContext', {
-    requireSupabase: () => ({ auth: { getUser: async () => ({ data: { user: null } }) } }),
+    requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session: null } }) } }),
     projectViewsForIds: async ids => { assert.equal(ids.length, 0); return []; },
+    feedViews: async rows => { assert.equal(rows.length, 0); return []; },
     buildUserContentSphere: input => input, guestHomeFeedMode: 'balanced',
   });
   assert.equal((await guest('home')).availableProjects.length, 0);
   const failing = serviceFunction('discoveryContext', {
-    requireSupabase: () => ({ auth: { getUser: async () => ({ data: { user: { id: 'account' } } }) },
+    requireSupabase: () => ({ auth: { getSession: async () => ({ data: { session: { user: { id: 'account' } } } }) },
       from: () => query({ data: null, error: { message: 'offline' } }),
     }),
+    readFeedPage: async () => null,
   });
   await assert.rejects(failing('home'), /offline/);
 });
 
-test('profile data starts alongside auth but visibility still waits for verified identity', async () => {
+test('profile data starts alongside the local session hint and server-readable rows retain owner visibility', async () => {
   for (const account of ['owner-account', 'visitor-account', null]) {
     let resolveAuth, profileStarted = false, resolved = false;
     const auth = new Promise(resolve => { resolveAuth = resolve; });
@@ -77,7 +80,7 @@ test('profile data starts alongside auth but visibility still waits for verified
       project_attachments: [],
     };
     const run = serviceFunction('loadProfiles', {
-      requireSupabase: () => ({ auth: { getUser: () => auth },
+      requireSupabase: () => ({ auth: { getSession: () => auth },
         from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
       }),
       hydrateProjects: async projects => new Map(projects.map(p => [p.id, p])),
@@ -86,7 +89,7 @@ test('profile data starts alongside auth but visibility still waits for verified
     const pending = run('owner').then(value => { resolved = true; return value; });
     await Promise.resolve(); await Promise.resolve();
     assert.equal(profileStarted, true); assert.equal(resolved, false);
-    resolveAuth({ data: { user: account ? { id: account } : null } });
+    resolveAuth({ data: { session: account ? { user: { id: account } } : null } });
     const [profile] = await pending;
     assert.equal(profile.projects.length, account === 'owner-account' ? 2 : 1);
     assert.equal(profile.categories.length, account === 'owner-account' ? 2 : 1);

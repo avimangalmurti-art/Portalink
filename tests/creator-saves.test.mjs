@@ -44,7 +44,7 @@ function saveService({ signedIn = true, data = true, error = null } = {}) {
     order: async () => ({ data, error }),
   };
   const client = {
-    auth: { getUser: async () => ({ data: { user: signedIn ? { id: 'verified-account' } : null }, error: null }) },
+    auth: { getSession: async () => ({ data: { session: signedIn ? { user: { id: 'verified-account' } } : null }, error: null }) },
     from(table) { calls.push(['table', table]); return chain; },
     rpc: async (name, params) => { calls.push([name, params]); return { data, error }; },
   };

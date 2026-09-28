@@ -19,12 +19,10 @@ import { getCountryCode } from '../../data/countryCodes';
 import { getCityAccentToken } from '../../data/cityAccents';
 import { toLocationId } from '../../utils/location';
 import { defaultReportingPeriodId, gazeCapital, getReportingPeriod, kpisForPeriod } from '../../data/studioAnalytics';
-import { readAccentColor, readAppearanceMode, readHighContrast, readReduceTranslucency, writeAccentColor, writeAppearanceMode, writeHighContrast, writeReduceTranslucency } from '../../utils/appearancePreferences';
-import { localGeography } from '../../data/geography';
 import { getSeededProjectTypefaceId } from '../../data/projectTypefaces';
 import { typefaces } from '../../data/typefaces';
 import { attachmentsFromPreparedMedia } from '../../features/media/projectAttachments';
-import type { AnalyticsService, CommentService, CommerceService, DiscoveryService, EngagementService, GeographyService, LiveService, MediaService, MessagingService, NotificationService, PreferencesService, ProfileService, ProjectService, SearchService, SocialService } from '../interfaces';
+import type { AnalyticsService, CommentService, CommerceService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SearchService, SocialService } from '../interfaces';
 import { EngagementServiceError } from '../../types/engagement';
 import { SocialServiceError } from '../../types/social';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
@@ -33,7 +31,7 @@ import type { Comment, CommentAuthor, ProjectComments } from '../../types/commen
 // rather than trusting the caller. A real implementation verifies a token instead.
 import { readPrototypeSession } from '../prototype/authService';
 import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
-import type { AppearancePreferences, FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Location, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
+import type { FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Location, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
 import { CategoryMutationError, ProfileServiceError } from '../../types/profile';
 import { ProcessingServiceError, ProjectMutationError, PublishServiceError, UploadServiceError } from '../../types/publishing';
 import type { DeleteProjectResult, ProjectDraft, PublishProjectInput, PublishResult, UpdateProjectInput, UpdateProjectResult } from '../../types/publishing';
@@ -1673,48 +1671,4 @@ export const mockCommerceService: CommerceService = {
   }
 };
 
-/**
- * Local geography. Level-of-detail and visibility are resolved in the frontend
- * (`utils/geoScene.ts`) because the dataset is small; a production provider may
- * answer per-bounds instead without changing the globe components.
- */
-export const localGeographyService: GeographyService = {
-  readLocalGeography() {
-    return localGeography;
-  },
-  async getVisibleGeography() {
-    // NOT IMPLEMENTED: there is no spatial service. The whole local dataset is
-    // returned regardless of bounds; the LOD resolver culls what is off-screen.
-    return resolve(localGeography);
-  }
-};
-
-/** The one service that is genuinely local by design. */
-export const localPreferencesService: PreferencesService = {
-  readAppearance(): AppearancePreferences {
-    return {
-      // One set of defaults for the whole product: Dark, the standard blue
-      // accent, High Contrast ON, Reduce Translucency ON. These must match the
-      // shell's own fallbacks — when they disagreed, what a first-time visitor
-      // saw depended on which of the two happened to be read first.
-      mode: readAppearanceMode('dark'),
-      accentColor: readAccentColor('#0A84FF'),
-      highContrast: readHighContrast(true),
-      reduceTranslucency: readReduceTranslucency(true)
-    };
-  },
-  writeAppearance(preferences) {
-    if (preferences.mode !== undefined) {
-      writeAppearanceMode(preferences.mode);
-    }
-    if (preferences.accentColor !== undefined) {
-      writeAccentColor(preferences.accentColor);
-    }
-    if (preferences.highContrast !== undefined) {
-      writeHighContrast(preferences.highContrast);
-    }
-    if (preferences.reduceTranslucency !== undefined) {
-      writeReduceTranslucency(preferences.reduceTranslucency);
-    }
-  }
-};
+export { localGeographyService, localPreferencesService } from '../local';

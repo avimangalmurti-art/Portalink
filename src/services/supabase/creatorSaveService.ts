@@ -3,9 +3,9 @@ import type { SaveInsights } from '../../types/creatorSaves';
 import { requireSupabase } from './client';
 
 async function accountId() {
-  const { data, error } = await requireSupabase().auth.getUser();
-  if (error || !data.user) throw new Error('Sign in to use your saved library.');
-  return data.user.id;
+  const { data, error } = await requireSupabase().auth.getSession();
+  if (error || !data.session?.user) throw new Error('Sign in to use your saved library.');
+  return data.session.user.id;
 }
 
 export const supabaseCreatorSaveService: CreatorSaveService = {

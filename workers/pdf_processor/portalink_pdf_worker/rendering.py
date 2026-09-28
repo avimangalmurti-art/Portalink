@@ -108,7 +108,7 @@ def _render_page(
             output_path,
             format="WEBP",
             quality=WEBP_QUALITY,
-            method=6,
+            method=4,
             optimize=True,
         )
         return {"width": image.width, "height": image.height}

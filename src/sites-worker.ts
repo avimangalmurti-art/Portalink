@@ -44,7 +44,6 @@ const JSON_HEADERS = {
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
 }
-let schemaReady: Promise<void> | null = null
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS })
@@ -72,43 +71,6 @@ function parseTarget(value: Partial<Target>): Target {
     pageIndex,
     label: typeof value.label === 'string' ? value.label.slice(0, 240) : undefined,
   }
-}
-
-async function ensureSchema(db: D1Database): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = db.batch([
-      db.prepare(`CREATE TABLE IF NOT EXISTS media_engagements (
-        account_id TEXT NOT NULL,
-        project_id TEXT NOT NULL,
-        attachment_id TEXT NOT NULL,
-        page_index INTEGER NOT NULL CHECK (page_index >= 0),
-        kind TEXT NOT NULL CHECK (kind IN ('like', 'save', 'repost')),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (account_id, project_id, attachment_id, page_index, kind)
-      )`),
-      db.prepare(`CREATE INDEX IF NOT EXISTS idx_media_engagements_target
-        ON media_engagements(project_id, attachment_id, page_index, kind)`),
-      db.prepare(`CREATE TABLE IF NOT EXISTS media_comments (
-        id TEXT PRIMARY KEY,
-        account_id TEXT NOT NULL,
-        project_id TEXT NOT NULL,
-        attachment_id TEXT NOT NULL,
-        page_index INTEGER NOT NULL CHECK (page_index >= 0),
-        author_name TEXT NOT NULL,
-        author_avatar_url TEXT,
-        body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 1000),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )`),
-      db.prepare(`CREATE INDEX IF NOT EXISTS idx_media_comments_target_created
-        ON media_comments(project_id, attachment_id, page_index, created_at)`),
-      db.prepare(`CREATE INDEX IF NOT EXISTS idx_media_comments_account
-        ON media_comments(account_id)`),
-    ]).then(() => undefined).catch((error) => {
-      schemaReady = null
-      throw error
-    })
-  }
-  return schemaReady
 }
 
 async function authenticatedUser(request: Request, required: boolean): Promise<AuthenticatedUser | null> {
@@ -145,43 +107,40 @@ function authorIdentity(user: AuthenticatedUser): { name: string; avatarUrl: str
 }
 
 async function interactionRecord(db: D1Database, target: Target, user: AuthenticatedUser | null) {
-  const values = [target.projectId, target.attachmentId, target.pageIndex]
-  const [countRows, ownRows, commentRows] = await Promise.all([
-    db.prepare(`SELECT kind, COUNT(*) AS total FROM media_engagements
-      WHERE project_id = ? AND attachment_id = ? AND page_index = ? GROUP BY kind`)
-      .bind(...values).all<{ kind: EngagementKind; total: number }>(),
-    user
-      ? db.prepare(`SELECT kind FROM media_engagements
-          WHERE account_id = ? AND project_id = ? AND attachment_id = ? AND page_index = ?`)
-          .bind(user.id, ...values).all<{ kind: EngagementKind }>()
-      : Promise.resolve({ results: [] }),
-    db.prepare(`SELECT id, account_id, author_name, author_avatar_url, body, created_at
-      FROM media_comments WHERE project_id = ? AND attachment_id = ? AND page_index = ?
-      ORDER BY created_at ASC LIMIT 200`)
-      .bind(...values).all<{
-        id: string
-        account_id: string
-        author_name: string
-        author_avatar_url: string | null
-        body: string
-        created_at: string
-      }>(),
-  ])
-  const counts = { like: 0, save: 0, repost: 0 }
-  for (const row of countRows.results ?? []) counts[row.kind] = Number(row.total ?? 0)
-  const own = new Set((ownRows.results ?? []).map((row) => row.kind))
-  return {
-    engaged: { like: own.has('like'), save: own.has('save'), repost: own.has('repost') },
-    counts,
-    comments: (commentRows.results ?? []).map((row) => ({
-      id: row.id,
-      body: row.body,
-      authorName: row.author_name,
-      authorAvatarUrl: row.author_avatar_url,
-      createdAt: row.created_at,
-      canDelete: user?.id === row.account_id,
-    })),
-  }
+  const [item] = await interactionRecords(db, [target], user);
+  return item.record;
+}
+
+/** One bounded read for the visible pages, rather than three queries per page. */
+async function interactionRecords(db: D1Database, targets: Target[], user: AuthenticatedUser | null) {
+  const requested = `WITH requested(project_id, attachment_id, page_index) AS (VALUES ${targets.map(() => '(?, ?, ?)').join(', ')})`;
+  const values = targets.flatMap((target) => [target.projectId, target.attachmentId, target.pageIndex]);
+  const [engagements, comments] = await Promise.all([
+    db.prepare(`${requested}
+      SELECT e.project_id, e.attachment_id, e.page_index, e.kind, COUNT(*) AS total,
+        MAX(CASE WHEN e.account_id = ? THEN 1 ELSE 0 END) AS own
+      FROM requested r JOIN media_engagements e USING(project_id, attachment_id, page_index)
+      GROUP BY e.project_id, e.attachment_id, e.page_index, e.kind`)
+      .bind(...values, user?.id ?? '').all<{ project_id: string; attachment_id: string; page_index: number; kind: EngagementKind; total: number; own: number }>(),
+    db.prepare(`${requested}, ranked AS (
+      SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c.project_id, c.attachment_id, c.page_index ORDER BY c.created_at, c.id) AS position
+      FROM requested r JOIN media_comments c USING(project_id, attachment_id, page_index)
+    ) SELECT * FROM ranked WHERE position <= 200 ORDER BY created_at, id`)
+      .bind(...values).all<{ project_id: string; attachment_id: string; page_index: number; id: string; body: string; author_name: string; author_avatar_url: string | null; created_at: string; account_id: string }>(),
+  ]);
+  return targets.map((target) => {
+    const matches = (row: { project_id: string; attachment_id: string; page_index: number }) => row.project_id === target.projectId && row.attachment_id === target.attachmentId && row.page_index === target.pageIndex;
+    const counts = { like: 0, save: 0, repost: 0 };
+    const engaged = { like: false, save: false, repost: false };
+    for (const row of (engagements.results ?? []).filter(matches)) {
+      counts[row.kind] = Number(row.total);
+      engaged[row.kind] = Boolean(row.own);
+    }
+    return { target, record: { counts, engaged, comments: (comments.results ?? []).filter(matches).map((row) => ({
+      id: row.id, body: row.body, authorName: row.author_name, authorAvatarUrl: row.author_avatar_url,
+      createdAt: row.created_at, canDelete: user?.id === row.account_id,
+    })) } };
+  });
 }
 
 async function requestBody(request: Request): Promise<Record<string, unknown>> {
@@ -191,8 +150,19 @@ async function requestBody(request: Request): Promise<Record<string, unknown>> {
 }
 
 async function handleMediaInteractions(request: Request, db: D1Database): Promise<Response> {
-  await ensureSchema(db)
+  // Schema is owned by drizzle migrations. Existing deployed D1 tables and
+  // records are reused; page reads never perform DDL on a cold isolate.
   const url = new URL(request.url)
+
+  if (request.method === 'POST' && url.pathname === '/api/media-interactions/batch') {
+    const body = await requestBody(request);
+    // Twenty targets stay below D1's statement parameter limit, including identity.
+    if (!Array.isArray(body.targets) || body.targets.length < 1 || body.targets.length > 20) throw new Error('Request between 1 and 20 pages.');
+    const targets = body.targets.map((value) => parseTarget(value && typeof value === 'object' ? value : {}));
+    const unique = [...new Map(targets.map((target) => [JSON.stringify([target.projectId, target.attachmentId, target.pageIndex]), target])).values()];
+    const user = await authenticatedUser(request, false);
+    return json({ items: await interactionRecords(db, unique, user) });
+  }
 
   if (url.pathname === '/api/media-interactions/saved') {
     // Account identity comes only from the verified session, never the query.
@@ -302,12 +272,20 @@ const worker = {
     }
 
     const accept = request.headers.get('accept') ?? ''
-    if (request.method === 'GET' && accept.includes('text/html')) {
-      const appShellUrl = new URL('/', request.url)
-      return environment.ASSETS.fetch(new Request(appShellUrl, request))
+    const asset = url.pathname.startsWith('/assets/');
+    const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && accept.includes('text/html');
+    const response = await environment.ASSETS.fetch(navigation ? new Request(new URL('/', request.url), request) : request);
+    // Never cache a SPA fallback as a missing JS/CSS asset.
+    if (asset && response.headers.get('content-type')?.includes('text/html')) {
+      return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } });
     }
-
-    return environment.ASSETS.fetch(request)
+    const headers = new Headers(response.headers);
+    if (response.ok && asset && /-[\w-]{8,}\.[a-z\d]+$/i.test(url.pathname)) {
+      headers.set('cache-control', 'public, max-age=31536000, immutable');
+    } else if (navigation || response.headers.get('content-type')?.includes('text/html')) {
+      headers.set('cache-control', 'no-cache');
+    }
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },
 }
 

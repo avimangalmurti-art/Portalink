@@ -121,7 +121,10 @@ export function AuthProvider({
   const pendingIntentRef = useRef<AuthIntent | null>(null);
   const [gateMessage, setGateMessage] = useState<string | null>(null);
   const [initializeAttempt, setInitializeAttempt] = useState(0);
-  const [rememberedEmail, setRememberedEmail] = useState('');
+  // Forms own their live input. Remembering the journey's address must not
+  // broadcast a new auth context to every screen for each keystroke.
+  const rememberedEmailRef = useRef('');
+  const rememberEmail = useCallback((email: string) => { rememberedEmailRef.current = email; }, []);
   // Restores focus to whatever opened the sheet once it closes.
   const openerRef = useRef<HTMLElement | null>(null);
   const isAuthenticated = phase === 'authenticated' && session !== null;
@@ -241,7 +244,7 @@ export function AuthProvider({
       setSession(null);
       setPhase('unauthenticated');
       // The address belonged to the session that just ended.
-      setRememberedEmail('');
+      rememberedEmailRef.current = '';
       return true;
     } catch (caught) {
       setError(toAuthError(caught));
@@ -284,7 +287,7 @@ export function AuthProvider({
     setSession(null);
     setPhase('unauthenticated');
     setError(null);
-    setRememberedEmail('');
+    rememberedEmailRef.current = '';
     setPendingView(null);
     setGateMessage(null);
     pendingIntentRef.current = null;
@@ -352,9 +355,9 @@ export function AuthProvider({
     gateMessage,
     consumePendingIntent,
     peekPendingIntent,
-    rememberedEmail,
-    rememberEmail: setRememberedEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberedEmail]);
+    get rememberedEmail() { return rememberedEmailRef.current; },
+    rememberEmail
+  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
