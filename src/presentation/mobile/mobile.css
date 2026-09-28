@@ -593,8 +593,6 @@
   inset-block: 0 auto;
   height: var(--mobile-viewport-height, 100%);
   inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
-  max-width: var(--mobile-navigation-frame-width);
-  margin-inline: auto;
   pointer-events: none;
 }
 
@@ -668,10 +666,12 @@
   position: absolute;
   z-index: 1;
   display: grid;
-  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr);
+  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr) var(--mobile-dock-size);
   align-items: center;
   gap: 8px;
   inset-inline: 0;
+  max-width: var(--mobile-navigation-frame-width);
+  margin-inline: auto;
   bottom: var(--mobile-dock-bottom);
   pointer-events: none;
   touch-action: pan-y;
@@ -686,7 +686,7 @@
 }
 #root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) .mobile-floating-navigation {
   position: fixed;
-  inset-inline: max(var(--mobile-navigation-inset-start), (100% - var(--mobile-navigation-frame-width)) / 2) max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
+  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
   bottom: 0;
   padding-bottom: var(--mobile-dock-bottom);
 }
@@ -727,13 +727,21 @@
   }
 }
 
-/* The toggle stays in the first grid cell; only the destinations animate. */
+/* Equal outer tracks center the capsule independently of the left toggle. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
-  grid-column: 2 / -1;
+  grid-column: 2;
+  justify-self: center;
+  width: 100%;
+  max-width: 60vw;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
+}
+
+/* The expanded rail and its toggle use the viewport's left safe margin. */
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:has(.mobile-navigation-quick-links[hidden]) {
+  max-width: none;
 }
 
 /* Only one set of destinations is visible and keyboard-accessible at a time. */
@@ -2447,11 +2455,17 @@
    slots. All main destinations remain available, with native scrolling on
    narrow phones instead of smaller touch targets. */
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-floating-navigation {
+  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr);
+  max-width: calc(var(--mobile-navigation-frame-width) - 104px);
   inset-inline-end: 104px;
   touch-action: pan-x pan-y;
 }
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview):where(html[data-standalone] *) .mobile-floating-navigation {
-  inset-inline-end: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 104px);
+  inset-inline-end: calc(var(--mobile-navigation-inset-end) + 104px);
+}
+
+#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-quick-links {
+  max-width: none;
 }
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock {
   grid-template-columns: repeat(4, minmax(44px, 1fr));

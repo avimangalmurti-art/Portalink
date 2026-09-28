@@ -22,7 +22,7 @@ The 2026-09-21 and 2026-09-28 catalog checks found no `supabase_migrations.schem
 
 ## Performance additions applied September 28, 2026
 
-After explicit user approval, the owning task applied only these six new files to the existing Portalink Supabase project on 2026-09-28. **All six transactions succeeded.** Historical migrations were not replayed and the absent ledger was left unchanged. Website publication remains pending from v265, the approved D1 index awaits separate deployment verification, and media-worker changes remain source only. See [implementation and release status](performance-audit-status.md) and [read-path details](performance-read-paths.md).
+After explicit user approval, the owning task applied only these six new files to the existing Portalink Supabase project on 2026-09-28. **All six transactions succeeded.** Historical migrations were not replayed and the absent ledger was left unchanged. Website v266 is published from source `972392087eeabcf08bc249bd4620ba51376cd279`; the approved D1 index is included in its successful deployment, with independent index-catalog confirmation unavailable. Media-worker changes remain source only. See [implementation and release status](performance-audit-status.md) and [read-path details](performance-read-paths.md).
 
 | Migration | Purpose | Status |
 | --- | --- | --- |
@@ -105,9 +105,9 @@ Before any initial video activation, coordinate worker hosting with the queue/ba
 | Artifact | System | Application status |
 | --- | --- | --- |
 | [drizzle/0000_media_interactions.sql](../drizzle/0000_media_interactions.sql) | Sites worker's D1 database; creates media engagement/comment tables and indexes. | Unknown from this pass. It is outside the Supabase files and outside the Supabase migration ledger. |
-| [drizzle/0001_saved_media_read_index.sql](../drizzle/0001_saved_media_read_index.sql) | Existing Sites D1 database; adds the account/kind/time saved-page read index. | Explicitly approved September 28; packaged for Sites publication, application awaiting deployment verification. Isolated SQLite tests pass. A read-only Sites overview confirms the existing engagement/comment tables, not application of this index. |
+| [drizzle/0001_saved_media_read_index.sql](../drizzle/0001_saved_media_read_index.sql) | Existing Sites D1 database; adds the account/kind/time saved-page read index. | Explicitly approved September 28; included intact in successful Sites v266 deployment at 09:28 UTC. No per-migration receipt or index catalog is exposed by available Sites tools, so independent live index confirmation remains unavailable. Isolated SQLite tests pass. A read-only Sites overview confirms the existing engagement/comment tables, not application of this index. |
 
-Earlier versions of [the Sites worker](../src/sites-worker.ts), including live v265, used an `ensureSchema` routine to create these tables and indexes at runtime. The current performance source removes that routine and retains the existing tables/data. Consequently, table existence alone does not prove that `0000_media_interactions.sql` ran through a migration tool. Sites packages `drizzle/*.sql` for publication; verify D1 application through its deployment/migration evidence or live catalog before recording the approved index as applied. Do not send this SQLite/D1 SQL to Supabase.
+Earlier versions of [the Sites worker](../src/sites-worker.ts), including v265, used an `ensureSchema` routine to create these tables and indexes at runtime. The current performance source removes that routine and retains the existing tables/data. Consequently, table existence alone does not prove that `0000_media_interactions.sql` ran through a migration tool. Sites packages `drizzle/*.sql` for publication; verify D1 application through its deployment/migration evidence or live catalog before recording the approved index as applied. Do not send this SQLite/D1 SQL to Supabase.
 
 ## Proposed read-only verification
 

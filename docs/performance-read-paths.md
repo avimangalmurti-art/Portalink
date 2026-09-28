@@ -3,8 +3,9 @@
 On 2026-09-28, the owning task applied all six approved performance migrations
 (`202609280001` through `202609280006`) to the existing Portalink Supabase project.
 Every transaction succeeded. No historical migrations were replayed, and the
-absent migration ledger was not created or repaired. Website publication remains
-pending from live Sites v265; the approved D1 index awaits deployment verification.
+absent migration ledger was not created or repaired. Website v266 is published from
+source `972392087eeabcf08bc249bd4620ba51376cd279`. Its successful deployment includes
+the approved D1 index; independent index-catalog confirmation is unavailable.
 PDF/video worker changes remain source only, with no hosting or deployment performed.
 
 Live catalog checks confirmed 18 non-video indexes ready, four expected triggers
