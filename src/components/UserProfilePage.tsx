@@ -28,6 +28,8 @@ import { ProjectPreviewCard } from './profile/ProjectPreviewCard';
 import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
+import { useProjectGridDensity } from '../features/profile/useProjectGridDensity';
+import { MIN_PROJECT_GRID_COLUMNS, MAX_PROJECT_GRID_COLUMNS } from '../utils/projectGridDensity';
 import { useReorderOutsideTap } from '../features/profile/useReorderOutsideTap';
 import { useProfileConnections } from '../features/follows/useProfileConnections';
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
@@ -111,45 +113,10 @@ const ACTIVITY_COLORS: Record<EngagementKind, string> = {
   save: 'var(--engagement-save-selected)',
   repost: 'var(--engagement-repost-selected)'
 };
-const MIN_COLUMNS = 3;
-const MAX_COLUMNS = 9;
-const DEFAULT_COLUMNS = 4;
-const PROFILE_DENSITY_STORAGE_KEY = 'portalink.profile-view-density';
 // Cards never grow past this, so fewer columns leaves open canvas rather than
 // blowing a single card up to fill the screen.
 const MAX_CARD_WIDTH = 300;
 const GRID_GAP = 4;
-
-function normalizeProfileDensity(value: unknown): number {
-  const candidate = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(candidate)) return DEFAULT_COLUMNS;
-  return Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, Math.round(candidate)));
-}
-
-function readProfileDensity(): number {
-  try {
-    const stored = window.localStorage.getItem(PROFILE_DENSITY_STORAGE_KEY);
-    const normalized = stored === null ? DEFAULT_COLUMNS : normalizeProfileDensity(stored);
-    // Migrate an older 1–2 column preference into the supported range instead
-    // of letting the control and the rendered wall disagree after this change.
-    if (stored !== null && stored !== String(normalized)) {
-      window.localStorage.setItem(PROFILE_DENSITY_STORAGE_KEY, String(normalized));
-    }
-    return normalized;
-  } catch {
-    return DEFAULT_COLUMNS;
-  }
-}
-
-function writeProfileDensity(value: number): number {
-  const normalized = normalizeProfileDensity(value);
-  try {
-    window.localStorage.setItem(PROFILE_DENSITY_STORAGE_KEY, String(normalized));
-  } catch {
-    // The preference still applies to this session when storage is unavailable.
-  }
-  return normalized;
-}
 
 type InlineDescriptionEditor = {
   phase: ProjectManagement['editor']['phase'];
@@ -400,7 +367,6 @@ export function UserProfilePage({
   onOpenActivity
 }: UserProfilePageProps) {
   const isMobile = usePresentation() === 'mobile';
-  const [columnsPerRow, setColumnsPerRow] = useState(readProfileDensity);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get('view');
   const activeView: ProfileContentView = isMobile && mobileContent && mobileContentView ? mobileContentView : !isSharedView && (requestedView === 'portals' || requestedView === 'followers' || requestedView === 'following') ? requestedView : 'projects';
@@ -423,6 +389,8 @@ export function UserProfilePage({
   // entirely, and that vanished on reload. Media now enters only through the
   // publishing flow.
   const showsOwnerTools = canAuthor(viewerRole);
+  const density = useProjectGridDensity(profile, showsOwnerTools && !isSharedView);
+  const columnsPerRow = density.columns;
   const projectManagement = useProjectManagement(showsOwnerTools ? profile.id : null);
   const [isReorderingProjects, setIsReorderingProjects] = useState(false);
   const profilePageRef = useRef<HTMLDivElement>(null);
@@ -591,7 +559,7 @@ export function UserProfilePage({
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
-    <JustifiedImageWall label={`${displayName} — profile imagery`} columns={columnsPerRow} items={imageryCells} reorderMode={isReorderingProjects ? {
+    <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
       disabled: projectOrder.isSaving,
       onMove: projectOrder.move,
@@ -620,6 +588,7 @@ export function UserProfilePage({
         </div> : <button type="button" className="mobile-profile-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>}
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
+      {density.saveError && <p role="status" className="px-2 py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
       {isMobile && isReorderingProjects && <div data-profile-reorder-controls="" className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">
         <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Swipe to scroll. Hold a project to move it. Tap outside the cards to save.'}</p>
       </div>}
@@ -744,7 +713,7 @@ export function UserProfilePage({
                 {isManageOpen ? <div ref={manageMenuRef} tabIndex={-1} role="dialog" aria-label="Profile management" className="absolute right-0 top-[calc(100%+6px)] z-40 w-64 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-[var(--shadow-pop)]">
                     {!(isMobile && mobileContent) && <><div className="flex min-h-10 items-center gap-3 rounded-[8px] px-2.5">
                       <label htmlFor="profile-view-density" className="min-w-0 flex-1 text-[12px] font-medium text-[var(--text-primary)]">View density</label>
-                      <input id="profile-view-density" type="range" min={MIN_COLUMNS} max={MAX_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => setColumnsPerRow(writeProfileDensity(Number(event.target.value)))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
+                      <input id="profile-view-density" type="range" min={MIN_PROJECT_GRID_COLUMNS} max={MAX_PROJECT_GRID_COLUMNS} step={1} value={columnsPerRow} onChange={(event) => density.setColumns(Number(event.target.value))} aria-label="Cards per row" aria-valuetext={`${columnsPerRow} cards per row`} className="h-1 w-16 cursor-pointer accent-[var(--accent-primary)]" />
                     </div>
                     {!isMobile && <button type="button" disabled={orderedCardProjects.length < 2 || projectOrder.isSaving || projectManagement.editor.projectId !== null} onClick={() => {
                   projectOrder.reset();

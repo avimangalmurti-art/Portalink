@@ -19,7 +19,7 @@ test('an inherited final-row height is capped before it can overflow', () => {
   assert.match(source, /width: height \* entry\.ratio/);
 });
 
-function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWidth, selectedColumns } = {}) {
+function wallHarness(presentation, reorderMode, { width = 390, columns = 3, selectedColumns, items = [{ key: 'a', ratio: 1, content: 'A' }, { key: 'b', ratio: 1, content: 'B' }], onColumnsChange } = {}) {
   let starts = 0, zoomEnabled;
   const placeholder = new Proxy({}, { get: (_, key) => key });
   const exports = {};
@@ -33,11 +33,11 @@ function wallHarness(presentation, reorderMode, { width = 390, columnCapacityWid
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       if (name.endsWith('/SingleTouchSensor')) return { SingleTouchSensor: 'Touch' };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width }) };
-      if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled) => { zoomEnabled = enabled; return { columns: enabled && selectedColumns !== undefined ? selectedColumns : Math.max(2, Math.min(13, base)) }; } };
+      if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled, resetKey, callback) => { zoomEnabled = enabled; assert.equal(callback, onColumnsChange); return { columns: selectedColumns ?? Math.max(2, Math.min(13, base)) }; } };
       return placeholder;
     },
   });
-  const tree = exports.JustifiedImageWall({ columns: 3, columnCapacityWidth, label: 'Projects', items: [{ key: 'a', ratio: 1, content: 'A' }, { key: 'b', ratio: 1, content: 'B' }], reorderMode });
+  const tree = exports.JustifiedImageWall({ columns, onColumnsChange, label: 'Projects', items, reorderMode });
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   return { context: nodes(tree).find(node => node.type === 'DndContext'), card: nodes(tree).find(node => node.type?.name === 'SortableWallCard'), list: nodes(tree).find(node => node.props['data-profile-wall-columns']), nodes, starts: () => starts, zoomEnabled };
 }
@@ -126,21 +126,31 @@ test('holding starts only on artwork, then a completed drop moves the selected p
 });
 
 test('mobile Home retains columns and source order while the sidebar scales each row to fit', () => {
+  const items = Array.from({ length: 5 }, (_, index) => ({ key: `project-${index}`, ratio: 1, content: index }));
   for (const width of [351, 330, 304, 295]) {
-    const h = wallHarness('mobile', undefined, { width, columnCapacityWidth: 351 });
-    assert.equal(h.list.props['data-profile-wall-columns'], 2);
+    const h = wallHarness('mobile', undefined, { width, columns: 5, items });
+    assert.equal(h.list.props['data-profile-wall-columns'], 5);
     const cards = h.nodes(h.list).filter(node => node.type?.name === 'SortableWallCard');
-    assert.deepEqual(cards.map(card => card.props.item.key), ['a', 'b']);
-    assert.equal(cards.reduce((sum, card) => sum + card.props.item.width, 4), width);
+    assert.deepEqual(cards.map(card => card.props.item.key), items.map(item => item.key));
+    assert.ok(Math.abs(cards.reduce((sum, card) => sum + card.props.item.width, 4 * (items.length - 1)) - width) < 0.0001);
   }
 });
 
-test('Home and profile walls honor 2–13 viewer columns even on narrow screens; WEB ignores mobile capacity', () => {
-  const columns = (mode, options) => wallHarness(mode, undefined, options).list.props['data-profile-wall-columns'];
-  assert.equal(columns('mobile', { width: 224, columnCapacityWidth: 280 }), 2);
-  for (const mode of ['mobile', 'web']) for (const selectedColumns of [2, 7, 13]) {
-    assert.equal(columns(mode, { width: 295, columnCapacityWidth: 351, selectedColumns }), selectedColumns);
+test('Home and profile render every saved density exactly during browsing and reorder at any width', () => {
+  const items = Array.from({ length: 30 }, (_, index) => ({ key: `project-${index}`, ratio: 0.6 + index % 4 * 0.4, content: index }));
+  for (const mode of ['mobile', 'web']) for (const width of [224, 390, 1280]) for (let columns = 2; columns <= 13; columns++) {
+    for (const enabled of [false, true]) {
+      const h = wallHarness(mode, { enabled }, { width, columns, items, onColumnsChange() {} });
+      assert.equal(h.list.props['data-profile-wall-columns'], columns);
+      const rows = React.Children.toArray(h.list.props.children);
+      const completeRows = rows.slice(0, Math.floor(items.length / columns));
+      for (const row of completeRows) {
+        const cards = React.Children.toArray(row.props.children);
+        assert.equal(cards.length, columns);
+        assert.ok(Math.abs(cards.reduce((sum, card) => sum + card.props.item.width, 4 * (columns - 1)) - width) < 0.0001);
+      }
+      const cards = h.nodes(h.list).filter(node => node.type?.name === 'SortableWallCard');
+      assert.deepEqual(cards.map(card => card.props.item.key), items.map(item => item.key));
+    }
   }
-  assert.equal(columns('mobile', { width: 295 }), 2);
-  assert.equal(columns('web', { width: 351, columnCapacityWidth: 100 }), 3);
 });

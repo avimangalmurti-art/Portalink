@@ -64,15 +64,17 @@ function resolveColumns(width: number): number {
   return 8;
 }
 export function BentoFeedGrid({
-  items
+  items,
+  columns: savedColumns,
+  onColumnsChange
 
 
-}: {items: BentoCellItem[];}) {
+}: {items: BentoCellItem[]; columns?: number; onColumnsChange?: (columns: number) => void;}) {
   const {
     ref,
     width
   } = useElementSize<HTMLDivElement>();
-  const view = useContentZoom<HTMLDivElement>(width === 0 ? 2 : resolveColumns(width));
+  const view = useContentZoom<HTMLDivElement>(savedColumns ?? (width === 0 ? 2 : resolveColumns(width)), true, savedColumns, onColumnsChange);
   const columns = view.columns;
   /*
    * Without ResizeObserver a cell cannot know its own height, so the fine row

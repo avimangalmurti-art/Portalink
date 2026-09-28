@@ -43,6 +43,7 @@ import { deriveInitials, normalizeHandle } from '../../features/profile/validati
 import { buildUserContentSphere, rankDiscoverProjects, rankHomeProjects } from '../../domain/discovery/ranking';
 import { creatorLocationMatches, decideProjectPlacement } from '../../domain/contentPlacement';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
+import { MAX_PROJECT_GRID_COLUMNS, MIN_PROJECT_GRID_COLUMNS } from '../../utils/projectGridDensity';
 
 /**
  * These mocks serve CONTENT only. They never decide who is signed in — that is
@@ -199,6 +200,9 @@ export const mockProfileService: ProfileService = {
   },
   async updateProfile(profileId, input: UpdateProfileInput) {
     await resolve(undefined, 320);
+    if (input.projectGridColumns !== undefined && (!Number.isInteger(input.projectGridColumns) || input.projectGridColumns < MIN_PROJECT_GRID_COLUMNS || input.projectGridColumns > MAX_PROJECT_GRID_COLUMNS)) {
+      throw new ProfileServiceError('invalid_input', `Projects per row must be between ${MIN_PROJECT_GRID_COLUMNS} and ${MAX_PROJECT_GRID_COLUMNS}.`);
+    }
     const current = getProfileById(profileId) as Profile;
     const {
       handle,

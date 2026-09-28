@@ -167,6 +167,7 @@ function profileHarness(search = '', options = {}) {
   const slots = [];
   const pendingEffects = [];
   const projects = options.projects ?? [];
+  const density = { columns: options.columns ?? 5, setColumns(value) { density.columns = value; }, saveError: null };
   const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
   let outside;
   const react = { ...React,
@@ -193,12 +194,14 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [], counts: {}, loading: false, error: null, nextOffset: null }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
+    if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
+    if (name.endsWith('/projectGridDensity')) return { MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
     if (name.endsWith('/profileLinks')) return { mergeProfileLinks: () => options.links ?? [] };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
   }, { URLSearchParams, window: { localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
-  return { navigation, projectOrder, flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
+  return { navigation, projectOrder, density, flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
@@ -683,4 +686,26 @@ test('three-dot reorder entry keeps duplicate outside saves and retry recovery i
   assert.equal(saves, 1);
   assert.equal(wall(h.render()).props.reorderMode, undefined);
   assert.equal(h.outside().enabled, false);
+});
+
+test('profile reorder drop, Done, Cancel and outside save never change the active density', async () => {
+  for (const count of [2, 5, 13]) for (const finish of ['Done', 'Cancel', 'outside']) {
+    let saved = 0, reset = 0;
+    const h = profileHarness('', { presentation: 'mobile', projects: reorderProjects, columns: count,
+      projectOrder: { reset() { reset++; h.projectOrder.order = ['a', 'b']; },
+        move() { h.projectOrder.order = ['b', 'a']; },
+        async commit() { saved++; return true; } } });
+    reorderControl(openProfileOptions(h)).props.onClick();
+    assert.equal(wall(h.render()).props.columns, count);
+    wall(h.render()).props.reorderMode.onMove('b', 'a');
+    assert.equal(wall(h.render()).props.columns, count);
+    if (finish === 'outside') h.outside().finish();
+    else nodes(h.render()).find(node => node.type === 'button' && node.props.children === finish).props.onClick();
+    await flush();
+    assert.equal(wall(h.render()).props.columns, count);
+    assert.equal(wall(h.render()).props.reorderMode, undefined);
+    assert.deepEqual(h.projectOrder.order, finish === 'Cancel' ? ['a', 'b'] : ['b', 'a']);
+    assert.equal(saved, finish === 'Cancel' ? 0 : 1);
+    assert.equal(reset, finish === 'Cancel' ? 2 : 1);
+  }
 });

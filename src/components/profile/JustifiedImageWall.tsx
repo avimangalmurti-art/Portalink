@@ -50,8 +50,6 @@ import { SingleTouchSensor } from '../../presentation/mobile/SingleTouchSensor';
 
 /** The gutter, on both axes. Tight enough to read as a wall rather than tiles. */
 const GAP = 4;
-const MAX_COLUMNS = 9;
-const MIN_READABLE_CARD_WIDTH = 112;
 export type WallItem = {
   key: string;
   /** width / height. The frame's own proportion — never modified here. */
@@ -243,7 +241,7 @@ export function JustifiedImageWall({
   items,
   columns,
   label,
-  columnCapacityWidth,
+  onColumnsChange,
   reorderMode
 
 
@@ -252,20 +250,14 @@ export function JustifiedImageWall({
 
 
 
-}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;/** MOBILE Home keeps its columns when the navigation rail takes space. */columnCapacityWidth?: number;reorderMode?: ReorderMode;}) {
+}: {items: WallItem[]; /** Exact card count for every complete row. */columns: number;label: string;onColumnsChange?: (columns: number) => void;reorderMode?: ReorderMode;}) {
   const {
     ref,
     width
   } = useElementSize<HTMLDivElement>();
-  /*
-   * A reading preference layered over the creator's density choice: `columns`
-   * is untouched, and the zoom only scales how many land in a row. Frames keep
-   * their own proportions either way — nothing is cropped to zoom.
-   */
-  // Hiding the phone rail enlarges the same two columns instead of shrinking
-  // the artwork to squeeze in a third. The saved WEB density remains intact.
+  // Saved density is an exact count, including on narrow screens. Resizing the
+  // available width changes card dimensions, never the owner's chosen layout.
   const isMobile = usePresentation() === 'mobile';
-  const readableCardWidth = isMobile ? 150 : MIN_READABLE_CARD_WIDTH;
   const shouldReduceMotion = useReducedMotion();
   const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 6 } });
   const touchSensor = useSensor(SingleTouchSensor, {
@@ -280,13 +272,7 @@ export function JustifiedImageWall({
   // when resizing. PointerSensor wins mouse activation on WEB; MouseSensor is
   // its fallback and complements TouchSensor on the owner's mobile profile.
   const sensors = useSensors(isMobile && reorderMode ? touchSensor : pointerSensor, mouseSensor, keyboardSensor);
-  // Capacity chooses the initial layout only. A deliberate viewer pinch may
-  // show thumbnails all the way to 13 across, independently of saved density.
-  const capacityWidth = isMobile ? columnCapacityWidth ?? width : width;
-  const responsiveCapacity = capacityWidth > 0
-    ? Math.max(1, Math.floor((capacityWidth + GAP) / (readableCardWidth + GAP)))
-    : MAX_COLUMNS;
-  const view = useContentZoom<HTMLDivElement>(Math.min(columns, responsiveCapacity), !reorderMode?.enabled, columns);
+  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) {

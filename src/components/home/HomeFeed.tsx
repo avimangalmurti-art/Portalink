@@ -10,6 +10,9 @@ import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
 import { RotateCwIcon, SearchIcon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { useAuth } from '../../contexts/AuthContext';
+import { useProfileQuery } from '../../contexts/ProfileDataContext';
+import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
 
 type HomeFeedProps = {
   /** Retained as part of the shell contract; the grid measures its real width. */
@@ -71,34 +74,37 @@ export function HomeFeed({
   const isMobile = usePresentation() === 'mobile';
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
+  const { viewerProfileId } = useAuth();
+  const ownerProfile = useProfileQuery(locationId ? null : viewerProfileId);
+  const density = useProjectGridDensity(ownerProfile.profile, !locationId && Boolean(viewerProfileId));
+  const layoutReady = Boolean(locationId) || !viewerProfileId || ownerProfile.profile?.id === viewerProfileId;
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [hasReloaded, setHasReloaded] = useState(false);
-  const [mobileCapacityWidth, setMobileCapacityWidth] = useState<number>();
+  const [locationGridWidth, setLocationGridWidth] = useState(0);
+  const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
   const hasRestoredScrollRef = useRef(false);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
   const persistFrameRef = useRef(0);
 
-  // Choose Home's columns from the full phone canvas. Floating navigation never
-  // changes this capacity or the content width measured by the wall.
+  // City feeds keep their existing responsive reading size. Only Home/Profile
+  // use the creator's exact saved density; a city pinch remains local.
   useLayoutEffect(() => {
-    if (!isMobile || locationId) { setMobileCapacityWidth(undefined); return; }
-    const scroller = autoScrollRef.current;
-    const canvas = scroller?.closest<HTMLElement>('[data-presentation="mobile"]');
-    if (!scroller || !canvas) return;
-    const measure = () => {
-      const style = getComputedStyle(scroller);
-      const inset = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
-      setMobileCapacityWidth(Math.max(0, canvas.clientWidth - inset));
-    };
+    if (!isMobile || !locationId) return;
+    const content = autoScrollRef.current?.querySelector<HTMLElement>('[data-feed-scroll-content]');
+    if (!content) return;
+    const measure = () => setLocationGridWidth(content.clientWidth);
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure);
-    observer?.observe(canvas);
+    observer?.observe(content);
     window.addEventListener('resize', measure);
     measure();
     return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
   }, [isMobile, locationId]);
+  const locationColumns = locationGridChoice ?? (locationGridWidth > 0
+    ? Math.max(2, Math.min(3, Math.floor((locationGridWidth + 4) / 154)))
+    : 3);
 
   const projects = useMemo(() => {
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
@@ -120,7 +126,7 @@ export function HomeFeed({
   // shell. Restore that real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
-    if (hasRestoredScrollRef.current || (feed.status === 'loading' && projects.length === 0)) {
+    if (!layoutReady || hasRestoredScrollRef.current || (feed.status === 'loading' && projects.length === 0)) {
       return undefined;
     }
     hasRestoredScrollRef.current = true;
@@ -137,7 +143,7 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => cancelAnimationFrame(frame);
-  }, [feed.status, projects.length]);
+  }, [feed.status, projects.length, layoutReady]);
 
   const rememberScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     latestScrollTopRef.current = event.currentTarget.scrollTop;
@@ -187,6 +193,10 @@ export function HomeFeed({
           </header>}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
+            {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
+            {!layoutReady && (ownerProfile.status === 'error' || ownerProfile.status === 'not-found'
+              ? <ErrorState title="Your Home layout could not be loaded" description={ownerProfile.error ?? undefined} onRetry={ownerProfile.retry} />
+              : <LoadingState label="Loading your Home layout" />)}
             {feed.status === 'loading' && projects.length === 0
               ? <LoadingState label="Loading your Home feed" />
               : null}
@@ -204,20 +214,21 @@ export function HomeFeed({
                   action={emptyAction}
                 />
               : null}
-            {projects.length > 0 ? isMobile
+            {layoutReady && projects.length > 0 ? isMobile
               // Consecutive rows share Profile's sizing and preserve reading
               // order without repacking measured cards when this screen mounts.
               ? <JustifiedImageWall
                   label="Home projects"
-                  columns={3}
-                  columnCapacityWidth={!locationId ? mobileCapacityWidth : undefined}
+                  key={viewerProfileId ?? 'guest'}
+                  columns={locationId ? locationColumns : density.columns}
+                  onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
                     ratio: getProjectAspectRatio(projects[index].project),
                     content: cell.content,
                   }))}
                 />
-              : <BentoFeedGrid items={cells} />
+              : <BentoFeedGrid key={viewerProfileId ?? 'guest'} items={cells} columns={locationId ? undefined : density.columns} onColumnsChange={locationId ? undefined : density.setColumns} />
               : null}
           </section>
         </div>

@@ -13,6 +13,10 @@ function methods(service, names) {
 }
 const readProfile = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'loadProfiles').getText(source);
 const plain = value => JSON.parse(JSON.stringify(value));
+const gridDensity = {};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/projectGridDensity.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+}).outputText, { exports: gridDensity });
 function fixture() {
   const db = {
     profiles: [{id:'owner',account_id:'account',name:'Original',handle:'owner',headline:'Bio',location:'City',links:[],social_links:{},is_private:false}],
@@ -20,9 +24,9 @@ function fixture() {
     projects: ['a','b','c'].map((id,i)=>({id,profile_id:'owner',category_id:i===1?'two':'one',position:i,published_at:`2026-09-${20-i}`,is_hidden:false,is_pinned:false,design:{typefaceId:'default'}})),
     project_attachments: [],
   };
-  let denied=false,failId=null;
+  let denied=false,failId=null,viewer='account';
   const writes=[];
-  const client={auth:{getUser:async()=>({data:{user:{id:'account'}}})},from(table){
+  const client={auth:{getUser:async()=>({data:{user:viewer?{id:viewer}:null}})},from(table){
     const filters=[],orders=[];let patch=null,singular=false,returning=false;
     const query={
       select(){if(patch)returning=true;return query;},
@@ -48,13 +52,13 @@ function fixture() {
   class ServiceError extends Error {constructor(code,message){super(message);this.code=code;}}
   const exports={};
   vm.runInNewContext(ts.transpileModule(`${readProfile}\nconst supabaseProfileService={${methods('supabaseProfileService',['getProfile','updateProfile','getPortfolioArrangement','savePortfolioArrangement','renameCategory','setCategoryIcon'])}};\nconst supabaseProjectService={${methods('supabaseProjectService',['saveProfileProjectOrder','getProjectArrangement','saveProjectArrangement','updateProjectDesign'])}};\nexports.profiles=supabaseProfileService;exports.projects=supabaseProjectService;`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{
-    exports,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
+    exports,...gridDensity,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
     throwProfileError:error=>{throw new Error(error.message);},normalizePublicAppearance:value=>value??null,normalizeHandle:value=>value.replace(/^@/,''),
     uploadAvatar:async()=>'/test-avatar.png',deriveInitials:()=>'',asStats:()=>[],asStringRecord:value=>value??{},asLinks:value=>value??[],
     hydrateProjects:async rows=>new Map(rows.map(row=>[row.id,{id:row.id,categoryId:row.category_id}])),
     typefaces:[{id:'default'}],MIN_PAGES_PER_ROW:1,MAX_PAGES_PER_ROW:13,
   });
-  return {...exports,db,writes,deny:()=>{denied=true;},fail:id=>{failId=id;}};
+  return {...exports,db,writes,deny:()=>{denied=true;},fail:id=>{failId=id;},viewAs:id=>{viewer=id;}};
 }
 
 test('profile identity, links, avatar, privacy and branding survive a fresh service read',async()=>{
@@ -109,5 +113,52 @@ test('partial order failures reject and retry repairs the intended order',async(
 test('duplicate or foreign project IDs are rejected before any arrangement updates',async()=>{
   for(const ids of [['a','a'],['a','foreign']]){const h=fixture();
     await assert.rejects(h.projects.saveProjectArrangement('owner','one',{projectOrder:ids,hiddenProjectIds:[],pinnedProjectIds:[]}));assert.equal(h.writes.length,0);
+  }
+});
+
+test('project grid normalization clamps the whole 2–13 range and defaults malformed input',()=>{
+  const normalize=gridDensity.normalizeProjectGridColumns;
+  for(let columns=2;columns<=13;columns++)assert.equal(normalize(columns),columns);
+  assert.equal(normalize(-10),2);assert.equal(normalize(14),13);assert.equal(normalize(4.6),5);
+  for(const invalid of [undefined,null,NaN,Infinity,-Infinity,'5',{},[]])assert.equal(normalize(invalid),2);
+});
+
+test('saved project density is read by owners, other accounts and anonymous public visitors',async()=>{
+  const h=fixture();
+  assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,2);
+  await h.profiles.updateProfile('owner',{projectGridColumns:5});
+  for(const viewer of ['account','other-account',null]){
+    h.viewAs(viewer);assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,5);
+  }
+});
+
+test('density-only saves preserve all profile fields and project order; reorder never writes density',async()=>{
+  const h=fixture();
+  await h.projects.saveProfileProjectOrder('owner',['c','a','b']);
+  const before=plain(h.db.profiles[0]);const order=plain(h.db.projects);
+  await h.profiles.updateProfile('owner',{projectGridColumns:13});
+  assert.deepEqual(plain(h.db.profiles[0]),{...before,project_grid_columns:13});
+  assert.deepEqual(plain(h.db.projects),order);
+  assert.deepEqual(h.writes.at(-1),{table:'profiles',id:'owner',patch:{project_grid_columns:13}});
+  await h.projects.saveProfileProjectOrder('owner',['b','c','a']);
+  await h.profiles.updateProfile('owner',{name:'Renamed'});
+  const reopened=await h.profiles.getProfile('owner');
+  assert.equal(reopened.projectGridColumns,13);
+  assert.deepEqual(plain(reopened.projects.map(p=>p.id)),['b','c','a']);
+});
+
+test('density saves reject invalid counts, guest writes and non-owner updates without false success',async()=>{
+  for(const count of [1,14,5.5,NaN,Infinity,null,'5']){
+    const h=fixture();await assert.rejects(h.profiles.updateProfile('owner',{projectGridColumns:count}),/Projects per row/);
+    assert.equal(h.writes.length,0);
+  }
+  for(const viewer of ['other-account',null]){
+    const h=fixture();h.viewAs(viewer);
+    await assert.rejects(h.profiles.updateProfile('owner',{projectGridColumns:5}));
+    assert.equal(h.writes.length,0);
+  }
+  for(const count of [2,13]){
+    const h=fixture();await h.profiles.updateProfile('owner',{projectGridColumns:count});
+    assert.equal((await h.profiles.getProfile('owner')).projectGridColumns,count);
   }
 });

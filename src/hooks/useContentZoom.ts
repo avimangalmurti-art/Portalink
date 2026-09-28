@@ -1,21 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { pinchDistance, pinchSteps } from '../utils/pinchGesture';
+import { normalizeProjectGridColumns as clampColumns } from '../utils/projectGridDensity';
 
-const MIN_COLUMNS = 2;
-const MAX_COLUMNS = 13;
-const clampColumns = (value: number) => Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, Math.round(value)));
-
-/** Viewer-only project density. Ordinary wheels and one-finger swipes still scroll. */
-export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabled = true, resetKey?: number) {
+/** Ordinary wheels and one-finger swipes scroll; deliberate zoom chooses density. */
+export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabled = true, resetKey?: number, onColumnsChange?: (columns: number) => void) {
   const ref = useRef<T | null>(null);
   const [selection, setSelection] = useState<{ columns: number; key?: number } | null>(null);
   const baseline = clampColumns(baseColumns);
-  // Responsive resize preserves an explicit reading choice. Changing the
-  // profile's density control supersedes it; reordering uses readable cards.
-  const selected = enabled && selection?.key === resetKey ? selection?.columns : undefined;
+  // Disabling gestures for reorder must not discard the current layout.
+  // Only an explicit saved-density change supersedes the local choice.
+  const selected = selection?.key === resetKey ? selection?.columns : undefined;
   const columns = selected ?? baseline;
   const columnsRef = useRef(columns);
   columnsRef.current = columns;
+  const onColumnsChangeRef = useRef(onColumnsChange);
+  onColumnsChangeRef.current = onColumnsChange;
+  const resetKeyRef = useRef(resetKey);
+  resetKeyRef.current = resetKey;
   const [isAdjusting, setIsAdjusting] = useState(false);
   useEffect(() => { setSelection(null); setIsAdjusting(false); }, [resetKey]);
 
@@ -25,9 +26,21 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
     if (!element) return;
     let pinch: { distance: number; columns: number } | null = null;
     let timeout: number | undefined;
+    let commitTimeout: number | undefined;
+    let pendingColumns: number | undefined;
+    const commit = () => {
+      window.clearTimeout(commitTimeout);
+      if (pendingColumns === undefined) return;
+      const next = pendingColumns;
+      pendingColumns = undefined;
+      // Do not save an old gesture over a newly selected owner layout.
+      if (resetKeyRef.current === resetKey) onColumnsChangeRef.current?.(next);
+    };
     const choose = (value: number) => {
       const next = clampColumns(value);
+      if (next === columnsRef.current) return;
       columnsRef.current = next;
+      pendingColumns = next;
       setSelection({ columns: next, key: resetKey });
       setIsAdjusting(true);
       window.clearTimeout(timeout);
@@ -36,7 +49,11 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
     const onWheel = (event: WheelEvent) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
-      if (event.deltaY !== 0) choose(columnsRef.current + (event.deltaY < 0 ? -1 : 1));
+      if (event.deltaY !== 0) {
+        choose(columnsRef.current + (event.deltaY < 0 ? -1 : 1));
+        window.clearTimeout(commitTimeout);
+        commitTimeout = window.setTimeout(commit, 220);
+      }
     };
     const onTouchStart = (event: TouchEvent) => {
       const distance = pinchDistance(event.touches);
@@ -49,7 +66,7 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
       const next = clampColumns(pinch.columns - pinchSteps(distance, pinch.distance));
       if (next !== columnsRef.current) choose(next);
     };
-    const endTouch = () => { pinch = null; };
+    const endTouch = () => { pinch = null; commit(); };
     element.addEventListener('touchstart', onTouchStart, { passive: true });
     element.addEventListener('touchmove', onTouchMove, { passive: false });
     element.addEventListener('touchend', endTouch, { passive: true });
@@ -62,6 +79,8 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
       element.removeEventListener('touchend', endTouch);
       element.removeEventListener('touchcancel', endTouch);
       window.clearTimeout(timeout);
+      // A route change or entry into reorder must not lose the last choice.
+      commit();
     };
   }, [enabled, resetKey]);
 

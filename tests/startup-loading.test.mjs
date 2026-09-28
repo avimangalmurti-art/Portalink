@@ -81,7 +81,7 @@ test('profile data starts alongside auth but visibility still waits for verified
         from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
       }),
       hydrateProjects: async projects => new Map(projects.map(p => [p.id, p])),
-      deriveInitials: () => 'O', asStats: () => [], asStringRecord: () => ({}), asLinks: () => [], normalizePublicAppearance: () => ({}),
+      deriveInitials: () => 'O', asStats: () => [], asStringRecord: () => ({}), asLinks: () => [], normalizePublicAppearance: () => ({}), normalizeProjectGridColumns: () => 2,
     });
     const pending = run('owner').then(value => { resolved = true; return value; });
     await Promise.resolve(); await Promise.resolve();

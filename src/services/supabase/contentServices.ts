@@ -56,6 +56,7 @@ import { requireSupabase } from './client';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { createProfileHandle } from '../../utils/profileHandle';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
+import { MAX_PROJECT_GRID_COLUMNS, MIN_PROJECT_GRID_COLUMNS, normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 
 export const PROJECT_MEDIA_BUCKET = 'project-media';
 export const AVATAR_BUCKET = 'avatars';
@@ -75,6 +76,7 @@ type ProfileRow = {
   links: unknown;
   is_private: boolean;
   public_appearance?: unknown;
+  project_grid_columns?: number;
 };
 
 type CategoryRow = {
@@ -461,6 +463,7 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
     projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
     publicAppearance: normalizePublicAppearance(row.public_appearance),
+    projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
     };
   });
 }
@@ -614,6 +617,12 @@ export const supabaseProfileService: ProfileService = {
     if (input.links !== undefined) update.links = input.links;
     if (input.socialLinks !== undefined) update.social_links = input.socialLinks;
     if (input.isPrivate !== undefined) update.is_private = input.isPrivate;
+    if (input.projectGridColumns !== undefined) {
+      if (!Number.isInteger(input.projectGridColumns) || input.projectGridColumns < MIN_PROJECT_GRID_COLUMNS || input.projectGridColumns > MAX_PROJECT_GRID_COLUMNS) {
+        throw new ProfileServiceError('invalid_input', `Projects per row must be between ${MIN_PROJECT_GRID_COLUMNS} and ${MAX_PROJECT_GRID_COLUMNS}.`);
+      }
+      update.project_grid_columns = input.projectGridColumns;
+    }
     if (input.publicAppearance !== undefined) {
       const appearance = normalizePublicAppearance(input.publicAppearance);
       if (!appearance) throw new ProfileServiceError('invalid_input', 'Choose a valid appearance.');

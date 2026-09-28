@@ -117,7 +117,8 @@ function zoomHarness(enabled = true) {
     },
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : react, {
+  const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();

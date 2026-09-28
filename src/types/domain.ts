@@ -64,6 +64,8 @@ export type Profile = {
   isPrivate?: boolean;
   /** Creator branding shared by every public URL; null until first saved. */
   publicAppearance?: PublicAppearance | null;
+  /** Owner's saved 2–13 project-card count, shared by Home and the public profile. */
+  projectGridColumns?: number;
 };
 /**
  * Editing an existing profile. Deliberately the same identity fields
@@ -71,7 +73,7 @@ export type Profile = {
  * profile editing reuses one validation vocabulary rather than growing a second
  * model. `avatar` is a prepared, not-yet-uploaded file.
  */
-export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance'>> & {
+export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns'>> & {
   /** Normalized without the leading "@"; uniqueness is re-checked on write. */
   handle?: string;
   avatar?: import('./profile').PreparedAvatar;

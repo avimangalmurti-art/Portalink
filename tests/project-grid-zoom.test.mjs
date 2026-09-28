@@ -14,7 +14,7 @@ function compile(path, require, globals = {}) {
 }
 
 function harness() {
-  const slots = [], listeners = new Map(), timers = new Map();
+  const slots = [], listeners = new Map(), timers = new Map(), commits = [];
   let cursor = 0, effects = [], timerId = 0;
   const react = {
     useCallback: fn => fn,
@@ -32,21 +32,23 @@ function harness() {
     },
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : react, {
-    window: { setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout: id => timers.delete(id) },
+  const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
+    window: { setTimeout(fn, delay) { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id) },
   });
   const element = {
     addEventListener(type, fn) { assert.equal(listeners.has(type), false); listeners.set(type, fn); },
     removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
   };
-  const render = (base = 4, enabled = true, resetKey) => {
+  const render = (base = 4, enabled = true, resetKey, onColumnsChange = value => commits.push(value)) => {
     cursor = 0; effects = [];
-    const result = useContentZoom(base, enabled, resetKey);
+    const result = useContentZoom(base, enabled, resetKey, onColumnsChange);
     result.ref.current = element;
     effects.forEach(fn => fn());
     return result;
   };
-  return { render, listeners, timers,
+  return { render, listeners, timers, commits,
+    flush(delay) { for (const [id, timer] of timers) if (timer.delay === delay) { timers.delete(id); timer.fn(); } },
     wheel(deltaY) { listeners.get('wheel')({ ctrlKey: true, deltaY, preventDefault() {} }); },
     cleanup() { slots.forEach(slot => slot?.cleanup?.()); },
   };
@@ -76,17 +78,54 @@ test('responsive resize retains viewer density; creator density change resets it
   h.cleanup();
 });
 
-test('reordering temporarily uses readable baseline and reset returns to current responsive size', () => {
+test('reorder entry, dropping, saving and cancelling preserve the active five-column layout', () => {
   const h = harness(); h.render(4, true, 4);
-  for (let i = 0; i < 10; i++) h.wheel(1);
-  assert.equal(h.render(4, true, 4).columns, 13);
-  assert.equal(h.render(2, false, 4).columns, 2);
+  h.wheel(1);
+  assert.equal(h.render(4, true, 4).columns, 5);
+  assert.equal(h.render(4, false, 4).columns, 5, 'Entering reorder keeps the chosen layout');
   assert.equal(h.listeners.size, 0); assert.equal(h.timers.size, 0);
-  assert.equal(h.render(2, false, 4).isAdjusting, false);
-  const resumed = h.render(2, true, 4);
-  assert.equal(resumed.columns, 13);
-  resumed.reset(); assert.equal(h.render(2, true, 4).columns, 2);
-  assert.equal(h.render(2, true, 4).isZoomed, false);
+  assert.deepEqual(h.commits, [5], 'A pending wheel choice is saved before reorder starts');
+  assert.equal(h.render(4, false, 4).columns, 5, 'A drop does not alter layout');
+  assert.equal(h.render(4, false, 4).isAdjusting, false);
+  assert.equal(h.render(4, true, 4).columns, 5, 'Done, Cancel and outside-save re-enable gestures without a reset');
+  h.render(4, false, 4); assert.equal(h.render(4, true, 4).columns, 5);
+  const resumed = h.render(5, true, 5);
+  assert.equal(resumed.columns, 5, 'Persisted density agrees with the in-memory choice');
+  resumed.reset(); assert.equal(h.render(5, true, 5).columns, 5);
+  assert.equal(h.render(5, true, 5).isZoomed, false);
+  h.cleanup();
+});
+
+test('saved densities are clamped and remain exact when gestures are disabled', () => {
+  for (const [value, expected] of [[-4, 2], [2, 2], [5, 5], [13, 13], [30, 13], [NaN, 2]]) {
+    const h = harness();
+    assert.equal(h.render(value, false).columns, expected);
+    assert.equal(h.commits.length, 0, 'Rendering an owner setting does not write it back');
+    h.cleanup();
+  }
+});
+
+test('a pinch commits only its final density, with spread enlarging and pinch shrinking cards', () => {
+  const h = harness(); h.render(5, true, 5);
+  const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
+  const move = distance => h.listeners.get('touchmove')({ touches: touches(distance), cancelable: true, preventDefault() {} });
+  h.listeners.get('touchstart')({ touches: touches(100) });
+  move(125); assert.equal(h.render(5, true, 5).columns, 4);
+  move(64); assert.equal(h.render(5, true, 5).columns, 7);
+  assert.deepEqual(h.commits, []);
+  h.listeners.get('touchend')(); assert.deepEqual(h.commits, [7]);
+  h.listeners.get('touchend')(); assert.deepEqual(h.commits, [7], 'The same gesture is not saved twice');
+  h.cleanup();
+});
+
+test('modified wheel commits once after its burst, while a new owner setting rejects an old pending commit', () => {
+  const h = harness(); h.render(3, true, 3);
+  h.wheel(1); h.wheel(1); h.render(3, true, 3);
+  assert.deepEqual(h.commits, []);
+  h.flush(220); assert.deepEqual(h.commits, [5]);
+  h.wheel(1); h.render(8, true, 8);
+  assert.deepEqual(h.commits, [5], 'An old delayed callback must not overwrite a newer saved setting');
+  assert.equal(h.render(8, true, 8).columns, 8);
   h.cleanup();
 });
 

@@ -12,11 +12,14 @@ function nodes(node) {
 
 function harness(presentation = 'mobile', props = {}) {
   const slots = []; let cursor = 0;
+  let layoutEffects = [];
   const feedArguments = [];
   let reloads = 0;
+  const density = { columns: 5, setColumns(value) { density.columns = value; }, saveError: null };
+  const ownerProfile = { profile: { id: 'owner', projectGridColumns: 5 }, status: 'ready' };
   const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' } }, { project: { id: 'second' } }], isEmpty: false,
     isRefreshing: false, refreshError: null, retry() { reloads++; } };
-  const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useLayoutEffect() {},
+  const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useLayoutEffect(effect) { layoutEffects.push(effect); },
     useRef(value) { const index = cursor++; return slots[index] ??= { current: value }; },
     useState(value) {
       const index = cursor++;
@@ -27,9 +30,12 @@ function harness(presentation = 'mobile', props = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/home/HomeFeed.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, window: { sessionStorage: { getItem: () => null } }, require(name) {
+  }).outputText, { exports, window: { sessionStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} }, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner' }) };
+    if (name.endsWith('/ProfileDataContext')) return { useProfileQuery: () => ownerProfile };
+    if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
     if (name.endsWith('/useFeed')) return { useFeed(locationId) {
       feedArguments.push(locationId);
       return feed;
@@ -37,11 +43,38 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1, resolveFeedSpan: () => 1 };
     return new Proxy({}, { get: (_, key) => key });
   } });
-  return { feedArguments, feed, get reloads() { return reloads; }, render() {
-    cursor = 0;
+  const render = () => {
+    cursor = 0; layoutEffects = [];
     return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onOpenProject() {}, onOpenCreator() {}, ...props });
-  } };
+  };
+  return { feedArguments, feed, density, ownerProfile, get reloads() { return reloads; }, render,
+    measureLocation(width) {
+      const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
+      scroller.ref.current = { querySelector: () => ({ clientWidth: width }) };
+      layoutEffects[0]();
+    },
+  };
 }
+
+test('Home passes the saved owner density to both presentations and waits for the canonical layout', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = harness(presentation);
+    const grid = () => nodes(h.render()).find(node => node.type === (presentation === 'mobile' ? 'JustifiedImageWall' : 'BentoFeedGrid'));
+    assert.equal(grid().props.columns, 5);
+    for (const count of [2, 13, 5]) {
+      grid().props.onColumnsChange(count);
+      assert.equal(grid().props.columns, count);
+    }
+    h.ownerProfile.status = 'loading';
+    assert.equal(grid().props.columns, 5, 'A same-profile refresh must keep the current grid mounted');
+    const originalProfile = h.ownerProfile.profile;
+    h.ownerProfile.profile = null;
+    assert.equal(grid(), undefined, 'Do not flash or overwrite a saved layout with the default while its profile loads');
+    h.ownerProfile.profile = originalProfile;
+    h.ownerProfile.status = 'ready';
+    assert.equal(grid().props.columns, 5);
+  }
+});
 
 test('Home search is inside its existing scroller and only appears on the mobile Home entry', () => {
   const tree = harness().render();
@@ -55,6 +88,25 @@ test('Home search is inside its existing scroller and only appears on the mobile
   for (const h of [harness('web'), harness('mobile', { locationId: 'city' }), harness('mobile', { showSearchPlaceholder: false })]) {
     assert.equal(nodes(h.render()).some(node => node.props.role === 'search'), false);
   }
+});
+
+test('city feeds preserve their responsive mobile baseline and local pinch without changing the owner layout', () => {
+  const h = harness('mobile', { locationId: 'city' });
+  const grid = () => nodes(h.render()).find(node => node.type === 'JustifiedImageWall');
+  for (const [width, expected] of [[240, 2], [390, 2], [430, 2], [458, 3], [600, 3]]) {
+    h.measureLocation(width);
+    assert.equal(grid().props.columns, expected);
+  }
+  grid().props.onColumnsChange(13);
+  h.measureLocation(390);
+  assert.equal(grid().props.columns, 13, 'Resizing keeps a deliberate local city pinch');
+  assert.equal(h.density.columns, 5, 'City choices must not change the saved Home/Profile layout');
+  const home = harness('mobile');
+  home.measureLocation(240);
+  assert.equal(nodes(home.render()).find(node => node.type === 'JustifiedImageWall').props.columns, 5);
+  const webCity = nodes(harness('web', { locationId: 'city' }).render()).find(node => node.type === 'BentoFeedGrid');
+  assert.equal(webCity.props.columns, undefined);
+  assert.equal(webCity.props.onColumnsChange, undefined);
 });
 
 test('typing and submitting stay local and preserve the feed’s content and order', () => {
