@@ -11,7 +11,7 @@
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, [data-project-index-panel],
   [data-project-response-rail], [data-project-file-strip],
-  .mobile-navigation-scroll, .mobile-navigation-dock, .mobile-navigation-opener,
+  .mobile-navigation-scroll, .mobile-navigation-dock,
   .mobile-shared-drawer-opener, .mobile-project-back,
   .mobile-project-page-counter, .mobile-page-thumbnails, .account-menu-popover
 ) {
@@ -128,7 +128,7 @@
 }
 
 /* Standalone controls have their own glass; children of a bar share its glass. */
-#root .codex-shell[data-presentation] :is(.mobile-navigation-opener, .mobile-shared-drawer-opener, .mobile-project-back, .mobile-project-page-counter) {
+#root .codex-shell[data-presentation] :is(.mobile-shared-drawer-opener, .mobile-project-back, .mobile-project-page-counter) {
   --navigation-item-rest-surface: var(--navigation-surface);
   --navigation-item-shadow: var(--navigation-shadow);
   border-radius: 999px;

@@ -1,5 +1,25 @@
 # Current agent handoff
 
+## Combined five-button mobile navigation pill — local, unpublished — 2026-09-28
+
+- MOBILE follow-up: moved the existing sidebar opener into the bottom pill before Messages, Studio, Home and Profile. One centered capsule now contains all five controls and stays visible while the sidebar is open; the expanded rail retains its existing independent left-edge position, width and animation. Removed the opener's separate glass/circle material. Desktop/tablet navigation and destination actions remain unchanged.
+- Changed `src/presentation/mobile/MobileNavigation.tsx`, scoped `mobile.css`, opener selectors in shared `navigation.css`, and existing `tests/mobile-navigation.test.mjs`. Capsule width is `clamp(224px, 60vw, 292px)` with five minimum-44px targets. Preserved the project viewer's existing 104px reservation for its separate right-side controls and native horizontal scrolling at narrow widths; its pill remains centered within that available region.
+- Typecheck and touched-component ESLint pass. All 42 focused navigation/dock-scroll/outside-tap/shared-sidebar checks pass; independent CSS/interaction review found no blocking issue. Browser verified centered pill at 320/390/430px, persistent five controls when expanded, unchanged left rail, and content activation plus dismissal on one tap. Local isolated light project preview at 390px confirms no overlap with portal/engagement controls; 1280px selects WEB without a mobile pill. No physical iPhone/Safari toolbar or installed-PWA testing. Temporary QA tab closed and viewport reset; existing preview server retained.
+- Continuing owned `codex/splash-reliability` at `fb251cf0dabc9d7cd9bababfa60f5acb73304b93`. Preserve the pending favicon change and prior publication receipts below. No source commit, GitHub integration, SQL or publication for this request; live remains v267.
+
+## Replacement favicon — local, unpublished — 2026-09-28
+
+- User supplied `codex-clipboard-58995e9c-6de7-4879-b5db-258d6f4fea4a.png`. Replaced browser ICO (16/32/48px), 32px/48px PNGs, and legacy `public/portalink-favicon.png` source copy with that exact artwork/full white canvas. Updated only the three browser `rel=icon` cache tags in `index.html` to `03b564a6`. Apple Touch/PWA/App Store icons, manifest, splash, profile artwork and navigation remain unchanged.
+- Continuing owned `codex/splash-reliability` at `fb251cf0dabc9d7cd9bababfa60f5acb73304b93`; preserve the v267 receipt below and unrelated untracked user folders. No publication or Git commit for this request; live remains version 267.
+- Verified source-copy byte equality, each ICO entry's decoded dimensions and matching PNG bytes, and clean whitespace. Browser favicon scope was independently reviewed; no favicon-specific existing test suite. No broad suite needed for this asset/HTML-only edit.
+
+## Published mobile navigation positioning — Sites version 267 — 2026-09-28
+
+- User-requested publication succeeded at https://portalinknetworksinc.avimangalmurti566055.chatgpt.site . Exact source `fb251cf0dabc9d7cd9bababfa60f5acb73304b93`, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_63751f4efc148191ac2c0a56ec379dae`, deployment `appgdep_6abad2fc561c8191961d2830224503ea`, succeeded `2026-09-28T20:50:15.743680+00:00`. Public access, environment revision 1, existing D1 DB/r2:null and Supabase connections preserved. No new SQL, media-worker deployment or GitHub main merge/push.
+- Reviewed five-file commit includes the mobile CSS fix and prior performance publication receipts. Clean release checkout and Sites source mirror match the commit. Reused the successful exact-source client/server build; all 212 copied files match hashes and the 220-entry archive contains only dist output/configuration. Existing packaged D1 migrations are unchanged. Untracked user folders and local QA files excluded.
+- Release typecheck and production build pass. Clean release lint passes with 0 errors/87 existing warnings. Working-root lint still scans accumulated ignored QA/release trees and reports 1031 errors/2069 warnings there; no lint configuration or unrelated source changes made. Previous 45/46 focused test result and known pre-existing keyframes assertion remain as recorded below.
+- Live Settings verified at WEB and 390px MOBILE: bottom capsule 234px wide, centered at x195; expanded 56px rail starts at approximately x11.3. Temporary production QA tab closed and viewport reset. No physical iPhone/Safari chrome test. This documentation receipt follows the published commit; the navigation change below is now live.
+
 ## Mobile navigation positioning — local, unpublished — 2026-09-28
 
 - Current screenshot request only: `src/presentation/mobile/mobile.css` centers/constrains the four-destination bottom capsule independently of the left toggle. The expanded 56px sidebar and its toggle use the viewport's left safe margin. Existing icon sizes, gaps, materials, colors, radius, order, behavior and WEB/tablet selectors are unchanged. Project-view controls retain their existing right slots and capsule sizing. Standalone retains fixed bottom safe-area padding without extending the shell.

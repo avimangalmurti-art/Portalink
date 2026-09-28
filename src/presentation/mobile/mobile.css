@@ -600,7 +600,7 @@
   position: absolute;
   z-index: 1;
   inset-block: 0;
-  /* Both controls use the same frame, so their centers always stay aligned. */
+  /* Opening the centered bottom pill never moves the left-edge sidebar. */
   inset-inline-start: calc((var(--mobile-dock-size) - 56px) / 2);
   display: flex;
   flex-direction: column;
@@ -665,8 +665,8 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
   position: absolute;
   z-index: 1;
-  display: grid;
-  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr) var(--mobile-dock-size);
+  display: flex;
+  justify-content: center;
   align-items: center;
   gap: 8px;
   inset-inline: 0;
@@ -727,31 +727,19 @@
   }
 }
 
-/* Equal outer tracks center the capsule independently of the left toggle. */
+/* Five full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
-  grid-column: 2;
-  justify-self: center;
-  width: 100%;
-  max-width: 60vw;
+  width: clamp(224px, 60vw, 292px);
+  max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
 
-/* The expanded rail and its toggle use the viewport's left safe margin. */
-#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:has(.mobile-navigation-quick-links[hidden]) {
-  max-width: none;
-}
-
-/* Only one set of destinations is visible and keyboard-accessible at a time. */
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links[hidden] {
-  display: none;
-}
-
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: 2px;
@@ -802,28 +790,6 @@
 
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination):not(:disabled):active {
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener {
-  display: grid;
-  place-items: center;
-  width: var(--mobile-dock-size);
-  height: var(--mobile-dock-size);
-  min-height: 44px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--surface-raised) 70%, transparent) !important;
-  color: var(--text-primary) !important;
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
-  pointer-events: auto;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener [data-interface-icon-frame] {
-  --interface-icon-size: 40px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener svg {
@@ -2455,7 +2421,6 @@
    slots. All main destinations remain available, with native scrolling on
    narrow phones instead of smaller touch targets. */
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-floating-navigation {
-  grid-template-columns: var(--mobile-dock-size) minmax(0, 1fr);
   max-width: calc(var(--mobile-navigation-frame-width) - 104px);
   inset-inline-end: 104px;
   touch-action: pan-x pan-y;
@@ -2464,11 +2429,7 @@
   inset-inline-end: calc(var(--mobile-navigation-inset-end) + 104px);
 }
 
-#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-quick-links {
-  max-width: none;
-}
 #root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock {
-  grid-template-columns: repeat(4, minmax(44px, 1fr));
   overflow-x: auto;
   scrollbar-width: none;
   touch-action: pan-x;

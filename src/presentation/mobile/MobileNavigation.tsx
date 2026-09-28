@@ -6,7 +6,6 @@ import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/Int
 import { useNavigationSwipe } from './useNavigationSwipe';
 import { useMobileDockScroll } from './useMobileDockScroll';
 import { useNavigationOutsideTap } from './useNavigationOutsideTap';
-import { motion, useReducedMotion } from 'framer-motion';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 
 type Item = { label: string; icon: InterfaceIconSource; href?: string; action?: () => void; active?: boolean; disabled?: boolean; mirroredInRtl?: boolean };
@@ -45,7 +44,6 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
 /** The phone rail has its own visibility, without writing the WEB width/choice. */
 export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
   const [hidden, setHidden] = useState(true);
-  const reduceMotion = useReducedMotion();
   const { pathname, search } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -103,12 +101,12 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
       </>}
     </aside>
     <div ref={dockRef} className="mobile-floating-navigation" {...dockSwipe}>
-      <button ref={toggle} type="button" className="mobile-navigation-opener" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
-      <motion.nav hidden={!hidden} className="mobile-navigation-quick-links" aria-label="Quick navigation" initial={false} animate={{ opacity: hidden ? 1 : 0, y: reduceMotion || hidden ? 0 : 8 }} transition={{ duration: reduceMotion ? 0 : 0.18 }}>
+      <nav className="mobile-navigation-quick-links" aria-label="Quick navigation">
         <div className="mobile-navigation-dock">
+          <button ref={toggle} type="button" className="mobile-navigation-opener mobile-dock-destination nav-button" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
           {[messages, studio, home, profile].map(item => <Destination key={item.label} item={item} variant="dock" />)}
         </div>
-      </motion.nav>
+      </nav>
     </div>
   </div>;
 }

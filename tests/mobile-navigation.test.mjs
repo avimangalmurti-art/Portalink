@@ -205,20 +205,26 @@ function navigationHarness(pathname = '/') {
     dirty = false;
     const tree = exports.MobileNavigation({ settings: null, theme: 'dark', onThemeChange() {}, onPortalink() {}, onMessages() {}, onProfile() {}, isProfileActive: false, ...props });
     const [rail, floating] = React.Children.toArray(tree.props.children);
-    const [toggle, dock] = React.Children.toArray(floating.props.children);
+    const [dock] = React.Children.toArray(floating.props.children);
     const [group] = React.Children.toArray(dock.props.children);
-    const profile = React.Children.toArray(group.props.children).find(child => child.props.item.label === 'Profile');
+    const [toggle, ...destinations] = React.Children.toArray(group.props.children);
+    const profile = destinations.find(child => child.props.item.label === 'Profile');
     const railNav = rail.props.children ? React.Children.toArray(rail.props.children.props.children)[0] : null;
     const railItems = railNav ? React.Children.toArray(railNav.props.children) : [];
     const railToggle = railItems.find(child => child.props['aria-controls'] === rail.props.id) ?? null;
-    assert.equal(floating.props.hidden, undefined, 'the toggle is always mounted outside the hidden destinations');
+    assert.equal(floating.props.hidden, undefined, 'the combined toggle and destinations stay mounted');
+    assert.equal(React.Children.count(floating.props.children), 1, 'one combined quick-navigation pill has no separate toggle');
+    assert.equal(group.props.className, 'mobile-navigation-dock');
+    assert.equal(toggle.type, 'button');
+    assert.equal(toggle.props['aria-controls'], rail.props.id);
+    assert.equal(destinations.length, 4);
     toggle.ref.current = toggleElement;
     tree.ref.current = layerElement;
     effects.splice(0).forEach(effect => effect());
     if (dirty) return render(props);
     frames.splice(0).forEach(fn => fn());
     const appearance = railItems.find(child => child.props.item?.label.startsWith('Switch to '));
-    return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
+    return { layer: tree, rail, railItems, railToggle, floating, dock, toggle, group, destinations, appearance: appearance ? exports.Destination(appearance.props) : null, profile: exports.Destination(profile.props), focused };
   }
   return { render, icons, document, listeners, focused,
     target: (name, options) => new Element(name, options),
@@ -253,7 +259,7 @@ test('browsing scroll owns the entire floating dock only while the side rail is 
 test('mobile sidebar reverses its destinations while preserving the bottom dock order', () => {
   const h = navigationHarness('/portals');
   let ui = h.render();
-  assert.equal(ui.dock.props.hidden, false);
+  assert.equal(ui.dock.props.hidden ?? false, false);
   ui.toggle.props.onClick();
   ui = h.render({ settings: React.createElement('button', { 'aria-label': 'Settings' }), liveControl: React.createElement('button', { 'aria-label': 'Leave live session' }) });
   const destinations = ui.railItems.filter(child => child.props.item).map(child => child.props.item.label);
@@ -262,7 +268,7 @@ test('mobile sidebar reverses its destinations while preserving the bottom dock 
   assert.equal(ui.railItems.at(-2).props['aria-label'], 'Settings');
   assert.equal(destinations.includes('Back'), false);
   assert.ok(ui.appearance);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);
+  assert.deepEqual(ui.destinations.map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);
 });
 
 test('the mobile appearance control switches the shared theme both ways and updates its icon and label', () => {
@@ -287,10 +293,10 @@ test('the mobile appearance control switches the shared theme both ways and upda
   assert.deepEqual(changes, ['light', 'dark']);
 });
 
-test('mobile opens with the bottom dock, then alternates around one persistent toggle', () => {
+test('the combined five-button pill stays visible around one persistent toggle in both rail states', () => {
   const h = navigationHarness();
   let ui = h.render();
-  assert.equal(ui.dock.props.hidden, false);
+  assert.equal(ui.dock.props.hidden ?? false, false);
   assert.equal(ui.rail.props['data-hidden'], true);
   assert.equal(ui.railItems.length, 0);
   assert.equal(ui.toggle.props['aria-expanded'], false);
@@ -301,14 +307,18 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
   assert.equal(layerType, 'div');
   assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item.label), ['Messages', 'Studio', 'Home', 'Profile']);
-  assert.deepEqual(React.Children.toArray(ui.group.props.children).filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Studio']);
+  assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item?.label ?? child.props['aria-label']), ['Show navigation', 'Messages', 'Studio', 'Home', 'Profile']);
+  assert.deepEqual(ui.destinations.filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Studio']);
   for (const expectedHidden of [false, true, false, true]) {
     ui.toggle.props.onClick(); ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], expectedHidden);
-    assert.equal(ui.dock.props.hidden, !expectedHidden);
+    assert.equal(ui.dock.props.hidden ?? false, false);
+    assert.notEqual(ui.dock.props['aria-hidden'], true);
+    assert.notEqual(ui.dock.props.animate?.opacity, 0);
     assert.equal(ui.railToggle, null);
     assert.equal(ui.toggle.ref, toggleRef);
+    assert.equal(ui.toggle.ref.current, h.document.activeElement);
+    assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item?.label ?? child.props['aria-label']), [expectedHidden ? 'Show navigation' : 'Hide navigation', 'Messages', 'Studio', 'Home', 'Profile']);
     assert.equal(ui.layer.type, layerType);
     assert.equal(ui.layer.props.className, 'mobile-navigation-layer');
     assert.equal(ui.layer.props.hidden, undefined);
@@ -322,10 +332,10 @@ test('mobile opens with the bottom dock, then alternates around one persistent t
     if (!expectedHidden) assert.equal(ui.railItems.some(child => child.props.item?.label === 'Studio'), true);
   }
   assert.deepEqual(ui.focused, ['toggle', 'toggle', 'toggle', 'toggle']);
-  assert.equal(navigationHarness().render().dock.props.hidden, false, 'a new app session starts with the dock');
+  assert.equal(navigationHarness().render().dock.props.hidden ?? false, false, 'a new app session starts with the dock');
 });
 
-test('outside dismissal restores the dock without scheduling focus away from the underlying action', () => {
+test('outside dismissal keeps the combined dock visible without taking focus from the underlying action', () => {
   const h = navigationHarness();
   let ui = h.render();
   assert.equal(h.outsideBinding.open, false);
@@ -334,7 +344,7 @@ test('outside dismissal restores the dock without scheduling focus away from the
   ui = h.render();
   assert.equal(h.outsideBinding.open, true);
   assert.equal(h.outsideBinding.ref, ui.layer.ref);
-  assert.equal(ui.dock.props.hidden, true);
+  assert.equal(ui.dock.props.hidden ?? false, false);
   // Actions inside the rail keep working without triggering dismissal.
   ui.appearance.props.onClick();
   ui = h.render();
@@ -345,11 +355,35 @@ test('outside dismissal restores the dock without scheduling focus away from the
   assert.equal(h.pendingFrames, 0, 'Outside dismissal must not queue toggle focus after the clicked page control focuses');
   ui = h.render();
   assert.equal(ui.rail.props['data-hidden'], true);
-  assert.equal(ui.dock.props.hidden, false);
+  assert.equal(ui.dock.props.hidden ?? false, false);
   assert.equal(h.outsideBinding.open, false);
   assert.deepEqual(ui.focused, focusedBeforeDismissal);
   h.render();
   assert.deepEqual(ui.focused, focusedBeforeDismissal, 'Later renders cannot restore focus left by outside dismissal');
+});
+
+test('quick destinations retain their actions, links and accessibility while the rail is open', () => {
+  const h = navigationHarness('/messages');
+  const calls = [];
+  const props = { onMessages: (...args) => calls.push(args), profileHref: '/p/my-profile' };
+  let ui = h.render(props);
+  ui.toggle.props.onClick();
+  ui = h.render(props);
+  assert.equal(ui.rail.props['data-hidden'], false);
+  assert.equal(ui.dock.props.hidden ?? false, false);
+  const [messages, studio, home, profile] = ui.destinations.map(h.destination);
+  assert.deepEqual([messages, studio, home, profile].map(child => child.props['aria-label']), ['Messages', 'Studio unavailable', 'Home', 'Profile']);
+  assert.equal(messages.props['aria-current'], 'page');
+  messages.props.onClick({ type: 'click' });
+  assert.deepEqual(calls, [[]]);
+  assert.equal(h.render(props).rail.props['data-hidden'], false, 'a dock control is part of navigation, not an outside dismissal');
+  assert.equal(studio.type, 'button');
+  assert.equal(studio.props.disabled, true);
+  assert.equal(home.type, 'a');
+  assert.equal(home.props.to, '/');
+  assert.equal(profile.type, 'a');
+  assert.equal(profile.props.to, '/p/my-profile');
+  h.unmount();
 });
 
 test('pathname and query navigation close the rail without stealing focus from the new destination', () => {
@@ -364,7 +398,7 @@ test('pathname and query navigation close the rail without stealing focus from t
     h.navigate(pathname, search);
     ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], true);
-    assert.equal(ui.dock.props.hidden, false);
+    assert.equal(ui.dock.props.hidden ?? false, false);
     assert.equal(h.outsideBinding.open, false);
     assert.equal(h.document.activeElement, destination);
     assert.deepEqual(h.focused, focusBefore);
@@ -437,8 +471,8 @@ test('Portals is absent from both mobile navigation forms even on the portals ro
   for (const pathname of ['/', '/portals']) {
     const h = navigationHarness(pathname);
     let ui = h.render();
-    assert.equal(ui.dock.props.hidden, false);
-    assert.equal(React.Children.toArray(ui.group.props.children).some(child => child.props.item.label === 'Portals'), false);
+    assert.equal(ui.dock.props.hidden ?? false, false);
+    assert.equal(ui.destinations.some(child => child.props.item.label === 'Portals'), false);
     ui.toggle.props.onClick();
     ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], false);
@@ -455,7 +489,7 @@ test('rail and dock swipes alternate navigation without activating destinations 
     ui[surface].props.onPointerUpCapture(pointer(to, 10, 60));
     ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], hidden);
-    assert.equal(ui.dock.props.hidden, !hidden);
+    assert.equal(ui.dock.props.hidden ?? false, false);
     const event = click(); ui[surface].props.onClickCapture(event);
     assert.equal(event.prevented, true);
     assert.equal(event.stopped, true);
