@@ -81,18 +81,20 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   return rows;
 }
 
-export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode }: {
+export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true }: {
   items: WallItem[];
   /** Exact card count for every complete row. */
   columns: number;
   label: string;
   onColumnsChange?: (columns: number) => void;
   reorderMode?: ReorderMode;
+  /** Public shares retain the creator's layout and ordinary browser zoom. */
+  allowLayoutControls?: boolean;
 }) {
   const { ref, width } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
   // Measurement and pinch selection survive loading/entering/exiting reorder.
-  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange);
+  const view = useContentZoom<HTMLDivElement>(columns, allowLayoutControls && !reorderMode?.enabled, columns, onColumnsChange);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) return [];
@@ -103,9 +105,9 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const rowProps = { rows, items, itemIndexByKey, reorderMode };
   const canReorder = Boolean(reorderMode?.enabled || reorderMode?.onStart);
   return <div ref={view.ref} className="relative w-full">
-    {isMobile && items.length > 0 && !reorderMode?.enabled && <MobileGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
-    {!isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
-    <ZoomReadout view={view} />
+    {allowLayoutControls && isMobile && items.length > 0 && !reorderMode?.enabled && <MobileGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
+    {allowLayoutControls && !isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
+    {allowLayoutControls && <ZoomReadout view={view} />}
     {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
     <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">
       {canReorder ? <React.Suspense fallback={<ImageWallRows {...rowProps} />}>

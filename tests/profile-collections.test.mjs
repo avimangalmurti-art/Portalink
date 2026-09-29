@@ -748,3 +748,28 @@ test('empty owner portfolios can publish directly while visitor, shared and popu
     assert.equal(publications, 1);
   }
 });
+
+test('shared identity shows the real headline below the name, renames categories and disables layout without changing owner views', () => {
+  const profile = { id: 'owner', name: 'Owner', headline: 'Independent designer\nWorking across media.', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
+  for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) {
+    const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole: 'guest' });
+    const tree = h.render({ profile });
+    assert.equal(wall(tree).props.allowLayoutControls, !isSharedView);
+    const headline = nodes(tree).find(node => node.props?.['data-shared-profile-headline'] !== undefined);
+    assert.equal(Boolean(headline), isSharedView);
+    if (headline) {
+      assert.equal(headline.props.children, profile.headline);
+      assert.doesNotMatch(headline.props.className, /truncate|line-clamp/);
+      const copy = nodes(tree).find(node => node.props?.className?.includes('profile-identity-copy'));
+      const children = React.Children.toArray(copy.props.children);
+      assert.equal(children[0].type, 'h1'); assert.equal(children[1].props['data-shared-profile-headline'], '');
+    }
+    const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+    const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
+    assert.equal(controls[1].props.children.at(-1), isSharedView ? 'category' : 'portal');
+  }
+  const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
+  const shared = ProfileCollectionGrid({ shared: true, profileId: 'owner', kind: 'portals', portals: profile.categories, people: [], loading: false, error: null, hasMore: false });
+  assert.equal(shared.props['aria-label'], 'Categories');
+  assert.equal(nodes(shared).find(node => node.type === 'Link').props.to, '/share/owner/c/photos');
+});

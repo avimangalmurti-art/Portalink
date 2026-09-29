@@ -77,3 +77,13 @@ test('page-density controls preserve draft/commit callbacks, limits, save blocki
   h.props.canAdjustPages = false;
   assert.equal(control(h.render(), 'Pages per row'), undefined);
 });
+
+test('public project navigation keeps its title and Back path without layout or sorting controls', () => {
+  const h = harness(); h.props.sharedReadOnly = true;
+  const tree = h.render();
+  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children, 'Photography');
+  control(tree, 'Back to profile').props.onClick();
+  assert.deepEqual(h.calls, [['back']]);
+  for (const name of ['Back to portals', 'Pages per row', 'Show project grid', 'Sort projects']) assert.equal(control(tree, name), undefined);
+  assert.equal(nodes(tree).some(node => node.props.className === 'mobile-portal-index-preferences'), false);
+});

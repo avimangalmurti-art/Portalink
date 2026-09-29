@@ -362,11 +362,11 @@ export function ProfileCategoryPage({
     return () => document.removeEventListener('fullscreenchange', syncFullscreenState);
   }, [projectPresentationRef]);
   const togglePageView = useCallback(() => {
-    if (isPageFocused && activePageCount && activePageCount > 1) {
+    if (!sharedReadOnly && isPageFocused && activePageCount && activePageCount > 1) {
       setPageLayoutDraft(Math.min(4, activePageCount));
     }
     setPageViewToggleRequest((request) => request + 1);
-  }, [activePageCount, isPageFocused]);
+  }, [activePageCount, isPageFocused, sharedReadOnly]);
   const toggleProjectFullscreen = useCallback(async () => {
     const presentation = projectPresentationRef.current;
     if (!presentation) return;
@@ -424,20 +424,20 @@ export function ProfileCategoryPage({
             <button data-project-index-toggle="" data-structural-toggle="" data-borderless-control="" type="button" onClick={() => onIndexCollapsedChange(false)} aria-label="Expand document list" aria-expanded={false} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-transparent hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:bg-transparent">
               <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
-          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined}
+          </div> : isMobile ? <MobilePortalProjectToolbar category={category} onBack={onBackToPortals} onCreate={showsOwnerTools ? onCreateProject : undefined} sharedReadOnly={sharedReadOnly}
             layout={mobileLayout} onLayout={setMobileLayout} sort={mobileSort} onSort={setMobileSort}
             pagesPerRow={pageLayoutDraft} canAdjustPages={activePageCount !== null && activePageCount > 1}
             savingPages={showsOwnerTools && typography.savingProjectId === activeProject?.id}
             onPagesChange={value => setPageLayoutDraft(normalizePagesPerRow(value))} onPagesCommit={commitPageLayout} /> : <header data-shared-navigation-header={sharedReadOnly ? '' : undefined} className="ps-panel-toolbar global-control-header order-first shrink-0">
             {mobileProjectView && <div className="mobile-portal-projects-back side-panel-control-row side-panel-content-inset">
-              <button type="button" onClick={onBackToPortals} aria-label="Back to portals" title="Back to portals" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
+              <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">
                 <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
               </button>
               <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h2>
             </div>}
             <div data-project-index-toolbar="" data-shared-navigation-row={sharedReadOnly ? '' : undefined} className="side-panel-control-row side-panel-content-inset h-full min-w-0 flex-1">
               {mobileIndexOnly ? <>
-                <button type="button" onClick={onBackToPortals} aria-label="Back to portals" title="Back to portals" className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={onBackToPortals} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} title={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
                 </button>
                 <h1 className="min-w-0 flex-1 truncate text-[17px] font-semibold">{category.label}</h1>
@@ -562,16 +562,16 @@ export function ProfileCategoryPage({
             {!arrangement.isLoading && !arrangement.loadError && indexQuery.trim() && visibleProjects.length === 0 && <p className="px-2.5 py-6 text-[13px] leading-relaxed text-[var(--text-secondary)]">No work in {category.label} matches “{query.trim()}”.</p>}
 
           </nav>}
-        {!mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
+        {!sharedReadOnly && !mobileProjectView && !isIndexCollapsed && !panelLayout.singlePanel && <ResizablePanelHandle side="right" value={panelLayout.indexWidth} min={220} max={420} onResize={(width) => { setLastOpened('index'); projectIndexWidth.updateWidth(width); }} onResizeEnd={projectIndexWidth.commitWidth} onReset={projectIndexWidth.resetWidth} label="Resize project navigation. Double-click to restore the default width." />}
       </div>;
 
   return <div ref={projectPresentationRef} data-saved-change-scope="" data-project-presentation="" data-mobile-project-view={mobileProjectView ? '' : undefined} className="relative flex h-full w-full bg-transparent">
-      {mobileProjectView && isIndexCollapsed && !isPageFocused && activeAttachments.some(attachment => attachment.kind === 'image' || attachment.kind === 'document') && <MobileProjectGestureHint />}
+      {!sharedReadOnly && mobileProjectView && isIndexCollapsed && !isPageFocused && activeAttachments.some(attachment => attachment.kind === 'image' || attachment.kind === 'document') && <MobileProjectGestureHint />}
       {mobileProjectView && isIndexCollapsed && !isPageFocused && <>
         <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
           <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
         </button>
-        <button type="button" data-project-index-toggle="" aria-label="Portal preview" title="Portal preview" aria-expanded={false} onClick={() => onIndexCollapsedChange(false)} className="mobile-project-back mobile-project-portal-preview">
+        <button type="button" data-project-index-toggle="" aria-label={sharedReadOnly ? 'Project list' : 'Portal preview'} title={sharedReadOnly ? 'Project list' : 'Portal preview'} aria-expanded={false} onClick={() => onIndexCollapsedChange(false)} className="mobile-project-back mobile-project-portal-preview">
           <InterfaceIcon icon={ListIcon} size="lg" weight="medium" />
         </button>
       </>}
@@ -598,7 +598,7 @@ export function ProfileCategoryPage({
           {/* Closing clears the selection, which the entry rule immediately
            resolves back to the portal's first project — the main area always
            shows work, and the index is what changes which. */}
-          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
+          <ProjectMediaViewer creator={profile} videoSequence={mobileProjectView ? { scope: `${sharedReadOnly ? 'shared' : 'workspace'}:${profile.id}:${category.id}`, entries: portalVideos, onSelectProject: id => onSelectProject(id, true) } : undefined} mobileNavigation={mobileProjectView ? { index: projectIndexPanel, isIndexOpen: !isIndexCollapsed, onOpenIndex: () => onIndexCollapsedChange(false), onCloseIndex: () => onIndexCollapsedChange(true), onBack } : undefined} responseRailWidth={{ ...responseRailWidth, width: panelLayout.responseWidth, updateWidth: (width) => { setLastOpened('response'); responseRailWidth.updateWidth(width); } }} singlePanel={panelLayout.singlePanel} projectId={activeProject.id} projectTitle={activeProject.title} projectSummary={activeProject.summary} descriptionEditor={showsOwnerTools && !sharedReadOnly ? management.editor : undefined} publishedAt={activeProject.publishedAt} credits={activeProject.credits} pageCount={activePageCount} attachments={activeAttachments} contentTypefaceStack={projectTypefaceStack} pagesPerRow={pageLayoutDraft} onPagesPerRowChange={sharedReadOnly ? undefined : setPageLayoutDraft} onPagesPerRowCommit={showsOwnerTools ? commitPageLayout : undefined} pageViewToggleRequest={pageViewToggleRequest} onPageFocusModeChange={setIsPageFocused} processing={processing} onDocumentPageCountResolved={handleDocumentPageCountResolved} isRailOpen={isEngagementOpen} onRailOpenChange={onEngagementOpenChange} isOwner={showsOwnerTools} readOnlyShare={sharedReadOnly} onClose={() => onSelectProject(null)} />
         </section> : isMissingSelection ? <section style={{ display: panelLayout.singlePanel === 'index' ? 'none' : undefined }} className="flex min-w-0 flex-1 items-center justify-center bg-transparent px-6" aria-label="Project not found">
           <div role="alert" className="max-w-[420px] text-center">
             <h3 className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">Project not found</h3>

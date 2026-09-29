@@ -7,7 +7,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import type { Profile } from '../../types/domain';
 import type { AppearanceTheme } from '../../utils/appearancePreferences';
 import { buildPath } from '../../app/routes';
-import { ResizablePanelHandle, useResizablePanelWidth } from '../ui/ResizablePanelHandle';
+import { useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobileSharedProfileDrawer } from '../../presentation/mobile/MobileSharedProfileDrawer';
@@ -67,14 +67,15 @@ export function SharedProfileSidebar({
         </div>
       </div>
 
-      <nav id="shared-profile-portals" aria-label={`${profile.name} portals`} className={`min-h-0 flex-1 overflow-y-auto py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+      <nav id="shared-profile-portals" aria-label={`${profile.name} categories`} className={`min-h-0 flex-1 overflow-y-auto py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
+        {!isCollapsed && profile.headline?.trim() && <p data-shared-profile-headline="" className="whitespace-pre-line break-words px-2 pb-2 pt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">{profile.headline}</p>}
         {isMobile && <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} className="mobile-shared-profile-home sidebar-pill-row" aria-current={activeCategoryId ? undefined : 'page'}><InterfaceIcon icon={HomeIcon} weight="medium" /><span>Profile</span></Link>}
         {isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} title={`${profile.name} — Profile`} aria-current={activeCategoryId ? undefined : 'page'} className={`sidebar-rail-slot shape-compact mx-auto mb-2 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeCategoryId ? 'text-[var(--text-primary)] hover:text-[var(--accent-text)]' : 'text-[var(--accent-text)]'}`}>
             <InterfaceIcon icon={HomeIcon} weight="medium" />
           </Link> : null}
         <h2 className={isCollapsed ? 'sr-only' : 'relative my-2 flex h-7 w-full shrink-0 items-center'}>
           <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-inherit text-[var(--text-tertiary)]">
-            Portals
+            Categories
           </span>
         </h2>
         <ul className={`sidebar-pill-group m-0 flex list-none flex-col p-0 ${isCollapsed ? 'items-center' : ''}`}>
@@ -108,7 +109,6 @@ export function SharedProfileSidebar({
           </button>
         </div>
       </div>
-      {!isMobile && !isCollapsed ? <ResizablePanelHandle side="right" value={sharedSidebarWidth.width} min={180} max={360} onResize={sharedSidebarWidth.updateWidth} onResizeEnd={sharedSidebarWidth.commitWidth} onReset={sharedSidebarWidth.resetWidth} label="Resize shared profile navigation. Double-click to restore the default width." /> : null}
     </aside>;
   return isMobile ? <MobileSharedProfileDrawer name={profile.name} onClose={() => undefined}>{renderSidebar}</MobileSharedProfileDrawer> : renderSidebar();
 }

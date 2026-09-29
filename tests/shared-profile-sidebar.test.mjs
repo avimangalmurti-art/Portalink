@@ -103,18 +103,35 @@ test('collapse keeps all creator portal icons named, clickable and selected with
   assert.ok(nodes(tree).some((node) => node.type === 'nav' && /overflow-y-auto/.test(node.props.className)));
 });
 
-test('expanding restores the chosen width and the resize handle without changing routes', () => {
+test('public navigation can collapse and expand without offering layout resize handles', () => {
   const h = harness();
   let tree = h.render();
-  nodes(tree).find((node) => node.type === 'resize-handle').props.onResize(280);
+  assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   toggle(tree).props.onClick();
   tree = h.render();
   assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   toggle(tree).props.onClick();
   tree = h.render();
   assert.equal(tree.props.style.width, '280px');
-  assert.ok(nodes(tree).some((node) => node.type === 'resize-handle'));
+  assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   assert.deepEqual(h.calls, []);
+});
+
+test('shared identity uses the existing headline without truncation and names navigation Categories', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = harness(presentation);
+    const profile = { id: 'creator', name: 'Creator', headline: 'Architect and designer\nWorking across cities.', categories: [] };
+    const wrapper = h.render({ profile });
+    const tree = presentation === 'mobile' ? wrapper.props.children(() => {}) : wrapper;
+    const headline = nodes(tree).find(node => node.props['data-shared-profile-headline'] !== undefined);
+    assert.equal(headline.props.children, profile.headline);
+    assert.doesNotMatch(headline.props.className, /truncate|line-clamp/);
+    assert.match(headline.props.className, /whitespace-pre-line/);
+    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator categories'));
+    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Categories');
+    const empty = h.render({ profile: { ...profile, headline: '   ' } });
+    assert.equal(nodes(presentation === 'mobile' ? empty.props.children(() => {}) : empty).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
+  }
 });
 
 test('settings and theme remain usable in the collapsed rail for both themes', () => {

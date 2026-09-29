@@ -1,0 +1,32 @@
+.codex-shell.shared-portalink-shell .shared-sign-in-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 20px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-canvas);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.codex-shell.shared-portalink-shell .shared-sign-in-bar button {
+  flex: none;
+  min-width: 72px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.codex-shell.shared-portalink-shell .shared-sign-in-bar button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.codex-shell.shared-portalink-shell[data-presentation='mobile'] .shared-sign-in-bar {
+  padding-top: calc(6px + var(--safe-area-top));
+}
+.codex-shell.shared-portalink-shell[data-presentation='mobile'] .codex-workspace:has(> [data-shared-sign-in-bar]) #app-viewport {
+  --mobile-content-safe-top: 0px;
+}

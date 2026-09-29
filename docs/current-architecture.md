@@ -28,15 +28,22 @@ each target project, category and attachment through Supabase SELECT policies
 with the caller's identity before reading or writing D1 activity. Anonymous
 requests use the publishable key only; errors fail closed. Saved-page lists and
 removal remain account-scoped so inaccessible saved entries can still be removed.
-This correction is prepared locally, not yet deployed. Any future account-deletion
-design must also explicitly account for existing D1 records.
+This correction and the account-state/text-preview changes below were published
+in Sites v270 from `caf7b21`. Any future account-deletion design must also
+explicitly account for existing D1 records.
 
 The same source changes scope profile and engagement state to the current
 account, discard late results from earlier sessions, and keep independent like
 and save mutations from overwriting each other. Public share HTML gets anonymous,
-visibility-filtered text metadata with no-store caching; it retains the existing
-brand image. See the [release plan](trust-and-activation-release.md) for validation
-and separate website, database and worker release states.
+visibility-filtered text metadata with no-store caching. The current local,
+unpublished preview update additionally reuses a trusted existing public
+Supabase avatar for profile links when available. Shared pages otherwise
+omit preview images, including inaccessible or unavailable records; they never
+inherit the site-wide brand image or create signed media URLs. Root preview
+metadata remains unchanged. See [shared-view verification](shared-view-experience.md)
+for the unpublished preview update and the historical
+[release plan](trust-and-activation-release.md) for separate website, database
+and worker release states.
 
 The inspected client/worker source contains in-app notifications but no device
 push registration and delivery implementation. Native push is future work;

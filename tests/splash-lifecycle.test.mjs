@@ -393,7 +393,8 @@ test('preboot removes the obsolete MOBILE poster at the canonical boundary and p
   assert.doesNotMatch(preboot, /mobile-startup-status/);
   assert.match(preboot, /<img src="\/portalink-splash-poster\.png"[^>]*width="576" height="576"/);
   assert.ok(html.includes(`@media ${MOBILE_PRESENTATION_QUERY}`));
-  assert.doesNotMatch(html, /#portalink-preboot picture\s*\{\s*display:\s*none;/);
+  assert.doesNotMatch(html, /(?:^|\n)\s*#portalink-preboot picture\s*\{\s*display:\s*none;/,
+    'normal startup retains its picture; shared entry may hide it with a scoped rule');
   assert.match(html, /#portalink-preboot\s*\{[^}]*background-color:\s*#f5eaf4/);
   assert.doesNotMatch(preboot, /<video/);
 });
@@ -466,6 +467,53 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
   return {auth,requested,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
 }
 
+test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
+  for (const presentation of ['mobile','web']) for (const authenticated of [false,true]) {
+    const h=sharedBootstrap({presentation,authenticated});
+    assert.equal(h.render(),null);
+    assert.equal(h.app,null,'shared entry still waits for real session restoration');
+    assert.equal(h.waiting.props.children.type,'loading');
+    assert.equal(h.waiting.props.children.props.label,'Opening shared content…');
+    h.auth.isInitializing=false;
+    assert.equal(h.render(),null);
+    assert.equal(h.app.type,'app');
+    assert.equal(h.waiting,false);
+    assert.equal(h.requested.length,0,'opening a public link never opens authentication');
+    h.setPresentation(presentation==='mobile'?'web':'mobile');
+    assert.equal(h.render(),null,'rotation cannot introduce a skipped intro');
+    h.auth.isInitializing=true;
+    assert.equal(h.render(),null,'a session refresh keeps shared entry free of branded media');
+    assert.equal(h.waiting.props.children.type,'loading');
+    h.auth.isInitializing=false;
+    assert.equal(h.render(),null); assert.equal(h.app.type,'app');
+  }
+});
+
+test('shared profiles, categories and project fragments open directly without changing their destination', () => {
+  for (const path of ['/share/a','/share/a/c/b','/share/a/c/b/c']) for (const hash of ['', '#projects', '#page-2', '#type=recovery']) {
+    const h=sharedBootstrap({path,search:'?view=projects&page=2&media=image-a',hash,storedProfileId:'older'});
+    h.auth.isInitializing=false;
+    assert.equal(h.render(),null);
+    assert.equal(h.app.type,'app');
+    assert.equal(h.location.pathname,path); assert.equal(h.location.search,'?view=projects&page=2&media=image-a'); assert.equal(h.location.hash,hash);
+    assert.equal(h.storage.get('portalink.sharedViewerProfileId'),'a');
+    assert.equal(h.requested.length,0);
+  }
+});
+
+test('direct shared entry retains public Settings access and the existing guest route boundary', () => {
+  const h=sharedBootstrap({path:'/share/creator',search:'?view=portals',storedProfileId:'older'});
+  h.auth.isInitializing=false;
+  assert.equal(h.render(),null); assert.equal(h.app.type,'app');
+  for (const path of ['/settings','/appearance']) {
+    h.location.pathname=path; h.location.search='';
+    assert.equal(h.render(),null); assert.equal(h.app.type,'app');
+  }
+  h.location.pathname='/messages'; h.render();
+  assert.equal(h.app.type,'redirect'); assert.equal(h.app.props.to,'/share/creator');
+  assert.equal(h.requested.length,0);
+});
+
 test('invites open root welcome without a previous shared-profile redirect or account destination', () => {
   const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator'});
   h.render(); h.auth.isInitializing=false;
@@ -495,7 +543,7 @@ test('invitation marker does not override signed-in, WEB, recovery or authentica
 });
 
 test('restored MOBILE sessions keep a visible video-only intro until its timed completion', () => {
-  const h=sharedBootstrap(); let splash=h.render();
+  const h=sharedBootstrap({path:'/',search:''}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
   assert.equal(splash.props.timedIntro,true); assert.equal(h.app,null);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
@@ -508,7 +556,7 @@ test('restored MOBILE sessions keep a visible video-only intro until its timed c
 });
 
 test('a slow MOBILE session shows loading after the intro without extending video or revealing protected content', () => {
-  const h=sharedBootstrap(); h.render().props.onComplete();
+  const h=sharedBootstrap({path:'/',search:''}); h.render().props.onComplete();
   assert.equal(h.render(),null); assert.equal(h.app,null);
   assert.equal(h.waiting.props.children.type,'loading');
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
@@ -516,16 +564,16 @@ test('a slow MOBILE session shows loading after the intro without extending vide
 });
 
 test('rotation does not cancel or hide the initial returning MOBILE intro', () => {
-  const h=sharedBootstrap(); h.render(); h.setPresentation('web');
+  const h=sharedBootstrap({path:'/',search:''}); h.render(); h.setPresentation('web');
   let splash=h.render(); assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true; splash=h.render();
   assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   splash.props.onComplete(); assert.equal(h.render(),null);
 });
 
-test('mobile landing waits for verified guest status, then stays behind account forms', () => {
+test('root mobile landing waits for verified guest status, then stays behind account forms', () => {
   for (const first of ['media','auth']) {
-    const h=sharedBootstrap(); let splash=h.render(); assert.equal(splash.props.landing,undefined);
+    const h=sharedBootstrap({path:'/',search:''}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
     assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
     if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
     splash=h.render();
@@ -534,7 +582,7 @@ test('mobile landing waits for verified guest status, then stays behind account 
     if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
     splash=h.render(); assert.equal(splash.props.landing.ready,true);
     splash.props.landing.onCreateAccount(); splash=h.render();
-    assert.equal(h.requested[0].view,'signUp'); assert.equal(h.requested[0].intent.path,'/share/a/c/b/c?page=2');
+    assert.deepEqual(h.requested[0],{view:'signUp'});
     assert.equal(splash.props.hidden,true); assert.equal(splash.props.stillOnly,false);
     for(const view of ['signIn','forgotPassword','signUp']) {h.auth.pendingView=view;assert.equal(h.render().props.hidden,true);}
     h.auth.pendingView=null; splash=h.render();
@@ -546,31 +594,31 @@ test('mobile landing waits for verified guest status, then stays behind account 
 
 test('authenticated visitors, recovery, WEB and callback URLs never hold the landing', () => {
   for(const options of [{authenticated:true},{recovery:true},{presentation:'web'},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
-    const h=sharedBootstrap(options); let splash=h.render(); assert.equal(splash.props.landing,undefined);
+    const h=sharedBootstrap({path:'/',search:'',...options}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
     splash.props.onComplete(); h.auth.isInitializing=false; h.render(); assert.equal(h.render(),null);
     h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);
   }
 });
 
-test('all mobile welcome actions open the intended form and preserve the shared destination', () => {
+test('all root mobile welcome actions open the intended form without adding a shared destination', () => {
   for (const [action, view] of [['onSignIn','signIn'],['onCreateAccount','signUp'],['onForgotPassword','forgotPassword']]) {
-    const h=sharedBootstrap(); h.auth.isInitializing=false;
+    const h=sharedBootstrap({path:'/',search:''}); h.auth.isInitializing=false;
     const splash=h.render(); assert.equal(splash.props.landing.ready,true, 'buttons do not wait for video playback');
     splash.props.landing[action]();
     assert.equal(h.requested[0].view,view);
-    assert.equal(h.requested[0].intent.path,'/share/a/c/b/c?page=2');
+    assert.equal(h.requested[0].intent,undefined);
     assert.equal(h.render().props.hidden,true);
     h.auth.pendingView=null; assert.equal(h.render().props.hidden,false);
   }
 });
 
-test('ordinary shared-link fragments keep welcome while authentication fragments bypass it', () => {
+test('ordinary root fragments keep welcome while authentication fragments bypass it', () => {
   for(const hash of ['#projects','#page-2']) {
-    const h=sharedBootstrap({hash}); h.auth.isInitializing=false;
+    const h=sharedBootstrap({path:'/',search:'',hash}); h.auth.isInitializing=false;
     assert.equal(h.render().props.landing.ready,true);
   }
   for(const hash of ['#access_token=private','#refresh_token=private','#type=recovery','#error_description=expired','#code=private']) {
-    const h=sharedBootstrap({hash}); h.auth.isInitializing=false;
+    const h=sharedBootstrap({path:'/',search:'',hash}); h.auth.isInitializing=false;
     assert.equal(h.render().props.landing,undefined);
   }
 });
@@ -672,7 +720,7 @@ test('mobile welcome can disable its actions until its caller marks them ready',
 
 test('sign in or resizing to WEB ends the opening landing permanently', () => {
   for(const action of ['signin','resize']) {
-    const h=sharedBootstrap();h.auth.isInitializing=false;h.render().props.onComplete();
+    const h=sharedBootstrap({path:'/',search:''});h.auth.isInitializing=false;h.render().props.onComplete();
     const splash=h.render();
     if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
     else h.setPresentation('web');

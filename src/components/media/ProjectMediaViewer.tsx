@@ -661,7 +661,6 @@ export function ProjectMediaViewer({
           </div>
           {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
           {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
-          {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}

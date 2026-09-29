@@ -24,12 +24,13 @@ export type AccountAppearanceProps = {
 };
 
 /** One welcome scene for every step of the account journey. */
-export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, signIn = false, onStepBack, showAppearance = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
+export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAccentColorChange, highContrast, onHighContrastChange, reduceTranslucency, onReduceTranslucencyChange, mobileOnboarding = false, signIn = false, onStepBack, showAppearance = true, showWelcomeMedia = true, busy = false, dirty = false, onDismiss, children }: AccountAppearanceProps & {
   title: string;
   mobileOnboarding?: boolean;
   signIn?: boolean;
   onStepBack?: () => void;
   showAppearance?: boolean;
+  showWelcomeMedia?: boolean;
   busy?: boolean;
   dirty?: boolean;
   onDismiss: () => void;
@@ -89,11 +90,11 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       style={resolveAccentTokens(accentColor, signIn ? 'light' : onboarding ? theme : 'dark')}>
       <button type="button" aria-label={isMobile ? 'Back' : 'Close'} disabled={busy} onClick={onboarding && onStepBack && !pendingLeave ? onStepBack : dismiss} className="account-welcome-close self-end rounded-lg p-1.5 text-[var(--text-secondary)] hover:text-white focus-visible:outline focus-visible:outline-2 disabled:opacity-40">{onboarding ? <ChevronLeftIcon size={26} aria-hidden="true" /> : isMobile ? <><ArrowLeftIcon size={20} aria-hidden="true" /><span>Back</span></> : <XIcon size={18} aria-hidden="true" />}</button>
       <div ref={contentRef} className="account-welcome-content scrollbar-slim min-h-0 overflow-y-auto overscroll-contain px-1 pb-1">
-        <header className={signIn ? 'sr-only' : 'account-welcome-heading mb-5 text-center'}>
+        <header className={signIn && showWelcomeMedia ? 'sr-only' : 'account-welcome-heading mb-5 text-center'}>
           {!onboarding && !signIn && <h1 className="text-[clamp(23px,5.4vw,34px)] font-semibold leading-tight tracking-[-0.045em] text-white">WELCOME TO PORTALINK</h1>}
           <h2 ref={headingRef} tabIndex={-1} className="mt-2 text-[15px] font-medium text-[var(--text-secondary)]">{title}</h2>
         </header>
-        {signIn && <PortalinkSplashLoader welcomeMedia />}
+        {signIn && showWelcomeMedia && <PortalinkSplashLoader welcomeMedia />}
         {showAppearance && !signIn && <div className="account-welcome-appearance mb-5">
           <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Accent color" className="account-welcome-colors">
             {navAccents.map(option => <button key={option.id} type="button" role="radio" aria-checked={selected.id === option.id} tabIndex={selected.id === option.id ? 0 : -1} aria-label={option.label} title={option.label}

@@ -18,6 +18,7 @@ import { useLocation } from 'react-router-dom';
 import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
+import { SharedSignInBar } from './components/profile/SharedSignInBar';
 import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
@@ -1106,7 +1107,7 @@ function AppContent() {
   }} /> : routeProfileId && viewedProfileQuery.status === 'error' ? <ErrorState title="Unable to open profile" description={viewedProfileQuery.error ?? 'Check the connection, then try again.'} onRetry={viewedProfileQuery.retry} /> : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" /> : isProfileAccessDenied ? <EmptyState title="Profile unavailable" description={isSharedRoute ? 'This profile is not published through a public link.' : 'This creator has limited their profile to approved followers.'} action={isSharedRoute ? undefined : {
     label: 'Go home',
     onClick: () => nav.home()
-  }} /> : isCategoryRouteMissing ? <EmptyState title="Portal not found" description="It may have been renamed or removed." action={{
+  }} /> : isCategoryRouteMissing ? <EmptyState title={isSharedRoute ? 'Category not found' : 'Portal not found'} description="It may have been renamed or removed." action={{
     label: viewedProfile ? `Back to ${viewedProfile.name}` : 'Back to the profile',
     onClick: () => {
       if (viewedProfileId) {
@@ -1241,6 +1242,7 @@ function AppContent() {
       {/* The session's own conditions are stated above the page, because they
            belong to no single screen. */}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
+      {isSharedRoute && <SharedSignInBar />}
       {!isSharedRoute && !isProfileEditorRoute && <SessionStatusBanner onCreateProfile={() => setIsOnboardingOpen(true)} />}
       {/* A creator opened from an attribution is now confirmed by the profile
              route's own read, whose loading, not-found, and retryable failure states
@@ -1265,7 +1267,7 @@ function AppContent() {
       </InteractionSafePresence></DeferredSurface>
 
       {/* The auth surface is application-level: any control can request it. */}
-      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog registrationReturnPath={presentation === 'mobile' ? (isSharedRoute ? readSharedReturnPath(pathname + search) : settingsReturnPath) : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
+      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog showWelcomeMedia={!isSharedRoute} registrationReturnPath={isSharedRoute ? readSharedReturnPath(pathname + search) : presentation === 'mobile' ? settingsReturnPath : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}

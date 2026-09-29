@@ -33,24 +33,27 @@ test('desktop layout exposes every supported density and reset through the exist
   assert.equal(nodes(WebGalleryControls({ columns: 2, onChange() {} })).find(node => node.type === 'button').props.disabled, true);
 });
 
-test('desktop gallery control is absent on mobile, empty galleries and profile reorder', () => {
-  for (const presentation of ['web', 'mobile']) for (const hasItems of [false, true]) for (const enabled of [false, true]) {
+test('gallery layout controls and density gestures are absent on shared views while regular galleries retain them', () => {
+  for (const presentation of ['web', 'mobile']) for (const hasItems of [false, true]) for (const enabled of [false, true]) for (const allowLayoutControls of [false, true]) {
     const chooseColumns = () => {};
+    let gesturesEnabled;
     const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
       react: { ...React, useMemo: fn => fn() },
       '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
-      '../../hooks/useContentZoom': { useContentZoom: () => ({ columns: 4, chooseColumns }) },
+      '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled) => { gesturesEnabled = enabled; return { columns: 4, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
       '../../presentation/mobile/MobileGalleryControls': { MobileGalleryControls: 'mobile-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
     });
-    const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', reorderMode: { enabled } });
+    const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', reorderMode: { enabled }, allowLayoutControls });
     const web = nodes(tree).find(node => node.type === 'web-controls');
     const mobile = nodes(tree).find(node => node.type === 'mobile-controls');
-    assert.equal(Boolean(web), presentation === 'web' && hasItems && !enabled);
-    assert.equal(Boolean(mobile), presentation === 'mobile' && hasItems && !enabled);
+    assert.equal(Boolean(web), allowLayoutControls && presentation === 'web' && hasItems && !enabled);
+    assert.equal(Boolean(mobile), allowLayoutControls && presentation === 'mobile' && hasItems && !enabled);
+    assert.equal(gesturesEnabled, allowLayoutControls && !enabled);
+    assert.equal(nodes(tree).some(node => node.type === 'zoom'), allowLayoutControls);
     if (web) assert.equal(web.props.onChange, chooseColumns);
   }
 });

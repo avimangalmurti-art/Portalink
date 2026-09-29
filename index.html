@@ -132,10 +132,18 @@
         }
       }
 
+      /* Shared links use a neutral first paint, including before React loads. */
+      html:root[data-shared-view]:has(#portalink-preboot), html:root[data-shared-view]:has(#portalink-preboot) body,
+      html:root[data-shared-view] #portalink-preboot { background-color: #fff !important; color: #1c1c1e; }
+      html:root[data-shared-view][data-appearance='dark']:has(#portalink-preboot), html:root[data-shared-view][data-appearance='dark']:has(#portalink-preboot) body,
+      html:root[data-shared-view][data-appearance='dark'] #portalink-preboot { background-color: #000 !important; color: #f5f5f7; }
+      html[data-shared-view] #portalink-preboot picture { display: none; }
+      html[data-shared-view] #portalink-preboot::after { content: 'Opening shared content…'; font: 14px system-ui, sans-serif; }
     </style>
     <script>
       (() => {
         const root = document.documentElement;
+        root.toggleAttribute('data-shared-view', /^\/share(?:\/|$)/i.test(window.location.pathname));
         root.toggleAttribute('data-standalone', window.matchMedia?.('(display-mode: standalone)').matches
           || window.navigator.standalone === true);
         const presentation = window.matchMedia?.('(max-width: 639px)').matches ? 'mobile' : 'web';

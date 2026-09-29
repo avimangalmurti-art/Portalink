@@ -149,7 +149,7 @@ function hookRuntime() {
 const formNodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(formNodes)];
 const signupField = (tree, key) => formNodes(tree).find(node => node.props?.id === `auth-signup-${key}`);
 
-function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount } = {}) {
+function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount, pendingIntent = null, registrationReturnPath } = {}) {
   const hooks = hookRuntime(), reads = [], selectedAvatars = [], appearanceChanges = [];
   let step = 'appearance';
   const avatar = { avatar: null, error: null,
@@ -157,7 +157,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
     clear() { avatar.avatar = null; },
   };
   const authContext = { rememberedEmail, rememberEmail(value) { authContext.rememberedEmail = value; },
-    peekPendingIntent: () => null, refreshSession: async () => true };
+    peekPendingIntent: () => pendingIntent, refreshSession: async () => true };
   const draftApi = { ...registration,
     async readRegistrationDraft(email) {
       reads.push(email);
@@ -194,7 +194,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
     '../../components/auth/MobileOnboarding': { MobileOnboardingAppearance: 'Appearance', MobileOnboardingAction: 'Action' },
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': authFlows, './validation': load('src/features/auth/validation.ts'),
   });
-  const props = { accentColor: '#0A84FF', systemGray: 'gray6', firstFieldRef: { current: null },
+  const props = { accentColor: '#0A84FF', systemGray: 'gray6', firstFieldRef: { current: null }, registrationReturnPath,
     onStepChange(next) { step = next; }, onBusyChange() {}, onDirtyChange() {}, onViewChange() {},
     onAccentColorChange(value) { props.accentColor = value; appearanceChanges.push(['accent', value]); },
     onSystemGrayChange(value) { props.systemGray = value; appearanceChanges.push(['gray', value]); },
@@ -204,6 +204,38 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
     showStep(next) { step = next; }, unmount: hooks.unmount,
   };
 }
+
+test('shared signup saves the safe destination on both platforms while ordinary desktop signup adds none', async () => {
+  const sharedPath = '/share/creator/c/art/project?view=projects&page=2&media=image-a&access_token=secret&next=https://outside.test#code=secret';
+  const safePath = '/share/creator/c/art/project?view=projects&page=2&media=image-a';
+  for (const options of [
+    { presentation: 'web', pendingIntent: { kind: 'route', path: sharedPath }, expected: safePath },
+    { presentation: 'web', registrationReturnPath: sharedPath, expected: safePath },
+    { presentation: 'mobile', pendingIntent: { kind: 'route', path: sharedPath }, expected: safePath },
+    { presentation: 'web' },
+    { presentation: 'web', pendingIntent: { kind: 'route', path: '/messages' } },
+    { presentation: 'web', registrationReturnPath: 'https://outside.test/share/creator' },
+  ]) {
+    const store = { saved: null }, submitted = [];
+    const h = signupRestoreHarness({ ...options, store, submitted });
+    h.render(); await tick();
+    h.showStep('profile'); let tree = h.render();
+    signupField(tree, 'name').props.onChange('Shared Reader');
+    signupField(tree, 'location').props.onChange('London, GB');
+    h.showStep('account'); tree = h.render();
+    for (const [key, value] of [['email', 'reader@example.test'], ['password', 'synthetic-test-password'], ['confirmation', 'synthetic-test-password']]) {
+      signupField(tree, key).props.onChange(value);
+    }
+    await h.render().props.onSubmit({ preventDefault() {} });
+    assert.equal(submitted.length, 1);
+    assert.equal(submitted[0].registration.returnPath, options.expected);
+    assert.equal(store.saved.registration.returnPath, options.expected);
+    assert.equal(store.saved.requiresEmailVerification, true);
+    assert.equal(registration.readRegistrationProfile(JSON.parse(JSON.stringify(submitted[0].registration))).returnPath, options.expected);
+    assert.doesNotMatch(JSON.stringify(submitted[0].registration), /secret|outside\.test|access_token|next=/);
+    h.unmount();
+  }
+});
 
 test('fresh signup remount restores pending details and picture without repeating the accepted account request', async () => {
   for (const presentation of ['mobile', 'web']) {
@@ -515,7 +547,7 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(submitted[0][2].location, 'City');
   assert.equal(submitted[0][2].accentColor, '#0A84FF');
   assert.equal(submitted[0][2].isPrivate, presentation === 'mobile');
-  assert.equal(submitted[0][2].returnPath, presentation === 'mobile' ? '/share/original/c/portal?page=2' : undefined, 'The captured entry wins over a category auto-select or later URL change.');
+  assert.equal(submitted[0][2].returnPath, '/share/original/c/portal?page=2', 'The captured shared entry wins over a category auto-select or later URL change on both platforms.');
   mock.result = {requiresEmailVerification:true, email:'example@example.test'};
   render(); tree = render();
   assert.equal(step, 'verification');

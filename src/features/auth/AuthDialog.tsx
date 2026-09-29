@@ -28,7 +28,7 @@ const mobileSignupTitles: Record<MobileSignupStep, string> = {
   appearance: 'Choose appearance', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
 };
 
-export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string }) {
+export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean }) {
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
@@ -174,7 +174,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   const registrationId = useRef<string>(crypto.randomUUID());
   const [registrationReturnPath, setRegistrationReturnPath] = useState(() => {
     const intent = auth.peekPendingIntent();
-    return isMobile ? readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath) : undefined;
+    return readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath);
   });
   const submittingRef = useRef(false);
   const [name, setName] = useState('');

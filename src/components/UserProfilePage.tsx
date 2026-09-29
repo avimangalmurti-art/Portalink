@@ -273,6 +273,7 @@ function ProfileIdentityAndLinks({
   displayName,
   links,
   showLinks = true,
+  isSharedView = false,
   onOpenBio,
   summaryCounts
 }: {
@@ -280,6 +281,7 @@ function ProfileIdentityAndLinks({
   displayName: string;
   links: ProfileLink[];
   showLinks?: boolean;
+  isSharedView?: boolean;
   onOpenBio?: () => void;
   summaryCounts?: { projectCount: number; portalCount: number; followers: string | null; following: string | null; expanded: boolean; canViewConnections: boolean; activeView: ProfileContentView; onSelect: (view: ProfileContentView) => void; disabled: boolean };
 }) {
@@ -290,8 +292,9 @@ function ProfileIdentityAndLinks({
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
           </h1>
+          {isSharedView && profile.headline?.trim() && <p data-shared-profile-headline="" className="mt-1 whitespace-pre-line break-words text-[14px] leading-relaxed text-[var(--text-secondary)]">{profile.headline}</p>}
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
-          {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} />}
+          {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} isSharedView={isSharedView} />}
         </div>
       </div>
       {showLinks && <div className="min-w-0 flex-1 self-center">
@@ -311,10 +314,12 @@ function ProfileStats({
   onSelect,
   disabled,
   compact = false,
-  canViewConnections = false
+  canViewConnections = false,
+  isSharedView = false
 }: {
   compact?: boolean;
   canViewConnections?: boolean;
+  isSharedView?: boolean;
   projectCount: number;
   portalCount: number;
   followers: string | null;
@@ -325,7 +330,7 @@ function ProfileStats({
 }) {
   const views = [
     { id: 'projects', count: projectCount, label: projectCount === 1 ? 'project' : 'projects' },
-    { id: 'portals', count: portalCount, label: portalCount === 1 ? 'portal' : 'portals' },
+    { id: 'portals', count: portalCount, label: isSharedView ? portalCount === 1 ? 'category' : 'categories' : portalCount === 1 ? 'portal' : 'portals' },
     { id: 'followers', count: followers ?? '0', label: 'followers' },
     { id: 'following', count: following ?? '0', label: 'following' },
   ] as const;
@@ -542,7 +547,7 @@ export function UserProfilePage({
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your portfolio and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
-    <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} items={imageryCells} reorderMode={isReorderingProjects ? {
+    <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} allowLayoutControls={!isSharedView} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
       disabled: projectOrder.isSaving,
       onMove: projectOrder.move,
@@ -554,7 +559,7 @@ export function UserProfilePage({
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       <div data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={{ projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} isSharedView={isSharedView} summaryCounts={{ projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
@@ -691,7 +696,7 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main id="profile-content" data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
+      <main id="profile-content" data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${isSharedView && activeView === 'portals' ? 'categories' : activeView}`}>
         {isMobileWall ? <>
           <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
@@ -705,7 +710,7 @@ export function UserProfilePage({
             {projectWall}
           </div>
           {mobilePortalOverlay && <div ref={portalOverlayRef} className="mobile-profile-portal-overlay">
-            <button type="button" className="mobile-profile-portal-dismiss" aria-label="Close portals" onClick={() => setActiveView('projects')} />
+            <button type="button" className="mobile-profile-portal-dismiss" aria-label={isSharedView ? 'Close categories' : 'Close portals'} onClick={() => setActiveView('projects')} />
             {mobilePortalOverlay}
           </div>}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}

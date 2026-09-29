@@ -8,7 +8,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
 import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 import { useViewportPresentation } from '../presentation/useViewportPresentation';
-import { readSharedReturnPath } from '../features/auth/registration';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 
@@ -40,6 +39,7 @@ function readSharedViewerProfileId(): string | null {
 export function ApplicationBootstrap() {
   const auth = useAuth();
   const { pathname, search = '', hash = '' } = useLocation();
+  const isSharedView = /^\/share(?:\/|$)/i.test(pathname);
   const presentation = useViewportPresentation();
   const [openingPresentation] = useState(presentation);
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
@@ -48,18 +48,26 @@ export function ApplicationBootstrap() {
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
   const [landingPath] = useState(() => presentation === 'mobile'
-    && !isAuthCallback
-    ? readSharedReturnPath(pathname + search) ?? (pathname === '/' ? '/' : null) : null);
+    && !isAuthCallback && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
-  const [hasStartupCompleted, setHasStartupCompleted] = useState(false);
+  const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
   const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
-  const holdLanding = Boolean(landingPath && !hasLeftLanding && presentation === 'mobile' && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && presentation === 'mobile' && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+
+  useEffect(() => {
+    // Public links open directly. Later navigation must not replay an intro
+    // that this visit deliberately skipped, including after session refresh.
+    if (isSharedView) {
+      setHasStartupCompleted(true);
+      setHasLeftLanding(true);
+    }
+  }, [isSharedView]);
 
   useEffect(() => {
     if (holdLanding) setHasPresentedLanding(true);
@@ -74,8 +82,7 @@ export function ApplicationBootstrap() {
   }, [auth.isInitializing, hasSplashCompleted, hasPresentedLanding, holdLanding]);
 
   const startAccount = (view: 'signIn' | 'signUp' | 'forgotPassword') => {
-    if (landingPath && landingPath !== '/') auth.requestAuthenticatedDestination({ kind: 'route', path: landingPath, label: 'view shared content' }, view);
-    else auth.requestAuth(view);
+    auth.requestAuth(view);
   };
 
   useEffect(() => {
@@ -104,7 +111,7 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {(!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
+        {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
           hidden={Boolean(landingPath && (auth.pendingView || (auth.isAuthenticated && hasPresentedLanding) || isRecovery || (presentation !== 'mobile' && hasPresentedLanding)))}
           landing={holdLanding ? {
@@ -113,9 +120,9 @@ export function ApplicationBootstrap() {
             onSignIn: () => startAccount('signIn'),
             onForgotPassword: () => startAccount('forgotPassword'),
             onContinue: () => { setHasLeftLanding(true); if (!auth.isInitializing) setHasStartupCompleted(true); },
-            continueLabel: landingPath === '/' ? 'Continue as guest' : 'View shared content',
+            continueLabel: 'Continue as guest',
           } : undefined} /> : null}
       </AnimatePresence>
-      {timedIntroEnded && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label="Opening Portalink…" /></div>}
+      {(isSharedView || timedIntroEnded) && auth.isInitializing && <div data-presentation={presentation} className="portalink-startup-wait fixed inset-0 grid min-h-[100dvh] place-items-center bg-[var(--surface-canvas)]"><LoadingState label={isSharedView ? 'Opening shared content…' : 'Opening Portalink…'} /></div>}
     </>;
 }

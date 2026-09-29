@@ -1,6 +1,6 @@
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
 type SharedTarget = { profileId: string; categoryId?: string; projectId?: string };
-type Preview = { title: string; description: string };
+type Preview = { title: string; description: string; image?: { url: string; alt: string } };
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
 const sharedRoute = new RegExp(`^/share/(${UUID})(?:/c/(${UUID})(?:/(${UUID}))?)?/?$`, 'i');
 
@@ -14,6 +14,42 @@ function text(value: unknown, limit: number): string {
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] ?? character));
+}
+
+function hasControlCharacters(value: string): boolean {
+  return [...value].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+}
+
+/** Reuse only the record's existing, durable public avatar. Do not sign media
+ * or preserve URL credentials, callback parameters, transforms or fragments. */
+function publicAvatar(value: unknown, config: PreviewConfiguration): string | undefined {
+  if (typeof value !== 'string' || value.length > 2048 || !/^https:\/\//i.test(value) || value.includes('\\') || hasControlCharacters(value)) return;
+  try {
+    const source = new URL(value);
+    const configured = new URL(config.supabaseUrl);
+    const prefix = '/storage/v1/object/public/avatars/';
+    if (configured.protocol !== 'https:' || source.origin !== configured.origin || source.protocol !== 'https:' || source.username || source.password || source.search || source.hash || !source.pathname.startsWith(prefix)) return;
+    const path = source.pathname.slice(prefix.length);
+    if (!path || !path.split('/').every(segment => {
+      const decoded = decodeURIComponent(segment);
+      return decoded && decoded !== '.' && decoded !== '..' && !decoded.includes('/') && !decoded.includes('\\') && !hasControlCharacters(decoded);
+    })) return;
+    return source.href;
+  } catch { return; }
+}
+
+function clearInheritedImages(html: string): string {
+  let hasCard = false;
+  const cleared = html.replace(/<meta\b[^>]*>\s*/gi, tag => {
+    const name = tag.match(/\b(?:name|property)\s*=\s*(["'])([^"']+)\1/i)?.[2].toLowerCase();
+    if (name?.startsWith('og:image') || name?.startsWith('twitter:image')) return '';
+    if (name === 'twitter:card') {
+      hasCard = true;
+      return '<meta name="twitter:card" content="summary" />\n';
+    }
+    return tag;
+  });
+  return hasCard ? cleared : cleared.replace('</head>', '<meta name="twitter:card" content="summary" />\n</head>');
 }
 
 async function readPublicPreview(target: SharedTarget, config: PreviewConfiguration): Promise<Preview | null> {
@@ -38,7 +74,7 @@ async function readPublicPreview(target: SharedTarget, config: PreviewConfigurat
     query.set('profile.is_private', 'eq.false');
   } else {
     table = 'profiles';
-    query.set('select', 'id,name,headline,is_private');
+    query.set('select', 'id,name,headline,is_private,avatar_url');
     query.set('id', `eq.${target.profileId}`);
     query.set('is_private', 'eq.false');
   }
@@ -60,14 +96,16 @@ async function readPublicPreview(target: SharedTarget, config: PreviewConfigurat
   if (!creator) return null;
   const title = target.projectId ? text(row.title, 120) : target.categoryId ? text(row.label, 80) : '';
   if (target.categoryId && !title) return null;
+  const avatar = target.categoryId ? undefined : publicAvatar(row.avatar_url, config);
   return {
     title: title ? `${title} — ${creator} | Portalink` : `${creator} | Portalink`,
     description: text(target.projectId ? row.summary : target.categoryId ? row.blurb : row.headline, 220)
       || `Explore ${creator}'s creative work on Portalink.`,
+    ...(avatar ? { image: { url: avatar, alt: `${creator}'s profile image` } } : {}),
   };
 }
 
-/** Personalize public share HTML; private/missing/offline targets stay generic. */
+/** Personalize public share HTML; unavailable targets keep generic text only. */
 export async function withSharedPreview(response: Response, request: Request, config: PreviewConfiguration): Promise<Response> {
   const url = new URL(request.url);
   const match = url.pathname.match(sharedRoute);
@@ -85,8 +123,10 @@ export async function withSharedPreview(response: Response, request: Request, co
   } catch {
     // Social previews are optional. An upstream failure must not block the app.
   }
-  if (!preview) return new Response(response.body, { status: response.status, headers });
-  let html = await response.text();
+  // Independently shared records never inherit the unrelated site-wide card,
+  // including private, missing or temporarily unavailable records.
+  let html = clearInheritedImages(await response.text());
+  if (!preview) return new Response(html, { status: response.status, headers });
   const title = escapeHtml(preview.title);
   const description = escapeHtml(preview.description);
   html = html.replace(/<title>[^<]*<\/title>/i, () => `<title>${title}</title>`);
@@ -94,8 +134,12 @@ export async function withSharedPreview(response: Response, request: Request, co
     const tag = new RegExp(`<meta\\s+(?:name|property)=["']${name}["']\\s+content=["'][^"']*["']\\s*\\/?>(?:\\r?\\n)?`, 'i');
     html = html.replace(tag, () => `<meta ${name.startsWith('og:') ? 'property' : 'name'}="${name}" content="${content}" />\n`);
   }
-  // Keep the existing brand image; never manufacture public URLs for private
-  // media. Query strings, including any auth callback parameters, are omitted.
+  if (preview.image) {
+    const image = escapeHtml(preview.image.url);
+    const alt = escapeHtml(preview.image.alt);
+    html = html.replace('</head>', () => `<meta property="og:image" content="${image}" /><meta property="og:image:alt" content="${alt}" /><meta name="twitter:image" content="${image}" /><meta name="twitter:image:alt" content="${alt}" />\n</head>`);
+  }
+  // Query strings, including any auth callback parameters, are omitted.
   const canonical = escapeHtml(`${url.origin}${url.pathname.replace(/\/$/, '')}`);
   html = html.replace('</head>', () => `<meta property="og:url" content="${canonical}" /><link rel="canonical" href="${canonical}" />\n</head>`);
   return new Response(html, { status: response.status, headers });

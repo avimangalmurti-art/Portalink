@@ -23,7 +23,7 @@ type Props = {
 
 export function ProfileCollectionGrid({ shared = false, profileId, kind, portals, people, loading, error, hasMore, onRetry, onLoadMore }: Props) {
   const isPortals = kind === 'portals';
-  const title = isPortals ? 'Portals' : kind === 'followers' ? 'Followers' : 'Following';
+  const title = isPortals ? shared ? 'Categories' : 'Portals' : kind === 'followers' ? 'Followers' : 'Following';
   const count = isPortals ? portals.length : people.length;
   return <section className="profile-collection" aria-label={title} aria-busy={loading}>
     <h2 className="mb-5 text-[14px] font-medium text-[var(--text-secondary)]">{title}</h2>
@@ -42,7 +42,7 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
     </ul>}
     {error && <div role="alert" className="mt-4 text-[14px] text-[var(--text-secondary)]"><p>{error}</p>{onRetry && <button type="button" onClick={onRetry} className="mt-2 shape-compact px-3 py-2 font-medium">Try again</button>}</div>}
     {loading && <p role="status" className="py-6 text-[14px] text-[var(--text-secondary)]">Loading…</p>}
-    {!loading && !error && count === 0 && <EmptyState title={isPortals ? 'No portals yet' : kind === 'followers' ? 'No followers yet' : 'Not following anyone yet'} />}
+    {!loading && !error && count === 0 && <EmptyState title={isPortals ? shared ? 'No categories yet' : 'No portals yet' : kind === 'followers' ? 'No followers yet' : 'Not following anyone yet'} />}
     {!error && hasMore && <button type="button" disabled={loading} onClick={onLoadMore} className="side-panel-primary-control mt-6 shape-compact bg-[var(--control-rest-surface)] px-4 text-[14px] disabled:opacity-45">Show more</button>}
   </section>;
 }

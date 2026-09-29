@@ -9,16 +9,17 @@ export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, pagesPerRow, canAdjustPages, savingPages, onPagesChange, onPagesCommit }: {
+  sort, onSort, pagesPerRow, canAdjustPages, savingPages, onPagesChange, onPagesCommit, sharedReadOnly = false }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
   pagesPerRow: number; canAdjustPages: boolean; savingPages: boolean;
   onPagesChange: (value: number) => void; onPagesCommit: (value: number) => void;
+  sharedReadOnly?: boolean;
 }) {
   return <header className="mobile-portal-index-toolbar">
     <div className="mobile-portal-index-heading">
-      <button type="button" onClick={onBack} aria-label="Back to portals" className="mobile-portal-index-control">
+      <button type="button" onClick={onBack} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="mobile-portal-index-control">
         <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
       </button>
       <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
@@ -27,7 +28,7 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
         <InterfaceIcon icon={PlusIcon} size="lg" />
       </button>}
     </div>
-    <div className="mobile-portal-index-preferences">
+    {!sharedReadOnly && <div className="mobile-portal-index-preferences">
       <label className="mobile-portal-index-control mobile-portal-index-layout mobile-portal-index-sort">
         <span aria-hidden="true">{sort === 'recent' ? 'Recent' : sort === 'title' ? 'Name' : 'Saved order'}</span>
         <InterfaceIcon icon={ChevronDownIcon} size="sm" />
@@ -49,6 +50,6 @@ export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout,
             aria-label="Pages per row" aria-valuetext={`${pagesPerRow} ${pagesPerRow === 1 ? 'page' : 'pages'} per row`} />
         </label>}
       </div>
-    </div>
+    </div>}
   </header>;
 }

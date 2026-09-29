@@ -95,6 +95,15 @@ test('project overview attaches mobile swipe Back to the work stage and uses nav
   assert.equal(h.swipeCalls.at(-1).scope, 'project:second', 'Switching content must invalidate a gesture from the previous attachment');
 });
 
+test('shared project details retain disclosure and content without a layout resize handle', () => {
+  const h = harness({ mobile: false, readOnlyShare: true, mediaKind: 'document' });
+  const tree = h.render({ isRailOpen: true });
+  assert.ok(button(tree, 'Hide project details'));
+  assert.ok(button(tree, 'Show project information'));
+  assert.ok(nodes(tree).find(node => node.type === AttachmentRenderer));
+  assert.equal(nodes(tree).some(node => node.props.label === 'Resize project details. Double-click to restore the default width.'), false);
+});
+
 test('video scrolling remembers its attachment before canonical navigation and opens mixed-media targets without a first-frame fallback', () => {
   for (const readOnlyShare of [false, true]) {
     const h = harness({ readOnlyShare }), navigations = [];
