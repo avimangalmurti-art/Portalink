@@ -16,6 +16,7 @@ function setup({ enabled = true } = {}) {
   const auth = { isAuthenticated: true, user: { id: 'alice' } };
   const hook = hookHarness(new URL('../src/features/media-interactions/useMediaInteractions.ts', import.meta.url),
     'useMediaInteractions', {}, auth, [target, enabled], undefined, {
+      '../auth/registration': { readSharedReturnPath: () => undefined },
       './mediaInteractionBatch': { readMediaInteraction(value, account) {
         const response = deferred(); reads.push({ value, account, ...response }); return response.promise;
       } },

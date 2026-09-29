@@ -235,6 +235,7 @@ function ProfileProjectTile({
   };
 
   return <ProjectPreviewCard project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+      sharedCoverFallback={isSharedView}
       showCreator={showCreator}
       onCollapse={() => setIsMenuOpen(false)}
       disabled={disabled || Boolean(descriptionEditor)} showEngagementMetrics={showEngagementMetrics}
@@ -292,8 +293,8 @@ function ProfileIdentityAndLinks({
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
           </h1>
-          {isSharedView && profile.headline?.trim() && <p data-shared-profile-headline="" className="mt-1 whitespace-pre-line break-words text-[14px] leading-relaxed text-[var(--text-secondary)]">{profile.headline}</p>}
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
+          {isSharedView && profile.headline?.trim() && <p data-shared-profile-headline="" className="mt-1 break-words text-[14px] leading-relaxed text-[var(--text-secondary)]">{profile.headline.trim().split(/\r?\n/, 1)[0]}</p>}
           {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} isSharedView={isSharedView} />}
         </div>
       </div>
@@ -330,7 +331,7 @@ function ProfileStats({
 }) {
   const views = [
     { id: 'projects', count: projectCount, label: projectCount === 1 ? 'project' : 'projects' },
-    { id: 'portals', count: portalCount, label: isSharedView ? portalCount === 1 ? 'category' : 'categories' : portalCount === 1 ? 'portal' : 'portals' },
+    { id: 'portals', count: portalCount, label: isSharedView ? portalCount === 1 ? 'collection' : 'collections' : portalCount === 1 ? 'portal' : 'portals' },
     { id: 'followers', count: followers ?? '0', label: 'followers' },
     { id: 'following', count: following ?? '0', label: 'following' },
   ] as const;
@@ -424,7 +425,7 @@ export function UserProfilePage({
   /* Only canonical, published projects contribute media to this profile. A new
    * profile therefore starts empty, and no seeded photograph can appear under
    * somebody's identity. */
-  const cardProjects = useMemo(() => profile.projects.filter((project) => Boolean(project.cover)), [profile.projects]);
+  const cardProjects = useMemo(() => isSharedView ? profile.projects : profile.projects.filter((project) => Boolean(project.cover)), [isSharedView, profile.projects]);
   const projectOrder = useProfileProjectOrder(
     showsOwnerTools && !isSharedView ? profile.id : null,
     cardProjects,
@@ -641,7 +642,7 @@ export function UserProfilePage({
                   </span>}
               </span>}
             {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="side-panel-primary-control flex items-center border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                Sign in to follow
+                {isSharedView ? 'Follow' : 'Sign in to follow'}
               </button>}
             {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
             {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -696,7 +697,7 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      <main id="profile-content" data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${isSharedView && activeView === 'portals' ? 'categories' : activeView}`}>
+      <main id="profile-content" data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${isSharedView && activeView === 'portals' ? 'collections' : activeView}`}>
         {isMobileWall ? <>
           <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
@@ -710,7 +711,7 @@ export function UserProfilePage({
             {projectWall}
           </div>
           {mobilePortalOverlay && <div ref={portalOverlayRef} className="mobile-profile-portal-overlay">
-            <button type="button" className="mobile-profile-portal-dismiss" aria-label={isSharedView ? 'Close categories' : 'Close portals'} onClick={() => setActiveView('projects')} />
+            <button type="button" className="mobile-profile-portal-dismiss" aria-label={isSharedView ? 'Close collections' : 'Close portals'} onClick={() => setActiveView('projects')} />
             {mobilePortalOverlay}
           </div>}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}

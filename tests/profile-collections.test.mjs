@@ -185,6 +185,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
+    if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
@@ -749,8 +750,8 @@ test('empty owner portfolios can publish directly while visitor, shared and popu
   }
 });
 
-test('shared identity shows the real headline below the name, renames categories and disables layout without changing owner views', () => {
-  const profile = { id: 'owner', name: 'Owner', headline: 'Independent designer\nWorking across media.', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
+test('shared identity shows the first bio line below name and city with Collections copy while regular profiles stay unchanged', () => {
+  const profile = { id: 'owner', name: 'Owner', headline: '  Independent designer\r\nWorking across media.  ', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
   for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) {
     const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole: 'guest' });
     const tree = h.render({ profile });
@@ -758,18 +759,42 @@ test('shared identity shows the real headline below the name, renames categories
     const headline = nodes(tree).find(node => node.props?.['data-shared-profile-headline'] !== undefined);
     assert.equal(Boolean(headline), isSharedView);
     if (headline) {
-      assert.equal(headline.props.children, profile.headline);
+      assert.equal(headline.props.children, 'Independent designer');
       assert.doesNotMatch(headline.props.className, /truncate|line-clamp/);
       const copy = nodes(tree).find(node => node.props?.className?.includes('profile-identity-copy'));
       const children = React.Children.toArray(copy.props.children);
-      assert.equal(children[0].type, 'h1'); assert.equal(children[1].props['data-shared-profile-headline'], '');
+      assert.equal(children[0].type, 'h1'); assert.equal(children[1].props.children, 'London');
+      assert.equal(children[2].props['data-shared-profile-headline'], '');
     }
     const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
     const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
-    assert.equal(controls[1].props.children.at(-1), isSharedView ? 'category' : 'portal');
+    assert.equal(controls[1].props.children.at(-1), isSharedView ? 'collection' : 'portal');
   }
   const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
   const shared = ProfileCollectionGrid({ shared: true, profileId: 'owner', kind: 'portals', portals: profile.categories, people: [], loading: false, error: null, hasMore: false });
-  assert.equal(shared.props['aria-label'], 'Categories');
+  assert.equal(shared.props['aria-label'], 'Collections');
   assert.equal(nodes(shared).find(node => node.type === 'Link').props.to, '/share/owner/c/photos');
+  for (const isSharedView of [false, true]) {
+    const empty = ProfileCollectionGrid({ shared: isSharedView, profileId: 'owner', kind: 'portals', portals: [], people: [], loading: false, error: null, hasMore: false });
+    assert.equal(empty.props['aria-label'], isSharedView ? 'Collections' : 'Portals');
+    assert.equal(nodes(empty).find(node => node.type === 'EmptyState').props.title, isSharedView ? 'No collections yet' : 'No portals yet');
+  }
+});
+
+test('shared gallery keeps published projects without chosen covers and opts their cards into artwork fallback', () => {
+  const projects = [{ id: 'covered', title: 'Covered work', categoryId: 'photos', cover: 'cover.png' },
+    { id: 'uncovered', title: 'Report', categoryId: 'photos', cover: '', attachments: [{ id: 'pdf', kind: 'document', sourceUrl: 'report.pdf' }] }];
+  for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) {
+    const opened = [];
+    const h = profileHarness('', { presentation, isSharedView, viewerRole: 'guest', projects, props: { onOpenProject: (...args) => opened.push(args) } });
+    const items = wall(h.render()).props.items;
+    assert.deepEqual(items.map(item => item.key), isSharedView ? ['covered', 'uncovered'] : ['covered']);
+    for (const item of items) {
+      const tile = nodes(item.content).find(node => node.type?.name === 'ProfileProjectTile');
+      const card = tile.type(tile.props);
+      assert.equal(card.props.sharedCoverFallback, isSharedView);
+      assert.equal(card.props.project.id, item.key);
+      card.props.onOpen(); assert.deepEqual(opened.at(-1), [item.key, 'photos']);
+    }
+  }
 });

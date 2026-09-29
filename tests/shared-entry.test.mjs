@@ -19,55 +19,108 @@ function load(path, imports, globals = {}) {
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
 const registration = load('../src/features/auth/registration.ts', { '../profile/validation': {} });
 
-function signInBar({ path = '/share/creator/c/art/project', search = '?view=projects&page=2&media=image-a', initializing = false, signedIn = false, phase = 'idle' } = {}) {
-  const requested = [];
+function signInBar({ path = '/share/creator/c/art/project', search = '?view=projects&page=2&media=image-a', name = 'Creator Name', initializing = false, signedIn = false, phase = 'idle', storage = new Map(), blockedStorage = false } = {}) {
+  const requested = [], focusCalls = [], slots = [], pendingEffects = [], observers = [];
+  const styles = new Map(); let cursor = 0, height = 56, barRef;
+  const react = { ...React,
+    useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
+      return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
+    useRef(initial) { const i = cursor++; barRef = slots[i] ??= { current: initial }; return barRef; },
+    useLayoutEffect(effect, deps) { const i = cursor++; if (!slots[i] || deps.some((value, index) => value !== slots[i].deps[index])) {
+      pendingEffects.push(() => { slots[i]?.cleanup?.(); slots[i] = { deps, cleanup: effect() }; });
+    } },
+  };
+  const shell = { style: { setProperty: (key, value) => styles.set(key, value), removeProperty: key => styles.delete(key) } };
+  const bar = { closest: () => shell, getBoundingClientRect: () => ({ height }) };
   const auth = { isInitializing: initializing, isAuthenticated: signedIn, phase,
     requestAuthenticatedDestination: (intent, view) => requested.push({ intent, view }),
     requestAuth() { throw Error('Shared entry must not open authentication automatically.'); },
   };
   const { SharedSignInBar } = load('../src/components/profile/SharedSignInBar.tsx', {
-    react: React, 'react-router-dom': { useLocation: () => ({ pathname: path, search }) },
+    react, 'react-router-dom': { useLocation: () => ({ pathname: path, search }) },
     '../../contexts/AuthContext': { useAuth: () => auth },
     '../../features/auth/registration': registration, './shared-sign-in-bar.css': {},
+  }, { window: { sessionStorage: {
+    getItem(key) { if (blockedStorage) throw Error('Storage unavailable'); return storage.get(key) ?? null; },
+    setItem(key, value) { if (blockedStorage) throw Error('Storage unavailable'); storage.set(key, value); },
+  } }, document: { querySelector(selector) { assert.equal(selector, '#app-viewport .app-screen-layer:not([aria-hidden="true"]) > main', 'Focus must skip the outgoing, inert screen during navigation.'); return { focus: options => focusCalls.push(options) }; } },
+  ResizeObserver: class { constructor(callback) { this.callback = callback; observers.push(this); } observe(element) { assert.equal(element, bar); } disconnect() { this.disconnected = true; } },
   });
-  return { auth, requested, render: () => SharedSignInBar() };
+  return { auth, requested, storage, styles, focusCalls, observers,
+    resize(value) { height = value; observers.at(-1)?.callback(); },
+    render() { cursor = 0; const tree = SharedSignInBar({ name }); barRef.current = tree ? bar : null;
+      pendingEffects.splice(0).forEach(effect => effect()); return tree; },
+    unmount() { for (const slot of slots) slot?.cleanup?.(); },
+  };
 }
 
-test('public sign-in bar is an optional action and only appears for a verified guest on a shared route', () => {
+test('public sign-in bar offers optional account actions only for a verified guest and readable creator', () => {
   const visitor = signInBar();
   const tree = visitor.render();
   assert.equal(tree.type, 'aside');
   assert.equal(tree.props['data-shared-sign-in-bar'], '');
   assert.equal(nodes(tree).some(node => node.props.role === 'dialog' || node.props['aria-modal']), false);
   const buttons = nodes(tree).filter(node => node.type === 'button');
-  assert.equal(buttons.length, 1); assert.equal(buttons[0].props.children, 'Sign in');
+  assert.equal(buttons.length, 3); assert.equal(buttons[0].props.children, 'Sign in');
+  assert.equal(buttons[1].props.children, 'Create account'); assert.equal(buttons[2].props['aria-label'], 'Dismiss sign-in bar');
+  assert.ok(nodes(tree).some(node => node.props.className === 'shared-sign-in-identity' && React.Children.toArray(node.props.children).join('') === "Viewing Creator Name's portfolio"));
   assert.equal(visitor.requested.length, 0);
-  for (const options of [{ initializing: true }, { signedIn: true }, { initializing: true, signedIn: true }, { path: '/' }, { path: '/studio' }, { path: '/profile/creator' }, { path: '/share' }, { path: '/shared/creator' }]) {
+  for (const options of [{ name: '' }, { name: null }, { initializing: true }, { signedIn: true }, { initializing: true, signedIn: true }, { path: '/' }, { path: '/studio' }, { path: '/profile/creator' }, { path: '/share' }, { path: '/shared/creator' }]) {
     const h = signInBar(options);
     assert.equal(h.render(), null); assert.equal(h.requested.length, 0);
   }
 });
 
-test('explicit shared sign-in preserves the exact safe destination without copying callback tokens', () => {
+test('both explicit shared account actions preserve the safe destination without copying callback tokens', () => {
+  for (const [label, view] of [['Sign in', 'signIn'], ['Create account', 'signUp']]) {
   const h = signInBar({ search: '?view=portals&page=12&media=image-a&code=secret&access_token=secret&next=https%3A%2F%2Fevil.test' });
-  const button = nodes(h.render()).find(node => node.type === 'button');
+  const button = nodes(h.render()).find(node => node.type === 'button' && node.props.children === label);
   assert.equal(h.requested.length, 0);
   button.props.onClick();
   assert.equal(h.requested.length, 1);
-  assert.equal(h.requested[0].view, 'signIn');
+  assert.equal(h.requested[0].view, view);
   assert.equal(h.requested[0].intent.kind, 'route');
   assert.equal(h.requested[0].intent.path, '/share/creator/c/art/project?view=portals&page=12&media=image-a');
   assert.doesNotMatch(h.requested[0].intent.path, /secret|next=|access_token|code=/);
   h.auth.isAuthenticated = true; assert.equal(h.render(), null);
   const busy = signInBar({ phase: 'authenticating' });
-  assert.equal(nodes(busy.render()).find(node => node.type === 'button').props.disabled, true);
+  assert.equal(nodes(busy.render()).find(node => node.type === 'button' && node.props.children === label).props.disabled, true);
+  }
 });
 
 test('shared profile and category sign-in actions retain their actual reading destination', () => {
-  for (const [path, search] of [['/share/creator', '?view=portals'], ['/share/creator/c/art', '?view=projects'], ['/share/creator/c/art/project', '?page=5&media=page-a']]) {
+  for (const [path, search] of [['/share/creator', '?view=portals'], ['/share/creator/c/art', '?view=projects'], ['/share/creator/c/art/project', '?page=5&media=page-a']]) for (const label of ['Sign in', 'Create account']) {
     const h = signInBar({ path, search });
-    nodes(h.render()).find(node => node.type === 'button').props.onClick();
+    nodes(h.render()).find(node => node.type === 'button' && node.props.children === label).props.onClick();
     assert.equal(h.requested[0].intent.path, path + search);
+  }
+});
+
+test('dismissal persists across shared-route remounts and returns focus to the active content layer', () => {
+  const h = signInBar();
+  nodes(h.render()).find(node => node.props['aria-label'] === 'Dismiss sign-in bar').props.onClick();
+  assert.equal(h.render(), null); assert.equal(h.requested.length, 0);
+  assert.equal(h.focusCalls.length, 1); assert.equal(h.focusCalls[0].preventScroll, true);
+  h.unmount();
+  assert.equal(signInBar({ path: '/share/another-creator', storage: h.storage }).render(), null);
+  assert.ok(signInBar().render(), 'A new session shows the available account actions again.');
+});
+
+test('blocked session storage still permits local dismissal without losing the reading page', () => {
+  const h = signInBar({ blockedStorage: true });
+  const tree = h.render(); assert.ok(tree);
+  nodes(tree).find(node => node.props['aria-label'] === 'Dismiss sign-in bar').props.onClick();
+  assert.equal(h.render(), null); assert.equal(h.focusCalls.length, 1); assert.equal(h.requested.length, 0);
+});
+
+test('bar geometry follows wrapping and clears its reserved height after dismissal or unmount', () => {
+  for (const finish of ['dismiss', 'unmount']) {
+    const h = signInBar(); const tree = h.render();
+    assert.equal(h.styles.get('--shared-sign-in-height'), '56px');
+    h.resize(88); assert.equal(h.styles.get('--shared-sign-in-height'), '88px');
+    if (finish === 'dismiss') { nodes(tree).find(node => node.props['aria-label'] === 'Dismiss sign-in bar').props.onClick(); h.render(); }
+    else h.unmount();
+    assert.equal(h.styles.has('--shared-sign-in-height'), false); assert.equal(h.observers[0].disconnected, true);
   }
 });
 

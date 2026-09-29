@@ -19,6 +19,7 @@ import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
 import { SharedSignInBar } from './components/profile/SharedSignInBar';
+import { interactionIntent } from './features/auth/interactionIntent';
 import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
 import { resolveAccentTokens } from './utils/accentTokens';
@@ -465,7 +466,7 @@ function AppContent() {
   // Follow state and its request lifecycle live in the feature hook, resolved for
   // the profile currently being viewed. Keying it to that profile is what stops a
   // pending or failed request following the viewer to the next creator.
-  const follows = useFollows(isSharedRoute ? null : viewedProfileId);
+  const follows = useFollows(viewedProfileId);
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
@@ -611,7 +612,7 @@ function AppContent() {
    * viewer is actually allowed to read or change is the service's decision, and a
    * real backend must enforce it independently of anything here.
    */
-  const viewerRole: ViewerRole = isSharedRoute ? 'guest' : isOwnerMode ? 'owner' : auth.isAuthenticated ? 'visitor' : 'guest';
+  const viewerRole: ViewerRole = isOwnerMode ? 'owner' : auth.isAuthenticated ? 'visitor' : 'guest';
   /**
    * Actions that genuinely need an account route through here. The label is
    * what the person was trying to do, so the gate can say so.
@@ -621,10 +622,7 @@ function AppContent() {
       action();
       return;
     }
-    auth.requestAuthenticatedDestination({
-      kind: 'interaction',
-      label
-    });
+    auth.requestAuthenticatedDestination(interactionIntent(label, pathname + search));
   }
   // True once an authenticated identity has been observed during this mount.
   const wasAuthenticatedRef = useRef(false);
@@ -966,7 +964,7 @@ function AppContent() {
   function openMessages(recipientProfileId?: string) {
     const intent: AuthIntent = { kind: 'messages', ...(recipientProfileId ? { recipientProfileId } : {}) };
     if (!auth.isAuthenticated) {
-      auth.requestAuthenticatedDestination(intent);
+      auth.requestAuthenticatedDestination(isSharedRoute ? interactionIntent('message this creator', pathname + search) : intent);
       return;
     }
     if (onboardingStatus === 'required') {
@@ -1153,7 +1151,7 @@ function AppContent() {
         if (target !== `${pathname}${search}`) nav.to(target);
       }} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
-      })}` : undefined} follow={isSharedRoute ? undefined : {
+      })}` : undefined} follow={isSharedRoute && auth.viewerProfileId === viewedProfile.id ? undefined : {
         isFollowing: follows.isFollowing,
         isRequested: follows.isRequested,
         isResolving: follows.isResolving,
@@ -1162,7 +1160,7 @@ function AppContent() {
         mutationError: follows.mutationError,
         onToggle: toggleFollowProfile,
         onRetry: follows.retryMutation
-      }} onSignInRequest={isSharedRoute ? undefined : () => auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId, options) => {
+      }} onSignInRequest={() => isSharedRoute ? auth.requestAuthenticatedDestination(interactionIntent('follow this creator', pathname + search)) : auth.requestAuth('signIn')} onOpenProject={(projectId, categoryId, options) => {
         if (isSharedRoute) {
           nav.sharedProject(viewedProfile.id, categoryId, projectId);
           return;
@@ -1242,7 +1240,7 @@ function AppContent() {
       {/* The session's own conditions are stated above the page, because they
            belong to no single screen. */}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
-      {isSharedRoute && <SharedSignInBar />}
+      {isSharedRoute && <SharedSignInBar name={canReadViewedProfile ? viewedProfile?.name : undefined} />}
       {!isSharedRoute && !isProfileEditorRoute && <SessionStatusBanner onCreateProfile={() => setIsOnboardingOpen(true)} />}
       {/* A creator opened from an attribution is now confirmed by the profile
              route's own read, whose loading, not-found, and retryable failure states

@@ -138,7 +138,7 @@ test('video scrolling remembers its attachment before canonical navigation and o
     assert.equal(target.key, opening.key, 'Cross-project navigation retains the same sequence identity');
     assert.equal(target.props.activeId, 'target:target-video');
     assert.equal(target.props.creator, creator, 'Canonical project navigation retains the source creator');
-    assert.deepEqual(h.serviceIds.slice(-2), readOnlyShare ? [null, null] : ['target', 'target']);
+    assert.deepEqual(h.serviceIds.slice(-2), ['target', 'target']);
     const playing = target.props.renderVideo(entries[1], true);
     assert.equal(playing.props.projectId, 'target');
     assert.equal(playing.props.attachment.id, 'target-video');
@@ -298,9 +298,9 @@ test('the mobile engagement toggle opens and closes local controls without chang
     assert.equal(h.outsideCalls.at(-1).open, true);
     assert.equal(h.outsideCalls.at(-1).layer, withProp(tree, 'data-project-response-rail').ref);
     assert.ok(button(tree, 'Show project description'));
-    assert.equal(Boolean(button(tree, 'Show comments')), !readOnlyShare);
+    assert.equal(Boolean(button(tree, 'Show comments')), true);
     assert.equal(Boolean(button(tree, 'Show AI verification services')), readOnlyShare);
-    assert.equal(nodes(tree).some(node => node.type === EngagementBar), !readOnlyShare);
+    assert.equal(nodes(tree).some(node => node.type === EngagementBar), true);
     expandedToggle.props.onClick();
     tree = h.render(props);
     assert.equal(button(tree, 'Show project engagement').props['aria-expanded'], false);
@@ -386,15 +386,34 @@ test('empty mobile projects keep their project-list access; WEB keeps its existi
   assert.equal(button(web, 'Show project list'), undefined);
 });
 
-test('shared mobile projects retain public details without social service requests or controls', () => {
+test('shared mobile projects retain public details and permission-gated visitor actions without owner editing', () => {
   const h = harness({ readOnlyShare: true });
-  let tree = h.render();
+  let tree = h.render({ isOwner: true, descriptionEditor: { editable: true } });
+  const media = nodes(tree).find(node => node.type === AttachmentRenderer);
+  assert.equal(media.props.showMediaInteractions, true);
+  assert.equal(media.props.isOwner, false);
   button(tree, 'Show project description').props.onClick();
-  tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.projectId, 'project');
-  assert.equal(button(tree, 'Show comments'), undefined);
-  assert.equal(nodes(tree).some(node => node.type === EngagementBar || node.type === CommentThreadView), false);
-  assert.ok(h.serviceIds.every(id => id === null));
+  tree = h.render({ isOwner: true, descriptionEditor: { editable: true } });
+  const sheet = nodes(tree).find(node => node.type === MobileProjectDescriptionSheet);
+  assert.equal(sheet.props.projectId, 'project'); assert.equal(sheet.props.editor, undefined);
+  assert.ok(button(tree, 'Show comments'));
+  assert.ok(nodes(tree).some(node => node.type === EngagementBar));
+  assert.ok(h.serviceIds.every(id => id === 'project'));
+  button(tree, 'Show comments').props.onClick();
+  const comments = nodes(h.render({ isOwner: true })).find(node => node.type === CommentThreadView);
+  assert.ok(comments); assert.equal(comments.props.isOwner, false);
+});
+
+test('shared WEB exposes visitor engagement and comments while keeping its project-information entry', () => {
+  const h = harness({ mobile: false, readOnlyShare: true });
+  let tree = h.render({ isRailOpen: true, isOwner: true });
+  assert.ok(button(tree, 'Show project information'));
+  assert.ok(nodes(tree).some(node => node.type === EngagementBar));
+  assert.equal(nodes(tree).find(node => node.type === AttachmentRenderer).props.isOwner, false);
+  nodes(tree).find(node => node.type === 'button' && node.props.children === 'Show comments').props.onClick();
+  tree = h.render({ isRailOpen: true, isOwner: true });
+  const comments = nodes(tree).find(node => node.type === CommentThreadView);
+  assert.ok(comments); assert.equal(comments.props.isOwner, false);
 });
 
 test('WEB does not receive the combined mobile controls or change its response layout', () => {

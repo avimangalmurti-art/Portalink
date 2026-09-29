@@ -34,12 +34,13 @@ type Props = {
   editor?: React.ReactNode;
   cover?: React.ReactNode;
   aspectRatio?: number;
+  sharedCoverFallback?: boolean;
 };
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
-  showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
+  showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false }: Props) {
   const isMobile = usePresentation() === 'mobile';
   // On phones artwork opens the work on its first tap. Details have a separate
   // control on cards large enough to contain a comfortable touch target.
@@ -68,7 +69,7 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
   const artwork = <span className="project-preview-image absolute inset-0 block">
-    {cover ?? <ProjectCover source={project.cover} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} />}
+    {cover ?? <ProjectCover source={project.cover} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
   return <article ref={preview.ref} {...preview.events} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>

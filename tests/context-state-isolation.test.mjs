@@ -61,6 +61,7 @@ function harness(kind, queryIds = []) {
   const source = compile(`../src/contexts/${kind === 'profile' ? 'ProfileDataContext' : 'EngagementContext'}.tsx`, {
     react, './ServicesContext': { useServices: () => services }, './AuthContext': { useAuth: () => auth },
     '../types/engagement': compile('../src/types/engagement.ts', {}),
+    '../features/auth/interactionIntent': { interactionIntent: label => ({ kind: 'interaction', label }) },
   });
   const call = (key, fn) => {
     if (!components.has(key)) components.set(key, []);

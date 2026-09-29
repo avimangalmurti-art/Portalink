@@ -117,18 +117,17 @@ test('public navigation can collapse and expand without offering layout resize h
   assert.deepEqual(h.calls, []);
 });
 
-test('shared identity uses the existing headline without truncation and names navigation Categories', () => {
+test('shared identity uses the first trimmed bio line and names navigation Collections', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
-    const profile = { id: 'creator', name: 'Creator', headline: 'Architect and designer\nWorking across cities.', categories: [] };
+    const profile = { id: 'creator', name: 'Creator', headline: '  Architect and designer\r\nWorking across cities.  ', categories: [] };
     const wrapper = h.render({ profile });
     const tree = presentation === 'mobile' ? wrapper.props.children(() => {}) : wrapper;
     const headline = nodes(tree).find(node => node.props['data-shared-profile-headline'] !== undefined);
-    assert.equal(headline.props.children, profile.headline);
+    assert.equal(headline.props.children, 'Architect and designer');
     assert.doesNotMatch(headline.props.className, /truncate|line-clamp/);
-    assert.match(headline.props.className, /whitespace-pre-line/);
-    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator categories'));
-    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Categories');
+    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator collections'));
+    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Collections');
     const empty = h.render({ profile: { ...profile, headline: '   ' } });
     assert.equal(nodes(presentation === 'mobile' ? empty.props.children(() => {}) : empty).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
   }

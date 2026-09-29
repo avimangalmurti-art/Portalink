@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { EngagementServiceError, isRetryableEngagementCode } from '../types/engagement';
 import type { EngagementErrorCode, EngagementKind, ProjectEngagement } from '../types/engagement';
 import type { Id } from '../types/domain';
+import { interactionIntent } from '../features/auth/interactionIntent';
 
 /**
  * The CANONICAL engagement store.
@@ -193,10 +194,9 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
     // Gating happens here, once, rather than in each control. The action is not
     // queued for replay: after signing in the viewer presses again deliberately.
     if (!authRef.current.isAuthenticated) {
-      authRef.current.requestAuthenticatedDestination({
-        kind: 'interaction',
-        label: kind === 'like' ? 'like this project' : kind === 'save' ? 'save this project' : 'repost this project'
-      });
+      authRef.current.requestAuthenticatedDestination(interactionIntent(
+        kind === 'like' ? 'like this project' : kind === 'save' ? 'save this project' : 'repost this project'
+      ));
       return;
     }
     const initial = scope.entries[projectId] ?? EMPTY_ENTRY;

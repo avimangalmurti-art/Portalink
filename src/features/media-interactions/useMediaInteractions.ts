@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
 import { readMediaInteraction } from './mediaInteractionBatch';
+import { readSharedReturnPath } from '../auth/registration';
 
 export type MediaEngagementKind = 'like' | 'save' | 'repost';
 
@@ -109,10 +110,15 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
 
   const gateGuest = useCallback((action: PendingMediaAction['action']) => {
     const url = mediaDeepLink(target);
-    rememberPendingAction({ targetKey: key, action });
+    const sharedPath = readSharedReturnPath(`${url.pathname}${url.search}`);
+    // Shared visitor actions retain the exact page but never queue a write.
+    // Cancelling sign-in must not cause a later login to act on this page.
+    if (sharedPath) {
+      try { window.sessionStorage.removeItem(PENDING_ACTION_KEY); } catch { /* Storage is optional. */ }
+    } else rememberPendingAction({ targetKey: key, action });
     auth.requestAuthenticatedDestination({
       kind: 'route',
-      path: `${url.pathname}${url.search}`,
+      path: sharedPath ?? `${url.pathname}${url.search}`,
       label: `${action === 'save' ? 'bookmark' : action} ${target.label}`
     });
   }, [auth, key, target]);
@@ -153,6 +159,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     if (!auth.isAuthenticated) return;
     const pending = takePendingAction(key);
     if (!pending) return;
+    if (typeof window !== 'undefined' && window.location && readSharedReturnPath(`${window.location.pathname}${window.location.search}`)) return;
     if (pending.action === 'comment') {
       setCommentResumeToken((value) => value + 1);
       return;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { FileIcon } from 'lucide-react';
 import { PdfPage } from './PdfPage';
-import type { Project, ProjectCoverFrame } from '../../types/domain';
+import type { Project, ProjectAttachment, ProjectCoverFrame } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
@@ -19,23 +19,50 @@ type ProjectCoverProps = {
   frame?: ProjectCoverFrame;
   pageNumber?: number;
   onDocumentPageCountChange?: (pageCount: number) => void;
+  /** Shared cards may use existing project artwork when no cover was chosen. */
+  fallbackAttachments?: ProjectAttachment[];
 };
+
+function firstAttachmentCover(attachments: ProjectAttachment[] | undefined) {
+  for (const attachment of [...(attachments ?? [])].sort((a, b) => a.order - b.order)) {
+    if (attachment.kind === 'image' && attachment.sourceUrl) {
+      return { source: attachment.sourceUrl, kind: undefined, previewSource: undefined, aspectRatio: attachment.metadata?.aspectRatio, document: false };
+    }
+    if (attachment.kind !== 'document') continue;
+    const firstPage = attachment.metadata?.renderedPages?.find(page =>
+      page.attachmentId === attachment.id && page.withinDocumentIndex === 1 && page.sourceUrl);
+    const source = attachment.sourceUrl || firstPage?.sourceUrl;
+    if (source) {
+      return { source, kind: attachment.sourceUrl ? 'document' as const : undefined,
+        previewSource: attachment.sourceUrl ? firstPage?.sourceUrl ?? undefined : undefined,
+        aspectRatio: firstPage?.aspectRatio ?? attachment.metadata?.aspectRatio, document: true };
+    }
+  }
+}
 
 /** One cover renderer shared by every project surface. */
 export function ProjectCover({
-  source,
-  previewSource,
+  source: chosenSource,
+  previewSource: chosenPreviewSource,
   alt,
-  kind,
+  kind: chosenKind,
   fit = 'cover',
   className = '',
-  aspectRatio,
+  aspectRatio: chosenAspectRatio,
   sizes,
   priority = false,
   frame,
-  pageNumber = 1,
+  pageNumber: chosenPageNumber = 1,
   onDocumentPageCountChange,
+  fallbackAttachments,
 }: ProjectCoverProps) {
+  const fallback = chosenSource ? undefined : firstAttachmentCover(fallbackAttachments);
+  const source = chosenSource || fallback?.source;
+  const previewSource = fallback ? fallback.previewSource : chosenPreviewSource;
+  const kind = fallback ? fallback.kind : chosenKind;
+  const aspectRatio = fallback?.aspectRatio ?? chosenAspectRatio;
+  const pageNumber = fallback ? 1 : chosenPageNumber;
+  const effectiveFit = fallback?.document ? 'contain' : fit;
   const [imageFailed, setImageFailed] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
   useEffect(() => setImageFailed(false), [source]);
@@ -45,7 +72,7 @@ export function ProjectCover({
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
   }
-  const normalizedFrame = frame && fit === 'cover' ? normalizeProjectCoverFrame(frame) : null;
+  const normalizedFrame = !fallback && frame && fit === 'cover' ? normalizeProjectCoverFrame(frame) : null;
   const objectPosition = normalizedFrame
     ? `${normalizedFrame.x * 100}% ${normalizedFrame.y * 100}%`
     : undefined;
@@ -64,7 +91,7 @@ export function ProjectCover({
           playsInline
           preload="metadata"
           style={{ objectPosition }}
-          className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'}`}
+          className={`h-full w-full ${effectiveFit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
       : <ResponsiveImage
           src={useDocumentPreview && previewSource ? previewSource : source}
@@ -75,7 +102,7 @@ export function ProjectCover({
           priority={priority}
           onError={() => useDocumentPreview ? setPreviewFailed(true) : setImageFailed(true)}
           style={{ objectPosition }}
-          className={`h-full w-full ${useDocumentPreview ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : fit === 'cover') ? 'object-cover' : 'object-contain'}`}
+          className={`h-full w-full ${useDocumentPreview ? 'bg-white ' : ''}${(useDocumentPreview ? Boolean(normalizedFrame) : effectiveFit === 'cover') ? 'object-cover' : 'object-contain'}`}
         />;
 
   if (!normalizedFrame) {

@@ -118,7 +118,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -153,7 +153,7 @@ export function ProjectMediaViewer({
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'verification'>('project');
+  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'comments' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
@@ -224,12 +224,12 @@ export function ProjectMediaViewer({
    * canonical data and the finished preview arrives through the normal read.
    */
   // Canonical engagement, shared with the viewer's own activity collections: the
-  // same project can never read differently in two places. Public links pass no
-  // project id, so these account-only services remain completely dormant there.
-  const engagement = useProjectEngagement(readOnlyShare ? null : projectId);
+  // same project can never read differently in two places. Public links expose
+  // visitor actions through the same guest gate and backend permission checks.
+  const engagement = useProjectEngagement(projectId);
   // Keyed to the project, so project A's thread, pending reply, or failure can
   // never appear on project B.
-  const comments = useProjectComments(readOnlyShare ? null : projectId);
+  const comments = useProjectComments(projectId);
   useEffect(() => {
     if (mobilePopup === 'engagement' && !engagement.resolveError && !engagement.failure) {
       setMobilePopup(null);
@@ -551,13 +551,13 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={readOnlyShare && isMobileViewer && active.kind === 'document' ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
   return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
@@ -570,7 +570,7 @@ export function ProjectMediaViewer({
               if (entry.projectId === projectId) setActiveId(entry.attachment.id);
               else videoSequence.onSelectProject(entry.projectId);
             }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
-              attachment={entry.attachment} videoActive={playing} showMediaInteractions={!readOnlyShare} isOwner={isOwner && entry.projectId === projectId}
+              attachment={entry.attachment} videoActive={playing} showMediaInteractions isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
               processing={entry.projectId === projectId ? {
                 state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
                 isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
@@ -628,17 +628,17 @@ export function ProjectMediaViewer({
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>
           </button>
-          {!readOnlyShare && <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('comments')} className="mobile-project-popup-trigger">
+          <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('comments')} className="mobile-project-popup-trigger">
             <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
-          </button>}
+          </button>
           {readOnlyShare && <button ref={verificationTriggerRef} type="button" aria-label="Show AI verification services" aria-haspopup="dialog" aria-expanded={mobilePopup === 'verification'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('verification')} className="mobile-project-popup-trigger text-[var(--text-secondary)]">
             <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
           </button>}
         </div>
-        {!readOnlyShare && <div data-project-rail-actions="" className="flex justify-center">
+        <div data-project-rail-actions="" className="flex justify-center">
           <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
-        </div>}
-        {!readOnlyShare && (engagement.resolveError || engagement.failure) && <div className="side-panel-navigation-list items-center">
+        </div>
+        {(engagement.resolveError || engagement.failure) && <div className="side-panel-navigation-list items-center">
           <button ref={feedbackTriggerRef} type="button" aria-label="Review engagement error" aria-haspopup="dialog" aria-expanded={mobilePopup === 'engagement'} onClick={() => setMobilePopup('engagement')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <InterfaceIcon icon={AlertCircleIcon} size="lg" weight="medium" />
           </button>
@@ -659,6 +659,13 @@ export function ProjectMediaViewer({
                 <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
               </button>}
           </div>
+          <div data-project-rail-actions="" className="flex justify-center p-2">
+            <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
+          </div>
+          {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel(sharedInfoPanel === 'comments' ? 'project' : 'comments')} aria-pressed={sharedInfoPanel === 'comments'} aria-controls="shared-project-detail-panel" className="side-panel-content-inset min-h-11 text-left text-[13px] font-semibold text-[var(--text-primary)]">
+            {sharedInfoPanel === 'comments' ? 'Show project information' : 'Show comments'}
+          </button>}
+          {isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
           {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
           {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
@@ -720,7 +727,7 @@ export function ProjectMediaViewer({
           <button type="button" data-comments-close="" aria-label="Close project popup" onClick={closeMobilePopup}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
-          {mobilePopup === 'engagement' && !readOnlyShare ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' && !readOnlyShare ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /></div>
+          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
             : mobilePopup === 'verification' ? sharedVerification
             : readOnlyShare ? sharedProjectInformation
             : <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[var(--text-primary)]">{projectSummary || 'This project has no description.'}</p>}
