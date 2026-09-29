@@ -33,7 +33,7 @@ export function useMobileBack(fallback: BackAction): BackAction {
 }
 
 /** Keep the original control outside the mobile app, delegate its action inside it. */
-export function ScreenBack({ action, children }: { action?: BackAction; children: React.ReactNode }) {
+export function ScreenBack({ action, children, visibleOnMobile = false }: { action?: BackAction; children: React.ReactNode; visibleOnMobile?: boolean }) {
   const navigation = useContext(BackContext);
   const { active, enabled } = useContext(ScreenContext);
   const isMobile = usePresentation() === 'mobile';
@@ -41,5 +41,5 @@ export function ScreenBack({ action, children }: { action?: BackAction; children
   useLayoutEffect(() => {
     if (delegated && active && action) return navigation?.register(action);
   }, [action, active, delegated, navigation]);
-  return delegated ? null : <>{children}</>;
+  return delegated && !visibleOnMobile ? null : <>{children}</>;
 }

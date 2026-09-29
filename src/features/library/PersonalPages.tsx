@@ -10,10 +10,10 @@ import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { InboxPanel } from '../../components/messages/InboxPanel';
-import { ProfileServiceError } from '../../types/profile';
 import type { Profile, ProjectLocation } from '../../types/domain';
 import { useAccountQuery } from './useAccountQuery';
 import { SavedPagesCollection } from './SavedPagesCollection';
+import { loadSavedCreators } from './collectionQueries';
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
@@ -44,16 +44,7 @@ export function SavedPage({ onBack, onOpenProject }: { onBack: () => void; onOpe
 function SavedCreators() {
   const navigate = useNavigate();
   const { creatorSaves, profiles } = useServices();
-  const query = useCallback(async () => {
-    const ids = await creatorSaves.listSavedCreatorIds();
-    return Promise.all(ids.map(async (id) => {
-      try { return { id, profile: await profiles.getProfile(id) }; }
-      catch (error) {
-        if (error instanceof ProfileServiceError && error.code === 'not_found') return { id, profile: null };
-        throw error;
-      }
-    }));
-  }, [creatorSaves, profiles]);
+  const query = useCallback(() => loadSavedCreators(creatorSaves, profiles), [creatorSaves, profiles]);
   const state = useAccountQuery(query);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const items = state.data?.filter((item) => !removed.has(item.id));

@@ -170,7 +170,7 @@ function savedPageModule(useSearchParams) {
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },
     '../../contexts/ServicesContext': {}, '../../components/profile/ActivityCollectionPage': { ActivityCollectionPage: () => null }, '../../components/profile/CreatorAvatar': {},
     '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null }, '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {},
-    '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': { SavedPagesCollection: () => React.createElement('section', { 'aria-label': 'Saved pages' }) },
+    '../../types/profile': {}, './useAccountQuery': {}, './collectionQueries': {}, './SavedPagesCollection': { SavedPagesCollection: () => React.createElement('section', { 'aria-label': 'Saved pages' }) },
   });
 }
 

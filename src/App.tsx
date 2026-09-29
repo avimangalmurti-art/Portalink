@@ -52,6 +52,7 @@ import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
 const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
+const StudioPage = React.lazy(() => import('./features/studio/StudioPage').then((module) => ({ default: module.StudioPage })));
 const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
 const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
 const AppDetailPage = React.lazy(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
@@ -261,10 +262,13 @@ function AppContent() {
   const isPortalsOpen = route.kind === 'portals';
   const isInsightsOpen = route.kind === 'insights';
   const isStudioOpen = route.kind === 'studio';
-  const inDesignFeature = isPortalsOpen ? 'Portals' as const : isStudioOpen ? 'Studio' as const : null;
   const isSavedOpen = route.kind === 'saved';
+  const isMobileStudioOpen = presentation === 'mobile' && (isStudioOpen || isSavedOpen);
+  const inDesignFeature = isPortalsOpen ? 'Portals' as const : isStudioOpen && !isMobileStudioOpen ? 'Studio' as const : null;
   const isActivityOpen = route.kind === 'notifications';
-  const personalScreen = isSavedOpen ? 'Saved' : isActivityOpen ? 'Activity' : isInsightsOpen ? 'Insights' : null;
+  const personalScreen = isMobileStudioOpen ? 'Studio' : isSavedOpen ? 'Saved' : isActivityOpen ? 'Activity' : isInsightsOpen ? 'Insights' : null;
+  // Studio is private on MOBILE; the existing WEB placeholder remains public.
+  const isProtectedRoute = PROTECTED_ROUTE_KINDS.has(route.kind) || isMobileStudioOpen;
   const isMessagesOpen = route.kind === 'messages';
   const isControlCenterOpen = route.kind === 'controlCenter';
   const isProfileEditorRoute = route.kind === 'profileEditor';
@@ -705,7 +709,7 @@ function AppContent() {
        * rather than to the front door — which is exactly what happened when
        * signing out of Messages. So the session ends at Home.
        */
-      if (wasAuthenticatedRef.current && PROTECTED_ROUTE_KINDS.has(route.kind)) {
+      if (wasAuthenticatedRef.current && isProtectedRoute) {
         signedOutOfProtectedRef.current = true;
         nav.home(true);
       }
@@ -782,7 +786,6 @@ function AppContent() {
    * are. This decides what the interface offers — it is not authorization, which
    * remains the service's decision.
    */
-  const isProtectedRoute = PROTECTED_ROUTE_KINDS.has(route.kind);
   const isRouteBlocked = isProtectedRoute && !auth.isInitializing && !auth.isAuthenticated;
   /**
    * A protected URL asked for while signed out. The destination is preserved
@@ -1130,7 +1133,7 @@ function AppContent() {
    * merely to animate a route. Full workspace navigation receives a new layer.
    */
   const screenTransitionKey = routeStateView ? `route-state-${pathname}` : isProfileEditorRoute ? `profile-editor-${auth.user?.id ?? 'guest'}-${auth.viewerProfileId ?? 'setup'}` : personalScreen ? `personal-${personalScreen}-${auth.user?.id ?? 'guest'}` : isControlCenterOpen ? 'control-center' : iconPickerCategoryId ? `icon-picker-${iconPickerCategoryId}` : inDesignFeature ? `in-design-${inDesignFeature.toLowerCase()}` : isMessagesOpen ? 'messages' : isSearchOpen ? 'search' : routeActivityKind && viewedProfileId ? `activity-${viewedProfileId}-${routeActivityKind}` : activeCategoryId ? `${isSharedRoute ? 'shared-' : ''}category-${viewedProfileId}-${activeCategoryId}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfileId ? `${isSharedRoute ? 'shared-' : ''}profile-${viewedProfileId}` : activeDestination;
-  const screenMainClassName = `scroll-edge-fade is-at-top min-h-0 w-full flex-1 ${isProfileEditorRoute || activeCategory || isSearchOpen || isMessagesOpen || inDesignFeature ? 'overflow-hidden' : 'overflow-y-auto'} ${activeCategory ? '' : 'mono-icons'}`;
+  const screenMainClassName = `scroll-edge-fade is-at-top min-h-0 w-full flex-1 ${isProfileEditorRoute || activeCategory || isSearchOpen || isMessagesOpen || isMobileStudioOpen || inDesignFeature ? 'overflow-hidden' : 'overflow-y-auto'} ${activeCategory ? '' : 'mono-icons'}`;
   const screenAriaLabel = isControlCenterOpen ? 'Settings' : isProfileEditorRoute ? 'Edit profile' : personalScreen ?? inDesignFeature ?? (isMessagesOpen ? 'Messages' : isSearchOpen ? 'Search and browse' : activeCategory ? `${viewedProfile?.name ?? 'Portfolio'} · ${activeCategory.label}${isSharedRoute ? ' · shared read-only view' : ''}` : (route.kind === 'profile' || route.kind === 'sharedProfile') && viewedProfile ? `${viewedProfile.name} profile${isSharedRoute ? ' · shared read-only view' : ''}` : selectedApp ? `${selectedApp.name} details` : `${activeDestination} content`);
   const portalsPage = <PortalsPage key={`${auth.user?.id ?? 'guest'}:${viewedProfileId ?? 'setup'}`} profileQuery={viewedProfileQuery} profileContext={route.kind === 'profile'} onboardingStatus={onboardingStatus} management={management} accentColor={interfaceAccentColor} theme={interfaceTheme} onChangeCategoryIcon={setIconPickerCategoryId} onContinue={continueToPortals} onSelectCategory={selectProfileCategory} onBack={returnFromPortalCollection} />;
   const categoryPage = activeCategory && viewedProfile ? <ProfileCategoryPage profile={viewedProfile} category={activeCategory} viewerRole={viewerRole} activeProjectId={activeProjectId} onBack={returnFromPortal} onBackToPortals={returnToPortalCollection} onSelectProject={selectProject} onCreateProject={isOwnerMode ? requestPublish : undefined} isIndexCollapsed={isSharedRoute ? isSharedProjectIndexCollapsed : isProjectIndexCollapsed} onIndexCollapsedChange={isSharedRoute ? setIsSharedProjectIndexCollapsed : setIsProjectIndexCollapsed} isEngagementOpen={isSharedRoute ? isSharedProjectDescriptionOpen : isProjectEngagementOpen} onEngagementOpenChange={isSharedRoute ? setIsSharedProjectDescriptionOpen : setIsProjectEngagementOpen} sharedReadOnly={isSharedRoute} onReturnToDiscovery={!isSharedRoute && discoveryReturn ? () => {
@@ -1182,7 +1185,7 @@ function AppContent() {
   const mobileProfileKey = !isProfileEditorRoute && !routeStateView && !personalScreen && !isControlCenterOpen && !iconPickerCategoryId && viewedProfile &&
     (categoryPage || ((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady) || (isPortalsOpen && canShowOwnPortalsWorkspace))
       ? `mobile-profile-${auth.user?.id ?? 'guest'}-${viewedProfile.id}-${isSharedRoute}` : undefined;
-  const screenContent = <div data-screen-scroll={isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'nested' : 'page'} className={`feed-starfield min-h-full ${isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen ? 'h-full' : ''}`}>
+  const screenContent = <div data-screen-scroll={isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen || isMobileStudioOpen ? 'nested' : 'page'} className={`feed-starfield min-h-full ${isProfileEditorRoute || activeCategory || isMessagesOpen || isSearchOpen || isFeedView || isPortalsOpen || isMobileStudioOpen ? 'h-full' : ''}`}>
       <DeferredSurfaceBoundary active resetKey={screenTransitionKey} onClose={() => {
         if (isProfileEditorRoute) closeProfileEditor();
         else if (isControlCenterOpen) nav.closeSettings();
@@ -1199,7 +1202,7 @@ function AppContent() {
         management.dismissFailure();
         setAttemptedIconName(null);
         setIconPickerCategoryId(null);
-      }} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? (isPortalsOpen ? mobilePortalsWorkspace : <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} />) : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onReturnHome={() => nav.home()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
+      }} /> : isMobileStudioOpen ? (auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out' ? <StudioPage key={auth.user?.id} savedRoute={isSavedOpen} onBack={() => nav.back()} onOpenProject={openProjectById} onCreateProject={requestGlobalPublish} /> : <LoadingState label="Opening Studio…" />) : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? (isPortalsOpen ? mobilePortalsWorkspace : <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} />) : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onReturnHome={() => nav.home()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
         </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your portfolio', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true

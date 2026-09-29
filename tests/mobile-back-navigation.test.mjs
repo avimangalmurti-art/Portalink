@@ -51,6 +51,22 @@ test('sidebar delegates to the current page and falls back after that page unmou
   assert.equal(h.fallbackCalls, 1);
 });
 
+test('a visible mobile Back control can opt in without losing its active-screen registration', () => {
+  const h = backHarness();
+  let calls = 0;
+  h.scope();
+  const action = () => calls++;
+  const child = React.createElement('button', { onClick: action }, 'Back');
+  const rendered = h.ScreenBack({ action, visibleOnMobile: true, children: child });
+  assert.equal(rendered.props.children, child);
+  rendered.props.children.props.onClick();
+  h.navigation.back();
+  assert.equal(calls, 2);
+  h.dispose();
+  h.navigation.back();
+  assert.equal(h.fallbackCalls, 1);
+});
+
 test('outgoing screens cannot steal Back or clear a newer screen registration', () => {
   const h = backHarness();
   const calls = [];

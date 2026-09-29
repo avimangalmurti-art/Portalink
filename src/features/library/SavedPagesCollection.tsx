@@ -6,7 +6,8 @@ import { mediaInteractionRequest } from '../media-interactions/mediaInteractionR
 import { BookmarkIcon } from 'lucide-react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAccountQuery } from './useAccountQuery';
-import { listSavedPages, removeSavedPage, savedPageKey, savedPagePresentation, type SavedPageTarget } from './savedPages';
+import { removeSavedPage, savedPageKey, savedPagePresentation, type SavedPageTarget } from './savedPages';
+import { loadSavedPageBatch } from './collectionQueries';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { Button } from '../../components/ui/Button';
@@ -19,19 +20,7 @@ export function SavedPagesCollection() {
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
   const cursor = cursors[cursors.length - 1];
-  const query = useCallback(async () => {
-    const batch = await listSavedPages(cursor);
-    const ids = [...new Set(batch.items.map((item) => item.projectId))];
-    const views = await Promise.all(ids.map(async (id) => {
-      try { return await projects.getProjectView(id); }
-      catch (error) {
-        if (error && typeof error === 'object' && 'code' in error && error.code === 'not_found') return undefined;
-        throw error;
-      }
-    }));
-    const byId = new Map(views.filter((view) => view !== undefined).map((view) => [view.project.id, view]));
-    return { nextCursor: batch.nextCursor, items: batch.items.map((target) => ({ target, presentation: savedPagePresentation(target, byId.get(target.projectId)) })) };
-  }, [cursor, projects]);
+  const query = useCallback(() => loadSavedPageBatch(projects, cursor), [cursor, projects]);
   const state = useAccountQuery(query);
   const items = state.data?.items.filter(({ target }) => !removed.has(savedPageKey(target))) ?? [];
   const isEmptyLibrary = cursors.length === 1 && !state.data?.nextCursor;

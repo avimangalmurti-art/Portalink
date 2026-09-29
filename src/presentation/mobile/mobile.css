@@ -2748,3 +2748,154 @@
 /* When the move keeps a single layer there is no outgoing screen to travel
    against, so that case stays an instant change. A keyframe animation would
    name a global identifier and escape this file's presentation scope. */
+#root .codex-shell[data-presentation='mobile'] .mobile-studio {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+#root .codex-shell[data-presentation='mobile'] .studio-header {
+  flex: none;
+  padding: max(12px, var(--safe-area-top)) 20px 12px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .studio-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+#root .codex-shell[data-presentation='mobile'] :is(.studio-round-control, .studio-text-control) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+#root .codex-shell[data-presentation='mobile'] .studio-text-control { padding: 0 15px; font-size: 14px; font-weight: 600; }
+#root .codex-shell[data-presentation='mobile'] .studio-title { margin: 0; font-size: 34px; line-height: 1.12; letter-spacing: -0.035em; font-weight: 700; }
+#root .codex-shell[data-presentation='mobile'] .studio-status { margin-top: 5px; font-size: 12px; line-height: 18px; color: var(--text-tertiary); }
+
+#root .codex-shell[data-presentation='mobile'] .studio-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 15px;
+  padding: 0 13px;
+  border-radius: 14px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+}
+
+#root .codex-shell[data-presentation='mobile'] .studio-search input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-search:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+#root .codex-shell[data-presentation='mobile'] .studio-categories {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: 3px 0;
+  margin-top: 12px;
+  scrollbar-width: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] .studio-category {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 48px;
+  min-height: 44px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+/* Override the shared soft-selected toggle rule for Mail-style categories. */
+#root .codex-shell[data-presentation='mobile'] .studio-category[aria-pressed='true'] { background: var(--accent-primary) !important; color: var(--accent-foreground) !important; }
+#root .codex-shell[data-presentation='mobile'] .studio-category svg { color: inherit; }
+
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin-top: 9px;
+  padding: 3px;
+  border-radius: 13px;
+  background: var(--surface-sunken);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { min-height: 44px; border-radius: 10px; font-size: 13px; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); font-weight: 600; }
+
+#root .codex-shell[data-presentation='mobile'] .studio-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 0 12px calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 72px);
+  scroll-padding-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 72px);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-list, .studio-section ul) { list-style: none; margin: 0; padding: 0; }
+#root .codex-shell[data-presentation='mobile'] .studio-section h2 { margin: 14px 8px 4px; padding-bottom: 7px; border-bottom: 1px solid var(--hairline); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-section-note { padding: 9px 8px 14px; font-size: 13px; line-height: 1.55; color: var(--text-tertiary); }
+#root .codex-shell[data-presentation='mobile'] .studio-row-fallback { display: grid; width: 100%; height: 100%; place-items: center; border-radius: 12px; background: var(--surface-sunken); color: var(--accent-text); }
+#root .codex-shell[data-presentation='mobile'] .studio-feedback { margin: 4px 8px 12px; font-size: 13px; line-height: 1.5; }
+#root .codex-shell[data-presentation='mobile'] .studio-load-more { padding: 15px 8px; text-align: center; }
+#root .codex-shell[data-presentation='mobile'] .studio-load-more p { margin-bottom: 10px; font-size: 12px; color: var(--text-tertiary); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-summary { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; min-height: 44px; font-size: 13px; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-summary button { min-height: 44px; padding-inline: 8px; color: var(--accent-text); }
+
+/* Header search leaves one reachable compose control, exactly 8px above the dock. */
+#root .codex-shell[data-presentation='mobile'] .studio-compose {
+  position: absolute;
+  z-index: 40;
+  inset-inline: 20px;
+  bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 8px);
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-compose button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 17px; border-radius: 999px; background: var(--accent-primary); color: var(--accent-foreground); box-shadow: 0 3px 14px rgb(0 0 0 / 12%); font-size: 14px; font-weight: 600; pointer-events: auto; }
+#root .codex-shell[data-presentation='mobile'] .studio-compose svg { color: inherit; }
+
+/* Replace only the dock during selection. The existing left rail remains available. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-studio-selecting='true']) .mobile-floating-navigation { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: absolute; z-index: 40; inset-inline: 12px; bottom: var(--mobile-dock-bottom); display: flex; align-items: center; gap: 8px; padding: 5px; min-height: var(--mobile-dock-size); border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); box-shadow: 0 2px 12px rgb(0 0 0 / 12%); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar > button { flex: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; overflow-x: auto; }
+#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: 5px; flex: none; min-height: 44px; padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
+#root .codex-shell[data-presentation='mobile'] :is(.studio-compose, .studio-selection-toolbar):where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
+#root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }
+#root .codex-shell[data-presentation='mobile'] .mobile-studio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] .studio-category { transition: none; }
+}

@@ -183,7 +183,7 @@ function navigationHarness(pathname = '/') {
     compilerOptions: { module: ts.ModuleKind.CommonJS },
   }).outputText, { exports: swipe, require: () => react });
   const exports = {};
-  const paths = { home: '/', portals: '/portals', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/settings' };
+  const paths = { home: '/', portals: '/portals', studio: '/studio', messages: '/messages', saved: '/saved', notifications: '/notifications', insights: '/insights', controlCenter: '/settings' };
   vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/MobileNavigation.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText + '\nexports.Destination = Destination;', {
@@ -308,7 +308,7 @@ test('the combined five-button pill stays visible around one persistent toggle i
   assert.equal(ui.layer.props['data-mobile-navigation-layer'], '');
   assert.equal(ui.rail.props.id, ui.toggle.props['aria-controls']);
   assert.deepEqual(React.Children.toArray(ui.group.props.children).map(child => child.props.item?.label ?? child.props['aria-label']), ['Show navigation', 'Messages', 'Studio', 'Home', 'Profile']);
-  assert.deepEqual(ui.destinations.filter(child => child.props.item.disabled).map(child => child.props.item.label), ['Studio']);
+  assert.deepEqual(ui.destinations.filter(child => child.props.item.disabled).map(child => child.props.item.label), []);
   for (const expectedHidden of [false, true, false, true]) {
     ui.toggle.props.onClick(); ui = h.render();
     assert.equal(ui.rail.props['data-hidden'], expectedHidden);
@@ -372,17 +372,38 @@ test('quick destinations retain their actions, links and accessibility while the
   assert.equal(ui.rail.props['data-hidden'], false);
   assert.equal(ui.dock.props.hidden ?? false, false);
   const [messages, studio, home, profile] = ui.destinations.map(h.destination);
-  assert.deepEqual([messages, studio, home, profile].map(child => child.props['aria-label']), ['Messages', 'Studio unavailable', 'Home', 'Profile']);
+  assert.deepEqual([messages, studio, home, profile].map(child => child.props['aria-label']), ['Messages', 'Studio', 'Home', 'Profile']);
   assert.equal(messages.props['aria-current'], 'page');
   messages.props.onClick({ type: 'click' });
   assert.deepEqual(calls, [[]]);
   assert.equal(h.render(props).rail.props['data-hidden'], false, 'a dock control is part of navigation, not an outside dismissal');
-  assert.equal(studio.type, 'button');
-  assert.equal(studio.props.disabled, true);
+  assert.equal(studio.type, 'a');
+  assert.equal(studio.props.to, '/studio');
+  assert.equal(studio.props.disabled, undefined);
   assert.equal(home.type, 'a');
   assert.equal(home.props.to, '/');
   assert.equal(profile.type, 'a');
   assert.equal(profile.props.to, '/p/my-profile');
+  h.unmount();
+});
+
+test('Studio is an enabled dock destination and retains active state through its Bookmarks alias', () => {
+  const h = navigationHarness('/studio');
+  for (const [pathname, active] of [['/studio', true], ['/saved', true], ['/messages', false]]) {
+    h.navigate(pathname);
+    const ui = h.render();
+    const studio = h.destination(ui.destinations.find(child => child.props.item.label === 'Studio'));
+    assert.equal(studio.type, 'a');
+    assert.equal(studio.props.to, '/studio');
+    assert.equal(studio.props['aria-current'], active ? 'page' : undefined);
+    assert.equal(studio.props['aria-label'], 'Studio');
+    assert.equal(ui.destinations.length, 4, 'Studio joins the existing opener and four destinations');
+  }
+  h.navigate('/saved');
+  h.render().toggle.props.onClick();
+  const bookmarks = h.render().railItems.find(child => child.props.item?.label === 'Bookmarks');
+  assert.equal(h.destination(bookmarks).props.to, '/saved');
+  assert.equal(h.destination(bookmarks).props['aria-current'], 'page');
   h.unmount();
 });
 
@@ -425,7 +446,7 @@ test('ordinary sidebar control taps and unchanged routes keep navigation open', 
   assert.equal(settingsOpened, 1);
   assert.equal(ui.rail.props['data-hidden'], false);
   assert.equal(h.outsideBinding.open, true);
-  assert.deepEqual(ui.railItems.filter(item => item.props.item?.disabled).map(item => item.props.item.label), ['Studio', 'Videos', 'Search']);
+  assert.deepEqual(ui.railItems.filter(item => item.props.item?.disabled).map(item => item.props.item.label), ['Videos', 'Search']);
   for (const item of ui.railItems.filter(item => item.props.item?.disabled)) assert.equal(h.destination(item).props.disabled, true);
   h.unmount();
 });

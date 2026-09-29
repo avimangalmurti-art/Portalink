@@ -198,8 +198,29 @@ test('ordinary profile and shared-profile screens retain the app-shell vertical 
   assert.ok(expression);
   for (const kind of ['profile', 'sharedProfile']) {
     const classes = vm.runInNewContext(expression, { route: { kind }, activeCategory: null,
-      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, inDesignFeature: null });
+      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isMobileStudioOpen: false, inDesignFeature: null });
     assert.match(classes, /\boverflow-y-auto\b/);
     assert.doesNotMatch(classes, /\boverflow-hidden\b/);
   }
+});
+
+test('mobile Studio owns a nested full-height scroller while the app shell stays fixed', () => {
+  const file = ts.createSourceFile('App.tsx', readSource('../src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let classes, scrollMode, contentClasses;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'screenMainClassName') classes = node.initializer.getText(file);
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'screenContent') {
+      const attributes = node.initializer.openingElement.attributes.properties;
+      scrollMode = attributes.find(attribute => attribute.name?.getText(file) === 'data-screen-scroll').initializer.expression.getText(file);
+      contentClasses = attributes.find(attribute => attribute.name?.getText(file) === 'className').initializer.expression.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.ok(classes && scrollMode && contentClasses);
+  const context = { activeCategory: null, isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false,
+    isMobileStudioOpen: true, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
+  assert.match(vm.runInNewContext(classes, context), /\boverflow-hidden\b/);
+  assert.equal(vm.runInNewContext(scrollMode, context), 'nested');
+  assert.match(vm.runInNewContext(contentClasses, context), /(?:^|\s)h-full(?:\s|$)/);
 });

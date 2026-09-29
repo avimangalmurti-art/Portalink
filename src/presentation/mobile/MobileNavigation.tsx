@@ -75,7 +75,7 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
   const closeSwipe = useNavigationSwipe('left', close);
   const dockSwipe = useNavigationSwipe(hidden ? 'right' : 'left', hidden ? open : close);
   const messages: Item = { label: 'Messages', icon: MessageCircleIcon, action: onMessages, active: pathname === buildPath('messages') };
-  const studio: Item = { label: 'Studio', icon: WarehouseIcon, disabled: true };
+  const studio: Item = { label: 'Studio', icon: WarehouseIcon, href: buildPath('studio'), active: pathname === buildPath('studio') || pathname === buildPath('saved') };
   const profile: Item = { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive };
   const home: Item = { label: 'Home', icon: HomeIcon, href: buildPath('home'), active: pathname === buildPath('home') };
   const items: Item[] = [

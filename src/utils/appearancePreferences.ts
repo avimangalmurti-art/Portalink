@@ -13,6 +13,9 @@ export type StoredAppearanceMode = 'light' | 'dark' | 'auto';
 export type StoredContrastMode = 'default' | 'increased';
 export type StoredIconColor = 'default' | 'black' | 'white' | 'gray';
 export type StoredLanguage = 'auto' | 'en' | 'es' | 'fr' | 'de';
+export type StudioView = 'categories' | 'list';
+
+const STUDIO_VIEW_KEY = 'portalinknetworks.studioView.mobile';
 
 const MODE_KEY = 'portalinknetworks.appearanceMode';
 // The old key was also populated from account branding. Start device appearance
@@ -105,6 +108,15 @@ export function readLanguage(fallback: StoredLanguage): StoredLanguage {
 
 export function writeLanguage(lang: StoredLanguage): void {
   write(LANGUAGE_KEY, lang);
+}
+
+/** Studio presentation is a MOBILE preference and never changes WEB layout. */
+export function readStudioView(): StudioView {
+  return read(STUDIO_VIEW_KEY) === 'list' ? 'list' : 'categories';
+}
+
+export function writeStudioView(view: StudioView): void {
+  write(STUDIO_VIEW_KEY, view);
 }
 
 // The navigation-button system gray. Stored by id rather than by hex, because
