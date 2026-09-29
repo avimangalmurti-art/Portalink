@@ -33,7 +33,7 @@ test('desktop layout exposes every supported density and reset through the exist
   assert.equal(nodes(WebGalleryControls({ columns: 2, onChange() {} })).find(node => node.type === 'button').props.disabled, true);
 });
 
-test('gallery layout controls and density gestures are absent on shared views while regular galleries retain them', () => {
+test('layout controls remain desktop-only while regular gallery gestures and share restrictions are preserved', () => {
   for (const presentation of ['web', 'mobile']) for (const hasItems of [false, true]) for (const enabled of [false, true]) for (const allowLayoutControls of [false, true]) {
     const chooseColumns = () => {};
     let gesturesEnabled;
@@ -51,7 +51,7 @@ test('gallery layout controls and density gestures are absent on shared views wh
     const web = nodes(tree).find(node => node.type === 'web-controls');
     const mobile = nodes(tree).find(node => node.type === 'mobile-controls');
     assert.equal(Boolean(web), allowLayoutControls && presentation === 'web' && hasItems && !enabled);
-    assert.equal(Boolean(mobile), allowLayoutControls && presentation === 'mobile' && hasItems && !enabled);
+    assert.equal(Boolean(mobile), false);
     assert.equal(gesturesEnabled, allowLayoutControls && !enabled);
     assert.equal(nodes(tree).some(node => node.type === 'zoom'), allowLayoutControls);
     if (web) assert.equal(web.props.onChange, chooseColumns);

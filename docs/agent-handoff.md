@@ -1,5 +1,11 @@
 # Current agent handoff
 
+## MOBILE gallery counter removal — local, unpublished — September 29, 2026
+
+- User requested removing the space-consuming **Layout · N per row** control everywhere on MOBILE. Removed its sole mounted import/branch in `src/components/profile/JustifiedImageWall.tsx`, covering mobile profile and Home/location galleries without leaving a wrapper or spacer. WEB controls, density preferences, pinch behavior and transient zoom feedback remain. The separate document Pages/row slider is unchanged.
+- Continuing the owned `codex/creator-share-previews` checkout from publication receipt `91f30d5`. Updated the existing platform/visibility matrix in `tests/web-gallery-controls.test.mjs`; **11/11 focused gallery/density checks and typecheck pass**. Actual profile fixture confirms the counter/row absent at MOBILE390/430 and desktop controls present at WEB1280. Synthetic services only; no physical-device or live-account claim. No broad build/lint required for this small presentation removal.
+- Local change only; live remains **Sites v272 / `80616e1`**. No source push, publication, SQL or service changes. Temporary QA tab closed and viewport reset. Owned Vite preview is running at `127.0.0.1:5178` (session `81571`); ignored shared-view fixture was rebuilt for current source. Preserve the original checkout and unrelated folders.
+
 ## Published creator link previews — Sites v272 — September 29, 2026
 
 - User requested **publish** for completed Part 2. Sites **v272** succeeded at https://portalinknetworksinc.avimangalmurti566055.chatgpt.site at `2026-09-29T21:34:20.902559+00:00`. Published source **`80616e17c7a136de2ffba6fba068ad2500e4d258`**, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_d4f53904fd508191a8d14ccc6f3502a4`, deployment `appgdep_6abc2ed30d548191a3edb5a7aa36e51f`, status succeeded. Existing public audience and environment revision 1 remain.
