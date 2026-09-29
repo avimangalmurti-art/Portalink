@@ -29,3 +29,28 @@
   position: relative;
   z-index: 3;
 }
+
+/* Publishing is portalled, so scope to its own presentation host. */
+[data-presentation='web'] [data-web-publish] .project-form-media--populated .project-media-list {
+  max-height: clamp(128px, calc(var(--dialog-viewport-height, 100dvh) * 0.24), 200px);
+}
+
+[data-presentation='web'] [data-web-publish] .project-form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 12px;
+  padding-bottom: 2px;
+  background: var(--surface-raised);
+  border-top: 1px solid var(--hairline);
+}
+
+[data-presentation='web'] [data-web-publish] #publish-hint {
+  font-size: 13px;
+}
+
+[data-presentation='web'] [data-web-file-picker][data-file-drag-over] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 10px;
+}

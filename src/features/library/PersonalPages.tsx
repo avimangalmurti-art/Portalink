@@ -14,7 +14,6 @@ import { ProfileServiceError } from '../../types/profile';
 import type { Profile, ProjectLocation } from '../../types/domain';
 import { useAccountQuery } from './useAccountQuery';
 import { SavedPagesCollection } from './SavedPagesCollection';
-import { usePresentation } from '../../presentation/usePresentation';
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
@@ -43,7 +42,6 @@ export function SavedPage({ onBack, onOpenProject }: { onBack: () => void; onOpe
 }
 
 function SavedCreators() {
-  const isMobile = usePresentation() === 'mobile';
   const navigate = useNavigate();
   const { creatorSaves, profiles } = useServices();
   const query = useCallback(async () => {
@@ -61,7 +59,7 @@ function SavedCreators() {
   const items = state.data?.filter((item) => !removed.has(item.id));
   if (state.loading) return <LoadingState label="Loading saved creators" />;
   if (state.error) return <ErrorState title="Unable to load saved creators" description={state.error} onRetry={state.retry} />;
-  if (!items?.length) return <EmptyState title="No saved creators yet" description="Use the bookmark on another creator’s profile to keep them here, without following." action={isMobile ? { label: 'Explore the world', onClick: () => navigate(buildPath('portalink')) } : undefined} />;
+  if (!items?.length) return <EmptyState title="No saved creators yet" description="Use the bookmark on another creator’s profile to keep them here, without following." action={{ label: 'Explore the world', onClick: () => navigate(buildPath('portalink')) }} />;
   return <ul className="grid list-none grid-cols-1 gap-3 p-0 lg:grid-cols-2">
     {items.map(({ id, profile }) => <SavedCreatorRow key={id} id={id} profile={profile} onRemoved={() => setRemoved((current) => new Set([...current, id]))} />)}
   </ul>;

@@ -12,7 +12,6 @@ import type { ProjectLocation, ProjectView } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
-import { usePresentation } from '../../presentation/usePresentation';
 import { buildPath } from '../../app/routes';
 
 /**
@@ -63,7 +62,6 @@ function ActivityCollectionContent({
 
 
 }: ActivityCollectionProps) {
-  const isMobile = usePresentation() === 'mobile';
   const collection = useActivityCollection(kind, isViewerOwnCollection);
   const labels = describeActivityCollection(kind);
   const Icon = ICONS[kind];
@@ -87,7 +85,7 @@ function ActivityCollectionContent({
             <InterfaceIcon icon={Icon} size="xl" weight="medium" className="text-[var(--text-tertiary)]" />
             <p className="text-[14px] font-medium text-[var(--text-primary)]">{labels.emptyTitle}</p>
             <p className="max-w-[380px] text-[13px] text-[var(--text-secondary)]">{labels.emptyDescription}</p>
-            {isMobile && kind === 'save' && <Link to={buildPath('portalink')} className="side-panel-primary-control mt-1 inline-flex min-h-11 items-center rounded-[8px] border border-[var(--hairline-strong)] px-4 text-[14px] font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Explore the world</Link>}
+            {kind === 'save' && <Link to={buildPath('portalink')} className="side-panel-primary-control mt-1 inline-flex min-h-11 items-center rounded-[8px] border border-[var(--hairline-strong)] px-4 text-[14px] font-semibold text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Explore the world</Link>}
           </div> : <ul role="list" aria-label={labels.title} className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 xl:grid-cols-3">
             {/* The collection holds resolved projects, so each row already knows
              its work's canonical address and opens it directly there. */}

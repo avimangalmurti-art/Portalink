@@ -163,6 +163,8 @@ test('Home uses one project per track at every density, preserving project order
       if (name === 'react') return { ...React, useState: value => [value, () => {}], useCallback: fn => fn };
       if (name.endsWith('/useContentZoom')) return { useContentZoom: () => ({ columns }) };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width: 1000 }) };
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => 'web' };
+      if (name.endsWith('/WebGalleryControls')) return { WebGalleryControls: 'WebGalleryControls' };
       if (name.endsWith('/ZoomReadout')) return { ZoomReadout: 'ZoomReadout' };
       return {};
     });

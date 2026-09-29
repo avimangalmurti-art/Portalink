@@ -1,6 +1,6 @@
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { SearchIcon } from 'lucide-react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { SearchIcon, XIcon } from 'lucide-react';
 import { cities, type City } from '../data/cities';
 import { BroadcastTicker } from './BroadcastTicker';
 import { getCityFacts } from '../data/cityFacts';
@@ -12,6 +12,7 @@ import { toCityDestination } from '../data/geography';
 import { useServices } from '../contexts/ServicesContext';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../app/splashLifecycle';
+import { usePresentation } from '../presentation/usePresentation';
 type PortalinkPageProps = {
   onBack: () => void;
   onSelectCity: (city: City) => void;
@@ -30,11 +31,17 @@ export function PortalinkPage({
   onSelectCity,
   live
 }: PortalinkPageProps) {
+  const isMobile = usePresentation() === 'mobile';
   const [centerLongitude, setCenterLongitude] = useState(-20);
   const [centerLatitude, setCenterLatitude] = useState(18);
   const [scale, setScale] = useState(MIN_SCALE);
   const [isDragging, setIsDragging] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
+  const citySearchId = useId();
+  const citySearchRef = useRef<HTMLInputElement>(null);
+  const citySuggestionsRef = useRef<HTMLDivElement>(null);
   const [isGlobeDetailReady, setIsGlobeDetailReady] = useState(() =>
     typeof document === 'undefined' || !document.querySelector('[data-portalink-splash]')
   );
@@ -136,6 +143,38 @@ export function PortalinkPage({
     scale
   }), [centerLongitude, centerLatitude, scale]);
   const suggestions = query.trim() ? cities.filter((city) => city.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).slice(0, 5) : [];
+  const showSuggestions = !isMobile && searchOpen && Boolean(query.trim());
+  useEffect(() => {
+    if (!showSuggestions) return;
+    const popup = citySuggestionsRef.current;
+    const active = popup?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]');
+    if (!popup || !active) return;
+    // Keep keyboard selection visible without moving the page or the globe.
+    const top = popup.getBoundingClientRect().top + popup.clientTop;
+    const bottom = top + popup.clientHeight;
+    const bounds = active.getBoundingClientRect();
+    if (bounds.top < top) popup.scrollTop += bounds.top - top;
+    else if (bounds.bottom > bottom) popup.scrollTop += bounds.bottom - bottom;
+  }, [showSuggestions, activeSuggestion, query]);
+  function openSuggestedCity(city: City) {
+    setSearchOpen(false);
+    focusCity(city);
+    onSelectCity(city);
+  }
+  function handleCitySearchKey(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setSearchOpen(false);
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSearchOpen(true);
+      setActiveSuggestion(current => !showSuggestions ? 0 : Math.max(0, Math.min(suggestions.length - 1, current + (event.key === 'ArrowDown' ? 1 : -1))));
+    } else if (event.key === 'Enter' && showSuggestions && suggestions[activeSuggestion]) {
+      event.preventDefault();
+      openSuggestedCity(suggestions[activeSuggestion]);
+    }
+  }
   return <div className="relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
@@ -146,7 +185,7 @@ export function PortalinkPage({
       {/* Starfield backdrop. */}
       <div aria-hidden="true" className="portalink-stars pointer-events-none absolute inset-0" />
 
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-6">
+      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-6" style={isMobile ? undefined : { containerType: 'size' }}>
         {/* Rotation keeps pointer priority; zoom is a separate gesture, so a
            drag can never resolve into opening a city. */}
         <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={(event) => {
@@ -159,7 +198,7 @@ export function PortalinkPage({
         if (event.key === '-' || event.key === '_') {
           zoomBy(1 / 1.25);
         }
-      }} role="group" tabIndex={0} aria-label="Globe. Drag to turn; press plus or minus to change how much geographic detail is shown." className={`aspect-square w-full max-w-[min(72vh,720px)] touch-none select-none rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}>
+      }} role="group" tabIndex={0} aria-label="Globe. Drag to turn; press plus or minus to change how much geographic detail is shown." className={`aspect-square ${isMobile ? 'w-full max-w-[min(72vh,720px)]' : 'w-[min(100cqw,100cqh,720px)] max-w-full'} touch-none select-none rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}>
           <svg viewBox="0 0 104 104" className="h-full w-full" role="img" aria-label="Interactive globe. Drag to turn, then choose a city.">
             <defs>
               <clipPath id="portalink-clip">
@@ -291,22 +330,30 @@ export function PortalinkPage({
 
       
 
-      <div className="relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7">
-        {suggestions.length > 0 && <ul className="mb-2 list-none space-y-1 p-0">
-            {suggestions.map((city) => <li key={city.name} className="list-none">
-                <button type="button" onClick={() => {
-            focusCity(city);
-            onSelectCity(city);
-          }} onMouseEnter={() => focusCity(city)} className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-[var(--portalink-border-subtle)] bg-[var(--portalink-surface)] px-4 py-2 text-left text-small font-semibold text-[var(--portalink-text-primary)] transition-colors duration-150 hover:bg-[var(--portalink-surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)]">
-                  <span className="flex min-w-0 items-baseline gap-1.5">
-                    <span className="min-w-0 truncate">{city.name}</span>
-                    {getCountryCode(city.name) && <span className="shrink-0 text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--portalink-text-tertiary)]">{getCountryCode(city.name)}</span>}
-                  </span>
-                  <span className="shrink-0 font-normal text-[var(--portalink-text-secondary)] [font-variant-numeric:tabular-nums]">{getLocalTimeAt(city.longitude)}</span>
-                </button>
+      <div className={`relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
+        {!isMobile && <div className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
+          <label htmlFor={citySearchId} className="mb-2 block text-[13px] font-semibold text-[var(--portalink-text-primary)]">Find a city</label>
+          <div className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--portalink-border-subtle)] bg-[var(--portalink-surface)] px-3 focus-within:ring-2 focus-within:ring-[var(--portalink-focus-ring)]">
+            <SearchIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-[var(--portalink-text-secondary)]" />
+            <input ref={citySearchRef} id={citySearchId} type="text" role="combobox" autoComplete="off" value={query}
+              aria-autocomplete="list" aria-expanded={showSuggestions} aria-controls={`${citySearchId}-results`}
+              aria-activedescendant={showSuggestions && suggestions[activeSuggestion] ? `${citySearchId}-city-${activeSuggestion}` : undefined}
+              onChange={(event) => { setQuery(event.target.value); setActiveSuggestion(0); setSearchOpen(true); }} onFocus={() => setSearchOpen(true)} onKeyDown={handleCitySearchKey}
+              placeholder="Search by city name" className="min-w-0 flex-1 border-0 bg-transparent py-2.5 text-[14px] text-[var(--portalink-text-primary)] outline-none placeholder:text-[var(--portalink-text-tertiary)]" />
+            {query && <button type="button" aria-label="Clear city search" onClick={() => { setQuery(''); setActiveSuggestion(0); setSearchOpen(false); citySearchRef.current?.focus(); }} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-[var(--portalink-text-secondary)] hover:bg-[var(--portalink-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--portalink-focus-ring)]"><XIcon aria-hidden="true" className="h-4 w-4" /></button>}
+          </div>
+          {showSuggestions && <div ref={citySuggestionsRef} className="absolute inset-x-0 bottom-full z-20 mb-2 max-h-[min(35vh,280px)] overflow-y-auto rounded-[10px] border border-[var(--portalink-border-subtle)] bg-[var(--portalink-surface)] p-1 shadow-xl">
+            <ul id={`${citySearchId}-results`} role="listbox" aria-label="Matching cities" className="m-0 list-none p-0">
+              {suggestions.map((city, index) => <li key={city.name} id={`${citySearchId}-city-${index}`} role="option" aria-selected={index === activeSuggestion}
+                onPointerDown={event => event.preventDefault()} onClick={() => openSuggestedCity(city)} onPointerEnter={() => setActiveSuggestion(index)}
+                className={`flex min-h-10 cursor-pointer items-center justify-between gap-3 rounded-[6px] px-3 py-2 text-left text-[14px] font-semibold text-[var(--portalink-text-primary)] ${index === activeSuggestion ? 'bg-[var(--portalink-surface-hover)]' : ''}`}>
+                <span className="flex min-w-0 items-baseline gap-1.5"><span className="min-w-0 truncate">{city.name}</span>{getCountryCode(city.name) && <span className="shrink-0 text-[12px] font-medium text-[var(--portalink-text-tertiary)]">{getCountryCode(city.name)}</span>}</span>
+                <span className="shrink-0 font-normal tabular-nums text-[var(--portalink-text-secondary)]">{getLocalTimeAt(city.longitude)}</span>
               </li>)}
-          </ul>}
-        
+            </ul>
+            {suggestions.length === 0 && <p role="status" className="m-0 px-3 py-3 text-[13px] text-[var(--portalink-text-secondary)]">No cities match “{query.trim()}”. Try another name.</p>}
+          </div>}
+        </div>}
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}

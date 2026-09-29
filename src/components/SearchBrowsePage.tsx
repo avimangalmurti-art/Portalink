@@ -45,7 +45,7 @@ export function SearchBrowsePage({
           <EmptyState
             title="Location not found"
             description="Return to Portalink and choose another place."
-            action={isMobile ? { label: 'Browse another city', onClick: onOpenWorld } : undefined}
+            action={{ label: 'Browse another city', onClick: onOpenWorld }}
           />
         </div>
       );
@@ -54,7 +54,7 @@ export function SearchBrowsePage({
     return (
       <CityContentPage
         city={selectedCity}
-        onBack={isMobile ? onOpenWorld : onOpenAtlas}
+        onBack={onOpenWorld}
         onOpenProject={onOpenProject}
         onOpenCreator={onOpenCreator}
         onWarmCreator={onWarmCreator}
@@ -65,7 +65,7 @@ export function SearchBrowsePage({
   if (view === 'world') {
     return (
       <PortalinkPage
-        onBack={isMobile && onReturnHome ? onReturnHome : onOpenAtlas}
+        onBack={onReturnHome ?? onOpenAtlas}
         onSelectCity={(city) => onOpenLocation(toLocationId(city.name))}
         live={live}
       />
@@ -74,7 +74,7 @@ export function SearchBrowsePage({
 
   return (
     <div className="flex h-full w-full items-center justify-center px-6 py-10">
-      <EmptyState title="Search" description="Portalink Search is being designed." />
+      <EmptyState title="Search" description="Portalink Search is being designed." action={!isMobile ? { label: 'Explore the world', onClick: onOpenWorld } : undefined} />
     </div>
   );
 }

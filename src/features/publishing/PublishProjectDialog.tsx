@@ -149,7 +149,7 @@ export function PublishProjectDialog({
           if (publishFlow.canPublish) {
             void publishFlow.publish.run();
           }
-        }} noValidate aria-describedby={publishHint ? 'publish-hint' : undefined} data-mobile-publish={isMobile || undefined} className="project-form-content scrollbar-slim">
+        }} noValidate aria-describedby={publishHint ? 'publish-hint' : undefined} data-mobile-publish={isMobile || undefined} data-web-publish={!isMobile || undefined} className="project-form-content scrollbar-slim">
               {/* The transfer itself was refused. Retrying re-sends the same
                files; nothing the creator chose has been reset. Deliberately
                separate from a publish failure, because the recovery differs. */}

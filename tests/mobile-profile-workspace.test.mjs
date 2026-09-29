@@ -88,7 +88,7 @@ function appInitializer(name) {
   assert.ok(result, `Expected App rendering boundary ${name}`);
   return ts.transpileModule(`result = (${result});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
 }
-const appBoundaries = ['isMobileOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
+const appBoundaries = ['isOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
 const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
 function profileRender(overrides = {}) {
   const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };
@@ -111,23 +111,22 @@ function profileRender(overrides = {}) {
   return context;
 }
 
-test('saving density keeps the existing mobile owner profile layer through its background refresh', () => {
-  const layers = harness();
-  const ready = profileRender();
-  const refreshing = profileRender({ viewedProfileQuery: { status: 'loading' } });
-  const confirmed = profileRender({ viewedProfile: { id: 'owner', name: 'Owner', projectGridColumns: 4 } });
+for (const presentation of ['mobile', 'web']) test(`saving density keeps the existing ${presentation} owner profile layer through its background refresh`, () => {
+  const layers = harness(presentation);
+  const ready = profileRender({ presentation });
+  const refreshing = profileRender({ presentation, viewedProfileQuery: { status: 'loading' } });
+  const confirmed = profileRender({ presentation, viewedProfile: { id: 'owner', name: 'Owner', projectGridColumns: 4 } });
   for (const state of [ready, refreshing, confirmed]) {
     assert.equal(state.isProfileRouteReady, true);
     assert.equal(state.routeStateView, null);
     layers.render(state.screenTransitionKey, state.mobileProfileKey);
   }
-  assert.equal(refreshing.isMobileOwnerProfileRefreshing, true);
+  assert.equal(refreshing.isOwnerProfileRefreshing, true);
   assert.equal(new Set(layers.calls.map(call => call.key)).size, 1, 'Open Layout controls must retain their mounted state until Done');
 });
 
-test('profile refresh preservation never applies to WEB, visitors, shares, other routes or account transitions', () => {
+test('profile refresh preservation never applies to visitors, shares, other routes or account transitions', () => {
   const cases = [
-    { presentation: 'web' },
     { viewedProfile: { id: 'another', name: 'Another creator' }, viewedProfileId: 'another', routeProfileId: 'another' },
     { route: { kind: 'sharedProfile' }, isSharedRoute: true },
     { route: { kind: 'category' } },
@@ -139,7 +138,7 @@ test('profile refresh preservation never applies to WEB, visitors, shares, other
   ];
   for (const overrides of cases) {
     const state = profileRender({ viewedProfileQuery: { status: 'loading' }, ...overrides });
-    assert.equal(state.isMobileOwnerProfileRefreshing, false);
+    assert.equal(state.isOwnerProfileRefreshing, false);
     assert.equal(state.isProfileRouteReady, false);
     assert.equal(state.routeStateView.type, 'loading');
     assert.equal(state.mobileProfileKey, undefined);

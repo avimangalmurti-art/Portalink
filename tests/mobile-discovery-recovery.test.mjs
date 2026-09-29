@@ -41,7 +41,7 @@ function harness(presentation = 'mobile', queryState = { data: [], loading: fals
   };
 }
 
-test('mobile World and city Back lead to Home and World while WEB preserves its handlers', () => {
+test('World and city Back lead to Home and World in both presentations', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
     const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
@@ -50,7 +50,7 @@ test('mobile World and city Back lead to Home and World while WEB preserves its 
     const city = SearchBrowsePage({ ...h.browseProps, view: 'location', locationId: 'oakland' });
     city.props.onBack();
     world.props.onBack();
-    assert.deepEqual(h.visits, ['/portalink/oakland', presentation === 'mobile' ? '/portalink' : '/search', presentation === 'mobile' ? '/' : '/search']);
+    assert.deepEqual(h.visits, ['/portalink/oakland', '/portalink', '/']);
   }
 });
 
@@ -58,15 +58,15 @@ test('World back control names its actual platform destination and retains its a
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
     const { WorldViewToggle } = h.load('src/components/portalink/WorldViewToggle.tsx');
-    const button = WorldViewToggle({ onToggle: presentation === 'mobile' ? h.browseProps.onReturnHome : h.browseProps.onOpenAtlas });
-    assert.equal(button.props['aria-label'], presentation === 'mobile' ? 'Back to Home' : 'Back to Search');
-    assert.equal(button.props.title, presentation === 'mobile' ? 'Back to Home' : 'Back');
+    const button = WorldViewToggle({ onToggle: h.browseProps.onReturnHome });
+    assert.equal(button.props['aria-label'], 'Back to Home');
+    assert.equal(button.props.title, 'Back to Home');
     button.props.onClick();
-    assert.deepEqual(h.visits, [presentation === 'mobile' ? '/' : '/search']);
+    assert.deepEqual(h.visits, ['/']);
   }
 });
 
-test('missing and empty mobile cities offer a working route to another city without changing WEB', () => {
+test('missing and empty cities offer a working route to another city in both presentations', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
     const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
@@ -74,14 +74,23 @@ test('missing and empty mobile cities offer a working route to another city with
     const { CityContentPage } = h.load('src/components/CityContentPage.tsx');
     const feed = nodes(CityContentPage({ city: h.city, onBack: h.browseProps.onOpenWorld })).find(node => node.type === 'HomeFeed');
     for (const action of [missing.props.action, feed.props.emptyAction]) {
-      if (presentation === 'web') assert.equal(action, undefined);
-      else { assert.equal(action.label, 'Browse another city'); action.onClick(); }
+      assert.equal(action.label, 'Browse another city'); action.onClick();
     }
-    assert.deepEqual(h.visits, presentation === 'mobile' ? ['/portalink', '/portalink'] : []);
+    assert.deepEqual(h.visits, ['/portalink', '/portalink']);
   }
 });
 
-test('empty saved creators and pages offer mobile discovery, never during loading or failure', () => {
+test('WEB legacy Search offers World while MOBILE retains its existing placeholder', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = harness(presentation);
+    const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
+    const empty = nodes(SearchBrowsePage({ ...h.browseProps, view: 'atlas', locationId: null })).find(node => node.type === 'EmptyState');
+    if (presentation === 'mobile') assert.equal(empty.props.action, undefined);
+    else { empty.props.action.onClick(); assert.deepEqual(h.visits, ['/portalink']); }
+  }
+});
+
+test('empty saved creators and pages offer discovery on both platforms, never during loading or failure', () => {
   for (const presentation of ['mobile', 'web']) {
     for (const state of [{ loading: false }, { loading: true }, { loading: false, error: 'Offline' }]) {
       for (const kind of ['creators', 'pages']) {
@@ -94,7 +103,6 @@ test('empty saved creators and pages offer mobile discovery, never during loadin
         } else tree = h.load('src/features/library/SavedPagesCollection.tsx').SavedPagesCollection();
         const empty = nodes(tree).find(node => node.type === 'EmptyState');
         if (state.loading || state.error) assert.equal(empty, undefined);
-        else if (presentation === 'web') assert.equal(empty.props.action, undefined);
         else { assert.equal(empty.props.action.label, 'Explore the world'); empty.props.action.onClick(); assert.deepEqual(h.visits, ['/portalink']); }
       }
     }
@@ -110,14 +118,14 @@ test('a depleted saved page batch retains pagination rather than claiming the li
   assert.ok(nodes(tree).some(node => node.props.children === 'More saved pages'));
 });
 
-test('only an empty own mobile Saved projects collection gets discovery', () => {
+test('only an empty own Saved projects collection gets discovery on both platforms', () => {
   for (const presentation of ['mobile', 'web']) for (const own of [true, false]) for (const kind of ['save', 'like']) {
     const h = harness(presentation, { phase: 'success', isEmpty: true, items: [] });
     const { ActivityCollectionPage } = h.load('src/components/profile/ActivityCollectionPage.tsx');
     const content = ActivityCollectionPage({ kind, isViewerOwnCollection: own, profileName: 'Your library' });
     const tree = content.type(content.props);
     const action = nodes(tree).find(node => node.type === 'a');
-    assert.equal(Boolean(action), presentation === 'mobile' && own && kind === 'save');
+    assert.equal(Boolean(action), own && kind === 'save');
     if (action) assert.equal(action.props.to, '/portalink');
   }
 });

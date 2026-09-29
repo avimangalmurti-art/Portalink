@@ -4,6 +4,7 @@ import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobileGalleryControls } from '../../presentation/mobile/MobileGalleryControls';
+import { WebGalleryControls } from '../../presentation/web/WebGalleryControls';
 import { ImageWallRows, WALL_GAP as GAP, type WallItem, type ReorderMode, type WallRow as Row } from './ImageWallLayout';
 export type { WallItem } from './ImageWallLayout';
 
@@ -103,6 +104,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const canReorder = Boolean(reorderMode?.enabled || reorderMode?.onStart);
   return <div ref={view.ref} className="relative w-full">
     {isMobile && items.length > 0 && !reorderMode?.enabled && <MobileGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
+    {!isMobile && items.length > 0 && !reorderMode?.enabled && <WebGalleryControls columns={effectiveColumns} onChange={view.chooseColumns} />}
     <ZoomReadout view={view} />
     {reorderMode?.enabled ? <p id="profile-project-reorder-instructions" className="sr-only">{isMobile ? 'Swipe to scroll. Hold a project briefly, then drag to move it. Hold near the top or bottom edge to scroll while dragging. ' : ''}Drag a project card toward the space where it belongs and the nearby cards will make room. For keyboard reordering, press Space, use the arrow keys, and press Space again; Alt plus an arrow also moves one position.</p> : null}
     <div ref={ref} role="list" aria-label={label} data-profile-wall-columns={effectiveColumns} className="w-full">

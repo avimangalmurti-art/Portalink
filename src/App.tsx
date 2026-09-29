@@ -449,13 +449,13 @@ function AppContent() {
   // seed store, and its own id is authoritative even if the service resolved an
   // alias, so a profile that exists nowhere in the seed data renders exactly as
   // returned.
-  // Saving gallery density refreshes the owner's record. Keep this same mobile
+  // Saving gallery density refreshes the owner's record. Keep this same
   // profile mounted so its open Layout controls and scroll do not reset. The
   // query masks retained records immediately when account or profile changes.
-  const isMobileOwnerProfileRefreshing = presentation === 'mobile' && route.kind === 'profile' &&
+  const isOwnerProfileRefreshing = route.kind === 'profile' &&
     auth.isAuthenticated && auth.phase === 'authenticated' && viewedProfileQuery.status === 'loading' &&
     viewedProfile !== null && auth.viewerProfileId === viewedProfile.id;
-  const isProfileRouteReady = routeProfileId !== null && (viewedProfileQuery.status === 'ready' || isMobileOwnerProfileRefreshing) && viewedProfile !== null;
+  const isProfileRouteReady = routeProfileId !== null && (viewedProfileQuery.status === 'ready' || isOwnerProfileRefreshing) && viewedProfile !== null;
   const activeCategoryId = isProfileRouteReady ? routeCategoryId : null;
   // Follow state and its request lifecycle live in the feature hook, resolved for
   // the profile currently being viewed. Keying it to that profile is what stops a
@@ -1097,7 +1097,7 @@ function AppContent() {
   }} /> : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" /> : routeItemId && routeItemResolution?.state === 'not-found' ? <EmptyState title="Item not found" description="It may have been removed. Check the link, or return home." action={{
     label: 'Go home',
     onClick: () => nav.home()
-  }} /> : routeItemId && routeItemResolution?.state === 'error' ? <ErrorState title="Unable to open item" description="Check the connection, then try again." onRetry={projectNavigation.retry ?? undefined} /> : routeProfileId && viewedProfileQuery.status === 'loading' && !isMobileOwnerProfileRefreshing ? <LoadingState label="Opening profile…" /> : routeProfileId && viewedProfileQuery.status === 'not-found' ? <EmptyState title="Profile not found" description={isSharedRoute ? 'This shared profile is unavailable or no longer public.' : 'It may have been removed. Return home to browse creators and work.'} action={isSharedRoute ? undefined : {
+  }} /> : routeItemId && routeItemResolution?.state === 'error' ? <ErrorState title="Unable to open item" description="Check the connection, then try again." onRetry={projectNavigation.retry ?? undefined} /> : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingState label="Opening profile…" /> : routeProfileId && viewedProfileQuery.status === 'not-found' ? <EmptyState title="Profile not found" description={isSharedRoute ? 'This shared profile is unavailable or no longer public.' : 'It may have been removed. Return home to browse creators and work.'} action={isSharedRoute ? undefined : {
     label: 'Go home',
     onClick: () => nav.home()
   }} /> : routeProfileId && viewedProfileQuery.status === 'error' ? <ErrorState title="Unable to open profile" description={viewedProfileQuery.error ?? 'Check the connection, then try again.'} onRetry={viewedProfileQuery.retry} /> : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" /> : isProfileAccessDenied ? <EmptyState title="Profile unavailable" description={isSharedRoute ? 'This profile is not published through a public link.' : 'This creator has limited their profile to approved followers.'} action={isSharedRoute ? undefined : {
