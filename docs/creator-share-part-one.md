@@ -1,8 +1,9 @@
 # Creator sharing — Part 1
 
 Implementation and QA record, September 29, 2026. Part 1 is complete. The user
-subsequently requested publication of all completed changes. Publication is
-being prepared; its exact receipt belongs in `agent-handoff.md`.
+subsequently requested publication of all completed changes. Published in
+**Sites v271**, source `e16031843ff1b7b27d274561657d2e68050c1935`; the exact
+publication receipt is in `agent-handoff.md`.
 
 ## Scope and release boundary
 
