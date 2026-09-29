@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Published creator link previews — Sites v272 — September 29, 2026
+
+- User requested **publish** for completed Part 2. Sites **v272** succeeded at https://portalinknetworksinc.avimangalmurti566055.chatgpt.site at `2026-09-29T21:34:20.902559+00:00`. Published source **`80616e17c7a136de2ffba6fba068ad2500e4d258`**, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_d4f53904fd508191a8d14ccc6f3502a4`, deployment `appgdep_6abc2ed30d548191a3edb5a7aa36e51f`, status succeeded. Existing public audience and environment revision 1 remain.
+- Independent release review confirmed only the reviewed Part 2 runtime/tests and documentation differ from v271. Reused the unchanged verified build (60 focused tests, typecheck/build pass; lint 0 errors/84 existing warnings). Exact source pushed and verified on the existing Sites mirror; no GitHub main push/merge. Package validation: 231 archive entries/223 files, correct client/server and hosting manifest, unchanged D1 migrations, no source/environment/logs/tests/QA fixtures. Existing Supabase and D1 `DB` / `r2:null` preserved.
+- Hosted homepage HTTP 200 and client entry match the release build. Browser Home/navigation mounted at WEB1280/MOBILE390/430. Both Facebook and LinkedIn crawler headers returned HTTP 200 and intact SPA shells for a sampled public profile/project; that sample had no eligible cover and correctly retained generic previews. Personalized cover/dimension and private-cache behavior are verified by the local built-worker probes in [creator-share-previews.md](creator-share-previews.md), not by an external social card rendering claim. No live-auth write, physical-device or production-privacy mutation test.
+- Temporary verification tab closed and viewport reset; credentials kept ephemeral and cleared. This local docs-only receipt follows the published source on `codex/creator-share-previews`. Original checkout source/unrelated folders remain preserved. No SQL, separate PDF/video-worker release, deletion enablement or service/binding change; prior PDF safety migration remains unapplied.
+
 ## Creator link previews — Part 2 complete locally — September 29, 2026
 
 - User requested **proceed with Part 2** after the successful Part 1 publication. Continue the owned `logs/mobile-studio-20260929` worktree on **`codex/creator-share-previews`**, based on Part 1 receipt `1640938`. Source/tests/this handoff are saved together in the task commit. Original desktop checkout and unrelated folders remain preserved.

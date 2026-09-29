@@ -2,8 +2,10 @@
 
 September 29, 2026. Continues the published Part 1 source in the owned
 `logs/mobile-studio-20260929` checkout, branch `codex/creator-share-previews`,
-from `1640938`. This work is local pending review; no SQL, source push or
-publication is included.
+from `1640938`. Initially completed locally; subsequently published at the
+user's explicit request as **Sites v272**, source
+`80616e17c7a136de2ffba6fba068ad2500e4d258`, on September 29 at
+`21:34:20.902559 UTC`. No SQL or separate media-worker release is included.
 
 ## Existing implementation and access
 
@@ -88,6 +90,16 @@ owned local worker is stopped. Probe fixtures and logs remain ignored.
 `src/server/sharedPreview.ts`, the HTML-preference integration in
 `src/sites-worker.ts`, `tests/shared-preview.test.mjs`, this record and
 `docs/agent-handoff.md`. No dependencies, schema, migrations, auth settings,
-Supabase services, D1 data or deployment bindings changed. Part 2 is local on
-`codex/creator-share-previews`; no push, publish or SQL. Live remains Sites
-v271 at source `e16031843ff1b7b27d274561657d2e68050c1935`.
+Supabase services, D1 data or deployment bindings changed. Part 2 was published
+from `codex/creator-share-previews` as Sites v272, deployment
+`appgdep_6abc2ed30d548191a3edb5a7aa36e51f`, preserving the public audience and
+environment revision 1. Exact source was synchronized to the existing Sites
+mirror; no GitHub main push/merge or SQL.
+
+Post-publication checks: homepage HTTP 200 with the matching built client,
+normal Home/navigation at WEB1280/MOBILE390/430, and HTTP 200/intact SPA bodies
+for both crawler identities on a sampled public profile/project. The sample
+had no eligible existing cover and retained generic previews; personalized
+image/dimension rendering remains established by the local worker evidence
+above. No external social-platform card, physical-device, live-auth mutation
+or production privacy-change claim. Verification tab/viewport cleaned up.
