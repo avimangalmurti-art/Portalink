@@ -1,4 +1,4 @@
-import { isSharedPreviewPath, withSharedPreview } from './server/sharedPreview';
+import { isSharedPreviewPath, prefersHtml, withSharedPreview } from './server/sharedPreview';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -357,7 +357,7 @@ const worker = {
     const accept = request.headers.get('accept') ?? ''
     const asset = url.pathname.startsWith('/assets/');
     const shared = isSharedPreviewPath(url.pathname);
-    const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared || accept.includes('text/html'));
+    const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared ? prefersHtml(accept) : accept.includes('text/html'));
     const assetRequest = navigation ? new Request(new URL('/', request.url), request) : request;
     if (navigation && shared) {
       assetRequest.headers.delete('if-none-match');

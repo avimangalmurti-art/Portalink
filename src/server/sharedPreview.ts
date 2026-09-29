@@ -1,146 +1,280 @@
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
 type SharedTarget = { profileId: string; categoryId?: string; projectId?: string };
-type Preview = { title: string; description: string; image?: { url: string; alt: string } };
+type Row = Record<string, unknown>;
+type Preview = {
+  title: string;
+  description: string;
+  type: 'profile' | 'article';
+  image: { path: string; width: number; height: number; alt: string };
+};
+type CachedPreview = { configuration: string; fingerprint: string; shell: string; html: string; expiresAt: number };
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
+const uuid = new RegExp(`^${UUID}$`, 'i');
 const sharedRoute = new RegExp(`^/share/(${UUID})(?:/c/(${UUID})(?:/(${UUID}))?)?/?$`, 'i');
+const previewCache = new Map<string, CachedPreview>();
+const CACHE_MILLISECONDS = 5 * 60 * 1_000;
+const MAX_CACHE_ENTRIES = 128;
+const MAX_PROJECT_ATTACHMENTS = 105;
+const projectSelect = 'id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!inner(id,name,headline,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
 
 export function isSharedPreviewPath(path: string): boolean {
   return sharedRoute.test(path);
 }
 
+/** Preserve ordinary navigation/crawler wildcards, but honor an explicit HTML
+ * exclusion or a higher preference for another response representation. */
+export function prefersHtml(accept: string | null): boolean {
+  if (!accept?.trim()) return true;
+  const ranges = accept.split(',').map(value => {
+    const [type, ...parameters] = value.trim().toLowerCase().split(';');
+    const parameter = parameters.find(item => item.trim().startsWith('q='));
+    const quality = parameter === undefined ? 1 : Number(parameter.trim().slice(2));
+    return { type: type.trim(), quality: Number.isFinite(quality) && quality >= 0 && quality <= 1 ? quality : 0 };
+  });
+  const html = ranges.find(range => range.type === 'text/html')
+    ?? ranges.find(range => range.type === 'text/*')
+    ?? ranges.find(range => range.type === '*/*');
+  return Boolean(html && html.quality > 0 && ranges.every(range => range.quality <= html.quality));
+}
+
+function record(value: unknown): Row | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Row : null;
+}
+
+function sameId(value: unknown, expected: string): boolean {
+  return typeof value === 'string' && value.toLowerCase() === expected.toLowerCase();
+}
+
 function text(value: unknown, limit: number): string {
-  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, limit) : '';
+  return typeof value === 'string' ? Array.from(value.replace(/\s+/g, ' ').trim()).slice(0, limit).join('') : '';
 }
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character] ?? character));
 }
 
-function hasControlCharacters(value: string): boolean {
-  return [...value].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+function dimension(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 && value <= 100_000;
 }
 
-/** Reuse only the record's existing, durable public avatar. Do not sign media
- * or preserve URL credentials, callback parameters, transforms or fragments. */
-function publicAvatar(value: unknown, config: PreviewConfiguration): string | undefined {
-  if (typeof value !== 'string' || value.length > 2048 || !/^https:\/\//i.test(value) || value.includes('\\') || hasControlCharacters(value)) return;
+function serviceOrigin(config: PreviewConfiguration): string | null {
   try {
-    const source = new URL(value);
-    const configured = new URL(config.supabaseUrl);
-    const prefix = '/storage/v1/object/public/avatars/';
-    if (configured.protocol !== 'https:' || source.origin !== configured.origin || source.protocol !== 'https:' || source.username || source.password || source.search || source.hash || !source.pathname.startsWith(prefix)) return;
-    const path = source.pathname.slice(prefix.length);
-    if (!path || !path.split('/').every(segment => {
-      const decoded = decodeURIComponent(segment);
-      return decoded && decoded !== '.' && decoded !== '..' && !decoded.includes('/') && !decoded.includes('\\') && !hasControlCharacters(decoded);
-    })) return;
-    return source.href;
-  } catch { return; }
+    const url = new URL(config.supabaseUrl);
+    const local = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if ((!local && url.protocol !== 'https:') || url.username || url.password || url.search || url.hash || !/^\/?$/.test(url.pathname)) return null;
+    return url.origin;
+  } catch { return null; }
 }
 
-function clearInheritedImages(html: string): string {
-  let hasCard = false;
-  const cleared = html.replace(/<meta\b[^>]*>\s*/gi, tag => {
-    const name = tag.match(/\b(?:name|property)\s*=\s*(["'])([^"']+)\1/i)?.[2].toLowerCase();
-    if (name?.startsWith('og:image') || name?.startsWith('twitter:image')) return '';
-    if (name === 'twitter:card') {
-      hasCard = true;
-      return '<meta name="twitter:card" content="summary" />\n';
-    }
-    return tag;
-  });
-  return hasCard ? cleared : cleared.replace('</head>', '<meta name="twitter:card" content="summary" />\n</head>');
-}
-
-async function readPublicPreview(target: SharedTarget, config: PreviewConfiguration): Promise<Preview | null> {
-  if (!config.supabaseUrl || !config.publishableKey) return null;
-  let table: string;
-  const query = new URLSearchParams({ limit: '1' });
-  if (target.projectId) {
-    table = 'projects';
-    query.set('select', 'id,title,summary,profile:profiles!inner(name,is_private),category:portfolio_categories!inner(id,is_hidden)');
-    query.set('id', `eq.${target.projectId}`);
-    query.set('profile_id', `eq.${target.profileId}`);
-    query.set('category_id', `eq.${target.categoryId}`);
-    query.set('is_hidden', 'eq.false');
-    query.set('category.is_hidden', 'eq.false');
-    query.set('profile.is_private', 'eq.false');
-  } else if (target.categoryId) {
-    table = 'portfolio_categories';
-    query.set('select', 'id,label,blurb,profile:profiles!inner(name,is_private)');
-    query.set('id', `eq.${target.categoryId}`);
-    query.set('profile_id', `eq.${target.profileId}`);
-    query.set('is_hidden', 'eq.false');
-    query.set('profile.is_private', 'eq.false');
-  } else {
-    table = 'profiles';
-    query.set('select', 'id,name,headline,is_private,avatar_url');
-    query.set('id', `eq.${target.profileId}`);
-    query.set('is_private', 'eq.false');
-  }
-  // Always anonymous, even when the HTML request belongs to an owner/follower.
-  // Public previews must never inherit authorization or cookies from a viewer.
-  const response = await fetch(`${config.supabaseUrl}/rest/v1/${table}?${query}`, {
+async function readRows(table: string, query: URLSearchParams, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<Row[] | null> {
+  // Deliberately never forward request cookies, Authorization, or an owner key.
+  const response = await fetch(`${origin}/rest/v1/${table}?${query}`, {
     headers: { apikey: config.publishableKey, accept: 'application/json' },
-    cache: 'no-store', signal: AbortSignal.timeout(2_000),
+    cache: 'no-store', redirect: 'error', signal,
   });
   if (!response.ok) return null;
   const rows: unknown = await response.json();
-  if (!Array.isArray(rows) || rows.length !== 1) return null;
-  const row = rows[0];
-  if (!row || row.id !== (target.projectId ?? target.categoryId ?? target.profileId)) return null;
-  const profile = target.categoryId ? row.profile : row;
-  if (!profile || profile.is_private !== false) return null;
-  if (target.projectId && (!row.category || row.category.id !== target.categoryId || row.category.is_hidden !== false)) return null;
-  const creator = text(profile.name, 80);
-  if (!creator) return null;
-  const title = target.projectId ? text(row.title, 120) : target.categoryId ? text(row.label, 80) : '';
+  if (!Array.isArray(rows) || rows.some(row => !record(row))) return null;
+  return rows as Row[];
+}
+
+function visibleProfile(value: unknown, profileId: string): Row | null {
+  const profile = record(value);
+  return profile && sameId(profile.id, profileId) && profile.is_private === false ? profile : null;
+}
+
+function visibleProject(project: Row, target: SharedTarget): boolean {
+  const category = record(project.category);
+  return typeof project.id === 'string' && uuid.test(project.id)
+    && (!target.projectId || sameId(project.id, target.projectId))
+    && sameId(project.profile_id, target.profileId) && project.is_hidden === false
+    && Boolean(visibleProfile(project.profile, target.profileId))
+    && Boolean(category && typeof category.id === 'string' && uuid.test(category.id)
+      && sameId(project.category_id, category.id)
+      && (!target.categoryId || sameId(category.id, target.categoryId))
+      && sameId(category.profile_id, target.profileId) && category.is_hidden === false);
+}
+
+async function readProject(target: SharedTarget, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<Row | null> {
+  const query = new URLSearchParams({
+    select: projectSelect, limit: '1', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false',
+    'profile.id': `eq.${target.profileId}`, 'profile.is_private': 'eq.false',
+    'category.profile_id': `eq.${target.profileId}`, 'category.is_hidden': 'eq.false',
+    'attachments.order': 'is_cover.desc,position.asc,id.asc', 'attachments.limit': String(MAX_PROJECT_ATTACHMENTS),
+  });
+  if (target.categoryId) query.set('category_id', `eq.${target.categoryId}`);
+  if (target.projectId) query.set('id', `eq.${target.projectId}`);
+  else {
+    // The profile wall stores an explicit order using negative positions.
+    // Ordinary published projects otherwise appear newest first.
+    query.set('position', 'lt.0');
+    query.set('order', 'position.asc,published_at.desc,id.asc');
+  }
+  let rows = await readRows('projects', query, origin, config, signal);
+  if (!target.projectId && rows?.length === 0) {
+    query.delete('position');
+    query.set('order', 'published_at.desc,id.asc');
+    rows = await readRows('projects', query, origin, config, signal);
+  }
+  return rows?.length === 1 && visibleProject(rows[0], target) ? rows[0] : null;
+}
+
+function coverImage(project: Row, profileId: string): Preview['image'] | null {
+  if (!Array.isArray(project.attachments) || project.attachments.length > MAX_PROJECT_ATTACHMENTS) return null;
+  const attachments = project.attachments.map(record);
+  if (attachments.some(row => !row || !sameId(row.project_id, String(project.id)))) return null;
+  const ordered = (attachments as Row[]).sort((a, b) => Number(a.position ?? 0) - Number(b.position ?? 0));
+  const cover = ordered.find(row => row.is_cover === true) ?? ordered.find(row => row.kind === 'image') ?? ordered[0];
+  const metadata = record(cover?.metadata);
+  if (!cover || !metadata || typeof cover.id !== 'string' || !cover.id) return null;
+  const alt = text(project.title, 120) || 'Project cover';
+  if (cover.kind === 'image') {
+    if (metadata.multipart != null || typeof cover.storage_path !== 'string' || cover.storage_path.length > 1024) return null;
+    if (!new RegExp(`^${profileId}/${UUID}/[a-z0-9][a-z0-9._-]*\\.(?:jpe?g|png|webp|gif|avif)$`, 'i').test(cover.storage_path)) return null;
+    if (typeof cover.mime_type !== 'string' || !/^image\/(?:jpeg|png|webp|gif|avif)$/i.test(cover.mime_type)) return null;
+    if (!dimension(metadata.widthPixels) || !dimension(metadata.heightPixels)) return null;
+    return { path: cover.storage_path, width: metadata.widthPixels, height: metadata.heightPixels, alt };
+  }
+  if (cover.kind !== 'document' || cover.mime_type !== 'application/pdf' || !Array.isArray(metadata.renderedPages)) return null;
+  const chosenPage = dimension(metadata.coverPageNumber) ? metadata.coverPageNumber : 1;
+  const page = metadata.renderedPages.map(record).find(row => row && row.attachmentId === cover.id && row.withinDocumentIndex === chosenPage);
+  if (!page || typeof page.storagePath !== 'string' || !dimension(page.width) || !dimension(page.height)) return null;
+  // Accept the existing renderer and its lease-scoped successor, never another
+  // project's objects, an original PDF, video, or multipart manifest.
+  if (!new RegExp(`^posts/${project.id}/pages/(?:${UUID}/${UUID}/)?page_[1-9][0-9]*\\.webp$`, 'i').test(page.storagePath)) return null;
+  return { path: page.storagePath, width: page.width, height: page.height, alt };
+}
+
+async function readPublicPreview(target: SharedTarget, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<Preview | null> {
+  let profile: Row | null = null;
+  let category: Row | null = null;
+  if (!target.projectId) {
+    const query = new URLSearchParams({ limit: '1', id: `eq.${target.categoryId ?? target.profileId}` });
+    if (target.categoryId) {
+      query.set('select', 'id,profile_id,label,blurb,is_hidden,profile:profiles!inner(id,name,headline,is_private)');
+      query.set('profile_id', `eq.${target.profileId}`);
+      query.set('is_hidden', 'eq.false');
+      query.set('profile.id', `eq.${target.profileId}`);
+      query.set('profile.is_private', 'eq.false');
+    } else {
+      query.set('select', 'id,name,headline,is_private');
+      query.set('is_private', 'eq.false');
+    }
+    const rows = await readRows(target.categoryId ? 'portfolio_categories' : 'profiles', query, origin, config, signal);
+    if (rows?.length !== 1 || !sameId(rows[0].id, target.categoryId ?? target.profileId)) return null;
+    if (target.categoryId) {
+      category = rows[0];
+      if (!sameId(category.profile_id, target.profileId) || category.is_hidden !== false) return null;
+      profile = visibleProfile(category.profile, target.profileId);
+    } else profile = visibleProfile(rows[0], target.profileId);
+    if (!profile) return null;
+  }
+  const project = await readProject(target, origin, config, signal);
+  if (!project) return null;
+  // This final project read also revalidates the profile and collection after
+  // the initial lookup, so a prior cached shell never grants public visibility.
+  profile = visibleProfile(project.profile, target.profileId);
+  const creator = text(profile?.name, 80);
+  const image = coverImage(project, target.profileId);
+  if (!creator || !image) return null;
+  const title = text(target.projectId ? project.title : category?.label, 120);
   if (target.categoryId && !title) return null;
-  const avatar = target.categoryId ? undefined : publicAvatar(row.avatar_url, config);
   return {
-    title: title ? `${title} — ${creator} | Portalink` : `${creator} | Portalink`,
-    description: text(target.projectId ? row.summary : target.categoryId ? row.blurb : row.headline, 220)
+    title: title ? `${title} — ${creator} | Portalink` : `${creator} — Portfolio | Portalink`,
+    description: text(target.projectId ? project.summary : category?.blurb, 160)
+      || text(profile?.headline, 160) || text(project.summary, 160)
       || `Explore ${creator}'s creative work on Portalink.`,
-    ...(avatar ? { image: { url: avatar, alt: `${creator}'s profile image` } } : {}),
+    type: target.categoryId ? 'article' : 'profile', image,
   };
 }
 
-/** Personalize public share HTML; unavailable targets keep generic text only. */
+async function signImage(path: string, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<string | null> {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const expectedPath = `/storage/v1/object/sign/project-media/${encodedPath}`;
+  const response = await fetch(`${origin}${expectedPath}`, {
+    method: 'POST', headers: { apikey: config.publishableKey, 'content-type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify({ expiresIn: 21_600 }), cache: 'no-store', redirect: 'error', signal,
+  });
+  if (!response.ok) return null;
+  const body = record(await response.json());
+  const value = body?.signedURL;
+  if (typeof value !== 'string' || value.length > 8192 || value.includes('\\')
+    || Array.from(value).some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127)) return null;
+  const signed = new URL(value.startsWith('/object/') ? `/storage/v1${value}` : value, origin);
+  if (signed.origin !== origin || signed.pathname !== expectedPath || signed.username || signed.password || signed.hash
+    || [...signed.searchParams.keys()].length !== 1 || !signed.searchParams.get('token')) return null;
+  return signed.href;
+}
+
+function attribute(tag: string, name: string): string | undefined {
+  return tag.match(new RegExp(`\\s${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'))?.slice(1).find(value => value !== undefined);
+}
+
+function rewriteHead(html: string, preview: Preview, image: string, canonical: string): string {
+  return html.replace(/(<head\b[^>]*>)([\s\S]*?)(<\/head\s*>)/i, (_match, open: string, head: string, close: string) => {
+    const cleaned = head.replace(/<title\b[^>]*>[\s\S]*?<\/title\s*>/gi, '').replace(/<(?:meta|link)\b[^>]*>/gi, tag => {
+      if (/^<link\b/i.test(tag)) return attribute(tag, 'rel')?.toLowerCase().split(/\s+/).includes('canonical') ? '' : tag;
+      const name = (attribute(tag, 'name') ?? attribute(tag, 'property'))?.toLowerCase();
+      return name && (['description', 'og:title', 'og:description', 'og:type', 'og:url', 'twitter:title', 'twitter:description', 'twitter:card'].includes(name)
+        || name.startsWith('og:image') || name.startsWith('twitter:image')) ? '' : tag;
+    });
+    const tags = [
+      `<title>${escapeHtml(preview.title)}</title>`,
+      ...[
+        ['description', preview.description], ['og:title', preview.title], ['og:description', preview.description],
+        ['og:type', preview.type], ['og:url', canonical], ['og:image', image],
+        ['og:image:width', String(preview.image.width)], ['og:image:height', String(preview.image.height)], ['og:image:alt', preview.image.alt],
+        ['twitter:card', 'summary_large_image'], ['twitter:title', preview.title], ['twitter:description', preview.description],
+        ['twitter:image', image], ['twitter:image:alt', preview.image.alt],
+      ].map(([name, content]) => `<meta ${name.startsWith('og:') ? 'property' : 'name'}="${name}" content="${escapeHtml(content)}" />`),
+      `<link rel="canonical" href="${escapeHtml(canonical)}" />`,
+    ].join('\n');
+    return `${open}${cleaned}\n${tags}\n${close}`;
+  });
+}
+
+/** Personalized public share heads use existing anonymous reads and media
+ * signing. Unavailable/private/coverless records retain the generic SPA shell. */
 export async function withSharedPreview(response: Response, request: Request, config: PreviewConfiguration): Promise<Response> {
   const url = new URL(request.url);
   const match = url.pathname.match(sharedRoute);
-  if (!match || (request.method !== 'GET' && request.method !== 'HEAD') || !response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
+  if (!match || !prefersHtml(request.headers.get('accept')) || (request.method !== 'GET' && request.method !== 'HEAD')
+    || !response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
   const headers = new Headers(response.headers);
-  // Re-evaluate privacy on every navigation. Never reuse a shared HTML ETag or
-  // retain owner/project text in an edge/browser cache after privacy changes.
+  // Never expose a browser/edge cache that bypasses the anonymous privacy read.
   headers.set('cache-control', 'private, no-store');
   for (const name of ['etag', 'last-modified', 'content-length', 'content-encoding']) headers.delete(name);
-  // HEAD describes the uncached share response without fetching optional text.
   if (request.method === 'HEAD') return new Response(null, { status: response.status, headers });
-  let preview: Preview | null = null;
+  const shell = await response.text();
+  const cacheKey = `${url.origin}${url.pathname}`;
+  let html = shell;
   try {
-    preview = await readPublicPreview({ profileId: match[1], categoryId: match[2], projectId: match[3] }, config);
+    const origin = serviceOrigin(config);
+    const signal = AbortSignal.timeout(2_000);
+    const preview = origin && config.publishableKey ? await readPublicPreview({ profileId: match[1], categoryId: match[2], projectId: match[3] }, origin, config, signal) : null;
+    if (preview && origin && /<head\b[^>]*>[\s\S]*?<\/head\s*>/i.test(shell)) {
+      const configuration = `${origin}\n${config.publishableKey}`;
+      const fingerprint = JSON.stringify(preview);
+      const cached = previewCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now() && cached.configuration === configuration && cached.fingerprint === fingerprint && cached.shell === shell) {
+        html = cached.html;
+      } else {
+        const image = await signImage(preview.image.path, origin, config, signal);
+        if (image) {
+          html = rewriteHead(shell, preview, image, `${url.origin}${url.pathname.replace(/\/$/, '')}`);
+          previewCache.delete(cacheKey);
+          previewCache.set(cacheKey, { configuration, fingerprint, shell, html, expiresAt: Date.now() + CACHE_MILLISECONDS });
+          while (previewCache.size > MAX_CACHE_ENTRIES) {
+            const oldest = previewCache.keys().next().value;
+            if (oldest === undefined) break;
+            previewCache.delete(oldest);
+          }
+        }
+      }
+    }
   } catch {
-    // Social previews are optional. An upstream failure must not block the app.
+    // An optional preview lookup must never prevent the portfolio from opening.
   }
-  // Independently shared records never inherit the unrelated site-wide card,
-  // including private, missing or temporarily unavailable records.
-  let html = clearInheritedImages(await response.text());
-  if (!preview) return new Response(html, { status: response.status, headers });
-  const title = escapeHtml(preview.title);
-  const description = escapeHtml(preview.description);
-  html = html.replace(/<title>[^<]*<\/title>/i, () => `<title>${title}</title>`);
-  for (const [name, content] of [['description', description], ['og:title', title], ['og:description', description], ['twitter:title', title], ['twitter:description', description]]) {
-    const tag = new RegExp(`<meta\\s+(?:name|property)=["']${name}["']\\s+content=["'][^"']*["']\\s*\\/?>(?:\\r?\\n)?`, 'i');
-    html = html.replace(tag, () => `<meta ${name.startsWith('og:') ? 'property' : 'name'}="${name}" content="${content}" />\n`);
-  }
-  if (preview.image) {
-    const image = escapeHtml(preview.image.url);
-    const alt = escapeHtml(preview.image.alt);
-    html = html.replace('</head>', () => `<meta property="og:image" content="${image}" /><meta property="og:image:alt" content="${alt}" /><meta name="twitter:image" content="${image}" /><meta name="twitter:image:alt" content="${alt}" />\n</head>`);
-  }
-  // Query strings, including any auth callback parameters, are omitted.
-  const canonical = escapeHtml(`${url.origin}${url.pathname.replace(/\/$/, '')}`);
-  html = html.replace('</head>', () => `<meta property="og:url" content="${canonical}" /><link rel="canonical" href="${canonical}" />\n</head>`);
+  if (html === shell) previewCache.delete(cacheKey);
   return new Response(html, { status: response.status, headers });
 }
