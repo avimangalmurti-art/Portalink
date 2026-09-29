@@ -52,7 +52,10 @@ this update. Nearest-marker or clustered selection is a separate follow-up.
 
 ## Release state
 
-Source only on `codex/trust-and-activation` in the isolated task worktree. No
-GitHub push/merge, SQL, Sites publication or worker deployment. Live remains the
-recorded v269/e640872. The preceding trust/activation PDF migration is still
-unapplied; its rollout requirements remain in `trust-and-activation-release.md`.
+Published with user approval as **Sites v270**, source `caf7b21`, at
+2026-09-29 07:21:59 UTC, alongside the WEB UX follow-up. See the publication
+receipt in `agent-handoff.md`. Source remains on `codex/trust-and-activation`
+in the isolated task worktree. No GitHub push/merge, Supabase SQL or separate
+PDF/video worker deployment. The preceding trust/activation PDF migration is
+still unapplied; its rollout requirements remain in
+`trust-and-activation-release.md`.

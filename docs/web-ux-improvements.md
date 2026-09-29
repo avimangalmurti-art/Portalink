@@ -48,8 +48,10 @@ The existing overlapping globe-dot targets remain unchanged. Desktop city search
 provides a precise alternative; it does not repair the shared hit algorithm.
 No unavailable destination was enabled, and no feature was removed.
 
-No dependency, service, account, data, SQL or configuration changes. No GitHub
-push/merge, Sites publication or worker deployment. Live remains recorded
-v269/e640872. The preceding PDF safety migration is still unapplied and account
-deletion remains disabled. Follow the separate rollout requirements in
-`trust-and-activation-release.md` before any release.
+Published with the user's approval as **Sites v270**, source `caf7b21`, at
+2026-09-29 07:21:59 UTC. The website and its existing Sites worker are live; see
+[the publication receipt](agent-handoff.md). No dependency, connected-service,
+account, data, SQL or configuration changes. No GitHub push/merge or separate
+PDF/video worker deployment. The preceding PDF safety migration is still
+unapplied and account deletion remains disabled. Follow the separate PDF rollout
+requirements in `trust-and-activation-release.md`.

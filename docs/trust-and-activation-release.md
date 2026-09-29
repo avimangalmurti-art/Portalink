@@ -1,8 +1,10 @@
 # Trust and first-publication release
 
 Prepared September 29, 2026. Scope: shared WEB/MOBILE behavior and existing
-backend boundaries. All changes are local source; no SQL, Sites publication,
-media-worker deployment or GitHub integration has occurred in this task.
+backend boundaries. Website changes were published with user approval as Sites
+v270, source `caf7b21`, at 2026-09-29 07:21:59 UTC, alongside the mobile and WEB UX
+updates. See [the publication receipt](agent-handoff.md). Supabase PDF SQL and
+separate media-worker changes remain unapplied/undeployed; no GitHub integration.
 
 ## Source and release state
 
@@ -11,9 +13,9 @@ media-worker deployment or GitHub integration has occurred in this task.
 - Refreshed `github/main`: `ccf405c`. The branch was created there, then
   fast-forwarded to the recorded published source `e64087287e1d55cbaa8c7100d11f2ad46ac8c51a`
   to preserve 29 existing source commits awaiting main integration.
-- Last recorded live website: Sites v269, source `e640872`, per
-  [the preserved publication receipt](agent-handoff.md). This task has not
-  re-audited the hosted database or worker fleet.
+- Current recorded live website: Sites v270, source `caf7b21`, per
+  [the publication receipt](agent-handoff.md). This website release did not
+  re-audit or alter the hosted Supabase PDF database contract or worker fleet.
 - Original checkout source and unrelated untracked folders are preserved.
   No dependency, service binding, account, identifier or storage replacement.
 
