@@ -74,7 +74,9 @@ function commandEnv(isolated = true) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (/^(GIT_|GCM_|SSH_|NODE_OPTIONS$|NODE_EXTRA_CA_CERTS$)/i.test(key)) delete env[key];
   Object.assign(env, { GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never', GIT_OPTIONAL_LOCKS: '0' });
-  if (isolated) Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null' });
+  // Git for Windows also recognizes /dev/null. Its NUL device spelling can
+  // fail when the runner is launched under a restricted Windows account.
+  if (isolated) Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' });
   return env;
 }
 

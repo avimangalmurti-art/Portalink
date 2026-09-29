@@ -11,6 +11,7 @@ function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
     { exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, TextEncoder, btoa, atob, crypto, setTimeout, clearTimeout, ...globals, require: (id) => {
+      if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
       if (!(id in imports)) throw new Error(`Missing ${id}`);
       return imports[id];
     } });
@@ -21,7 +22,7 @@ function setup() {
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(read('../drizzle/0000_media_interactions.sql'));
   sqlite.exec(read('../drizzle/0001_saved_media_read_index.sql'));
-  const statements = []; let verifications = 0;
+  const statements = []; let verifications = 0; let accessChecks = 0;
   const binding = {
     prepare(sql) { let values = []; return {
       bind(...args) { values = args; return this; },
@@ -30,7 +31,11 @@ function setup() {
     }; },
     batch(items) { return Promise.all(items.map((item) => item.run())); },
   };
-  const worker = load('../src/sites-worker.ts', {}, { fetch: async (_url, init) => {
+  const worker = load('../src/sites-worker.ts', {}, { fetch: async (url, init) => {
+    if (new URL(url).pathname === '/rest/v1/projects') {
+      accessChecks++;
+      return Response.json([{ id: 'p', category: { id: 'portal' }, attachments: [{ id: 'doc', kind: 'document', position: 0, page_count: 30 }] }]);
+    }
     verifications++;
     const id = init.headers.authorization.replace('Bearer ', '');
     return id === 'expired' ? new Response('{}', { status: 401 }) : Response.json({ id });
@@ -38,7 +43,7 @@ function setup() {
   const request = (targets, account = 'alice') => worker.fetch(new Request('https://site.test/api/media-interactions/batch', {
     method: 'POST', headers: { 'content-type': 'application/json', ...(account ? { authorization: `Bearer ${account}` } : {}) }, body: JSON.stringify({ targets }),
   }), { DB: binding });
-  return { sqlite, statements, request, get verifications() { return verifications; } };
+  return { sqlite, statements, request, get verifications() { return verifications; }, get accessChecks() { return accessChecks; } };
 }
 const target = (pageIndex) => ({ projectId: 'p', attachmentId: 'doc', pageIndex });
 
@@ -50,10 +55,11 @@ test('visible-page batch verifies once, uses two reads, and isolates own activit
     add.run('alice', 'p', 'doc', 0, 'save'); add.run('bob', 'p', 'doc', 0, 'save'); add.run('bob', 'p', 'doc', 1, 'like');
     const comment = s.sqlite.prepare('INSERT INTO media_comments(id,account_id,project_id,attachment_id,page_index,author_name,body) VALUES (?,?,?,?,?,?,?)');
     comment.run('a', 'alice', 'p', 'doc', 0, 'Alice', 'Own'); comment.run('b', 'bob', 'p', 'doc', 1, 'Bob', 'Other');
-    const before = s.verifications; s.statements.length = 0;
+    const before = s.verifications; const beforeAccess = s.accessChecks; s.statements.length = 0;
     const response = await s.request([target(0), target(1), target(2), target(0)]);
     const { items } = await response.json();
     assert.equal(s.verifications - before, 1); assert.equal(s.statements.length, 2);
+    assert.equal(s.accessChecks - beforeAccess, 1);
     assert.equal(items.length, 3); assert.equal(items[0].record.counts.save, 2); assert.equal(items[0].record.engaged.save, true);
     assert.equal(items[0].record.comments[0].canDelete, true); assert.equal(items[1].record.comments[0].canDelete, false);
     assert.equal(items[1].record.engaged.like, false); assert.deepEqual(items[2].record.comments, []);

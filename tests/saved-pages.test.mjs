@@ -11,9 +11,10 @@ import { createMemoryRouter } from 'react-router-dom';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 function load(path, imports = {}, globals = {}) {
   const source = read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://test.supabase.co'").replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'test-key'");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
+  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+    if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
     return imports[id];
   } });
@@ -41,6 +42,11 @@ function database() {
 function workerFor(db) {
   const worker = load('../src/sites-worker.ts', {}, {
     fetch: async (url, init) => {
+      if (new URL(url).pathname === '/rest/v1/projects') {
+        return Response.json([{ id: 'project', category: { id: 'portal' }, attachments: [
+          { id: 'original/file.pdf', kind: 'document', position: 0, page_count: 8 },
+        ] }]);
+      }
       assert.equal(url, 'https://test.supabase.co/auth/v1/user');
       const account = init.headers.authorization?.replace('Bearer ', '');
       return account === 'expired' ? new Response('{}', { status: 401 }) : Response.json({ id: account });

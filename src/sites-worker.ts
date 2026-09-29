@@ -1,3 +1,5 @@
+import { isSharedPreviewPath, withSharedPreview } from './server/sharedPreview';
+
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
 }
@@ -57,8 +59,8 @@ function boundedText(value: unknown, name: string, max = 160): string {
 }
 
 function parseTarget(value: Partial<Target>): Target {
-  const pageIndex = Number(value.pageIndex)
-  if (!Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex > 10_000) {
+  const pageIndex = value.pageIndex
+  if (typeof pageIndex !== 'number' || !Number.isInteger(pageIndex) || pageIndex < 0 || pageIndex > 10_000) {
     throw new Error('Invalid page position.')
   }
   return {
@@ -82,18 +84,92 @@ async function authenticatedUser(request: Request, required: boolean): Promise<A
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Response(JSON.stringify({ error: 'Account verification is temporarily unavailable.' }), { status: 503, headers: JSON_HEADERS })
   }
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      authorization,
-      apikey: SUPABASE_KEY,
-      accept: 'application/json',
-    },
-    signal: AbortSignal.timeout(8_000),
-  })
+  let response: Response
+  try {
+    response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { authorization, apikey: SUPABASE_KEY, accept: 'application/json' },
+      signal: AbortSignal.timeout(8_000),
+    })
+  } catch {
+    throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
+  }
+  if (response.status >= 500 || response.status === 429) {
+    throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
+  }
   if (!response.ok) {
     throw new Response(JSON.stringify({ error: 'Your session has expired. Sign in again to continue.' }), { status: 401, headers: JSON_HEADERS })
   }
-  return response.json() as Promise<AuthenticatedUser>
+  const user = await response.json().catch(() => null) as AuthenticatedUser | null
+  if (!user || typeof user.id !== 'string' || !user.id) {
+    throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
+  }
+  return user
+}
+
+type ReadableAttachment = { id: string; kind: string; position: number; page_count?: unknown }
+type ReadableProject = { id: string; category: { id: string }; attachments: ReadableAttachment[] }
+
+/**
+ * D1 has no Supabase RLS of its own. Resolve the real project, portal and media
+ * through their existing SELECT policies using this request's identity BEFORE
+ * touching activity. One bounded query covers the whole batch, with no access
+ * cache that could survive a revoked follow or a privacy change.
+ */
+async function requireReadableTargets(request: Request, targets: Target[], user: AuthenticatedUser | null): Promise<void> {
+  const unavailable = () => json({ error: 'Page access could not be verified. Please try again.' }, 503)
+  if (!SUPABASE_URL || !SUPABASE_KEY) throw unavailable()
+  const ids = [...new Set(targets.map(target => target.projectId))]
+  const quote = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  const endpoint = new URL(`${SUPABASE_URL}/rest/v1/projects`)
+  endpoint.search = new URLSearchParams({
+    select: 'id,category:portfolio_categories!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)',
+    id: `in.(${ids.map(quote).join(',')})`,
+    limit: String(ids.length),
+    // Match the viewer's image sequence (all images in attachment position order).
+    'attachments.order': 'position.asc',
+    // Existing publishing permits 105 files. An extra row detects an unexpected
+    // oversized response instead of authorizing against a truncated sequence.
+    'attachments.limit': '106',
+  }).toString()
+  const headers: Record<string, string> = { apikey: SUPABASE_KEY, accept: 'application/json' }
+  // With no bearer, the publishable key selects the anonymous RLS role. Never
+  // substitute a service credential or another account's token.
+  if (user) {
+    const authorization = request.headers.get('authorization')
+    if (!authorization) throw unavailable()
+    headers.authorization = authorization
+  }
+  let projects: ReadableProject[]
+  try {
+    const response = await fetch(endpoint.toString(), { headers, signal: AbortSignal.timeout(8_000) })
+    if (!response.ok) throw new Error()
+    const data: unknown = await response.json()
+    if (!Array.isArray(data) || data.length > ids.length || data.some(project =>
+      !project || typeof project.id !== 'string' || !ids.includes(project.id)
+      || !project.category || typeof project.category.id !== 'string'
+      || !Array.isArray(project.attachments) || project.attachments.length > 105
+      || project.attachments.some((attachment: Partial<ReadableAttachment> | null) => !attachment
+        || typeof attachment.id !== 'string' || typeof attachment.kind !== 'string'
+        || !Number.isInteger(attachment.position)
+        || (attachment.page_count != null && (typeof attachment.page_count !== 'number'
+          || !Number.isInteger(attachment.page_count) || attachment.page_count < 0))))) throw new Error()
+    projects = data as ReadableProject[]
+  } catch {
+    // Never fall back to D1 or expose upstream error bodies/URLs on failure.
+    throw unavailable()
+  }
+  for (const target of targets) {
+    const project = projects.find(item => item.id === target.projectId)
+    const attachment = project?.attachments.find(item => item.id === target.attachmentId)
+    const isImagePage = attachment?.kind === 'image'
+      && project?.attachments.filter(item => item.kind === 'image').findIndex(item => item.id === attachment.id) === target.pageIndex
+    // Original PDFs can render in the browser before processing has recorded a
+    // count. Keep that existing path bounded by parseTarget; enforce a persisted
+    // positive count when present. This is not a server inspection of PDF bytes.
+    const isDocumentPage = attachment?.kind === 'document'
+      && (!(typeof attachment.page_count === 'number' && attachment.page_count > 0) || target.pageIndex < attachment.page_count)
+    if (!isImagePage && !isDocumentPage) throw json({ error: 'This page is not available.' }, 404)
+  }
 }
 
 function authorIdentity(user: AuthenticatedUser): { name: string; avatarUrl: string | null } {
@@ -161,6 +237,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const targets = body.targets.map((value) => parseTarget(value && typeof value === 'object' ? value : {}));
     const unique = [...new Map(targets.map((target) => [JSON.stringify([target.projectId, target.attachmentId, target.pageIndex]), target])).values()];
     const user = await authenticatedUser(request, false);
+    await requireReadableTargets(request, unique, user);
     return json({ items: await interactionRecords(db, unique, user) });
   }
 
@@ -206,9 +283,10 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const target = parseTarget({
       projectId: url.searchParams.get('projectId') ?? undefined,
       attachmentId: url.searchParams.get('attachmentId') ?? undefined,
-      pageIndex: Number(url.searchParams.get('pageIndex')),
+      pageIndex: url.searchParams.get('pageIndex')?.trim() ? Number(url.searchParams.get('pageIndex')) : undefined,
     })
     const user = await authenticatedUser(request, false)
+    await requireReadableTargets(request, [target], user)
     return json(await interactionRecord(db, target, user))
   }
 
@@ -219,6 +297,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const kind = body.kind
     const engaged = body.engaged
     if (!ENGAGEMENT_KINDS.includes(kind as EngagementKind) || typeof engaged !== 'boolean') throw new Error('Invalid engagement action.')
+    await requireReadableTargets(request, [target], user)
     if (engaged) {
       await db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
@@ -237,6 +316,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const target = parseTarget(body)
     const comment = boundedText(body.body, 'comment', 1000).trim()
     if (!comment) throw new Error('Write something before posting.')
+    await requireReadableTargets(request, [target], user)
     const author = authorIdentity(user)
     await db.prepare(`INSERT INTO media_comments
       (id, account_id, project_id, attachment_id, page_index, author_name, author_avatar_url, body)
@@ -251,7 +331,10 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const body = await requestBody(request)
     const target = parseTarget(body)
     const commentId = boundedText(decodeURIComponent(deleteMatch[1]), 'comment')
-    await db.prepare(`DELETE FROM media_comments WHERE id = ? AND account_id = ?`).bind(commentId, user.id).run()
+    await requireReadableTargets(request, [target], user)
+    await db.prepare(`DELETE FROM media_comments WHERE id = ? AND account_id = ?
+      AND project_id = ? AND attachment_id = ? AND page_index = ?`)
+      .bind(commentId, user.id, target.projectId, target.attachmentId, target.pageIndex).run()
     return json(await interactionRecord(db, target, user))
   }
 
@@ -273,8 +356,14 @@ const worker = {
 
     const accept = request.headers.get('accept') ?? ''
     const asset = url.pathname.startsWith('/assets/');
-    const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && accept.includes('text/html');
-    const response = await environment.ASSETS.fetch(navigation ? new Request(new URL('/', request.url), request) : request);
+    const shared = isSharedPreviewPath(url.pathname);
+    const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared || accept.includes('text/html'));
+    const assetRequest = navigation ? new Request(new URL('/', request.url), request) : request;
+    if (navigation && shared) {
+      assetRequest.headers.delete('if-none-match');
+      assetRequest.headers.delete('if-modified-since');
+    }
+    const response = await environment.ASSETS.fetch(assetRequest);
     // Never cache a SPA fallback as a missing JS/CSS asset.
     if (asset && response.headers.get('content-type')?.includes('text/html')) {
       return new Response('Not found', { status: 404, headers: { 'cache-control': 'no-store' } });
@@ -285,7 +374,9 @@ const worker = {
     } else if (navigation || response.headers.get('content-type')?.includes('text/html')) {
       headers.set('cache-control', 'no-cache');
     }
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    return withSharedPreview(new Response(response.body, { status: response.status, statusText: response.statusText, headers }), request, {
+      supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,
+    });
   },
 }
 

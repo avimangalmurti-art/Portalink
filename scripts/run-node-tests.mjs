@@ -1,0 +1,23 @@
+// Run the complete existing Node suite on Windows and Unix without shell globs.
+// Database coverage is required here; focused `node --test` runs remain available.
+import { access, readdir } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = fileURLToPath(new URL('../', import.meta.url));
+const databaseModule = process.env.PGLITE_MODULE_PATH ?? process.env.PGLITE_MODULE;
+if (!databaseModule) {
+  console.error('Set PGLITE_MODULE_PATH to the existing @electric-sql/pglite dist/index.js to run required database checks. See docs/development-workflow.md.');
+  process.exit(1);
+}
+await access(databaseModule);
+const files = (await readdir(new URL('../tests/', import.meta.url)))
+  .filter(name => name.endsWith('.test.mjs')).sort().map(name => resolve(root, 'tests', name));
+const child = spawn(process.execPath, ['--test', '--test-concurrency=2', ...files], {
+  cwd: root,
+  env: { ...process.env, PGLITE_MODULE_PATH: databaseModule, PGLITE_MODULE: databaseModule },
+  stdio: 'inherit', windowsHide: true,
+});
+child.on('error', error => { console.error(error.message); process.exitCode = 1; });
+child.on('exit', code => { process.exitCode = code ?? 1; });

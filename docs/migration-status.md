@@ -2,7 +2,7 @@
 
 The original register was recorded on 2026-09-14 from repository source at commit `5512bd0` and the evidence linked below; that documentation-only pass did not connect to a database or change deployment state. Later dated application records below are separate evidence.
 
-Updated 2026-09-28 to record the approved application of six performance migrations to the existing Portalink Supabase project; the September 27 grid-density application remains recorded separately. There are **36 Supabase migration files**, one excluded account-deletion SQL candidate, and two separate Sites/D1 migration files. A file in Git establishes the intended change; it does not establish that a database received it. A successful isolated test establishes behavior in its synthetic database. A manual application record establishes that operation; only the specified catalog checks establish the observed schema, not a migration-ledger entry or all runtime behavior.
+Updated 2026-09-29 with a prepared, unapplied PDF safety correction; the approved September 28 performance and September 27 grid-density applications remain recorded separately. There are **37 Supabase migration files**, one excluded account-deletion SQL candidate, and two separate Sites/D1 migration files. A file in Git establishes the intended change; it does not establish that a database received it. A successful isolated test establishes behavior in its synthetic database. A manual application record establishes that operation; only the specified catalog checks establish the observed schema, not a migration-ledger entry or all runtime behavior.
 
 See [current architecture](current-architecture.md), [development workflow](development-workflow.md), and [Sites deployment](sites-deployment.md) for the related application and release boundaries. Publishing the frontend or merging GitHub `main` does not apply Supabase migrations.
 
@@ -19,6 +19,21 @@ See [current architecture](current-architecture.md), [development workflow](deve
 | Prepared locally; not applied | The current task prepared and tested the migration in isolation, but has not applied it to the existing Supabase project. |
 
 The 2026-09-21 and 2026-09-28 catalog checks found no `supabase_migrations.schema_migrations` table in the existing project. No migration history was created or repaired. Historical application records below remain distinct; the Bio row records its separate manual application and verified schema result. Neither chronological filenames nor the existence of later migrations proves that earlier files were applied.
+
+## PDF safety correction prepared September 29, 2026
+
+| Migration | Purpose | Status |
+| --- | --- | --- |
+| [202609290001_pdf_processing_safety.sql](../supabase/migrations/202609290001_pdf_processing_safety.sql) | Service-only v2 worker RPCs, lease-token fencing, deterministic claims, idempotent completion and correct multi-job page totals | Prepared locally; not applied. Eight synthetic PGlite checks pass, including browser-role denials and stale lease behavior. |
+
+This task did not query the hosted PDF schema or inspect its current function
+ACLs. Existing PDF ingestion functions and tables must be checked before the
+single forward migration is applied. Stop/drain all old PDF workers first;
+legacy unfenced RPCs deliberately lose service-role execution. Start only the
+matching upgraded worker after migration postflight. Preserve originals,
+completed pages and queue records. No backfill or migration-history repair is
+included. See [worker upgrade instructions](../workers/pdf_processor/README.md#coordinated-upgrade)
+and the [release plan](trust-and-activation-release.md).
 
 ## Performance additions applied September 28, 2026
 

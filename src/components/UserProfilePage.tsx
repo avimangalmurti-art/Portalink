@@ -85,6 +85,8 @@ type UserProfilePageProps = {
   /** Opens the published project represented by a profile image. */
   onOpenProject: (projectId: string, categoryId: string, options?: { openComments?: boolean }) => void;
   onEditProfile?: () => void;
+  /** Starts the existing publisher with an owned category as its default. */
+  onPublishProject?: () => void;
   /** Existing Messages entry point, with its normal account gate. */
   onCollaboration?: () => void;
   onMessage?: () => void;
@@ -350,6 +352,7 @@ export function UserProfilePage({
   onSignInRequest,
   onOpenProject,
   onEditProfile,
+  onPublishProject,
   onCollaboration,
   onMessage,
   shareUrl,
@@ -538,7 +541,7 @@ export function UserProfilePage({
   const isMobileWall = isMobile && (activeView === 'projects' || (activeView === 'portals' && Boolean(mobilePortalOverlay))) && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
-  const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Open a category, then choose Add project to publish the first one.' : `${displayName} has not published any work yet.`} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
+  const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your portfolio and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
     <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
       disabled: projectOrder.isSaving,

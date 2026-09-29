@@ -482,7 +482,27 @@ function AppContent() {
     return () => window.clearTimeout(timer);
   }, [publishConfirmation]);
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
-  const [isGlobalCreatePending, setIsGlobalCreatePending] = useState(false);
+  const [publishAccountId, setPublishAccountId] = useState<string | null>(null);
+  const [globalCreateAccountId, setGlobalCreateAccountId] = useState<string | null>(null);
+  const isGlobalCreatePending = globalCreateAccountId !== null && globalCreateAccountId === auth.user?.id;
+  function setIsGlobalCreatePending(pending: boolean) {
+    setGlobalCreateAccountId(pending ? auth.user?.id ?? null : null);
+  }
+  const publishingAccountRef = useRef(auth.user?.id ?? null);
+  useEffect(() => {
+    const accountId = auth.user?.id ?? null;
+    if (publishingAccountRef.current === accountId) return;
+    const previousAccountId = publishingAccountRef.current;
+    publishingAccountRef.current = accountId;
+    setGlobalCreateAccountId(null);
+    setPublishAccountId(null);
+    setIsPublishOpen(false);
+    setPublishTargetCategoryId(null);
+    setPublishConfirmation(null);
+    // Registration can establish its deferred intent earlier in this commit.
+    // Keep a guest's first sign-in intent; discard a departing account's intent.
+    if (previousAccountId !== null) deferredIntentRef.current = null;
+  }, [auth.user?.id]);
   // The page scrolls only when the viewer scrolls it. Nothing moves because
   // somebody stopped moving.
   const mainContentRef = useRef<HTMLElement>(null);
@@ -857,6 +877,7 @@ function AppContent() {
       return;
     }
     setPublishTargetCategoryId(activeCategory.id);
+    setPublishAccountId(auth.user?.id ?? null);
     setIsPublishOpen(true);
   }
   /**
@@ -894,9 +915,13 @@ function AppContent() {
       return;
     }
     setPublishTargetCategoryId(target.id);
+    setPublishAccountId(auth.user?.id ?? null);
     setIsPublishOpen(true);
-    setIsGlobalCreatePending(false);
-  }, [activeCategory, isGlobalCreatePending, isOwnerMode, viewedProfile]);
+    setGlobalCreateAccountId(null);
+  }, [activeCategory, auth.user?.id, isGlobalCreatePending, isOwnerMode, viewedProfile]);
+  const canShowPublisher = isPublishOpen && isOwnerMode && publishAccountId !== null
+    && publishAccountId === auth.user?.id
+    && Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId));
   /** Opening or closing a project inside its category is a change of URL. */
   function selectProject(projectId: string | null, replace = false) {
     if (!activeCategory || !viewedProfileId) {
@@ -1139,7 +1164,7 @@ function AppContent() {
         // feed. Navigate directly so the Portal index opens alongside the chosen
         // project; discovery-only return state would intentionally collapse it.
         nav.project(viewedProfile.id, categoryId, projectId);
-      }} onEditProfile={isOwnerMode ? nav.profileEditor : undefined} onCollaboration={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onMessage={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
+      }} onPublishProject={isOwnerMode ? requestGlobalPublish : undefined} onEditProfile={isOwnerMode ? nav.profileEditor : undefined} onCollaboration={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onMessage={() => openMessages(auth.viewerProfileId === viewedProfile.id ? undefined : viewedProfile.id)} onAddCategory={isOwnerMode ? (label, iconName) => setAddCategoryRequest((request) => ({
         nonce: (request?.nonce ?? 0) + 1,
         label,
         iconName
@@ -1170,7 +1195,7 @@ function AppContent() {
         setIconPickerCategoryId(null);
       }} /> : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? (isPortalsOpen ? mobilePortalsWorkspace : <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} />) : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
-        </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed emptyAction={{ label: auth.isAuthenticated ? 'Open your profile' : 'Sign in', onClick: openOwnProfile }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
+        </div> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your portfolio', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
       })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
       </React.Suspense></DeferredSurfaceBoundary>
@@ -1235,7 +1260,7 @@ function AppContent() {
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      <DeferredDialog active={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} onClose={() => { setIsPublishOpen(false); setPublishTargetCategoryId(null); }}><PublishProjectDialog isOpen={isPublishOpen && isOwnerMode && Boolean(publishTargetCategoryId)} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
+      <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={() => { setIsPublishOpen(false); setPublishTargetCategoryId(null); }}><PublishProjectDialog isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={() => {
         setIsPublishOpen(false);
         setPublishTargetCategoryId(null);
       }} onPublished={(result, title) => {

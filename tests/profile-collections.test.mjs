@@ -726,3 +726,25 @@ test('public and visitor headers show connection counts without opening owner-on
     }
   }
 });
+
+test('empty owner portfolios can publish directly while visitor, shared and populated profiles retain their existing behavior', () => {
+  for (const presentation of ['mobile', 'web']) {
+    let publications = 0;
+    const onPublishProject = () => { publications++; };
+    const owner = profileHarness('', { presentation, props: { onPublishProject } });
+    const empty = nodes(owner.render()).find(node => node.type === 'EmptyState' && node.props.title === 'No work published yet');
+    assert.equal(empty.props.action.label, 'Add a project'); empty.props.action.onClick();
+    assert.equal(publications, 1);
+    for (const access of [{ viewerRole: 'visitor' }, { viewerRole: 'guest' }, { viewerRole: 'owner', isSharedView: true }]) {
+      const denied = profileHarness('', { ...access, presentation, props: { onPublishProject } });
+      const state = nodes(denied.render()).find(node => node.type === 'EmptyState' && node.props.title === 'No work published yet');
+      assert.equal(state.props.action, undefined);
+      assert.match(state.props.description, /has not published/);
+    }
+    const populated = profileHarness('', { presentation, projects: reorderProjects, props: { onPublishProject } });
+    const tree = populated.render();
+    assert.equal(nodes(tree).some(node => node.type === 'EmptyState' && node.props.title === 'No work published yet'), false);
+    assert.equal(wall(tree).props.items.length, 2);
+    assert.equal(publications, 1);
+  }
+});

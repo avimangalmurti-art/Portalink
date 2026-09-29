@@ -19,8 +19,8 @@ import type { Id } from '../types/domain';
  *
  * - **Optimism is bounded and reversible.** A press applies the viewer's intent
  *   immediately (with its count adjusted only where a count is actually known),
- *   then the SERVICE's answer replaces it. A failure restores the exact record
- *   that was confirmed before the press — never a guess at what it was.
+ *   then the SERVICE's answer confirms that kind. A failure restores only that
+ *   kind, preserving independent likes, saves, or reposts made in the meantime.
  * - **Stale answers cannot win.** Every read and every mutation is tagged, and a
  *   response is dropped unless it is still the newest for that project and kind.
  * - **Guests are gated, not lied to.** An unauthenticated press mutates nothing
@@ -79,6 +79,14 @@ function flagFor(kind: EngagementKind): 'isLiked' | 'isSaved' | 'isReposted' {
 function countFor(kind: EngagementKind): 'likeCount' | 'saveCount' | 'repostCount' {
   return kind === 'like' ? 'likeCount' : kind === 'save' ? 'saveCount' : 'repostCount';
 }
+const ENGAGEMENT_KINDS: EngagementKind[] = ['like', 'save', 'repost'];
+
+/** A summary for one mutation cannot confirm another kind's concurrent write. */
+function withConfirmedKind(record: ProjectEngagement, confirmed: ProjectEngagement, kind: EngagementKind): ProjectEngagement {
+  const flag = flagFor(kind);
+  const count = countFor(kind);
+  return { ...record, [flag]: confirmed[flag], [count]: confirmed[count] };
+}
 
 /** Applies the viewer's intent locally. A null total stays null. */
 function withIntent(record: ProjectEngagement, kind: EngagementKind, engaged: boolean): ProjectEngagement {
@@ -107,53 +115,61 @@ function messageFor(error: unknown, fallback: string): {
     message: error instanceof Error && error.message ? error.message : fallback
   };
 }
-export function EngagementProvider({
-  children
-
-
-}: {children: React.ReactNode;}) {
-  const {
-    engagement: engagementService
-  } = useServices();
+export function EngagementProvider({ children }: { children: React.ReactNode }) {
+  const { engagement: engagementService } = useServices();
   const auth = useAuth();
-  const [entries, setEntries] = useState<Record<Id, ProjectEntry>>({});
-  /** Tags the newest request per project, so an older answer is discarded. */
-  const readTokenRef = useRef<Record<Id, number>>({});
-  const mutationTokenRef = useRef<Record<string, number>>({});
-  const requestedRef = useRef<Set<Id>>(new Set());
+  const authRef = useRef(auth);
+  authRef.current = auth;
+  const accountId = auth.user?.id ?? null;
+  // Replace the entire scope synchronously on identity/service changes. Reads,
+  // mutation completions and retained Retry callbacks belong to that one scope.
+  const scope = useMemo(() => ({
+    accountId,
+    engagementService,
+    entries: {} as Record<Id, ProjectEntry>,
+    readTokens: {} as Record<Id, number>,
+    mutationTokens: {} as Record<string, number>,
+    requested: new Set<Id>(),
+  }), [accountId, engagementService]);
+  const [snapshot, setSnapshot] = useState({ scope, entries: scope.entries });
+  const entries = snapshot.scope === scope ? snapshot.entries : scope.entries;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
   const isMountedRef = useRef(true);
-  useEffect(() => () => {
-    isMountedRef.current = false;
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
+  const isCurrent = useCallback(() => isMountedRef.current && currentScope.current === scope, [scope]);
   const patch = useCallback((projectId: Id, next: Partial<ProjectEntry>) => {
-    setEntries((current) => ({
-      ...current,
-      [projectId]: {
-        ...(current[projectId] ?? EMPTY_ENTRY),
-        ...next
-      }
-    }));
-  }, []);
+    if (!isCurrent()) return;
+    // Update the ref-owned record before scheduling React. Two presses in the
+    // same event turn therefore see the pending lock and each other's intent.
+    scope.entries = { ...scope.entries, [projectId]: { ...(scope.entries[projectId] ?? EMPTY_ENTRY), ...next } };
+    setSnapshot({ scope, entries: scope.entries });
+  }, [isCurrent, scope]);
   const load = useCallback((projectId: Id) => {
-    const token = (readTokenRef.current[projectId] ?? 0) + 1;
-    readTokenRef.current[projectId] = token;
-    patch(projectId, {
-      isResolving: true,
-      resolveError: null
-    });
+    if (!isCurrent()) return;
+    const token = (scope.readTokens[projectId] ?? 0) + 1;
+    scope.readTokens[projectId] = token;
+    const startingTokens = ENGAGEMENT_KINDS.map(kind => scope.mutationTokens[`${projectId}:${kind}`] ?? 0);
+    const startingPending = { ...scope.entries[projectId]?.pending };
+    patch(projectId, { isResolving: true, resolveError: null });
     engagementService.getProjectEngagement(projectId).then((record) => {
-      if (!isMountedRef.current || readTokenRef.current[projectId] !== token) {
-        return;
-      }
-      patch(projectId, {
-        record,
-        isResolving: false,
-        resolveError: null
+      if (!isCurrent() || scope.readTokens[projectId] !== token) return;
+      const entry = scope.entries[projectId] ?? EMPTY_ENTRY;
+      let merged = entry.record ?? record;
+      ENGAGEMENT_KINDS.forEach((kind, index) => {
+        // A read begun before or during a mutation cannot undo its optimistic,
+        // confirmed, or rolled-back result. Unaffected kinds can still refresh.
+        if (!startingPending[kind] && !entry.pending[kind] &&
+          (scope.mutationTokens[`${projectId}:${kind}`] ?? 0) === startingTokens[index]) {
+          merged = withConfirmedKind(merged, record, kind);
+        }
       });
+      patch(projectId, { record: merged, isResolving: false, resolveError: null });
     }).catch((error) => {
-      if (!isMountedRef.current || readTokenRef.current[projectId] !== token) {
-        return;
-      }
+      if (!isCurrent() || scope.readTokens[projectId] !== token) return;
       // No record rather than a fabricated one: a control that could not read its
       // state says so instead of presenting itself as "not liked".
       patch(projectId, {
@@ -161,133 +177,77 @@ export function EngagementProvider({
         resolveError: messageFor(error, 'Engagement could not be loaded.').message
       });
     });
-  }, [engagementService, patch]);
+  }, [engagementService, isCurrent, patch, scope]);
   const ensure = useCallback((projectId: Id) => {
-    if (requestedRef.current.has(projectId)) {
-      return;
-    }
-    requestedRef.current.add(projectId);
+    if (!isCurrent() || scope.requested.has(projectId)) return;
+    scope.requested.add(projectId);
     load(projectId);
-  }, [load]);
+  }, [isCurrent, load, scope]);
   const refresh = useCallback((projectId: Id) => {
-    requestedRef.current.add(projectId);
+    if (!isCurrent()) return;
+    scope.requested.add(projectId);
     load(projectId);
-  }, [load]);
-
-  /**
-   * Engagement is account data, so the cache is keyed to the ACCOUNT, not the
-   * profile: an account without a creator profile still has its own engagement,
-   * and two accounts must never share a cached record. Signing in, signing out, or
-   * switching accounts drops every entry, so account B can never open the product
-   * showing account A's likes, and a guest's "nothing engaged" cannot survive into
-   * a session. The service is authoritative either way — this only prevents a
-   * stale read being shown before it answers.
-   */
-  const accountId = auth.user?.id ?? null;
-  useEffect(() => {
-    requestedRef.current.clear();
-    readTokenRef.current = {};
-    mutationTokenRef.current = {};
-    setEntries({});
-  }, [accountId]);
+  }, [isCurrent, load, scope]);
   const toggle = useCallback((projectId: Id, kind: EngagementKind) => {
+    if (!isCurrent()) return;
     // Gating happens here, once, rather than in each control. The action is not
     // queued for replay: after signing in the viewer presses again deliberately.
-    if (!auth.isAuthenticated) {
-      auth.requestAuthenticatedDestination({
+    if (!authRef.current.isAuthenticated) {
+      authRef.current.requestAuthenticatedDestination({
         kind: 'interaction',
         label: kind === 'like' ? 'like this project' : kind === 'save' ? 'save this project' : 'repost this project'
       });
       return;
     }
-    const entry = entries[projectId] ?? EMPTY_ENTRY;
-    const confirmed = entry.record;
-    if (!confirmed || entry.pending[kind]) {
-      return;
-    }
-    const engaged = !confirmed[flagFor(kind)];
+    const initial = scope.entries[projectId] ?? EMPTY_ENTRY;
+    if (!initial.record || initial.pending[kind]) return;
+    const engaged = !initial.record[flagFor(kind)];
     const key = `${projectId}:${kind}`;
     const run = () => {
-      const token = (mutationTokenRef.current[key] ?? 0) + 1;
-      mutationTokenRef.current[key] = token;
-      // Optimistic, but the record it rolls back to is captured here.
-      setEntries((current) => {
-        const existing = current[projectId] ?? EMPTY_ENTRY;
-        return {
-          ...current,
-          [projectId]: {
-            ...existing,
-            record: existing.record ? withIntent(existing.record, kind, engaged) : existing.record,
-            pending: {
-              ...existing.pending,
-              [kind]: true
-            },
-            failure: null
-          }
-        };
+      if (!isCurrent() || !authRef.current.isAuthenticated) return;
+      const entry = scope.entries[projectId] ?? EMPTY_ENTRY;
+      const confirmed = entry.record;
+      if (!confirmed || entry.pending[kind]) return;
+      const token = (scope.mutationTokens[key] ?? 0) + 1;
+      scope.mutationTokens[key] = token;
+      patch(projectId, {
+        record: withIntent(confirmed, kind, engaged),
+        pending: { ...entry.pending, [kind]: true },
+        failure: entry.failure?.kind === kind ? null : entry.failure,
       });
       engagementService.setEngagement({
         projectId,
         kind,
         engaged
       }).then((record) => {
-        if (!isMountedRef.current || mutationTokenRef.current[key] !== token) {
-          return;
-        }
-        // The service's own answer, not the optimistic guess, including counts.
-        setEntries((current) => {
-          const existing = current[projectId] ?? EMPTY_ENTRY;
-          return {
-            ...current,
-            [projectId]: {
-              ...existing,
-              record,
-              pending: {
-                ...existing.pending,
-                [kind]: false
-              },
-              failure: null
-            }
-          };
+        if (!isCurrent() || scope.mutationTokens[key] !== token) return;
+        const existing = scope.entries[projectId];
+        patch(projectId, {
+          record: withConfirmedKind(existing.record ?? confirmed, record, kind),
+          pending: { ...existing.pending, [kind]: false },
+          failure: existing.failure?.kind === kind ? null : existing.failure,
         });
       }).catch((error) => {
-        if (!isMountedRef.current || mutationTokenRef.current[key] !== token) {
-          return;
-        }
-        const {
-          code,
-          message
-        } = messageFor(error, 'That could not be saved.');
-        setEntries((current) => {
-          const existing = current[projectId] ?? EMPTY_ENTRY;
-          return {
-            ...current,
-            [projectId]: {
-              ...existing,
-              // Rolled back to exactly what the service last confirmed.
-              record: confirmed,
-              pending: {
-                ...existing.pending,
-                [kind]: false
-              },
-              failure: {
-                kind,
-                code,
-                message,
-                retry: isRetryableEngagementCode(code) ? run : null
-              }
-            }
-          };
+        if (!isCurrent() || scope.mutationTokens[key] !== token) return;
+        const { code, message } = messageFor(error, 'That could not be saved.');
+        const existing = scope.entries[projectId];
+        patch(projectId, {
+          record: withConfirmedKind(existing.record ?? confirmed, confirmed, kind),
+          pending: { ...existing.pending, [kind]: false },
+          failure: { kind, code, message, retry: isRetryableEngagementCode(code) ? () => {
+            // A saved Retry callback cannot replay over a newer action or user.
+            if (scope.mutationTokens[key] === token && scope.entries[projectId]?.failure?.kind === kind) run();
+          } : null },
         });
       });
     };
     run();
-  }, [auth, engagementService, entries]);
+  }, [engagementService, isCurrent, patch, scope]);
   const dismissFailure = useCallback((projectId: Id) => patch(projectId, {
     failure: null
   }), [patch]);
   const store = useMemo<EngagementStore>(() => ({
-    read: (projectId) => entries[projectId] ?? EMPTY_ENTRY,
+    read: (projectId) => isCurrent() ? entries[projectId] ?? EMPTY_ENTRY : EMPTY_ENTRY,
     ensure,
     refresh,
     toggle,
@@ -295,7 +255,7 @@ export function EngagementProvider({
     knownFor: (kind) => {
       const engaged: Id[] = [];
       const withdrawn: Id[] = [];
-      for (const [projectId, entry] of Object.entries(entries)) {
+      for (const [projectId, entry] of Object.entries(isCurrent() ? entries : {})) {
         if (!entry.record) {
           continue;
         }
@@ -307,7 +267,7 @@ export function EngagementProvider({
       };
     },
     canEngage: auth.isAuthenticated
-  }), [auth.isAuthenticated, dismissFailure, ensure, entries, refresh, toggle]);
+  }), [auth.isAuthenticated, dismissFailure, ensure, entries, isCurrent, refresh, toggle]);
   return <EngagementContext.Provider value={store}>{children}</EngagementContext.Provider>;
 }
 export function useEngagementStore(): EngagementStore {

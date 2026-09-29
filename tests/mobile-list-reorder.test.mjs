@@ -153,11 +153,14 @@ test('project writes are gated during unavailable arrangements, partial search, 
   const expression = source.match(/mobileReorderDisabled=\{([^}]+)\}/)?.[1];
   assert.ok(expression);
   const evaluate = (overrides = {}) => vm.runInNewContext(expression, {
-    arrangement: { isLoading: false, loadError: null, isSaving: false }, query: '', isMobile: true, mobileSort: 'saved', ...overrides,
+    arrangement: { isLoading: false, loadError: null, isSaving: false }, indexQuery: '', isMobile: true, mobileSort: 'saved', ...overrides,
   });
   assert.equal(evaluate(), false);
   for (const key of ['isLoading', 'loadError', 'isSaving']) assert.equal(evaluate({ arrangement: { [key]: key === 'loadError' ? 'Unavailable' : true } }), true);
-  assert.equal(evaluate({ query: 'filtered' }), true);
+  assert.equal(evaluate({ isMobile: false, indexQuery: 'filtered' }), true);
+  const indexQuery = source.match(/const indexQuery = ([^;]+);/)?.[1];
+  assert.ok(indexQuery);
+  assert.equal(vm.runInNewContext(indexQuery, { isMobile: true, query: 'filtered' }), '', 'MOBILE has no index search filter');
   assert.equal(evaluate({ mobileSort: 'recent' }), true);
   assert.equal(evaluate({ mobileSort: 'title' }), true);
   assert.equal(evaluate({ isMobile: false, mobileSort: 'recent' }), false, 'MOBILE sorting never blocks WEB arrangement');

@@ -117,12 +117,52 @@ test('both presentations keep the same provider, DOM host, and child element ide
   }
 });
 
+function presentationBoundary(mode) {
+  // The attribute may scope the shell itself or a descendant portal host.
+  // The optional literal space permits only that descendant relation: no
+  // unscoped siblings, negated attributes, or arbitrary intervening selectors.
+  return new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
+}
+
+test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
+  for (const mode of ['web', 'mobile']) {
+    const boundary = presentationBoundary(mode);
+    assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
+    assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
+    for (const selector of [
+      '#root .codex-shell .mobile-project-description-sheet',
+      `#root .codex-shell + [data-presentation='${mode}'] .surface`,
+      `#root .codex-shell :not([data-presentation='${mode}']) .surface`,
+      `#root .codex-shell [data-presentation='${mode}-other'] .surface`,
+      `#root .codex-shell [data-presentation='${mode === 'mobile' ? 'web' : 'mobile'}'] .surface`,
+    ]) assert.equal(boundary.test(selector), false, selector);
+  }
+});
+
 test('every platform CSS selector is scoped, including nested rules and selector lists', () => {
   for (const mode of ['web', 'mobile']) {
     const root = postcss.parse(read(`../src/presentation/${mode}/${mode}.css`));
     let rules = 0;
-    root.walkAtRules((rule) => assert.ok(['media', 'supports', 'container'].includes(rule.name), `Global @${rule.name} is not platform scoped`));
+    const animationNames = new Set();
+    root.walkAtRules((rule) => {
+      if (rule.name === 'keyframes') {
+        // Keyframe steps aren't DOM selectors. Keep their names unique to this
+        // presentation, including the existing mobile description transition.
+        assert.ok(rule.params.startsWith(`${mode}-`) || (mode === 'mobile' && rule.params === 'project-description-arrive'), `Unscoped animation ${rule.params}`);
+        assert.ok(!animationNames.has(rule.params), `Duplicate animation ${rule.params}`);
+        animationNames.add(rule.params);
+        const otherMode = mode === 'web' ? 'mobile' : 'web';
+        assert.ok(!read(`../src/presentation/${otherMode}/${otherMode}.css`).includes(rule.params), `Animation ${rule.params} crosses presentations`);
+        assert.ok(!read('../src/index.css').includes(rule.params), `Animation ${rule.params} collides with shared CSS`);
+        return;
+      }
+      assert.ok(['media', 'supports', 'container'].includes(rule.name), `Global @${rule.name} is not platform scoped`);
+    });
     root.walkRules((rule) => {
+      if (rule.parent?.type === 'atrule' && rule.parent.name === 'keyframes') {
+        for (const step of rule.selectors) assert.match(step, /^(?:from|to|(?:100|\d{1,2})(?:\.\d+)?%)$/);
+        return;
+      }
       rules++;
       for (const selector of rule.selectors) {
         // Frame rules can target the scoped host itself; descendant rules and
@@ -130,8 +170,11 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // presentation attribute also scopes body-portalled mobile controls,
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
-        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
-        assert.match(selector, boundary);
+        const boundary = presentationBoundary(mode);
+        // AccountWelcomeSurface emits this alternate DOM scope only when
+        // usePresentation() is mobile; account-entry-focus exercises that gate.
+        const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='light')?\](?=[\s:.#\[]|$)/;
+        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)), `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

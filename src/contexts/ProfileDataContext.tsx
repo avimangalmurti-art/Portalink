@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from './ServicesContext';
+import { useAuth } from './AuthContext';
 import type { Id, Profile } from '../types/domain';
 
 /**
@@ -39,6 +40,8 @@ type ProfileDataContextValue = {
   /** Replace a profile with a confirmed service result without a loading flash. */
   cacheProfile: (profile: Profile) => void;
   revision: number;
+  /** Internal identity for records whose visibility depends on the viewer. */
+  scope: object;
 };
 const ProfileDataContext = createContext<ProfileDataContextValue | null>(null);
 export function ProfileDataProvider({
@@ -49,66 +52,88 @@ export function ProfileDataProvider({
   const {
     profiles: profileService
   } = useServices();
+  const accountId = useAuth().user?.id ?? null;
   const [revision, setRevision] = useState(0);
-  const cacheRef = useRef(new Map<Id, Profile>());
-  const inFlightRef = useRef(new Map<Id, Promise<Profile>>());
-  const cacheGenerationRef = useRef(0);
+  // A new identity gets an empty cache during render, before any child can peek
+  // at the previous owner's record. Returning to an account creates a new scope
+  // too: an old response cannot become current again after A -> B -> A.
+  const scope = useMemo(() => ({
+    accountId,
+    profileService,
+    cache: new Map<Id, Profile>(),
+    inFlight: new Map<Id, Promise<Profile>>(),
+    generation: 0,
+  }), [accountId, profileService]);
+  const currentScope = useRef<typeof scope | null>(scope);
+  currentScope.current = scope;
+  useEffect(() => {
+    currentScope.current = scope;
+    return () => { if (currentScope.current === scope) currentScope.current = null; };
+  }, [scope]);
   const invalidateProfiles = useCallback(() => {
+    if (currentScope.current !== scope) return;
     // Emptied rather than patched: after a write, every cached record is suspect,
     // and a stale entry is exactly what this boundary exists to prevent.
-    cacheGenerationRef.current += 1;
-    cacheRef.current.clear();
-    inFlightRef.current.clear();
+    scope.generation += 1;
+    scope.cache.clear();
+    scope.inFlight.clear();
     setRevision((current) => current + 1);
-  }, []);
+  }, [scope]);
   const cacheProfile = useCallback((profile: Profile) => {
-    cacheGenerationRef.current += 1;
-    inFlightRef.current.clear();
-    cacheRef.current.set(profile.id, profile);
+    if (currentScope.current !== scope) return;
+    scope.generation += 1;
+    scope.inFlight.clear();
+    scope.cache.set(profile.id, profile);
     setRevision(current => current + 1);
-  }, []);
-  const fetchProfile = useCallback(async (profileId: Id) => {
-    const cached = cacheRef.current.get(profileId);
+  }, [scope]);
+  const fetchProfile = useCallback(async (profileId: Id): Promise<Profile> => {
+    if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
+    const cached = scope.cache.get(profileId);
     if (cached) {
       return cached;
     }
-    const pending = inFlightRef.current.get(profileId);
+    const pending = scope.inFlight.get(profileId);
     if (pending) {
       return pending;
     }
 
-    const generation = cacheGenerationRef.current;
+    const generation = scope.generation;
     const request = profileService.getProfile(profileId).then((profile) => {
-      // A write may have invalidated this read while it was travelling. The
-      // caller may finish its own stale-safe lifecycle, but this old answer must
-      // never repopulate the shared cache after that invalidation.
-      if (cacheGenerationRef.current === generation) {
-        // Keyed by both the requested id and the record's own id, so a service
-        // that resolves an alias still answers a peek under either.
-        cacheRef.current.set(profileId, profile);
-        cacheRef.current.set(profile.id, profile);
-      }
+      if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
+      // A write may have invalidated this read while it was travelling. Join the
+      // current read/cache rather than returning the obsolete answer to a caller
+      // whose effect has not rerun yet.
+      if (scope.generation !== generation) return fetchProfile(profileId);
+      // Keyed by both the requested id and the record's own id, so a service
+      // that resolves an alias still answers a peek under either.
+      scope.cache.set(profileId, profile);
+      scope.cache.set(profile.id, profile);
       return profile;
+    }, (error: unknown) => {
+      if (currentScope.current !== scope) throw new Error('Your account changed. Please try again.');
+      if (scope.generation !== generation) return fetchProfile(profileId);
+      throw error;
     });
-    inFlightRef.current.set(profileId, request);
+    scope.inFlight.set(profileId, request);
     const clearRequest = () => {
-      if (inFlightRef.current.get(profileId) === request) {
-        inFlightRef.current.delete(profileId);
+      if (scope.inFlight.get(profileId) === request) {
+        scope.inFlight.delete(profileId);
       }
     };
     // Supplying both handlers keeps this housekeeping branch fulfilled even
     // when the caller receives a rejection to present through the route.
     void request.then(clearRequest, clearRequest);
     return request;
-  }, [profileService]);
-  const peekProfile = useCallback((profileId: Id) => cacheRef.current.get(profileId) ?? null, []);
+  }, [profileService, scope]);
+  const peekProfile = useCallback((profileId: Id) => currentScope.current === scope ? scope.cache.get(profileId) ?? null : null, [scope]);
   const value = useMemo<ProfileDataContextValue>(() => ({
     fetchProfile,
     peekProfile,
     invalidateProfiles,
     cacheProfile,
-    revision
-  }), [fetchProfile, peekProfile, invalidateProfiles, cacheProfile, revision]);
+    revision,
+    scope,
+  }), [fetchProfile, peekProfile, invalidateProfiles, cacheProfile, revision, scope]);
   return <ProfileDataContext.Provider value={value}>{children}</ProfileDataContext.Provider>;
 }
 export function useProfileData(): ProfileDataContextValue {
@@ -152,26 +177,32 @@ export function useProfileQuery(profileId: Id | null): ProfileQuery {
   const {
     fetchProfile,
     peekProfile,
-    revision
+    revision,
+    scope,
   } = useProfileData();
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<{
     profileId: Id | null;
+    scope: object;
     profile: Profile | null;
     status: ProfileQueryStatus;
     error: string | null;
   }>({
     profileId: null,
+    scope,
     profile: null,
     status: 'idle',
     error: null
   });
   const latestRequestRef = useRef(0);
+  const currentQuery = useRef({ profileId, scope });
+  currentQuery.current = { profileId, scope };
   useEffect(() => {
     if (!profileId) {
       latestRequestRef.current += 1;
       setState({
         profileId: null,
+        scope,
         profile: null,
         status: 'idle',
         error: null
@@ -183,6 +214,7 @@ export function useProfileQuery(profileId: Id | null): ProfileQuery {
       latestRequestRef.current += 1;
       setState({
         profileId,
+        scope,
         profile: prefetchedProfile,
         status: 'ready',
         error: null
@@ -193,43 +225,48 @@ export function useProfileQuery(profileId: Id | null): ProfileQuery {
     latestRequestRef.current = requestId;
     setState((current) => ({
       profileId,
+      scope,
       // Re-reading the SAME profile after an invalidation keeps the record on
       // screen: that is the same creator, not a substitution. A DIFFERENT id
       // clears it, so no surface ever shows one creator under another's id.
-      profile: current.profileId === profileId ? current.profile : null,
+      profile: current.profileId === profileId && current.scope === scope ? current.profile : null,
       status: 'loading',
       error: null
     }));
     fetchProfile(profileId).then((profile) => {
-      if (latestRequestRef.current !== requestId) {
+      if (latestRequestRef.current !== requestId || currentQuery.current.scope !== scope || currentQuery.current.profileId !== profileId) {
         return;
       }
       setState({
         profileId,
+        scope,
         profile,
         status: 'ready',
         error: null
       });
     }).catch((error) => {
-      if (latestRequestRef.current !== requestId) {
+      if (latestRequestRef.current !== requestId || currentQuery.current.scope !== scope || currentQuery.current.profileId !== profileId) {
         return;
       }
       const missing = isMissing(error);
       setState({
         profileId,
+        scope,
         // Nothing is shown in its place, whichever way the read went wrong.
         profile: null,
         status: missing ? 'not-found' : 'error',
         error: messageFor(error, missing ? 'That profile does not exist.' : 'That profile could not be read.')
       });
     });
-  }, [profileId, fetchProfile, peekProfile, revision, attempt]);
+    return () => { latestRequestRef.current += 1; };
+  }, [profileId, fetchProfile, peekProfile, revision, attempt, scope]);
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
   const prefetchedProfile = profileId ? peekProfile(profileId) : null;
+  const matchesQuery = state.profileId === profileId && state.scope === scope;
   return useMemo(() => ({
-    profile: state.profileId === profileId ? state.profile : prefetchedProfile,
-    status: state.profileId === profileId ? state.status : prefetchedProfile ? 'ready' : profileId ? 'loading' : 'idle',
-    error: state.error,
+    profile: matchesQuery ? state.profile : prefetchedProfile,
+    status: matchesQuery ? state.status : prefetchedProfile ? 'ready' : profileId ? 'loading' : 'idle',
+    error: matchesQuery ? state.error : null,
     retry
-  }), [state, profileId, prefetchedProfile, retry]);
+  }), [state, profileId, prefetchedProfile, retry, matchesQuery]);
 }

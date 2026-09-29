@@ -29,6 +29,7 @@ type HomeFeedProps = {
   /** Reserved for future search on the mobile Home route. */
   showSearchPlaceholder?: boolean;
   emptyAction?: { label: string; onClick: () => void };
+  emptySecondaryAction?: { label: string; onClick: () => void };
   emptyTitle?: string;
   emptyDescription?: string;
 };
@@ -68,6 +69,7 @@ export function HomeFeed({
   locationId,
   showSearchPlaceholder = false,
   emptyAction,
+  emptySecondaryAction,
   emptyTitle = 'Your Home feed is ready',
   emptyDescription = 'Your published work and new work from creators you follow will appear here.',
 }: HomeFeedProps) {
@@ -212,6 +214,7 @@ export function HomeFeed({
                   title={emptyTitle}
                   description={emptyDescription}
                   action={emptyAction}
+                  secondaryAction={emptySecondaryAction}
                 />
               : null}
             {layoutReady && projects.length > 0 ? isMobile

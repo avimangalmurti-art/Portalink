@@ -198,7 +198,7 @@ test('ordinary profile and shared-profile screens retain the app-shell vertical 
   assert.ok(expression);
   for (const kind of ['profile', 'sharedProfile']) {
     const classes = vm.runInNewContext(expression, { route: { kind }, activeCategory: null,
-      isSearchOpen: false, isMessagesOpen: false, inDesignFeature: null });
+      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, inDesignFeature: null });
     assert.match(classes, /\boverflow-y-auto\b/);
     assert.doesNotMatch(classes, /\boverflow-hidden\b/);
   }

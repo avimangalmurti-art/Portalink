@@ -8,7 +8,11 @@ import ts from 'typescript';
 function mount({ delayedAnchor = false } = {}) {
   let layoutEffect, frame, observerCallback, observerTarget, disconnected = false, resize;
   const styles = new Map();
-  const overlay = { style: { setProperty: (key, value) => styles.set(key, value), removeProperty: key => styles.delete(key) } };
+  const attributes = new Set();
+  const overlay = {
+    style: { setProperty: (key, value) => styles.set(key, value), removeProperty: key => styles.delete(key) },
+    toggleAttribute: (name, enabled) => enabled ? attributes.add(name) : attributes.delete(name),
+  };
   const header = { bottom: 108, getBoundingClientRect() { return { bottom: this.bottom }; } };
   const anchor = { closest: () => ({ querySelector: () => header }) };
   const anchorRef = { current: delayedAnchor ? null : anchor };
@@ -38,7 +42,7 @@ test('fresh portal entry measures the header and dock after the parent ref attac
   assert.equal(h.styles.size, 0);
   h.attach();
   assert.equal(h.styles.get('--mobile-content-safe-bottom'), '80px');
-  assert.equal(h.styles.get('--mobile-project-panel-top'), '116px');
+  assert.equal(h.styles.get('--mobile-project-panel-top'), '120px');
   assert.equal(h.observerTarget, h.header);
   h.cleanup();
   assert.equal(h.cleanedUp, true);
@@ -46,10 +50,10 @@ test('fresh portal entry measures the header and dock after the parent ref attac
 
 test('profile options expansion moves the floating panel below the new header height', () => {
   const h = mount();
-  assert.equal(h.styles.get('--mobile-project-panel-top'), '116px');
+  assert.equal(h.styles.get('--mobile-project-panel-top'), '120px');
   h.header.bottom = 220;
   h.updateHeader();
-  assert.equal(h.styles.get('--mobile-project-panel-top'), '228px');
+  assert.equal(h.styles.get('--mobile-project-panel-top'), '232px');
   h.header.bottom = 0;
   h.updateHeader();
   assert.equal(h.styles.has('--mobile-project-panel-top'), false);

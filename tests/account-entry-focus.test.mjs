@@ -167,3 +167,10 @@ test('signup and recovery retain their existing heading, frame and caller-contro
     }
   }
 });
+
+test('the mobile onboarding CSS scope cannot be emitted on WEB even with a retained signup prop', () => {
+  const h = welcomeHarness('web');
+  const tree = h.render('Create your account', { mobileOnboarding: true });
+  assert.equal(tree.props['data-mobile-onboarding'], undefined);
+  h.paint(); h.afterPaint(); h.unmount();
+});
