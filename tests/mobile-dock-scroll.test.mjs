@@ -37,13 +37,13 @@ test('actual nested content scrolling hides the dock through momentum and restor
   const h=harness(); h.render(); h.emit('scroll'); assert.equal(h.hidden,false);
   h.emit('wheel'); assert.equal(h.hidden,false,'No movement means no hiding');
   h.emit('scroll'); assert.equal(h.hidden,true); assert.equal(h.dock.inert,true); assert.equal(h.dock.attrs.get('aria-hidden'),'true');
-  h.tick(200); h.emit('scroll'); h.tick(200); assert.equal(h.hidden,true);
-  h.tick(50); assert.equal(h.hidden,false); assert.equal(h.dock.inert,false); assert.equal(h.dock.attrs.size,0);
+  h.tick(200); h.emit('scroll'); h.tick(699); assert.equal(h.hidden,true,'Brief pauses do not flash the dock');
+  h.tick(1); assert.equal(h.hidden,false); assert.equal(h.dock.inert,false); assert.equal(h.dock.attrs.size,0);
   h.emit('scroll'); assert.equal(h.hidden,false,'Restored position without another gesture stays visible'); h.unmount();
 });
 test('phone panning survives native pointer cancellation, while pinch cannot arm hiding', () => {
   const h=harness(); h.render(); h.emit('pointerdown'); h.emit('pointermove',undefined,{clientY:120}); h.emit('pointercancel'); h.emit('scroll');
-  assert.equal(h.hidden,true); h.tick(250);
+  assert.equal(h.hidden,true); h.tick(700);
   h.emit('pointerdown'); h.emit('pointerdown',undefined,{isPrimary:false,pointerId:2}); h.emit('pointercancel'); h.emit('scroll'); assert.equal(h.hidden,false);
   h.emit('wheel',undefined,{ctrlKey:true}); h.emit('scroll'); assert.equal(h.hidden,false); h.unmount();
 });
@@ -62,4 +62,12 @@ test('keyboard access, focus, route changes, expanded navigation and unmount res
   hide(h); h.render(true,'/p/creator'); assert.equal(h.hidden,false); assert.equal(h.timers.size,0);
   hide(h); h.render(false,'/p/creator'); assert.equal(h.hidden,false); assert.equal(h.listeners.size,0);
   h.render(); h.dock.inert=true; hide(h); h.unmount(); assert.equal(h.dock.inert,true); assert.equal(h.listeners.size,0); assert.equal(h.timers.size,0);
+});
+
+test('a deliberate content tap reveals the dock immediately while continued drags keep it hidden', () => {
+  const h=harness(); h.render(); hide(h);
+  h.emit('pointerdown'); h.emit('pointerup');
+  assert.equal(h.hidden,false); assert.equal(h.dock.inert,false); assert.equal(h.timers.size,0);
+  hide(h); h.emit('pointerdown'); h.emit('pointermove',undefined,{clientY:120}); h.emit('pointerup',undefined,{clientY:120});
+  assert.equal(h.hidden,true); h.unmount();
 });

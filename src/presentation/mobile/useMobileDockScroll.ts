@@ -1,6 +1,7 @@
 import { useEffect, type RefObject } from 'react';
 
-const IDLE_DELAY = 250;
+// Brief reading pauses should not repeatedly flash navigation over the work.
+const IDLE_DELAY = 700;
 const excluded = '.mobile-navigation-layer, [data-mobile-project-view], [role="dialog"], [role="menu"], [inert], .screen-exit, [aria-hidden="true"], input, textarea, select, [contenteditable="true"]';
 
 /** Browsing hides only the dock; project reading owns its separate tap-to-reveal state. */
@@ -54,7 +55,12 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       if (gesture) intent = true;
       gesture = null;
     };
-    const up = () => { gesture = null; };
+    const up = (event: PointerEvent) => {
+      const start = gesture;
+      gesture = null;
+      if (hidden && start?.id === event.pointerId && !intent &&
+        Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 8) restore();
+    };
     const key = () => restore();
     const focus = () => restore();
     document.addEventListener('scroll', scroll, { capture: true, passive: true });

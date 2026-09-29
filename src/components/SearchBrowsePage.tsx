@@ -6,6 +6,7 @@ import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PortalinkPage } from './PortalinkPage';
 import { CityContentPage } from './CityContentPage';
 import { EmptyState } from './ui/StateViews';
+import { usePresentation } from '../presentation/usePresentation';
 
 type SearchBrowsePageProps = {
   query: string;
@@ -18,6 +19,7 @@ type SearchBrowsePageProps = {
   locationId: Id | null;
   onOpenAtlas: () => void;
   onOpenWorld: () => void;
+  onReturnHome?: () => void;
   onOpenLocation: (locationId: Id) => void;
 };
 
@@ -29,8 +31,11 @@ export function SearchBrowsePage({
   view,
   locationId,
   onOpenAtlas,
+  onOpenWorld,
+  onReturnHome,
   onOpenLocation
 }: SearchBrowsePageProps) {
+  const isMobile = usePresentation() === 'mobile';
   if (view === 'location') {
     const selectedCity = cities.find((city) => toLocationId(city.name) === locationId) ?? null;
 
@@ -40,6 +45,7 @@ export function SearchBrowsePage({
           <EmptyState
             title="Location not found"
             description="Return to Portalink and choose another place."
+            action={isMobile ? { label: 'Browse another city', onClick: onOpenWorld } : undefined}
           />
         </div>
       );
@@ -48,7 +54,7 @@ export function SearchBrowsePage({
     return (
       <CityContentPage
         city={selectedCity}
-        onBack={onOpenAtlas}
+        onBack={isMobile ? onOpenWorld : onOpenAtlas}
         onOpenProject={onOpenProject}
         onOpenCreator={onOpenCreator}
         onWarmCreator={onWarmCreator}
@@ -59,7 +65,7 @@ export function SearchBrowsePage({
   if (view === 'world') {
     return (
       <PortalinkPage
-        onBack={onOpenAtlas}
+        onBack={isMobile && onReturnHome ? onReturnHome : onOpenAtlas}
         onSelectCity={(city) => onOpenLocation(toLocationId(city.name))}
         live={live}
       />

@@ -11,8 +11,12 @@ import { ProjectCover } from '../../components/media/ProjectCover';
 import { EmptyState, ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { usePresentation } from '../../presentation/usePresentation';
+import { buildPath } from '../../app/routes';
 
 export function SavedPagesCollection() {
+  const isMobile = usePresentation() === 'mobile';
+  const navigate = useNavigate();
   const { projects } = useServices();
   const [cursors, setCursors] = useState<Array<string | null>>([null]);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -32,9 +36,10 @@ export function SavedPagesCollection() {
   }, [cursor, projects]);
   const state = useAccountQuery(query);
   const items = state.data?.items.filter(({ target }) => !removed.has(savedPageKey(target))) ?? [];
+  const isEmptyLibrary = cursors.length === 1 && !state.data?.nextCursor;
   return <section aria-label="Saved pages">
     <p className="mb-5 text-[13px] text-[var(--text-secondary)]">Individual pages and images, saved separately from their projects. Most recently saved first.</p>
-    {state.loading ? <LoadingState label="Loading saved pages" /> : state.error ? <ErrorState title="Unable to load saved pages" description={state.error} onRetry={state.retry} /> : !items.length ? <EmptyState title={cursors.length > 1 || state.data?.nextCursor ? 'No remaining saves on this page' : 'No saved pages yet'} description="Use the bookmark on an individual page or image to keep it here." /> : <ul className="m-0 grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 xl:grid-cols-3">
+    {state.loading ? <LoadingState label="Loading saved pages" /> : state.error ? <ErrorState title="Unable to load saved pages" description={state.error} onRetry={state.retry} /> : !items.length ? <EmptyState title={isEmptyLibrary ? 'No saved pages yet' : 'No remaining saves on this page'} description="Use the bookmark on an individual page or image to keep it here." action={isMobile && isEmptyLibrary ? { label: 'Explore the world', onClick: () => navigate(buildPath('portalink')) } : undefined} /> : <ul className="m-0 grid list-none grid-cols-1 gap-5 p-0 sm:grid-cols-2 xl:grid-cols-3">
       {items.map(({ target, presentation }) => <SavedPageCard key={savedPageKey(target)} target={target} presentation={presentation} onRemoved={() => setRemoved((current) => new Set([...current, savedPageKey(target)]))} />)}
     </ul>}
     <div className="mt-6 flex items-center gap-3" aria-label="Saved pages pagination">

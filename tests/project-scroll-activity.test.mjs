@@ -85,18 +85,19 @@ test('decorative PDF canvases inside a visible labelled page still start content
   assert.equal(h.hidden, true); h.unmount();
 });
 
-test('real scrolling hides all controls and restores after momentum ends or the idle fallback', () => {
+test('real scrolling hides all controls through short pauses and restores after quiet reading time', () => {
   const h = harness(); h.render();
   h.emit('scroll'); assert.equal(h.hidden, false, 'Restored scroll on entry is not a user gesture');
   hide(h);
   assert.ok(h.controls.every(c => c.inert));
   h.emit('pointermove'); h.tick(200); assert.equal(h.hidden, true);
-  h.emit('scroll'); h.tick(249); assert.equal(h.hidden, true, 'Each momentum frame restarts the idle fallback');
+  h.emit('scroll'); h.tick(699); assert.equal(h.hidden, true, 'Each momentum frame restarts the quiet pause');
   h.tick(1); assert.equal(h.hidden, false);
   assert.equal(h.controls[0].inert, false); assert.equal(h.controls[1].inert, true);
   h.emit('scroll'); assert.equal(h.hidden, false, 'Programmatic scroll after completion is not a new gesture');
   hide(h); h.emit('scrollend', new Target({ stage: false })); assert.equal(h.hidden, true);
-  h.emit('scrollend'); assert.equal(h.hidden, false); assert.equal(h.timers, 0);
+  h.emit('scrollend'); h.tick(250); assert.equal(h.hidden, true, 'Native scrollend must not reveal chrome during a short pause');
+  h.tick(450); assert.equal(h.hidden, false); assert.equal(h.timers, 0);
   h.unmount();
 });
 
@@ -127,6 +128,14 @@ test('a page double tap reaches both page handlers without toggling chrome, visi
     assert.equal(h.emit('click', artwork).prevented, false);
     h.unmount();
   }
+});
+
+test('focus gained by a tapped page does not turn a reveal tap into another hide', () => {
+  const h = harness(), artwork = new Target(); h.render(); hide(h);
+  h.emit('pointerdown', artwork); h.emit('focusin', artwork);
+  assert.equal(h.hidden, false);
+  h.emit('pointerup', artwork); h.tick(340);
+  assert.equal(h.hidden, false); h.unmount();
 });
 
 test('pan movement, cancellation, multi-touch and long holds do not reveal controls', () => {
@@ -160,7 +169,7 @@ test('native players, 3D controls, inputs and action buttons keep their taps; sc
     assert.equal(h.hidden, false); assert.equal(release.prevented || release.stopped, false);
   }
   hide(h); assert.equal(h.videos[0].controls, false);
-  h.tick(250); assert.equal(h.videos[0].controls, true);
+  h.tick(700); assert.equal(h.videos[0].controls, true);
   assert.equal(h.videos[0].paused, false); assert.equal(h.videos[0].currentTime, 32);
   assert.ok(h.controlQueries.every(selector => !selector.includes('[data-mobile-project-page-count]')));
   assert.ok(h.controlQueries.some(selector => selector.includes('button:not([data-mobile-page-navigator] *)')),
@@ -176,11 +185,11 @@ test('native players, 3D controls, inputs and action buttons keep their taps; sc
 test('scroll restoration respects the current requested video controls instead of a stale snapshot', () => {
   const h = harness(), video = h.videos[0];
   video.controls = false; video.setAttribute('data-video-controls-requested', 'false');
-  h.render(); hide(h); h.tick(250);
+  h.render(); hide(h); h.tick(700);
   assert.equal(video.controls, false, 'Finishing a scroll must not reveal untouched playback controls');
   hide(h);
   video.setAttribute('data-video-controls-requested', 'true');
-  h.emit('scrollend');
+  h.tick(700);
   assert.equal(video.controls, true, 'A first tap during reading mode supersedes the captured false value');
   hide(h);
   video.setAttribute('data-video-controls-requested', 'false');
@@ -218,6 +227,7 @@ test('media keeps its playback and controls are restored; controls mounted while
 test('navigation, desktop switch, keyboard and modal opening safely restore controls', () => {
   const h = harness(); h.render(); h.focus(true); h.emit('wheel'); h.emit('scroll'); assert.equal(h.hidden, false);
   h.focus(false); hide(h); h.emit('keydown', undefined, { key: 'Tab' }); assert.equal(h.hidden, false);
+  hide(h); h.emit('focusin'); assert.equal(h.hidden, false, 'Focus reveals chrome without waiting for the reading pause');
   hide(h); h.modal(true); h.refreshDom(); assert.equal(h.hidden, false); h.modal(false);
   hide(h); h.render(true, '/project/b'); assert.equal(h.hidden, false); h.emit('scroll'); assert.equal(h.hidden, false);
   hide(h); h.render(false, '/profile'); assert.equal(h.hidden, false); assert.equal(h.listeners.size, 0);

@@ -122,6 +122,7 @@
   --mobile-navigation-inset-start: max(12px, env(safe-area-inset-left, 0px));
   --mobile-navigation-inset-end: max(12px, env(safe-area-inset-right, 0px));
   --mobile-navigation-frame-width: 420px;
+  --mobile-project-actions-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 12px);
 }
 
 /* Reserve the floating control's clearance only where this navigation exists. */
@@ -2212,6 +2213,33 @@
   border-radius: 0 0 8px 8px;
 }
 
+#root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
+  container-type: inline-size;
+  container-name: mobile-project-card;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
+  display: none;
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--hairline);
+}
+
+@container mobile-project-card (min-width: 112px) {
+  #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
+    display: flex;
+  }
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-identity-and-links {
   flex: 1 1 auto;
   gap: 8px;
@@ -2412,29 +2440,16 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back.mobile-project-portal-preview {
   position: fixed;
   top: auto;
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom));
   left: auto;
   right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 52px);
 }
 
-/* Two project controls share the dock's baseline and have their own right-hand
-   slots. All main destinations remain available, with native scrolling on
-   narrow phones instead of smaller touch targets. */
-#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-floating-navigation {
-  max-width: calc(var(--mobile-navigation-frame-width) - 104px);
-  inset-inline-end: 104px;
-  touch-action: pan-x pan-y;
+/* Project actions sit together above the unchanged primary dock. The last
+   page can scroll clear of both rows without resizing the artwork viewport. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
+  --mobile-content-safe-bottom: max(var(--safe-area-bottom), calc(var(--mobile-project-actions-bottom) + 56px));
 }
-#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview):where(html[data-standalone] *) .mobile-floating-navigation {
-  inset-inline-end: calc(var(--mobile-navigation-inset-end) + 104px);
-}
-
-#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock {
-  overflow-x: auto;
-  scrollbar-width: none;
-  touch-action: pan-x;
-}
-#root .codex-shell[data-presentation='mobile']:has(.mobile-project-portal-preview) .mobile-navigation-dock::-webkit-scrollbar { display: none; }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back [data-interface-icon-frame] {
   --interface-icon-size: 26px;
@@ -2673,11 +2688,11 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
   position: fixed;
   top: auto;
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom));
   right: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
   width: 44px !important;
   max-width: 56px;
-  max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--safe-area-top) - var(--mobile-dock-bottom) - 16px);
+  max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--safe-area-top) - var(--mobile-project-actions-bottom) - 16px);
   padding: 0;
   align-items: center;
   border-radius: 24px;
@@ -2685,7 +2700,7 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open='true'] {
   width: 56px !important;
   right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-dock-bottom) + (var(--mobile-dock-size) - 44px) / 2 - 4px);
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom) - 4px);
   padding: 4px;
 }
 [data-presentation='mobile'] [data-mobile-engagement-content] { flex: 0 0 auto; width: 48px; }

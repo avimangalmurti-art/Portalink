@@ -164,6 +164,7 @@ test('images resolve by attachment identity after reordering; inaccessible or re
 
 function savedPageModule(useSearchParams) {
   return load('../src/features/library/PersonalPages.tsx', {
+    '../../presentation/usePresentation': { usePresentation: () => 'web' },
     '../../presentation/mobile/MobileBackNavigation': { ScreenBack: ({ children }) => React.createElement(React.Fragment, null, children) },
     react: React, 'lucide-react': {}, 'react-router-dom': { useSearchParams },
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },

@@ -1,6 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
+import { InfoIcon } from 'lucide-react';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
 import { getProjectAspectRatio, getProjectCoverPreview } from '../../utils/projectPresentation';
@@ -38,9 +40,10 @@ type Props = {
 export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio }: Props) {
-  // Tiny overview thumbnails open the work directly; their text/actions cannot
-  // fit inside the thumbnail. Normal-size cards retain the existing preview.
-  const preview = useContentPreview(disabled, 80);
+  const isMobile = usePresentation() === 'mobile';
+  // On phones artwork opens the work on its first tap. Details have a separate
+  // control on cards large enough to contain a comfortable touch target.
+  const preview = useContentPreview(disabled, 80, isMobile);
   const reduceMotion = useReducedMotion();
   const [settled, setSettled] = useState(false);
   const extensionRef = useRef<HTMLDivElement>(null);
@@ -61,16 +64,19 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
     'data-preview-open': '', 'data-project-continuity-surface': '', 'data-project-continuity-id': project.id,
     style: projectContinuityStyle(project.id), onPointerEnter: onWarmCreator, onFocus: onWarmCreator,
     onClick: (event: React.MouseEvent<HTMLElement>) => preview.open(event, href ? () => undefined : onOpen),
-    'aria-label': label, 'aria-expanded': preview.expanded,
+    'aria-label': label, 'aria-expanded': isMobile ? undefined : preview.expanded,
     className: 'project-preview-artwork absolute inset-0 block h-full w-full overflow-hidden bg-[var(--surface-sunken)] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]',
   };
   const artwork = <span className="project-preview-image absolute inset-0 block">
     {cover ?? <ProjectCover source={project.cover} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} />}
   </span>;
-  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
+  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />
+      {isMobile && !disabled && <button type="button" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+        aria-label={`${preview.expanded ? 'Hide' : 'Show'} details for ${project.title}`} aria-expanded={preview.expanded}
+        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><InfoIcon size={20} aria-hidden="true" /></button>}
       {editor}
     </div>
     {hasExtension && <motion.div initial={false} animate={{ height: preview.expanded ? 'auto' : 0, opacity: preview.expanded ? 1 : 0 }}

@@ -1,13 +1,14 @@
 import { useEffect, type RefObject } from 'react';
 
-const SCROLL_IDLE_DELAY = 250;
+// Let short reading pauses settle before bringing interface chrome back.
+const SCROLL_IDLE_DELAY = 700;
 // Overview pages use a 320ms double-tap window. Wait before treating a tap as
 // chrome control so both pointer-up events still reach their page renderer.
 const SINGLE_TAP_DELAY = 340;
 
 // Only interface surfaces: page/image buttons remain part of the artwork.
 const controlsSelector = [
-  '.mobile-navigation-layer', '.shared-profile-sidebar:not([data-mobile-shared-sidebar])', '.mobile-project-back',
+  '.mobile-navigation-layer', '.shared-profile-sidebar:not([data-mobile-shared-sidebar])', '.mobile-project-back', '.mobile-project-gesture-hint',
   '[data-mobile-project-view] [data-project-index-panel]',
   '[data-mobile-project-view] [data-project-response-rail]',
   '.mobile-project-index-dismiss', '[data-mobile-project-view] [data-project-file-strip]',
@@ -20,7 +21,7 @@ const controlsSelector = [
 ].join(',');
 
 /** One mobile reading state for app chrome and the media's native controls.
- * A single artwork tap toggles chrome; scrolling hides it until movement stops.
+ * A single artwork tap toggles chrome; scrolling hides it through short pauses.
  */
 export function useProjectScrollActivity(enabled: boolean, pathname: string, navigation: RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -29,7 +30,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     let hidden = false, scrollIntent = false;
     let idleTimer: number | undefined, tapTimer: number | undefined;
     let pendingTap: { target: Element; x: number; y: number; time: number } | null = null;
-    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean; doubleTap: boolean } | null = null;
+    let gesture: { id: number; x: number; y: number; time: number; moved: boolean; stage: boolean; tap: boolean; doubleTap: boolean; reveal: boolean } | null = null;
     const controls = new Map<HTMLElement, boolean | null>();
     const videos = new Map<HTMLVideoElement, boolean>();
     const modalOpen = () => Boolean(frame.querySelector('[aria-modal="true"], [role="menu"]'));
@@ -81,7 +82,6 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       clearIdle();
       idleTimer = window.setTimeout(restore, SCROLL_IDLE_DELAY);
     };
-    const scrollEnd = (event: Event) => { if (scrollIntent && hidden && inStage(event.target)) restore(); };
     const wheel = (event: WheelEvent) => {
       clearTap();
       scrollIntent = !event.ctrlKey && !event.metaKey && Boolean(event.deltaX || event.deltaY) && inStage(event.target) && !modalOpen();
@@ -93,7 +93,7 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       if (event.button !== 0 || !inFrame(event.target) || modalOpen()) { gesture = null; return; }
       scrollIntent = false;
       const stage = inStage(event.target);
-      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage,
+      gesture = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, moved: false, stage, reveal: hidden,
         // Let media players, links, editing fields and 3D canvases own their taps.
         tap: stage && !event.target.closest('audio, iframe, model-viewer, canvas[role="img"], a[href], button, [role="slider"], [role="menu"], [role="dialog"], [contenteditable="true"]') &&
           (!event.target.closest('video') || hidden),
@@ -121,7 +121,9 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       tapTimer = window.setTimeout(() => {
         clearTap();
         if (!target.isConnected || !inStage(target) || modalOpen()) return;
-        if (hidden) restore(); else hide();
+        // The tapped page may gain focus before pointer-up. Preserve the tap's
+        // original intent instead of hiding controls that focus just revealed.
+        if (start.reveal) restore(); else hide();
       }, SINGLE_TAP_DELAY);
     };
     const key = (event: KeyboardEvent) => {
@@ -130,11 +132,11 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       restore();
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
     };
+    const focus = () => { if (hidden) restore(); };
     syncControls();
     const observer = new MutationObserver(() => { if (hidden && modalOpen()) restore(); syncControls(); });
     observer.observe(frame, { childList: true, subtree: true });
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
-    document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
     // Observe the original content gesture alongside nonmodal navigation;
     // closing navigation does not consume the page's scroll or tap intent.
@@ -143,17 +145,18 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     document.addEventListener('pointerup', up, true);
     document.addEventListener('pointercancel', cancel, true);
     document.addEventListener('keydown', key, true);
+    document.addEventListener('focusin', focus, true);
     return () => {
       observer.disconnect(); restore();
       controls.forEach((_, element) => element.removeAttribute('data-project-reading-control'));
       document.removeEventListener('scroll', scroll, true);
-      document.removeEventListener('scrollend', scrollEnd, true);
       document.removeEventListener('wheel', wheel, true);
       window.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointermove', move, true);
       document.removeEventListener('pointerup', up, true);
       document.removeEventListener('pointercancel', cancel, true);
       document.removeEventListener('keydown', key, true);
+      document.removeEventListener('focusin', focus, true);
     };
   }, [enabled, pathname, navigation]);
 }

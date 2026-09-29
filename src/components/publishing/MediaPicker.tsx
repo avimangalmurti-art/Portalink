@@ -138,7 +138,7 @@ export function MediaPicker({
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
           </Button>
-          <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
+          <p className="text-[13px] text-[var(--text-secondary)]">{compact ? 'Choose photos, videos or documents from your device.' : 'or drop files here'}</p>
         </div> : <div className="project-media-selection">
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
           {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {

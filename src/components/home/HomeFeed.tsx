@@ -8,7 +8,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
-import { RotateCwIcon, SearchIcon, XIcon } from 'lucide-react';
+import { Globe2Icon, RotateCwIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
@@ -26,8 +26,9 @@ type HomeFeedProps = {
   scrollMemoryKey?: string;
   /** Present only for a Portalink city surface; switches to location placement. */
   locationId?: Id;
-  /** Reserved for future search on the mobile Home route. */
+  /** Shows the mobile Home discovery and refresh entry. */
   showSearchPlaceholder?: boolean;
+  onExploreWorld?: () => void;
   emptyAction?: { label: string; onClick: () => void };
   emptySecondaryAction?: { label: string; onClick: () => void };
   emptyTitle?: string;
@@ -56,7 +57,7 @@ function writeFeedScroll(key: string, value: number): void {
 /**
  * The signed-in viewer's relationship feed.
  *
- * Search and global discovery live at `/search`; Home has one predictable job:
+ * Global discovery lives at `/portalink`; Home has one predictable job:
  * show every published project owned by the viewer or by a creator they follow.
  * The service decides eligibility. This component only deduplicates the
  * featured/project overlap in the response and presents the canonical records.
@@ -68,6 +69,7 @@ export function HomeFeed({
   scrollMemoryKey = 'home',
   locationId,
   showSearchPlaceholder = false,
+  onExploreWorld,
   emptyAction,
   emptySecondaryAction,
   emptyTitle = 'Your Home feed is ready',
@@ -81,9 +83,6 @@ export function HomeFeed({
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
   const autoScrollRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const [searchDraft, setSearchDraft] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [hasReloaded, setHasReloaded] = useState(false);
   const [locationGridWidth, setLocationGridWidth] = useState(0);
   const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
@@ -169,26 +168,18 @@ export function HomeFeed({
       >
         <div data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header">
-            <form role="search" aria-label="Home search" onSubmit={event => event.preventDefault()}>
-              <div className="field-shell text-control-shell flex h-11 w-full items-center gap-2.5 rounded-[8px] pl-3 pr-0">
-                <InterfaceIcon icon={SearchIcon} size="sm" weight="medium" className="text-[var(--text-tertiary)]" />
-                <input ref={searchInputRef} type="search" value={searchDraft} onChange={event => setSearchDraft(event.target.value)}
-                  onFocus={() => setIsSearchFocused(true)} onBlur={() => setIsSearchFocused(false)}
-                  placeholder="Search · Coming soon" aria-label="Search Home" aria-describedby="home-search-status" autoComplete="off" enterKeyHint="search"
-                  onKeyDown={event => { if (event.key === 'Escape') { setSearchDraft(''); event.currentTarget.blur(); } }}
-                  className="min-w-0 flex-1 border-0 bg-transparent p-0 pr-3 text-[16px] text-[var(--text-primary)]" />
-                {searchDraft && <button type="button" aria-label="Clear search" onClick={() => { setSearchDraft(''); searchInputRef.current?.focus({ preventScroll: true }); }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <InterfaceIcon icon={XIcon} size="sm" />
+              <div className={feed.isEmpty ? 'flex min-h-11 w-full items-center' : 'field-shell text-control-shell flex min-h-11 w-full items-center rounded-[8px]'}>
+                {onExploreWorld && !feed.isEmpty && <button type="button" onClick={onExploreWorld}
+                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-3 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  <InterfaceIcon icon={Globe2Icon} size="sm" weight="medium" className="shrink-0 text-[var(--text-secondary)]" />
+                  <span>Explore the world</span>
                 </button>}
                 <button type="button" aria-label="Reload Home content" title="Reload Home content" disabled={feed.isRefreshing || feed.status === 'loading'}
                   aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
                   <InterfaceIcon icon={RotateCwIcon} size="sm" weight="medium" effect="rotate" effectActive={feed.isRefreshing} />
                 </button>
               </div>
-              <p id="home-search-status" className={isSearchFocused ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>Search is still being designed.</p>
-            </form>
             <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>

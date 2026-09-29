@@ -66,6 +66,21 @@ test('every starting density can reach both endpoints, including multiple events
   }
 });
 
+test('explicit gallery controls share density commits and supersede a pending gesture', () => {
+  const h = harness(); h.render(4, true, 4);
+  h.wheel(1);
+  h.render(4, true, 4).chooseColumns(2);
+  assert.equal(h.render(4, true, 4).columns, 2);
+  assert.deepEqual(h.commits, [2]);
+  h.flush(220);
+  assert.deepEqual(h.commits, [2], 'old wheel timer cannot overwrite the visible choice');
+  h.render(4, true, 4).chooseColumns(99);
+  assert.equal(h.render(4, true, 4).columns, 13);
+  h.render(4, false, 4).chooseColumns(2);
+  assert.equal(h.render(4, false, 4).columns, 13, 'reorder keeps density controls disabled');
+  h.cleanup();
+});
+
 test('responsive resize retains viewer density; creator density change resets it and the readout', () => {
   const h = harness(); h.render(4, true, 4);
   h.wheel(1); assert.equal(h.render(4, true, 4).columns, 5);

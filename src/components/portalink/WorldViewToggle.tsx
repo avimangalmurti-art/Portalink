@@ -1,9 +1,11 @@
 import React from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { usePresentation } from '../../presentation/usePresentation';
 
-/** The Satellite surface has one conventional way back to Search. */
+/** World returns to Home on MOBILE and the Search entry on WEB. */
 export function WorldViewToggle({ onToggle }: { onToggle: () => void }) {
+  const isMobile = usePresentation() === 'mobile';
   /*
    * Icon only: the destination's name still reaches assistive tech through the
    * label and a sighted viewer through the tooltip, so nothing is lost by dropping
@@ -15,7 +17,7 @@ export function WorldViewToggle({ onToggle }: { onToggle: () => void }) {
    * theme's blanket "every icon is text-primary" rule, which would otherwise
    * repaint the accent straight back to white.
    */
-  return <button type="button" onClick={onToggle} aria-label="Back to Search" title="Back" data-keep-color="" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--portalink-text-primary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] motion-reduce:transition-none">
+  return <button type="button" onClick={onToggle} aria-label={isMobile ? 'Back to Home' : 'Back to Search'} title={isMobile ? 'Back to Home' : 'Back'} data-keep-color="" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--portalink-text-primary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] motion-reduce:transition-none">
       <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" keepColor mirroredInRtl />
     </button>;
 }

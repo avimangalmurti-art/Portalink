@@ -11,6 +11,7 @@ import type { Id } from '../types/domain';
 import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
 import { MessageControlsDialog } from './messages/MessageControlsDialog';
+import { MobileMessageActions } from './messages/MobileMessageActions';
 import { ProfileAvatar } from './profile/ProfileAvatar';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
@@ -343,7 +344,7 @@ export function MessagesPage({
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}</div> : null}
                 {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
                 {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
-                {messaging.status === 'success' && visibleConversations.length === 0 ? <div className="side-panel-content-inset py-5"><EmptyState title={conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
+                {messaging.status === 'success' && visibleConversations.length === 0 && (!isMobile || !isSearching) ? <div className="side-panel-content-inset py-5"><EmptyState title={isMobile && query.trim() ? 'No matching conversations' : conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : query.trim() ? 'No matching conversations' : 'No conversations yet'} description={isMobile && query.trim() ? 'Try another name or message.' : conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : query.trim() ? 'Try another name or message.' : 'Start a conversation with another creator.'} action={isMobile && (query.trim() || conversationFilter !== 'all') ? { label: query.trim() ? 'Clear search' : 'Clear filter', onClick: () => { if (query.trim()) setQuery(''); else setConversationFilter('all'); } } : conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul className="side-panel-content-inset side-panel-navigation-list pb-2">
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
                       <div data-selected={activeId === conversation.id ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
@@ -479,12 +480,32 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   onDelete: (id: Id) => Promise<boolean>;
   onReact: (id: Id, emoji: string) => Promise<boolean>;
 }) {
+  const isMobile = usePresentation() === 'mobile';
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [editBody, setEditBody] = useState('');
   const [deleteId, setDeleteId] = useState<Id | null>(null);
+  const [actionsId, setActionsId] = useState<Id | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const unsendCancelRef = useRef<HTMLButtonElement>(null);
+  const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const hadInlineActionRef = useRef(false);
+  const actionMessage = isMobile && canInteract ? messages.find((message) => message.id === actionsId && !message.id.startsWith('local-') && !message.isRemoved) : undefined;
+  useEffect(() => {
+    const hadInlineAction = hadInlineActionRef.current;
+    hadInlineActionRef.current = Boolean(editingId || deleteId);
+    if (!isMobile || (!editingId && !deleteId && !hadInlineAction)) return;
+    // Wait for sheet cleanup and the new controls to commit. Its opener is
+    // disabled during inline editing/confirmation and cannot receive focus.
+    const frame = requestAnimationFrame(() => {
+      if (editingId) editTextareaRef.current?.focus();
+      else if (deleteId) unsendCancelRef.current?.focus();
+      else if (actionTriggerRef.current?.isConnected && !actionTriggerRef.current.disabled) actionTriggerRef.current.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [deleteId, editingId, isMobile]);
   let previousDay = '';
   const latestOutgoingId = [...messages].reverse().find((message) => message.senderProfileId === viewerProfileId && message.deliveryState !== 'failed' && message.deliveryState !== 'sending')?.id ?? null;
-  return <ol className="mx-auto flex w-full max-w-[760px] flex-col gap-2" aria-label="Messages">
+  return <><ol className="mx-auto flex w-full max-w-[760px] flex-col gap-2" aria-label="Messages">
       {messages.map((message) => {
         const isMine = message.senderProfileId !== null && message.senderProfileId === viewerProfileId;
         const day = dayLabel(message.createdAt);
@@ -496,8 +517,8 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
               <div className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
-                    <textarea autoFocus value={editBody} onChange={(event) => setEditBody(event.target.value)} maxLength={4000} className="min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[15px] text-[var(--text-primary)]" />
-                    <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className="text-[12px] font-semibold underline">Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className="text-[12px] font-semibold underline disabled:opacity-50">Save</button></div>
+                    <textarea ref={editTextareaRef} autoFocus aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px]' : 'text-[15px]'}`} />
+                    <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
                   </form> : <p className="whitespace-pre-wrap break-words text-[16px] leading-6">{message.body}</p>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
@@ -506,20 +527,24 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                   <time dateTime={message.createdAt} className={isMine ? 'opacity-75' : 'text-[var(--text-tertiary)]'}>{messageTime(message.createdAt)}</time>
                   {message.editedAt ? <span className="opacity-70">Edited</span> : null}
                   {message.deliveryState === 'sending' ? <span className="opacity-75">Sending…</span> : null}
-                  {message.deliveryState === 'failed' ? <button type="button" onClick={() => void onRetry(message.id)} className="font-semibold underline">Retry</button> : null}
+                  {message.deliveryState === 'failed' ? <button type="button" onClick={() => void onRetry(message.id)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2' : ''} font-semibold underline`}>Retry</button> : null}
                   {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Seen' : 'Sent'}</span> : null}
                 </span>
                 {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div className="mt-2 flex flex-wrap items-center gap-1">
-                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
-                    {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70">{emoji}</button>)}
-                    {isMine ? <><button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body); }} aria-label="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={() => setDeleteId(message.id)} aria-label="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
+                    {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
+                    {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} onClick={(event) => { actionTriggerRef.current = event.currentTarget; setActionsId(message.id); }} className="shape-compact ml-auto flex h-11 w-11 shrink-0 items-center justify-center hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current disabled:opacity-50"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
+                      {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70">{emoji}</button>)}
+                      {isMine ? <><button type="button" onClick={() => { setEditingId(message.id); setEditBody(message.body); }} aria-label="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={() => setDeleteId(message.id)} aria-label="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
+                    </>}
                   </div> : null}
-                {deleteId === message.id ? <div className="mt-2 rounded-[9px] bg-black/10 p-2 text-[12px]"><p>Unsend this message for both people?</p><div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setDeleteId(null)} className="font-semibold underline">Cancel</button><button type="button" disabled={pendingMessageId === message.id} onClick={() => void onDelete(message.id).then((removed) => { if (removed) setDeleteId(null); })} className="font-semibold underline">Unsend</button></div></div> : null}
+                {deleteId === message.id ? <div className="mt-2 rounded-[9px] bg-black/10 p-2 text-[12px]"><p>Unsend this message for both people?</p><div className="mt-2 flex justify-end gap-2"><button ref={unsendCancelRef} type="button" onClick={() => setDeleteId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : ''} font-semibold underline`}>Cancel</button><button type="button" disabled={pendingMessageId === message.id} onClick={() => void onDelete(message.id).then((removed) => { if (removed) setDeleteId(null); })} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : ''} font-semibold underline`}>Unsend</button></div></div> : null}
               </div>
             </li>
           </React.Fragment>;
       })}
-    </ol>;
+    </ol>
+    {actionMessage ? <MobileMessageActions message={actionMessage} isMine={actionMessage.senderProfileId !== null && actionMessage.senderProfileId === viewerProfileId} pending={pendingMessageId === actionMessage.id} onClose={() => setActionsId(null)} onReact={(emoji) => { setActionsId(null); void onReact(actionMessage.id, emoji); }} onEdit={() => { setActionsId(null); setEditingId(actionMessage.id); setEditBody(actionMessage.body); }} onRequestUnsend={() => { setActionsId(null); setDeleteId(actionMessage.id); }} /> : null}
+    </>;
 }
 
 function FilterChip({ label, isActive, onSelect }: { label: string; isActive: boolean; onSelect: () => void }) {

@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Immediate MOBILE UX improvements — local, unpublished — September 29, 2026
+
+- User approved all seven immediate mobile recommendations together. Continued the owned isolated `logs/trust-activation-20260929` worktree on `codex/trust-and-activation`, following trust/activation commit `8b0d4b4668b19e524747305dd80b96c83f9f9a2c`. Original checkout source and unrelated folders remain preserved.
+- Added working discovery/return paths, direct card opening with separate details, touch message actions with correct focus restoration, visible publishing requirements, explicit gallery density controls and contextual gesture hint, stable five-button dock with calmer reading chrome, and empty-state recovery. Mobile owner's profile stays mounted during density-save refresh; account/profile isolation and WEB/visitor guards remain. Changed scoped mobile components/CSS/hooks plus their callers and focused tests; no services, dependencies or migrations changed. See [mobile-ux-improvements.md](mobile-ux-improvements.md).
+- Full Node/PGlite runner **931/931, zero failures/skips**; final follow-up **49 focused tests** pass. Final typecheck, client/server build and lint pass (0 errors/86 existing warnings). Independent reviews have no blockers. Browser simulation at 390/430 and WEB1280 verified discovery, publishing, cards, gallery persistence, hint and dock; actual message components in ignored synthetic fixture verified sheet, focus and reactions. Existing React `fetchPriority` warning remains. No physical-phone, keyboard/PWA or live messaging/API claims.
+- Browser found existing overlapping globe city targets (London/Paris); documented separately, unchanged. QA fixtures/logs stay ignored; temporary tab/viewport and owned preview cleaned up. No GitHub push/merge, SQL, Sites or worker release. Live remains v269/e640872; preceding PDF safety migration remains unapplied and account deletion disabled. Release requires the separate approvals/preflight described below.
+
 ## Trust and first-publication implementation — local, unpublished — September 29, 2026
 
 - ALL/shared scope, authorized by the user's follow-up to the deep analysis. Work lives in isolated `logs/trust-activation-20260929`, branch `codex/trust-and-activation`. Refreshed `github/main` was `ccf405c`; the task branch was fast-forwarded to published source `e64087287e1d55cbaa8c7100d11f2ad46ac8c51a`, preserving the 29 earlier source commits. The original checkout's source and unrelated folders are untouched. Preserve the v269 receipt below.

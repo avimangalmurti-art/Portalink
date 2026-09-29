@@ -6,6 +6,7 @@ import { HomeFeed } from './home/HomeFeed';
 import type { Id, ProjectLocation } from '../types/domain';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { toLocationId } from '../utils/location';
+import { usePresentation } from '../presentation/usePresentation';
 type CityContentPageProps = {
   city: City;
   onBack: () => void;
@@ -22,6 +23,7 @@ export function CityContentPage({
   onOpenCreator,
   onWarmCreator
 }: CityContentPageProps) {
+  const isMobile = usePresentation() === 'mobile';
   // A Portalink network page, so the stars are drawn here rather than by the feed
   // it hosts — the same feed on Home carries no sky of its own.
   return <div className="portalink-stars relative flex h-full w-full flex-col bg-[var(--surface-canvas)]">
@@ -44,6 +46,7 @@ export function CityContentPage({
           scrollMemoryKey={`city:${city.name}`}
           emptyTitle={`No work is placed in ${city.name} yet`}
           emptyDescription={`Only public work from creators who choose ${city.name} as their profile city appears here.`}
+          emptyAction={isMobile ? { label: 'Browse another city', onClick: onBack } : undefined}
         />
       </div>
     </div>;

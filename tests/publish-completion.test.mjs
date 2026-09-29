@@ -70,7 +70,8 @@ test('mobile keeps location separate and hides inferred commentary and file deta
   assert.equal(all.find((node) => node.type === 'MediaPicker').props.compact, true);
   assert.equal(all.find((node) => node.type === 'CoverFilmstrip').props.compact, true);
   assert.ok(!JSON.stringify(tree).includes('Project relevance:'));
-  assert.ok(!all.some((node) => node.props?.role === 'status'));
+  assert.equal(all.find((node) => node.props?.id === 'publish-hint').props.children, 'Add a description to publish.');
+  assert.ok(!all.find((node) => node.props?.id === 'publish-hint').props.className.includes('sr-only'));
   const web = nodes(harness().render(flow));
   assert.ok(!web.some((node) => node.props?.id === 'publish-location'));
   assert.equal(web.find((node) => node.type === 'MediaPicker').props.compact, false);
@@ -106,18 +107,20 @@ test('cover framing stays locked while uploading and after files are stored', ()
 });
 
 test('disabled Publish explains the missing detail, then clears the helper when ready', () => {
+  for (const presentation of ['web', 'mobile']) {
   for (const [title, summary, expected] of [
     ['  ', '', 'Add a title to publish.'],
     ['My project', '  ', 'Add a description to publish.'],
   ]) {
-    const tree = harness().render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
+    const tree = harness(presentation).render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
     assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
     assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
   }
-  const tree = harness().render({ metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
+  const tree = harness(presentation).render({ metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
   assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
   assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
   assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));
+  }
 });
 
 test('publishing accepts the complete long description without an input cap', () => {

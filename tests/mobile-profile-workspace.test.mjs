@@ -76,3 +76,81 @@ test('WEB preserves destination transitions and resizing alone does not remount 
   h.render('category-creator-b', 'profile-scope');
   assert.equal(h.calls[6].key, 'category-creator-b');
 });
+
+const appSource = ts.createSourceFile('App.tsx', readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function appInitializer(name) {
+  let result;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(appSource) === name) result = node.initializer.getText(appSource);
+    ts.forEachChild(node, visit);
+  }
+  visit(appSource);
+  assert.ok(result, `Expected App rendering boundary ${name}`);
+  return ts.transpileModule(`result = (${result});`, { compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React } }).outputText;
+}
+const appBoundaries = ['isMobileOwnerProfileRefreshing', 'isProfileRouteReady', 'routeStateView', 'screenTransitionKey', 'mobileProfileKey'];
+const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appInitializer(name)]));
+function profileRender(overrides = {}) {
+  const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };
+  const context = vm.createContext({
+    React, LoadingState: 'loading', EmptyState: 'empty', ErrorState: 'error',
+    presentation: 'mobile', route: { kind: 'profile' }, pathname: '/p/owner', routeProfileId: 'owner', viewedProfileId: 'owner',
+    auth: { user: { id: 'account' }, viewerProfileId: 'owner', isAuthenticated: true, phase: 'authenticated' },
+    viewedProfile: profile, viewedProfileQuery: { profile, status: 'ready', error: null, retry() {} },
+    isProfileEditorRoute: false, isRouteBlocked: false, routeItemId: null, isSharedRoute: false,
+    isPrivateProfileAccessResolving: false, isProfileAccessDenied: false, isCategoryRouteMissing: false,
+    personalScreen: null, isControlCenterOpen: false, iconPickerCategoryId: null, inDesignFeature: null,
+    isMessagesOpen: false, isSearchOpen: false, routeActivityKind: null, activeCategoryId: null,
+    categoryPage: null, isPortalsOpen: false, canShowOwnPortalsWorkspace: false, nav: { home() {} },
+    ...overrides,
+  });
+  for (const name of appBoundaries) {
+    vm.runInContext(appExpressions[name], context);
+    context[name] = context.result;
+  }
+  return context;
+}
+
+test('saving density keeps the existing mobile owner profile layer through its background refresh', () => {
+  const layers = harness();
+  const ready = profileRender();
+  const refreshing = profileRender({ viewedProfileQuery: { status: 'loading' } });
+  const confirmed = profileRender({ viewedProfile: { id: 'owner', name: 'Owner', projectGridColumns: 4 } });
+  for (const state of [ready, refreshing, confirmed]) {
+    assert.equal(state.isProfileRouteReady, true);
+    assert.equal(state.routeStateView, null);
+    layers.render(state.screenTransitionKey, state.mobileProfileKey);
+  }
+  assert.equal(refreshing.isMobileOwnerProfileRefreshing, true);
+  assert.equal(new Set(layers.calls.map(call => call.key)).size, 1, 'Open Layout controls must retain their mounted state until Done');
+});
+
+test('profile refresh preservation never applies to WEB, visitors, shares, other routes or account transitions', () => {
+  const cases = [
+    { presentation: 'web' },
+    { viewedProfile: { id: 'another', name: 'Another creator' }, viewedProfileId: 'another', routeProfileId: 'another' },
+    { route: { kind: 'sharedProfile' }, isSharedRoute: true },
+    { route: { kind: 'category' } },
+    { route: { kind: 'project' } },
+    { viewedProfile: null },
+    { auth: { user: null, viewerProfileId: null, isAuthenticated: false, phase: 'unauthenticated' } },
+    { auth: { user: { id: 'account' }, viewerProfileId: 'owner', isAuthenticated: true, phase: 'signing-out' } },
+    { auth: { user: { id: 'new-account' }, viewerProfileId: 'new-owner', isAuthenticated: true, phase: 'authenticated' } },
+  ];
+  for (const overrides of cases) {
+    const state = profileRender({ viewedProfileQuery: { status: 'loading' }, ...overrides });
+    assert.equal(state.isMobileOwnerProfileRefreshing, false);
+    assert.equal(state.isProfileRouteReady, false);
+    assert.equal(state.routeStateView.type, 'loading');
+    assert.equal(state.mobileProfileKey, undefined);
+  }
+});
+
+test('failed or missing owner refresh still replaces the gallery with its existing recovery state', () => {
+  for (const [status, expected] of [['error', 'error'], ['not-found', 'empty']]) {
+    const state = profileRender({ viewedProfile: null, viewedProfileQuery: { status, error: 'Unavailable', retry() {} } });
+    assert.equal(state.isProfileRouteReady, false);
+    assert.equal(state.routeStateView.type, expected);
+    assert.equal(state.mobileProfileKey, undefined);
+  }
+});

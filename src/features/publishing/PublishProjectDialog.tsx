@@ -200,7 +200,7 @@ export function PublishProjectDialog({
                 </div>
 
               <div className="project-form-actions flex flex-col items-end gap-1.5">
-                {publishHint ? <p id="publish-hint" role={isMobile ? undefined : 'status'} className={isMobile ? 'sr-only' : 'text-[12px] text-[var(--text-secondary)]'}>{publishHint}</p> : null}
+                {publishHint ? <p id="publish-hint" role="status" className={isMobile ? 'w-full text-[13px] text-[var(--text-secondary)]' : 'text-[12px] text-[var(--text-secondary)]'}>{publishHint}</p> : null}
                 <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
                   {isPublishing ? 'Publishing…' : 'Publish'}
                 </Button>

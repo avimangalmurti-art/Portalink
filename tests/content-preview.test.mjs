@@ -20,7 +20,7 @@ function harness() {
     useEffect() {},
   };
   const { useContentPreview } = compile('../src/hooks/useContentPreview.ts', () => react);
-  const render = (disabled = false, minimumWidth = 0) => { cursor = 0; return useContentPreview(disabled, minimumWidth); };
+  const render = (disabled = false, minimumWidth = 0, directTouch = false) => { cursor = 0; return useContentPreview(disabled, minimumWidth, directTouch); };
   return { render };
 }
 const click = () => ({ prevented: false, stopped: false, preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; } });
@@ -107,6 +107,30 @@ test('Escape dismisses a touch preview and leaves nested editor handling alone',
 });
 
 const { layoutBento } = compile('../src/utils/bentoLayout.ts', () => ({}));
+
+test('mobile artwork opens on its first tap at every density; scrolling still never opens it', () => {
+  for (const width of [24, 150, 300]) {
+    const h = harness(); let p = h.render(false, 80, true); let opened = 0;
+    p.ref.current = { getBoundingClientRect: () => ({ width }) };
+    touch(p); p.open(click(), () => opened++);
+    assert.equal(opened, 1);
+    p = h.render(false, 80, true);
+    assert.equal(p.expanded, false);
+    touch(p, true); const event = click(); p.open(event, () => opened++);
+    assert.equal(opened, 1); assert.equal(event.prevented, true);
+  }
+});
+
+test('mobile details control opens and closes the preview without consuming the next artwork tap', () => {
+  const h = harness(); let p = h.render(false, 80, true); let opened = 0;
+  p.ref.current = { getBoundingClientRect: () => ({ width: 150 }) };
+  p.toggleDetails(); p = h.render(false, 80, true); assert.equal(p.expanded, true);
+  p.toggleDetails(); p = h.render(false, 80, true); assert.equal(p.expanded, false);
+  touch(p, true); p.toggleDetails(); assert.equal(h.render(false, 80, true).expanded, false, 'scrolling cannot open details');
+  p.events.onPointerCancel(); p.toggleDetails(); assert.equal(h.render(false, 80, true).expanded, false, 'cancelled touch cannot open details');
+  touch(p); p.open(click(), () => opened++); assert.equal(opened, 1);
+  p = h.render(true, 80, true); p.toggleDetails(); assert.equal(h.render(true, 80, true).expanded, false);
+});
 function overlaps(a, b, cells) {
   return a.row < b.row + b.rows && b.row < a.row + a.rows &&
     a.column < b.column + cells[1].span && b.column < a.column + cells[0].span;

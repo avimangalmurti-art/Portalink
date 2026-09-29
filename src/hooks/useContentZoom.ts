@@ -18,6 +18,7 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
   const resetKeyRef = useRef(resetKey);
   resetKeyRef.current = resetKey;
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const explicitChoiceVersion = useRef(0);
   useEffect(() => { setSelection(null); setIsAdjusting(false); }, [resetKey]);
 
   useEffect(() => {
@@ -28,19 +29,21 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
     let timeout: number | undefined;
     let commitTimeout: number | undefined;
     let pendingColumns: number | undefined;
+    let pendingVersion = explicitChoiceVersion.current;
     const commit = () => {
       window.clearTimeout(commitTimeout);
       if (pendingColumns === undefined) return;
       const next = pendingColumns;
       pendingColumns = undefined;
       // Do not save an old gesture over a newly selected owner layout.
-      if (resetKeyRef.current === resetKey) onColumnsChangeRef.current?.(next);
+      if (resetKeyRef.current === resetKey && pendingVersion === explicitChoiceVersion.current) onColumnsChangeRef.current?.(next);
     };
     const choose = (value: number) => {
       const next = clampColumns(value);
       if (next === columnsRef.current) return;
       columnsRef.current = next;
       pendingColumns = next;
+      pendingVersion = explicitChoiceVersion.current;
       setSelection({ columns: next, key: resetKey });
       setIsAdjusting(true);
       window.clearTimeout(timeout);
@@ -85,5 +88,14 @@ export function useContentZoom<T extends HTMLElement>(baseColumns: number, enabl
   }, [enabled, resetKey]);
 
   const reset = useCallback(() => setSelection(null), []);
-  return { ref, columns, isZoomed: selected !== undefined, isAdjusting, reset, label: columns + ' per row' };
+  const chooseColumns = useCallback((value: number) => {
+    if (!enabled) return;
+    const next = clampColumns(value);
+    explicitChoiceVersion.current += 1;
+    columnsRef.current = next;
+    setSelection({ columns: next, key: resetKeyRef.current });
+    setIsAdjusting(false);
+    onColumnsChangeRef.current?.(next);
+  }, [enabled]);
+  return { ref, columns, isZoomed: selected !== undefined, isAdjusting, reset, chooseColumns, label: columns + ' per row' };
 }
