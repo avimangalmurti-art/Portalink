@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## MOBILE other-creator profile spacing — source only — September 30, 2026
+
+- Continued owned `codex/creator-share-previews` from `1c7e079`. User supplied a phone screenshot of an internal nonowner profile with wrapped Following, separated profile/actions rows and excessive empty-state spacing. The already-saved, unpublished expanded-count rule fixes count wrapping; no duplicate count rule added.
+- Only application files: `src/components/UserProfilePage.tsx` adds internal-nonowner action/empty-work scope markers; `src/presentation/mobile/mobile.css` allows links and Follow/Save to share one row, gives the buttons the existing56px mobile control height, and removes the empty message's200px minimum height while retaining32px top/bottom padding. Extra links wrap naturally. Owner actions, shared portfolios and WEB keep their existing layout; no functionality or permissions changed.
+- Level1 visual verification plus focused existing regressions:36 profile/workspace tests and typecheck pass; diff/whitespace and independent read-only review pass. Browser actual-App synthetic fixture at390/430 in Light/Dark confirms four counters share one baseline, five standard actions share one56px row, and the empty message begins32px into its content block. Follow/Save toggle in local memory; seven links wrap without horizontal overflow. WEB1280 keeps its full-width links and200px empty state; MOBILE owner retains three authoring controls and Add-project state; shared profile retains Bio/Follow and omits platform-only icons/counts.
+- Ignored fixture `logs/profile-spacing-qa/` and test/typecheck logs. The old synthetic Home discovery adapter can log a missing-method error during fixture HMR; no production service code changed, and this is not a Home-flow verification. No real account/service writes, physical-iPhone or hosted claims. No broad build for this small scoped layout edit. QA tab closed,420×912 restored and existing Vite5178 retained.
+- Source and handoff saved in the local task commit. **Not published or pushed**; earlier unpublished work and all pending SQL/Storage/D1/configuration approvals remain intact. Original checkout receives only a pointer note.
+
 ## MOBILE edge-to-edge Safari canvas — source only — September 30, 2026
 
 - Continued the owned `codex/creator-share-previews` checkout from `1ff5e22`, retaining all earlier unpublished work. MOBILE only; WEB keeps its contained workspace, sidebar and scrolling behavior. The required change crosses root sizing and scroll restoration, so Level 3 build/type/lint checks supplemented the requested Level 2 browser checks. No push, publish, SQL, Storage, environment or dependency change; prior pending migrations and configuration approvals remain outstanding.

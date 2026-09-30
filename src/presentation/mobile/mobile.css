@@ -2177,6 +2177,29 @@
   row-gap: 8px;
 }
 
+/* Another creator's links and Follow/Save share a row when they fit. Extra
+   links or larger text may wrap naturally without squeezing touch targets. */
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) [data-mobile-profile-links] {
+  width: auto;
+  flex: 1 1 auto;
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [data-profile-visitor-actions] {
+  flex: 0 0 auto;
+  gap: var(--mobile-control-group-gap);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] :is(.side-panel-primary-control, .side-panel-compact-control) {
+  height: var(--mobile-control-size);
+  min-height: var(--mobile-control-size);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] .side-panel-compact-control {
+  width: var(--mobile-control-size);
+  min-width: var(--mobile-control-size);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-empty-work] > .mobile-profile-wall > div {
+  min-height: 0;
+  padding: 32px var(--mobile-control-edge);
+}
+
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [aria-label='Profile content'] {
   width: 100%;
   justify-content: space-between;
