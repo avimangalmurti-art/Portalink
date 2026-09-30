@@ -54,3 +54,27 @@
   outline-offset: 4px;
   border-radius: 10px;
 }
+
+/* Keep short-window sign-in scrollable without a visible track beside the film. */
+#root .codex-shell[data-presentation='web'] [data-account-signin] .account-welcome-content {
+  scrollbar-width: none;
+}
+#root .codex-shell[data-presentation='web'] [data-account-signin] .account-welcome-content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* The enlarged film extends beyond its viewport. Blend that clipping edge as
+   well as the decoded frame perimeter, leaving the artwork at its current scale. */
+#root .codex-shell[data-presentation='web'] [data-account-signin] .portalink-welcome-media {
+  margin-inline: 16px;
+  mask-image: linear-gradient(to bottom, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+}
+#root .codex-shell[data-presentation='web'] [data-account-signin] .portalink-splash-frame {
+  clip-path: inset(2px);
+  mix-blend-mode: darken;
+}
+#root .codex-shell[data-presentation='web'] [data-account-signin] .portalink-splash-frame::after {
+  box-shadow: inset 0 0 8px 12px var(--portalink-splash-background);
+}

@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## WEB sign-in scrollbar and video perimeter — local, unpublished — September 29, 2026
+
+- User supplied the WEB Hello World sign-in screenshot and requested removal of its visible scrollbar and video border/edge contact. Continued owned `codex/creator-share-previews` from `3c3ae59`. Only `src/presentation/web/web.css` changes application styling, scoped to WEB + `[data-account-signin]`; MOBILE, signup/recovery, other videos and global scrollbars are unchanged.
+- Hide the sign-in content's scrollbar track while retaining `overflow-y:auto`. Add16px horizontal media inset, an8px vertical fade at the enlarged media viewport,2px frame clipping and a stronger canvas-colored frame blend. `mix-blend-mode:darken` helps integrate the pale video canvas. Original media, artwork scale, playback and authentication behavior are retained. The native scrollbar and faint rectangular clipping seam reproduced locally; no encoded black border was found or claimed.
+- Actual AuthDialog with synthetic services checked WEB930×777 (screenshot proportions),930×540 and1280×900. Track resolves to none; wheel scroll works. Empty-field validation adds its messages; Tab reaches Create an account and automatically scrolls it into view at540px height. No sign-in submitted. MOBILE420×912 still resolves to its original thin scrollbar,0px media margin,no mask/no clip/normal blend and no horizontal overflow. Focused account-entry/presentation checks and whitespace check pass; no broad type/lint/build run for this CSS-only micro-edit.
+- Ignored proof `logs/web-signin-clean-edges.png`. QA tab closed and420×912 viewport retained. **Local only; live remains Sites273 / `060832a`.** No push, publish, SQL, account or connected-service changes. This note and CSS are saved together in the next local commit; original checkout gets a pointer.
+
 ## Published design-system and accumulated UI changes — Sites 273 — September 29, 2026
 
 - User authorized publication. Exact deployed source: **`060832a7961f3f070071d9039b51410b6163ec59`**, owned `codex/creator-share-previews`. Sites **version273** succeeded at **2026-09-30T05:40:27Z** (September29 local), existing URL https://portalinknetworksinc.avimangalmurti566055.chatgpt.site . Version ID `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_34e37d28741881919f5b810d2c647769`; deployment `appgdep_6abca0c0a8dc8191ab299f8dee9ec58e`.
