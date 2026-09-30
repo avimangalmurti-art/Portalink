@@ -713,12 +713,13 @@ test('profile reorder drop, Done, Cancel and outside save never change the activ
   }
 });
 
-test('public and visitor headers show connection counts without opening owner-only lists', () => {
+test('shared headers omit counts even when expanded, while regular visitors cannot open owner-only lists', () => {
   for (const presentation of ['mobile', 'web']) {
-    for (const options of [{ viewerRole: 'guest', isSharedView: true }, { viewerRole: 'visitor' }]) {
+    for (const options of [{ viewerRole: 'guest', isSharedView: true }, { viewerRole: 'owner', isSharedView: true }, { viewerRole: 'visitor' }]) {
       const h = profileHarness('view=followers', { ...options, presentation });
       openProfileOptions(h);
       const stats = nodes(h.render()).find(node => node.type?.name === 'ProfileStats');
+      if (options.isSharedView) { assert.equal(stats, undefined); continue; }
       assert.equal(stats.props.activeView, 'projects');
       const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
       assert.deepEqual(controls.map(node => node.type), ['button', 'button', 'span', 'span']);
@@ -762,8 +763,11 @@ test('profile headers keep bio in its section and use Portals consistently on sh
     assert.equal(children[0].type, 'h1'); assert.equal(children[1].props.children, 'London');
     assert.equal(nodes(copy).some(node => node.props?.children === profile.headline || node.props?.children === 'Jolly Good'), false);
     const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
-    const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
-    assert.equal(controls[1].props.children.at(-1), 'portal');
+    assert.equal(Boolean(stats), !isSharedView, 'Shared headers omit counts; ordinary profiles retain them');
+    if (stats) {
+      const controls = nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control');
+      assert.equal(controls[1].props.children.at(-1), 'portal');
+    }
   }
   const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
   const shared = ProfileCollectionGrid({ shared: true, profileId: 'owner', kind: 'portals', portals: profile.categories, people: [], loading: false, error: null, hasMore: false });

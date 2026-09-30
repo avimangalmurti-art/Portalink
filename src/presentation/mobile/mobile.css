@@ -227,6 +227,9 @@
   -webkit-backdrop-filter: none !important;
   transition: none;
 }
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-shared-profile-home] {
+  padding-inline: 12px;
+}
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel #shared-profile-portals {
   overscroll-behavior: contain;
   padding-inline: 12px;

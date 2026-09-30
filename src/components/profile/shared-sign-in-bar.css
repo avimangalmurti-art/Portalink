@@ -29,7 +29,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 0;
-  padding: 4px max(12px, env(safe-area-inset-right)) max(4px, var(--safe-area-bottom)) max(12px, env(safe-area-inset-left));
+  padding: 4px max(12px, env(safe-area-inset-right)) max(4px, var(--safe-area-bottom)) calc(max(12px, env(safe-area-inset-left)) + 60px);
   border-top: 1px solid var(--hairline);
   border-bottom: 0;
 }
@@ -37,12 +37,9 @@
 [data-presentation='mobile'] .shared-sign-in-bar .shared-sign-in-actions { grid-column: 1; }
 [data-presentation='mobile'] .shared-sign-in-bar .shared-sign-in-actions > span:first-child { display: none; }
 [data-presentation='mobile'] .shared-sign-in-bar .shared-sign-in-dismiss { grid-column: 2; grid-row: 1 / 3; }
-/* The bar occupies its own flex row. Fixed reader/navigation controls clear
-   that measured row, including text wrapping and the bottom safe area. */
+/* Keep a 48px navigation target plus 12px separation beside the account
+   actions. Reader controls still clear the measured bar and bottom safe area. */
 #root .codex-shell.shared-portalink-shell[data-presentation='mobile'] {
   --mobile-project-actions-bottom: calc(var(--shared-sign-in-height, 0px) + max(8px, var(--safe-area-bottom)));
-}
-#root .codex-shell.shared-portalink-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
-  bottom: calc(var(--shared-sign-in-height, 0px) + max(8px, env(safe-area-inset-bottom, 0px)));
 }
 #root .codex-shell.shared-portalink-shell[data-presentation='mobile'] [data-mobile-project-view] { --mobile-content-safe-bottom: 64px; }
