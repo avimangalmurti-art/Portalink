@@ -40,6 +40,7 @@ import { useProfileOnboardingStatus } from './features/profile/useProfileOnboard
 import { DeferredDialog, DeferredSurface, DeferredSurfaceBoundary } from './components/ui/DeferredDialog';
 import { PublishConfirmation } from './features/publishing/PublishConfirmation';
 import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
+import { useSharedProfileQuery } from './features/profile/useSharedProfileQuery';
 import { AppScreenLayers } from './presentation/AppScreenLayers';
 import './app/screenTransitions.css';
 import { buildPath } from './app/routes';
@@ -439,7 +440,10 @@ function AppContent() {
    * whichever record a fallback would have handed back.
    */
   const { fetchProfile } = useProfileData();
-  const viewedProfileQuery = useProfileQuery(viewedProfileId);
+  const ordinaryProfileQuery = useProfileQuery(isSharedRoute ? null : viewedProfileId);
+  const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
+    route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
+  const viewedProfileQuery = isSharedRoute ? sharedProfileQuery : ordinaryProfileQuery;
   const viewedProfile = viewedProfileQuery.profile;
   // Pointer, touch, or keyboard intent can arrive a beat before navigation.
   // Warm the same canonical profile query the destination consumes so the
@@ -1293,7 +1297,7 @@ function AppContent() {
         setPublishConfirmation({
           projectId: result.projectId,
           message: result.mediaPersisted && !result.sessionOnly
-            ? `${title} published.`
+            ? `${title} published.${result.message ? ` ${result.message}` : ''}`
             : `${title} added for this session only. Reloading will clear it.`,
         });
         // The new work opens where it landed, through the normal viewer.

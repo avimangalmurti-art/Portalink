@@ -44,13 +44,30 @@ The hosted `public.video_processing_jobs` table is absent. Migration `2026092800
 
 The exact tested frontend/Sites worker source is published with the existing DB binding. Media-worker hosting/deployment and independent D1 index-catalog confirmation remain separate. Verify live cache headers, authenticated feed/messaging and upload behavior after release. Do not provision another backend or a paid second instance implicitly.
 
-## Audit recommendations deliberately not completed in this pass
+## Cover delivery follow-up — September 30, 2026 — source only
+
+The requested follow-up now prepares browser publish/edit-time WebP covers at
+200/400/800 long-edge pixels, content-hashed manifests, thumbnail-only project
+grids, batched private signing and the public shared-profile bundle reader.
+The explicit backfill uses the same geometry/encoding contract. PDF/video worker
+deployment is not required for these covers; full-document page processing and
+its worker outputs remain separate.
+
+Nothing in this follow-up is deployed or applied. The nullable manifest schema,
+public `project-covers` bucket with visibility/cleanup guards, and invoker bundle
+RPC are three separate pending SQL files. Existing deployments retain the legacy
+cover/read path until their prerequisites are approved. See
+[rollout and privacy contract](cover-thumbnail-rollout.md),
+[backfill operation and limits](backfill-cover-thumbnails.md), and the current
+[handoff](agent-handoff.md) for source checks and the explicit approval boundary.
+
+## Audit recommendations deliberately not completed in the original pass
 
 The PDF itself separates quick/data-flow work from later structural work. The following remain explicit follow-up work, not hidden claims of completion:
 
 - A new query-cache library, per-project engagement subscriptions, completely targeted profile invalidation, and optimistic comment appends. Existing cache/auth generation and concurrent-write behavior need a coordinated lifecycle change; the current pass adds bounded service caches and batching without adding dependencies.
 - Framer Motion API migration, broad CSS splitting/blur reduction, and font/asset removal. These require visual regression work across the recently changed screens. Current fonts already load nonblocking; the Lucide sprite is in use. Do not remove it as supposedly unused.
-- Upload-time cover thumbnails and versioned PDF thumbnail outputs. These need stored metadata/consumer changes and a migration plan for existing files, rather than silently switching existing URLs.
+- Upload-time covers and versioned selected-page cover outputs now have prepared source and pending rollout files in the September 30 follow-up above. Live schema, bucket, backfill and application deployment remain unapplied. Full-document PDF worker outputs are unchanged.
 - A persistent PDF process pool and parallel PDF page publishing. The present per-page process enforces killable deadlines and resource limits; naive pooling loses that guarantee, and parallel writes need attempt-fenced object paths/cleanup first. Encoder effort is improved now. No paid worker scaling was requested.
 - Denormalized counters, removal of duplicated PDF metadata, statement-level attachment limits, destructive send-event retention, inbox cursor migration and indexed message/identity substring search. Public content search and messaging read predicates are improved now. The remaining schema changes need specific behavior/data-retention validation.
 - Local edge JWT validation. Batching already reduces verification to one call per request. Replacing the current auth-server check needs confirmation of active signing keys, rotation and revocation expectations; this pass does not weaken that check.

@@ -37,7 +37,7 @@ const categoryDetails: Record<StudioCategory, { label: string; icon: InterfaceIc
 function RowPreview({ row }: { row: StudioItem }) {
   if (row.kind === 'published' || row.kind === 'saved-project') {
     const project = row.project;
-    return <ProjectCover source={project.cover} alt={project.coverAlt || project.title} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} sizes="48px" />;
+    return <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} alt={project.coverAlt || project.title} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} sizes="48px" />;
   }
   if (row.kind === 'saved-creator' && row.profile) return <CreatorAvatar name={row.profile.name} avatar={row.profile.avatar} className="h-full w-full" shape="compact" />;
   if (row.kind === 'saved-page' && row.presentation) return <ProjectCover source={row.presentation.source} alt={row.title} kind={row.presentation.kind} pageNumber={row.presentation.pageNumber} sizes="48px" />;

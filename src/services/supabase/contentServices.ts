@@ -54,6 +54,8 @@ import {
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { signedMediaUrls } from './mediaUrlCache';
+import { coverThumbnailWithUrls, readCoverThumbnail, refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
+import { readSharedProfileBundle } from './sharedProfileBundle';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { createProfileHandle } from '../../utils/profileHandle';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
@@ -102,8 +104,10 @@ type ProjectRow = {
   is_pinned: boolean;
   published_at: string;
   revision: string;
+  cover_thumbnail?: unknown;
   topic_keys?: string[];
-  content_location?: string;
+  content_location?: string | null;
+  page_count?: number;
   geographic_scope?: string;
   geography_confidence?: number;
 };
@@ -277,8 +281,8 @@ function throwProfileError(error: { code?: string; message: string }, fallback: 
   throw new ProfileServiceError('network', error.message || fallback);
 }
 
-async function signedUrls(paths: string[]): Promise<Map<string, string>> {
-  return signedMediaUrls(PROJECT_MEDIA_BUCKET, paths);
+async function signedUrls(paths: string[], singleBatch = false): Promise<Map<string, string>> {
+  return signedMediaUrls(PROJECT_MEDIA_BUCKET, paths, 0, singleBatch);
 }
 
 async function hydrateProjects(
@@ -287,7 +291,11 @@ async function hydrateProjects(
   attachmentRows: AttachmentRow[],
   mode: 'full' | 'cover' = 'full',
 ): Promise<Map<string, Project>> {
+  const thumbnails = new Map(projectRows.map(row => [row.id, readCoverThumbnail(row.cover_thumbnail, row.profile_id, row.id)]));
+  const rawAttachments = new Map(attachmentRows.map(row => [row.id, row]));
   if (mode === 'cover') {
+    // Stored bitmap grids never resolve originals, multipart manifests or PDF pages.
+    attachmentRows = attachmentRows.filter(row => !thumbnails.get(row.project_id));
     // Feed cards need one selected PDF page, not signed URLs for every page.
     attachmentRows = attachmentRows.map((row) => {
       if (!row.metadata || typeof row.metadata !== 'object' || Array.isArray(row.metadata)) return row;
@@ -297,10 +305,11 @@ async function hydrateProjects(
         ? metadata.renderedPages.filter((page) => page?.attachmentId === row.id && page?.withinDocumentIndex === pageNumber) : [] } };
     });
   }
-  const urls = await signedUrls(attachmentRows.flatMap((row) => {
+  const thumbnailPaths = [...thumbnails.values()].flatMap(thumbnail => thumbnail?.bucket === 'project-media' ? thumbnail.variants.map(variant => variant.path) : []);
+  const urls = await signedUrls([...thumbnailPaths, ...attachmentRows.flatMap((row) => {
     const playback = readVideoPlayback(row.metadata, row.storage_path, row.project_id);
     return [row.storage_path, ...renderedPagePaths(row.metadata), ...(playback ? [playback.storagePath] : [])];
-  }));
+  })], mode === 'cover');
   const attachmentsByProject = new Map<string, ProjectAttachment[]>();
   await Promise.all(attachmentRows.map(async (row) => {
     let metadata = asMetadata(row.metadata, urls);
@@ -348,6 +357,11 @@ async function hydrateProjects(
 
   const categoryLabels = new Map(categoryRows.map((row) => [row.id, row.label]));
   return new Map(projectRows.map((row) => {
+    const thumbnail = thumbnails.get(row.id);
+    const thumbnailSize = thumbnail?.variants.find(variant => variant.size === 800);
+    const thumbnailSource = thumbnail ? rawAttachments.get(thumbnail.sourceAttachmentId) : undefined;
+    const sourceMetadata = thumbnailSource?.metadata && typeof thumbnailSource.metadata === 'object'
+      ? thumbnailSource.metadata as Record<string, unknown> : undefined;
     const attachments = attachmentsByProject.get(row.id) ?? [];
     const cover = attachments.find((item) => item.isCover && (item.metadata?.playbackVideo?.sourceUrl || item.sourceUrl))
       ?? attachments.find((item) => item.kind === 'image' && item.sourceUrl)
@@ -375,13 +389,17 @@ async function hydrateProjects(
       }),
       cover: coverPreview?.sourceUrl ?? cover?.metadata?.playbackVideo?.sourceUrl ?? cover?.sourceUrl ?? '',
       coverAlt: row.title,
-      coverKind: coverPreview ? undefined : cover?.kind === 'video' ? 'video' : cover?.kind === 'document' ? 'document' : undefined,
-      coverAspectRatio: coverPreview?.aspectRatio ?? (cover?.metadata?.widthPixels && cover.metadata.heightPixels
+      coverThumbnail: thumbnail ? coverThumbnailWithUrls(thumbnail, urls) : undefined,
+      coverKind: thumbnailSource?.kind === 'document' ? 'document' : thumbnailSource?.kind === 'video' ? 'video'
+        : coverPreview ? undefined : cover?.kind === 'video' ? 'video' : cover?.kind === 'document' ? 'document' : undefined,
+      coverAspectRatio: thumbnailSize ? thumbnailSize.width / thumbnailSize.height : coverPreview?.aspectRatio ?? (cover?.metadata?.widthPixels && cover.metadata.heightPixels
         ? cover.metadata.widthPixels / cover.metadata.heightPixels
         : undefined),
       coverFrame: cover?.metadata?.coverFrame,
-      coverPageNumber: cover?.kind === 'document' ? cover.metadata?.coverPageNumber : undefined,
-      pageCount: cover?.kind === 'document' ? cover.metadata?.pageCount : undefined,
+      coverPageNumber: typeof sourceMetadata?.coverPageNumber === 'number' ? sourceMetadata.coverPageNumber
+        : cover?.kind === 'document' ? cover.metadata?.coverPageNumber : undefined,
+      pageCount: row.page_count ?? (typeof sourceMetadata?.pageCount === 'number' ? sourceMetadata.pageCount
+        : cover?.kind === 'document' ? cover.metadata?.pageCount : undefined),
       attachments,
       design: asDesign(row.design),
       sessionOnly: false,
@@ -390,7 +408,7 @@ async function hydrateProjects(
   }));
 }
 
-async function loadProfiles(profileId?: string): Promise<Profile[]> {
+async function loadProfiles(profileId?: string, publicOnly = false): Promise<Profile[]> {
   const client = requireSupabase();
   let profileQuery = client.from('profiles').select('*').order('created_at', { ascending: false });
   if (profileId) profileQuery = profileQuery.eq('id', profileId);
@@ -403,7 +421,7 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
   const viewerAccountId = authData.session?.user.id ?? null;
   if (profileError) throwProfileError(profileError, 'Profiles could not be loaded.');
   const profileRows = ((profileData ?? []) as unknown as ProfileRow[])
-    .filter((row) => Boolean(profileId) || !row.is_private || row.account_id === viewerAccountId);
+    .filter((row) => publicOnly ? !row.is_private : Boolean(profileId) || !row.is_private || row.account_id === viewerAccountId);
   if (profileRows.length === 0) return [];
 
   const profileIds = profileRows.map((row) => row.id);
@@ -413,15 +431,16 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
   ]);
   if (categoryResult.error) throw new Error(categoryResult.error.message);
   if (projectResult.error) throw new Error(projectResult.error.message);
-  const categoryRows = (categoryResult.data ?? []) as unknown as CategoryRow[];
-  const projectRows = (projectResult.data ?? []) as unknown as ProjectRow[];
+  const categoryRows = ((categoryResult.data ?? []) as unknown as CategoryRow[]).filter(row => !publicOnly || !row.is_hidden);
+  const publicCategoryIds = new Set(categoryRows.map(row => row.id));
+  const projectRows = ((projectResult.data ?? []) as unknown as ProjectRow[]).filter(row => !publicOnly || (!row.is_hidden && publicCategoryIds.has(row.category_id)));
   const projectIds = projectRows.map((row) => row.id);
   const attachmentResult = projectIds.length > 0
     ? await client.from('project_attachments').select('*').in('project_id', projectIds).order('position')
     : { data: [], error: null };
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
   const attachmentRows = (attachmentResult.data ?? []) as unknown as AttachmentRow[];
-  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows);
+  const projectsById = await hydrateProjects(projectRows, categoryRows, attachmentRows, publicOnly ? 'cover' : 'full');
 
   const projectsByProfile = new Map<string, Project[]>();
   profileIds.forEach((currentProfileId) => {
@@ -439,7 +458,7 @@ async function loadProfiles(profileId?: string): Promise<Profile[]> {
   });
 
   return profileRows.map((row) => {
-    const isOwner = viewerAccountId !== null && row.account_id === viewerAccountId;
+    const isOwner = !publicOnly && viewerAccountId !== null && row.account_id === viewerAccountId;
     const visibleCategories = categoryRows.filter((category) => category.profile_id === row.id && (isOwner || !category.is_hidden));
     const visibleCategoryIds = new Set(visibleCategories.map((category) => category.id));
     const visibleProjectIds = new Set(projectRows
@@ -567,6 +586,28 @@ export const supabaseProfileService: ProfileService = {
     return profile;
   },
 
+  async getSharedProfile(profileId) {
+    const response = await readSharedProfileBundle(requireSupabase(), profileId);
+    if (response.status === 'unsupported') {
+      const profile = (await loadProfiles(profileId, true))[0];
+      if (!profile) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
+      return profile;
+    }
+    if (!response.bundle) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
+    const { profile: row, categories, projects, attachments } = response.bundle;
+    const hydrated = await hydrateProjects(projects, categories, attachments, 'cover');
+    const ordered = projects.some(project => project.position < 0)
+      ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
+    return {
+      id: row.id, name: row.name, handle: `@${row.handle}`, headline: row.headline, location: row.location,
+      initials: deriveInitials(row.name), avatar: row.avatar_url, navHeading: row.nav_heading,
+      stats: asStats(row.stats), socialLinks: asStringRecord(row.social_links), links: asLinks(row.links),
+      categories: categories.map(category => ({ id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb })),
+      projects: ordered.flatMap(project => { const item = hydrated.get(project.id); return item ? [item] : []; }), isPrivate: false,
+      publicAppearance: normalizePublicAppearance(row.public_appearance), projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
+    };
+  },
+
   async getProfileForAccount(accountId) {
     const { data, error } = await requireSupabase()
       .from('profiles')
@@ -639,6 +680,7 @@ export const supabaseProfileService: ProfileService = {
   async updateProfile(profileId, input) {
     const { data: authData } = await requireSupabase().auth.getSession();
     if (!authData.session?.user) throw new ProfileServiceError('permission_denied', 'Sign in before changing your profile.');
+    if (input.isPrivate === true) await removeProfilePublicCovers(profileId);
     const update: Record<string, unknown> = {};
     if (input.name !== undefined) update.name = input.name.trim();
     if (input.headline !== undefined) update.headline = input.headline.trim();
@@ -682,6 +724,7 @@ export const supabaseProfileService: ProfileService = {
 
   async savePortfolioArrangement(profileId, arrangement) {
     const client = requireSupabase();
+    await removeProfilePublicCovers(profileId, arrangement.hiddenCategoryIds);
     const { error: rpcError } = await client.rpc('save_portfolio_arrangement', {
       p_profile_id: profileId,
       p_category_order: arrangement.categoryOrder,
@@ -921,6 +964,7 @@ export const supabaseProjectService: ProjectService = {
 
   async saveProjectArrangement(profileId, categoryId, arrangement) {
     const client = requireSupabase();
+    await removeProfilePublicCovers(profileId, [categoryId], arrangement.hiddenProjectIds);
     const { error: rpcError } = await client.rpc('save_project_arrangement', {
       p_profile_id: profileId,
       p_category_id: categoryId,
@@ -1048,7 +1092,13 @@ export const supabaseProjectService: ProjectService = {
       const code = normalized.includes('owner') ? 'not_owner' : normalized.includes('category') ? 'category_not_found' : normalized.includes('draft') ? 'draft_not_found' : 'network';
       throw new PublishServiceError(code, error.message);
     }
-    return { projectId: String(data), mediaPersisted: true, sessionOnly: false };
+    const projectId = String(data);
+    // The publication is already committed; a thumbnail failure must not offer
+    // to publish a duplicate project. Surface a recoverable cover-only warning.
+    let coverMessage: string | undefined;
+    try { coverMessage = await refreshProjectCoverThumbnail(projectId, () => this.getProject(projectId)); }
+    catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
+    return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage };
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {
@@ -1076,14 +1126,17 @@ export const supabaseProjectService: ProjectService = {
     const removedStoragePaths = result?.removedStoragePaths ?? [];
     let cleanupFailed = false;
     try { await removeStoredMedia(removedStoragePaths); } catch { cleanupFailed = true; }
+    let coverMessage: string | undefined;
+    try { coverMessage = await refreshProjectCoverThumbnail(input.projectId, () => this.getProject(input.projectId)); }
+    catch { coverMessage = 'Your changes were saved, but the cover preview needs another save to retry.'; }
     return {
       project: await this.getProject(input.projectId),
       mediaPersisted: true,
       sessionOnly: false,
       removedAttachmentIds: result?.removedAttachmentIds ?? [],
-      message: cleanupFailed
+      message: coverMessage ?? (cleanupFailed
         ? 'Your project was updated, but some removed files still need storage cleanup.'
-        : 'Your project has been updated.',
+        : 'Your project has been updated.'),
     };
   },
 
@@ -1092,6 +1145,10 @@ export const supabaseProjectService: ProjectService = {
     if (options?.profileId && (await projectProfileId(projectId)) !== options.profileId) {
       throw new ProjectMutationError('permission_denied', 'That project belongs to another creator.');
     }
+    const profileId = await projectProfileId(projectId);
+    await removeProfilePublicCovers(profileId, undefined, [projectId]);
+    // Include retired and interrupted hashes, even without a current manifest.
+    await removePrivateCoverThumbnails(profileId, projectId);
     const stored = (project.attachments ?? []).filter((item) => item.storagePath);
     const { error } = await requireSupabase().from('projects').delete().eq('id', projectId);
     if (error) throw new ProjectMutationError(error.code === '42501' ? 'permission_denied' : 'network', error.message);

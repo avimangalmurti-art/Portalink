@@ -57,6 +57,7 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
     throwProfileError:error=>{throw new Error(error.message);},normalizePublicAppearance:value=>value??null,normalizeHandle:value=>value.replace(/^@/,''),
     uploadAvatar:async()=>'/test-avatar.png',deriveInitials:()=>'',asStats:()=>[],asStringRecord:value=>value??{},asLinks:value=>value??[],
     hydrateProjects:async rows=>new Map(rows.map(row=>[row.id,{id:row.id,categoryId:row.category_id}])),
+    removeProfilePublicCovers:async()=>{},
     typefaces:[{id:'default'}],MIN_PAGES_PER_ROW:1,MAX_PAGES_PER_ROW:13,
   });
   return {...exports,db,writes,rpcCalls,tableCalls,deny:()=>{denied=true;},fail:id=>{failId=id;},viewAs:id=>{viewer=id;}};

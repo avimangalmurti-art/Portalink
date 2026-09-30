@@ -114,16 +114,17 @@ test('PDF cover preview matches its attachment and selected one-based page, neve
 
 test('rendered PDF previews retain contain/crop framing and fall back to the original on image failure', () => {
   let cursor = 0; const state = [];
-  const react = { ...React, useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], next => { state[i] = next; }]; }, useEffect() {} };
+  const react = { ...React, lazy: () => 'pdf-page', useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], next => { state[i] = next; }]; }, useEffect() {} };
   const { ProjectCover } = execute(read('src/components/media/ProjectCover.tsx'), { require(name) {
     if (name === 'react') return react;
     if (name === './PdfPage') return { PdfPage: 'pdf-page' };
     if (name.endsWith('/ResponsiveImage')) return { ResponsiveImage: 'responsive-image' };
     if (name.endsWith('/coverFrame')) return { normalizeProjectCoverFrame: frame => frame };
-    return {};
+    if (name.endsWith('/coverThumbnailSources')) return { coverThumbnailSources: () => null };
+    return { InterfaceIcon: 'icon', FileIcon: 'file' };
   } });
   const props = { source: 'original.pdf', previewSource: 'preview.png', kind: 'document', alt: 'Cover', pageNumber: 2 };
-  const render = props => { cursor = 0; return ProjectCover(props); };
+  const render = props => { cursor = 0; const tree = ProjectCover(props); return tree.type === React.Suspense ? tree.props.children : tree; };
   const image = render(props);
   assert.equal(image.type, 'responsive-image'); assert.equal(image.props.src, 'preview.png');
   assert.match(image.props.className, /object-contain/);

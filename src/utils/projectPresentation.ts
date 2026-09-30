@@ -25,6 +25,12 @@ export function getProjectCoverPreview(project: Project): string | undefined {
  * a multi-page document.
  */
 export function getProjectAspectRatio(project: Project): number {
+  // Cover-only bundle reads intentionally omit originals. The stored bitmap
+  // already includes the chosen crop, so its dimensions are the grid contract.
+  const thumbnail = project.coverThumbnail?.variants.find(variant => variant.size === 800);
+  if (thumbnail && Number.isFinite(thumbnail.width) && thumbnail.width > 0 && Number.isFinite(thumbnail.height) && thumbnail.height > 0) {
+    return thumbnail.width / thumbnail.height;
+  }
   const isDocument = project.coverKind === 'document' || typeof project.pageCount === 'number' && project.pageCount > 1;
   const cropRatio = project.coverFrame?.aspectRatio;
   if (cropRatio && Number.isFinite(cropRatio) && cropRatio > 0) return cropRatio;

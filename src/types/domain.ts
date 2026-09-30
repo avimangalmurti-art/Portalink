@@ -254,6 +254,21 @@ export type ProjectDesign = {
   /** Creator-selected number of pages per row that viewers initially see. */
   pagesPerRow?: number;
 };
+/** Immutable, pre-rendered cover artwork; originals remain separate attachments. */
+export type ProjectCoverThumbnail = {
+  version: 1;
+  bucket: 'project-covers' | 'project-media';
+  sourceAttachmentId: string;
+  sourceKey: string;
+  frameBaked: true;
+  variants: Array<{
+    size: 200 | 400 | 800;
+    path: string;
+    width: number;
+    height: number;
+    sourceUrl?: string | null;
+  }>;
+};
 export type Project = {
   id: Id;
   categoryId: Id;
@@ -265,6 +280,7 @@ export type Project = {
   relevance?: ProjectRelevance;
   cover: string;
   coverAlt: string;
+  coverThumbnail?: ProjectCoverThumbnail;
   /** Set when the cover needs a renderer other than a normal image element. */
   coverKind?: 'video' | 'document';
   /**

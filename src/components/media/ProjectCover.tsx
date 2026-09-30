@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { FileIcon } from 'lucide-react';
-import { PdfPage } from './PdfPage';
-import type { Project, ProjectAttachment, ProjectCoverFrame } from '../../types/domain';
+import type { Project, ProjectAttachment, ProjectCoverFrame, ProjectCoverThumbnail } from '../../types/domain';
 import { ResponsiveImage } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
+import { coverThumbnailSources } from '../../features/media/coverThumbnailSources';
+
+// Only legacy projects without a stored thumbnail may ask for the PDF module.
+const PdfPage = lazy(() => import('./PdfPage').then(module => ({ default: module.PdfPage })));
 
 type ProjectCoverProps = {
   source: string | null | undefined;
   previewSource?: string;
+  thumbnail?: ProjectCoverThumbnail;
   alt: string;
   kind?: Project['coverKind'];
   fit?: 'cover' | 'contain';
@@ -44,6 +48,7 @@ function firstAttachmentCover(attachments: ProjectAttachment[] | undefined) {
 export function ProjectCover({
   source: chosenSource,
   previewSource: chosenPreviewSource,
+  thumbnail,
   alt,
   kind: chosenKind,
   fit = 'cover',
@@ -65,12 +70,21 @@ export function ProjectCover({
   const effectiveFit = fallback?.document ? 'contain' : fit;
   const [imageFailed, setImageFailed] = useState(false);
   const [previewFailed, setPreviewFailed] = useState(false);
-  useEffect(() => setImageFailed(false), [source]);
+  const storedImage = coverThumbnailSources(thumbnail);
+  useEffect(() => setImageFailed(false), [source, storedImage?.src]);
   useEffect(() => setPreviewFailed(false), [source, previewSource]);
-  if (!source || imageFailed) {
-    return <span role="img" aria-label={imageFailed ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
+  const placeholder = <span role="img" aria-label={imageFailed || thumbnail ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
+  if (thumbnail) {
+    // A failed thumbnail stays a placeholder; never download the original or
+    // start a PDF worker because one cacheable image could not be fetched.
+    return !storedImage || imageFailed ? placeholder : <ResponsiveImage {...storedImage}
+      alt={alt} sizes={sizes} measureWidth priority={priority} data-project-cover-thumbnail=""
+      onError={() => setImageFailed(true)} className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`} />;
+  }
+  if (!source || imageFailed) {
+    return placeholder;
   }
   const normalizedFrame = !fallback && frame && fit === 'cover' ? normalizeProjectCoverFrame(frame) : null;
   const objectPosition = normalizedFrame
@@ -80,7 +94,7 @@ export function ProjectCover({
   const useDocumentPreview = kind === 'document' && Boolean(previewSource) && !previewFailed;
   const renderPdf = kind === 'document' && !useDocumentPreview;
   const content = renderPdf
-    ? <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" />
+    ? <Suspense fallback={placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" /></Suspense>
     : kind === 'video'
       ? <video
           src={source}
@@ -107,7 +121,7 @@ export function ProjectCover({
 
   if (!normalizedFrame) {
     if (renderPdf) {
-      return <PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className={className} />;
+      return <Suspense fallback={placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} className={className} /></Suspense>;
     }
     return React.cloneElement(content, {
       className: `${content.props.className ?? ''} ${className}`.trim(),

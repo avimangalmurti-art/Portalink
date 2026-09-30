@@ -8,7 +8,7 @@ import ts from 'typescript';
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 function harness() {
   let cursor = 0; const state = [];
-  const react = { ...React, useEffect() { /* Covers render synchronously in this harness. */ }, useState(initial) {
+  const react = { ...React, lazy: () => 'pdf-page', useEffect() { /* Covers render synchronously in this harness. */ }, useState(initial) {
     const i = cursor++; if (!(i in state)) state[i] = initial;
     return [state[i], next => { state[i] = next; }];
   } };
@@ -20,9 +20,10 @@ function harness() {
     if (name === './PdfPage') return { PdfPage: 'pdf-page' };
     if (name.endsWith('/ResponsiveImage')) return { ResponsiveImage: 'image' };
     if (name.endsWith('/coverFrame')) return { normalizeProjectCoverFrame: frame => frame };
+    if (name.endsWith('/coverThumbnailSources')) return { coverThumbnailSources: () => null };
     return { InterfaceIcon: 'icon', FileIcon: 'file' };
   } });
-  return props => { cursor = 0; return exports.ProjectCover({ source: '', alt: 'Project artwork', ...props }); };
+  return props => { cursor = 0; const tree = exports.ProjectCover({ source: '', alt: 'Project artwork', ...props }); return tree.type === React.Suspense ? tree.props.children : tree; };
 }
 const image = (id, order) => ({ id, order, kind: 'image', sourceUrl: `${id}.png`, metadata: { aspectRatio: 1.5 } });
 const page = (attachmentId, withinDocumentIndex, sourceUrl) => ({ attachmentId, withinDocumentIndex, sourceUrl, aspectRatio: 0.7 });

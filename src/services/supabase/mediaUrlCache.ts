@@ -61,7 +61,7 @@ function store(scope: Scope, key: string, value: Promise<string | null>, lifetim
 
 /** Reuse URLs only in memory and only for the current account. The RLS-backed
  * content read still precedes signing; this cache grants no project access. */
-export async function signedMediaUrls(bucket: string, paths: string[], minimumLifetimeMs = 0): Promise<Map<string, string>> {
+export async function signedMediaUrls(bucket: string, paths: string[], minimumLifetimeMs = 0, singleBatch = false): Promise<Map<string, string>> {
   const unique = [...new Set(paths.filter(Boolean))];
   if (unique.length === 0) return new Map();
   const { client, scope, generation } = await mediaScope();
@@ -73,8 +73,9 @@ export async function signedMediaUrls(bucket: string, paths: string[], minimumLi
   const values = new Map(unique.map((path) => [path, scope.entries.get(cacheKey(path))?.value]));
   let previousBatch: Promise<unknown> = Promise.resolve();
   // Keep signing requests bounded for long PDFs and multipart files.
-  for (let start = 0; start < missing.length; start += 100) {
-    const batch = missing.slice(start, start + 100);
+  const batchSize = singleBatch ? Math.max(1, missing.length) : 100;
+  for (let start = 0; start < missing.length; start += batchSize) {
+    const batch = missing.slice(start, start + batchSize);
     const request = previousBatch.then(() => {
       if (generation !== scope.generation) throw new Error('Your session changed. Please try again.');
       return client.storage.from(bucket).createSignedUrls(batch, SIGNED_URL_SECONDS);

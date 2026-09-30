@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 
 export type ResponsiveImageSource = {
   srcSet: string;
@@ -14,6 +14,8 @@ type CommonImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'alt' | 
   /** Loads immediately and receives high network priority for above-fold art. */
   priority?: boolean;
   loading?: 'eager' | 'lazy';
+  /** Responsive grids can resize without viewport changes (density and sidebars). */
+  measureWidth?: boolean;
 };
 
 type MeaningfulImageProps = CommonImageProps & {
@@ -45,12 +47,32 @@ export function ResponsiveImage({
   decorative = false,
   alt = '',
   draggable,
+  measureWidth = false,
   ...imageProps
 }: ResponsiveImageProps) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number>();
+  useLayoutEffect(() => {
+    if (!measureWidth || !imageRef.current) return;
+    const image = imageRef.current;
+    const measure = () => { const width = Math.ceil(image.getBoundingClientRect().width); if (width > 0) setMeasuredWidth(width); };
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(image);
+    return () => observer?.disconnect();
+  }, [measureWidth]);
+  const sizes = measureWidth && measuredWidth ? `${measuredWidth}px` : imageProps.sizes;
+  // Measure in the layout phase before exposing resolution candidates. Without
+  // this, an eager image can start downloading the 800px file under a temporary
+  // 100vw assumption even when its actual grid tile needs only 200px.
+  const sourceReady = !measureWidth || measuredWidth !== undefined;
   const image = <img
     {...imageProps}
+    ref={imageRef}
+    sizes={sizes}
     data-responsive-image=""
-    src={src}
+    src={sourceReady ? src : undefined}
+    srcSet={sourceReady ? imageProps.srcSet : undefined}
     alt={decorative ? '' : alt}
     aria-hidden={decorative ? true : imageProps['aria-hidden']}
     loading={priority ? 'eager' : loading}
@@ -66,10 +88,10 @@ export function ResponsiveImage({
   return <picture>
       {sources.map((source) => <source
         key={`${source.media ?? 'all'}-${source.type ?? 'auto'}-${source.srcSet}`}
-        srcSet={source.srcSet}
+        srcSet={sourceReady ? source.srcSet : undefined}
         type={source.type}
         media={source.media}
-        sizes={source.sizes ?? imageProps.sizes}
+        sizes={source.sizes ?? sizes}
       />)}
       {image}
     </picture>;

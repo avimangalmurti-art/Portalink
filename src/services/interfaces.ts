@@ -126,6 +126,8 @@ export interface ProfileService {
    * distinguish "no such profile" from a profile it can open.
    */
   getProfile(profileId: Id): Promise<Profile>;
+  /** Public-only grid bundle, isolated from the owner's fuller profile cache. */
+  getSharedProfile?(profileId: Id): Promise<Profile>;
   /** A lightweight layout read/write for Home; never a partial Profile cache entry. */
   getProjectGridLayout?(profileId: Id): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;
   updateProjectGridLayout?(profileId: Id, columns: number): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;

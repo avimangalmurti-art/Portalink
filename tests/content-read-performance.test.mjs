@@ -220,6 +220,7 @@ test('feed PDF covers sign only the selected rendered page while full viewers ke
     exports,
     signedUrls: async paths => { signed.push(paths); return new Map(paths.map(path => [path, `url/${path}`])); },
     readVideoPlayback: () => null, readMultipartSpec: value => value,
+    readCoverThumbnail: () => undefined,
     multipartSource: async path => { multipart.push(path); return 'virtual-source'; },
     normalizeProjectCoverFrame: value => value, resolveStoredMediaKind: kind => kind,
     deriveProjectRelevance: () => ({}), asDesign: value => value,

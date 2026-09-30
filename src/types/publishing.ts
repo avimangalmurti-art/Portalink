@@ -346,6 +346,8 @@ export type PublishProjectInput = {
 };
 export type PublishResult = {
   projectId: Id;
+  /** Publication succeeded; optional recoverable cover preparation notice. */
+  message?: string;
   /**
    * Always false while no storage backend exists: the project carries local
    * previews for this session only. The UI must say so rather than implying an
