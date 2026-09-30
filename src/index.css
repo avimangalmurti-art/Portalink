@@ -345,12 +345,11 @@ textarea {
 .reduce-translucency {
   --mac-sidebar-bg: var(--mac-content-bg);
 }
-/* High contrast strengthens labels and separators only. Controls keep their own
-   dimensions and treatment — this task is the token foundation, not a redesign,
-   and the existing high-contrast system continues to apply alongside it. */
+/* Content edges use opaque contrast ink so artwork cannot dilute the outline.
+   Controls and cards keep their dimensions; separators retain their own tokens. */
 .high-contrast {
   --content-preview-edge-width: 2px;
-  --content-preview-edge-color: var(--hairline-strong);
+  --content-preview-edge-color: #111111;
   --content-preview-ink: var(--control-text);
   --mac-label-primary: #000000;
   --mac-label-secondary: rgba(0, 0, 0, 0.75);
@@ -360,6 +359,7 @@ textarea {
   --mac-fill-secondary: rgba(0, 0, 0, 0.12);
 }
 .high-contrast.theme-dark {
+  --content-preview-edge-color: #ffffff;
   --mac-label-primary: #ffffff;
   --mac-label-secondary: rgba(255, 255, 255, 0.8);
   --mac-label-tertiary: rgba(255, 255, 255, 0.6);
@@ -644,7 +644,7 @@ textarea {
 @media (prefers-contrast: more) {
   :is(.theme-light, .theme-dark) {
     --content-preview-edge-width: 2px;
-    --content-preview-edge-color: var(--hairline-strong);
+    --content-preview-edge-color: #111111;
     --content-preview-ink: var(--control-text);
   }
   .theme-light {
@@ -658,6 +658,7 @@ textarea {
     --feed-card-border: rgba(0, 0, 0, 0.55);
   }
   .theme-dark {
+    --content-preview-edge-color: #ffffff;
     --label-secondary: #ffffff;
     --label-tertiary: rgba(255, 255, 255, 0.86);
     --separator: rgba(255, 255, 255, 0.46);
