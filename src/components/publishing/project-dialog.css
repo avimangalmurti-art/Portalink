@@ -95,6 +95,20 @@
 .project-media-list > li { flex-shrink: 0; }
 .project-form-media--populated .project-media-list { max-height: 64px; }
 .project-form-media--populated .project-media-selection { flex: 0 0 auto; }
+/* Touch actions sit below the attachment title so neither competes for width. */
+[data-presentation='mobile'] .project-form-media--edit > .project-media-list {
+  max-height: clamp(124px, calc(var(--dialog-viewport-height, 100dvh) * 0.2), 180px);
+}
+[data-presentation='mobile'] .project-edit-file-row {
+  display: grid;
+  grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+[data-presentation='mobile'] .project-edit-file-thumbnail { grid-column: 1; grid-row: 1; }
+[data-presentation='mobile'] .project-edit-file-title { grid-column: 2 / -1; grid-row: 1; }
+[data-presentation='mobile'] .project-edit-file-reorder { grid-column: 1 / 3; grid-row: 2; flex-direction: row; gap: 8px; }
+[data-presentation='mobile'] .project-edit-file-cover { grid-column: 3; grid-row: 2; justify-self: start; }
+[data-presentation='mobile'] .project-edit-file-remove { grid-column: 4; grid-row: 2; }
 .project-edit-transfer { margin-top: 0; }
 .project-form-details { flex: 0 0 auto; }
 .project-form-details > div { gap: 4px; }

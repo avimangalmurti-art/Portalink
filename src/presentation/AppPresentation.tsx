@@ -9,6 +9,7 @@ import { useProjectScrollActivity } from './mobile/useProjectScrollActivity';
 import './web/web.css';
 import './mobile/mobile.css';
 import './navigation.css';
+import './controls.css';
 
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {

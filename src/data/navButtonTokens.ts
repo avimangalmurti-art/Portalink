@@ -277,8 +277,8 @@ export function resolveNavButtonTokens(appearance: NavAppearance, accent: string
   ];
   const navigationSelectedInk = navigationAccent(accent, [...restingBounds, navigationSelected], tokens.text);
   return {
-    // Dedicated navigation material. Legacy --nav-button/--control contracts
-    // below retain their values for panels, forms and unrelated controls.
+    // Dedicated navigation material. Legacy --nav-button values stay intact;
+    // neutral controls share the solid selected fill and its readable ink.
     '--navigation-surface': material(navigationRest),
     '--navigation-foreground': tokens.text,
     '--navigation-hover-surface': material(navigationHover),
@@ -311,12 +311,12 @@ export function resolveNavButtonTokens(appearance: NavAppearance, accent: string
     '--control-rest-surface': tokens.background,
     '--control-hover-surface': tokens.hover,
     '--control-pressed-surface': tokens.pressed,
-    '--control-selected-surface': tokens.selected,
+    '--control-selected-surface': navigationSelected,
     '--control-text': tokens.text,
     '--control-icon': tokens.icon,
     '--control-border': tokens.border,
     '--control-hover-text': hoverText,
     '--control-pressed-text': pressedText,
-    '--control-selected-text': 'var(--accent-text)'
+    '--control-selected-text': navigationSelectedInk
   };
 }

@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
 import React from 'react';
+import postcss from 'postcss';
 
 function harness() {
   const exports = {};
@@ -14,6 +15,33 @@ function harness() {
 }
 const { navigationSwipe } = harness();
 const start = { x: 60, y: 100, time: 0 };
+
+test('navigation state rules retain selected/open feedback through hover and reset disabled controls', () => {
+  const css = postcss.parse(fs.readFileSync(new URL('../src/presentation/navigation.css', import.meta.url), 'utf8'));
+  const states = [];
+  css.walkRules(rule => {
+    const surface = rule.nodes.find(node => node.type === 'decl' && node.prop === '--navigation-item-surface');
+    if (surface) states.push({ rule, surface: surface.value });
+  });
+  const selected = states.find(state => state.surface === 'var(--navigation-selected-surface)').rule;
+  const hover = states.find(state => state.surface === 'var(--navigation-hover-surface)').rule;
+  const pressed = states.find(state => state.surface === 'var(--navigation-pressed-surface)').rule;
+  const disabled = states.find(state => state.surface === 'var(--navigation-item-rest-surface, transparent)').rule;
+  const enabledGuard = ":not(:disabled, [aria-disabled='true'])";
+  for (const selector of [...selected.selectors, ...pressed.selectors]) assert.ok(selector.includes(enabledGuard), selector);
+  for (const hook of ['[data-structural-toggle]', '[data-project-index-toggle]', '.mobile-navigation-opener', '.mobile-shared-drawer-opener']) {
+    assert.ok(selected.selectors.some(selector => selector.includes(hook) && selector.includes("[aria-expanded='true']")), hook);
+  }
+  for (const selector of hover.selectors) {
+    assert.match(selector, /:not\([^)]*:disabled[^)]*\[aria-disabled='true'\][^)]*\[aria-expanded='true'\][^)]*\):hover/);
+  }
+  assert.ok(hover.selectors.some(selector => selector.includes("[aria-current='page']") && selector.includes("[aria-pressed='true']")));
+  for (const selector of disabled.selectors) assert.ok(selector.endsWith(":is(:disabled, [aria-disabled='true'])"));
+  assert.ok(states.indexOf(states.find(state => state.rule === pressed)) > states.indexOf(states.find(state => state.rule === selected)));
+  assert.ok(states.indexOf(states.find(state => state.rule === disabled)) > states.indexOf(states.find(state => state.rule === pressed)));
+  assert.ok(disabled.nodes.some(node => node.prop === '--navigation-item-foreground' && node.value === 'var(--navigation-foreground)'));
+});
+
 test('quick flicks and deliberate drags work in both directions', () => {
   assert.equal(navigationSwipe(start, { x: 30, y: 102, time: 60 }), 'left');
   assert.equal(navigationSwipe(start, { x: 116, y: 103, time: 500 }), 'right');

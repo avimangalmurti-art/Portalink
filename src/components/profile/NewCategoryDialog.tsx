@@ -94,7 +94,7 @@ export function NewCategoryDialog({
       }
     }} role="dialog" aria-modal="true" aria-labelledby="new-category-heading" className="flex max-h-[min(680px,90vh)] w-full max-w-[440px] flex-col overflow-hidden rounded-[16px] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
         <div className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
-          <button type="button" disabled={isSaving} onClick={onCancel} aria-label="Close" className="shape-squircle-compact absolute left-3 flex h-8 w-8 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" disabled={isSaving} onClick={onCancel} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
           </button>
           <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">New {itemName}</h2>
@@ -119,7 +119,7 @@ export function NewCategoryDialog({
               className="text-control h-11 min-w-0 flex-1 px-3 text-center text-base font-medium text-[var(--text-primary)] placeholder:font-normal placeholder:text-[var(--text-tertiary)]" />
             <button ref={searchToggleRef} type="button" disabled={isSaving} onClick={toggleIconSearch}
               aria-label={isIconSearch ? `Return to ${itemName} title` : 'Search icons'} aria-pressed={isIconSearch}
-              className="shape-squircle-compact flex h-11 w-11 shrink-0 items-center justify-center border border-[var(--hairline)] bg-[var(--surface-sunken)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+              data-ui-control="icon" data-control-size="lg" data-control-variant="secondary" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={isIconSearch ? XIcon : SearchIcon} size="lg" />
             </button>
           </div>
@@ -129,12 +129,12 @@ export function NewCategoryDialog({
         </div>
 
         <div className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">
-          <button type="button" disabled={isSaving} onClick={onCancel} className="dialog-action-button h-9 flex-1 rounded-[10px] bg-[var(--surface-sunken)] text-[13px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-pressed)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button type="button" disabled={isSaving} onClick={onCancel} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             Cancel
           </button>
           {/* Disabled until there is a name, because a category with no title is
              not a thing that can be created. */}
-          <button type="submit" disabled={isIconSearch || !trimmed || isSaving} className="dialog-action-button h-9 flex-1 rounded-[10px] bg-[var(--accent-primary)] text-[13px] font-semibold text-[var(--accent-foreground)] transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+          <button type="submit" disabled={isIconSearch || !trimmed || isSaving} data-ui-control="button" data-control-size="md" data-control-variant="primary" className="flex-1 bg-[var(--accent-primary)] text-[var(--accent-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             {isSaving ? 'Creating…' : `Create ${itemName}`}
           </button>
         </div>

@@ -35,7 +35,7 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
             <h2 id={titleId} className="text-[20px] font-semibold leading-tight">{title}</h2>
             {description ? <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p> : null}
           </div>
-          <button type="button" onClick={requestClose} disabled={closeDisabled} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none"><InterfaceIcon icon={XIcon} weight="medium" /></button>
+          <button type="button" onClick={requestClose} disabled={closeDisabled} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} weight="medium" /></button>
         </div>
         {children}
       </motion.section>

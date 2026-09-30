@@ -78,13 +78,18 @@
   color: inherit !important;
 }
 
-/* Zero-specificity state scopes inherit the control selector's precedence. */
+/* Selection and an open navigation surface remain visible through hover.
+   An enabled press takes precedence; disabled controls always return to rest. */
 #root .codex-shell[data-presentation] :is(
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
   .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
   [data-project-file-strip], .account-menu-popover
-) :where(button, a):is([aria-current='page'], [aria-current='true'], [aria-pressed='true']),
-#root .codex-shell[data-presentation] :where(.mobile-project-popup-trigger, .mobile-project-page-counter, .mobile-project-engagement-toggle, .nav-button[aria-haspopup])[aria-expanded='true'] {
+) :where(button, a):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true']):not(:disabled, [aria-disabled='true']),
+#root .codex-shell[data-presentation] :where(
+  .mobile-project-popup-trigger, .mobile-project-page-counter, .mobile-project-engagement-toggle,
+  .nav-button[aria-haspopup], [data-structural-toggle], [data-project-index-toggle],
+  .mobile-navigation-opener, .mobile-shared-drawer-opener
+)[aria-expanded='true']:not(:disabled, [aria-disabled='true']) {
   --navigation-item-surface: var(--navigation-selected-surface);
   --navigation-item-foreground: var(--navigation-selected-foreground);
 }
@@ -94,8 +99,8 @@
     .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
     .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
     [data-project-file-strip], .account-menu-popover
-  ) :where(button, a):not(:disabled, [aria-disabled='true']):hover,
-  #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):hover {
+  ) :where(button, a):not(:disabled, [aria-disabled='true'], [aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'], [aria-expanded='true']):hover,
+  #root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):not(:disabled, [aria-disabled='true'], [aria-expanded='true']):hover {
     --navigation-item-surface: var(--navigation-hover-surface);
     --navigation-item-foreground: var(--navigation-hover-foreground);
   }
@@ -105,7 +110,7 @@
   .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
   [data-project-file-strip], .account-menu-popover
 ) :where(button, a):not(:disabled, [aria-disabled='true']):active,
-#root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):active {
+#root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):not(:disabled, [aria-disabled='true']):active {
   --navigation-item-surface: var(--navigation-pressed-surface);
   --navigation-item-foreground: var(--navigation-pressed-foreground);
 }
@@ -113,7 +118,10 @@
   .sidebar-surface, .shared-profile-sidebar, .mobile-navigation-layer,
   .mobile-shared-drawer-layer, [data-project-index-panel], [data-project-response-rail],
   [data-project-file-strip], .account-menu-popover
-) :where(button, a):is(:disabled, [aria-disabled='true']) {
+) :where(button, a):is(:disabled, [aria-disabled='true']),
+#root .codex-shell[data-presentation] :is(.mobile-project-back, .mobile-project-page-counter):is(:disabled, [aria-disabled='true']) {
+  --navigation-item-surface: var(--navigation-item-rest-surface, transparent);
+  --navigation-item-foreground: var(--navigation-foreground);
   opacity: .4;
   cursor: not-allowed;
 }
@@ -134,7 +142,7 @@
   border-radius: 999px;
 }
 #root .codex-shell[data-presentation] :is(.sidebar-surface, .shared-profile-sidebar) .nav-button {
-  border-radius: 12px;
+  border-radius: var(--shape-compact);
 }
 #root .codex-shell[data-presentation] .mobile-project-page-counter {
   --navigation-control-transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;

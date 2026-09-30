@@ -20,7 +20,7 @@ function contrast(a, b) {
   return (high + 0.05) / (low + 0.05);
 }
 
-test('every saved gray keeps readable control labels through hover and press', () => {
+test('every saved gray keeps readable control labels through hover, press and selection', () => {
   for (const theme of ['light', 'dark']) {
     for (const gray of systemGrays) {
       for (const highContrast of [false, true]) {
@@ -31,11 +31,11 @@ test('every saved gray keeps readable control labels through hover and press', (
             ['--control-rest-surface', '--control-text'],
             ['--control-hover-surface', '--control-hover-text'],
             ['--control-pressed-surface', '--control-pressed-text'],
+            ['--control-selected-surface', '--control-selected-text'],
           ]) {
             assert.ok(contrast(tokens[surface], tokens[ink]) >= 4.5,
               `${theme}/${gray.id}/${highContrast}: ${surface} needs readable ink`);
           }
-          assert.equal(tokens['--control-selected-text'], 'var(--accent-text)');
           assert.equal(tokens['--nav-button-focus-ring'], 'var(--focus-ring)');
         }
       }
@@ -48,6 +48,33 @@ test('neutral hover follows a neighboring gray across the light/dark boundary', 
   assert.equal(tokens['--control-hover-surface'], '#8E8E93');
   assert.notEqual(tokens['--control-text'], tokens['--control-hover-text']);
   assert.equal(tokens['--nav-button-text-selected'], 'var(--accent-text)');
+});
+
+test('selected controls retain their chosen neutral gray on any host canvas', () => {
+  for (const theme of ['light', 'dark']) for (const gray of systemGrays) {
+    for (const highContrast of [false, true]) for (const opaque of [false, true]) {
+      let selectedSurface;
+      for (const accent of navAccents.map(value => value[theme])) {
+        const tokens = resolve(theme, accent, highContrast, opaque, gray.id);
+        const surface = tokens['--control-selected-surface'];
+        assert.match(surface, /^#[\da-f]{6}$/i, 'Selection must not disappear by compositing a translucent white overlay onto a white canvas.');
+        assert.notEqual(surface.toLowerCase(), gray[theme].toLowerCase(), 'Selection must remain distinct from its resting gray.');
+        selectedSurface ??= surface;
+        assert.equal(surface, selectedSurface, 'The accent colors the ink, not the neutral selection surface.');
+        for (const backdrop of ['#FFFFFF', '#000000', gray[theme]]) {
+          assert.equal(composite(surface, backdrop), surface, 'Selection must not depend on its parent surface.');
+          assert.ok(contrast(composite(surface, backdrop), tokens['--control-selected-text']) >= 4.5,
+            `${theme}/${gray.id}/${accent}: selected labels must remain readable`);
+        }
+      }
+    }
+  }
+  const lightGray = resolve('light', '#FF375F', false, false, 'gray');
+  assert.equal(lightGray['--control-selected-surface'], '#808084');
+  assert.equal(resolve('dark', '#FF375F', false, false, 'gray6')['--control-selected-surface'], '#333335');
+  assert.equal(lightGray['--nav-button-background-selected'], 'rgba(255,255,255,0.14)', 'Legacy navigation tokens are unchanged.');
+  assert.equal(lightGray['--nav-button-text-selected'], 'var(--accent-text)');
+  assert.equal(lightGray['--nav-button-icon-selected'], 'var(--accent-text)');
 });
 
 function composite(color, backdrop) {
@@ -120,10 +147,11 @@ test('selected navigation uses the visibly raised/deepened neutral project capsu
   assert.equal(resolve('dark', '#FF375F', false, false, 'gray6')['--navigation-selected-surface'], '#333335');
 });
 
-test('navigation defaults are resolved materials without changing historical control fallbacks', () => {
+test('navigation defaults preserve legacy tokens and resting controls while selected controls stay readable', () => {
   for (const theme of ['light', 'dark']) for (const highContrast of [false, true]) for (const opaque of [false, true]) {
     const tokens = resolve(theme, '#007AFF', highContrast, opaque);
-    assert.equal(tokens['--control-selected-text'], 'var(--accent-text)');
+    assert.match(tokens['--control-selected-surface'], /^#[\da-f]{6}$/i);
+    assert.ok(contrast(tokens['--control-selected-surface'], tokens['--control-selected-text']) >= 4.5);
     assert.equal(tokens['--nav-button-text-selected'], 'var(--accent-text)');
     assert.equal(tokens['--nav-button-focus-ring'], 'var(--focus-ring)');
     assert.equal(tokens['--control-rest-surface'], theme === 'dark' ? opaque ? '#1B1C1C' : 'rgba(27,28,28,0.85)' : opaque ? '#F3F3F6' : 'rgba(24,24,27,0.035)');

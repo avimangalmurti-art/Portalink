@@ -5,11 +5,7 @@
   padding: max(8px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
 }
 .profile-editor-header h1 { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; outline: none; }
-.profile-editor-page :is(.profile-editor-back, .profile-editor-save) {
-  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px;
-  border: 0; border-radius: 10px; background: transparent;
-}
-.profile-editor-save { padding: 0 8px; color: var(--link-text, #0a84ff); font-size: 16px; font-weight: 600; }
+.profile-editor-page :is(.profile-editor-back, .profile-editor-save) { flex-shrink: 0; }
 .profile-editor-page button:disabled { opacity: 0.45; }
 .profile-editor-page :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .profile-editor-scroll { overscroll-behavior-y: contain; scroll-padding-block: 16px; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
@@ -83,7 +79,6 @@
 .profile-editor-page[data-presentation='mobile'] .profile-links-editor-heading { align-items: center; gap: 8px; }
 .profile-editor-page[data-presentation='mobile'] .profile-links-editor-heading legend { font-size: 16px; }
 .profile-editor-page[data-presentation='mobile'] .profile-links-editor-list { gap: 8px; }
-.profile-editor-page[data-presentation='mobile'] .profile-links-editor-add { min-height: 44px; font-size: 14px; border: 0; background: transparent; color: var(--link-text, #0a84ff); padding-right: 0; }
 .profile-editor-page[data-presentation='mobile'] .profile-link-editor-row--compact { padding: 4px 8px; border: 1px solid var(--hairline-strong); border-radius: 10px; background: color-mix(in srgb, var(--surface-inset) 36%, transparent); }
 .profile-editor-page[data-presentation='mobile'] .profile-link-edit { font-size: 14px; }
 .profile-editor-page[data-presentation='mobile'] .profile-link-icon svg { width: 26px; height: 26px; }

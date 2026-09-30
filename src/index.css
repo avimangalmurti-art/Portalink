@@ -1551,15 +1551,15 @@ button[data-portalink-tile],
   background-color: var(--surface-pressed);
   transform: scale(0.98);
 }
-.accent-theme button:disabled,
-.accent-theme [aria-disabled='true'] {
+.accent-theme button:disabled:not([data-ui-control]),
+.accent-theme [aria-disabled='true']:not([data-ui-control]) {
   opacity: 0.42;
   cursor: not-allowed;
 }
 /* Selected navigation and toggles read as a soft filled chip. */
-.accent-theme button[aria-current='page'],
-.accent-theme button[aria-pressed='true'],
-.accent-theme button[aria-selected='true'] {
+.accent-theme button[aria-current='page']:not([data-ui-control]),
+.accent-theme button[aria-pressed='true']:not([data-ui-control]),
+.accent-theme button[aria-selected='true']:not([data-ui-control]) {
   background-color: var(--surface-selected) !important;
   color: var(--text-primary) !important;
 }
@@ -4770,33 +4770,27 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    selection, success, warning, danger, primary accent actions, and brand marks
    are never repainted by this layer. */
 .codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-'])
+  :where(button, [role='button']):not([data-ui-control]):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-'])
   :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
   color: inherit !important;
 }
 
-.codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([data-semantic-action]):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'])
-  :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
-  color: var(--control-selected-text) !important;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
+    :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
     background-color: var(--control-hover-surface) !important;
     color: var(--control-hover-text) !important;
   }
 
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover
+    :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover
     :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
     color: inherit !important;
   }
 }
 
 .codex-shell
-  :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):active {
+  :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):active {
   background-color: var(--control-pressed-surface) !important;
   color: var(--control-pressed-text) !important;
 }

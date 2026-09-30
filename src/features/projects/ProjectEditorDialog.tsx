@@ -132,22 +132,22 @@ export function ProjectEditorDialog({
                 <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
                   {editor.attachmentEdits.map((edit, index) => {
                 const source = editor.originalAttachments.find((attachment) => attachment.id === edit.id);
-                return <li key={edit.id} className="relative flex items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-inset)] p-2">
-                        <div className="flex shrink-0 flex-col">
-                          <button type="button" onClick={() => editor.moveAttachment(edit.id, -1)} disabled={index === 0 || isLocked} aria-label={`Move ${edit.displayName} earlier`} className="flex h-4 w-5 items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"><ChevronUpIcon className="h-3.5 w-3.5" aria-hidden="true" /></button>
-                          <button type="button" onClick={() => editor.moveAttachment(edit.id, 1)} disabled={index === editor.attachmentEdits.length - 1 || isLocked} aria-label={`Move ${edit.displayName} later`} className="flex h-4 w-5 items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40"><ChevronDownIcon className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                return <li key={edit.id} className="project-edit-file-row relative flex items-center gap-2.5 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-inset)] p-2">
+                        <div className="project-edit-file-reorder flex shrink-0 flex-col">
+                          <button type="button" onClick={() => editor.moveAttachment(edit.id, -1)} disabled={index === 0 || isLocked} aria-label={`Move ${edit.displayName} earlier`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><ChevronUpIcon className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                          <button type="button" onClick={() => editor.moveAttachment(edit.id, 1)} disabled={index === editor.attachmentEdits.length - 1 || isLocked} aria-label={`Move ${edit.displayName} later`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><ChevronDownIcon className="h-3.5 w-3.5" aria-hidden="true" /></button>
                         </div>
-                        {source?.kind === 'image' && source.sourceUrl ? <ResponsiveImage src={source.sourceUrl} alt={source.fileName} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><InterfaceIcon icon={FileIcon} size="sm" /></span>}
-                        <label className="min-w-0 flex-1">
+                        <div className="project-edit-file-thumbnail shrink-0">{source?.kind === 'image' && source.sourceUrl ? <ResponsiveImage src={source.sourceUrl} alt={source.fileName} width={40} height={40} sizes="40px" className="h-10 w-10 shrink-0 rounded-[7px] object-cover" /> : <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px] bg-[var(--surface-sunken)] text-[var(--text-tertiary)]"><InterfaceIcon icon={FileIcon} size="sm" /></span>}</div>
+                        <label className="project-edit-file-title min-w-0 flex-1">
                           <span className="sr-only">{`Title for ${source?.fileName ?? edit.displayName}`}</span>
                           <input type="text" value={edit.displayName} disabled={isLocked} onChange={(event) => editor.setAttachmentTitle(edit.id, event.target.value)} className="text-control w-full min-w-0 px-1.5 py-1 text-[13px] text-[var(--text-primary)]" />
                           <span className="block px-1.5 text-[12px] text-[var(--text-secondary)]">{source?.typeLabel ?? 'File'}</span>
                         </label>
-                        <button type="button" data-project-cover-choice="" onClick={() => editor.setCover(edit.id)} disabled={isLocked} aria-pressed={edit.isCover} aria-label={`Use ${edit.displayName} as the cover`} className={`flex h-7 shrink-0 items-center gap-1 rounded-[6px] px-2 text-[12px] font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${edit.isCover ? 'text-[var(--accent-text)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}>
+                        <button type="button" data-project-cover-choice="" onClick={() => editor.setCover(edit.id)} disabled={isLocked} aria-pressed={edit.isCover} aria-label={`Use ${edit.displayName} as the cover`} data-ui-control="button" data-control-size="sm" data-control-variant="ghost" className="project-edit-file-cover shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                           <StarIcon className="h-3.5 w-3.5" aria-hidden="true" />
                           {edit.isCover ? 'Cover' : 'Set cover'}
                         </button>
-                        <button type="button" onClick={() => editor.removeAttachment(edit.id)} disabled={isLocked} aria-label={`Remove ${edit.displayName} from this edit`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>
+                        <button type="button" onClick={() => editor.removeAttachment(edit.id)} disabled={isLocked} aria-label={`Remove ${edit.displayName} from this edit`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="project-edit-file-remove shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>
                       </li>;
               })}
                 </ul>
@@ -176,7 +176,7 @@ export function ProjectEditorDialog({
                             {/* Per-file progress ONLY where the service attributes
                          bytes to files; otherwise the overall bar speaks. */}
                             {itemState ? <span className="shrink-0 tabular-nums">{Math.round(itemState.fraction * 100)}%</span> : <span className="shrink-0">{item.typeLabel}</span>}
-                            {!isLocked && <button type="button" onClick={() => added.remove(item.id)} aria-label={`Remove ${item.displayTitle}`} className="shrink-0 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] focus:outline-none"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>}
+                            {!isLocked && <button type="button" onClick={() => added.remove(item.id)} aria-label={`Remove ${item.displayTitle}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} size="sm" weight="medium" /></button>}
                           </li>;
                 })}
                     </ul>}

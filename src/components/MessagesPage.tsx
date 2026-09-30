@@ -281,7 +281,7 @@ export function MessagesPage({
   return <section data-messages-page="" aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
-        <ScreenBack action={goBackFromMessages}><button type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+        <ScreenBack action={goBackFromMessages}><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
         </button></ScreenBack>
         <div className="flex min-w-0 items-baseline gap-2">
@@ -289,14 +289,14 @@ export function MessagesPage({
           {!isMobileNewChat && messaging.unreadCount > 0 ? <span className="truncate text-[12px] font-medium text-[var(--text-secondary)]">{messaging.unreadCount} unread</span> : null}
         </div>
         {!isMobileNewChat ? <div className="side-panel-control-row ml-auto shrink-0">
-          <button type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message settings" title="Message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
-          <button type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" aria-expanded={isPrivacyOpen} aria-controls="message-privacy-settings" onClick={() => setIsPrivacyOpen((open) => !open)} aria-haspopup="dialog" aria-label="Message settings" title="Message settings" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={SettingsIcon} /></button>
+          <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={openNewMessage} aria-label="New message" title="New message" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={MessageSquarePlusIcon} />
           </button>
         </div> : null}
         </div>
         {messaging.activeConversation ? <div className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
-          <ScreenBack><button type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+          <ScreenBack><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
             <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
           </button></ScreenBack>
           <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
@@ -304,7 +304,7 @@ export function MessagesPage({
               <RecipientIdentity conversation={messaging.activeConversation} />
           </Link> : <RecipientIdentity conversation={messaging.activeConversation} />}
           <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
-          <button ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+          <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
           {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
               <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
               <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('archive'); }} />
@@ -557,7 +557,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
 }
 
 function FilterChip({ label, isActive, onSelect }: { label: string; isActive: boolean; onSelect: () => void }) {
-  return <button type="button" aria-pressed={isActive} title={label} onClick={onSelect} className={`ps-nav-item side-panel-primary-control flex w-full items-center justify-center px-1.5 text-[14px] font-semibold focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent-text)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--accent-text)]'}`}><span className="truncate">{label}</span></button>;
+  return <button data-ui-control="button" data-control-size="md" data-control-variant="ghost" type="button" aria-pressed={isActive} title={label} onClick={onSelect} className="ps-nav-item side-panel-primary-control flex w-full items-center justify-center px-1.5 text-[14px] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><span className="truncate">{label}</span></button>;
 }
 
 function ConversationMenuButton({ icon, label, danger = false, onClick }: { icon: InterfaceIconSource; label: string; danger?: boolean; onClick: () => void }) {

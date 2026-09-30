@@ -62,9 +62,9 @@ function ReorderableProfileLinkRow({
       <div className="flex min-h-14 items-center gap-3 px-2">
         <ActionIcon aria-hidden="true" className="h-[22px] w-[22px] shrink-0" /><span className="flex-1">{link.label}</span>
         <button type="button" disabled={disabled} onPointerDown={disabled ? undefined : event => dragControls.start(event)} aria-label={`Drag ${link.label} to reorder`} className="flex h-11 w-11 touch-none items-center justify-center"><GripVerticalIcon aria-hidden="true" className="h-5 w-5" /></button>
-        <button type="button" disabled={disabled} onClick={onRequestRemove} aria-label={`Remove ${link.label}`} className="flex h-11 w-11 items-center justify-center text-[var(--text-secondary)]"><Trash2Icon aria-hidden="true" className="h-5 w-5" /></button>
+        <button type="button" disabled={disabled} onClick={onRequestRemove} aria-label={`Remove ${link.label}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><Trash2Icon aria-hidden="true" className="h-5 w-5" /></button>
       </div>
-      {isConfirmingRemoval && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-2 py-1"><span className="mr-auto text-[13px]">Remove this link?</span><button type="button" disabled={disabled} onClick={onCancelRemove} className="min-h-11 px-3">Cancel</button><button type="button" disabled={disabled} onClick={onConfirmRemove} className="min-h-11 px-3 text-[var(--status-danger)]">Remove</button></div>}
+      {isConfirmingRemoval && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-2 py-1"><span className="mr-auto text-[13px]">Remove this link?</span><button type="button" disabled={disabled} onClick={onCancelRemove} data-ui-control="button" data-control-size="sm" data-control-variant="secondary">Cancel</button><button type="button" disabled={disabled} onClick={onConfirmRemove} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)]">Remove</button></div>}
     </Reorder.Item>;
   }
   function updateDestination(patch: Pick<Partial<EditableProfileLink>, 'label' | 'href'>) {
@@ -91,7 +91,7 @@ function ReorderableProfileLinkRow({
           <span className="profile-link-icon flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden="true"><Icon className="h-[18px] w-[18px]" /></span>
           <span className="profile-link-name min-w-0 truncate">{link.label || 'Untitled link'}</span>
         </button>
-        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} className="profile-link-remove flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--status-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="profile-link-remove shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
         </button>
       </div>
@@ -109,7 +109,7 @@ function ReorderableProfileLinkRow({
           </div>
         </div>
         <div className="profile-link-actions mt-3 flex min-w-0 items-center gap-2">
-          <button type="button" onClick={onChooseIcon} disabled={disabled} aria-label={`Choose icon for ${link.label || 'link'}`} className="profile-link-choose-icon flex min-h-11 items-center justify-center gap-2 rounded-[8px] px-2 text-[12px] text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+          <button type="button" onClick={onChooseIcon} disabled={disabled} aria-label={`Choose icon for ${link.label || 'link'}`} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-link-choose-icon gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
             Icon
           </button>
@@ -120,13 +120,13 @@ function ReorderableProfileLinkRow({
           <button type="button" onClick={() => {
             onToggleExpanded();
             summaryButtonRef.current?.focus();
-          }} disabled={disabled} aria-label={`Done editing ${link.label || 'link'}`} className="profile-link-done ml-auto min-h-11 rounded-[8px] px-3 text-[12px] font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Done</button>
+          }} disabled={disabled} aria-label={`Done editing ${link.label || 'link'}`} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-link-done ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Done</button>
         </div>
       </div>
       {isConfirmingRemoval ? <div className="profile-link-removal flex flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] pt-2">
         <span className="mr-auto text-[12px] text-[var(--text-secondary)]">Remove this link?</span>
-        <button type="button" onClick={onCancelRemove} disabled={disabled} className="min-h-11 rounded-[8px] px-3 text-[12px] font-semibold text-[var(--text-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Cancel</button>
-        <button type="button" onClick={onConfirmRemove} disabled={disabled} className="min-h-11 rounded-[8px] bg-[var(--status-danger)] px-3 text-[12px] font-semibold text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Remove</button>
+        <button type="button" onClick={onCancelRemove} disabled={disabled} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
+        <button type="button" onClick={onConfirmRemove} disabled={disabled} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
       </div> : null}
     </Reorder.Item>;
   }
@@ -139,7 +139,7 @@ function ReorderableProfileLinkRow({
     scale: 1.015,
     boxShadow: '0 10px 24px rgba(0,0,0,0.16)'
   }} role="listitem" aria-label={`${link.label || 'Untitled link'}, position ${index + 1} of ${total}`} className="profile-link-editor-row relative min-w-0 list-none rounded-[12px] p-2.5">
-      <div className="grid min-w-0 grid-cols-[18px_40px_minmax(0,1fr)_32px] items-start gap-2 sm:grid-cols-[18px_40px_minmax(110px,0.75fr)_minmax(160px,1.25fr)_32px]">
+      <div className="grid min-w-0 grid-cols-[18px_40px_minmax(0,1fr)_auto] items-start gap-2 sm:grid-cols-[18px_40px_minmax(110px,0.75fr)_minmax(160px,1.25fr)_auto]">
         <button type="button" aria-label={`Drag ${link.label || 'link'} to reorder`} onPointerDown={disabled ? undefined : (event) => dragControls.start(event)} disabled={disabled} className={`mt-[22px] flex h-8 w-[18px] shrink-0 touch-none items-center justify-center rounded-[6px] text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${disabled ? 'cursor-default opacity-40' : 'cursor-grab active:cursor-grabbing'}`}>
           <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
         </button>
@@ -156,13 +156,13 @@ function ReorderableProfileLinkRow({
           <input id={`profile-link-url-${link.id}`} type="text" inputMode="url" value={link.href} onChange={(event) => updateDestination({ href: event.target.value })} maxLength={PROFILE_LINK_URL_MAX_LENGTH} disabled={disabled} placeholder="https://instagram.com/yourname" aria-invalid={errors.href ? true : undefined} className="text-control h-10 w-full min-w-0 px-2.5 text-[12px] text-[var(--text-primary)]" />
           {errors.href ? <p className="mt-1 text-[10px] leading-tight text-[var(--status-danger)]">{errors.href}</p> : null}
         </div>
-        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} className="col-start-4 row-start-1 mt-[22px] flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--status-danger)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] sm:col-start-auto sm:row-start-auto">
+        <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="col-start-4 row-start-1 mt-[22px] sm:col-start-auto sm:row-start-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
         </button>
         {isConfirmingRemoval ? <div className="col-span-full flex items-center justify-end gap-2 border-t border-[var(--hairline)] pt-2">
             <span className="mr-auto text-[11px] text-[var(--text-secondary)]">Remove this link?</span>
-            <button type="button" onClick={onCancelRemove} className="h-7 rounded-[7px] px-2 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
-            <button type="button" onClick={onConfirmRemove} className="h-7 rounded-[7px] bg-[var(--status-danger)] px-2.5 text-[11px] font-semibold text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
+            <button type="button" onClick={onCancelRemove} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
+            <button type="button" onClick={onConfirmRemove} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
           </div> : null}
       </div>
     </Reorder.Item>;
@@ -262,7 +262,7 @@ export function ProfileLinksEditor({
           <legend className="p-0 text-[14px] font-semibold text-[var(--text-primary)]">Profile links</legend>
           {!compact ? <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-tertiary)]">Drag a handle to set the order viewers see.</p> : null}
         </div>
-        <button type="button" onClick={addLink} disabled={disabled || links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS} className={`${compact ? 'profile-links-editor-add min-h-11 ' : ''}inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[8px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-2.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40`}>
+        <button type="button" onClick={addLink} disabled={disabled || links.filter(link => !isProfileLinkAction(link.action)).length >= MAX_PROFILE_LINKS} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-links-editor-add shrink-0 gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
           Add link
         </button>
@@ -274,12 +274,12 @@ export function ProfileLinksEditor({
             setPendingRemovalId(null);
             if (compact) setExpandedIds((current) => current.filter((id) => id !== link.id));
           }} />)}
-        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} className={`${compact ? 'profile-links-editor-empty min-h-11 ' : ''}flex min-h-10 self-start items-center justify-center gap-2 rounded-[10px] px-3 text-[14px] font-normal text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+        </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="profile-links-editor-empty self-start gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={LinkIcon} size="sm" weight="medium" />
           Add your first link
         </button>}
       {removedActions.length > 0 && <div className="flex flex-wrap gap-2" aria-label="Add standard profile links">
-        {removedActions.map(link => <button key={link.id} type="button" disabled={disabled} onClick={() => onChange(link.id, { hidden: false })} className="inline-flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--hairline)] px-3 text-[14px] text-[var(--accent-text)]"><PlusIcon aria-hidden="true" className="h-4 w-4" />Add {link.label}</button>)}
+        {removedActions.map(link => <button key={link.id} type="button" disabled={disabled} onClick={() => onChange(link.id, { hidden: false })} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="gap-2"><PlusIcon aria-hidden="true" className="h-4 w-4" />Add {link.label}</button>)}
       </div>}
     </fieldset>
 
@@ -295,7 +295,7 @@ export function ProfileLinksEditor({
           }
         }} className="flex max-h-[min(720px,92dvh)] w-full max-w-[560px] flex-col overflow-hidden rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.34)]">
           <div className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
-            <button type="button" onClick={() => setIsChoosingIcon(false)} aria-label="Close icon picker" className="absolute left-3 flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button type="button" onClick={() => setIsChoosingIcon(false)} aria-label="Close icon picker" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
             </button>
             <h2 id="profile-link-icon-heading" className="text-medium font-semibold">Choose link icon</h2>
@@ -330,10 +330,10 @@ export function ProfileLinksEditor({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">
-            <button type="button" onClick={() => setIsChoosingIcon(false)} className="h-10 shrink-0 rounded-[10px] px-4 text-[14px] font-normal transition-colors duration-150 hover:bg-[var(--surface-pressed)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            <button type="button" onClick={() => setIsChoosingIcon(false)} data-ui-control="button" data-control-size="lg" data-control-variant="secondary" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Cancel
             </button>
-            <button type="button" disabled={!draftIconOption} onClick={() => draftIconOption && chooseIcon(draftIconOption)} className="h-10 shrink-0 rounded-[10px] bg-[var(--accent-primary)] px-4 text-[14px] font-medium text-[var(--accent-foreground)] transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+            <button type="button" disabled={!draftIconOption} onClick={() => draftIconOption && chooseIcon(draftIconOption)} data-ui-control="button" data-control-size="lg" data-control-variant="primary" className="shrink-0 bg-[var(--accent-primary)] text-[var(--accent-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               Done
             </button>
           </div>

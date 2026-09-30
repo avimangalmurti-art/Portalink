@@ -171,14 +171,11 @@ export function NavigationButtonsPanel({
                       key={option.mode}
                       type="button"
                       role="radio"
+                      data-ui-control="button" data-control-size="md" data-control-variant="ghost"
                       aria-checked={isSelected} tabIndex={isSelected ? 0 : -1}
                       onClick={() => onAppearanceModeChange(option.mode)}
                       className="side-panel-primary-control side-panel-control-row flex-1 justify-center border text-[12px] font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                       style={{
-                        backgroundColor: isSelected ? 'var(--surface-raised)' : 'transparent',
-                        borderColor: isSelected ? 'var(--hairline)' : 'transparent',
-                        color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        boxShadow: isSelected && !highContrast ? 'var(--shadow-elevated)' : 'none',
                         transition
                       }}
                     >

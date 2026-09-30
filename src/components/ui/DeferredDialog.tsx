@@ -19,8 +19,8 @@ function DeferredSurfaceStatus({ failed = false, onClose }: { failed?: boolean; 
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={failed ? 'Unable to open' : 'Opening'} className="w-full max-w-[340px] rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text-primary)] shadow-[var(--shadow-pop)] outline-none">
         <p role={failed ? 'alert' : 'status'} className="text-[14px] leading-relaxed">{failed ? 'This screen could not be opened. Check your connection and reload to try again.' : 'Opening…'}</p>
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="min-h-11 rounded-[10px] px-3 text-[14px] font-semibold text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">{failed ? 'Close' : 'Cancel'}</button>
-          {failed && <button type="button" onClick={() => window.location.reload()} className="min-h-11 rounded-[10px] bg-[var(--accent-primary)] px-3 text-[14px] font-semibold text-[var(--accent-foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">Reload</button>}
+          <button type="button" onClick={onClose} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">{failed ? 'Close' : 'Cancel'}</button>
+          {failed && <button type="button" onClick={() => window.location.reload()} data-ui-control="button" data-control-size="md" data-control-variant="primary" className="bg-[var(--accent-primary)] text-[var(--accent-foreground)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">Reload</button>}
         </div>
       </div>
     </div>

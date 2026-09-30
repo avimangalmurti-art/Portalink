@@ -63,9 +63,9 @@ export function ProfileEditorPage({
   const canSubmit = editor.canSave && !hasSaved && !avatarBusy && !editor.avatar.error;
   return <section data-presentation={isMobile ? 'mobile' : 'web'} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col text-[var(--text-primary)]">
           <header className="profile-editor-header">
-            <button type="button" onClick={onClose} aria-label="Back" disabled={isBusy || avatarBusy} className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
+            <button type="button" onClick={onClose} aria-label="Back" disabled={isBusy || avatarBusy} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
             <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">Edit profile</h1>
-            <button type="submit" form="profile-editor-form" className="profile-editor-save" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
+            <button type="submit" form="profile-editor-form" data-ui-control="button" data-control-size="md" data-control-variant="primary" className="profile-editor-save bg-[var(--accent-primary)] text-[var(--accent-foreground)]" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
           </header>
 
           {editor.loadError ? <div className="px-6 pb-6">

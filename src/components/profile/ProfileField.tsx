@@ -63,7 +63,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
   const hintId = `${id}-hint`;
   const statusId = `${id}-status`;
   const describedBy = [error ? errorId : null, status ? statusId : null, hint ? hintId : null].filter(Boolean).join(' ');
-  const fieldClass = `w-full bg-transparent text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] disabled:opacity-60`;
+  const fieldClass = `w-full bg-transparent text-[14px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]`;
   // `input-shell` moves the focus ring onto the container: the ring belongs to
   // the whole field the viewer sees, not to the bare text box inside it.
   const shellClass = 'input-shell text-control-shell flex items-center gap-1 rounded-[8px] px-3';
@@ -73,7 +73,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
         {optional && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Optional</span>}
         {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">{requiredIndicator === 'asterisk' ? <><span aria-hidden="true" className="text-[var(--accent-text)]">*</span><span className="sr-only">Required</span></> : 'Required'}</span>}
       </label>
-      {multiline ? <textarea id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 ${fieldClass}`} /> : <div className={`${shellClass} h-10`}>
+      {multiline ? <textarea id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 disabled:opacity-60 ${fieldClass}`} /> : <div className={`${shellClass} h-10`}>
           {prefix && <span aria-hidden="true" className="shrink-0 text-[14px] text-[var(--text-tertiary)]">{prefix}</span>}
           <input id={id} ref={ref} type="text" value={value} placeholder={placeholder} inputMode={inputMode} autoComplete={autoComplete} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={fieldClass} />
         </div>}
