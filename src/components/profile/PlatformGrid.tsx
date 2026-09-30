@@ -10,12 +10,14 @@ const TILE_CLASS = 'group relative flex h-10 w-10 min-h-10 min-w-10 shrink-0 ite
 export function PlatformGrid({
   links,
   profileName,
+  isSharedView = false,
   onOpenBio,
   onCollaboration,
   onMessage,
 }: {
   links: ProfileLink[];
   profileName: string;
+  isSharedView?: boolean;
   onOpenBio?: () => void;
   onCollaboration?: () => void;
   onMessage?: () => void;
@@ -23,7 +25,7 @@ export function PlatformGrid({
   return <ul aria-label={`${profileName} links`} className="profile-link-icons m-0 ml-auto flex w-fit max-w-full flex-wrap justify-end gap-1.5 p-0">
       {links.map((link, index) => {
         if (isProfileLinkAction(link.action)) {
-          if (link.hidden) return null;
+          if (link.hidden || (isSharedView && (link.action === 'collaboration' || link.action === 'message'))) return null;
           const action = { bio: onOpenBio, collaboration: onCollaboration, message: onMessage }[link.action];
           const Icon = { bio: InfoIcon, collaboration: HandshakeIcon, message: MessagesSquareIcon }[link.action];
           return <li key={link.action} className="list-none"><button type="button" onClick={action} disabled={!action} aria-label={link.label} title={link.label} aria-haspopup={link.action === 'bio' ? 'dialog' : undefined}

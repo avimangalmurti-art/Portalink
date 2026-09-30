@@ -608,7 +608,7 @@ export function UserProfilePage({
                 </div>}
             </div>}
           {<div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
-            <PlatformGrid links={profileLinks} profileName={displayName} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onMessage={onMessage} />
+            <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onMessage={onMessage} />
           </div>}
           {/* Mobile owner actions follow the profile links in one icon row. */}
           <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">

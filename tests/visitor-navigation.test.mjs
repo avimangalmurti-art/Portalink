@@ -277,8 +277,10 @@ test('profile options omit self-follow, recover failed state, and preserve the e
   });
   const render = () => h.render(() => VisitorProfileGrid({ profile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() {} }));
   button(render(), 'Profile options').props.onClick();
+  assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);
   assert.equal(button(render(), 'Follow'), undefined); assert.equal(followed.at(-1), null);
   state.own = false; state.resolveError = 'Unavailable';
+  assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);
   assert.equal(button(render(), 'Follow'), undefined); button(render(), 'Try again').props.onClick();
   assert.ok(button(render(), 'Follow'));
   state.search.set('view', 'portals');

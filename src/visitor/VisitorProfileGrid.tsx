@@ -54,7 +54,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       </header>
       {optionsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
+          <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
           {!ownProfile && !follows.resolveError && <button type="button" className="side-panel-primary-control px-3.5" disabled={auth.isInitializing || follows.isPending || (auth.isAuthenticated && follows.isResolving)}
             aria-pressed={follows.isFollowing || follows.isRequested} aria-busy={follows.isPending || undefined}

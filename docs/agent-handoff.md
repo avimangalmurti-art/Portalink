@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Shared portfolio profile actions — ALL, source only — September 30, 2026
+
+- Continued the owned `codex/creator-share-previews` checkout from `6ea2d80`. Collaboration and Message icons are omitted from shared portfolio profile links on WEB and MOBILE, regardless of authentication or ownership. Internal platform profiles retain both actions; Bio, external links and saved profile-link settings remain intact.
+- `src/components/profile/PlatformGrid.tsx` accepts an explicit shared-view flag. Both `src/visitor/VisitorProfileGrid.tsx` and `src/components/UserProfilePage.tsx` supply the route context. Existing callback capabilities and routes were not removed. Tests updated in `tests/profile-collections.test.mjs` and `tests/visitor-navigation.test.mjs`.
+- Level 2 checks: 39 focused Node tests and typecheck pass; source diff/whitespace reviewed. Actual component fixture at420×912 and1280×900 confirms only Bio/external links on shared views, with internal Collaboration/Message and Bio callbacks working. No browser console errors observed. Tests cover owner/visitor context wiring; browser uses synthetic local data, not live-account or physical-phone verification. No broad build needed for this visibility-only change.
+- Ignored fixture `logs/shared-links-qa/`; temporary QA tab closed,420×912 restored and existing Vite5178 preserved. No push, publish, SQL, Storage, configuration or migration change. Prior D1 migration and owner configuration remain pending approval.
+
 ## Content-card details icon — local micro-edit — September 30, 2026
 
 - User requested replacing the content-card “i” with three dots. Continued the owned `codex/creator-share-previews` checkout from `b4cb313`; all earlier unpublished work remains intact.

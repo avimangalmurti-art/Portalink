@@ -537,13 +537,14 @@ test('mobile profile links appear above the action row only while Profile option
   }
 });
 
-test('WEB and shared profiles start compact and expand the same three standard links', () => {
+test('WEB and shared profiles start compact and pass the correct link visibility context', () => {
   const links = [{ label: 'Website', href: 'https://example.com', iconName:'globe' }];
   for (const options of [{presentation:'web'}, {presentation:'mobile',isSharedView:true}, {presentation:'web',isSharedView:true}]) {
     const h=profileHarness('', {...options, links});
     assert.equal(nodes(h.render()).some(node=>node.type==='PlatformGrid'),false);
     const tree=openProfileOptions(h);
     const grid=nodes(tree).find(node=>node.type==='PlatformGrid');
+    assert.equal(grid.props.isSharedView, options.isSharedView ?? false);
     assert.deepEqual(Array.from(grid.props.links.slice(0,3),link=>link.action),['bio','collaboration','message']);
     assert.equal(grid.props.links[3].href,links[0].href);
     if(options.isSharedView) assert.equal(nodes(tree).some(n=>n.props?.['data-profile-owner-actions']!==undefined),false);
@@ -637,6 +638,7 @@ test('mobile Bio is available to owners, visitors and guests, with no links and 
       const tree = openProfileOptions(h);
       const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
       const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
+      assert.equal(grid.props.isSharedView, isSharedView);
       assert.equal(grid.props.links.length, 3);
       grid.props.onOpenBio();
       const sheet = nodes(h.render()).find(node => node.type === 'ProfileBioSheet');
@@ -666,6 +668,31 @@ test('profile links place Bio before external links without changing their desti
   assert.equal(tiles[3].props.children.props.href, 'https://example.com');
   assert.equal(tiles[3].props.children.props.target, '_blank');
   assert.equal(nodes(PlatformGrid(props)).filter(node => node.type === 'button' && node.props.disabled).length, 3);
+});
+
+test('shared profile links hide platform actions even when handlers exist, retaining Bio and external links', () => {
+  const { PlatformGrid } = compile('../src/components/profile/PlatformGrid.tsx', name => {
+    if (name === 'react') return React;
+    if (name.endsWith('/profileLinks')) return linkHelpers;
+    if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'globe-icon' };
+    return placeholder;
+  });
+  const calls = [];
+  const links = linkHelpers.resolveProfileLinks([{ label: 'Website', href: 'https://example.com' }], {});
+  const props = { profileName: 'Creator', links, onOpenBio: () => calls.push('bio'),
+    onCollaboration: () => calls.push('collaboration'), onMessage: () => calls.push('message') };
+  for (const handlers of [props, { ...props, onCollaboration: undefined, onMessage: undefined }]) {
+    const tree = PlatformGrid({ ...handlers, isSharedView: true });
+    const actions = nodes(tree).filter(node => node.type === 'button');
+    assert.deepEqual(actions.map(node => node.props['aria-label']), ['Bio']);
+    actions[0].props.onClick();
+    assert.equal(nodes(tree).find(node => node.type === 'a').props.href, 'https://example.com');
+  }
+  const internal = nodes(PlatformGrid(props)).filter(node => node.type === 'button');
+  assert.deepEqual(internal.map(node => node.props['aria-label']), ['Bio', 'Collaboration', 'Message']);
+  internal[1].props.onClick(); internal[2].props.onClick();
+  assert.deepEqual(calls, ['bio', 'bio', 'collaboration', 'message']);
+  assert.deepEqual(Array.from(links.slice(0,3), link => link.action), ['bio','collaboration','message']);
 });
 
 test('three-dot reorder entry keeps duplicate outside saves and retry recovery intact', async () => {
