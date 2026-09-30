@@ -174,7 +174,23 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // AccountWelcomeSurface emits this alternate DOM scope only when
         // usePresentation() is mobile; account-entry-focus exercises that gate.
         const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='light')?\](?=[\s:.#\[]|$)/;
-        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)), `Unscoped ${mode} selector: ${selector}`);
+        // Safari document scrolling must unlock ancestors of AppPresentation.
+        // Permit only these canvas declarations, inside the exact phone query;
+        // other document rules still require the normal presentation boundary.
+        const canvasSelectors = new Set([
+          'html:root', 'html:root body', 'html:root #root',
+          'html:root[data-standalone]', 'html:root[data-standalone] body', 'html:root[data-standalone] #root',
+        ]);
+        const mobileDocumentCanvas = mode === 'mobile' && canvasSelectors.has(selector)
+          && rule.parent?.type === 'atrule' && rule.parent.name === 'media'
+          && rule.parent.params === '(max-width: 639px)'
+          && rule.nodes.length > 0 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+            (node.prop === 'height' && node.value === 'auto')
+            || (node.prop === 'min-height' && node.value === '100svh')
+            || (node.prop === 'overflow' && node.value === 'visible')
+            || (selector === 'html:root' && node.prop === 'overflow-x' && node.value === 'clip')
+          ));
+        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas, `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

@@ -44,7 +44,12 @@ POST `/api/rum` validates exact fields, finite bounds, UTF-8 and a streamed maxi
 
 ## Owner Insights and pending migration
 
-**Prepared, NOT applied:** [drizzle/0002_page_timings.sql](../drizzle/0002_page_timings.sql). It adds `page_timings` and the `(at)` index to the existing Sites D1 binding, preserving page interactions and saved-media data. No migration journal repair or runtime CREATE TABLE is used.
+**Prepared, NOT applied:** [drizzle-pending/0002_page_timings.sql](../drizzle-pending/0002_page_timings.sql). It adds `page_timings` and the `(at)` index to the existing Sites D1 binding, preserving page interactions and saved-media data. No migration journal repair or runtime CREATE TABLE is used.
+
+The September 30 website release moves this unchanged candidate out of
+`drizzle/`: Sites automatically packages and applies that directory during
+deployment. The release archive includes only the already-established `0000`
+and `0001`; approval-only timing SQL is not part of the deployment payload.
 
 GET `/api/rum/summary` verifies the session with Supabase Auth, then verifies that the configured owner's profile row has `account_id` equal to that verified user's ID under the user's RLS. Editable auth metadata cannot grant access. No D1 read occurs before this succeeds. Missing configuration fails closed. The **server runtime** variable is `RUM_OWNER_PROFILE_ID`; it is not `VITE_*`. No owner configuration was found in source or the read-only Sites environment listing, and none was set. The owner's actual profile is still to be supplied/confirmed by the user.
 

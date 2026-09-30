@@ -18,10 +18,21 @@ function harness({ bounds = { left: 16, top: 180, width: 180, height: 240, right
     },
     useLayoutEffect: effect => effects.push(effect),
   };
+  const imports = {
+    react,
+    '../../features/media/publicMediaUrl': { publicMediaUrl: source => source },
+    '../../features/performance/rum': {
+      rumViewToken: () => null,
+      markRumCover() { throw Error('Untracked priority fixtures must not record a cover paint.'); },
+    },
+  };
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/ui/ResponsiveImage.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, require: () => react,
+  }).outputText, { exports, require(name) {
+    assert.ok(name in imports, `Missing test import: ${name}`);
+    return imports[name];
+  },
     window: { visualViewport: viewport, innerWidth: 1280, innerHeight: 900 },
     ResizeObserver: class { constructor(callback) { resize = callback; } observe() { /* Measurement is explicitly triggered by the harness. */ } disconnect() { /* No real observer is registered. */ } },
   });

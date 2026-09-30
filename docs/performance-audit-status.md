@@ -4,7 +4,7 @@ Source: the user's 15-page `Preformance edit instructions.pdf`, supplied Septemb
 
 ## September 30 source-only public media and timing collection
 
-[Public media and RUM](public-media-and-rum.md) now records the source implementation of public cover/avatar edge caching and anonymous load timings, with a guarded owner table in Insights. The D1 migration `drizzle/0002_page_timings.sql` is prepared, not applied; no publish or runtime owner configuration change occurred. Hosted post-release measurements still remain to collect. Public Storage transformations were confirmed by a read-only image request, but removing the extra stored cover sizes remains blocked by the existing three-object setter contract and needs a separate Supabase schema review.
+[Public media and RUM](public-media-and-rum.md) now records the source implementation of public cover/avatar edge caching and anonymous load timings, with a guarded owner table in Insights. The D1 migration `drizzle-pending/0002_page_timings.sql` is prepared, not applied; no publish or runtime owner configuration change occurred. Hosted post-release measurements still remain to collect. Public Storage transformations were confirmed by a read-only image request, but removing the extra stored cover sizes remains blocked by the existing three-object setter contract and needs a separate Supabase schema review.
 
 ## September 30 source-only visitor entry
 

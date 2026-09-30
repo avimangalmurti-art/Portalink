@@ -221,14 +221,23 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
   for (const [pathname, expected] of [['/share/a', true], ['/share/a/c/b/c', true], ['/share', true], ['/', false], ['/settings', false], ['/shared/a', false]]) for (const presentation of ['mobile', 'web']) {
     const attributes = new Map();
     const root = { dataset: {}, style: {}, toggleAttribute(name, enabled) { if (enabled) attributes.set(name, ''); else attributes.delete(name); } };
+    const themeTags = ['#ffffff', '#000000'].map(content => {
+      const attributes = new Map([['content', content]]);
+      return { getAttribute: name => attributes.get(name) ?? null, setAttribute: (name, value) => attributes.set(name, value) };
+    });
     vm.runInNewContext(script, {
-      document: { documentElement: root },
+      document: { documentElement: root, querySelectorAll(selector) {
+        assert.equal(selector, 'meta[name="theme-color"]');
+        return themeTags;
+      } },
       window: { location: { pathname }, navigator: {}, localStorage: { getItem: () => null },
         matchMedia: query => ({ matches: query.includes('max-width') ? presentation === 'mobile' : false }),
       },
     });
     assert.equal(attributes.has('data-shared-view'), expected);
     assert.equal(root.dataset.appearance, 'light');
+    assert.deepEqual(themeTags.map(tag => tag.getAttribute('content')), presentation === 'mobile' ? ['#ffffff', '#ffffff'] : ['#ffffff', '#000000']);
+    assert.deepEqual(themeTags.map(tag => tag.getAttribute('data-portalink-theme-original')), presentation === 'mobile' ? ['#ffffff', '#000000'] : [null, null]);
   }
   assert.match(html, /html\[data-shared-view\] #portalink-preboot picture\s*\{\s*display:\s*none;/);
   assert.match(html, /html\[data-shared-view\] #portalink-preboot \.portalink-preboot-media,\s*html\[data-shared-view\] #portalink-preboot picture\s*\{\s*display:\s*none;/,

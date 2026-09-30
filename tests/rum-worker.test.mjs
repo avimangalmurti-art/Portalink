@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
@@ -219,8 +219,9 @@ test('actual SQLite window query matches nearest-rank math and exact time bounda
   } finally { sqlite.close(); }
 });
 
-test('pending migration adds only anonymous timings and its time index', () => {
-  const migration = readFileSync(new URL('../drizzle/0002_page_timings.sql', import.meta.url), 'utf8');
+test('pending timing migration stays outside automatic Sites deployment and adds only its table/index', () => {
+  assert.equal(existsSync(new URL('../drizzle/0002_page_timings.sql', import.meta.url)), false);
+  const migration = readFileSync(new URL('../drizzle-pending/0002_page_timings.sql', import.meta.url), 'utf8');
   assert.match(migration, /PREPARED ONLY/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS page_timings/);
   assert.match(migration, /CREATE INDEX IF NOT EXISTS idx_page_timings_at ON page_timings\(at\)/);

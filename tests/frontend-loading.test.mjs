@@ -25,6 +25,8 @@ function buildConfig(command, runtime) {
     'node:url': { fileURLToPath },
     'node:fs': { mkdirSync() {}, writeFileSync() {} },
     './scripts/shared-profile-preload.mjs': { sharedProfilePreloadPlugin: () => ({}) },
+    './scripts/app-version.mjs': { appVersionHash: () => '0123456789abcdef' },
+    './scripts/public-media-preview.mjs': { publicMediaPreviewPlugin: () => ({ name: 'portalink-public-media-preview', apply: 'serve' }) },
     '@vitejs/plugin-react': { default: () => ({}) , __esModule: true },
     '@openai/sites-vite-plugin': { sites: () => ({}) },
   }, { configUrl: new URL('../vite.config.ts', import.meta.url).href, URL, process: { cwd: () => root } }).default;

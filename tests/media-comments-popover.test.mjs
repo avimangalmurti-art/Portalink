@@ -223,6 +223,7 @@ function interactionBarHarness(mode) {
     react,
     'lucide-react': Object.fromEntries(['BookmarkIcon', 'HeartIcon', 'Loader2Icon', 'MessageCircleIcon', 'Repeat2Icon', 'SendIcon', 'Trash2Icon', 'XIcon'].map(name => [name, icon])),
     '../../components/ui/InterfaceIcon': { InterfaceIcon: icon },
+    '../media/publicMediaUrl': { publicMediaUrl: source => source },
     './useMediaInteractions': { useMediaInteractions: () => activity },
     './mediaToolbarLayout': {
       mediaToolbarLayout: () => ({ width: 200, unit: 40, slots: [1, 1, 1, 1, 1] }),
