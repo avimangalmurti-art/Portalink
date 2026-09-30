@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## MOBILE Settings partial selection fill — local, unpublished — September 29, 2026
+
+- User requested removal of the half-gray area after selecting a Settings section. Continued owned `codex/creator-share-previews` from `5629cd8`, preserving earlier local changes. Reproduced the header-only hover fill in the outer Settings sections and nested Appearance disclosure; it was not a selected-theme indicator.
+- Only application change: `src/presentation/mobile/mobile.css` gives the existing Settings disclosure selectors transparent backgrounds and theme-primary ink, overriding the generic hover/press palette. Chevron, expansion, section surfaces, keyboard focus, actual theme/accent selection and switches remain intact. WEB rules are unchanged.
+- **12 existing Settings/appearance/keyboard tests pass**, whitespace check and independent read-only diff review pass. Actual-App synthetic preview at MOBILE420 verifies outer/nested open/close in Light/Dark, transparent hovered headers, preserved selected radio fill, and keyboard-visible 2px outline. WEB1280 retains its existing gray hover fill. No broad build/type/lint rerun for this CSS-only micro-edit; no physical-device claim. Fixture preference-save rejection is expected and unchanged; no real service writes.
+- Proof: ignored `logs/mobile-settings-clean-selection.png`. QA tabs closed; user tab, Vite5178 and420×912 retained. **Not published; live remains Sites273 / `060832a`.** No push, SQL, environment, dependency or backend changes. Source and this note saved together in the next local commit; original checkout receives a pointer only.
+
 ## High Contrast content-card outline — ALL, local and unpublished — September 29, 2026
 
 - User reported the expected white card outline was not showing. Continued owned `codex/creator-share-previews` from `580f579`, preserving prior local edits. Reproduced the weakness in the actual App preview: Dark High Contrast resolved its card edge to `rgba(255,255,255,.66)` because it reused the separator token.

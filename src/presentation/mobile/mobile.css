@@ -2904,6 +2904,16 @@
   padding-block: calc((var(--mobile-control-target) - 24px) / 2);
 }
 
+/* Disclosure state is shown by its chevron and content, without a sticky
+   header-only hover/press fill over the Settings section surface. */
+#root .codex-shell[data-presentation='mobile'] .settings-page :is(
+  .settings-section-trigger,
+  .nav-settings-panel .side-panel-control-row[aria-expanded]
+) {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+}
+
 /* Moving between mobile screens. The leaving workspace stays mounted for one
    transition so the two screens travel together: Back sends it off to the right,
    and moving deeper sends it left behind the arriving screen. */
