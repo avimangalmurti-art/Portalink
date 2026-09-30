@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## MOBILE profile counters in one row — local, unpublished — September 29, 2026
+
+- User supplied an iPhone Air screenshot with Following wrapping below Projects / Portals / Followers. Continued owned `codex/creator-share-previews` from `75eec4d`. Only `src/presentation/mobile/mobile.css` changes application code: expanded normal profile headers with counts use a full-width stats row below the avatar/name. Grid placement retains name/location alignment and the options-button clearance; counters remain nowrap with 44px tap areas. Larger exceptional values can scroll horizontally rather than wrap or clip.
+- Actual App/synthetic profile with **10 projects / 7 portals / 0 followers / 0 following** checked at MOBILE390/420/430: all four controls share top89px, and their row fits without horizontal scrolling (370/400/410px available respectively). At420px the last counter ends at410px. Expanded Light/Dark checked; collapsed header retains its existing two-count flex layout. WEB1280 retains its original flex identity/copy, wrapping counts and -38px margin. Shared-view count suppression remains unchanged and is covered by the existing tests.
+- **34 existing profile-collection/presentation tests pass**, plus whitespace check. CSS-only Level1 change; no broad build/type/lint run or physical-phone claim. Ignored fixture uses synthetic matching counts; proof `logs/profile-counts-one-row-iphone-air.png`. QA tab closed; user tab, Vite5178 and420×912 retained.
+- **Local only; live remains Sites273 / `060832a`.** Earlier WEB sign-in and automatic page-zoom changes remain saved and unpublished. No push, publish, SQL, account or backend changes. Source and note saved together in the next local commit; original checkout receives a pointer only.
+
 ## Automatic single-page zoom entry — ALL, local and unpublished — September 29, 2026
 
 - User requested that zooming into a page automatically opens single-page view without a double-tap prerequisite. Continued owned `codex/creator-share-previews` from `14353e2`, preserving the unpublished WEB sign-in fix. Applies to rendered documents, raw PDF canvases and image pages on WEB/MOBILE, including shared views without editable density controls.

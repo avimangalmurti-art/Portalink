@@ -2343,6 +2343,38 @@
   text-overflow: clip;
 }
 
+/* Expanded profile counts use the phone width instead of the avatar's column. */
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-main {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  row-gap: 0;
+  width: 100%;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-avatar {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-copy {
+  display: contents;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-identity-copy:has(.profile-summary-counts) > :is(h1, p) {
+  grid-column: 2;
+  padding-inline-end: 38px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-summary-counts {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  margin-inline-end: 0;
+  overflow-x: auto;
+}
+
 /* Fade only toward hidden description text; keep the first and last lines
    fully readable when their respective scroll boundary is reached. */
 #root .codex-shell[data-presentation='mobile'] [data-project-hover-description] {
