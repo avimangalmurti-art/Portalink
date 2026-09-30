@@ -98,6 +98,42 @@ test('the added helpers leave ordinary profile, public profile and browser Back 
   assert.deepEqual(h.calls, [['/p/creator', undefined], ['/share/public-creator', undefined], [-1, undefined]]);
 });
 
+test('collaboration has dedicated creator URLs and stays readable without an account', () => {
+  for (const [shared, kind, prefix] of [[false, 'collaboration', '/p'], [true, 'sharedCollaboration', '/share']]) {
+    const path = `${prefix}/creator/collaboration`;
+    const h = harness(path);
+    assert.equal(routes.buildPath(kind, { profileId: 'creator' }), path);
+    assert.deepEqual(plain(h.routing.useAppRoute()), { kind, profileId: 'creator' });
+    assert.equal(h.routing.PROTECTED_ROUTE_KINDS.has(kind), false);
+    h.nav().closeCollaboration('creator', shared);
+    assert.deepEqual(plain(h.calls), [[`${prefix}/creator`, { replace: true }]]);
+  }
+});
+
+test('collaboration Back retains the exact profile tab through history and survives refresh', () => {
+  for (const shared of [false, true]) {
+    const prefix = shared ? '/share' : '/p';
+    const from = `${prefix}/creator?view=portals#work`;
+    const h = harness(from, null, 2);
+    h.nav().collaboration('creator', shared);
+    assert.deepEqual(plain(h.calls), [[`${prefix}/creator/collaboration`, { state: { collaborationReturn: from } }]]);
+    const refreshed = harness(`${prefix}/creator/collaboration`, plain(h.location().state), h.history.state.idx);
+    refreshed.nav().closeCollaboration('creator', shared);
+    assert.deepEqual(refreshed.calls, [[-1, undefined]]);
+  }
+});
+
+test('collaboration direct entry and invalid return state fall back to the matching creator', () => {
+  for (const shared of [false, true]) for (const index of [0, 5]) {
+    const prefix = shared ? '/share' : '/p';
+    for (const value of [undefined, 1, '//elsewhere.test', '/messages', '/p/other', `${prefix}/creator/collaboration`]) {
+      const h = harness(`${prefix}/creator/collaboration`, { collaborationReturn: value }, index);
+      h.nav().closeCollaboration('creator', shared);
+      assert.deepEqual(plain(h.calls), [[`${prefix}/creator`, { replace: true }]]);
+    }
+  }
+});
+
 const app = read('src/App.tsx');
 const parsed = ts.createSourceFile('App.tsx', app, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 function findNode(predicate) {
@@ -114,6 +150,29 @@ function evaluate(expression, values) {
   return context.result;
 }
 const initializer = name => findNode(node => ts.isVariableDeclaration(node) && node.name.getText(parsed) === name).initializer.getText(parsed);
+
+test('mobile Collaboration has its own destination while Message and WEB keep their existing action', () => {
+  const callback = name => findNode(node => ts.isJsxAttribute(node) && node.name.getText(parsed) === name).initializer.expression.getText(parsed);
+  for (const presentation of ['mobile', 'web']) for (const isSharedRoute of [false, true]) {
+    const calls = [];
+    const values = { presentation, isSharedRoute, viewedProfile: { id: 'creator' }, auth: { viewerProfileId: 'viewer' },
+      nav: { collaboration: (...args) => calls.push(['collaboration', ...args]) }, openMessages: id => calls.push(['messages', id]) };
+    evaluate(callback('onCollaboration'), values)();
+    assert.deepEqual(calls, presentation === 'mobile' ? [['collaboration', 'creator', isSharedRoute]] : [['messages', 'creator']]);
+    calls.length = 0;
+    evaluate(callback('onMessage'), values)();
+    assert.deepEqual(calls, [['messages', 'creator']]);
+  }
+});
+
+test('collaboration resolves the routed creator through the existing profile access boundary', () => {
+  for (const kind of ['collaboration', 'sharedCollaboration']) {
+    const route = { kind, profileId: 'creator' };
+    assert.equal(evaluate(initializer('routeProfileId'), { route, isProfileEditorRoute: false, auth: {} }), 'creator');
+    assert.equal(evaluate(initializer('isSharedRoute'), { route }), kind === 'sharedCollaboration');
+    assert.equal(evaluate(initializer('isCollaborationOpen'), { route }), true);
+  }
+});
 
 test('the editor record comes only from authenticated ownership, never URL or viewed profile state', () => {
   for (const owner of ['account-owned-profile', null]) {

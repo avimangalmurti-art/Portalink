@@ -34,6 +34,9 @@ export type AppRoute = {
   kind: 'profile';
   profileId: Id;
 } | {
+  kind: 'collaboration' | 'sharedCollaboration';
+  profileId: Id;
+} | {
   kind: 'category';
   profileId: Id;
   categoryId: Id;
@@ -111,6 +114,10 @@ export function describeRoute(route: AppRoute): string {
 }
 function parse(pathname: string, search: string): AppRoute {
   if (matchPath(routes.profileEditor.path, pathname)) return { kind: 'profileEditor' };
+  for (const kind of ['collaboration', 'sharedCollaboration'] as const) {
+    const match = matchPath(routes[kind].path, pathname);
+    if (match?.params.profileId) return { kind, profileId: match.params.profileId };
+  }
   // Most specific first: a project path also matches its category path.
   const sharedProject = matchPath(routes.sharedProject.path, pathname);
   if (sharedProject?.params.profileId && sharedProject.params.categoryId && sharedProject.params.projectId) {
@@ -295,6 +302,24 @@ export function useRouteNavigator() {
     profile: (profileId: Id) => navigate(buildPath('profile', {
       profileId
     })),
+    collaboration: (profileId: Id, shared = false) => {
+      const current = locationRef.current;
+      navigate(buildPath(shared ? 'sharedCollaboration' : 'collaboration', { profileId }), {
+        state: { collaborationReturn: `${current.pathname}${current.search}${current.hash}` }
+      });
+    },
+    closeCollaboration: (profileId: Id, shared = false) => {
+      const state: unknown = locationRef.current.state;
+      const returnPath = state && typeof state === 'object' && 'collaborationReturn' in state ? state.collaborationReturn : null;
+      const fallback = buildPath(shared ? 'sharedProfile' : 'profile', { profileId });
+      // Only a recorded entry from this creator's profile earns browser Back.
+      // A pasted URL returns to the profile without leaving the application.
+      if (typeof returnPath === 'string' && returnPath.split(/[?#]/)[0].replace(/\/$/, '') === fallback && window.history.state?.idx > 0) {
+        navigate(-1);
+      } else {
+        navigate(fallback, { replace: true });
+      }
+    },
     profileEditor: () => {
       const current = locationRef.current;
       if (matchPath(routes.profileEditor.path, current.pathname)) return;

@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { matchPath } from 'react-router-dom';
 
 function hooks() {
   const slots = [], effects = [], timers = new Map();
@@ -409,7 +410,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
     '../components/ui/StateViews': { LoadingState: 'loading' },
     '../contexts/AuthContext': { useAuth: () => auth },
-    './routes': { routes: { controlCenter: {path:'/settings'}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
+    './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
@@ -455,11 +456,11 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     requestAuth(view) { requested.push({view}); auth.pendingView=view; }};
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
     react:h.react, 'framer-motion':{AnimatePresence:'presence'},
-    'react-router-dom':{Navigate:'redirect',matchPath:(_, pathname)=>pathname.startsWith('/share/')?{params:{profileId:pathname.split('/')[2]}}:null,useLocation:()=>location},
+    'react-router-dom':{Navigate:'redirect',matchPath,useLocation:()=>location},
     '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
     '../components/ui/StateViews':{LoadingState:'loading'},
     '../contexts/AuthContext':{useAuth:()=>auth},
-    './routes':{routes:{controlCenter:{path:'/settings'},sharedProject:{},sharedProfileCategory:{},sharedProfile:{}},buildPath:(_,p)=>`/share/${p.profileId}`},
+    './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
@@ -490,7 +491,7 @@ test('shared entry bypasses every intro on both platforms while respecting sessi
 });
 
 test('shared profiles, categories and project fragments open directly without changing their destination', () => {
-  for (const path of ['/share/a','/share/a/c/b','/share/a/c/b/c']) for (const hash of ['', '#projects', '#page-2', '#type=recovery']) {
+  for (const path of ['/share/a','/share/a/c/b','/share/a/c/b/c','/share/a/collaboration']) for (const hash of ['', '#projects', '#page-2', '#type=recovery']) {
     const h=sharedBootstrap({path,search:'?view=projects&page=2&media=image-a',hash,storedProfileId:'older'});
     h.auth.isInitializing=false;
     assert.equal(h.render(),null);

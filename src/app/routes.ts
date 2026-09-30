@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -49,6 +49,18 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/p/:profileId',
     params: ['profileId'],
     description: 'A creator profile: identity, stats, and portfolio categories.'
+  },
+  collaboration: {
+    id: 'collaboration',
+    path: '/p/:profileId/collaboration',
+    params: ['profileId'],
+    description: 'A creator’s dedicated collaboration screen, separate from direct messages.'
+  },
+  sharedCollaboration: {
+    id: 'sharedCollaboration',
+    path: '/share/:profileId/collaboration',
+    params: ['profileId'],
+    description: 'The collaboration screen within a public shared profile.'
   },
   profileEditor: {
     id: 'profileEditor',

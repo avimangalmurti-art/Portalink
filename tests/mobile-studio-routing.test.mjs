@@ -33,7 +33,7 @@ function renderRoute(presentation, kind, overrides = {}) {
     nav: { back: () => calls.push('back') }, openProjectById: (...args) => calls.push(['project', ...args]), requestGlobalPublish: () => calls.push('create'),
     ...overrides,
   });
-  for (const name of ['isPortalsOpen', 'isInsightsOpen', 'isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen', 'inDesignFeature', 'isActivityOpen', 'personalScreen', 'isProtectedRoute', 'isRouteBlocked', 'screenTransitionKey', 'screenMainClassName']) {
+  for (const name of ['isCollaborationOpen', 'isPortalsOpen', 'isInsightsOpen', 'isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen', 'inDesignFeature', 'isActivityOpen', 'personalScreen', 'isProtectedRoute', 'isRouteBlocked', 'screenTransitionKey', 'screenMainClassName']) {
     context[name] = evaluate(declarations.get(name), context);
   }
   return { context, calls, screen: evaluate(studioBranch, context) };

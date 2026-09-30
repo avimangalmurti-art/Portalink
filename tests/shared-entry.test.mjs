@@ -19,6 +19,18 @@ function load(path, imports, globals = {}) {
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
 const registration = load('../src/features/auth/registration.ts', { '../profile/validation': {} });
 
+test('shared collaboration preserves guest entry and its optional auth return destination', () => {
+  const path = '/share/creator/collaboration';
+  assert.equal(registration.readSharedReturnPath(`${path}?code=secret`), path);
+  assert.equal(registration.readSharedReturnPath(`${path}/extra`), undefined);
+  const h = signInBar({ path, search: '' });
+  const tree = h.render();
+  assert.equal(tree.type, 'aside');
+  const signIn = nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in');
+  signIn.props.onClick();
+  assert.equal(h.requested[0].intent.path, path);
+});
+
 function signInBar({ path = '/share/creator/c/art/project', search = '?view=projects&page=2&media=image-a', name = 'Creator Name', initializing = false, signedIn = false, phase = 'idle', storage = new Map(), blockedStorage = false } = {}) {
   const requested = [], focusCalls = [], slots = [], pendingEffects = [], observers = [];
   const styles = new Map(); let cursor = 0, height = 56, barRef;

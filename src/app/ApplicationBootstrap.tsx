@@ -12,6 +12,9 @@ import { useViewportPresentation } from '../presentation/useViewportPresentation
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 
 function sharedProfileIdFromPath(pathname: string): string | null {
+  const collaboration = matchPath(routes.sharedCollaboration.path, pathname);
+  if (collaboration?.params.profileId) return collaboration.params.profileId;
+
   const project = matchPath(routes.sharedProject.path, pathname);
   if (project?.params.profileId) return project.params.profileId;
 

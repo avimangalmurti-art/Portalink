@@ -22,7 +22,7 @@ export type RegistrationProfile = {
 export function readSharedReturnPath(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > 2048) return;
   const pathname = value.split(/[?#]/, 1)[0];
-  if (!/^\/share\/[a-z0-9_-]{1,128}(?:\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
+  if (!/^\/share\/[a-z0-9_-]{1,128}(?:\/collaboration|\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
   const url = new URL(value, 'https://portalink.invalid');
   const safe = new URL(url.pathname.replace(/\/$/, ''), url.origin);
   const view = url.searchParams.get('view');
