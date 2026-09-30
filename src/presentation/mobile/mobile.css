@@ -2170,9 +2170,12 @@
 }
 
 /* Expanded details continue the header's 8px rhythm without toolbar padding. */
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] {
+  padding-bottom: 2px;
+}
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools {
   min-height: 0;
-  padding: 0 var(--mobile-navigation-inset-end) var(--mobile-control-group-gap) var(--mobile-navigation-inset-start);
+  padding: 0 max(8px, env(safe-area-inset-right, 0px)) var(--mobile-control-group-gap) max(8px, env(safe-area-inset-left, 0px));
 }
 
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row {
@@ -2887,16 +2890,20 @@
 }
 [data-presentation='mobile'] .mobile-project-engagement-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 
-/* Match the toolbar rhythm in profile actions and the message input without
-   changing content-card hit areas or text/form action roles. */
+/* Profile links use compact 44px targets: at most eight per left-aligned row,
+   wrapping earlier on narrow screens without shrinking the touch targets. */
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .profile-link-icons {
-  gap: var(--mobile-control-group-gap);
+  width: max-content;
+  max-width: min(100%, 352px);
+  margin: 0;
+  justify-content: flex-start;
+  gap: 0;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .profile-link-icons :is(button, a) {
-  width: var(--mobile-control-size);
-  height: var(--mobile-control-size);
-  min-width: var(--mobile-control-size);
-  min-height: var(--mobile-control-size);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
 }
 #root .codex-shell[data-presentation='mobile'] [data-message-composer] {
   gap: var(--mobile-control-gap);
