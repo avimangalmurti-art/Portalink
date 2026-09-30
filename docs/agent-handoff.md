@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Content-card details icon — local micro-edit — September 30, 2026
+
+- User requested replacing the content-card “i” with three dots. Continued the owned `codex/creator-share-previews` checkout from `b4cb313`; all earlier unpublished work remains intact.
+- `src/components/profile/ProjectPreviewCard.tsx` now uses the existing horizontal-three-dot icon through `InterfaceIcon`. The existing MOBILE-only details control keeps its transparent 44px target, 4px offsets, minimum-card-width rule, accessible label and expand/collapse action. `src/presentation/mobile/mobile.css` preserves light-cover contrast with an SVG shadow. WEB and separate profile/viewer information controls are unchanged.
+- Level 1 verification: actual component fixture at420×912 shows three dots without a surrounding button circle; details toggle without opening the artwork, and artwork still opens once. At1280 WEB retains its existing card interaction and has no mobile toggle. Four existing project-preview-extension tests pass after adding icon mocks; whitespace check passes. No broad build, physical-device or hosted claim. No push, publish, SQL, Storage or migration/configuration change. Prior D1 migration still awaits approval.
+- Test-only update: `tests/project-preview-extension.test.mjs`. Ignored fixture: `logs/card-dots-qa/`. Temporary QA tab closed; original viewport420×912 and existing Vite5178 preserved.
+
 ## Public media edge cache and real-user timings — ALL, source only — September 30, 2026
 
 - Continued the owned `codex/creator-share-previews` checkout at `logs/mobile-studio-20260929` from `0a3764d`, preserving the unpublished cover and visitor-entry dependencies. Coordinated subagents owned separate media, RUM and verification files; no independent writer. No push, publish, hosted SQL, Storage writes, backfill, dependency installation or runtime environment mutation. Existing Sites/D1 interactions and `.env.local` preserved. Last recorded live release is Sites273; this run did not publish or re-verify its release state.

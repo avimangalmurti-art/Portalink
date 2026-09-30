@@ -28,6 +28,8 @@ function cardHarness(presentation = 'mobile') {
     if (name === 'framer-motion' || name === './PreviewCreatorName') assert.fail('A bitmap card must not import animated attribution');
     if (name === 'react') return { ...React, lazy: factory => { lazyFactory = factory; return LazyExtension; }, useEffect: () => undefined };
     if (name === 'react-router-dom') return { Link: 'link' };
+    if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
+    if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded, events: {}, ref: {}, open: (event, action) => action(), toggleDetails: () => details++ }) };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined };

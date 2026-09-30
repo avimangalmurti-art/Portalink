@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { MoreHorizontalIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
@@ -8,6 +9,7 @@ import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { ProjectCover } from '../media/ProjectCover';
 import { ProjectHoverDetails } from './ProjectHoverDetails';
 import type { ImagePriority } from '../ui/ResponsiveImage';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
@@ -64,7 +66,7 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />
       {isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`${preview.expanded ? 'Hide' : 'Show'} details for ${project.title}`} aria-expanded={preview.expanded}
-        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><span aria-hidden="true">i</span></button>}
+        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
       {editor}
     </div>
     {hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}

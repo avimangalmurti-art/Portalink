@@ -2303,12 +2303,10 @@
   color: #fff;
   border: 0;
   padding: 0;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: 20px;
-  font-style: italic;
-  font-weight: 700;
-  line-height: 1;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 80%), 0 0 1px rgb(0 0 0 / 90%);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-preview-details svg {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 80%)) drop-shadow(0 0 1px rgb(0 0 0 / 90%));
 }
 
 @container mobile-project-card (min-width: 112px) {
