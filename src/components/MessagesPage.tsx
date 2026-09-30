@@ -278,7 +278,7 @@ export function MessagesPage({
 
   const showList = !activeId;
   const isMobileNewChat = isMobile && isNewChatOpen;
-  return <section aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section data-messages-page="" aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
         <ScreenBack action={goBackFromMessages}><button type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
@@ -374,7 +374,7 @@ export function MessagesPage({
           <ResizablePanelHandle desktopOnly side="right" value={conversationListWidth.width} min={280} max={440} onResize={conversationListWidth.updateWidth} onResizeEnd={conversationListWidth.commitWidth} onReset={conversationListWidth.resetWidth} label="Resize conversation list. Double-click to restore its default width." />
         </aside>
 
-        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-sunken)] lg:flex`}>
+        <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
           {messaging.activeConversation ? <>
               <div ref={messageScrollerRef} onScroll={(event) => {
                 const node = event.currentTarget;

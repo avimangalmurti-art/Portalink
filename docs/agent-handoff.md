@@ -1,5 +1,12 @@
 # Current agent handoff
 
+## Messages follows platform Light / Dark / System canvas — local, unpublished — September 29, 2026
+
+- User requested removal of the old gray Messages screen so it follows platform appearance. Continued owned `codex/creator-share-previews` from `39f4a6e`; scope is MOBILE and WEB. `MessagesPage.tsx` already receives the correct resolved theme; the conversation-list `.ps-panel` and thread's `--surface-sunken` were painting legacy gray over the canvas.
+- Added a Messages root scope and a scoped `.ps-panel` background override in `src/index.css`; changed thread background to `--surface-canvas`. List, New message and conversation now use white/light and black/dark. Existing header glass, typography, bubbles, fields, menus, sidebar System Gray, layouts and messaging/auth logic remain intact. No new theme state or preference logic.
+- **32/32 existing focused checks and typecheck pass** (`mobile-message-actions`, `appearance-controls`, `device-appearance`, `presentation-boundary`); diff check clean. No broad lint/build rerun for this small presentation-only change. Actual-App synthetic fixture at iPhone Air420×912 and WEB1280×800 verified list → conversation → list → New message, Light/Dark change without reload, WEB's actual appearance toggle, and System mode matching the host dark preference. Computed list/thread backgrounds are255/255/255 in Light and0/0/0 in Dark. No real messages sent, account preference writes or physical-phone claims.
+- Ignored preview screenshot `logs/messages-dark-iphone-air.png`; fixture additions remain under `logs/shared-view-qa` and use memory-only preferences/services. QA tab closed and primary420×912 viewport retained. **Local only; live remains Sites v272 / `80616e1`**. Prior edits retained. No push, publication, SQL or connected-service changes; source and handoff saved in the next local commit.
+
 ## Hello World video perimeter on every entry surface — local, unpublished — September 29, 2026
 
 - User reports black video-frame lines still visible on some splash/sign-in screens after the previous secondary-link fix. Scope: MOBILE and WEB startup, MOBILE guest welcome, both sign-in presentations, animated fallback and pre-JavaScript loading. Continued owned `codex/creator-share-previews` from `b3ba6f7`; all earlier product edits retained.

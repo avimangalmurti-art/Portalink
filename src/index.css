@@ -4168,6 +4168,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background: var(--codex-panel-bg) !important;
 }
 
+/* Messages follows the platform canvas in Light, Dark and System appearance.
+   Keep its shared panel geometry without inheriting the legacy gray fill. */
+.codex-shell [data-messages-page] .ps-panel {
+  background: var(--surface-canvas) !important;
+}
+
 .codex-shell .ps-panel-toolbar,
 .codex-shell [data-material='toolbar'] {
   background: color-mix(in srgb, var(--codex-workspace-bg) var(--interface-glass-opacity, 92%), transparent) !important;
