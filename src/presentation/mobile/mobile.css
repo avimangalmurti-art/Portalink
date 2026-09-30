@@ -113,14 +113,21 @@
   padding-block: 0;
   --mobile-content-safe-top: var(--safe-area-top);
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance, 0px));
-  --mobile-sidebar-control: 44px;
-  --mobile-sidebar-gap: 4px;
+  --mobile-control-target: 48px;
+  --mobile-control-inset: 4px;
+  --mobile-control-gap: 4px;
+  --mobile-control-group-gap: 8px;
+  --mobile-control-edge: 16px;
+  --mobile-control-size: calc(var(--mobile-control-target) + 2 * var(--mobile-control-inset));
+  --mobile-control-group-width: 328px;
+  --mobile-sidebar-control: var(--mobile-control-target);
+  --mobile-sidebar-gap: var(--mobile-control-gap);
   --mobile-sidebar-header: 64px;
   --mobile-sidebar-content-inset: 8px;
-  --mobile-dock-size: clamp(48px, 14vw, 56px);
-  --mobile-dock-bottom: calc(max(12px, var(--safe-area-bottom)) - 4px);
-  --mobile-navigation-inset-start: max(12px, env(safe-area-inset-left, 0px));
-  --mobile-navigation-inset-end: max(12px, env(safe-area-inset-right, 0px));
+  --mobile-dock-size: var(--mobile-control-size);
+  --mobile-dock-bottom: max(8px, var(--safe-area-bottom));
+  --mobile-navigation-inset-start: max(var(--mobile-control-edge), env(safe-area-inset-left, 0px));
+  --mobile-navigation-inset-end: max(var(--mobile-control-edge), env(safe-area-inset-right, 0px));
   --mobile-navigation-frame-width: 420px;
   --mobile-project-actions-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 12px);
 }
@@ -129,6 +136,15 @@
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-layer, .mobile-navigation-layer ~ .codex-workspace) {
   --mobile-dock-clearance: calc(var(--mobile-dock-size) + 8px + var(--mobile-dock-bottom));
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
+}
+
+/* Five destinations and the separate compose button still fit small phones
+   without shrinking a touch target below 44px. */
+@media (max-width: 359px) {
+  #root .codex-shell[data-presentation='mobile'] {
+    --mobile-control-target: 44px;
+    --mobile-control-edge: 8px;
+  }
 }
 
 /* A resolved content reader owns its controls. Ignore outgoing screens and
@@ -190,13 +206,13 @@
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
   position: absolute;
-  left: max(12px, env(safe-area-inset-left, 0px));
+  left: var(--mobile-navigation-inset-start);
   bottom: max(8px, env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: var(--mobile-control-size);
+  height: var(--mobile-control-size);
   border: 1px solid var(--hairline-strong);
   background: var(--codex-sidebar-bg);
   color: var(--text-primary);
@@ -621,12 +637,12 @@
   z-index: 1;
   inset-block: 0;
   /* Opening the centered bottom pill never moves the left-edge sidebar. */
-  inset-inline-start: calc((var(--mobile-dock-size) - 56px) / 2);
+  inset-inline-start: 0;
   display: flex;
   flex-direction: column;
   /* The existing bottom clearance leaves the dock's same 8px toggle gap. */
   justify-content: flex-end;
-  width: 56px;
+  width: var(--mobile-control-size);
   min-height: 0;
   background: transparent !important;
   border: 0;
@@ -651,8 +667,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
-  margin: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset) - 4px) 2px var(--mobile-dock-clearance);
-  padding: 4px;
+  margin: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset) - 4px) 0 var(--mobile-dock-clearance);
+  padding: var(--mobile-control-inset);
   pointer-events: auto;
 }
 
@@ -688,7 +704,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: var(--mobile-control-group-gap);
   inset-inline: 0;
   max-width: var(--mobile-navigation-frame-width);
   margin-inline: auto;
@@ -749,8 +765,9 @@
 
 /* Five full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
-  width: clamp(224px, 60vw, 292px);
-  flex-shrink: 0;
+  width: var(--mobile-control-group-width);
+  flex: 0 1 var(--mobile-control-group-width);
+  min-width: calc(5 * var(--mobile-control-target) + 4 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -781,10 +798,11 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  grid-template-columns: repeat(5, minmax(var(--mobile-control-target), 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
-  padding: 2px;
+  padding: var(--mobile-control-inset);
+  gap: var(--mobile-control-gap);
   pointer-events: auto;
 }
 
@@ -801,8 +819,8 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
   display: grid;
   min-width: 0;
-  min-height: 44px;
-  height: calc(var(--mobile-dock-size) - 4px);
+  min-height: var(--mobile-control-target);
+  height: var(--mobile-control-target);
   place-items: center;
   padding: 0;
   border: 0;
@@ -1859,7 +1877,7 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-focused-page-count] {
   top: max(8px, var(--mobile-content-safe-top));
-  right: max(8px, env(safe-area-inset-right, 0px));
+  right: var(--mobile-navigation-inset-end);
   bottom: auto;
   left: auto;
   transform: none;
@@ -1876,10 +1894,10 @@
 /* A fitted page owns the space between its controls. The footer stays outside
    the zoom/pan viewport, so neither artwork nor controls can cover the other. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  --focused-control-top: max(8px, var(--mobile-content-safe-top, 0px));
+  --focused-control-top: max(var(--mobile-control-edge), var(--mobile-content-safe-top, 0px));
   display: flex;
   flex-direction: column;
-  padding-top: calc(var(--focused-control-top) + 44px + 8px);
+  padding-top: calc(var(--focused-control-top) + var(--mobile-control-size) + var(--mobile-control-group-gap));
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   animation: none;
 }
@@ -1918,15 +1936,16 @@
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > :is(.premium-viewer-exit-control, [data-focused-page-count]) {
   top: var(--focused-control-top);
-  height: 44px;
+  height: var(--mobile-control-size);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > .premium-viewer-exit-control {
-  left: max(8px, env(safe-area-inset-left, 0px));
-  width: 44px;
+  left: var(--mobile-navigation-inset-start);
+  width: var(--mobile-control-size);
+  border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > .media-item-engagement--focused {
@@ -1935,11 +1954,21 @@
   align-self: center;
   left: auto;
   bottom: auto;
-  margin-top: 8px;
+  margin-top: var(--mobile-control-group-gap);
+  max-width: calc(100% - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end)) !important;
+}
+
+#root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-engagement-bar {
+  width: var(--mobile-control-group-width) !important;
+  gap: var(--mobile-control-gap);
+  padding: var(--mobile-control-inset);
+  border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
-  height: 48px;
+  height: var(--mobile-control-target);
+  min-width: var(--mobile-control-target);
+  border-radius: 999px;
   flex-direction: column;
   gap: 2px;
 }
@@ -2150,7 +2179,7 @@
 /* Expanded details continue the header's 8px rhythm without toolbar padding. */
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools {
   min-height: 0;
-  padding: 0 8px 8px;
+  padding: 0 var(--mobile-navigation-inset-end) var(--mobile-control-group-gap) var(--mobile-navigation-inset-start);
 }
 
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row {
@@ -2163,25 +2192,25 @@
 }
 
 /* Bio lives first in the links row; owner tools follow below. */
-#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] {
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [data-profile-owner-actions] {
   position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(44px, 1fr);
   flex-basis: 100%;
   width: 100%;
-  gap: 4px;
+  gap: var(--mobile-control-group-gap);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] > * {
   min-width: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-profile-owner-actions] .profile-action-button {
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools [data-profile-owner-actions] .profile-action-button {
   width: 100%;
   min-width: 44px;
-  height: 44px;
-  min-height: 44px;
+  height: var(--mobile-control-size);
+  min-height: var(--mobile-control-size);
   justify-content: center;
   gap: 0;
   padding-inline: 0;
@@ -2549,10 +2578,10 @@
 [data-presentation='mobile'] .mobile-publish-actions button[type='submit'] { flex: 1; width: auto; }
 /* Project controls share the Settings-driven navigation material. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back {
-  top: calc(12px + var(--mobile-content-safe-top));
+  top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
   left: var(--mobile-navigation-inset-start);
-  width: 44px;
-  height: 44px;
+  width: var(--mobile-control-size);
+  height: var(--mobile-control-size);
   color: var(--navigation-item-foreground, var(--project-control-foreground)) !important;
 }
 
@@ -2561,13 +2590,13 @@
   top: auto;
   bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom));
   left: auto;
-  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 52px);
+  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + var(--mobile-control-size) + var(--mobile-control-group-gap));
 }
 
 /* Leave room for the reader controls at the end of the last page without
    resizing the artwork viewport. Shared readers also clear the sign-in bar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
-  --mobile-content-safe-bottom: max(var(--safe-area-bottom), calc(var(--mobile-project-actions-bottom) + 56px));
+  --mobile-content-safe-bottom: max(var(--safe-area-bottom), calc(var(--mobile-project-actions-bottom) + var(--mobile-control-size) + var(--mobile-control-group-gap)));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back [data-interface-icon-frame] {
@@ -2578,12 +2607,12 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter {
   position: absolute;
   z-index: 45;
-  top: calc(14px + var(--mobile-content-safe-top));
-  left: calc(var(--mobile-navigation-inset-start) + 56px);
+  top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
+  left: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 44px;
+  height: var(--mobile-control-size);
   max-width: calc(100% - 148px);
   padding: 0 14px;
   border-radius: 999px;
@@ -2603,7 +2632,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'][data-project-reading] .mobile-project-page-counter {
-  transform: translateX(-56px);
+  transform: translateX(calc(-1 * (var(--mobile-control-size) + var(--mobile-control-group-gap))));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -2777,14 +2806,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] .side-panel-navigation-list {
-  gap: 0;
+  gap: var(--mobile-control-gap);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] :is(.mobile-project-index-opener, .global-control-header, .side-panel-navigation-list) > button {
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  min-height: 48px;
+  flex: 0 0 var(--mobile-control-target);
+  width: var(--mobile-control-target);
+  height: var(--mobile-control-target);
+  min-height: var(--mobile-control-target);
   padding: 0;
   border-radius: 50%;
   background: var(--navigation-item-surface, transparent) !important;
@@ -2807,13 +2836,14 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
   position: fixed;
   top: auto;
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom) - 4px);
-  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
-  width: 56px !important;
-  max-width: 56px;
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom));
+  right: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
+  width: var(--mobile-control-size) !important;
+  max-width: var(--mobile-control-size);
   max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--safe-area-top) - var(--mobile-project-actions-bottom) - 16px);
-  padding: 4px;
+  padding: var(--mobile-control-inset);
   align-items: center;
+  gap: var(--mobile-control-gap);
   border-radius: 28px;
   overflow: hidden;
 }
@@ -2822,17 +2852,17 @@
 [data-presentation='mobile'] [data-mobile-engagement-content] {
   flex: 0 1 auto;
   min-height: 0;
-  width: 48px;
+  width: var(--mobile-control-target);
   overflow-y: auto;
   scrollbar-width: none;
 }
 [data-presentation='mobile'] [data-mobile-engagement-content][hidden] { display: none; }
 [data-presentation='mobile'] .mobile-project-engagement-toggle {
   display: flex;
-  flex: 0 0 44px;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
+  flex: 0 0 var(--mobile-control-target);
+  width: var(--mobile-control-target);
+  height: var(--mobile-control-target);
+  min-height: var(--mobile-control-target);
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -2842,6 +2872,37 @@
   background: transparent;
 }
 [data-presentation='mobile'] .mobile-project-engagement-toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* Match the toolbar rhythm in profile actions and the message input without
+   changing content-card hit areas or text/form action roles. */
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .profile-link-icons {
+  gap: var(--mobile-control-group-gap);
+}
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .profile-link-icons :is(button, a) {
+  width: var(--mobile-control-size);
+  height: var(--mobile-control-size);
+  min-width: var(--mobile-control-size);
+  min-height: var(--mobile-control-size);
+}
+#root .codex-shell[data-presentation='mobile'] [data-message-composer] {
+  gap: var(--mobile-control-gap);
+  padding: calc(var(--mobile-control-inset) - 1px);
+  border-radius: 28px;
+  min-height: var(--mobile-control-size);
+}
+#root .codex-shell[data-presentation='mobile'] form:has(> [data-message-composer]) {
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
+}
+#root .codex-shell[data-presentation='mobile'] [data-message-composer] > :is(label, button) {
+  width: var(--mobile-control-target);
+  height: var(--mobile-control-target);
+  border-radius: 999px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-message-composer] > textarea {
+  min-height: var(--mobile-control-target);
+  line-height: 24px;
+  padding-block: calc((var(--mobile-control-target) - 24px) / 2);
+}
 
 /* Moving between mobile screens. The leaving workspace stays mounted for one
    transition so the two screens travel together: Back sends it off to the right,
@@ -2883,7 +2944,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .studio-header {
   flex: none;
-  padding: max(12px, var(--safe-area-top)) 20px 12px;
+  padding: max(12px, var(--safe-area-top)) var(--mobile-navigation-inset-end) 12px var(--mobile-navigation-inset-start);
 }
 
 #root .codex-shell[data-presentation='mobile'] .studio-header-actions {
@@ -2897,8 +2958,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
+  min-height: var(--mobile-control-size);
+  min-width: var(--mobile-control-size);
   border: 1px solid var(--hairline);
   border-radius: 999px;
   background: var(--surface-raised);
@@ -2936,7 +2997,7 @@
 #root .codex-shell[data-presentation='mobile'] .studio-categories {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--mobile-control-group-gap);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   padding: 3px 0;
@@ -2951,7 +3012,7 @@
   justify-content: center;
   gap: 7px;
   min-width: 48px;
-  min-height: 44px;
+  min-height: var(--mobile-control-size);
   padding: 0 13px;
   border-radius: 999px;
   background: var(--surface-raised);
@@ -2968,13 +3029,13 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
+  gap: var(--mobile-control-gap);
   margin-top: 9px;
-  padding: 3px;
-  border-radius: 13px;
+  padding: var(--mobile-control-inset);
+  border-radius: 999px;
   background: var(--surface-sunken);
 }
-#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { min-height: 44px; border-radius: 10px; font-size: 13px; color: var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs button { min-height: var(--mobile-control-target); border-radius: 999px; font-size: 13px; color: var(--text-secondary); }
 #root .codex-shell[data-presentation='mobile'] .studio-bookmark-tabs [aria-pressed='true'] { background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); font-weight: 600; }
 
 #root .codex-shell[data-presentation='mobile'] .studio-content {
@@ -2997,10 +3058,10 @@
 
 /* Replace only the dock during selection. The existing left rail remains available. */
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-studio-selecting='true']) .mobile-floating-navigation { display: none; }
-#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: absolute; z-index: 40; inset-inline: 12px; bottom: var(--mobile-dock-bottom); display: flex; align-items: center; gap: 8px; padding: 5px; min-height: var(--mobile-dock-size); border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); box-shadow: 0 2px 12px rgb(0 0 0 / 12%); }
-#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar > button { flex: none; }
-#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; overflow-x: auto; }
-#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: 5px; flex: none; min-height: 44px; padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: absolute; z-index: 40; inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end); bottom: var(--mobile-dock-bottom); display: flex; align-items: center; gap: var(--mobile-control-gap); padding: calc(var(--mobile-control-inset) - 1px); min-height: var(--mobile-dock-size); border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); box-shadow: 0 2px 12px rgb(0 0 0 / 12%); }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar > button { flex: none; min-width: var(--mobile-control-target); min-height: var(--mobile-control-target); }
+#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: var(--mobile-control-gap); min-width: 0; flex: 1; overflow-x: auto; }
+#root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: var(--mobile-control-group-gap); flex: none; min-height: var(--mobile-control-target); padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }

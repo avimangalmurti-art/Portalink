@@ -29,6 +29,14 @@ When a native button must stay in place to preserve a feature's composition, opt
 
 ## Purposeful differences
 
+### Mobile pill spacing
+
+Mobile navigation and reader toolbars use the spacing tokens in `mobile.css`: 48px inner targets, 4px container inset, 4px between targets inside a pill, and 8px between separate controls. A standalone control and a grouped pill both have 56px outer height. Selected surfaces remain inside the inset rather than touching the pill boundary. Text and form actions retain their established semantic sizes; this contract applies to toolbar/composer geometry, not content-card hit areas.
+
+Horizontal safe gutters are 16px, increased when the device safe area requires it. Below 360px, use 44px targets and 8px gutters so five navigation destinations and the separate Studio plus still fit. Bottom controls use the visible page's existing safe-area/viewport logic, not a hard-coded Safari toolbar height. Shared readers also clear the measured sign-in bar. WEB geometry is separate.
+
+The same inset/gap values cover horizontal and vertical navigation, project action rails, focused-page actions, Studio segments and selection actions, and the message composer. Profile action rows use the between-control gap. Derive adjacent reader positions from outer control size plus gap; keep opening/closing anchors constant and scroll expanded actions rather than the Close control.
+
 Navigation uses the shared neutral selection and ink tokens with its existing bar/capsule geometry and touch dimensions in `navigation.css`. The separate Studio plus action and moving navigation capsule are preserved. Switches, color swatches, icon-choice previews, drag handles, content/media hit areas, engagement states, and the plain mobile information glyph retain their own roles. Creator artwork and brand colors are not interface button fills.
 
 The September 2026 sweep covers the shared primitives, navigation states, Messages header/filters, Appearance mode choices, common loading/project/crop/category dialogs, profile editor actions and links, and project attachment actions. MOBILE attachment rows place titles above their touch actions; WEB keeps one row. Inline text links and semantic content controls are deliberately outside the ordinary action-marker contract.
