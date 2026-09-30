@@ -22,6 +22,11 @@ try {
  create function storage.foldername(path text) returns text[] language sql immutable as $$select (string_to_array(path,'/'))[1:array_length(string_to_array(path,'/'),1)-1]$$;
  create table realtime.messages(id uuid primary key default gen_random_uuid(),extension text);
  create function realtime.topic() returns text language sql stable as $$select current_setting('realtime.topic',true)$$;
+ -- Replace only the provider's network sender; messaging triggers still run.
+ create table realtime.test_sent_events(sequence bigserial primary key,payload jsonb,event text,topic text,private boolean);
+ create function realtime.send(payload jsonb,event text,topic text,private boolean default true)
+ returns void language sql as $$insert into realtime.test_sent_events(payload,event,topic,private) values($1,$2,$3,$4)$$;
+ revoke all on function realtime.send(jsonb,text,text,boolean) from public,anon,authenticated;
  alter table storage.objects enable row level security; alter table realtime.messages enable row level security;
  grant usage on schema public,auth,storage,realtime to anon,authenticated,service_role;
  grant all on storage.objects to authenticated,service_role;

@@ -52,6 +52,50 @@ Deleting an owned project also removes that project's content, including its com
 
 ## Validation and remaining release gate
 
+### September 30 readiness review
+
+Account removal is still disabled. A production inventory and local snapshots
+do not authorize enabling the candidate or calling Auth deletion around it.
+The reviewed administrative request concerns four explicit accounts; no private
+account identifiers belong in this document.
+
+The existing 14 Node checks and 13 in-memory SQL checks pass. The SQL verifier
+now supplies a synthetic `realtime.send` implementation matching the provider
+signature, so September 28 messaging triggers execute during these checks.
+It records events locally and performs no network delivery. This repairs a
+stale test fixture, not production behavior.
+
+The candidate is **not ready for administrative execution**:
+
+- Its request handler admits only its verified caller; there is no administrative
+  operation allowlist, protected-account exclusion or operation-specific claim.
+  The worker currently claims any due job. A future administrative path must
+  retain the grace period and all durable checkpoints, with self-service off.
+- `project-covers` is absent from ownership discovery, manifests and upload
+  fences. A separate synthetic experiment with both pending cover schemas
+  reproduced an upload during deletion grace that the manifest omitted; the
+  cover privacy guard then blocked anonymization. The passing 13-check baseline
+  suite does not establish compatibility with these pending schemas.
+- Sites/D1 interactions require a separate read and explicit retention/removal
+  decision. They are not covered by Supabase comment counts or cascades. The
+  scoped live read for this operation found no target-owned D1 rows; the sole
+  observed engagement belongs to the protected account and must remain.
+
+Live participant foreign keys still cascade. Before the September 30 reset,
+one empty request and its surviving participant's read/state records were in
+the cascade scope. The user then explicitly approved a **one-time administrator
+exception**, including that empty request, after reviewing the four-account,
+four-portal and one-avatar scope and backup limitations. The provider dashboard
+operation completed; postflight confirmed only the protected account remains,
+its profile/project/portal/draft fingerprints match, and its Storage counts and
+D1 data are unchanged. Exact private evidence is Git-ignored in the owning
+checkout; see the handoff. No migration, worker release or self-service enabling
+occurred. This exception is consumed and does not authorize another removal.
+
+The preservation instruction remains in force for future operations even when
+there are no messages. Do not treat a generic request to continue preparation
+as another exception or enable the public deletion flow.
+
 Local verification uses **only synthetic data**:
 
 - The complete existing SQL migration history plus the candidate runs in in-memory PostgreSQL (PGlite).
