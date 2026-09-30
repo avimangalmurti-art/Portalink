@@ -1,5 +1,13 @@
 # Current agent handoff
 
+## Published design-system and accumulated UI changes — Sites 273 — September 29, 2026
+
+- User authorized publication. Exact deployed source: **`060832a7961f3f070071d9039b51410b6163ec59`**, owned `codex/creator-share-previews`. Sites **version273** succeeded at **2026-09-30T05:40:27Z** (September29 local), existing URL https://portalinknetworksinc.avimangalmurti566055.chatgpt.site . Version ID `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_34e37d28741881919f5b810d2c647769`; deployment `appgdep_6abca0c0a8dc8191ab299f8dee9ec58e`.
+- Includes all locally saved post-v272 work below: mobile control cleanup, Collaboration destination, guided publishing, shared sidebar/profile refinements, content contrast, Studio Bookmarks/+ navigation, splash edge fix, Messages appearance and shared control system. Earlier unpublished status notes are historical and now included in this release.
+- Reused the unchanged verified client/server build and recorded174 focused tests/typecheck/lint/build/browser checks. Independent release review found no blocker in66 expected UI/client-route/test/docs files. No Sites worker, hosting, environment, dependency, Supabase SQL or D1 migration changes since v272. No new physical-device or live-account testing is claimed for publication.
+- Native Site workflow verified/pushed the exact source to its existing mirror. Its Bash packaging wrapper could not launch on Windows; the established official prepare-site-build helper plus native tar produced the archive. Validated223 files, client+worker entrypoints, existing hosting bindings and byte-identical D1 migration metadata; no source, environment, QA or private files. Archive retained under ignored `logs/design-system-release-20260929.tar.gz`.
+- Native deployment status confirms success, public audience retained and runtime environment revision1 unchanged. No GitHub main push/merge, SQL application, Auth/account change or separate PDF/video worker deployment. Existing Supabase/D1 data and unapplied migrations remain untouched. Vite5178 and user live tab preserved. This documentation-only release note follows the deployed application source.
+
 ## Shared design-system sweep — ALL, local and unpublished — September 29, 2026
 
 - User requested consistent button shapes/sizes and gray interaction states. Continued owned `codex/creator-share-previews` from `2537b65`, preserving earlier work. Shared rules are in [design-system-controls.md](design-system-controls.md). No backend, authentication, route, data or dependency changes.
