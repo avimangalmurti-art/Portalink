@@ -1,7 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { InfoIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { FeedCreator, Project } from '../../types/domain';
 import { useContentPreview } from '../../hooks/useContentPreview';
@@ -75,9 +74,9 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />
-      {isMobile && !disabled && <button type="button" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
+      {isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         aria-label={`${preview.expanded ? 'Hide' : 'Show'} details for ${project.title}`} aria-expanded={preview.expanded}
-        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><InfoIcon size={20} aria-hidden="true" /></button>}
+        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><span aria-hidden="true">i</span></button>}
       {editor}
     </div>
     {hasExtension && <motion.div initial={false} animate={{ height: preview.expanded ? 'auto' : 0, opacity: preview.expanded ? 1 : 0 }}

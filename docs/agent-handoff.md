@@ -1,5 +1,16 @@
 # Current agent handoff
 
+## MOBILE plain card information symbol — local, unpublished — September 29, 2026
+
+- User requested the card information control be just **i**, removing the visually large circular button. Replaced the mobile-only Lucide circle in `ProjectPreviewCard.tsx` with an aria-hidden text glyph. In scoped `mobile.css`, removed its background, border and radius; a small text shadow maintains contrast over covers. Retained the invisible 44×44 touch target, accessible labels/expanded state, keyboard focus and existing detail toggle. Existing `data-keep-color` opt-out prevents the generic hover treatment from restoring a filled button. All shared card callers receive this MOBILE change; WEB remains unchanged.
+- **9/9 existing content-preview checks and typecheck pass.** Actual-component browser fixture at iPhone Air **420×912** verifies simple glyph, no circle/SVG/border/background, 44×44 hit area, and opening/closing details. WEB1280 retains its existing layout selector with no mobile info buttons. Returned preview to 420×912, saved ignored screenshot `logs/mobile-card-info-iphone-air.png`, closed temporary QA tab. Synthetic services; no physical-device/live-account claim.
+- Continuing `codex/creator-share-previews` from `5b99c98`; preserve and save the preceding iPhone Air guidance edits with this work. Live stays **v272 / `80616e1`**; both mobile counter removal and plain-info styling remain unpublished. No push, SQL, deployment or connected-service changes. Local Vite 5178 is running as session `58744` (replaces stopped earlier session); original checkout/unrelated folders preserved.
+
+## iPhone Air working dimensions — September 29, 2026
+
+- User selected **iPhone Air** as the mobile design device. Set the existing profile browser tab to **420 × 912 CSS pixels portrait** and leave that requested working size active. Confirmed DOM viewport 420×912 and no horizontal page overflow. Existing mobile profile/header/dock use fluid dimensions and safe-area/visual-viewport handling; no runtime layout change was needed to establish this baseline.
+- Recorded the primary device in `AGENTS.md` (owned and original checkouts) and `docs/dual-view-development.md`. Future MOBILE design should start at 420×912; 390/430 and WEB remain relevant regression samples. Desktop browser resizing is not physical-iPhone/Safari/PWA proof. Current live tab remains v272; the preceding mobile counter removal at `5b99c98` remains local/unpublished. No publishing, data or auth changes.
+
 ## MOBILE gallery counter removal — local, unpublished — September 29, 2026
 
 - User requested removing the space-consuming **Layout · N per row** control everywhere on MOBILE. Removed its sole mounted import/branch in `src/components/profile/JustifiedImageWall.tsx`, covering mobile profile and Home/location galleries without leaving a wrapper or spacer. WEB controls, density preferences, pinch behavior and transient zoom feedback remain. The separate document Pages/row slider is unchanged.
