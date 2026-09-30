@@ -734,12 +734,34 @@
 /* Five full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
   width: clamp(224px, 60vw, 292px);
+  flex-shrink: 0;
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
 }
+
+/* Context actions share the dock baseline. Flex centering shifts the whole
+   navigation capsule horizontally as a companion appears or disappears. */
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose {
+  display: grid;
+  flex: none;
+  width: var(--mobile-dock-size);
+  height: var(--mobile-dock-size);
+  min-width: 44px;
+  min-height: 44px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: var(--accent-foreground);
+  box-shadow: 0 3px 14px rgb(0 0 0 / 12%);
+  pointer-events: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose svg { color: inherit; }
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
@@ -2909,8 +2931,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  padding: 0 12px calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 72px);
-  scroll-padding-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 72px);
+  padding: 0 12px calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 16px);
+  scroll-padding-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 16px);
 }
 #root .codex-shell[data-presentation='mobile'] :is(.studio-list, .studio-section ul) { list-style: none; margin: 0; padding: 0; }
 #root .codex-shell[data-presentation='mobile'] .studio-section h2 { margin: 14px 8px 4px; padding-bottom: 7px; border-bottom: 1px solid var(--hairline); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
@@ -2922,19 +2944,6 @@
 #root .codex-shell[data-presentation='mobile'] .studio-selection-summary { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; min-height: 44px; font-size: 13px; color: var(--text-secondary); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-summary button { min-height: 44px; padding-inline: 8px; color: var(--accent-text); }
 
-/* Header search leaves one reachable compose control, exactly 8px above the dock. */
-#root .codex-shell[data-presentation='mobile'] .studio-compose {
-  position: absolute;
-  z-index: 40;
-  inset-inline: 20px;
-  bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 8px);
-  display: flex;
-  justify-content: flex-end;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-compose button { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 17px; border-radius: 999px; background: var(--accent-primary); color: var(--accent-foreground); box-shadow: 0 3px 14px rgb(0 0 0 / 12%); font-size: 14px; font-weight: 600; pointer-events: auto; }
-#root .codex-shell[data-presentation='mobile'] .studio-compose svg { color: inherit; }
-
 /* Replace only the dock during selection. The existing left rail remains available. */
 #root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-studio-selecting='true']) .mobile-floating-navigation { display: none; }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: absolute; z-index: 40; inset-inline: 12px; bottom: var(--mobile-dock-bottom); display: flex; align-items: center; gap: 8px; padding: 5px; min-height: var(--mobile-dock-size); border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); box-shadow: 0 2px 12px rgb(0 0 0 / 12%); }
@@ -2942,7 +2951,7 @@
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; overflow-x: auto; }
 #root .codex-shell[data-presentation='mobile'] .studio-bulk-actions button { display: flex; align-items: center; justify-content: center; gap: 5px; flex: none; min-height: 44px; padding: 0 10px; border-radius: 999px; white-space: nowrap; font-size: 12px; color: var(--accent-text); }
 #root .codex-shell[data-presentation='mobile'] .studio-selection-hint { padding: 0 8px; font-size: 12px; color: var(--text-tertiary); }
-#root .codex-shell[data-presentation='mobile'] :is(.studio-compose, .studio-selection-toolbar):where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar:where(body:has(:is([role='dialog'], [role='alertdialog'])[aria-modal='true']) *) { visibility: hidden; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:disabled { opacity: .45; }
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {

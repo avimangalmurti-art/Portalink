@@ -213,7 +213,7 @@ function navigationHarness(pathname = '/') {
     const railItems = railNav ? React.Children.toArray(railNav.props.children) : [];
     const railToggle = railItems.find(child => child.props['aria-controls'] === rail.props.id) ?? null;
     assert.equal(floating.props.hidden, undefined, 'the combined toggle and destinations stay mounted');
-    assert.equal(React.Children.count(floating.props.children), 1, 'one combined quick-navigation pill has no separate toggle');
+    assert.equal(React.Children.toArray(floating.props.children).length, props.onCreateProject ? 2 : 1, 'the optional compose button sits beside the combined capsule');
     assert.equal(group.props.className, 'mobile-navigation-dock');
     assert.equal(toggle.type, 'button');
     assert.equal(toggle.props['aria-controls'], rail.props.id);
@@ -387,6 +387,27 @@ test('quick destinations retain their actions, links and accessibility while the
   h.unmount();
 });
 
+test('compose is a separate icon-only action and never owns navigation swipes', () => {
+  const h = navigationHarness('/studio');
+  let creates = 0;
+  const props = { onCreateProject: () => creates++ };
+  let ui = h.render(props);
+  const compose = React.Children.toArray(ui.floating.props.children)[1];
+  assert.equal(compose.props['aria-label'], 'New project');
+  assert.equal(compose.type, 'button');
+  assert.equal(typeof compose.props.children, 'object', 'only the icon is visible');
+  compose.props.onClick();
+  assert.equal(creates, 1);
+  assert.equal(ui.floating.props.onPointerDownCapture, undefined);
+  assert.equal(typeof ui.dock.props.onPointerDownCapture, 'function');
+  ui.toggle.props.onClick();
+  ui = h.render(props);
+  assert.equal(ui.rail.props['data-hidden'], false);
+  assert.equal(React.Children.toArray(ui.floating.props.children)[1].props['aria-label'], 'New project');
+  ui = h.render();
+  assert.equal(React.Children.toArray(ui.floating.props.children).length, 1);
+});
+
 test('Studio is an enabled dock destination and retains active state through its Bookmarks alias', () => {
   const h = navigationHarness('/studio');
   for (const [pathname, active] of [['/studio', true], ['/saved', true], ['/messages', false]]) {
@@ -504,7 +525,7 @@ test('Portals is absent from both mobile navigation forms even on the portals ro
 test('rail and dock swipes alternate navigation without activating destinations underneath', () => {
   const h = navigationHarness(); let ui = h.render();
   for (const [from, to, hidden] of [[10, 60, false], [60, 10, true]]) {
-    const surface = hidden ? 'rail' : 'floating';
+    const surface = hidden ? 'rail' : 'dock';
     ui[surface].props.onPointerDownCapture(pointer(from, 10, 0));
     ui[surface].props.onPointerMoveCapture(pointer(to, 10, 30));
     ui[surface].props.onPointerUpCapture(pointer(to, 10, 60));

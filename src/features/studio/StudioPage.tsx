@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArchiveIcon, BellIcon, BookmarkIcon, CheckIcon, ChevronLeftIcon, CopyIcon, EllipsisIcon, FilePenLineIcon, LayoutGridIcon, ListIcon, MailOpenIcon, PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
+import { ArchiveIcon, BellIcon, BookmarkIcon, CheckIcon, ChevronLeftIcon, CopyIcon, EllipsisIcon, FilePenLineIcon, LayoutGridIcon, ListIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
@@ -23,7 +23,6 @@ import { readStudioLocation, STUDIO_BOOKMARK_TABS, STUDIO_CATEGORIES, studioBulk
 type Props = {
   onBack: () => void;
   onOpenProject: (id: string, location?: ProjectLocation) => void;
-  onCreateProject: () => void;
   savedRoute?: boolean;
 };
 
@@ -46,12 +45,12 @@ function RowPreview({ row }: { row: StudioItem }) {
 }
 
 /** A private, mobile presentation of existing collections and service actions. */
-export function StudioPage({ onBack, onOpenProject, onCreateProject, savedRoute = false }: Props) {
+export function StudioPage({ onBack, onOpenProject, savedRoute = false }: Props) {
   const auth = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const location = readStudioLocation(params, savedRoute);
-  const [view, setView] = useState<'categories' | 'list'>(() => savedRoute || (params.has('category') && location.category !== 'all') ? 'categories' : readStudioView());
+  const [view, setView] = useState<'categories' | 'list'>(() => location.category !== 'all' ? 'categories' : readStudioView());
   const category = view === 'list' ? 'all' : location.category;
   const tab = location.tab;
   const data = useStudioData(category, tab);
@@ -259,15 +258,15 @@ export function StudioPage({ onBack, onOpenProject, onCreateProject, savedRoute 
       {(localError || data.mutationError) && <p role="alert" className="studio-feedback text-[var(--status-danger)]">{localError || data.mutationError}</p>}
       {data.status === 'loading' && !data.rows.length ? <LoadingState label="Loading Studio" /> : null}
       {data.error && <ErrorState title="Some of Studio could not load" description={data.error} onRetry={data.refresh} />}
-      {category === 'drafts' ? <EmptyState title="Drafts cannot be reopened here yet" description={STUDIO_DRAFTS_EXPLANATION} action={{ label: 'New project', onClick: onCreateProject }} /> : category === 'all' ? visibleSections.map(section => {
+      {category === 'drafts' ? <EmptyState title="Drafts cannot be reopened here yet" description={STUDIO_DRAFTS_EXPLANATION} /> : category === 'all' ? visibleSections.map(section => {
         if (!section.rows.length && query) return null;
         return <section key={section.id} aria-label={section.title} className="studio-section"><h2>{section.title}</h2>{section.id === 'drafts' ? <p className="studio-section-note">{STUDIO_DRAFTS_EXPLANATION}</p> : section.rows.length ? <ul>{section.rows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <p className="studio-section-note">{section.id === 'published' ? 'No published projects yet.' : section.id === 'bookmarks' ? 'No bookmarks yet.' : 'No activity yet.'}</p> : null}</section>;
-      }) : visibleRows.length ? <ul className="studio-list">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No bookmarks yet'} description={query ? 'Try another search, or clear this one.' : category === 'published' ? 'Your published work will appear here, newest first.' : category === 'activity' ? 'Messages, replies, follows and updates appear here.' : 'Keep projects, pages and creators here using their bookmark action.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : category === 'published' ? { label: 'New project', onClick: onCreateProject } : category === 'bookmarks' ? { label: 'Explore the world', onClick: () => navigate(buildPath('portalink')) } : undefined} /> : null}
+      }) : visibleRows.length ? <ul className="studio-list">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No bookmarks yet'} description={query ? 'Try another search, or clear this one.' : category === 'published' ? 'Your published work will appear here, newest first.' : category === 'activity' ? 'Messages, replies, follows and updates appear here.' : 'Keep projects, pages and creators here using their bookmark action.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : category === 'bookmarks' ? { label: 'Explore the world', onClick: () => navigate(buildPath('portalink')) } : undefined} /> : null}
       {category === 'all' && query && !visibleRows.length && data.status !== 'loading' && !data.error && <EmptyState title="No matching items" description="Try another search, or clear this one." action={{ label: 'Clear search', onClick: () => setQuery('') }} />}
       {data.loadMoreError && <ErrorState title="More saved pages could not load" description={data.loadMoreError} onRetry={() => { void data.loadMore(); }} />}
       {data.hasMore && <div className="studio-load-more"><p>Search and selection cover the pages loaded so far.</p><button type="button" className="studio-text-control" disabled={data.loadingMore || bulkPending} onClick={() => { void data.loadMore(); }}>{data.loadingMore ? 'Loading…' : 'Load more saved pages'}</button></div>}
     </div>
-    {selecting ? <div className="studio-selection-toolbar" role="toolbar" aria-label="Selected item actions">
+    {selecting && <div className="studio-selection-toolbar" role="toolbar" aria-label="Selected item actions">
       <button type="button" className="studio-round-control" aria-label="Exit selection" disabled={bulkPending} onClick={closeSelection}><InterfaceIcon icon={XIcon} /></button>
       <div className="studio-bulk-actions scrollbar-hidden">
         {bulk.unsave.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('unsave'); }}><InterfaceIcon icon={BookmarkIcon} /><span>Unsave ({bulk.unsave.length})</span></button>}
@@ -276,7 +275,7 @@ export function StudioPage({ onBack, onOpenProject, onCreateProject, savedRoute 
         {!selectedRows.length && <span className="studio-selection-hint">Select items to see actions</span>}
         {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
       </div>
-    </div> : <div className="studio-compose"><button type="button" data-keep-color="" onClick={onCreateProject}><InterfaceIcon icon={PlusIcon} /><span>New project</span></button></div>}
+    </div>}
     {sheet && <StudioActionSheet title={'view' in sheet ? 'Studio view' : sheet.row.title} actions={('view' in sheet ? viewActions : actionsFor(sheet.row)).map(action => ({ ...action, onAction: () => { setSheet(null); action.onAction(); } }))} onClose={() => setSheet(null)} />}
     <ProjectEditorDialog management={management} />
   </section>;

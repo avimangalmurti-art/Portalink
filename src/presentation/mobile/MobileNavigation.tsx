@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
+import { BarChart3Icon, BookmarkIcon, CircleUserRoundIcon, HomeIcon, MessageCircleIcon, MoonIcon, PlayIcon, PlusIcon, SatelliteDishIcon, SearchIcon, SunIcon, WarehouseIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 import { useNavigationSwipe } from './useNavigationSwipe';
@@ -19,6 +19,7 @@ type Props = {
   profileHref?: string;
   isProfileActive: boolean;
   liveControl?: React.ReactNode;
+  onCreateProject?: () => void;
 };
 
 function NavigationOrientationIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -42,7 +43,7 @@ function Destination({ item, variant = 'rail' }: { item: Item; variant?: 'rail' 
 }
 
 /** The phone rail has its own visibility, without writing the WEB width/choice. */
-export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl }: Props) {
+export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, onMessages, onProfile, profileHref, isProfileActive, liveControl, onCreateProject }: Props) {
   const [hidden, setHidden] = useState(true);
   const { pathname, search } = useLocation();
   const toggle = useRef<HTMLButtonElement>(null);
@@ -100,13 +101,14 @@ export function MobileNavigation({ settings, theme, onThemeChange, onPortalink, 
         </nav>
       </>}
     </aside>
-    <div ref={dockRef} className="mobile-floating-navigation" {...dockSwipe}>
-      <nav className="mobile-navigation-quick-links" aria-label="Quick navigation">
+    <div ref={dockRef} className="mobile-floating-navigation">
+      <nav className="mobile-navigation-quick-links" aria-label="Quick navigation" {...dockSwipe}>
         <div className="mobile-navigation-dock">
           <button ref={toggle} type="button" className="mobile-navigation-opener mobile-dock-destination nav-button" aria-label={hidden ? 'Show navigation' : 'Hide navigation'} aria-expanded={!hidden} aria-controls="mobile-main-navigation" title={hidden ? 'Show navigation · swipe right' : 'Hide navigation · swipe left'} onClick={hidden ? open : close}><InterfaceIcon icon={NavigationOrientationIcon} fill="currentColor" stroke="none" /></button>
           {[messages, studio, home, profile].map(item => <Destination key={item.label} item={item} variant="dock" />)}
         </div>
       </nav>
+      {onCreateProject && <button type="button" className="mobile-navigation-compose" data-keep-color="" aria-label="New project" title="New project" onClick={onCreateProject}><InterfaceIcon icon={PlusIcon} /></button>}
     </div>
   </div>;
 }

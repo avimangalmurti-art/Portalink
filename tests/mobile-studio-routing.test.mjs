@@ -7,8 +7,11 @@ import ts from 'typescript';
 
 const source = ts.createSourceFile('App.tsx', fs.readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const declarations = new Map();
-let studioBranch;
+const functions = new Map();
+let studioBranch, composeAction;
 function visit(node) {
+  if (ts.isFunctionDeclaration(node) && node.name) functions.set(node.name.text, node);
+  if (ts.isJsxAttribute(node) && node.name.getText(source) === 'onMobileCreateProject') composeAction = node.initializer.expression;
   if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) declarations.set(node.name.text, node.initializer);
   if (ts.isConditionalExpression(node) && node.condition.getText(source) === 'isMobileStudioOpen' && node.whenTrue.getText(source).includes('<StudioPage')) studioBranch = node;
   ts.forEachChild(node, visit);
@@ -30,7 +33,7 @@ function renderRoute(presentation, kind, overrides = {}) {
     isProfileEditorRoute: false, activeCategory: null, isSearchOpen: false, isMessagesOpen: false,
     routeStateView: null, isControlCenterOpen: false, iconPickerCategoryId: null,
     routeActivityKind: null, viewedProfileId: null, activeCategoryId: null, activeDestination: 'Today',
-    nav: { back: () => calls.push('back') }, openProjectById: (...args) => calls.push(['project', ...args]), requestGlobalPublish: () => calls.push('create'),
+    nav: { back: () => calls.push('back') }, openProjectById: (...args) => calls.push(['project', ...args]), requestGlobalPublish: () => calls.push('create'), requestMobilePublish: () => calls.push('create'),
     ...overrides,
   });
   for (const name of ['isCollaborationOpen', 'isPortalsOpen', 'isInsightsOpen', 'isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen', 'inDesignFeature', 'isActivityOpen', 'personalScreen', 'isProtectedRoute', 'isRouteBlocked', 'screenTransitionKey', 'screenMainClassName']) {
@@ -49,7 +52,7 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.context.isProtectedRoute, true);
     assert.match(result.context.screenMainClassName, /overflow-hidden/);
     result.screen.props.onBack();
-    result.screen.props.onCreateProject();
+    evaluate(composeAction, result.context)();
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
     assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
   }
@@ -85,5 +88,49 @@ test('mobile Studio requires the existing auth gate and cannot mount private con
       { isAuthenticated: true, isInitializing: false, phase: 'authenticating', user: { id: 'account-a' } },
       { isAuthenticated: true, isInitializing: false, phase: 'signing-out', user: { id: 'account-a' } },
     ]) assert.equal(renderRoute('mobile', kind, { auth }).screen.type, 'loading');
+  }
+});
+
+
+test('only the ready authenticated mobile Studio routes expose navigation compose', () => {
+  for (const [platform, kind] of [['web', 'studio'], ['web', 'saved'], ['mobile', 'home'], ['mobile', 'messages']]) {
+    const result = renderRoute('mobile', 'studio');
+    result.context.presentation = platform;
+    result.context.route.kind = kind;
+    for (const name of ['isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen']) result.context[name] = evaluate(declarations.get(name), result.context);
+    assert.equal(evaluate(composeAction, result.context), undefined);
+  }
+  for (const auth of [
+    { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null },
+    { isAuthenticated: true, isInitializing: true, phase: 'initializing', user: { id: 'a' } },
+    { isAuthenticated: true, isInitializing: false, phase: 'signing-out', user: { id: 'a' } },
+  ]) {
+    const result = renderRoute('mobile', 'studio', { auth });
+    assert.equal(evaluate(composeAction, result.context), undefined);
+  }
+});
+
+test('closing creation restores the mobile trigger without stealing another destination or dialog focus', () => {
+  for (const after of ['body', 'other-control', 'another-modal', 'removed-trigger']) {
+    const calls = [], frames = [];
+    class Element {
+      isConnected = true;
+      focus(options) { calls.push(['focus', options.preventScroll]); }
+    }
+    const opener = new Element(), body = {}, doc = { body, activeElement: opener, querySelector: () => after === 'another-modal' ? {} : null };
+    const context = vm.createContext({ HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
+      requestGlobalPublish: () => { calls.push('create'); doc.activeElement = body; },
+      setIsPublishOpen: value => calls.push(['open', value]), setPublishTargetCategoryId: value => calls.push(['target', value]),
+      requestAnimationFrame: frame => frames.push(frame),
+    });
+    for (const name of ['requestMobilePublish', 'closePublisher']) vm.runInContext(ts.transpileModule(functions.get(name).getText(source), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context);
+    context.requestMobilePublish();
+    assert.equal(context.mobilePublishOpener.current, opener);
+    context.closePublisher();
+    assert.equal(context.mobilePublishOpener.current, null);
+    if (after === 'other-control') doc.activeElement = new Element();
+    if (after === 'removed-trigger') opener.isConnected = false;
+    frames.forEach(frame => frame());
+    assert.deepEqual(calls, ['create', ['open', false], ['target', null], ...(after === 'body' ? [['focus', true]] : [])]);
   }
 });

@@ -74,6 +74,8 @@ type SidebarProps = {
   onProfileOpen: () => void;
   /** Canonical profile address; when present, profile access works before hydration. */
   profileHref?: string;
+  /** Contextual MOBILE compose action beside the navigation capsule. */
+  onMobileCreateProject?: () => void;
   /**
    * Opens the profile currently being VIEWED, which is not always the viewer's
    * own. The portal row names that creator, so it must land on them.
@@ -404,6 +406,7 @@ export function Sidebar({
   onNavigate,
   onProfileOpen,
   profileHref,
+  onMobileCreateProject,
   onMessagesOpen,
   theme,
   onThemeChange,
@@ -616,7 +619,7 @@ export function Sidebar({
     </button>;
   if (isMobile) return <MobileNavigation
     theme={theme} onThemeChange={onThemeChange} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
-    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive}
+    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} onCreateProject={onMobileCreateProject}
     settings={<SettingsTrigger collapsed onOpen={onControlCenterOpen} />}
     liveControl={liveShow ? <button type="button" className="mobile-nav-destination nav-button shape-compact" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`}><InterfaceIcon icon={Disc3Icon} /></button> : undefined}
   />;
