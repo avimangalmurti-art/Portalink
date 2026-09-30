@@ -7,7 +7,7 @@ import { useMediaPreparation } from './useMediaPreparation';
 import { useMediaUpload } from './useMediaUpload';
 import { validateTitle } from './validation';
 import type { Id } from '../../types/domain';
-import type { DraftMetadata, DraftState, ProjectDraft, PublishResult } from '../../types/publishing';
+import type { DraftMetadata, DraftState, PersistedAttachment, ProjectDraft, PublishResult } from '../../types/publishing';
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 
 /**
@@ -174,7 +174,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
    * Upload failure and publish failure are deliberately different states: one is
    * retried by re-sending bytes, the other by re-requesting publication only.
    */
-  const publish = useAsyncAction(async () => {
+  const publish = useAsyncAction(async (retriedAttachments?: PersistedAttachment[]) => {
     if (!draft || !profileId || !categoryId) {
       throw new Error('No draft to publish.');
     }
@@ -201,7 +201,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         throw new Error(caught instanceof Error && caught.message ? caught.message : 'These details could not be saved to your draft.');
       }
       const canPersist = media.capability?.isAvailable === true;
-      let attachments = upload.attachments;
+      let attachments = retriedAttachments ?? upload.attachments;
       if (canPersist && attachments.length === 0) {
         // Bytes first. A failure or a cancellation stops the sequence here, with
         // metadata, files, order, and cover all untouched.
@@ -354,8 +354,9 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       draftId: draft.id
     });
     if (uploaded) {
-      // The bytes are in; carry straight on to publication.
-      void publish.run();
+      // Carry the confirmed result across the async boundary. This callback's
+      // captured upload state may still be empty until React renders again.
+      await publish.run(uploaded);
     }
   }, [draft, profileId, upload, publish]);
   const isMetadataComplete = !validateTitle(metadata.title) && metadata.summary.trim() !== '';

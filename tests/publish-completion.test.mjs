@@ -43,7 +43,7 @@ function harness(presentation = 'web') {
   };
   function render(changes = {}, propChanges = {}) {
     currentFlow = {
-      step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {},
+      step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {}, isSavingDraft: false,
       media: { items: [] }, metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
       inferredRelevance: {}, upload: {}, publish: {}, ...changes,
     };
@@ -61,20 +61,33 @@ function nodes(tree) {
 }
 const published = { projectId: 'new-project', mediaPersisted: true, sessionOnly: false };
 
-test('mobile keeps location separate and hides inferred commentary and file details by default', () => {
+test('mobile delegates to the guided flow while WEB keeps its existing form', () => {
   const flow = { location: 'Oakland', inferredRelevance: { contentGeography: { label: 'San Francisco' } }, media: { items: [{}] } };
   const tree = harness('mobile').render(flow);
-  const all = nodes(tree);
-  assert.equal(all.find((node) => node.props?.id === 'publish-location').props.value, 'Oakland');
-  assert.equal(all.find((node) => node.props?.id === 'publish-location').props.maxLength, 80);
-  assert.equal(all.find((node) => node.type === 'MediaPicker').props.compact, true);
-  assert.equal(all.find((node) => node.type === 'CoverFilmstrip').props.compact, true);
-  assert.ok(!JSON.stringify(tree).includes('Project relevance:'));
-  assert.equal(all.find((node) => node.props?.id === 'publish-hint').props.children, 'Add a description to publish.');
-  assert.ok(!all.find((node) => node.props?.id === 'publish-hint').props.className.includes('sr-only'));
+  assert.equal(tree.props.mobileFlow, true);
+  const guided = nodes(tree).find(node => node.type === 'MobilePublishFlow');
+  assert.equal(guided.props.editingStep, 'files');
+  assert.equal(guided.props.flow.location, 'Oakland');
+  assert.equal(guided.props.flow.media, flow.media);
   const web = nodes(harness().render(flow));
-  assert.ok(!web.some((node) => node.props?.id === 'publish-location'));
-  assert.equal(web.find((node) => node.type === 'MediaPicker').props.compact, false);
+  assert.ok(!web.some(node => node.type === 'MobilePublishFlow'));
+  assert.ok(!web.some(node => node.props?.id === 'publish-location'));
+  assert.equal(web.find(node => node.type === 'MediaPicker').props.compact, false);
+});
+
+test('mobile cannot close while details are saving, files preparing or cleanup is pending', () => {
+  for (const state of [{ isSavingDraft: true }, { media: { items: [], state: 'selecting' } }, { upload: { isCleaningUp: true } }]) {
+    assert.equal(harness('mobile').render(state).props.closeDisabled, true);
+  }
+});
+
+test('draft saving stays protected after resizing to WEB and cleanup locks recovery actions', () => {
+  const web = harness().render({ isSavingDraft: true, canPublish: true });
+  assert.equal(web.props.closeDisabled, true);
+  assert.equal(nodes(web).find(node => node.props?.type === 'submit').props.disabled, true);
+  const mobile = harness('mobile').render({ upload: { isCleaningUp: true, failure: { message: 'Failed' } } });
+  const notices = nodes(mobile).find(node=>node.type==='MobilePublishFlow').props.notices;
+  assert.ok(nodes(notices).filter(node=>node.type==='button').every(node=>node.props.disabled));
 });
 
 test('confirmed publication removes the entire modal and announces once', () => {
@@ -107,7 +120,7 @@ test('cover framing stays locked while uploading and after files are stored', ()
 });
 
 test('disabled Publish explains the missing detail, then clears the helper when ready', () => {
-  for (const presentation of ['web', 'mobile']) {
+  for (const presentation of ['web']) {
   for (const [title, summary, expected] of [
     ['  ', '', 'Add a title to publish.'],
     ['My project', '  ', 'Add a description to publish.'],

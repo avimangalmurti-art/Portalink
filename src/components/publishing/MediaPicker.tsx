@@ -57,12 +57,15 @@ type MediaPickerProps = {
   disabled?: boolean;
   /** File management is disclosed separately from the mobile project details. */
   compact?: boolean;
+  /** The guided file step exposes its list without another disclosure. */
+  expanded?: boolean;
 };
 export function MediaPicker({
   media,
   upload,
   disabled = false,
-  compact = false
+  compact = false,
+  expanded = false
 }: MediaPickerProps) {
   const isWeb = usePresentation() === 'web';
   const addRef = useRef<HTMLInputElement>(null);
@@ -99,7 +102,7 @@ export function MediaPicker({
     replaceTargetRef.current = mediaId;
     replaceRef.current?.click();
   };
-  const collapsed = compact && items.length > 0 && !showsFiles;
+  const collapsed = compact && !expanded && items.length > 0 && !showsFiles;
   return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined}
     data-web-file-picker={isWeb ? '' : undefined} data-file-drag-over={isWeb && isDragOver && !isLocked && !media.isFull ? '' : undefined}
     onDragOverCapture={isWeb ? (event) => {
@@ -123,9 +126,9 @@ export function MediaPicker({
       if (!isLocked && !media.isFull && event.dataTransfer.files.length > 0) media.select(event.dataTransfer.files);
     } : undefined}
     className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
-      {compact && items.length > 0 ? <div className="flex items-center justify-between gap-3">
+      {compact && !expanded && items.length > 0 ? <div className="flex items-center justify-between gap-3">
         <span id={collapsed ? 'publish-files-label' : undefined} className="text-[13px] text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'file' : 'files'} selected</span>
-        <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : 'Edit files'}</button>
+        <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : disabled ? 'View files' : 'Edit files'}</button>
       </div> : null}
       {!collapsed && <>
       <div className="flex items-center justify-between gap-3">

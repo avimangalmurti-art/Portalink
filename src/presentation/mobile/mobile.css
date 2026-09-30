@@ -2435,6 +2435,45 @@
 [data-presentation='mobile'] [data-mobile-publish] [data-cover-collapsed] .cover-filmstrip-item {
   width: 90px;
 }
+/* Guided upload uses the same full-height, keyboard-aware frame as onboarding. */
+[data-presentation='mobile'] .project-form-overlay[data-mobile-publish-flow] { padding: 0; }
+[data-presentation='mobile'] [data-mobile-publish-flow] .project-form-dialog {
+  width: 100%; height: 100%; max-width: none; border: 0; border-radius: 0;
+  padding: max(16px, env(safe-area-inset-top)) 20px max(12px, env(safe-area-inset-bottom));
+  gap: 16px;
+}
+[data-presentation='mobile'] [data-mobile-publish-flow] .project-form-heading button { min-width: 44px; min-height: 44px; }
+[data-presentation='mobile'] [data-mobile-publish].mobile-publish-flow { overflow: hidden; gap: 0; padding: 0; }
+[data-presentation='mobile'] .mobile-publish-progress { display: flex; gap: 12px; list-style: none; margin: 0; padding: 0 0 18px; }
+[data-presentation='mobile'] .mobile-publish-progress li { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-tertiary); }
+[data-presentation='mobile'] .mobile-publish-progress li > span { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--hairline-strong); border-radius: 50%; }
+[data-presentation='mobile'] .mobile-publish-progress li[aria-current] { color: var(--text-primary); font-weight: 600; }
+[data-presentation='mobile'] .mobile-publish-progress li[aria-current] > span { color: var(--accent-foreground); background: var(--accent-primary); border-color: transparent; }
+[data-presentation='mobile'] .mobile-publish-progress li[data-complete] { color: var(--accent-text); }
+[data-presentation='mobile'] .mobile-publish-flow > .mobile-publish-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 20px; padding: 0 2px 16px; }
+[data-presentation='mobile'] .mobile-publish-body > * { flex-shrink: 0; }
+[data-presentation='mobile'] .mobile-publish-step-heading h3 { font-size: 28px; line-height: 1.15; letter-spacing: -.025em; font-weight: 600; outline: none; }
+[data-presentation='mobile'] .mobile-publish-step-heading p { margin-top: 10px; font-size: 15px; line-height: 1.5; color: var(--text-secondary); }
+[data-presentation='mobile'] .mobile-publish-flow .project-form-media--populated { order: initial; }
+[data-presentation='mobile'] .mobile-publish-flow .project-media-dropzone { min-height: 200px; gap: 14px; }
+[data-presentation='mobile'] .mobile-publish-flow .project-media-dropzone button { min-height: 48px; }
+[data-presentation='mobile'] .mobile-publish-flow [data-cover-readonly] button { opacity: 1; cursor: default; }
+[data-presentation='mobile'] .mobile-publish-review { display: flex; flex-direction: column; gap: 16px; }
+[data-presentation='mobile'] .mobile-publish-review-details { overflow-wrap: anywhere; }
+[data-presentation='mobile'] .mobile-publish-review-details h4 { font-size: 20px; font-weight: 600; }
+[data-presentation='mobile'] .mobile-publish-review-details p { margin-top: 8px; font-size: 15px; line-height: 1.5; color: var(--text-secondary); }
+[data-presentation='mobile'] .mobile-publish-review-details dl { display: grid; gap: 8px; margin-top: 16px; font-size: 13px; }
+[data-presentation='mobile'] .mobile-publish-review-details dl > div { display: grid; grid-template-columns: 65px minmax(0, 1fr); gap: 12px; }
+[data-presentation='mobile'] .mobile-publish-review-details dt { color: var(--text-secondary); }
+[data-presentation='mobile'] .mobile-publish-edit { align-self: flex-start; min-height: 44px; color: var(--accent-text); text-align: left; font-size: 14px; font-weight: 500; }
+[data-presentation='mobile'] .mobile-publish-edit:disabled { opacity: .45; }
+[data-presentation='mobile'] .mobile-publish-edit:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+[data-presentation='mobile'] .mobile-publish-error { border: 1px solid var(--status-danger); border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.5; }
+[data-presentation='mobile'] .mobile-publish-actions { flex: 0 0 auto; padding-top: 12px; border-top: 1px solid var(--hairline); background: var(--surface-raised); }
+[data-presentation='mobile'] .mobile-publish-actions > p { font-size: 13px; line-height: 1.4; margin-bottom: 10px; color: var(--text-secondary); }
+[data-presentation='mobile'] .mobile-publish-actions > div { display: flex; gap: 12px; }
+[data-presentation='mobile'] .mobile-publish-actions button { min-height: 52px; font-size: 16px; }
+[data-presentation='mobile'] .mobile-publish-actions button[type='submit'] { flex: 1; width: auto; }
 /* Project controls share the Settings-driven navigation material. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back {
   top: calc(12px + var(--mobile-content-safe-top));

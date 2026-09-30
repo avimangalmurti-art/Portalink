@@ -9,6 +9,7 @@ import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
+import { MobilePublishFlow, type MobilePublishStep } from './MobilePublishFlow';
 import type { PublishResult } from '../../types/publishing';
 
 /**
@@ -41,6 +42,7 @@ export function PublishProjectDialog({
   const uploadErrorRef = useRef<HTMLDivElement>(null);
   const announcedProjectRef = useRef<string | null>(null);
   const [isConfirmingDiscard, setIsConfirmingDiscard] = useState(false);
+  const [mobileEditingStep, setMobileEditingStep] = useState<MobilePublishStep>('files');
   const {
     step,
     state,
@@ -48,9 +50,11 @@ export function PublishProjectDialog({
     media
   } = publishFlow;
   const isPublishing = state === 'publishing';
+  const isRecovering = isPublishing || publishFlow.isSavingDraft || publishFlow.isDiscarding || publishFlow.upload.isBusy || publishFlow.upload.isCleaningUp || (isMobile && media.state === 'selecting');
   useEffect(() => {
     if (!isOpen) {
       setIsConfirmingDiscard(false);
+      setMobileEditingStep('files');
       announcedProjectRef.current = null;
     }
   }, [isOpen]);
@@ -63,12 +67,12 @@ export function PublishProjectDialog({
     }
   }, [publishFlow.upload.failure]);
   useEffect(() => {
-    if (isOpen && step === 'metadata' && publishFlow.draft) {
+    if (!isMobile && isOpen && step === 'metadata' && publishFlow.draft) {
       const frame = requestAnimationFrame(() => document.getElementById('publish-add-files')?.focus());
       return () => cancelAnimationFrame(frame);
     }
     return undefined;
-  }, [isOpen, step, publishFlow.draft]);
+  }, [isMobile, isOpen, step, publishFlow.draft]);
   useEffect(() => {
     // Only a confirmed project result completes the flow. A finished transfer,
     // cancelled upload, or failed publication must leave the form available.
@@ -85,27 +89,27 @@ export function PublishProjectDialog({
   // A failed validation pass moves focus to the first field that needs
   // attention, so the reason is read rather than merely displayed.
   useEffect(() => {
-    if (!publishFlow.invalidField) {
+    if (isMobile || !publishFlow.invalidField) {
       return;
     }
     const field = document.getElementById(`publish-${publishFlow.invalidField === 'summary' ? 'summary' : publishFlow.invalidField}`);
     if (field instanceof HTMLElement) {
       field.focus();
     }
-  }, [publishFlow.invalidField]);
+  }, [isMobile, publishFlow.invalidField]);
   // Reviewing with no files chosen sends focus to the picker, so the objection
   // is acted on rather than only read.
   useEffect(() => {
-    if (!publishFlow.isMediaMissing) {
+    if (isMobile || !publishFlow.isMediaMissing) {
       return;
     }
     document.getElementById('publish-add-files')?.focus();
-  }, [publishFlow.isMediaMissing]);
+  }, [isMobile, publishFlow.isMediaMissing]);
   if (!isOpen || step === 'done') {
     return null;
   }
   function requestClose() {
-    if (isPublishing) {
+    if (isRecovering) {
       return;
     }
     // Bytes are moving. Closing here would abandon an upload silently, so the
@@ -130,7 +134,35 @@ export function PublishProjectDialog({
     : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
-  return <ProjectFormDialog title="New project" titleId="publish-dialog-title" description={<>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isPublishing || publishFlow.hasUploadInFlight || publishFlow.isDiscarding} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  const notices = <>
+              {/* The transfer itself was refused. Retrying re-sends the same
+               files; nothing the creator chose has been reset. Deliberately
+               separate from a publish failure, because the recovery differs. */}
+              {publishFlow.upload.failure && <div ref={uploadErrorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
+                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    {publishFlow.upload.failure.message}
+                    {' Your details, files, order, and cover are exactly as you left them, and nothing has been published.'}
+                    <button type="button" onClick={() => void publishFlow.retryUpload()} disabled={isRecovering} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Retry upload</button>
+                    <button type="button" onClick={() => {
+                publishFlow.upload.dismissFailure();
+              }} disabled={isRecovering} className="ml-2.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Dismiss</button>
+                  </span>
+                </div>}
+
+              {/* Publication was refused. When the files are already stored this
+               retries the publication ONLY — it never uploads twice. */}
+              {publishFlow.publish.status === 'error' && !publishFlow.upload.failure && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
+                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    {publishFlow.publish.error}
+                    {publishFlow.canRetryPublishOnly ? ' Your files are already stored, so trying again publishes the project without uploading them a second time.' : ' Your draft, details, and selected files are still here.'}
+                    <button type="button" onClick={publishFlow.retryPublish} disabled={isRecovering} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Try again</button>
+                  </span>
+                </div>}
+
+  </>;
+  return <ProjectFormDialog mobileFlow={isMobile} title="New project" titleId="publish-dialog-title" description={<>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
@@ -144,53 +176,29 @@ export function PublishProjectDialog({
               <ErrorState description={publishFlow.draftError} />
             </div> : !publishFlow.draft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : <form onSubmit={(event) => {
+            </div> : isMobile ? <MobilePublishFlow flow={publishFlow} editingStep={mobileEditingStep} onEditingStepChange={setMobileEditingStep} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
-          if (publishFlow.canPublish) {
+          if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();
           }
         }} noValidate aria-describedby={publishHint ? 'publish-hint' : undefined} data-mobile-publish={isMobile || undefined} data-web-publish={!isMobile || undefined} className="project-form-content scrollbar-slim">
-              {/* The transfer itself was refused. Retrying re-sends the same
-               files; nothing the creator chose has been reset. Deliberately
-               separate from a publish failure, because the recovery differs. */}
-              {publishFlow.upload.failure && <div ref={uploadErrorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
-                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    {publishFlow.upload.failure.message}
-                    {' Your details, files, order, and cover are exactly as you left them, and nothing has been published.'}
-                    <button type="button" onClick={() => void publishFlow.retryUpload()} disabled={publishFlow.upload.isBusy} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Retry upload</button>
-                    <button type="button" onClick={() => {
-                publishFlow.upload.dismissFailure();
-              }} disabled={publishFlow.upload.isBusy} className="ml-2.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Dismiss</button>
-                  </span>
-                </div>}
-
-              {/* Publication was refused. When the files are already stored this
-               retries the publication ONLY — it never uploads twice. */}
-              {publishFlow.publish.status === 'error' && !publishFlow.upload.failure && <div ref={errorRef} tabIndex={-1} role="alert" className="flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed focus:outline-none">
-                  <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    {publishFlow.publish.error}
-                    {publishFlow.canRetryPublishOnly ? ' Your files are already stored, so trying again publishes the project without uploading them a second time.' : ' Your draft, details, and selected files are still here.'}
-                    <button type="button" onClick={publishFlow.retryPublish} disabled={isPublishing} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Try again</button>
-                  </span>
-                </div>}
+              {notices}
 
               {/* One portrait-oriented reading order at every viewport size:
                files first, followed by every public detail and the action. */}
               <div className="project-form-fields">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
-                  <MediaPicker compact={isMobile} media={media} upload={publishFlow.upload} disabled={isPublishing} />
-                  <CoverFilmstrip compact={isMobile} media={media} disabled={isPublishing || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
+                  <MediaPicker compact={isMobile} media={media} upload={publishFlow.upload} disabled={isPublishing || publishFlow.isSavingDraft} />
+                  <CoverFilmstrip compact={isMobile} media={media} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
                   <section className="project-form-details" aria-labelledby="publish-details-label">
                     <h3 id="publish-details-label" className={isMobile ? 'sr-only' : 'text-[13px] font-semibold text-[var(--text-primary)]'}>Project details</h3>
                     {/* Everything a visitor will see is entered here. Nothing is
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
-                    <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description" required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing} onChange={(value) => setField('summary', value)} />
-                    {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                    <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft} onChange={(value) => setField('title', value)} />
+                     <ProfileField id="publish-summary" label="Description" required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft} onChange={(value) => setField('summary', value)} />
+                    {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
                         <button type="button" onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                           {publishFlow.ignoreInferredLocation ? 'Use the place mentioned in the project' : 'This project is not location-specific'}
@@ -201,7 +209,7 @@ export function PublishProjectDialog({
 
               <div className="project-form-actions flex flex-col items-end gap-1.5">
                 {publishHint ? <p id="publish-hint" role="status" className={isMobile ? 'w-full text-[13px] text-[var(--text-secondary)]' : 'text-[12px] text-[var(--text-secondary)]'}>{publishHint}</p> : null}
-                <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish}>
+                <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish || publishFlow.isSavingDraft}>
                   {isPublishing ? 'Publishing…' : 'Publish'}
                 </Button>
               </div>

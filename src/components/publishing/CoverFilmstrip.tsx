@@ -15,10 +15,10 @@ type ThumbnailProps = {
   item: PreparedMedia; page: number; pdf?: PdfDocument; selected: boolean; disabled: boolean;
   frame: ProjectCoverFrame; onSelect: () => void; onChange: (frame: ProjectCoverFrame) => void;
   onReady: (size: ImageSize) => void;
-  compact?: boolean; previewOnly?: boolean;
+  compact?: boolean; previewOnly?: boolean; readOnly?: boolean;
 };
 
-function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, onChange, onReady, compact, previewOnly }: ThumbnailProps) {
+function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, onChange, onReady, compact, previewOnly, readOnly }: ThumbnailProps) {
   const host = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [preview, setPreview] = useState<{ url?: string; error?: string; size?: ImageSize }>({});
@@ -78,7 +78,7 @@ function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, 
   const ratio = frame.aspectRatio ?? 4 / 3;
   return <div ref={host} className="cover-filmstrip-item">
     <div className="cover-filmstrip-slot">
-      <button {...crop} type="button" disabled={disabled} aria-label={previewOnly ? 'Edit project cover' : `${selected ? 'Cover: ' : 'Use as cover: '}${label}`} aria-pressed={previewOnly ? undefined : selected}
+      <button {...crop} type="button" disabled={disabled} aria-label={readOnly ? `Selected cover: ${label}` : previewOnly ? 'Edit project cover' : `${selected ? 'Cover: ' : 'Use as cover: '}${label}`} aria-pressed={previewOnly ? undefined : selected}
         aria-describedby={selected && !previewOnly ? 'cover-crop-help' : undefined} title={editable ? 'Drag to reposition · Scroll to zoom' : undefined} onClick={onSelect}
         className={`cover-filmstrip-thumbnail shape-compact relative block overflow-hidden border bg-[var(--surface-sunken)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${selected ? 'border-[var(--accent-color)] ring-2 ring-[var(--accent-color)]' : 'border-[var(--hairline-strong)] hover:border-[var(--text-tertiary)]'}`}
         style={{ '--thumbnail-ratio': ratio, aspectRatio: ratio, touchAction: previewOnly ? 'pan-y' : editable ? 'none' : 'pan-x', cursor: editable ? 'grab' : 'pointer' } as React.CSSProperties}>
@@ -123,9 +123,9 @@ function FileThumbnails({ item, media, render }: { item: PreparedMedia; media: M
 }
 
 /** One selected page and crop shared by profile cards and discovery. */
-export function CoverFilmstrip({ media, disabled, compact = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean }) {
+export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean }) {
   const [editing, setEditing] = useState(false);
-  const collapsed = compact && !editing;
+  const collapsed = readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
   const [loaded, setLoaded] = useState<{ key: string; size: ImageSize } | null>(null);
   const cover = media.items.find((item) => item.isCover);
@@ -134,12 +134,12 @@ export function CoverFilmstrip({ media, disabled, compact = false }: { media: Me
   const frame = { ...normalizeProjectCoverFrame(cover?.metadata?.coverFrame), aspectRatio: cover?.metadata?.coverFrame?.aspectRatio ?? 4 / 3 };
   const size = loaded?.key === key ? loaded.size : null;
   const change = (next: ProjectCoverFrame) => {
-    if (!cover || disabled) return;
+    if (!cover || disabled || readOnly) return;
     drafts.current.set(key, next);
     media.setCoverFrame(cover.id, next, page);
   };
   const select = (item: PreparedMedia, nextPage: number) => {
-    if (disabled || (item.id === cover?.id && nextPage === page)) return;
+    if (disabled || readOnly || (item.id === cover?.id && nextPage === page)) return;
     if (cover) drafts.current.set(key, frame);
     const saved = drafts.current.get(`${item.id}:${nextPage}`) ?? ((item.metadata?.coverPageNumber ?? 1) === nextPage ? item.metadata?.coverFrame : undefined);
     media.setCoverPage(item.id, nextPage, item.metadata?.pageCount, saved ?? { x: .5, y: .5, zoom: 1, aspectRatio: frame.aspectRatio });
@@ -147,16 +147,16 @@ export function CoverFilmstrip({ media, disabled, compact = false }: { media: Me
   const eligible = media.items.filter((item) => canBeCover(item.family, item.capability));
   if (!eligible.length) return null;
   const editable = Boolean(size && cover?.previewUrl && ['image', 'document', 'video'].includes(cover.family));
-  return <section data-compact-cover={compact || undefined} data-cover-collapsed={collapsed || undefined} className="cover-filmstrip rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-2" aria-labelledby="publish-cover-label">
+  return <section data-compact-cover={compact || undefined} data-cover-collapsed={collapsed || undefined} data-cover-readonly={readOnly || undefined} className="cover-filmstrip rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-2" aria-labelledby="publish-cover-label">
     <div className="flex items-center justify-between gap-3">
       <h3 id="publish-cover-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Cover</h3>
-      {compact ? <button type="button" aria-expanded={editing} disabled={disabled} onClick={() => setEditing((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{editing ? 'Done' : 'Edit cover'}</button> : null}
+      {compact && !readOnly ? <button type="button" aria-expanded={editing} disabled={disabled} onClick={() => setEditing((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{editing ? 'Done' : 'Edit cover'}</button> : null}
     </div>
-    <div className="cover-filmstrip-track scrollbar-slim" role="group" aria-label="Choose a project cover">
+    <div className="cover-filmstrip-track scrollbar-slim" role="group" aria-label={readOnly ? 'Selected project cover' : 'Choose a project cover'}>
       {eligible.filter((item) => !collapsed || item.id === cover?.id).map((item) => <FileThumbnails key={item.id} item={item} media={media} render={(number, pdf) => {
         const selected = item.id === cover?.id && number === page;
         if (collapsed && !selected) return null;
-        return <CoverThumbnail key={number} compact={compact} previewOnly={collapsed} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => collapsed ? setEditing(true) : select(item, number)} onChange={change}
+        return <CoverThumbnail key={number} compact={compact} readOnly={readOnly} previewOnly={collapsed} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled || readOnly} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => readOnly ? undefined : collapsed ? setEditing(true) : select(item, number)} onChange={change}
           onReady={(dimensions) => {
             if (!selected) return;
             setLoaded({ key, size: dimensions });
@@ -164,7 +164,7 @@ export function CoverFilmstrip({ media, disabled, compact = false }: { media: Me
           }} />;
       }} />)}
     </div>
-    <p id="cover-crop-help" className="sr-only">Drag or use arrow keys to reposition the selected cover. Scroll to zoom.</p>
+    {!readOnly && <p id="cover-crop-help" className="sr-only">Drag or use arrow keys to reposition the selected cover. Scroll to zoom.</p>}
     {!collapsed && <div className="cover-panel-controls border-t border-[var(--hairline)] pt-2">
     <label className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">Cover shape
       <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 w-full min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
