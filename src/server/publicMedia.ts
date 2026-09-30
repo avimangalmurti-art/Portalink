@@ -82,8 +82,11 @@ async function bytesForEtag(response: Response): Promise<ArrayBuffer | null> {
   }
 }
 
-function clientResponse(response: Response, request: Request, cacheState: string): Response {
+function clientResponse(response: Response, request: Request, cacheState: string, cacheControl: string): Response {
   const headers = new Headers(response.headers);
+  // The edge cache normalizes stored Cache-Control (including immutable).
+  // Restore the policy for this validated object on both hits and misses.
+  headers.set('cache-control', cacheControl);
   headers.set('x-portalink-media-cache', cacheState);
   const requested = request.headers.get('if-none-match');
   const etag = headers.get('etag');
@@ -118,11 +121,12 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
   const cacheUrl = new URL(url.origin + url.pathname);
   cacheUrl.searchParams.set('__accept', accept);
   const cacheKey = new Request(cacheUrl, { method: 'GET' });
+  const cacheControl = immutablePublicMediaPath(object.bucket, object.path) ? IMMUTABLE_MEDIA_CACHE_CONTROL : LEGACY_AVATAR_CACHE_CONTROL;
   let cache = options.cache ?? await publicMediaCache();
   if (cache) {
     try {
       const cached = await cache.match(cacheKey);
-      if (cached) return clientResponse(cached, request, 'HIT');
+      if (cached) return clientResponse(cached, request, 'HIT', cacheControl);
     } catch {
       console.warn('Portalink public media cache unavailable (match).');
       cache = undefined;
@@ -160,7 +164,7 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
     && !(variant ? TRANSFORMED_COVER_TYPES.has(contentType) : contentType === 'image/webp'))) return failure(502);
   const headers = new Headers({
     'content-type': contentType,
-    'cache-control': immutablePublicMediaPath(object.bucket, object.path) ? IMMUTABLE_MEDIA_CACHE_CONTROL : LEGACY_AVATAR_CACHE_CONTROL,
+    'cache-control': cacheControl,
     'vary': 'Accept',
     'x-content-type-options': 'nosniff',
     // A public SVG may be displayed as an avatar, but never executes code if
@@ -189,5 +193,5 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
     if (options.waitUntil) options.waitUntil(write);
     else await write;
   }
-  return clientResponse(response, request, cache ? 'MISS' : 'BYPASS');
+  return clientResponse(response, request, cache ? 'MISS' : 'BYPASS', cacheControl);
 }

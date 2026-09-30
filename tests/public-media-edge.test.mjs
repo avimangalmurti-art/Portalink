@@ -130,6 +130,25 @@ test('Accept variants have separate cache entries and HEAD / conditional request
   assert.equal(h.calls.length, 2);
 });
 
+test('edge-normalized hits restore immutable or legacy revalidation headers, including HEAD and 304', async () => {
+  for (const [path, policy] of [
+    [`/media/covers/${COVER}`, 'public, max-age=31536000, immutable'],
+    [`/media/avatars/${AVATAR}`, 'public, max-age=31536000, immutable'],
+    [`/media/avatars/${PROFILE}/avatar.png`, 'public, max-age=300, must-revalidate'],
+  ]) {
+    const h = harness();
+    await h.request(path);
+    for (const response of h.entries.values()) response.headers.set('cache-control', 'public, max-age=300');
+    for (const init of [{}, { method: 'HEAD' }, { headers: { 'if-none-match': '"fixture-1"' } }]) {
+      const response = await h.request(path, init);
+      assert.equal(response.headers.get('x-portalink-media-cache'), 'HIT');
+      assert.equal(response.headers.get('cache-control'), policy);
+      assert.equal(response.status, init.headers ? 304 : 200);
+    }
+    assert.equal(h.calls.length, 1);
+  }
+});
+
 test('versioned avatars are immutable; legacy avatar names revalidate after five minutes', async () => {
   const h = harness();
   for (const path of [AVATAR, `${PROFILE}/registration-${PROJECT}-${HASH}`]) {
