@@ -438,7 +438,7 @@ export function ProjectMediaViewer({
       surface.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer]);
-  const emptyMedia = <div data-premium-project-viewer="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
+  const emptyMedia = <div data-premium-project-viewer="" data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
             <InterfaceIcon icon={FileIcon} size="lg" weight="medium" />
@@ -561,7 +561,7 @@ export function ProjectMediaViewer({
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
         }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
-  return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
       {isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}

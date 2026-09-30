@@ -1,3 +1,4 @@
+import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { ErrorState } from '../ui/StateViews';
@@ -241,11 +242,12 @@ export function ImageAttachment({
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
 
+  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey);
   useLayoutEffect(() => {
-    if (focusedPage) return;
+    if (isMobile || focusedPage) return;
     const element = gridScrollRef.current;
     if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
-  }, [focusedPage, memoryKey]);
+  }, [focusedPage, memoryKey, isMobile]);
 
   if (focusedPage) {
     return <div ref={zoomSurfaceRef} tabIndex={0} aria-label={`Image ${focusedPageIndex + 1} of ${pages.length}. Use arrow keys or swipe to move between images`} onKeyDown={(event) => {

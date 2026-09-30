@@ -545,6 +545,20 @@ export function UserProfilePage({
     };
   }, [hasMobilePortalOverlay]);
   const isMobileWall = isMobile && (activeView === 'projects' || (activeView === 'portals' && Boolean(mobilePortalOverlay))) && (!nestedMobileContent || Boolean(mobilePortalOverlay));
+  const wallMemoryRef = useRef(mobileWallScrollMemory);
+  wallMemoryRef.current = mobileWallScrollMemory;
+  useEffect(() => {
+    if (!isMobileWall) return;
+    const frame = requestAnimationFrame(() => window.scrollTo({ top: wallMemoryRef.current?.read() ?? mobileWallScroll.current.top, behavior: 'auto' }));
+    const remember = () => {
+      if (profilePageRef.current?.closest('.screen-exit')) return;
+      mobileWallScroll.current.top = window.scrollY;
+      wallMemoryRef.current?.save(window.scrollY);
+    };
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('scroll', remember); };
+  }, [isMobileWall, profile.id]);
+
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
   const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your portfolio and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
@@ -691,8 +705,7 @@ export function UserProfilePage({
           </div>
         </section> : null}
 
-      {/* WEB keeps page scrolling; MOBILE contains the wall beneath its header
-          so opening the portal chooser never changes the canvas geometry. */}
+      {/* The wall shares document scrolling on MOBILE; its chooser floats above it. */}
       {/* The wall runs edge to edge with only its own gutter: the page margin
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
@@ -705,7 +718,7 @@ export function UserProfilePage({
           }} ref={element => {
             if (element) {
               element.inert = Boolean(mobilePortalOverlay);
-              element.scrollTop = mobileWallScrollMemory?.read() ?? mobileWallScroll.current.top;
+
             }
           }}>
             {projectWall}

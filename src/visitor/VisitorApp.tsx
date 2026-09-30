@@ -33,6 +33,14 @@ const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 export function VisitorApp() {
   const route = useAppRoute(), location = useLocation(), navigate = useNavigate(), auth = useAuth();
   const presentation = usePresentation();
+  const pageScroll = useRef(new Map<string, number>());
+  useEffect(() => {
+    if (presentation !== 'mobile') return;
+    window.scrollTo({ top: pageScroll.current.get(location.pathname) ?? 0, behavior: 'auto' });
+    const remember = () => pageScroll.current.set(location.pathname, window.scrollY);
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => window.removeEventListener('scroll', remember);
+  }, [presentation, location.pathname]);
   const appearance = useDeviceAppearance(presentation);
   const { theme, accentColor, systemGray, highContrast, reduceTranslucency } = appearance;
   const shared = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';

@@ -25,7 +25,7 @@ function harness(withMetadata = true) {
     querySelectorAll: () => tags, createElement: () => meta(), head: { appendChild: tag => tags.push(tag) } };
   const listeners = new Set();
   const window = { addEventListener: (_name, fn) => listeners.add(fn), removeEventListener: (_name, fn) => listeners.delete(fn) };
-  let token = '#181818', pendingEffect, cleanup, previousDeps;
+  let token = '#000000', pendingEffect, cleanup, previousDeps;
   const ref = { current: {} };
   const exports = {};
   const source = ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useMobileBrowserSurface.ts', import.meta.url), 'utf8'), {
@@ -52,15 +52,15 @@ test('mobile browser chrome follows the actual page surface rather than OS-only 
   const h = harness();
   h.render('mobile', { '--accent': 'pink' });
   for (const tag of h.tags) {
-    assert.equal(tag.getAttribute('content'), '#181818');
-    assert.equal(tag.getAttribute('media'), null);
+    assert.equal(tag.getAttribute('content'), '#000000');
+    assert.match(tag.getAttribute('media'), /prefers-color-scheme/);
   }
-  assert.equal(h.document.documentElement.style.getPropertyValue('background-color'), '#181818');
-  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#181818');
-  h.setColor('#fafaf9');
+  assert.equal(h.document.documentElement.style.getPropertyValue('background-color'), '#000000');
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#000000');
+  h.setColor('#ffffff');
   h.render('mobile', { '--accent': 'blue' });
-  assert.equal(h.tags[0].getAttribute('content'), '#fafaf9');
-  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#fafaf9');
+  assert.equal(h.tags[0].getAttribute('content'), '#ffffff');
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#ffffff');
   assert.equal(h.listeners.size, 1);
   h.dispose();
 });
@@ -71,8 +71,8 @@ test('startup completion reapplies the page surface after the splash backdrop', 
   h.document.body.style.setProperty('background-color', '#f5eaf4');
   h.tags[0].setAttribute('content', '#f5eaf4');
   h.splashExit();
-  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#181818');
-  assert.equal(h.tags[0].getAttribute('content'), '#181818');
+  assert.equal(h.document.body.style.getPropertyValue('background-color'), '#000000');
+  assert.equal(h.tags[0].getAttribute('content'), '#000000');
   h.dispose();
 });
 
@@ -102,4 +102,26 @@ test('missing metadata is created for mobile then removed on unmount', () => {
   h.dispose();
   assert.equal(h.tags.length, 0);
   assert.equal(h.listeners.size, 0);
+});
+
+test('both entry shells resolve saved mobile appearance before app boot, preserving WEB metadata', () => {
+  for (const entry of ['index.html', 'share.html']) {
+    const html = readFileSync(new URL(`../${entry}`, import.meta.url), 'utf8');
+    const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
+    for (const mobile of [true, false]) for (const mode of ['light', 'dark', 'auto']) for (const dark of [true, false]) {
+      const tags = ['#ffffff', '#000000'].map(content => {
+        const attrs = new Map([['content', content]]);
+        return { getAttribute: key => attrs.get(key), setAttribute: (key, value) => attrs.set(key, value) };
+      });
+      const root = { dataset: {}, style: {}, toggleAttribute() {} };
+      vm.runInNewContext(script, { document: { documentElement: root, querySelectorAll: () => tags }, window: {
+        matchMedia: query => ({ matches: query.includes('639px') ? mobile : query.includes('dark') ? dark : false }),
+        location: { pathname: '/share/fixture' }, navigator: {},
+        localStorage: { getItem: key => key.includes('interfaceAppearance') ? JSON.stringify({ mode }) : null },
+      } });
+      const resolved = mode === 'auto' ? dark ? 'dark' : 'light' : mode;
+      assert.deepEqual(tags.map(tag => tag.getAttribute('content')), mobile ? [resolved === 'dark' ? '#000000' : '#ffffff', resolved === 'dark' ? '#000000' : '#ffffff'] : ['#ffffff', '#000000']);
+      if (mobile) assert.equal(root.dataset.appearance, resolved);
+    }
+  }
 });

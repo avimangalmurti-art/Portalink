@@ -128,20 +128,20 @@ test('unavailable storage, missing media APIs and server rendering remain usable
 });
 
 test('initial HTML uses the device setting on every route and ignores retired public theme overrides', () => {
-  const bootstrap = read('../index.html').match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const bootstrap = [...read('../index.html').matchAll(/<script>\s*([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
   for (const dark of [false, true]) for (const path of ['/', '/share/creator']) {
     const storage = new Map([['portalinknetworks.appearanceMode', dark ? 'light' : 'dark']]);
     const root = { dataset: {}, style: {}, toggleAttribute() {} };
     const window = { navigator: {}, location: { pathname: path }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('color-scheme') && dark }) };
-    vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
+    vm.runInNewContext(bootstrap, { window, document: { documentElement: root, querySelectorAll: () => [] } });
     assert.equal(root.dataset.appearance, dark ? 'dark' : 'light');
     assert.equal(root.style.colorScheme, root.dataset.appearance);
     storage.set('portalink.publicTheme.creator', dark ? 'light' : 'dark');
     storage.set('portalink.publicTheme.creator.web', dark ? 'light' : 'dark');
-    vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
+    vm.runInNewContext(bootstrap, { window, document: { documentElement: root, querySelectorAll: () => [] } });
     assert.equal(root.dataset.appearance, dark ? 'dark' : 'light');
     storage.set(DEVICE_KEY, 'light');
-    vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
+    vm.runInNewContext(bootstrap, { window, document: { documentElement: root, querySelectorAll: () => [] } });
     assert.equal(root.dataset.appearance, 'light');
   }
 });
@@ -183,13 +183,13 @@ test('cross-tab updates change only their platform slot and never overwrite its 
 });
 
 test('preboot chooses the same platform record and preserves legacy fallback for invalid records', () => {
-  const bootstrap = read('../index.html').match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const bootstrap = [...read('../index.html').matchAll(/<script>\s*([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
   for (const width of [390, 430, 639, 640, 1280]) {
     const scope = width <= 639 ? 'mobile' : 'web';
     const storage = new Map([[DEVICE_KEY, 'dark'], [scopedKey('web'), '{"mode":"light"}'], [scopedKey('mobile'), '{"mode":"dark"}']]);
     const root = { dataset: {}, style: {}, toggleAttribute() {} };
     const window = { navigator: {}, location: { pathname: '/' }, localStorage: { getItem: key => storage.get(key) ?? null }, matchMedia: query => ({ matches: query.includes('639') && width <= 639 }) };
-    const run = () => vm.runInNewContext(bootstrap, { window, document: { documentElement: root } });
+    const run = () => vm.runInNewContext(bootstrap, { window, document: { documentElement: root, querySelectorAll: () => [] } });
     run(); assert.equal(root.dataset.appearance, scope === 'web' ? 'light' : 'dark');
     for (const corrupt of ['{broken', '{"mode":"invalid"}']) {
       storage.set(scopedKey(scope), corrupt); run(); assert.equal(root.dataset.appearance, 'dark');

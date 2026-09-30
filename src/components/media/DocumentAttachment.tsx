@@ -1,3 +1,4 @@
+import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -144,7 +145,9 @@ export function DocumentAttachment({
   useEffect(() => {
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
+  useDocumentReadingScroll(isMobile && focusedPageIndex === null && renderedPages.length > 0, zoomSurfaceRef, memoryKey);
   const restoreFocusedScroll = useCallback(() => {
+    if (isMobile && focusedPageIndex === null) return;
     const root = zoomSurfaceRef.current;
     const element = isMobile && focusedPageIndex !== null ? root?.querySelector<HTMLElement>('[data-focused-page-scroll]') : root;
     if (!element) return;
@@ -170,7 +173,7 @@ export function DocumentAttachment({
     : renderedPages[focusedPageIndex]
       ? [{ page: renderedPages[focusedPageIndex], index: focusedPageIndex }]
       : [];
-  return <div className="flex h-full w-full flex-col">
+  return <div data-document-attachment="" className="flex h-full w-full flex-col">
       {renderedPages.length > 0 ? <div key={focusedPageIndex === null ? 'document-grid' : isMobile ? 'document-focused' : `document-page-${focusedPageIndex}`} ref={zoomSurfaceRef} tabIndex={focusedPageIndex === null ? undefined : 0} onScroll={(event) => {
         const positionMemoryKey = focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey;
         updateViewerMemory(positionMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft });

@@ -41,7 +41,7 @@ test('Apple startup links resolve to opaque device-sized backgrounds in both ori
 });
 
 test('installed mode is identified in the HTML before React without reading viewport height', () => {
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(([, source]) => source.includes("toggleAttribute('data-standalone'"))[1];
   for (const [modern, legacy, expected] of [[true, false, true], [false, true, true], [false, false, false]]) {
     const attributes = new Map();
     const root = { dataset: {}, style: {}, toggleAttribute: (name, value) => value ? attributes.set(name, '') : attributes.delete(name) };

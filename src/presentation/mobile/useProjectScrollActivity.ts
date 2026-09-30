@@ -75,7 +75,8 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
       frame.setAttribute('data-project-reading', '');
     };
     const scroll = (event: Event) => {
-      if (!scrollIntent || !inStage(event.target) || modalOpen() ||
+      const documentOverview = event.target === document && Boolean(frame.querySelector('[data-mobile-page-reader]:not(:has([data-mobile-focused-view]))'));
+      if (!scrollIntent || (!documentOverview && !inStage(event.target)) || modalOpen() ||
         frame.querySelector('[data-project-reading-control]:focus-visible, [data-project-reading-control] :focus-visible')) return;
       clearTap();
       hide();

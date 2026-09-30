@@ -29,10 +29,11 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       dock.removeAttribute('aria-hidden');
     };
     const scroll = (event: Event) => {
-      const target = event.target;
-      if (!intent || !eligible(target) || overlayOpen() || dock.querySelector(':focus-visible') ||
+      const documentScroll = event.target === document;
+      const target = documentScroll ? document.scrollingElement as HTMLElement | null : event.target;
+      if (!target || !intent || (!documentScroll && !eligible(target)) || overlayOpen() || dock.querySelector(':focus-visible') ||
         document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') ||
-        (target.scrollHeight <= target.clientHeight + 1 && target.scrollWidth <= target.clientWidth + 1)) return;
+        ((target as HTMLElement).scrollHeight <= (target as HTMLElement).clientHeight + 1 && (target as HTMLElement).scrollWidth <= (target as HTMLElement).clientWidth + 1)) return;
       if (!hidden) { previousInert = dock.inert; hidden = true; dock.inert = true; }
       dock.setAttribute('data-scrolling', '');
       dock.setAttribute('aria-hidden', 'true');

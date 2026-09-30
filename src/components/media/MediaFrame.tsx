@@ -19,7 +19,7 @@ export function MediaFrame({
    * `--surface-canvas` here laid a lighter panel over the profile surface behind
    * it, which read as a grey overlay around every project.
    */
-  return <div className="flex h-full min-h-0 w-full flex-col bg-transparent">
-      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+  return <div data-media-frame="" className="flex h-full min-h-0 w-full flex-col bg-transparent">
+      <div data-media-frame-body="" className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>;
 }

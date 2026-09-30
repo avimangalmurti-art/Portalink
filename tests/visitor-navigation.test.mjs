@@ -86,7 +86,7 @@ function appHarness() {
       requestAuthenticatedDestination: intent => { requests.push(intent); pendingIntent = intent; },
       closeAuth: () => { state.auth = { ...state.auth, pendingView: null }; },
     } };
-  const window = { history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
+  const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
     if (name === 'react') return h.react;

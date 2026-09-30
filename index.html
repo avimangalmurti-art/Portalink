@@ -111,13 +111,16 @@
       /* The same looping clip is visible before JavaScript on mobile. */
       @media (max-width: 639px) {
         :root { --mobile-launch-height: 100vh; }
+        html[data-appearance='light'] { background-color: #ffffff; }
+        html[data-appearance='dark'] { background-color: #000000; }
+        body { background-color: inherit; }
         html:root, html:root body, html:root #root {
           margin: 0;
-          height: 100%;
+          height: auto;
           min-height: 100vh;
           min-height: 100dvh;
           box-sizing: border-box;
-          overscroll-behavior: none;
+          overscroll-behavior: auto;
         }
         /* Match the visible launch layer even while the app mounts beneath it. */
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait),
@@ -126,9 +129,9 @@
         }
         /* Legacy iOS navigator.standalone is marked before the body is parsed. */
         html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
-          height: 100vh;
+          height: auto;
           min-height: 100vh;
-          overflow: hidden;
+          overflow: visible;
         }
         html:root[data-standalone] {
           --mobile-launch-height: 100vh;
@@ -151,9 +154,9 @@
       }
       @media (max-width: 639px) and (display-mode: standalone) {
         html:root, html:root body, html:root #root {
-          height: 100vh;
+          height: auto;
           min-height: 100vh;
-          overflow: hidden;
+          overflow: visible;
         }
         :root {
           --mobile-launch-height: 100vh;
@@ -193,6 +196,14 @@
         const resolved = mode === 'auto' ? (systemDark ? 'dark' : 'light') : mode;
         root.dataset.appearance = resolved;
         root.style.colorScheme = resolved;
+        if (presentation === 'mobile') {
+          const color = resolved === 'dark' ? '#000000' : '#ffffff';
+
+          document.querySelectorAll('meta[name="theme-color"]').forEach(tag => {
+            tag.setAttribute('data-portalink-theme-original', tag.getAttribute('content'));
+            tag.setAttribute('content', color);
+          });
+        }
       })();
     </script>
     <meta name="description" content="A creator platform for publishing work and discovering people, projects, and places." />

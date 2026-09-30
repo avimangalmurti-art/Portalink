@@ -104,10 +104,11 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] {
-  /* Use the same measured viewport for content and floating navigation.
-     CSS remains the pre-measurement fallback; WEB keeps its existing sizing. */
-  height: var(--mobile-viewport-height, 100dvh) !important;
-  min-height: 0;
+  /* The document owns page scrolling. The measured viewport is only for
+     temporary overlays and zoom/pan stages, never the page's clipping frame. */
+  height: auto !important;
+  min-height: 100svh;
+  overflow: visible;
   /* Let the canvas reach both display edges. Insets belong to controls and
      scroll-content ends, never to the viewport that clips the entire screen. */
   padding-block: 0;
@@ -125,7 +126,7 @@
   --mobile-sidebar-header: 64px;
   --mobile-sidebar-content-inset: 8px;
   --mobile-dock-size: var(--mobile-control-size);
-  --mobile-dock-bottom: max(8px, var(--safe-area-bottom));
+  --mobile-dock-bottom: calc(var(--safe-area-bottom) + 8px);
   --mobile-navigation-inset-start: max(var(--mobile-control-edge), env(safe-area-inset-left, 0px));
   --mobile-navigation-inset-end: max(var(--mobile-control-edge), env(safe-area-inset-right, 0px));
   --mobile-navigation-frame-width: 420px;
@@ -190,12 +191,12 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-layer {
   position: fixed;
   inset: 0;
-  height: var(--mobile-viewport-height, 100dvh);
+  height: auto;
   z-index: 70;
   pointer-events: none;
 }
 #root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) .mobile-shared-drawer-layer {
-  height: 100vh;
+  height: auto;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-edge {
   position: absolute;
@@ -207,7 +208,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
   position: absolute;
   left: var(--mobile-navigation-inset-start);
-  bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  bottom: var(--mobile-dock-bottom);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -626,8 +627,8 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer {
   position: fixed;
   z-index: 45;
-  inset-block: 0 auto;
-  height: var(--mobile-viewport-height, 100%);
+  inset-block: 0;
+  height: auto;
   inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
   pointer-events: none;
 }
@@ -715,17 +716,7 @@
   transition: opacity 160ms ease;
 }
 
-/* Insets pad the fixed control wrapper, never enlarge the installed shell. */
-#root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) {
-  --mobile-dock-bottom: env(safe-area-inset-bottom, 0px);
-  overflow: hidden;
-}
-#root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) .mobile-floating-navigation {
-  position: fixed;
-  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
-  bottom: 0;
-  padding-bottom: var(--mobile-dock-bottom);
-}
+/* Browser and standalone controls share one safe-area + gap baseline. */
 
 /* Browsing briefly tucks away the entire dock without moving the page. */
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] {
@@ -3076,4 +3067,95 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-studio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] .studio-category { transition: none; }
+}
+
+/* MOBILE document canvas: native browser scrolling lets Safari's floating
+   chrome reveal the page behind it. WEB's contained workspace is unchanged. */
+@media (max-width: 639px) {
+  html:root, html:root body, html:root #root,
+  html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
+    height: auto;
+    min-height: 100svh;
+    overflow: visible;
+  }
+  html:root { overflow-x: clip; }
+}
+#root .codex-shell[data-presentation='mobile'] :is(.codex-workspace, #app-viewport, .app-screen-layer > main, [data-screen-scroll]) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex: 1 1 auto;
+}
+#root .codex-shell[data-presentation='mobile'] #app-viewport { min-height: 100svh; }
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer:not(.screen-exit) {
+  position: relative;
+  inset: auto;
+  height: auto;
+  min-height: 100svh;
+  /* A transformed ancestor would trap fixed reading controls in the page. */
+  transform: none;
+  will-change: auto;
+  backface-visibility: visible;
+}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-exit { display: none; }
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-nested], .mobile-profile-workspace-content, .mobile-profile-wall, .mobile-studio, .studio-content, .mobile-portals-page, .mobile-portals-scroll, [data-mobile-home-search], [data-feed-artwork-edge], .feed-edge-fade, [data-messages-page], [data-messages-page] > div, [data-messages-page] > div > aside, [data-messages-page] > div > aside [data-mobile-scroll-end]) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex-basis: auto;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content],
+#root .codex-shell[data-presentation='mobile'] [data-feed-artwork-edge] [data-feed-scroll-content] {
+  padding-top: var(--mobile-content-safe-top);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-profile-wall, .mobile-portals-scroll) {
+  padding-bottom: var(--mobile-content-safe-bottom);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: fixed; }
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay {
+  position: fixed;
+  top: var(--safe-area-top);
+  bottom: var(--mobile-dock-clearance);
+}
+/* Zoom/pan, video and a live conversation are interaction viewports inside
+   the document. Keep their internal controls/keyboard sizing, not a root lock. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
+  height: var(--mobile-viewport-height, 100dvh);
+  min-height: 0;
+}
+#root .codex-shell[data-presentation='mobile'] #messages-thread-panel:not(.hidden) {
+  height: calc(var(--mobile-viewport-height, 100dvh) - var(--mobile-sidebar-header) - var(--safe-area-top));
+  flex: 1 1 0;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-project-back, [data-mobile-project-view] [data-project-response-rail]) {
+  --mobile-fixed-offset: 0px;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay .mobile-portals-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 0;
+}
+/* PDF/image overviews are pages, not inset scroll boxes. A focused page still
+   has a bounded zoom viewport; the DOM focus marker switches this atomically. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]:has([data-mobile-page-reader]):not(:has([data-mobile-focused-view])),
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])),
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) :is([data-project-work-column], [data-project-stage], [data-media-frame], [data-media-frame-body], [data-document-attachment], .premium-media-mode-enter, ol.scrollbar-overlay) {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  flex-basis: auto;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
+  padding-top: var(--mobile-content-safe-top);
+}
+/* Focused readers keep the same canvas at the status/home-indicator edges.
+   Their footer clears the shared account bar, including enlarged text. */
+#root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
+  padding-bottom: var(--mobile-dock-bottom);
+}
+#root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
+  padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
 }

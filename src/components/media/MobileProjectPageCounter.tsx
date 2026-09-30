@@ -96,6 +96,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
     const mutations = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
     const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
     window.addEventListener('resize', schedule, { passive: true });
+    window.addEventListener('scroll', schedule, { passive: true });
     // A child layout effect can precede assignment of its parent's surface ref.
     schedule();
     return () => {
@@ -104,6 +105,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
       surface?.removeEventListener('scroll', schedule, true);
       surface?.removeEventListener('load', schedule, true);
       window.removeEventListener('resize', schedule);
+      window.removeEventListener('scroll', schedule);
       mutations?.disconnect();
       resize?.disconnect();
     };

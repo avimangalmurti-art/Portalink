@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { PdfDocument } from './PdfPage';
 
-/** Scroll only the renderer, without focusing/expanding a page or moving the app. */
+/** Move the overview reading surface without focusing or expanding a page. */
 function jumpToProjectPage(surface: HTMLElement | null, number: number) {
   const page = surface?.querySelector<HTMLElement>(`[data-project-page-number="${number}"]`);
   if (!surface || !page) return false;
@@ -13,6 +13,11 @@ function jumpToProjectPage(surface: HTMLElement | null, number: number) {
       return true;
     }
     scroller = scroller.parentElement;
+  }
+  if (surface.closest('[data-mobile-page-reader]') && !surface.querySelector('[data-mobile-focused-view]')) {
+    const safeTop = parseFloat(getComputedStyle(surface).getPropertyValue('--mobile-content-safe-top')) || 0;
+    window.scrollTo({ top: window.scrollY + page.getBoundingClientRect().top - safeTop, behavior: 'instant' });
+    return true;
   }
   return false;
 }

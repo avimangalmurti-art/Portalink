@@ -4,7 +4,10 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const HEIGHT_PROPERTY = '--mobile-viewport-height';
 
-/** Browser tabs follow toolbar changes; installed apps keep CSS's stable 100vh. */
+/** Measure bounded overlays/readers only. The mobile page itself scrolls in the
+ * document and must never use this value as its root height or clipping box.
+ * Installed overlays keep CSS's stable 100vh fallback.
+ */
 export function useMobileViewportFrame(presentation: Presentation, frameRef: RefObject<HTMLDivElement>) {
   useLayoutEffect(() => {
     const frame = frameRef.current;

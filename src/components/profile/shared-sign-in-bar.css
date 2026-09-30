@@ -25,13 +25,18 @@
 .codex-shell.shared-portalink-shell .shared-sign-in-bar .shared-sign-in-dismiss { width: 44px; color: var(--text-secondary); font-size: 24px; font-weight: 400; }
 .codex-shell.shared-portalink-shell .shared-sign-in-bar button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 #root .codex-shell.shared-portalink-shell[data-presentation='mobile'] .shared-sign-in-bar {
-  order: 2;
+  position: fixed;
+  z-index: 46;
+  bottom: var(--mobile-dock-bottom);
+  left: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
+  right: var(--mobile-navigation-inset-end);
   display: grid;
   grid-template-columns: minmax(0, 1fr) 44px;
   gap: 0;
-  padding: 4px var(--mobile-navigation-inset-end) max(4px, var(--safe-area-bottom)) calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
-  border-top: 1px solid var(--hairline);
-  border-bottom: 0;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
 }
 [data-presentation='mobile'] .shared-sign-in-bar .shared-sign-in-identity { grid-column: 1; padding-left: 8px; }
 [data-presentation='mobile'] .shared-sign-in-bar .shared-sign-in-actions { grid-column: 1; }
@@ -40,6 +45,7 @@
 /* Keep the shared navigation control plus one standard gap beside the account
    actions. Reader controls still clear the measured bar and bottom safe area. */
 #root .codex-shell.shared-portalink-shell[data-presentation='mobile'] {
-  --mobile-project-actions-bottom: calc(var(--shared-sign-in-height, 0px) + max(8px, var(--safe-area-bottom)));
+  --mobile-dock-clearance: calc(max(var(--shared-sign-in-height, 0px), var(--mobile-control-size)) + var(--mobile-dock-bottom) + 8px);
+  --mobile-content-safe-bottom: var(--mobile-dock-clearance);
+  --mobile-project-actions-bottom: calc(var(--shared-sign-in-height, 0px) + var(--mobile-dock-bottom) + 8px);
 }
-#root .codex-shell.shared-portalink-shell[data-presentation='mobile'] [data-mobile-project-view] { --mobile-content-safe-bottom: 64px; }

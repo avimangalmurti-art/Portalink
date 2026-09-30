@@ -1,3 +1,4 @@
+import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { loadPdfJs, pdfSourceOptions } from './PdfPage';
@@ -471,11 +472,12 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   useEffect(() => {
     if (focusedPageNumber !== null) scrollRootRef.current?.focus({ preventScroll: true });
   }, [focusedPageNumber]);
+  useDocumentReadingScroll(isMobile && focusedPageNumber === null && pageCount > 0, scrollRootRef, memoryKey);
   useLayoutEffect(() => {
-    if (focusedPageNumber !== null) return;
+    if (isMobile || focusedPageNumber !== null) return;
     const element = scrollRootRef.current;
     if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
-  }, [document, focusedPageNumber, memoryKey]);
+  }, [document, focusedPageNumber, memoryKey, isMobile]);
   const pageNumbers = focusedPageNumber === null
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : [focusedPageNumber];

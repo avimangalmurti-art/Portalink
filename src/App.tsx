@@ -561,7 +561,8 @@ function AppContent() {
     let frame = 0;
     let attempts = 0;
     const apply = () => {
-      const element = mainContentRef.current;
+      if (presentation === 'mobile' && mainContentRef.current?.querySelector('.mobile-profile-wall, .feed-edge-fade, [data-mobile-page-reader]')) return;
+      const element = presentation === 'mobile' ? document.scrollingElement : mainContentRef.current;
       if (element) {
         element.scrollTo({
           top: target,
@@ -576,7 +577,13 @@ function AppContent() {
     };
     frame = requestAnimationFrame(apply);
     return () => cancelAnimationFrame(frame);
-  }, [pathname]);
+  }, [pathname, presentation]);
+  useEffect(() => {
+    if (presentation !== 'mobile') return;
+    const remember = () => scrollPositionsRef.current.set(pathnameRef.current, window.scrollY);
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => window.removeEventListener('scroll', remember);
+  }, [presentation]);
   function handleMainScroll(event: React.UIEvent<HTMLElement>) {
     // Content only dissolves into the fixed navigation layer once it starts moving.
     event.currentTarget.classList.toggle('is-at-top', event.currentTarget.scrollTop <= 1);

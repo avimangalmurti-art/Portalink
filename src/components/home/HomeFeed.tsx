@@ -123,8 +123,12 @@ export function HomeFeed({
     />,
   }));
 
-  // Home and location feeds scroll inside the screen rather than through the
-  // shell. Restore that real scroll surface once its cards exist, so Back lands
+  useLayoutEffect(() => {
+    hasRestoredScrollRef.current = false;
+  }, [isMobile]);
+
+  // MOBILE uses the document; WEB retains its contained feed. Restore the
+  // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
     if (!layoutReady || hasRestoredScrollRef.current || (feed.status === 'loading' && projects.length === 0)) {
@@ -135,7 +139,7 @@ export function HomeFeed({
     let frame = 0;
     let attempts = 0;
     const restore = () => {
-      const element = autoScrollRef.current;
+      const element = isMobile ? document.scrollingElement : autoScrollRef.current;
       if (!element) return;
       element.scrollTop = target;
       if (Math.abs(element.scrollTop - target) < 2 || attempts >= 30) return;
@@ -144,7 +148,18 @@ export function HomeFeed({
     };
     frame = requestAnimationFrame(restore);
     return () => cancelAnimationFrame(frame);
-  }, [feed.status, projects.length, layoutReady]);
+  }, [feed.status, projects.length, layoutReady, isMobile]);
+
+  useLayoutEffect(() => {
+    if (!isMobile) return;
+    const remember = () => {
+      if (!hasRestoredScrollRef.current || autoScrollRef.current?.closest('.screen-exit')) return;
+      latestScrollTopRef.current = window.scrollY;
+      writeFeedScroll(scrollMemoryKey, window.scrollY);
+    };
+    window.addEventListener('scroll', remember, { passive: true });
+    return () => window.removeEventListener('scroll', remember);
+  }, [isMobile, scrollMemoryKey]);
 
   const rememberScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
     latestScrollTopRef.current = event.currentTarget.scrollTop;

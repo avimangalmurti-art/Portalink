@@ -201,7 +201,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
-  }, { URLSearchParams, window: { localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
+  }, { URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ?? { scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
   return { navigation, projectOrder, density, flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
@@ -348,20 +348,28 @@ test('the account Portals destination uses the same overlay while WEB keeps its 
   assert.equal(nodes(web).find(node => node.props?.id === 'profile-content').props.children, mobileContent);
 });
 
-test('mobile wall remembers its scroll through a project and after returning from another screen', () => {
+test('mobile wall restores and records document scroll through a project and on remount', () => {
   let savedTop = 0;
+  const listeners = new Map();
+  const window = { scrollY: 0, localStorage: { getItem: () => null },
+    scrollTo({top}) { this.scrollY = top; },
+    addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name) };
   const props = { mobileWallScrollMemory: { read: () => savedTop, save: top => { savedTop = top; } } };
-  const options = { presentation: 'mobile', projects: reorderProjects, props };
+  const options = { presentation: 'mobile', projects: reorderProjects, props, window, document: {} };
   const h = profileHarness('', options);
-  const scrollWall = tree => nodes(tree).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
-  scrollWall(h.render()).props.onScroll({ currentTarget: { scrollTop: 408 } });
-  h.render({ mobileContent: React.createElement('project') });
-  for (const tree of [h.render(), profileHarness('', options).render()]) {
-    const element = { scrollTop: 0 };
-    scrollWall(tree).ref(element);
-    assert.equal(element.scrollTop, 408);
-  }
+  h.render(); h.flushEffects();
+  window.scrollY = 408; listeners.get('scroll')();
+  assert.equal(savedTop, 408);
+  h.render({ mobileContent: React.createElement('project') }); h.flushEffects();
+  assert.equal(listeners.has('scroll'), false);
+  window.scrollY = 0;
+  h.render(); h.flushEffects();
+  assert.equal(window.scrollY, 408);
+  window.scrollY = 0;
+  const remounted = profileHarness('', options); remounted.render(); remounted.flushEffects();
+  assert.equal(window.scrollY, 408);
 });
+
 test('mobile project lists retain profile identity and tools, and count controls navigate between collections', () => {
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
     const selectedViews = [];
