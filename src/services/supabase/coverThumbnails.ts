@@ -30,15 +30,19 @@ export async function refreshProjectCoverThumbnail(projectId: string, loadProjec
     ?? attachments.find(attachment => attachment.kind === 'image' && attachment.sourceUrl) ?? attachments[0];
   const sourceUrl = cover?.metadata?.playbackVideo?.sourceUrl || cover?.sourceUrl;
   if (!sourceUrl || !['image', 'document', 'video'].includes(cover.kind)) return 'This file has no browser-renderable cover; the existing preview is retained.';
-  const { generateCoverThumbnails } = await import('../../features/media/coverThumbnailRenderer');
-  const variants = await generateCoverThumbnails({ kind: cover.kind,
+  const { generateCoverThumbnails, generateShareCoverAssets } = await import('../../features/media/coverThumbnailRenderer');
+  const capability = await client.rpc('project_cover_social_supported');
+  if (capability.error && !['PGRST202','42883'].includes(capability.error.code)) throw new Error(capability.error.message);
+  const prepare = capability.data === true ? generateShareCoverAssets : async (input: Parameters<typeof generateCoverThumbnails>[0]) => ({ variants: await generateCoverThumbnails(input), social: undefined });
+  const { variants, social } = await prepare({ kind: cover.kind,
     sourceUrl,
     pageNumber: cover.metadata?.coverPageNumber ?? 1, frame: cover.metadata?.coverFrame,
     aspectRatio: cover.metadata?.aspectRatio ?? (cover.metadata?.widthPixels && cover.metadata?.heightPixels ? cover.metadata.widthPixels / cover.metadata.heightPixels : undefined),
   });
   const sourceKey = await thumbnailSourceKey({ id: cover.id, storagePath: cover.storagePath ?? '', pageNumber: cover.metadata?.coverPageNumber ?? 1, frame: cover.metadata?.coverFrame });
-  const digest = await thumbnailContentHash(variants);
+  const digest = await thumbnailContentHash(variants, social);
   const manifest: ProjectCoverThumbnail = { version: 1, bucket: 'project-covers', sourceAttachmentId: cover.id, sourceKey, frameBaked: true,
+    ...(social ? { social: { path: `${row.profile_id}/${projectId}/${digest}/social.webp`, width: 1200, height: 630 } as const } : {}),
     variants: variants.map(variant => ({ size: variant.size, width: variant.width, height: variant.height, path: `${row.profile_id}/${projectId}/${digest}/${variant.size}.webp` })) };
   // A missing bucket is the only reason to change storage destination. An RLS
   // refusal or transient network error must never downgrade authorization.
@@ -55,6 +59,10 @@ export async function refreshProjectCoverThumbnail(projectId: string, loadProjec
       });
     }
     if (upload.error && !/already exists|duplicate/i.test(upload.error.message)) throw new Error(upload.error.message);
+  }
+  if (social && manifest.social) {
+    const result = await client.storage.from(manifest.bucket).upload(manifest.social.path, await social.blob.arrayBuffer(), { contentType: 'image/webp', cacheControl: manifest.bucket === 'project-covers' ? '31536000' : '3600', upsert: false });
+    if (result.error && !/already exists|duplicate/i.test(result.error.message)) throw new Error(result.error.message);
   }
   const saved = await client.rpc('set_project_cover_thumbnail', {
     p_project_id: projectId, p_expected_revision: row.revision, p_manifest: manifest,
@@ -91,7 +99,7 @@ export async function removePublicProjectCovers(profileId: string, projectId: st
       const files = await bucket.list(`${prefix}/${hash}`, { limit: 100 });
       if (files.error) throw new Error(files.error.message);
       const paths = (files.data ?? []).map(file => {
-        if (!/^(200|400|800)\.webp$/.test(file.name)) throw new Error('Unrecognized cover variant; cleanup stopped.');
+        if (!/^(200|400|800|social)\.webp$/.test(file.name)) throw new Error('Unrecognized cover variant; cleanup stopped.');
         return `${prefix}/${hash}/${file.name}`;
       });
       if (!paths.length) throw new Error('Cover directory could not be cleared.');

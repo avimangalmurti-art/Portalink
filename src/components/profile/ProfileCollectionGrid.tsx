@@ -1,3 +1,4 @@
+import { MobileProfileContext } from '../../presentation/mobile/MobileProfileContext';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import type { PortfolioCategory } from '../../types/domain';
@@ -33,12 +34,12 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
           <span className="profile-collection-tile squircle" aria-hidden="true"><InterfaceIcon icon={getCategoryIcon(portal.iconName)} size="xl" /></span>
           <span className="profile-collection-name">{portal.label}</span>
         </Link>
-      </li>) : people.map((person) => <li key={person.profileId}>
-        <Link to={buildPath(shared ? 'sharedProfile' : 'profile', { profileId: person.profileId })} className="profile-collection-link" title={person.name}>
+      </li>) : people.map((person) => <MobileProfileContext key={person.profileId} profileId={person.profileId} name={person.name}><li>
+        <Link data-preview-open="" to={buildPath(shared ? 'sharedProfile' : 'profile', { profileId: person.profileId })} className="profile-collection-link" title={person.name}>
           <span className="profile-collection-tile squircle"><CreatorAvatar name={person.name} avatar={person.avatar} shape="squircle" className="h-full w-full text-[28px]" fallbackClassName="bg-transparent text-[var(--text-secondary)] ring-transparent" /></span>
           <span className="profile-collection-name">{person.name}</span>
         </Link>
-      </li>)}
+      </li></MobileProfileContext>)}
     </ul>}
     {error && <div role="alert" className="mt-4 text-[14px] text-[var(--text-secondary)]"><p>{error}</p>{onRetry && <button type="button" onClick={onRetry} className="mt-2 shape-compact px-3 py-2 font-medium">Try again</button>}</div>}
     {loading && <p role="status" className="py-6 text-[14px] text-[var(--text-secondary)]">Loading…</p>}

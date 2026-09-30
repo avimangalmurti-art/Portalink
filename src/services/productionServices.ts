@@ -1,3 +1,4 @@
+import { readSignalService, withPageNotifications } from './supabase/readSignalService';
 import { supabaseAuthService } from './supabase/authService';
 import { supabaseDiscoveryService, supabaseProfileService, supabaseProjectService, supabaseSearchService } from './supabase/contentServices';
 import { supabaseMediaService } from './supabase/mediaService';
@@ -21,7 +22,8 @@ export const services: Services = {
   engagement: supabaseEngagementService,
   creatorSaves: supabaseCreatorSaveService,
   comments: supabaseCommentService,
-  notifications: supabaseNotificationService,
+  notifications: withPageNotifications(supabaseNotificationService),
+  reads: readSignalService,
   messaging: supabaseMessagingService,
   live: unavailableLiveService,
   analytics: unavailableAnalyticsService,

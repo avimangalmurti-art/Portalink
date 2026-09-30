@@ -38,11 +38,13 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     async markRead(row) { calls.push(['mark-read', row.id]); row.notification.isUnread = false; dirty = true; return true; },
   };
   const deps = {
+    '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
+    '../../presentation/mobile/contextActions': load('../src/presentation/mobile/contextActions.ts', () => new Proxy({}, {get: (_o,key)=>key})),
     react,
     'react-router-dom': { useNavigate: () => (path, options) => { history.push({ path, options: { ...options } }); }, useSearchParams: () => [params, (next, options) => { params = new URLSearchParams(next); history.push({ params: String(params), options: { ...options } }); dirty = true; }] },
     'lucide-react': new Proxy({}, { get: (_, key) => key }),
     '../../app/routes': { buildPath },
-    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a' }, viewerProfileId: 'me' }) },
+    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a' }, viewerProfileId: 'me', isAuthenticated: true }) },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
     '../../components/profile/CreatorAvatar': { CreatorAvatar: 'creator-avatar' },
     '../../utils/copyPublicLink': { copyPublicLink: async value => calls.push(['copy', value]) },

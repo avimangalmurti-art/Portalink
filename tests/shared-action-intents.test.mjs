@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -14,7 +16,7 @@ function load(path, imports = {}, globals = {}) {
   } });
   return exports;
 }
-const registration = load('../src/features/auth/registration.ts', { '../profile/validation': {} });
+const registration = load('../src/features/auth/registration.ts', { '../profile/validation': sourceModule('src/features/profile/validation.ts', { '../sharing/shareModel': shareModel }), '../sharing/shareModel': shareModel });
 const commentsDomain = load('../src/types/comments.ts');
 const path = '/share/creator/c/category/project';
 const target = { projectId: 'project', attachmentId: 'document-a', pageIndex: 4, label: 'Page 5' };
@@ -54,7 +56,8 @@ function mediaSetup(window = browser()) {
     'useMediaInteractions', {}, auth, [target, true], undefined, {
       '../auth/registration': registration,
       './mediaInteractionBatch': { readMediaInteraction(value, account) { reads.push({ value, account }); return Promise.resolve(record()); } },
-      './mediaInteractionRequest': { mediaInteractionRequest(url, init, required) { writes.push({ url, init, required }); return Promise.resolve(record()); } },
+      '../reads/pageHeadings': sourceModule('src/features/reads/pageHeadings.ts'),
+    './mediaInteractionRequest': { mediaInteractionRequest(url, init, required) { writes.push({ url, init, required }); return Promise.resolve(record()); } },
     }, { window });
   return { hook, auth, gates, reads, writes, window,
     async signIn() { auth.isAuthenticated = true; auth.user = { id: 'visitor' }; hook.rerender(); await hook.flush(); },

@@ -1,3 +1,4 @@
+import { handleFromPath } from '../sharing/shareModel';
 import type { AuthService, ProfileService } from '../../services/interfaces';
 import type { AuthSession } from '../../types/auth';
 import type { CreateProfileInput, PreparedAvatar } from '../../types/profile';
@@ -22,12 +23,14 @@ export type RegistrationProfile = {
 export function readSharedReturnPath(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > 2048) return;
   const pathname = value.split(/[?#]/, 1)[0];
-  if (!/^\/share\/[a-z0-9_-]{1,128}(?:\/collaboration|\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
+  if (!handleFromPath(pathname) && !/^\/share\/[a-z0-9_-]{1,128}(?:\/collaboration|\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
   const url = new URL(value, 'https://portalink.invalid');
   const safe = new URL(url.pathname.replace(/\/$/, ''), url.origin);
   const view = url.searchParams.get('view');
   const page = url.searchParams.get('page');
   const media = url.searchParams.get('media');
+  const via = url.searchParams.get('via');
+  if (via && /^[a-z0-9]{1,16}$/i.test(via)) safe.searchParams.set('via', via);
   if (view === 'projects' || view === 'portals') safe.searchParams.set('view', view);
   if (page && /^[1-9]\d{0,4}$/.test(page)) safe.searchParams.set('page', page);
   if (media && /^[a-z0-9_-]{1,128}$/i.test(media)) safe.searchParams.set('media', media);

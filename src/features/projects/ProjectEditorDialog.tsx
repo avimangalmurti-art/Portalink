@@ -63,6 +63,7 @@ export function ProjectEditorDialog({
   useEffect(() => {
     if (editor.phase === 'editing') {
       const frame = requestAnimationFrame(() => {
+        if (editor.mode === 'journey') { document.getElementById('project-made-in')?.focus(); return; }
         if (editor.mode === 'files') {
           document.getElementById('project-replacement-files')?.focus();
           return;
@@ -110,11 +111,16 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  return <ProjectFormDialog title="Edit project" titleId="project-editor-title" description="Update your project’s files and details." dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <ProjectFormDialog title="Edit project" titleId="project-editor-title" description={editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
+              {editor.mode === 'journey' ? <div className="project-form-details">
+                <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-in">Made in<input id="project-made-in" type="month" className="text-control p-3" disabled={isLocked} value={editor.metadata.creationDetails?.madeIn ?? ''} onChange={e => editor.setJourneyField('madeIn', e.target.value)} /><span className="text-xs text-[var(--text-secondary)]">Uses the publication date when left blank.</span></label>
+                <ProfileField id="project-learned" label="What did you learn?" multiline value={editor.metadata.creationDetails?.answers.learned ?? ''} placeholder="Uses the first description line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('learned', value)} />
+                <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Uses your learned line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
+              </div> : <>
               <section aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
                 <div className="flex items-center justify-between gap-3">
                   <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
@@ -229,6 +235,7 @@ export function ProjectEditorDialog({
               <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
               <ProfileField id="project-summary" label="Description" required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
+              </>}
             </>}
 
         <footer className="project-form-actions flex flex-col gap-2">

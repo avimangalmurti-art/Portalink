@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { dirname, resolve, relative } from 'node:path';
@@ -21,6 +22,8 @@ function execute(source, imports = {}, globals = {}) {
 }
 function buildConfig(command, runtime) {
   const factory = execute(read('vite.config.ts').replaceAll('import.meta.url', 'configUrl'), {
+    './src/features/sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
+    './src/server/sharedPreview': {}, './src/server/shareAddress': {}, 'node:fs/promises': {},
     vite: { defineConfig: value => value, loadEnv: () => ({ VITE_RUNTIME_MODE: runtime }) },
     'node:url': { fileURLToPath },
     'node:fs': { mkdirSync() {}, writeFileSync() {} },

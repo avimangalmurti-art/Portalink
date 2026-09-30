@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -35,7 +36,7 @@ function harness(options = {}) {
       const builder = { select: () => builder, eq: () => builder, single: async () => ({ data: rows[table], error: null }) };
       return builder;
     },
-    rpc: async (name, args) => { calls.push(['rpc', name, plain(args)]); return { data: 'revision-2', error: options.rpcError ?? null }; },
+    rpc: async (name, args = {}) => { if(name==='project_cover_social_supported')return {data:options.social===true,error:null}; calls.push(['rpc', name, plain(args)]); return { data: 'revision-2', error: options.rpcError ?? null }; },
     storage: { from(bucket) { return {
       upload: async (path, blob, metadata) => {
         uploads.push({ bucket, path, blob, metadata });
@@ -58,7 +59,7 @@ function harness(options = {}) {
       thumbnailSourceKey: async input => { calls.push(['source', plain(input)]); return SOURCE_HASH; },
       thumbnailContentHash: async () => HASH,
     };
-    if (name.endsWith('/coverThumbnailRenderer')) return { generateCoverThumbnails: async input => {
+    if (name.endsWith('/coverThumbnailRenderer')) return { generateShareCoverAssets: async input => {generated.push(plain(input)); return {variants:[200,400,800].map(size=>({size,width:size/2,height:size,blob:new Blob([String(size)])})),social:{width:1200,height:630,blob:new Blob(['social'])}};}, generateCoverThumbnails: async input => {
       generated.push(plain(input));
       return [200, 400, 800].map(size => ({ size, width: size / 2, height: size, blob: new Blob([String(size)], { type: 'image/webp' }) }));
     } };
@@ -197,6 +198,7 @@ function hydrationHarness() {
   const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'hydrateProjects');
   const resolved = [], multipart = [];
   const { hydrate } = execute(`${fn.getText(source)}\nexports.hydrate = hydrateProjects;`, undefined, {
+    ...sourceModule('src/features/publishing/firstProject.ts'), ...sourceModule('src/features/journey/journey.ts'),
     readCoverThumbnail: h.service.readCoverThumbnail,
     coverThumbnailWithUrls: h.service.coverThumbnailWithUrls,
     signedUrls: async (paths, singleBatch) => { resolved.push({ paths: [...paths], singleBatch }); return new Map(paths.map(path => [path, `signed:${path}`])); },
@@ -236,4 +238,18 @@ test('opening the same document uses full hydration and retains its original vie
   assert.ok(h.resolved[0].paths.includes('original.pdf'));
   assert.equal(result.get(PROJECT).attachments[0].sourceUrl, 'signed:original.pdf');
   assert.equal(result.get(PROJECT).attachments[0].kind, 'document');
+});
+
+
+test('owner hydration identifies hidden projects and hidden portals before offering a live share card', async () => {
+ for(const [projectHidden,categoryHidden,expected] of [[false,false,true],[true,false,false],[false,true,false]]){
+  const h=hydrationHarness();
+  const projects=await h.hydrate([{id:PROJECT,profile_id:PROFILE,category_id:CATEGORY,title:'Study',summary:'',is_hidden:projectHidden}],[{id:CATEGORY,label:'Work',is_hidden:categoryHidden}],[],'cover');
+  assert.equal(projects.get(PROJECT).isPubliclyVisible,expected);
+ }
+});
+
+test('social capability uploads the extra landscape asset only when explicitly supported',async()=>{
+ const h=harness({social:true});await h.service.refreshProjectCoverThumbnail(PROJECT,h.loadProject);assert.equal(h.uploads.length,4);assert.match(h.uploads[3].path,/social.webp$/);const saved=h.calls.find(call=>call[0]==='rpc'&&call[1]==='set_project_cover_thumbnail');assert.equal(saved[2].p_manifest.social.width,1200);assert.equal(saved[2].p_manifest.social.height,630);
+ const parsed=h.service.readCoverThumbnail(saved[2].p_manifest,PROFILE,PROJECT);assert.equal(parsed.social.path,h.uploads[3].path);parsed.social.path=parsed.social.path.replace(PROJECT,CATEGORY);assert.equal(h.service.readCoverThumbnail(parsed,PROFILE,PROJECT),undefined);
 });

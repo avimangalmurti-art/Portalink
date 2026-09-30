@@ -166,15 +166,23 @@ test('selection presents real checkboxes, explicit options remain accessible, an
 
 test('Studio action sheet uses shared modal focus, explicit close and invokes only the chosen action', () => {
   const calls = [];
-  const { StudioActionSheet } = compile('../src/features/studio/StudioActionSheet.tsx', {
-    react: { ...React, useId: () => 'studio-options', useRef: () => ({ current: null }) },
+  const react = { ...React, useId: () => 'studio-options', useRef: () => ({ current: null }) };
+  const { MobileActionSheet } = compile('../src/components/messages/MobileActionSheet.tsx', {
+    react,
+    '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus(open, _ref, _close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); } },
   });
-  const tree = StudioActionSheet({ title: 'Project options', actions: [{ id: 'open', label: 'Open', onAction() { calls.push('open'); } }], onClose() { calls.push('close'); } });
+  const { StudioActionSheet } = compile('../src/features/studio/StudioActionSheet.tsx', {
+    react, 'react-dom': { flushSync: fn => fn() },
+    '../../presentation/mobile/contextFocus': { focusMobileContextButton() {} },
+    '../../components/messages/MobileActionSheet': { MobileActionSheet },
+  });
+  const adapter = StudioActionSheet({ title: 'Project options', actions: [{ id: 'open', label: 'Open', onAction() { calls.push('open'); } }], onClose() { calls.push('close'); } });
+  const tree = MobileActionSheet(adapter.props);
   const dialog = nodes(tree).find(node => node.props.role === 'dialog');
   assert.equal(dialog.props['aria-modal'], 'true'); assert.equal(dialog.props['aria-labelledby'], 'studio-options');
-  const action = nodes(tree).find(node => node.type === 'button' && Array.isArray(node.props.children) && node.props.children.includes('Open'));
-  assert.match(action.props.className, /min-h-\[44px\]/); action.props.onClick(); assert.deepEqual(calls, ['close', 'open']);
-  nodes(tree).find(node => node.props['aria-label'] === 'Close Studio options').props.onClick();
+  const action = nodes(tree).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children === 'Open'));
+  action.props.onClick(); assert.deepEqual(calls, ['close', 'open']);
+  nodes(tree).find(node => node.props['aria-label'] === 'Close actions').props.onClick();
   assert.deepEqual(calls, ['close', 'open', 'close']);
 });

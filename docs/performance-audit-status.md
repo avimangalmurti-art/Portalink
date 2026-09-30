@@ -2,6 +2,17 @@
 
 Source: the user's 15-page `Preformance edit instructions.pdf`, supplied September 28, 2026. All pages were read. This is an implementation record, not a claim that the audit's historical line numbers or measurements still describe production.
 
+## September 30 release-candidate review since Sites274
+
+The [consolidated release review](release-review-sites-274.md) supersedes older
+local byte/check totals and rollout ordering below. Final initial JavaScript:
+main1,028,971 bytes /327,403 gzip; visitor684,656 /218,949. Visitor remains334,656
+raw bytes over350KB despite reducing82,716 bytes from the verified Sites274
+archive. Full Node1,330/1,330 pass with PGlite; typecheck/lint/client+worker build
+pass. Cover/social-backfill source is prepared, but public Storage, pending
+SQL/D1, runtime configuration, live backfill and release remain separately gated.
+No hosted timing, real-phone performance or newly applied backend is claimed.
+
 ## September 30 source-only public media and timing collection
 
 [Public media and RUM](public-media-and-rum.md) now records the source implementation of public cover/avatar edge caching and anonymous load timings, with a guarded owner table in Insights. The D1 migration `drizzle-pending/0002_page_timings.sql` is prepared, not applied; no publish or runtime owner configuration change occurred. Hosted post-release measurements still remain to collect. Public Storage transformations were confirmed by a read-only image request, but removing the extra stored cover sizes remains blocked by the existing three-object setter contract and needs a separate Supabase schema review.

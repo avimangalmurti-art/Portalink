@@ -1,3 +1,4 @@
+import { handleFromPath } from '../features/sharing/shareModel';
 import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
@@ -42,7 +43,9 @@ function readSharedViewerProfileId(): string | null {
 export function ApplicationBootstrap() {
   const auth = useAuth();
   const { pathname, search = '', hash = '' } = useLocation();
-  const isSharedView = /^\/share(?:\/|$)/i.test(pathname);
+  const isHandleView = Boolean(handleFromPath(pathname));
+  const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
+  useEffect(() => { if (isHandleView) window.location.replace(pathname + search + hash); }, [isHandleView, pathname, search, hash]);
   const presentation = useViewportPresentation();
   const [openingPresentation] = useState(presentation);
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
@@ -103,11 +106,11 @@ export function ApplicationBootstrap() {
 
   const settingsPath = pathname.replace(/\/+$/, '');
   const isPublicSettings = settingsPath === routes.controlCenter.path || settingsPath === '/appearance';
-  const shouldRedirect = !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
+  const shouldRedirect = !isHandleView && !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
   const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !holdLanding && !hasPresentedLanding && !isRecovery;
 
   return <>
-      {shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App /> : null}
+      {isHandleView ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App /> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen

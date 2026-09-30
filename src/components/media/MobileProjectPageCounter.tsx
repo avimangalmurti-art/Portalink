@@ -1,13 +1,19 @@
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Grid2X2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MobilePageThumbnails } from './MobilePageThumbnails';
 import type { PdfDocument } from './PdfPage';
 
-type PagePosition = { scope: string; current: number; total: number };
+export type PagePosition = { scope: string; current: number; total: number; ready?: boolean };
 
 /** Read the pages actually displayed by the current renderer, including lazy PDF pages. */
-export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null }: {
+export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null, onPositionChange, showControl = true, readingMode = false, onSelectPage }: {
+  onPositionChange?: (position: PagePosition | null) => void;
+  showControl?: boolean;
+  readingMode?: boolean;
+  onSelectPage?: (page: number) => void;
   surfaceRef: React.RefObject<HTMLDivElement>;
   scope: string;
   previewSources?: readonly (string | null | undefined)[];
@@ -15,7 +21,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
 }) {
   const [position, setPosition] = useState<PagePosition | null>(null);
   const [openScope, setOpenScope] = useState<string | null>(null);
-  const open = openScope === scope && position?.scope === scope;
+  const open = showControl && openScope === scope && position?.scope === scope;
   const navigatorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -52,7 +58,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
         surface.addEventListener('scroll', schedule, { passive: true, capture: true });
         surface.addEventListener('load', schedule, true);
         mutations?.observe(surface, { childList: true, subtree: true, attributes: true,
-          attributeFilter: ['data-project-page-number', 'data-project-page-total'] });
+          attributeFilter: ['data-project-page-number', 'data-project-page-total', 'data-project-page-ready'] });
         resize?.observe(surface);
       }
       const bounds = surface.getBoundingClientRect();
@@ -84,10 +90,10 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
         // In a multi-column row, ties follow the work's page order, not DOM column order.
         if (area > 0 && (area > largestArea + 0.5 || (Math.abs(area - largestArea) <= 0.5 && (!visible || current < visible.current)))) {
           largestArea = area;
-          visible = { scope, current, total };
+          visible = { scope, current, total, ready: page.dataset.projectPageReady !== 'false' };
         }
       }
-      setPosition(previous => previous?.scope === visible?.scope && previous?.current === visible?.current && previous?.total === visible?.total
+      setPosition(previous => previous?.scope === visible?.scope && previous?.current === visible?.current && previous?.total === visible?.total && previous?.ready === visible?.ready
         ? previous : visible);
     };
     const schedule = () => {
@@ -111,14 +117,19 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
     };
   }, [scope, surfaceRef]);
 
+  useEffect(() => { onPositionChange?.(position); }, [position, onPositionChange]);
+  useEffect(() => () => onPositionChange?.(null), [onPositionChange]);
+  useMobileScreenActions(showControl && position?.scope === scope ? contextActions('project', { signedIn: true }, { handlers: { pageIndex: () => setOpenScope(scope) } }) : null, 12);
   if (!position || position.scope !== scope) return null;
-  return <div ref={navigatorRef} data-mobile-page-navigator="">
-    <button ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
+  return <div ref={navigatorRef} data-mobile-page-navigator="" data-document-reader-header={readingMode || undefined} data-project-reading-control={readingMode || undefined}>
+    {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}>‹</button>}
+    <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
     aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpenScope(open ? null : scope)}>
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />
-    <span>{position.current} of {position.total}</span>
+    <span>{readingMode ? `Page ${position.current} of ${position.total}` : `${position.current} of ${position.total}`}</span>
     </button>
-    {open && <MobilePageThumbnails id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
+    {readingMode && <><button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button><progress aria-label="Document reading progress" value={position.current} max={position.total} /></>}
+    {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
   </div>;
 }

@@ -1,9 +1,11 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
@@ -17,6 +19,7 @@ const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
 function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
+  engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [];
   const viewerMemory = new Map(), memoryWrites = [];
@@ -34,8 +37,15 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, require(name) {
+  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project',search:''} }, require(name) {
     if (name === 'react') return react;
+    if (name.endsWith('/contextActions')) return actionMap;
+    if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions() {} };
+    if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
     if (name.endsWith('/MobileVideoFrame')) return { MobileVideoFrame };
@@ -435,7 +445,7 @@ test('mobile overview uses the reading rail and real-page counter, while focused
   assert.equal(counter.props.surfaceRef, withProp(tree, 'data-project-stage').ref);
   assert.equal(counter.props.scope, 'project:first');
   nodes(tree).find(node => node.type === AttachmentRenderer).props.onFocusModeChange(true);
-  assert.equal(nodes(h.render()).some(node => node.type === MobileProjectPageCounter), false);
+  assert.equal(nodes(h.render()).find(node => node.type === MobileProjectPageCounter).props.showControl, false);
   nodes(tree).find(node => node.type === AttachmentRenderer).props.onFocusModeChange(false);
   h.openIndex();
   tree = h.render();
@@ -500,6 +510,10 @@ test('project workspace combines only resolved mobile projects and uses the exis
     } };
   const { ProfileCategoryPage } = compile('../src/components/profile/ProfileCategoryPage.tsx', name => {
     if (name === 'react') return react;
+    if (name.endsWith('/contextActions')) return actionMap;
+    if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useAppRoute')) return { useAppRoute: () => currentRoute };
     if (name.endsWith('/projectPanelLayout')) return geometry;

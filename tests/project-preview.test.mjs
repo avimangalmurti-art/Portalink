@@ -26,7 +26,7 @@ function saveHarness(fail = false) {
     { id: 'second', displayName: 'Second page', order: 1, isCover: false }
   ];
   const { save } = execute(`exports.save = ${saveCallback}`, {
-    editingProjectId: 'project', profileId: 'owner', isSavingRef: { current: false }, isMountedRef: { current: true },
+    editorMode: 'cover', editingProjectId: 'project', profileId: 'owner', isSavingRef: { current: false }, isMountedRef: { current: true },
     validate: () => null, attachmentEdits: original, normalizeProjectCoverFrame,
     metadata: { title: 'Existing title', summary: 'Existing description' },
     addedMedia: { items: [], clear: () => events.push('clear'), releaseOwnership() {} },

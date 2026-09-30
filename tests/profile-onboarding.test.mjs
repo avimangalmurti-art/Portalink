@@ -15,7 +15,8 @@ function execute(source, globals = {}) {
   return exports;
 }
 const { createProfileHandle } = execute(read('src/utils/profileHandle.ts'));
-const validation = execute(read('src/features/profile/validation.ts'));
+const shareModel=execute(read('src/features/sharing/shareModel.ts'));
+const validation = execute(read('src/features/profile/validation.ts'),{require:()=>shareModel});
 
 test('automatic handles support duplicate, long and non-ASCII names within the existing format', () => {
   const handles = new Set();

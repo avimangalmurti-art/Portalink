@@ -1,3 +1,6 @@
+import { validContactEmail } from '../../features/employer/employer';
+import { profileSharing } from './profileSharing';
+import { mergeProjectDesign, saveProjectCreationDetails, saveProjectJourneyDetails } from './projectCreationDetails';
 import { hydrateProjects, throwProfileError, supabaseProfileReadService } from './contentReaders';
 import type { ProfileRow, CategoryRow, ProjectRow, AttachmentRow } from './contentReaders';
 import { supabaseProjectReadService } from './projectReaders';
@@ -94,6 +97,7 @@ async function uploadAvatar(accountId: string, input: CreateProfileInput['avatar
 
 export const supabaseProfileService: ProfileService = {
   ...supabaseProfileReadService,
+  ...profileSharing,
 
   async updateProjectGridLayout(profileId, columns) {
     if (!Number.isInteger(columns) || columns < MIN_PROJECT_GRID_COLUMNS || columns > MAX_PROJECT_GRID_COLUMNS) {
@@ -170,10 +174,30 @@ export const supabaseProfileService: ProfileService = {
     if (input.name !== undefined) update.name = input.name.trim();
     if (input.headline !== undefined) update.headline = input.headline.trim();
     if (input.location !== undefined) update.location = input.location.trim();
-    if (input.handle !== undefined) update.handle = normalizeHandle(input.handle);
+    if (input.handle !== undefined) {
+      const current = await this.getProfile(profileId);
+      if (normalizeHandle(current.handle) !== normalizeHandle(input.handle)) await profileSharing.claimPublicHandle(profileId, input.handle);
+    }
     if (input.links !== undefined) update.links = input.links;
     if (input.socialLinks !== undefined) update.social_links = input.socialLinks;
     if (input.isPrivate !== undefined) update.is_private = input.isPrivate;
+    if (input.showJourney !== undefined) update.show_journey = input.showJourney;
+    if (input.thenNow !== undefined) update.then_now = input.thenNow;
+    for (const [key, column, limit] of [['portfolioHeadline','portfolio_headline',80],['school','school',120],['availability','availability',120]] as const) {
+      if (input[key] === undefined) continue;
+      const value = input[key]?.trim() ?? null;
+      if (value && value.length > limit) throw new Error(`Keep ${key === 'portfolioHeadline' ? 'the headline' : key} to ${limit} characters.`);
+      update[column] = value;
+    }
+    if (input.startHereProjectId !== undefined) update.start_here_project_id = input.startHereProjectId;
+    if (input.allowPdfDownload !== undefined) update.allow_pdf_download = input.allowPdfDownload;
+    if (input.contactEmailPublic !== undefined) update.contact_email_public = input.contactEmailPublic;
+    if (input.contactEmailPublic === false) update.contact_email = null;
+    else if (input.contactEmail !== undefined || input.contactEmailPublic === true) {
+      const email = input.contactEmail?.trim() ?? '';
+      if (!validContactEmail(email)) throw new Error('Enter the contact email you want to show publicly.');
+      update.contact_email = email;
+    }
     if (input.projectGridColumns !== undefined) {
       if (!Number.isInteger(input.projectGridColumns) || input.projectGridColumns < MIN_PROJECT_GRID_COLUMNS || input.projectGridColumns > MAX_PROJECT_GRID_COLUMNS) {
         throw new ProfileServiceError('invalid_input', `Projects per row must be between ${MIN_PROJECT_GRID_COLUMNS} and ${MAX_PROJECT_GRID_COLUMNS}.`);
@@ -188,6 +212,8 @@ export const supabaseProfileService: ProfileService = {
     if (input.avatar) update.avatar_url = await uploadAvatar(authData.session.user.id, input.avatar);
     if (Object.keys(update).length === 0) return this.getProfile(profileId);
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.session.user.id).select('id').single();
+    if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These portfolio settings are not enabled yet. Your changes have not been saved.');
+    if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Journey sharing and pairs are not enabled yet. Your changes have not been saved.');
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
   },
@@ -355,8 +381,7 @@ export const supabaseProjectService: ProjectService = {
     if (design.pagesPerRow !== undefined && (!Number.isInteger(design.pagesPerRow) || design.pagesPerRow < MIN_PAGES_PER_ROW || design.pagesPerRow > MAX_PAGES_PER_ROW)) {
       throw new ProjectMutationError('invalid_metadata', `Pages per row must be between ${MIN_PAGES_PER_ROW} and ${MAX_PAGES_PER_ROW}.`);
     }
-    const { error } = await requireSupabase().from('projects').update({ design }).eq('id', projectId).select('id').single();
-    if (error) throw new ProjectMutationError(error.code === '42501' ? 'permission_denied' : 'network', error.message);
+    await mergeProjectDesign(projectId, design);
     return design;
   },
 
@@ -471,6 +496,13 @@ export const supabaseProjectService: ProjectService = {
     throw new ProjectMutationError('invalid_media', 'Use the publishing flow to upload and publish work.');
   },
 
+  updateProjectCreationDetails: saveProjectCreationDetails,
+  updateProjectJourneyDetails: saveProjectJourneyDetails,
+  async getDraft(draftId) {
+    const { data, error } = await requireSupabase().from('project_drafts').select('*').eq('id', draftId).maybeSingle();
+    if (error) throw new PublishServiceError('network', error.message);
+    return data ? draftFromRow(data as unknown as DraftRow) : null;
+  },
   async createDraft(profileId, categoryId) {
     const { data, error } = await requireSupabase()
       .from('project_drafts')
@@ -498,7 +530,7 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async publishProject(input: PublishProjectInput): Promise<PublishResult> {
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new PublishServiceError('invalid_metadata', 'A title and description are required.');
     }
     if (!input.attachments?.length || input.media?.length) {
@@ -542,16 +574,22 @@ export const supabaseProjectService: ProjectService = {
       throw new PublishServiceError(code, error.message);
     }
     const projectId = String(data);
+    await input.onCommitted?.({ projectId, mediaPersisted: true, sessionOnly: false, creationDetailsPending: Boolean(input.metadata.creationDetails) }).catch(() => undefined);
+    let creationDetailsPending = false;
+    if (input.metadata.creationDetails) {
+      try { await saveProjectCreationDetails(projectId, input.metadata.creationDetails); }
+      catch { creationDetailsPending = true; }
+    }
     // The publication is already committed; a thumbnail failure must not offer
     // to publish a duplicate project. Surface a recoverable cover-only warning.
     let coverMessage: string | undefined;
     try { coverMessage = await refreshProjectCoverThumbnail(projectId, () => this.getProject(projectId)); }
     catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
-    return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage };
+    return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage, creationDetailsPending };
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new ProjectMutationError('invalid_metadata', 'A title and description are required.');
     }
     const { data, error } = await requireSupabase().rpc('update_project', {

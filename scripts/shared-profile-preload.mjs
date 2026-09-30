@@ -4,14 +4,15 @@ function startSharedProfilePreload(configuration) {
   const uuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
   const route = new RegExp('^/share/(' + uuid + ')(?:/collaboration|/c/' + uuid + '(?:/' + uuid + ')?)?/?$', 'i');
   const match = window.location.pathname.match(route);
-  if (!match || window.__PORTALINK_SHARED_BUNDLE_PRELOAD__) return;
+  const profileId = match?.[1] || window.__PORTALINK_HANDLE__?.profileId;
+  if (!profileId || !new RegExp('^' + uuid + '$', 'i').test(profileId) || window.__PORTALINK_SHARED_BUNDLE_PRELOAD__) return;
   const pathname = window.location.pathname;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   const promise = Promise.resolve().then(() => fetch(configuration.supabaseUrl + '/rest/v1/rpc/shared_profile_bundle', {
     method: 'POST',
     headers: { apikey: configuration.publishableKey, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ profile_id: match[1].toLowerCase() }),
+    body: JSON.stringify({ profile_id: profileId.toLowerCase() }),
     credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal,
   })).then(async response => {
     // The response can beat the module graph. Preserve its real arrival time;
@@ -27,7 +28,7 @@ function startSharedProfilePreload(configuration) {
     } };
   }).catch(() => ({ data: null, error: { message: 'The shared profile could not be loaded. Please try again.' } }))
     .finally(() => clearTimeout(timer));
-  window.__PORTALINK_SHARED_BUNDLE_PRELOAD__ = { version: 1, profileId: match[1].toLowerCase(), startedAt: Date.now(), promise };
+  window.__PORTALINK_SHARED_BUNDLE_PRELOAD__ = { version: 1, profileId: profileId.toLowerCase(), startedAt: Date.now(), promise };
 }
 
 function publicConfiguration(configuration) {

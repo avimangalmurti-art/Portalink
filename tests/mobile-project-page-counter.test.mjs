@@ -11,7 +11,7 @@ const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${numb
 
 function mount(pages = [], { delayedRef = false } = {}) {
   const states = [], refs = [], documentEvents = new Map();
-  let stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
+  let effectIndex = 0, stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
   const surface = { pages, bounds: rect(0, 800), querySelectorAll() { return this.pages; },
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
@@ -26,7 +26,9 @@ function mount(pages = [], { delayedRef = false } = {}) {
         useState: initial => { const index = stateIndex++; if (!(index in states)) states[index] = initial;
           return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }]; },
         useRef: initial => { const index = refIndex++; return refs[index] ??= { current: initial }; },
-        useId: () => 'page-previews', useEffect: fn => { visibilityEffect = fn; }, useLayoutEffect: fn => { effect = fn; } };
+        useId: () => 'page-previews', useEffect: fn => { if (effectIndex++ === 0) visibilityEffect = fn; }, useLayoutEffect: fn => { effect = fn; } };
+      if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions() {} };
+      if (name.endsWith('/contextActions')) return { contextActions: () => ({}) };
       if (name === 'lucide-react') return { Grid2X2Icon: () => null };
       if (name === '../ui/InterfaceIcon') return { InterfaceIcon: () => null };
       if (name === './MobilePageThumbnails') return { MobilePageThumbnails: () => null };
@@ -39,12 +41,12 @@ function mount(pages = [], { delayedRef = false } = {}) {
     Node: Object,
     document: { addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
-  const render = (scope = 'project:images') => { stateIndex = 0; refIndex = 0;
+  const render = (scope = 'project:images') => { stateIndex = 0; refIndex = 0; effectIndex = 0;
     return exports.MobileProjectPageCounter({ surfaceRef, scope }); };
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
-  return { surface, surfaceRef, render, flush, events, observed, cleanup, refs, documentEvents,
+  return { surface, surfaceRef, render, flush, get position() {return states[0];}, events, observed, cleanup, refs, documentEvents,
     visibility() { visibilityCleanup?.(); visibilityCleanup = visibilityEffect(); },
     mutate() { onMutation(); flush(); }, resize() { onResize(); flush(); }, scroll() { events.get('scroll')?.fn(); flush(); },
     get clean() { return cleanedMutations && cleanedResize && !frame && !events.size && !windowEvents.size; } };
@@ -53,11 +55,11 @@ function mount(pages = [], { delayedRef = false } = {}) {
 test('shows the actual most-visible page while a nested renderer scrolls', () => {
   const one = page(1, 3, rect(0, 600)), two = page(2, 3, rect(602, 1202)), three = page(3, 3, rect(1204, 1804));
   const h = mount([one, two, three]); h.flush();
-  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 3. Show page previews');
-  assert.equal(typeof h.render().props.children[0].props.onClick, 'function');
+  assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 1 of 3. Show page previews');
+  assert.equal(typeof h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props.onClick, 'function');
   assert.equal(h.events.get('scroll').opts.capture, true);
   one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
-  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 2 of 3. Show page previews');
+  assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 2 of 3. Show page previews');
   h.cleanup(); assert.equal(h.clean, true);
 });
 
@@ -66,7 +68,7 @@ test('waits for real page metadata and handles a delayed parent ref and asynchro
   h.surfaceRef.current = h.surface; h.flush();
   assert.equal(h.render(), null, 'no guessed total while the document is loading');
   h.surface.pages = [page(1, 12, rect(0, 600)), page(2, 12, rect(602, 1202))]; h.mutate();
-  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 12. Show page previews');
+  assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 1 of 12. Show page previews');
   assert.equal(h.render('another-project:document'), null, 'old count cannot leak across project/media changes');
   h.surface.pages = []; h.mutate();
   assert.equal(h.render(), null);
@@ -77,9 +79,9 @@ test('waits for real page metadata and handles a delayed parent ref and asynchro
 test('clips to the viewer and viewport and breaks multi-column ties by page number', () => {
   const h = mount([page(3, 6, rect(0, 400, 195, 390)), page(1, 6, rect(0, 400, 0, 195)), page(2, 6, rect(-900, 0))]);
   h.surface.bounds = rect(100, 700); h.flush();
-  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 1 of 6. Show page previews');
+  assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 1 of 6. Show page previews');
   h.surface.pages[0].bounds = rect(100, 650, 195, 390); h.resize();
-  assert.equal(h.render().props.children[0].props['aria-label'], 'Page 3 of 6. Show page previews');
+  assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 3 of 6. Show page previews');
   h.cleanup();
 });
 
@@ -90,10 +92,10 @@ test('ignores invalid metadata and hidden pages without a fake 1 of 1 fallback',
 
 test('tapping toggles page previews; outside click and Escape dismiss; project changes cannot carry the open panel', () => {
   const h = mount([page(1, 3, rect(0, 600))]); h.flush();
-  const button = () => h.render().props.children[0];
+  const button = () => h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined);
   button().props.onClick();
   assert.equal(button().props['aria-expanded'], true);
-  assert.equal(h.render().props.children[1].props.total, 3);
+  assert.equal(h.render().props.children.find(child=>child?.props?.total).props.total, 3);
   const inside = {}; let restoredFocus = false;
   h.refs[0].current = { contains: target => target === inside };
   h.refs[1].current = { focus: () => { restoredFocus = true; } };
@@ -116,7 +118,14 @@ test('image, rendered-document and live-PDF renderers expose their actual page s
   const document = readFileSync(new URL('../src/components/media/DocumentAttachment.tsx', import.meta.url), 'utf8');
   const pdf = readFileSync(new URL('../src/components/media/PdfImageDocument.tsx', import.meta.url), 'utf8');
   assert.match(image, /data-project-page-number=\{pageNumber\} data-project-page-total=\{pageCount\}/);
-  assert.match(document, /data-project-page-number=\{index \+ 1\} data-project-page-total=\{renderedPages.length\}/);
-  assert.match(pdf, /data-project-page-number=\{pageNumber\}\s+data-project-page-total=\{document.numPages\}/);
+  assert.match(document, /data-project-page-number=\{index \+ 1\}[^\n]+data-project-page-total=\{renderedPages.length\}/);
+  assert.match(pdf, /data-project-page-number=\{pageNumber\}[\s\S]*?data-project-page-total=\{document.numPages\}/);
   for (const source of [image, document, pdf]) assert.match(source, /onDoubleClick=/);
+});
+
+test('reader navigation survives pending paint while page actions get an explicit not-ready position',()=>{
+ const one=page(2,3,rect(0,600));one.dataset.projectPageReady='false';const h=mount([one]);h.flush();
+ assert.equal(h.position.current,2);assert.equal(h.position.ready,false);assert.ok(h.render());
+ one.dataset.projectPageReady='true';h.mutate();assert.equal(h.position.ready,true);assert.equal(h.position.current,2);
+ one.dataset.projectPageNumber='3';one.dataset.projectPageReady='false';h.mutate();assert.equal(h.position.current,3);assert.equal(h.position.ready,false);h.cleanup();
 });

@@ -111,6 +111,7 @@ function projectHarness() {
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup }, useDragControls: () => ({}), AnimatePresence: () => null, motion: { div: 'div' } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
+    if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
@@ -291,7 +292,7 @@ test('floating mobile rows only navigate, with owner reordering kept in the menu
   const ordinaryRow = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch }, actions);
   assert.equal(ordinaryRow.props.reorderActivator.onTouchStart, activateTouch);
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /<ProjectIndexList[^>]*mobileReorderFromMenu=\{isMobile\}/);
+  assert.match(source, /<ProjectIndexList[^\n]*mobileReorderFromMenu=\{isMobile\}/);
 });
 
 

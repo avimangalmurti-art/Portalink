@@ -1,3 +1,4 @@
+import { profileSharing } from './supabase/profileSharing';
 import type { Services } from './interfaces';
 import { supabaseAuthService } from './supabase/authService';
 import { supabaseProfileReadService } from './supabase/contentReaders';
@@ -12,6 +13,8 @@ const processingReads = deferredService(() => import('./supabase/mediaProcessing
 export const visitorServices: Services = {
   auth: supabaseAuthService,
   profiles: deferredService(() => import('./supabase/contentServices').then(module => module.supabaseProfileService), {
+    resolvePublicHandle: profileSharing.resolvePublicHandle,
+    getShareAddress: profileSharing.getShareAddress,
     getSharedProfile: supabaseProfileReadService.getSharedProfile,
     getProjectGridLayout: supabaseProfileReadService.getProjectGridLayout,
     // A visitor cache is always public, even for a signed-in owner following

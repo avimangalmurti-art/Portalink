@@ -1,3 +1,4 @@
+import type { ShareAddress, HandleResolution, PortfolioCard } from '../features/sharing/shareModel';
 /**
  * The engineering boundary.
  *
@@ -139,6 +140,12 @@ export interface ProfileService {
    * `createProfile` must still be able to reject with `handle_taken`.
    */
   checkHandleAvailability(handle: string): Promise<HandleAvailability>;
+  getPortfolioCard?(profileId: Id): Promise<PortfolioCard | null>;
+  getShareAddress?(profileId: Id): Promise<ShareAddress>;
+  checkPublicHandle?(handle: string): Promise<'available' | 'taken' | 'unavailable'>;
+  claimPublicHandle?(profileId: Id, handle: string): Promise<ShareAddress>;
+  markHandleShared?(profileId: Id, handle: string): Promise<void>;
+  resolvePublicHandle?(handle: string): Promise<HandleResolution | null>;
   /** Establishes the initial profile for an account. Throws `ProfileServiceError`. */
   createProfile(accountId: Id, input: CreateProfileInput): Promise<CreateProfileResult>;
   updateProfile(profileId: Id, input: UpdateProfileInput): Promise<Profile>;
@@ -202,6 +209,9 @@ export interface ProjectService {
   /* ── Publishing ──────────────────────────────────────────────────────── */
   /** Starts an unpublished draft inside a category the account owns. */
   createDraft(profileId: Id, categoryId: Id): Promise<ProjectDraft>;
+  getDraft(draftId: Id): Promise<ProjectDraft | null>;
+  updateProjectJourneyDetails(projectId: Id, details: import('../types/domain').ProjectCreationDetails, caption: string): Promise<void>;
+  updateProjectCreationDetails(projectId: Id, details: import('../types/domain').ProjectCreationDetails): Promise<void>;
   updateDraft(draftId: Id, metadata: DraftMetadata): Promise<ProjectDraft>;
   discardDraft(draftId: Id): Promise<void>;
   /**
@@ -548,6 +558,7 @@ export interface PreferencesService {
 
 /** The single registry components resolve services from. */
 export type Services = {
+  reads?: import('../features/reads/readSignal').ReadSignalService;
   // `auth` is the only authority on who is signed in.
   auth: AuthService;
   profiles: ProfileService;

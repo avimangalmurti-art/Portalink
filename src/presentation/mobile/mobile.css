@@ -165,7 +165,7 @@
 }
 
 /* Neighboring phone rails share control sizes, header centers and row spacing. */
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, [data-project-index-panel], [data-project-response-rail], .shared-profile-sidebar) {
+#root .codex-shell[data-presentation='mobile'] :is([data-project-index-panel], [data-project-response-rail], .shared-profile-sidebar) {
   --sidebar-primary-control: var(--mobile-sidebar-control);
   --cdx-header-control: var(--mobile-sidebar-control);
   --cdx-dense-row-min: var(--mobile-sidebar-control);
@@ -188,115 +188,6 @@
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell > .shared-profile-sidebar {
   display: none; /* Loading/unreadable fallback must not reserve a desktop rail. */
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-layer {
-  position: fixed;
-  inset: 0;
-  height: auto;
-  z-index: 70;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile']:where(html[data-standalone] *) .mobile-shared-drawer-layer {
-  height: auto;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-edge {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 20px;
-  pointer-events: auto;
-  touch-action: pan-y pinch-zoom;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
-  position: absolute;
-  left: var(--mobile-navigation-inset-start);
-  bottom: var(--mobile-dock-bottom);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--mobile-control-size);
-  height: var(--mobile-control-size);
-  border: 1px solid var(--hairline-strong);
-  background: var(--codex-sidebar-bg);
-  color: var(--text-primary);
-  box-shadow: 0 3px 14px rgb(0 0 0 / 0.16);
-  pointer-events: auto;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-scrim {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0 !important;
-  border-radius: 0 !important;
-  padding: 0;
-  /* This is a dimming layer, not a themed button surface. */
-  background: #000 !important;
-  box-shadow: none !important;
-  touch-action: pan-y pinch-zoom;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 78%;
-  height: 100%;
-  overflow: hidden;
-  border-radius: 0 24px 24px 0;
-  background: var(--codex-sidebar-bg);
-  box-shadow: 6px 0 24px rgb(0 0 0 / 0.2);
-  outline: none;
-  pointer-events: none;
-  touch-action: pan-y pinch-zoom;
-  will-change: transform;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-layer[data-visible='false'] .mobile-shared-drawer-panel { visibility: hidden; }
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-layer[data-visible='true'] .mobile-shared-drawer-panel { pointer-events: auto; }
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-layer[data-visible='true'] :is(.mobile-shared-drawer-edge, .mobile-shared-drawer-opener) { pointer-events: none; opacity: 0; }
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-profile-sidebar {
-  width: 100%;
-  padding-top: 0;
-  border: 0;
-  background: var(--codex-sidebar-bg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  transition: none;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-shared-profile-home] {
-  padding-inline: 12px;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel #shared-profile-portals {
-  overscroll-behavior: contain;
-  padding-inline: 12px;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-profile-home {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-profile-home[aria-current='page'] {
-  color: var(--accent-text);
-  background: var(--surface-selected);
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-shared-account-footer] {
-  padding: 8px 12px max(12px, env(safe-area-inset-bottom, 0px));
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-shared-account-footer] > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-shared-account-footer] > div > button {
-  width: 100% !important;
-  justify-content: flex-start;
-  gap: 12px;
-  padding-inline: 12px !important;
-  font-size: 14px;
-}
-
 .codex-shell:where([data-presentation='mobile']) #app-viewport {
   overflow: hidden;
   border: 0;
@@ -633,72 +524,6 @@
   pointer-events: none;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation {
-  position: absolute;
-  z-index: 1;
-  inset-block: 0;
-  /* Opening the centered bottom pill never moves the left-edge sidebar. */
-  inset-inline-start: 0;
-  display: flex;
-  flex-direction: column;
-  /* The existing bottom clearance leaves the dock's same 8px toggle gap. */
-  justify-content: flex-end;
-  width: var(--mobile-control-size);
-  min-height: 0;
-  background: transparent !important;
-  border: 0;
-  pointer-events: none;
-  touch-action: pan-y;
-  transform: translateX(0);
-  transition: transform 180ms ease;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation[data-hidden='true'] {
-  visibility: hidden;
-  transform: translateX(calc(-100% - var(--mobile-navigation-inset-start)));
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll {
-  display: flex;
-  flex: 0 1 auto;
-  min-height: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--mobile-sidebar-gap);
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  margin: calc(var(--safe-area-top) + var(--mobile-sidebar-content-inset) - 4px) 0 var(--mobile-dock-clearance);
-  padding: var(--mobile-control-inset);
-  pointer-events: auto;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 var(--mobile-sidebar-control);
-  width: var(--mobile-sidebar-control);
-  height: var(--mobile-sidebar-control);
-  min-height: var(--mobile-sidebar-control);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :is(button, a) [data-interface-icon-frame] {
-  --interface-icon-size: 24px;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-nav-destination:disabled {
-  opacity: 0.4;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-scroll > :disabled {
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
   /* Anchor the capsule itself to Safari's viewport so its bottom position does
      not depend on the full-height rail frame during destination changes. */
@@ -756,11 +581,11 @@
   }
 }
 
-/* Five full touch targets share one centered, responsive capsule. */
+/* Six full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
-  min-width: calc(5 * var(--mobile-control-target) + 4 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
+  min-width: calc(6 * var(--mobile-control-target) + 5 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -768,30 +593,9 @@
   gap: 8px;
 }
 
-/* Context actions share the dock baseline. Flex centering shifts the whole
-   navigation capsule horizontally as a companion appears or disappears. */
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose {
-  display: grid;
-  flex: none;
-  width: var(--mobile-dock-size);
-  height: var(--mobile-dock-size);
-  min-width: 44px;
-  min-height: 44px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--accent-primary);
-  color: var(--accent-foreground);
-  box-shadow: 0 3px 14px rgb(0 0 0 / 12%);
-  pointer-events: auto;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose svg { color: inherit; }
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-compose:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(5, minmax(var(--mobile-control-target), 1fr));
+  grid-template-columns: repeat(6, minmax(var(--mobile-control-target), 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: var(--mobile-control-inset);
@@ -800,7 +604,7 @@
 }
 
 /* One glass capsule material for vertical and horizontal navigation. */
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll, .mobile-navigation-dock) {
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   border: 0;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised) 57%);
@@ -819,7 +623,7 @@
   border: 0;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination) {
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
   border-radius: 999px !important;
   background: transparent !important;
   color: var(--text-primary) !important;
@@ -828,30 +632,21 @@
   transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination)[aria-current='page'] {
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
   background: var(--surface-raised) !important;
   color: var(--accent-text) !important;
   box-shadow: var(--mobile-navigation-item-shadow, 0 1px 4px rgb(0 0 0 / 14%)) !important;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination):not(:disabled):hover {
+  #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination:not(:disabled):hover {
     background: var(--surface-raised) !important;
     box-shadow: var(--mobile-navigation-item-shadow, 0 1px 4px rgb(0 0 0 / 14%)) !important;
   }
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination):not(:disabled):active {
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination:not(:disabled):active {
   background: color-mix(in srgb, var(--text-primary) 8%, var(--surface-raised)) !important;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener svg {
-  transform: rotate(0deg);
-  transition: transform 180ms ease;
-}
-
-#root .codex-shell[data-presentation='mobile'] .mobile-navigation-opener[aria-expanded='true'] svg {
-  transform: rotate(-90deg);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination [data-interface-icon-frame] {
@@ -859,7 +654,7 @@
 }
 
 /* Links and buttons share their destination's theme and selected color. */
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-nav-destination, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a) svg {
+#root .codex-shell[data-presentation='mobile'] .mobile-nav-destination svg {
   color: inherit !important;
 }
 
@@ -2446,13 +2241,13 @@
   mask-image: linear-gradient(to bottom, transparent, #000 var(--description-fade-top), #000 calc(100% - var(--description-fade-bottom)), transparent);
 }
 
-#root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation-opener, .mobile-nav-destination, .mobile-profile-options):focus-visible {
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-button, .mobile-nav-destination, .mobile-profile-options):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: -3px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, .mobile-navigation-opener svg, .mobile-navigation-scroll > button, .mobile-navigation-scroll > a, .mobile-dock-destination) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-dock-destination) {
     transition: none;
   }
 }
@@ -3197,3 +2992,92 @@
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
   padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
 }
+/* Context sheets share the app's appearance and material tokens on body portals. */
+[data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 36%); }
+[data-presentation='mobile'] .mobile-context-sheet { display: flex; flex-direction: column; max-height: calc(100% - max(16px, env(safe-area-inset-top))); width: min(100%, 480px); border: 1px solid var(--hairline); border-radius: 28px 28px 0 0; background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 -8px 40px rgb(0 0 0 / 18%); outline: none; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+[data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 10px 20px 16px; touch-action: none; }
+[data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; margin: 0 auto 18px; border-radius: 8px; background: var(--text-tertiary); opacity: .55; }
+[data-presentation='mobile'] .mobile-context-heading { display: flex; align-items: center; gap: 12px; }
+[data-presentation='mobile'] .mobile-context-heading > div { min-width: 0; flex: 1; }
+[data-presentation='mobile'] .mobile-context-heading h2 { font-size: 19px; font-weight: 650; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-presentation='mobile'] .mobile-context-heading p { margin-top: 3px; font-size: 12px; color: var(--text-secondary); }
+[data-presentation='mobile'] .mobile-context-heading > button { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: var(--surface-sunken); }
+[data-presentation='mobile'] .mobile-context-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px; }
+[data-presentation='mobile'] .mobile-context-primary { display: grid; gap: 8px; margin-bottom: 16px; }
+[data-presentation='mobile'] .mobile-context-primary button { display: flex; min-height: 86px; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 12px 6px; border-radius: 18px; background: var(--surface-sunken); font-size: 12px; font-weight: 600; }
+[data-presentation='mobile'] .mobile-context-group { border-radius: 18px; overflow: hidden; margin-bottom: 12px; background: var(--surface-sunken); }
+[data-presentation='mobile'] .mobile-context-group button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 52px; padding: 12px 16px; font-size: 15px; text-align: start; }
+[data-presentation='mobile'] .mobile-context-group button + button { border-top: 1px solid var(--hairline); }
+[data-presentation='mobile'] .mobile-context-group button[data-destructive] { color: var(--status-danger); }
+[data-presentation='mobile'] .mobile-context-sheet button:focus-visible, [data-presentation='mobile'] .mobile-context-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
+[data-presentation='mobile'] .mobile-context-sheet button:active { background: var(--surface-hover); }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-slot { position: relative; min-width: 0; }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-button { width: 100%; min-width: 44px; min-height: 44px; border-radius: 999px; background: var(--accent-primary) !important; color: var(--accent-foreground) !important; pointer-events: auto; }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-button svg { color: inherit !important; }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating { position: fixed; z-index: 45; left: var(--mobile-navigation-inset-start); bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px); width: var(--mobile-control-size); }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating button { height: var(--mobile-control-size); }
+[data-presentation='mobile'] .mobile-context-hint { position: absolute; bottom: calc(100% + 10px); left: 0; padding: 8px 12px; border-radius: 12px; width: max-content; max-width: 220px; font-size: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 2px 12px rgb(0 0 0 / 14%); pointer-events: none; }
+[data-presentation='mobile'] .mobile-context-notice { position: fixed; z-index: 110; inset-inline: 16px; top: max(16px, env(safe-area-inset-top)); border: 1px solid var(--hairline); border-radius: 16px; padding: 12px; background: var(--surface-raised); color: var(--text-primary); }
+[data-presentation='mobile'] .mobile-context-notice button { float: right; min-width: 44px; min-height: 44px; }
+
+[data-presentation='mobile'] [data-context-only] > [data-media-controls-row],
+[data-presentation='mobile'] .mobile-project-page-counter[hidden] { display: none !important; }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating:where(body:has([aria-modal='true']) *) { visibility: hidden; }
+
+/* Phone document reader: one width-fitted page; navigation remains reachable
+   during paint. Only document pages opt into this header and progress strip. */
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] {
+  position: absolute; z-index: 45; top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
+  left: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
+  right: var(--mobile-navigation-inset-end); display: flex; align-items: center;
+  height: var(--mobile-control-size); gap: 2px; border-radius: 999px;
+  background: var(--project-control-surface); color: var(--project-control-foreground);
+  box-shadow: var(--project-control-shadow); backdrop-filter: var(--project-control-blur);
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > button {
+  position: static; height: 44px; min-width: 44px; max-width: none; padding: 0 4px;
+  background: transparent; box-shadow: none; backdrop-filter: none; transform: none;
+  display: flex; align-items: center; justify-content: center; border-radius: 999px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-project-page-counter { flex: 1; font-size: 13px; gap: 6px; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > button:disabled { opacity: .3; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress { position: absolute; left: 12px; bottom: -7px; width: calc(100% - 24px); height: 2px; border: 0; appearance: none; background: var(--hairline-strong); }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-bar { background: var(--hairline-strong); }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-value { background: var(--accent-primary); }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-moz-progress-bar { background: var(--accent-primary); }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] .mobile-page-thumbnails { top: calc(100% + 16px); left: 0; bottom: auto; max-height: 60dvh; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-mobile-focused-view] { padding-top: calc(var(--focused-control-top) + var(--mobile-control-size) + 18px); }
+#root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-focused-page-scroll] { align-items: flex-start; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reading-view] .premium-focused-media { margin-block: 0; }
+
+/* First-session creation stays inside the established mobile publish surface. */
+[data-presentation='mobile'] .first-project-files { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+[data-presentation='mobile'] .first-project-welcome { text-transform: uppercase; letter-spacing: .1em; font-size: 12px; color: var(--text-secondary); margin-top: 14px; }
+[data-presentation='mobile'] .first-project-files h3 { font-size: clamp(28px, 8vw, 36px); line-height: 1.12; font-weight: 650; letter-spacing: -.03em; max-width: 290px; }
+[data-presentation='mobile'] .first-project-files > p:not(.first-project-welcome):not(.first-project-file-name) { line-height: 1.5; font-size: 14px; color: var(--text-secondary); }
+[data-presentation='mobile'] .first-project-drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: clamp(220px, 32dvh, 340px); border: 1px dashed var(--hairline-strong); border-radius: 18px; margin: 10px 0; background: var(--surface-inset); }
+[data-presentation='mobile'] .first-project-drop small { color: var(--text-secondary); }
+[data-presentation='mobile'] .first-project-skip { min-height: 44px; align-self: center; padding: 8px 20px; font-size: 14px; color: var(--text-secondary); }
+[data-presentation='mobile'] .first-project-file-name { font-size: 13px; color: var(--accent-text); overflow-wrap: anywhere; }
+[data-presentation='mobile'] .first-project-cover { min-height: 160px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; }
+[data-presentation='mobile'] .first-project-cover > img { display: block; max-height: 31dvh; max-width: 100%; object-fit: contain; border-radius: 8px; box-shadow: var(--shadow-pop); }
+[data-presentation='mobile'] .first-project-cover-caption { text-align: center; font-size: 12px !important; }
+[data-presentation='mobile'] .first-project-cover-caption button { min-height: 44px; color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+[data-presentation='mobile'] .first-project-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+[data-presentation='mobile'] .first-project-facts label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; min-width: 0; }
+[data-presentation='mobile'] .first-project-facts input { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 10px; background: var(--surface-inset); color: var(--text-primary); }
+[data-presentation='mobile'] [data-first-project] textarea { min-height: 106px; }
+[data-presentation='mobile'] .first-project-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+[data-presentation='mobile'] .first-project-empty-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 12px 4px; }
+[data-presentation='mobile'] .first-project-empty-tile { border: 1px dashed var(--hairline-strong); border-radius: 14px; aspect-ratio: 3 / 4; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 13px; }
+[data-presentation='mobile'] .first-project-empty-tile > span:first-child { font-size: 32px; line-height: 1; }
+[data-presentation='mobile'] .portfolio-live-card { padding: 18px; margin: 18px 4px; border: 1px solid var(--hairline-strong); border-radius: 18px; background: var(--surface-inset); }
+[data-presentation='mobile'] .portfolio-live-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 14px; }
+[data-presentation='mobile'] .portfolio-share-preview { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--hairline); border-radius: 12px; }
+[data-presentation='mobile'] .portfolio-share-cover { height: 84px; overflow: hidden; border-radius: 6px; }
+[data-presentation='mobile'] .portfolio-share-preview p, [data-presentation='mobile'] .portfolio-share-preview small { display: block; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; color: var(--text-secondary); margin-top: 4px; }
+[data-presentation='mobile'] .portfolio-live-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+[data-presentation='mobile'] .portfolio-live-actions button { min-height: 48px; padding-inline: 10px; font-size: 13px; }
+[data-presentation='mobile'] .first-project-home { padding: 24px; margin: 20px 16px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--surface-inset); }
+[data-presentation='mobile'] .first-project-home h2 { font-size: 24px; font-weight: 600; }
+[data-presentation='mobile'] .first-project-home p { margin: 10px 0 18px; color: var(--text-secondary); }

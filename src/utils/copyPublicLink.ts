@@ -13,7 +13,11 @@ function copyWithDocumentFallback(value: string) {
     opacity: '0',
     pointerEvents: 'none',
   });
-  document.body.appendChild(textArea);
+  // Keep the selection inside the active modal's focus boundary. Otherwise its
+  // focus trap can steal selection before execCommand copies it.
+  const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"][aria-modal="true"]');
+  const host = activeElement?.closest<HTMLElement>('[role="dialog"]') ?? dialogs[dialogs.length - 1] ?? document.body;
+  host.appendChild(textArea);
   textArea.select();
   textArea.setSelectionRange(0, value.length);
 

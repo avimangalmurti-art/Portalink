@@ -1,3 +1,6 @@
+import { readEmployerFields } from '../../features/employer/employer';
+import { readCreationDetails } from '../../features/publishing/firstProject';
+import { readThenNow, readJourneyCaption } from '../../features/journey/journey';
 import { readVideoPlayback } from '../../features/media/videoPlayback';
 import { resolveStoredMediaKind } from '../../features/publishing/assetTypes';
 import type { ProfileService } from '../interfaces';
@@ -18,6 +21,10 @@ import { normalizeProjectGridColumns } from '../../utils/projectGridDensity';
 export const PROJECT_MEDIA_BUCKET = 'project-media';
 
 type ProfileRow = {
+  portfolio_headline?: string | null; school?: string; availability?: string; contact_email_public?: boolean; contact_email?: string | null; allow_pdf_download?: boolean; start_here_project_id?: string | null;
+
+  show_journey?: boolean;
+  then_now?: unknown;
   id: string;
   account_id: string;
   name: string;
@@ -46,6 +53,10 @@ type CategoryRow = {
 };
 
 type ProjectRow = {
+  then_now_caption?: string | null;
+  made_in?: string | null;
+  field?: string | null;
+  story_answers?: unknown;
   id: string;
   profile_id: string;
   category_id: string;
@@ -222,7 +233,7 @@ async function signedUrls(paths: string[], singleBatch = false): Promise<Map<str
 
 async function hydrateProjects(
   projectRows: ProjectRow[],
-  categoryRows: Array<Pick<CategoryRow, 'id' | 'label'>>,
+  categoryRows: Array<Pick<CategoryRow, 'id' | 'label'> & Partial<Pick<CategoryRow, 'is_hidden'>>>,
   attachmentRows: AttachmentRow[],
   mode: 'full' | 'cover' = 'full',
 ): Promise<Map<string, Project>> {
@@ -240,7 +251,7 @@ async function hydrateProjects(
         ? metadata.renderedPages.filter((page) => page?.attachmentId === row.id && page?.withinDocumentIndex === pageNumber) : [] } };
     });
   }
-  const thumbnailPaths = [...thumbnails.values()].flatMap(thumbnail => thumbnail?.bucket === 'project-media' ? thumbnail.variants.map(variant => variant.path) : []);
+  const thumbnailPaths = [...thumbnails.values()].flatMap(thumbnail => thumbnail?.bucket === 'project-media' ? [...thumbnail.variants.map(variant => variant.path), ...(thumbnail.social ? [thumbnail.social.path] : [])] : []);
   const urls = await signedUrls([...thumbnailPaths, ...attachmentRows.flatMap((row) => {
     const playback = readVideoPlayback(row.metadata, row.storage_path, row.project_id);
     return [row.storage_path, ...renderedPagePaths(row.metadata), ...(playback ? [playback.storagePath] : [])];
@@ -315,6 +326,9 @@ async function hydrateProjects(
       categoryId: row.category_id,
       title: row.title,
       summary: row.summary,
+      creationDetails: readCreationDetails(row),
+      thenNowCaption: readJourneyCaption(row),
+      isPubliclyVisible: !row.is_hidden && categoryRows.some(category => category.id === row.category_id && !category.is_hidden),
       publishedAt: row.published_at,
       isPinned: row.is_pinned,
       relevance: deriveProjectRelevance({
@@ -393,6 +407,19 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
       .filter((project): project is Project => Boolean(project)));
   });
 
+  const ownerIds = !publicOnly ? profileRows.filter(row => row.account_id === viewerAccountId).map(row => row.id) : [];
+  const privatePairs = new Map<string, unknown>();
+  let privatePairsAvailable = false;
+  if (ownerIds.length) {
+    const result = await client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds);
+    const missing = result.error && ['42P01', 'PGRST205'].includes(result.error.code) && /profile_journey_pairs/.test(result.error.message);
+    if (result.error && !missing) throw new Error(result.error.message);
+    if (!result.error) {
+      privatePairsAvailable = true;
+      for (const entry of result.data ?? []) privatePairs.set(entry.profile_id, entry.pair);
+    }
+  }
+
   return profileRows.map((row) => {
     const isOwner = !publicOnly && viewerAccountId !== null && row.account_id === viewerAccountId;
     const visibleCategories = categoryRows.filter((category) => category.profile_id === row.id && (isOwner || !category.is_hidden));
@@ -400,7 +427,10 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
     const visibleProjectIds = new Set(projectRows
       .filter((project) => project.profile_id === row.id && (isOwner || (!project.is_hidden && visibleCategoryIds.has(project.category_id))))
       .map((project) => project.id));
+    const pair = readThenNow(isOwner && privatePairsAvailable ? privatePairs.get(row.id) : row.then_now);
     return {
+    ...readEmployerFields(row),
+    startHereProjectId: !row.is_private && (projectsByProfile.get(row.id) ?? []).some(project => project.id === row.start_here_project_id && project.isPubliclyVisible !== false) ? row.start_here_project_id ?? null : null,
     id: row.id,
     name: row.name,
     handle: `@${row.handle}`,
@@ -422,6 +452,8 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
     projects: (projectsByProfile.get(row.id) ?? []).filter((project) => visibleProjectIds.has(project.id)),
     isPrivate: row.is_private,
     publicAppearance: normalizePublicAppearance(row.public_appearance),
+    showJourney: row.show_journey === true,
+    thenNow: (isOwner || row.show_journey === true) && [pair?.then, pair?.now].every(id => id && visibleProjectIds.has(id)) ? pair : null,
     projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
     };
   });
@@ -454,12 +486,15 @@ async getSharedProfile(profileId) {
     const ordered = projects.some(project => project.position < 0)
       ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
     return {
+      ...readEmployerFields(row),
       id: row.id, name: row.name, handle: `@${row.handle}`, headline: row.headline, location: row.location,
       initials: deriveInitials(row.name), avatar: row.avatar_url, navHeading: row.nav_heading,
       stats: asStats(row.stats), socialLinks: asStringRecord(row.social_links), links: asLinks(row.links),
       categories: categories.map(category => ({ id: category.id, label: category.label, iconName: category.icon_name, format: category.format as CategoryFormat, blurb: category.blurb })),
       projects: ordered.flatMap(project => { const item = hydrated.get(project.id); return item ? [item] : []; }), isPrivate: false,
       publicAppearance: normalizePublicAppearance(row.public_appearance), projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
+      showJourney: row.show_journey === true,
+      thenNow: row.show_journey === true ? readThenNow(row.then_now) : null,
     };
   },
 

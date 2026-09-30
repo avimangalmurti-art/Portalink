@@ -1,3 +1,4 @@
+import { handleFromPath } from '../sharing/shareModel';
 export type RumRouteKind = 'share' | 'profile' | 'project' | 'home';
 export type RumMetric = 'boot_ms' | 'data_ms' | 'cover_ms' | 'pdf_ms';
 export type RumViewport = '<400' | '400-639' | '640-1023' | '1024-1439' | '1440+';
@@ -13,6 +14,7 @@ export type RumPayload = {
 export function rumRouteKind(pathname: string): RumRouteKind | null {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (/^\/(?:share|p)\/[^/]+\/c\/[^/]+\/[^/]+$/.test(path)) return 'project';
+  if (handleFromPath(path)) return 'share';
   if (/^\/share\/[^/]+(?:\/c\/[^/]+)?$/.test(path)) return 'share';
   if (/^\/p\/[^/]+(?:\/c\/[^/]+)?$/.test(path)) return 'profile';
   return path === '/' || /^\/feed\/[^/]+$/.test(path) ? 'home' : null;

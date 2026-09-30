@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -412,6 +414,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
+    '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
   }, { window: { ...h.window, sessionStorage: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } } });
@@ -462,6 +465,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../contexts/AuthContext':{useAuth:()=>auth},
     './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
+    '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
   }, {window:{...h.window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});

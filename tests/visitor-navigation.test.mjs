@@ -16,14 +16,37 @@ function load(path, require, globals = {}) {
   return exports;
 }
 const routes = load('app/routes.ts', () => ({ navigationDestinations: [] }));
-const registration = load('features/auth/registration.ts', () => ({}));
+const shareModel = load('features/sharing/shareModel.ts', () => ({}));
+const registration = load('features/auth/registration.ts', () => shareModel);
 const intents = load('features/auth/interactionIntent.ts', () => registration);
 const panels = load('utils/projectPanelLayout.ts');
+const employer = load('features/employer/employer.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
 const profile = { id: profileId, name: 'Creator', links: [], socialLinks: {}, categories: [{ id: 'portal', label: 'Photography' }],
   projects: [{ id: 'work', categoryId: 'portal', title: 'A project', attachments: [] }, { id: 'next', categoryId: 'portal', title: 'Next project', isPinned: true }] };
 const appearance = { theme: 'light', mode: 'system', accentColor: '#336699', systemGray: 'gray', highContrast: false, reduceTranslucency: false,
   chooseMode() {}, chooseAppearance() {} };
+
+test('failed handle lookup cannot trap Back navigation to a UUID project', async () => {
+  const h = hooks();
+  let location = { pathname: '/creator', search: '' };
+  const profiles = { resolvePublicHandle: async () => { throw new Error('offline'); } };
+  const navigate = () => {};
+  const { useHandleRoute } = load('visitor/useHandleRoute.ts', name => {
+    if (name === 'react') return h.react;
+    if (name === 'react-router-dom') return { useLocation: () => location, useNavigate: () => navigate };
+    if (name === '../contexts/ServicesContext') return { useServices: () => ({ profiles }) };
+    if (name === '../features/sharing/shareModel') return shareModel;
+    throw new Error(name);
+  }, { window: {} });
+  h.render(() => useHandleRoute({ kind: 'unknown' }));
+  await Promise.resolve(); await Promise.resolve();
+  assert.match(h.render(() => useHandleRoute({ kind: 'unknown' })).error, /try again/);
+  location = { pathname: `/share/${profileId}/c/portal/work`, search: '' };
+  const project = { kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work' };
+  const restored = h.render(() => useHandleRoute(project));
+  assert.equal(restored.error, ''); assert.equal(restored.pending, false); assert.equal(restored.route, project);
+});
 const named = name => ({ [name]: name });
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
@@ -89,6 +112,8 @@ function appHarness() {
   const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name === '../features/sharing/shareModel') return shareModel;
+    if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:false,error:'',retry(){}})};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
     if (name === 'react-router-dom') return { useLocation: () => state.location, useNavigate: () => (path, options) => navigations.push([path, options]) };
@@ -105,7 +130,7 @@ function appHarness() {
     if (name === '../data/navButtonTokens') return { resolveNavButtonTokens: () => ({}) };
     if (name === '../components/ui/DeferredDialog') return { DeferredDialog: 'DeferredDialog', DeferredSurface: 'DeferredSurface', DeferredSurfaceBoundary: 'DeferredSurfaceBoundary' };
     const component = name.split('/').at(-1);
-    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedSignInBar', 'VisitorProfileGrid'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
+    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
   }, { window, document, requestAnimationFrame: fn => { fn(); return 1; } });
   return { state, assigned, replaced, navigations, queryCalls, requests, window,
@@ -163,7 +188,7 @@ test('an authenticated reader without a profile returns to their intended recipi
 
 test('shared Settings retains its portfolio query, appearance handlers and Back destination', () => {
   const h = appHarness();
-  one(h.render(), 'SharedProfileSidebar').props.onSettingsOpen();
+  one(h.render(), 'SharedProfileSidebar', 'SharedContextActions').props.onSettingsOpen();
   assert.deepEqual(json(h.navigations.at(-1)), ['/settings', { state: { settingsReturn: `/share/${profileId}` } }]);
   h.state.route = { kind: 'controlCenter' }; h.state.location = { pathname: '/settings', search: '', hash: '', state: { settingsReturn: `/share/${profileId}` } };
   const settings = one(h.render(), 'lazy:../components/ControlCenterPage');
@@ -270,6 +295,8 @@ test('profile options omit self-follow, recover failed state, and preserve the e
     if (name === '../contexts/AuthContext') return { useAuth: () => ({ isAuthenticated: true, viewerProfileId: state.own ? profileId : 'other' }) };
     if (name === '../features/follows/useFollows') return { useFollows: id => { followed.push(id); return { resolveError: state.resolveError, retryResolve: () => { state.resolveError = null; } }; } };
     if (name === '../features/auth/interactionIntent') return intents;
+    if (name === '../features/journey/useJourneySelection') return {useJourneySelection:()=>({view:'portfolio',select(){}})};
+    if (name === '../features/employer/employer') return employer;
     if (name === '../features/profile/useProjectGridDensity') return { useProjectGridDensity: () => ({ columns: 3 }) };
     if (name === '../features/profile/profileLinks') return { resolveProfileLinks: (links, socialLinks) => { assert.equal(links, profile.links); assert.equal(socialLinks, profile.socialLinks); return links; } };
     if (name === '../utils/projectPresentation') return { getProjectAspectRatio: () => 1 };

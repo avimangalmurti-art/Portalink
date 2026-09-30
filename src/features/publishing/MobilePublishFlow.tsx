@@ -1,3 +1,5 @@
+import { FirstProjectFiles } from './FirstProjectFiles';
+import { EMPTY_CREATION } from './firstProject';
 import React, { useEffect, useRef } from 'react';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from 'lucide-react';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
@@ -11,14 +13,15 @@ export type MobilePublishStep = 'files' | 'details';
 type Flow = ReturnType<typeof usePublishProject>;
 
 /** Presentation steps share the existing draft, validation and upload lifecycle. */
-export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, categoryLabel, notices }: {
+export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, categoryLabel, notices, firstProject }: {
+  firstProject?: { name: string; categories: string[]; onSkip: () => void };
   flow: Flow;
   editingStep: MobilePublishStep;
   onEditingStepChange: (step: MobilePublishStep) => void;
   categoryLabel: string;
   notices: React.ReactNode;
 }) {
-  const stage = flow.step === 'preview' ? 'review' : editingStep;
+  const stage = flow.hasCommittedProject || flow.step === 'preview' ? 'review' : editingStep;
   const index = ['files', 'details', 'review'].indexOf(stage);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -34,7 +37,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
     if (flow.invalidField && stage === 'details') document.getElementById(`publish-${flow.invalidField}`)?.focus();
   }, [flow.invalidField, flow.fieldErrors, stage]);
   const edit = (target: MobilePublishStep) => {
-    if (busy) return;
+    if (busy || flow.hasCommittedProject) return;
     // Retry upload keeps the old file snapshot. Once editing resumes, Publish
     // must use the currently reviewed files instead; keep any stored data tracked.
     flow.upload.dismissFailure();
@@ -46,7 +49,10 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
   const advance = async () => {
     if (busy || advancing.current) return;
     if (stage === 'files') {
-      if (flow.media.isComplete) onEditingStepChange('details');
+      if (flow.media.isComplete) {
+        if (firstProject && !flow.metadata.title.trim()) { document.getElementById('publish-title')?.focus(); return; }
+        onEditingStepChange('details');
+      }
       return;
     }
     advancing.current = true;
@@ -58,51 +64,62 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
       else if (flow.canPublish) await flow.publish.run();
     } finally { advancing.current = false; }
   };
+  const introduction = Boolean(firstProject && stage === 'files' && !flow.media.items.length);
+  const answers = flow.metadata.creationDetails?.answers ?? EMPTY_CREATION.answers;
   const hint = stage === 'files' ? (preparing ? 'Preparing your files…' : !flow.media.isComplete ? 'Choose at least one file to continue.' : null)
     : stage === 'review' && !busy && !flow.upload.failure && flow.publish.status !== 'error' ? (flow.upload.phase === 'uploaded' ? 'Your files are already uploaded. Publish to finish.' : 'Your files upload when you publish.') : null;
-  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
-    <ol className="mobile-publish-progress" aria-label="Upload steps">
+  return <form className="project-form-content mobile-publish-flow" data-mobile-publish="" data-first-project={Boolean(firstProject) || undefined} aria-describedby={hint ? 'mobile-publish-hint' : undefined} onSubmit={event => { event.preventDefault(); void advance(); }} noValidate>
+    {!introduction && <ol className="mobile-publish-progress" aria-label="Upload steps">
       {['Files', 'Details', 'Review'].map((label, stepIndex) => <li key={label} aria-current={stepIndex === index ? 'step' : undefined} data-complete={stepIndex < index || undefined}>
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
       </li>)}
-    </ol>
+    </ol>}
     <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
-      <header className="mobile-publish-step-heading">
-        <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{titles[stage]}</h3>
-        <p>{stage === 'files' ? 'Add your work, arrange the files and choose a cover.' : stage === 'details' ? 'Give your project a title and describe the work.' : 'Check your cover and details before sharing your work.'}</p>
-      </header>
+      {!firstProject || stage !== 'files' ? <header className="mobile-publish-step-heading">
+        <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{firstProject && stage === 'details' ? 'Tell it in your own words' : titles[stage]}</h3>
+        <p>{stage === 'files' ? 'Add your work, arrange the files and choose a cover.' : stage === 'details' ? firstProject ? 'A few words are enough. Every answer is optional.' : 'Give your project a title and describe the work.' : 'Check your cover and details before sharing your work.'}</p>
+      </header> : null}
       {notices}
       {flow.saveDraftError && <p role="alert" className="mobile-publish-error">{flow.saveDraftError} Your details and files are still here. Try again.</p>}
-      {stage === 'files' ? <div className="project-form-fields">
+      {flow.localDraftError && <p role="alert" className="mobile-publish-error">{flow.localDraftError} Your work is still open here.</p>}
+      {stage === 'files' && firstProject ? <FirstProjectFiles flow={flow} busy={busy} name={firstProject.name} categories={firstProject.categories} onSkip={firstProject.onSkip} /> : stage === 'files' ? <div className="project-form-fields">
         <MediaPicker compact expanded media={flow.media} upload={flow.upload} disabled={busy} />
         <CoverFilmstrip compact media={flow.media} disabled={busy || flow.upload.phase === 'uploaded'} />
       </div> : stage === 'details' ? <section className="project-form-details" aria-labelledby="mobile-publish-step-title">
+        {firstProject ? <>
+          {([['what', 'What is it?', 'The idea, brief or thing you made.'], ['did', 'What did you do?', 'Your role and what you contributed.'], ['learned', 'What did you learn?', 'Something you’ll take into the next project.']] as const).map(([key, label, placeholder]) =>
+            <ProfileField key={key} id={`publish-${key}`} label={label} optional multiline maxLength={20000} value={answers[key]} placeholder={placeholder} disabled={busy}
+              onChange={value => flow.setCreationDetails({ ...(flow.metadata.creationDetails ?? EMPTY_CREATION), answers: { ...answers, [key]: value } })} />)}
+          <p className="first-project-note">Your answers become the description. You can edit it any time — or connect your AI to draft from them.</p>
+        </> : <>
         <ProfileField id="publish-title" label="Title" required value={flow.metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={flow.fieldErrors.title} disabled={busy} onChange={value => flow.setField('title', value)} />
         <ProfileField id="publish-summary" label="Description" required multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
         <ProfileField id="publish-location" label="Location" optional value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />
+        </>}
       </section> : <div className="mobile-publish-review">
-        <CoverFilmstrip compact readOnly media={flow.media} disabled />
+        <CoverFilmstrip naturalShape={Boolean(firstProject)} compact readOnly media={flow.media} disabled />
         <div className="mobile-publish-review-details">
           <h4>{flow.metadata.title.trim()}</h4>
           <p className="whitespace-pre-wrap">{flow.metadata.summary.trim()}</p>
+          {firstProject && <p>{[flow.metadata.creationDetails?.madeIn, flow.metadata.creationDetails?.field].filter(Boolean).join(' · ')}</p>}
           <dl><div><dt>Portal</dt><dd>{categoryLabel}</dd></div>{flow.location.trim() && <div><dt>Location</dt><dd>{flow.location.trim()}</dd></div>}</dl>
-          <button type="button" className="mobile-publish-edit" disabled={busy} onClick={() => edit('details')}>Edit details</button>
+          <button type="button" className="mobile-publish-edit" disabled={busy || flow.hasCommittedProject} onClick={() => edit('details')}>Edit details</button>
         </div>
         {/* This preserves the real progress, cancellation and cleanup controls. */}
         <MediaPicker compact media={flow.media} upload={flow.upload} disabled />
-        <button type="button" className="mobile-publish-edit" disabled={busy || flow.upload.phase === 'uploaded'} onClick={() => edit('files')}>Edit files and cover</button>
+        <button type="button" className="mobile-publish-edit" disabled={busy || flow.hasCommittedProject || flow.upload.phase === 'uploaded'} onClick={() => edit('files')}>Edit files and cover</button>
       </div>}
     </div>
-    <footer className="mobile-publish-actions">
+    {!introduction && <footer className="mobile-publish-actions">
       {hint && <p id="mobile-publish-hint" role="status">{hint}</p>}
       <div>
-        {stage !== 'files' && <Button type="button" variant="secondary" size="lg" disabled={busy} onClick={() => edit(stage === 'review' ? 'details' : 'files')}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
+        {stage !== 'files' && <Button type="button" variant="secondary" size="lg" disabled={busy || flow.hasCommittedProject} onClick={() => edit(stage === 'review' ? 'details' : 'files')}><ArrowLeftIcon size={18} aria-hidden="true" />Back</Button>}
         <Button type="submit" variant="primary" size="lg" fullWidth isLoading={flow.state === 'publishing' || flow.isSavingDraft}
           disabled={busy || (stage === 'files' && !flow.media.isComplete) || (stage === 'review' && !flow.canPublish)}>
-          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? 'Publish project' : stage === 'details' ? 'Review project' : 'Continue'}
+          {flow.state === 'publishing' ? 'Publishing…' : flow.isSavingDraft ? 'Saving details…' : stage === 'review' ? flow.hasCommittedProject ? 'Finish saving details' : 'Publish project' : stage === 'details' ? 'Review project' : 'Continue'}
           {!busy && stage !== 'review' && <ArrowRightIcon size={20} aria-hidden="true" />}
         </Button>
       </div>
-    </footer>
+    </footer>}
   </form>;
 }

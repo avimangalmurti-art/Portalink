@@ -1,3 +1,7 @@
+import { readPortfolioCard } from './src/server/sharedPreview'
+import { resolveShareRequest, injectShareResolution } from './src/server/shareAddress'
+import { readFile } from 'node:fs/promises'
+import { isPublicSharePath } from './src/features/sharing/shareModel'
 import { defineConfig, loadEnv } from 'vite'
 import { fileURLToPath } from 'node:url'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -16,9 +20,26 @@ export default defineConfig(({ command, mode }) => {
     name: 'portalink-visitor-entry',
     configureServer(server) {
       // Development mirrors the worker's public HTML selection without a redirect.
-      server.middlewares.use((request, _response, next) => {
-        if (request.method === 'GET' && request.headers.accept?.includes('text/html') && /^\/share\//.test(request.url ?? '')) request.url = '/share.html'
-        next()
+      server.middlewares.use(async (request, response, next) => {
+        const origin = `http://${request.headers.host || '127.0.0.1:5178'}`;
+        const url = new URL(request.url ?? '/', origin);
+        const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
+        if (request.method === 'GET' && url.pathname.startsWith('/api/portfolio-card/')) {
+          try {
+            const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), origin, config);
+            response.statusCode = card ? 200 : 404; response.setHeader('Content-Type','application/json'); response.setHeader('Cache-Control','no-store'); response.end(JSON.stringify(card));
+          } catch { response.statusCode=503; response.end('{}'); }
+          return;
+        }
+        if (request.method === 'GET' && request.headers.accept?.includes('text/html') && isPublicSharePath(url.pathname)) {
+          try {
+            const address = await resolveShareRequest(new Request(url), config);
+            if (address.redirect) { response.statusCode=301; response.setHeader('Location',address.redirect.headers.get('location') ?? '/'); response.end(); return; }
+            const html = await server.transformIndexHtml('/share.html', await readFile('share.html','utf8'));
+            response.setHeader('Content-Type','text/html'); response.setHeader('Cache-Control','no-store'); response.end(injectShareResolution(html,address.resolution)); return;
+          } catch { request.url='/share.html'; }
+        }
+        next();
       })
     },
     generateBundle(_options, bundle) {

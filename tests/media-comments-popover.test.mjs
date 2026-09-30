@@ -214,7 +214,7 @@ function interactionBarHarness(mode) {
       if (!(index in states)) states[index] = initial;
       return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
     },
-    useRef: initial => ({ current: initial }), useId: () => 'comments-id',
+    useContext: () => null, useRef: initial => ({ current: initial }), useId: () => 'comments-id',
     useEffect() {}, useLayoutEffect() {}, useMemo: fn => fn(), useCallback: fn => fn,
   };
   const popover = () => null;
@@ -223,6 +223,12 @@ function interactionBarHarness(mode) {
     react,
     'lucide-react': Object.fromEntries(['BookmarkIcon', 'HeartIcon', 'Loader2Icon', 'MessageCircleIcon', 'Repeat2Icon', 'SendIcon', 'Trash2Icon', 'XIcon'].map(name => [name, icon])),
     '../../components/ui/InterfaceIcon': { InterfaceIcon: icon },
+    '../../components/publishing/ProjectFormDialog': { ProjectFormDialog: 'project-form' },
+    '../../components/ui/Button': { Button: 'button' },
+    '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true }) },
+    './MobilePageContext': { MobilePageContext: {} },
+    '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
+    '../../presentation/mobile/contextActions': { contextActions: () => ({ primary: [], groups: [] }) },
     '../media/publicMediaUrl': { publicMediaUrl: source => source },
     './useMediaInteractions': { useMediaInteractions: () => activity },
     './mediaToolbarLayout': {

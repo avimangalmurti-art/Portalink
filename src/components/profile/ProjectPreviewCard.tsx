@@ -1,3 +1,5 @@
+import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
+import type { ContextTarget } from '../../presentation/mobile/contextActions';
 import React, { lazy, Suspense, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MoreHorizontalIcon } from 'lucide-react';
@@ -14,6 +16,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
 type Props = {
+  contextHandlers?: ContextTarget['handlers'];
   project: Project;
   creator: Pick<FeedCreator, 'id' | 'name' | 'avatar'>;
   onOpen: () => void;
@@ -41,10 +44,11 @@ type Props = {
 };
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
-export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
+export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const isMobile = usePresentation() === 'mobile';
+  const press = useMobileProjectContext(project, creator.id, contextHandlers, disabled);
   // On phones artwork opens the work on its first tap. Details have a separate
   // control on cards large enough to contain a comfortable touch target.
   const preview = useContentPreview(disabled, 80, isMobile);
@@ -60,7 +64,11 @@ export function ProjectPreviewCard({ project, creator, onOpen, onOpenComments, o
   const artwork = <span className="project-preview-image absolute inset-0 block">
     {cover ?? <ProjectCover source={project.cover} thumbnail={project.coverThumbnail} previewSource={getProjectCoverPreview(project)} alt={project.coverAlt} kind={project.coverKind} frame={project.coverFrame} pageNumber={project.coverPageNumber} aspectRatio={getProjectAspectRatio(project)} sizes={sizes} priority={priority} allowPdfFallback={allowPdfFallback} allowVideoFallback={allowVideoFallback} fallbackAttachments={sharedCoverFallback ? project.attachments : undefined} />}
   </span>;
-  return <article ref={preview.ref} {...preview.events} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
+  return <article ref={preview.ref} {...preview.events} {...press}
+    onPointerDownCapture={event => { preview.events.onPointerDownCapture(event); press.onPointerDownCapture?.(event); }}
+    onPointerMoveCapture={event => { preview.events.onPointerMoveCapture(event); press.onPointerMoveCapture?.(event); }}
+    onPointerUpCapture={() => { preview.events.onPointerUpCapture(); press.onPointerUpCapture?.(); }}
+    onPointerCancel={() => { preview.events.onPointerCancel(); press.onPointerCancel?.(); }} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
       <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />

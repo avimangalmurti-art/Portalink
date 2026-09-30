@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -16,8 +18,8 @@ function load(path, imports = {}, globals = {}) {
   return exports;
 }
 
-const validation = load('src/features/profile/validation.ts');
-const registration = load('src/features/auth/registration.ts', { '../profile/validation': validation });
+const validation = load('src/features/profile/validation.ts', { '../sharing/shareModel': shareModel });
+const registration = load('src/features/auth/registration.ts', { '../profile/validation': validation, '../sharing/shareModel': shareModel });
 const authTypes = load('src/types/auth.ts');
 const copy = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 const registrationId = 'ae6041e8-2e19-4ce7-a2ab-986985c81234';

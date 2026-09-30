@@ -1,3 +1,5 @@
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArchiveIcon, BellIcon, BookmarkIcon, CheckIcon, ChevronLeftIcon, CopyIcon, EllipsisIcon, FilePenLineIcon, LayoutGridIcon, ListIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
@@ -24,6 +26,7 @@ type Props = {
   onBack: () => void;
   onOpenProject: (id: string, location?: ProjectLocation) => void;
   savedRoute?: boolean;
+  onNewProject?: () => void;
 };
 
 const categoryDetails: Record<StudioCategory, { label: string; icon: InterfaceIconSource }> = {
@@ -45,7 +48,7 @@ function RowPreview({ row }: { row: StudioItem }) {
 }
 
 /** A private, mobile presentation of existing collections and service actions. */
-export function StudioPage({ onBack, onOpenProject, savedRoute = false }: Props) {
+export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false }: Props) {
   const auth = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -56,6 +59,7 @@ export function StudioPage({ onBack, onOpenProject, savedRoute = false }: Props)
   const data = useStudioData(category, tab);
   const refreshStudio = data.refresh;
   const management = useProjectManagement(auth.viewerProfileId);
+  const searchInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -228,6 +232,13 @@ export function StudioPage({ onBack, onOpenProject, savedRoute = false }: Props)
   }
 
   const visibleSections = data.sections.map(section => ({ ...section, rows: filterStudioRows(section.rows, query) }));
+  useMobileScreenActions(contextActions('studio', { signedIn: auth.isAuthenticated }, { handlers: {
+    select: canSelect ? () => setSelecting(true) : undefined,
+    search: !bulkPending ? () => searchInput.current?.focus() : undefined,
+    newProject: !bulkPending ? onNewProject : undefined,
+    list: !bulkPending ? () => chooseView('list') : undefined,
+    categories: !bulkPending ? () => chooseView('categories') : undefined,
+  } }));
   const viewActions: StudioRowAction[] = [
     { id: 'categories', label: view === 'categories' ? 'Categories · selected' : 'Categories', icon: view === 'categories' ? CheckIcon : LayoutGridIcon, onAction: () => chooseView('categories') },
     { id: 'list', label: view === 'list' ? 'List View · selected' : 'List View', icon: view === 'list' ? CheckIcon : ListIcon, onAction: () => chooseView('list') },
@@ -246,7 +257,7 @@ export function StudioPage({ onBack, onOpenProject, savedRoute = false }: Props)
       </div>
       <h1 ref={heading} tabIndex={-1} className="studio-title">Studio</h1>
       <p className="studio-status">{statusLine}</p>
-      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder={category === 'all' ? 'Search Studio' : `Search ${categoryDetails[category].label.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
+      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input ref={searchInput} type="search" aria-label="Search Studio" placeholder={category === 'all' ? 'Search Studio' : `Search ${categoryDetails[category].label.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {view === 'categories' && <div ref={pillList} className="studio-categories scrollbar-hidden" role="group" aria-label="Studio categories">
         {STUDIO_CATEGORIES.map(kind => <button key={kind} type="button" className="studio-category" data-keep-color="" aria-label={categoryDetails[kind].label} aria-pressed={category === kind} disabled={bulkPending} onClick={() => chooseCategory(kind)}><InterfaceIcon icon={categoryDetails[kind].icon} />{category === kind && <span>{categoryDetails[kind].label}</span>}</button>)}
       </div>}

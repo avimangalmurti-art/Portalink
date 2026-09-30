@@ -123,7 +123,7 @@ function FileThumbnails({ item, media, render }: { item: PreparedMedia; media: M
 }
 
 /** One selected page and crop shared by profile cards and discovery. */
-export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean }) {
+export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean }) {
   const [editing, setEditing] = useState(false);
   const collapsed = readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
@@ -131,7 +131,8 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
   const cover = media.items.find((item) => item.isCover);
   const page = cover?.metadata?.coverPageNumber ?? 1;
   const key = `${cover?.id}:${page}`;
-  const frame = { ...normalizeProjectCoverFrame(cover?.metadata?.coverFrame), aspectRatio: cover?.metadata?.coverFrame?.aspectRatio ?? 4 / 3 };
+  const naturalRatio = naturalShape && cover?.metadata?.widthPixels && cover.metadata.heightPixels ? cover.metadata.widthPixels / cover.metadata.heightPixels : 4 / 3;
+  const frame = { ...normalizeProjectCoverFrame(cover?.metadata?.coverFrame), aspectRatio: cover?.metadata?.coverFrame?.aspectRatio ?? naturalRatio };
   const size = loaded?.key === key ? loaded.size : null;
   const change = (next: ProjectCoverFrame) => {
     if (!cover || disabled || readOnly) return;

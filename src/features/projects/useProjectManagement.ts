@@ -1,3 +1,4 @@
+import { EMPTY_CREATION } from '../publishing/firstProject';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -31,8 +32,8 @@ import type { DeleteProjectResult, DraftMetadata, PersistedAttachment, ProjectAt
  */
 export type EditorPhase = 'idle' | 'loading' | 'editing' | 'saving' | 'saved' | 'load-failed';
 export type DeletePhase = 'idle' | 'confirming' | 'deleting' | 'deleted' | 'failed';
-export type MetadataFieldKey = keyof DraftMetadata;
-export type ProjectEditorMode = 'details' | 'description' | 'cover' | 'files';
+export type MetadataFieldKey = 'title' | 'summary';
+export type ProjectEditorMode = 'details' | 'description' | 'cover' | 'files' | 'journey';
 export type ProjectMutationFailure = {
   code: ProjectMutationErrorCode;
   message: string;
@@ -100,13 +101,17 @@ export function useProjectManagement(profileId: Id | null) {
   // Only the newest load may settle, so opening one project while another is
   // still loading cannot fill the form with the wrong record.
   const latestLoadRef = useRef(0);
+  const loadedProjectRef = useRef<Project | null>(null);
   useEffect(() => () => {
     isMountedRef.current = false;
   }, []);
   const hydrate = useCallback((project: Project) => {
+    loadedProjectRef.current = project;
     setPreviewAspectRatio(getProjectAspectRatio(project));
     const nextMetadata = {
       title: project.title,
+      thenNowCaption: project.thenNowCaption ?? '',
+      creationDetails: project.creationDetails,
       summary: project.summary
     };
     setMetadata(nextMetadata);
@@ -203,6 +208,14 @@ export function useProjectManagement(profileId: Id | null) {
     }));
     setSaveResult(null);
   }, []);
+  const setJourneyField = useCallback((key: 'madeIn' | 'learned' | 'caption', value: string) => {
+    setMetadata(current => {
+      if (key === 'caption') return { ...current, thenNowCaption: value };
+      const details = current.creationDetails ?? EMPTY_CREATION;
+      return { ...current, creationDetails: { ...details, ...(key === 'madeIn' ? { madeIn: value } : { answers: { ...details.answers, learned: value } }) } };
+    });
+    setSaveResult(null); setSaveFailure(null); setEditorPhase('editing');
+  }, []);
   const setAttachmentTitle = useCallback((attachmentId: Id, displayName: string) => {
     setAttachmentEdits((current) => current.map((edit) => edit.id === attachmentId ? {
       ...edit,
@@ -268,7 +281,7 @@ export function useProjectManagement(profileId: Id | null) {
       const current = attachmentEdits[index];
       return !current || current.id !== original.id || current.displayName !== original.displayName || current.order !== original.order || current.isCover !== original.isCover || JSON.stringify(normalizeProjectCoverFrame(current.coverFrame)) !== JSON.stringify(normalizeProjectCoverFrame(original.coverFrame));
     });
-    return metadata.title.trim() !== originalMetadata.title.trim() || metadata.summary.trim() !== originalMetadata.summary.trim() || attachmentsChanged || addedMedia.items.length > 0;
+    return JSON.stringify(metadata.creationDetails) !== JSON.stringify(originalMetadata.creationDetails) || (metadata.thenNowCaption ?? '') !== (originalMetadata.thenNowCaption ?? '') || metadata.title.trim() !== originalMetadata.title.trim() || metadata.summary.trim() !== originalMetadata.summary.trim() || attachmentsChanged || addedMedia.items.length > 0;
   }, [addedMedia.items.length, attachmentEdits, metadata, originalAttachments, originalMetadata]);
   const validate = useCallback((): MetadataFieldKey | null => {
     const next: Partial<Record<MetadataFieldKey, string>> = {
@@ -306,6 +319,22 @@ export function useProjectManagement(profileId: Id | null) {
     if (!editingProjectId || !profileId || isSavingRef.current || upload.isBusy) {
       if (coverUpdate) throw new Error('The project is not ready to save this preview. Try again shortly.');
       return null;
+    }
+    if (editorMode === 'journey') {
+      if (!loadedProjectRef.current) return 'failed';
+      const loadedProject = loadedProjectRef.current;
+      isSavingRef.current = true; setEditorPhase('saving'); setSaveFailure(null);
+      try {
+        await projectService.updateProjectJourneyDetails(editingProjectId, metadata.creationDetails ?? EMPTY_CREATION, metadata.thenNowCaption ?? '');
+        // The write already succeeded; a refresh outage must not relabel it a
+        // failed save. Re-read surfaces through their normal invalidation path.
+        const project = { ...loadedProject, creationDetails: metadata.creationDetails ?? EMPTY_CREATION, thenNowCaption: metadata.thenNowCaption?.trim() ?? '' };
+        if (isMountedRef.current) { hydrate(project); invalidateProfiles(); setEditorPhase('saved'); setSaveResult({ project, message: 'Journey details saved.', mediaPersisted: !project.sessionOnly, sessionOnly: Boolean(project.sessionOnly), removedAttachmentIds: [] }); }
+        return null;
+      } catch (error) {
+        if (isMountedRef.current) { invalidateProfiles(); setEditorPhase('editing'); setSaveFailure({ ...failureFrom(error, 'Journey details could not be saved.'), retry: null }); }
+        return 'failed';
+      } finally { isSavingRef.current = false; }
     }
     const invalid = validate();
     if (invalid) {
@@ -357,6 +386,7 @@ export function useProjectManagement(profileId: Id | null) {
           profileId,
           metadata: {
             title: metadata.title.trim(),
+            creationDetails: metadata.creationDetails,
             summary: metadata.summary.trim()
           },
           attachments: editsForSave,
@@ -407,7 +437,7 @@ export function useProjectManagement(profileId: Id | null) {
       }
     };
     return (await attempt()) ? null : 'failed';
-  }, [addedMedia, attachmentEdits, editingProjectId, hydrate, invalidateProfiles, isTransportAvailable, metadata, profileId, projectService, upload, validate]);
+  }, [addedMedia, attachmentEdits, editingProjectId, editorMode, hydrate, invalidateProfiles, isTransportAvailable, metadata, profileId, projectService, upload, validate]);
 
   /* ── Deleting ──────────────────────────────────────────────────────────── */
   const [deletingProjectId, setDeletingProjectId] = useState<Id | null>(null);
@@ -500,6 +530,7 @@ export function useProjectManagement(profileId: Id | null) {
       close: closeEditor,
       retryLoad,
       setField: setMetadataField,
+      setJourneyField,
       setAttachmentTitle,
       setCover,
       setCoverFrame,
@@ -528,6 +559,6 @@ export function useProjectManagement(profileId: Id | null) {
       cancel: cancelDelete,
       confirm: confirmDelete
     }
-  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setMetadataField, upload]);
+  }), [addedMedia, attachmentEdits, cancelDelete, closeEditor, confirmDelete, deleteFailure, deletePhase, deleteResult, deletingProjectId, editingProjectId, editorMode, editorPhase, fieldErrors, isDirty, loadError, metadata, moveAttachment, openEditor, openFiles, originalAttachments, previewAspectRatio, removeAttachment, requestDelete, restoreAttachments, retryLoad, save, saveFailure, saveResult, setAttachmentTitle, setCover, setCoverFrame, setJourneyField, setMetadataField, upload]);
 }
 export type ProjectManagement = ReturnType<typeof useProjectManagement>;

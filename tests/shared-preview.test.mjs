@@ -36,10 +36,10 @@ function setup() {
     categories: [{ id: id(2), profile_id: id(1), label: 'Architecture', blurb: 'Selected projects', is_hidden: false, profile: creator() }],
     projects: [project()], status: 200, failure: null, signStatus: 200, signedURL: null,
     extraHead: '', extraBody: '', now: 1_800_000_000_000, key: config.publishableKey,
-    overrideRows: null, waitForAbort: false,
+    overrideRows: null, waitForAbort: false, employerColumnsMissing: false,
   };
   class TestDate extends Date { static now() { return state.now; } }
-  const globals = { URL, URLSearchParams, Request, Response, Headers, AbortSignal, Date: TestDate,
+  const globals = { TextEncoder, TextDecoder, crypto, URL, URLSearchParams, Request, Response, Headers, AbortSignal, Date: TestDate,
     fetch: async (address, options = {}) => {
       const url = new URL(address), headers = new Headers(options.headers);
       calls.push({ url, headers, options });
@@ -61,6 +61,8 @@ function setup() {
       }
       assert.ok(url.pathname.startsWith('/rest/v1/'));
       if (state.status !== 200) return Response.json({ message: 'private-upstream-detail' }, { status: state.status });
+      if(state.employerColumnsMissing && url.searchParams.get('select')?.includes('portfolio_headline')) return Response.json({code:'42703',message:'column profiles.portfolio_headline does not exist'},{status:400});
+      if (options.method === 'HEAD') return new Response(null, {headers:{'content-range':`0-0/${state.projects.length}`}});
       if (state.overrideRows) return Response.json(state.overrideRows(url));
       const table = url.pathname.split('/').at(-1);
       let rows = clone(table === 'profiles' ? state.profiles : table === 'portfolio_categories' ? state.categories : state.projects);
@@ -69,6 +71,7 @@ function setup() {
         const constraint = query.get(key);
         if (constraint?.startsWith('eq.')) rows = rows.filter(row => row[key] === constraint.slice(3));
       }
+      if (query.get('is_pinned') === 'eq.true') rows = rows.filter(row => row.is_pinned === true);
       if (query.get('position') === 'lt.0') rows = rows.filter(row => row.position < 0);
       if (table === 'projects') {
         const arranged = query.get('order')?.startsWith('position.asc');
@@ -86,8 +89,13 @@ function setup() {
       { ...globals, exports, require: name => { assert.ok(name in imports, name); return imports[name]; } });
     return exports;
   }
-  const preview = compile('../src/server/sharedPreview.ts');
-  const worker = compile('../src/sites-worker.ts', { './server/sharedPreview': preview,
+  const model = compile('../src/features/sharing/shareModel.ts');
+  const media = compile('../src/features/media/publicMediaUrl.ts');
+  const reads = compile('../src/services/supabase/coverThumbnailReads.ts', {'../../features/media/publicMediaUrl':media});
+  const preview = compile('../src/server/sharedPreview.ts', {'../features/sharing/shareModel':model,'../services/supabase/coverThumbnailReads':reads});
+  const reachCore=compile('../src/features/reads/readSignal.ts');
+  const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
+  const worker = compile('../src/sites-worker.ts', { './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
     './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
   }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');
@@ -150,8 +158,8 @@ test('profile card uses its first project cover, creator title, public-only quer
     authorization: 'Bearer owner-session', cookie: 'session=private', 'if-none-match': 'template-etag',
   });
   const html = await response.text();
-  assert.match(html, /<title>Test creator — Portfolio \| Portalink<\/title>/);
-  assert.equal(value(html, 'og:description'), 'Design and architecture');
+  assert.match(html, /<title>Test creator — Portfolio<\/title>/);
+  assert.equal(value(html, 'og:description'), 'Design and architecture · 1 project');
   assert.equal(value(html, 'og:type'), 'profile');
   assert.equal(value(html, 'og:url'), 'https://portalink.example' + profilePath);
   assert.doesNotMatch(html, /private-value|owner-session/);
@@ -183,7 +191,7 @@ test('browser shared navigations receive the visitor shell without waiting for m
 });
 
 test('normal app routes retain the app shell while shared HEAD requests stay bodyless and skip metadata', async () => {
-  for (const path of ['/', '/discover', '/share', '/shared/example', '/p/' + id(1)]) {
+  for (const path of ['/', '/discover', '/shared/example', '/p/' + id(1)]) {
     const h = setup(); const response = await h.request(path, { 'user-agent': 'Mozilla/5.0' });
     assert.equal(response.status, 200); assert.equal(new URL(h.assetRequests[0].url).pathname, '/');
     assert.equal(h.calls.length, 0); assert.equal(response.headers.get('cache-control'), 'no-cache');
@@ -229,25 +237,45 @@ test('profile cover follows explicit negative wall ordering, otherwise newest pu
     const html = await (await h.request(profilePath)).text();
     const expected = arranged ? 'older.png' : 'cover.png';
     assert.ok(value(html, 'og:image').includes(expected));
-    const lookups = h.reads().filter(call => call.url.pathname.endsWith('/projects'));
-    assert.equal(lookups[0].url.searchParams.get('position'), 'lt.0');
-    assert.match(lookups[0].url.searchParams.get('order'), /^position\.asc,published_at\.desc/);
-    assert.equal(lookups.length, arranged ? 1 : 2);
+    const lookups = h.reads().filter(call => call.url.pathname.endsWith('/projects') && call.options.method !== 'HEAD');
+    assert.equal(lookups[0].url.searchParams.get('is_pinned'), 'eq.true');
+    assert.equal(lookups[1].url.searchParams.get('position'), 'lt.0');
+    assert.match(lookups[1].url.searchParams.get('order'), /^position\.asc,published_at\.desc/);
+    assert.equal(lookups.length, arranged ? 2 : 3);
     assert.ok(lookups.every(call => call.url.searchParams.get('limit') === '1'));
   }
 });
 
-test('profile without a headline uses the first project summary and descriptions stop at 160 Unicode characters', async () => {
+test('profile without a headline uses truthful count; short headline stops at 80 characters', async () => {
+  const h=setup(); h.state.profiles[0].headline=''; h.state.projects[0].profile.headline='';
+  assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
+  h.state.projects[0].profile.headline='a'.repeat(200);
+  assert.equal(value(await (await h.direct()).text(),'og:description'),'a'.repeat(80)+' · 1 project');
+});
+
+test('an older pinned project takes precedence over wall order and recent publication', async () => {
   const h = setup();
-  h.state.profiles[0].headline = '';
-  h.state.projects[0].profile.headline = '';
-  h.state.projects[0].summary = 'A' + '🏡'.repeat(180);
-  const html = await (await h.request(profilePath)).text();
-  const description = value(html, 'og:description');
-  assert.equal([...description].length, 160);
-  assert.equal(description, 'A' + '🏡'.repeat(159));
-  assert.equal(value(html, 'twitter:description'), description);
-  assert.equal(value(html, 'description'), description);
+  h.state.projects = [project(), project({ id: id(8), is_pinned: true, position: 5,
+    published_at: '2026-08-01T12:00:00Z',
+    attachments: [attachment({ project_id: id(8), storage_path: id(1) + '/' + id(5) + '/pinned.png' })] })];
+  assert.ok(value(await (await h.request(profilePath)).text(), 'og:image').includes('pinned.png'));
+});
+
+test('explicit short headline and school match the profile, including deliberate headline clearing',async()=>{
+ const h=setup();Object.assign(h.state.projects[0].profile,{portfolio_headline:'Product designer',school:'SFSU',contact_email:'never-in-metadata@example.invalid'});
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'Product designer · SFSU · 1 project');
+ h.state.projects[0].profile.portfolio_headline='';
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'SFSU · 1 project');
+});
+test('missing optional employer columns retry the legacy public projection without session headers',async()=>{
+ const h=setup();h.state.employerColumnsMissing=true;
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'Design and architecture · 1 project');
+ assert.ok(h.calls.some(call=>call.url.searchParams.get('select')?.includes('portfolio_headline')));
+ assert.ok(h.calls.some(call=>call.url.searchParams.get('select')==='id,name,headline,is_private'));
+});
+test('project metadata selects the owner relation explicitly when profiles also pins a project',async()=>{
+ const h=setup();await h.request(projectPath);
+ assert.ok(h.calls.some(call=>call.url.searchParams.get('select')?.includes('profile:profiles!projects_profile_id_fkey!inner(')));
 });
 
 test('cover selection honors explicit cover then image preference without borrowing another project', async () => {
@@ -563,4 +591,13 @@ test('non-HTML and unsuccessful asset responses pass through unchanged', async (
     assert.equal(result, response);
   }
   assert.equal(h.calls.length, 0);
+});
+
+test('sheet card and handle crawler metadata use the same public social asset and text', async () => {
+ const h=setup(),hash='a'.repeat(64),prefix=`${id(1)}/${id(3)}/${hash}`;
+ h.state.projects[0].cover_thumbnail={version:1,bucket:'project-covers',sourceAttachmentId:'cover-attachment',sourceKey:hash,frameBaked:true,variants:[200,400,800].map(size=>({size,width:size,height:size,path:`${prefix}/${size}.webp`})),social:{path:`${prefix}/social.webp`,width:1200,height:630}};
+ const card=await h.preview.readPortfolioCard(id(1),'https://portalink.example',config);
+ const response=await h.preview.withSharedPreview(new Response(shell,{headers:{'content-type':'text/html'}}),new Request('https://portalink.example/creator',{headers:{accept:'text/html'}}),config,id(1));
+ const html=await response.text();
+ assert.equal(value(html,'og:title'),card.title);assert.equal(value(html,'og:description'),card.description);assert.equal(value(html,'og:image'),card.image);assert.equal(value(html,'og:image:width'),'1200');assert.equal(value(html,'og:image:height'),'630');assert.equal(h.signs().length,0);
 });

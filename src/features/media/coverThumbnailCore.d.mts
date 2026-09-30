@@ -12,3 +12,5 @@ export type CoverThumbnailRuntime = {
 export const COVER_THUMBNAIL_SIZES: readonly [200, 400, 800];
 export function coverThumbnailGeometry(width: number, height: number, input?: Partial<CoverThumbnailInput>): { ratio: number; contain: boolean; source: { x: number; y: number; width: number; height: number } };
 export function renderCoverVariants(input: CoverThumbnailInput, runtime: CoverThumbnailRuntime): Promise<CoverThumbnailVariant[]>;
+
+export function renderCoverAssets(input: CoverThumbnailInput, runtime: CoverThumbnailRuntime): Promise<{ variants: CoverThumbnailVariant[]; social: { width: 1200; height: 630; blob: Blob } }>;

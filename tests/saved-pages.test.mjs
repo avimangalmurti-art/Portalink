@@ -13,8 +13,12 @@ function load(path, imports = {}, globals = {}) {
   const source = read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://test.supabase.co'").replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'test-key'");
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
-    if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
+  vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+    if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
+      if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
+      if (id === './server/projectReach') return load('../src/server/projectReach.ts', {'../features/reads/readSignal':load('../src/features/reads/readSignal.ts')}, globals);
+      if (id === '../../presentation/mobile/MobileProfileContext') return { MobileProfileContext: ({children})=>children };
+      if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
     if (id === './server/rum' || id === './server/rumOwner') return {};
     if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);

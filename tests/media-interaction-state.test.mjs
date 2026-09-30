@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { loadModule } from './helpers/reach-fixture.mjs';
 import { deferred, hookHarness } from './helpers/hook-harness.mjs';
 
 const target = { projectId: 'project', attachmentId: 'attachment', pageIndex: 0, label: 'Page one' };
@@ -16,12 +17,13 @@ function setup({ enabled = true } = {}) {
   const auth = { isAuthenticated: true, user: { id: 'alice' } };
   const hook = hookHarness(new URL('../src/features/media-interactions/useMediaInteractions.ts', import.meta.url),
     'useMediaInteractions', {}, auth, [target, enabled], undefined, {
+      '../reads/pageHeadings': loadModule('src/features/reads/pageHeadings.ts'),
       '../auth/registration': { readSharedReturnPath: () => undefined },
       './mediaInteractionBatch': { readMediaInteraction(value, account) {
         const response = deferred(); reads.push({ value, account, ...response }); return response.promise;
       } },
-      './mediaInteractionRequest': { mediaInteractionRequest(path, init, required) {
-        const response = deferred(); writes.push({ path, init, required, ...response }); return response.promise;
+      './mediaInteractionRequest': { mediaInteractionRequest(path, init, required, account) {
+        const response = deferred(); writes.push({ path, init, required, account, ...response }); return response.promise;
       } },
     });
   return { hook, reads, writes, auth };
@@ -133,4 +135,17 @@ test('deferred page activity starts on visibility and an account change invalida
     assert.equal(s.hook.value.record.engaged.save, false);
     assert.equal(s.hook.value.isLoading, false);
   } finally { s.hook.dispose(); }
+});
+
+
+test('named save stays with the initiating account and a late result cannot overwrite a switched account', async () => {
+  const s=setup();try {
+    await s.hook.flush();s.reads[0].resolve(record());await s.hook.flush();
+    const save=s.hook.value.saveWithCreator();await s.hook.flush();
+    assert.equal(s.writes[0].account,'alice');assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,true);
+    s.auth.user={id:'bob'};s.hook.rerender();await s.hook.flush();
+    s.reads.at(-1).resolve(record({engaged:{like:false,save:false,repost:false}}));await s.hook.flush();
+    s.writes[0].resolve(record({engaged:{like:false,save:true,repost:false}}));await save;await s.hook.flush();
+    assert.equal(s.hook.value.record.engaged.save,false);
+  } finally {s.hook.dispose();}
 });

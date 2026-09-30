@@ -129,6 +129,22 @@ test('a partial upload failure resumes existing deterministic objects before one
   assert.ok(h.events.some(event => event.status === 'reused-object' && event.size === 200));
 });
 
+test('social capability upgrades older manifests once and writes the landscape asset', async () => {
+  const h = mockPipeline({ bucket: 'project-covers' });
+  await h.run({ apply: true });
+  assert.equal(h.uploads.length, 3);
+  h.adapter.supportsSocial = async () => true;
+  assert.equal((await h.run({ apply: true })).applied, 1);
+  assert.equal(h.uploads.length, 7);
+  const manifest = h.manifests.at(-1);
+  assert.equal(manifest.variants.length, 3);
+  assert.equal(manifest.social.width, 1200);
+  assert.equal(manifest.social.height, 630);
+  assert.match(manifest.social.path, /\/social\.webp$/);
+  assert.equal((await h.run({ apply: true })).skipped, 1);
+  assert.equal(h.uploads.length, 7);
+});
+
 test('changed visibility or revision stops writes and a pending schema stops before rendering', async () => {
   const stale = mockPipeline();
   stale.adapter.currentProject = async () => ({ ...stale.records[0], revision: '44444444-4444-4444-8444-444444444444' });

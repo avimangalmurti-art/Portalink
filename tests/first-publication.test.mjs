@@ -29,7 +29,7 @@ function harness() {
   const calls = [];
   let pendingIntent = null;
   const context = vm.createContext({
-    React, result: null, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
+    React, result: null, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return { readFirstProjectDraft: async () => null }; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
       requestAuthenticatedDestination(intent) { pendingIntent = intent; calls.push(['auth', plain(intent)]); },
       consumePendingIntent() { const intent = pendingIntent; pendingIntent = null; return intent; },
     },
@@ -51,7 +51,7 @@ function harness() {
   });
   vm.runInContext(transpile(`${functionSource('setIsGlobalCreatePending')}\n${functionSource('requestGlobalPublish')}\n${functionSource('fulfilIntent')}`), context);
   const progressEffect = evaluate(effectSource('if (!isGlobalCreatePending'), context);
-  const progress = () => { context.isGlobalCreatePending = evaluate(initializer('isGlobalCreatePending'), context); progressEffect(); };
+  const progress = async () => { context.isGlobalCreatePending = evaluate(initializer('isGlobalCreatePending'), context); progressEffect(); await new Promise(resolve=>setImmediate(resolve)); };
   const resetAccount = evaluate(effectSource('publishingAccountRef.current === accountId'), context);
   const resumeRegistration = evaluate(effectSource('resumedRegistration.current === id'), context);
   const signInTransition = evaluate(effectSource('const justSignedIn'), context);
@@ -62,11 +62,11 @@ function harness() {
   return { context, calls, progress, signInTransition, resetAccount, resumeRegistration, completeOnboarding, dismissOnboarding, homeAction, browseAction,
     canShowPublisher: () => evaluate(initializer('canShowPublisher'), context),
     authenticate(profileId = 'owner') { Object.assign(context.auth, { phase: 'authenticated', isAuthenticated: true, viewerProfileId: profileId, user: { id: 'account' } }); },
-    ownerProfile(categories = [{ id: 'work' }]) { context.isOwnerMode = true; context.viewedProfile = { id: 'owner', categories }; context.onboardingStatus = 'ready'; },
+    ownerProfile(categories = [{ id: 'work' }]) { context.isOwnerMode = true; context.viewedProfile = { id: 'owner', categories, projects: [] }; context.onboardingStatus = 'ready'; },
   };
 }
 
-test('guest Home action resumes first publication after sign-in and completed profile onboarding', () => {
+test('guest Home action resumes first publication after sign-in and completed profile onboarding', async () => {
   const h = harness();
   assert.equal(h.homeAction().label, 'Create your portfolio');
   h.homeAction().onClick();
@@ -80,24 +80,24 @@ test('guest Home action resumes first publication after sign-in and completed pr
   assert.equal(h.context.isOnboardingOpen, false);
   assert.equal(h.context.deferredIntentRef.current, null);
   assert.equal(h.context.isPublishOpen, false, 'The owner portfolio must be resolved before opening its publisher.');
-  h.ownerProfile(); h.progress();
+  h.ownerProfile(); await h.progress();
   assert.equal(h.context.publishTargetCategoryId, 'work'); assert.equal(h.context.isPublishOpen, true);
   assert.equal(h.context.isGlobalCreatePending, false);
   assert.deepEqual(h.calls.at(-1), ['profile', 'owner']);
 });
 
-test('cancelled onboarding abandons publication and browse does not require an account', () => {
+test('cancelled onboarding abandons publication and browse does not require an account', async () => {
   const h = harness(); h.authenticate(null);
   h.homeAction().onClick();
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
-  h.dismissOnboarding(); h.authenticate(); h.ownerProfile(); h.completeOnboarding('owner'); h.progress();
+  h.dismissOnboarding(); h.authenticate(); h.ownerProfile(); h.completeOnboarding('owner'); await h.progress();
   assert.equal(h.context.isPublishOpen, false); assert.equal(h.context.deferredIntentRef.current, null);
   const guest = harness();
   assert.equal(guest.browseAction().label, 'Explore the world'); guest.browseAction().onClick();
   assert.deepEqual(guest.calls, [['world']]); assert.equal(guest.context.isOnboardingOpen, false);
 });
 
-test('registration resumption retains the guest create intent through the first account reset', () => {
+test('registration resumption retains the guest create intent through the first account reset', async () => {
   const h = harness(); h.homeAction().onClick();
   h.context.auth.phase = 'authenticating'; h.signInTransition();
   h.authenticate(null); h.context.auth.user.registration = { id: 'registration' };
@@ -105,31 +105,31 @@ test('registration resumption retains the guest create intent through the first 
   h.resumeRegistration(); h.resetAccount(); h.signInTransition();
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
   assert.equal(h.context.isOnboardingOpen, true);
-  h.authenticate(); h.completeOnboarding('owner'); h.ownerProfile(); h.progress();
+  h.authenticate(); h.completeOnboarding('owner'); h.ownerProfile(); await h.progress();
   assert.equal(h.canShowPublisher(), true); assert.equal(h.context.publishTargetCategoryId, 'work');
 });
 
-test('owner publication waits for a real category, defaults to the first, and preserves an active category', () => {
+test('owner publication waits for a real category, defaults to the first, and preserves an active category', async () => {
   const h = harness(); h.authenticate(); h.ownerProfile([]);
-  assert.equal(h.homeAction().label, 'Publish a project'); h.homeAction().onClick(); h.progress();
+  assert.equal(h.homeAction().label, 'Publish a project'); h.homeAction().onClick(); await h.progress();
   assert.equal(h.context.isGlobalCreatePending, true); assert.equal(h.context.isPublishOpen, false);
-  h.context.viewedProfile.categories = [{ id: 'first' }, { id: 'second' }]; h.progress();
+  h.context.viewedProfile.categories = [{ id: 'first' }, { id: 'second' }]; await h.progress();
   assert.equal(h.context.publishTargetCategoryId, 'first'); assert.equal(h.context.isGlobalCreatePending, false);
   const active = harness(); active.authenticate(); active.ownerProfile([{ id: 'first' }, { id: 'chosen' }]);
-  active.context.activeCategory = { id: 'chosen' }; active.homeAction().onClick(); active.progress();
+  active.context.activeCategory = { id: 'chosen' }; active.homeAction().onClick(); await active.progress();
   assert.equal(active.context.publishTargetCategoryId, 'chosen');
 });
 
-test('a global create action from another profile returns to the account owner before selecting a category', () => {
+test('a global create action from another profile returns to the account owner before selecting a category', async () => {
   const h = harness(); h.authenticate(); h.context.onboardingStatus = 'ready';
   h.context.viewedProfile = { id: 'another-creator', categories: [{ id: 'not-owned' }] };
-  h.homeAction().onClick(); h.progress();
+  h.homeAction().onClick(); await h.progress();
   assert.deepEqual(h.calls, [['profile', 'owner']]); assert.equal(h.context.isPublishOpen, false);
-  h.ownerProfile([{ id: 'owned-category' }]); h.progress();
+  h.ownerProfile([{ id: 'owned-category' }]); await h.progress();
   assert.equal(h.context.publishTargetCategoryId, 'owned-category');
 });
 
-test('App only supplies the profile publication action to its authenticated non-shared owner context', () => {
+test('App only supplies the profile publication action to its authenticated non-shared owner context', async () => {
   const ownerExpression = find(node => ts.isVariableDeclaration(node) && node.name.getText(app) === 'isOwnerMode').initializer.getText(app);
   const h = harness();
   for (const [isSharedRoute, viewerProfileId, viewedProfileId, expected] of [
@@ -142,15 +142,15 @@ test('App only supplies the profile publication action to its authenticated non-
   }
 });
 
-test('pending and open publishing never cross accounts, even before the reset effect runs', () => {
+test('pending and open publishing never cross accounts, even before the reset effect runs', async () => {
   const h = harness(); h.authenticate(); h.resetAccount(); h.ownerProfile([]); h.homeAction().onClick();
   assert.equal(h.context.globalCreateAccountId, 'account');
   h.context.auth.user = { id: 'next-account' }; h.context.auth.viewerProfileId = 'next-owner';
   h.context.viewedProfile = { id: 'next-owner', categories: [{ id: 'next-work' }] };
-  h.progress(); assert.equal(h.context.isPublishOpen, false);
+  await h.progress(); assert.equal(h.context.isPublishOpen, false);
   h.resetAccount(); assert.equal(h.context.globalCreateAccountId, null);
 
-  const open = harness(); open.authenticate(); open.resetAccount(); open.ownerProfile(); open.homeAction().onClick(); open.progress();
+  const open = harness(); open.authenticate(); open.resetAccount(); open.ownerProfile(); open.homeAction().onClick(); await open.progress();
   assert.equal(open.canShowPublisher(), true);
   open.context.auth.user = { id: 'next-account' };
   assert.equal(open.canShowPublisher(), false, 'A layout effect is not required to hide another account’s draft.');
@@ -160,8 +160,8 @@ test('pending and open publishing never cross accounts, even before the reset ef
   assert.equal(open.context.publishAccountId, null); assert.equal(open.context.publishConfirmation, null);
 });
 
-test('publisher visibility requires a category still owned by the current portfolio', () => {
-  const h = harness(); h.authenticate(); h.ownerProfile(); h.homeAction().onClick(); h.progress();
+test('publisher visibility requires a category still owned by the current portfolio', async () => {
+  const h = harness(); h.authenticate(); h.ownerProfile(); h.homeAction().onClick(); await h.progress();
   assert.equal(h.canShowPublisher(), true);
   h.context.viewedProfile.categories = [{ id: 'different' }]; assert.equal(h.canShowPublisher(), false);
   h.context.viewedProfile.categories = [{ id: 'work' }]; h.context.isOwnerMode = false; assert.equal(h.canShowPublisher(), false);
@@ -180,6 +180,7 @@ function homeHarness(presentation, feed, props) {
   const stateViews = compile('src/components/ui/StateViews.tsx', name => name === 'react' ? React : placeholder);
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
     if (name === 'react') return react;
+    if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null }) };
@@ -192,7 +193,7 @@ function homeHarness(presentation, feed, props) {
   return { tree: HomeFeed({ isSidebarCollapsed: false, onOpenProject() {}, onOpenCreator() {}, ...props }), stateViews };
 }
 
-test('Home renders working publish and browse controls only in its empty state on WEB and MOBILE', () => {
+test('Home renders working publish and browse controls only in its empty state on WEB and MOBILE', async () => {
   for (const presentation of ['web', 'mobile']) {
     const h = harness();
     const props = { emptyAction: h.homeAction(), emptySecondaryAction: h.browseAction() };
@@ -207,4 +208,14 @@ test('Home renders working publish and browse controls only in its empty state o
     const grid = nodes(populated.tree).find(node => node.type === (presentation === 'mobile' ? 'JustifiedImageWall' : 'BentoFeedGrid'));
     assert.equal(grid.props.items.length, 1); assert.equal(grid.props.items[0].key, 'existing');
   }
+});
+
+
+test('zero-project mobile Home is one first-project action even before its empty feed resolves',()=>{
+  let clicks=0;
+  const mobile=homeHarness('mobile',{status:'loading',featured:null,projects:[],isEmpty:true},{firstProjectAction:()=>clicks++});
+  assert.equal(nodes(mobile.tree).some(node=>node.type===mobile.stateViews.EmptyState),false);
+  const action=nodes(mobile.tree).find(node=>node.props?.onClick);
+  action.props.onClick();assert.equal(clicks,1);
+  assert.equal(nodes(mobile.tree).filter(node=>node.props?.onClick).length,1);
 });

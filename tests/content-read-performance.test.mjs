@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -217,7 +218,7 @@ test('feed PDF covers sign only the selected rendered page while full viewers ke
   const signed = [], multipart = [], exports = {};
   const program = ['renderedPagePaths', 'asMetadata', 'hydrateProjects'].map(fn).join('\n');
   vm.runInNewContext(ts.transpileModule(`${program}\nexports.hydrate=hydrateProjects;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
-    exports,
+    exports, ...sourceModule('src/features/publishing/firstProject.ts'), ...sourceModule('src/features/journey/journey.ts'),
     signedUrls: async paths => { signed.push(paths); return new Map(paths.map(path => [path, `url/${path}`])); },
     readVideoPlayback: () => null, readMultipartSpec: value => value,
     readCoverThumbnail: () => undefined,

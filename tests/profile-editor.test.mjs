@@ -22,7 +22,8 @@ function load(path, dependencies = {}) {
   return exports;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
-const validation = load('../src/features/profile/validation.ts');
+const shareModel = load('../src/features/sharing/shareModel.ts');
+const validation = load('../src/features/profile/validation.ts',{'../sharing/shareModel':shareModel});
 const profileLinks = load('../src/features/profile/profileLinks.ts', {
   '../../components/profile/categoryIcons': { profileLinkIconNames: ['globe', 'instagram'] },
 });
@@ -79,6 +80,7 @@ function harness(overrides = {}, options = {}) {
   const asyncAction = load('../src/hooks/useAsyncAction.ts', { react });
   const { useProfileEditor } = load('../src/features/profile/useProfileEditor.ts', {
     react,
+    '../employer/employer': load('../src/features/employer/employer.ts'),
     '../../contexts/ServicesContext': { useServices: () => ({ profiles }) },
     '../../contexts/ProfileDataContext': { useProfileData: () => ({ invalidateProfiles }) },
     '../../hooks/useAsyncAction': asyncAction,
@@ -406,4 +408,36 @@ test('unknown action metadata cannot bypass external-link URL validation', async
   assert.deepEqual(h.writes[0].input.links.filter(item => !item.action), [
     { label: 'Untrusted link', href: 'https://example.com/safe', iconName: 'globe' },
   ]);
+});
+
+test('Journey visibility is staged, defaults private, and unchanged profile saves omit the pending column', async () => {
+  const h = harness(); await h.flush();
+  assert.equal(h.current.fields.showJourney, false);
+  h.current.setShowJourney(true); await h.flush();
+  assert.equal(h.writes.length, 0); assert.equal(h.current.isDirty, true);
+  await h.submit(); assert.equal(h.writes[0].input.showJourney, true);
+  const other = harness(); await other.flush(); other.current.setVisibility(true); await other.flush(); await other.submit();
+  assert.equal(Object.hasOwn(other.writes[0].input, 'showJourney'), false);
+});
+
+test('short headline seeds from Bio, saves independently, and never rewrites the long Bio', async () => {
+  const h = harness({headline:'Designer\nA much longer story.'}); await h.flush();
+  assert.equal(h.current.fields.portfolioHeadline,'Designer');
+  h.current.setField('portfolioHeadline','Product designer'); await h.flush(); await h.submit();
+  assert.equal(h.writes[0].input.portfolioHeadline,'Product designer');
+  assert.equal(Object.hasOwn(h.writes[0].input,'headline'),false);
+  assert.equal(h.record.headline,'Designer\nA much longer story.');
+});
+test('public contact requires an explicitly supplied address and opt-out clears it', async () => {
+  const h=harness();await h.flush();h.current.setEmployerFlag('contactEmailPublic',true);await h.flush();await h.submit();
+  assert.equal(h.writes.length,0);assert.ok(h.current.fieldErrors.contactEmail);
+  h.current.setField('contactEmail','portfolio@example.invalid');await h.flush();await h.submit();
+  assert.equal(h.writes[0].input.contactEmailPublic,true);assert.equal(h.writes[0].input.contactEmail,'portfolio@example.invalid');
+  const off=harness({contactEmailPublic:true,contactEmail:'portfolio@example.invalid'});await off.flush();
+  off.current.setEmployerFlag('contactEmailPublic',false);off.current.setEmployerFlag('allowPdfDownload',false);await off.flush();await off.submit();
+  assert.equal(off.writes[0].input.contactEmail,'');assert.equal(off.writes[0].input.allowPdfDownload,false);
+});
+test('headline length is validated before any profile write', async () => {
+  const h=harness();await h.flush();h.current.setField('portfolioHeadline','a'.repeat(81));await h.flush();await h.submit();
+  assert.equal(h.writes.length,0);assert.ok(h.current.fieldErrors.portfolioHeadline);
 });

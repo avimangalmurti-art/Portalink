@@ -530,6 +530,15 @@ export const mockProjectService: ProjectService = {
     await resolve(undefined);
     throw new Error('Uploads are not connected yet.');
   },
+  async getDraft(draftId) { return drafts.get(draftId) ?? null; },
+  async updateProjectJourneyDetails(projectId, details, caption) {
+    const project = await this.getProject(projectId);
+    project.creationDetails = details; project.thenNowCaption = caption;
+  },
+  async updateProjectCreationDetails(projectId, details) {
+    const project = await this.getProject(projectId);
+    project.creationDetails = details;
+  },
   async createDraft(profileId, categoryId) {
     const profile = getProfileById(profileId);
     if (!profile.categories.some((category) => category.id === categoryId)) {
@@ -577,7 +586,7 @@ export const mockProjectService: ProjectService = {
     }
     // Defence in depth: the public fields are required at the boundary too, so
     // no path can create a project with metadata invented to fill a gap.
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new PublishServiceError('invalid_metadata', 'A title and a description are both required.');
     }
     const preparedMedia = input.media ?? [];
@@ -615,6 +624,7 @@ export const mockProjectService: ProjectService = {
       categoryId: input.categoryId,
       title: input.metadata.title.trim(),
       summary: input.metadata.summary.trim(),
+      creationDetails: input.metadata.creationDetails,
       cover,
       relevance: withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata), input.location),
       coverAlt: isPersisted ? input.metadata.title.trim() : `${input.metadata.title.trim()} — locally prepared preview`,
@@ -657,7 +667,7 @@ export const mockProjectService: ProjectService = {
     }
     // Defence in depth: the public fields are required here too, so no path can
     // strip a published project down to invented or empty metadata.
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new ProjectMutationError('invalid_metadata', 'A title and a description are both required.');
     }
     if (input.metadata.title.trim().toLowerCase() === PROTOTYPE_PUBLISH_FAILURE_TITLE) {
@@ -700,6 +710,7 @@ export const mockProjectService: ProjectService = {
       ...current,
       title: input.metadata.title.trim(),
       summary: input.metadata.summary.trim(),
+      creationDetails: input.metadata.creationDetails,
       cover: coverAsset?.sourceUrl ?? current.cover,
       coverAlt: input.metadata.title.trim(),
       coverKind: coverAsset ? coverAsset.kind === 'video' ? 'video' : coverAsset.kind === 'document' ? 'document' : undefined : current.coverKind,

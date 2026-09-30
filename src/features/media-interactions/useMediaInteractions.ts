@@ -1,3 +1,4 @@
+import { readPageHeading } from '../reads/pageHeadings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { mediaInteractionRequest as apiRequest } from './mediaInteractionRequest';
@@ -76,6 +77,9 @@ function takePendingAction(key: string): PendingMediaAction | null {
 export function useMediaInteractions(target: MediaInteractionTarget, enabled = true) {
   const auth = useAuth();
   const key = targetKey(target);
+  const actionScope = `${key}:${auth.user?.id ?? ''}`;
+  const activeScopeRef = useRef(actionScope);
+  activeScopeRef.current = actionScope;
   const [record, setRecord] = useState<MediaInteractionRecord>(EMPTY_RECORD);
   const [isLoading, setIsLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -104,6 +108,8 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
   useEffect(() => {
     setRecord(EMPTY_RECORD);
     setHasLoaded(false);
+    setPendingKind(null);
+    setIsPostingComment(false);
     if (enabled) void load();
     return () => { loadTokenRef.current += 1; };
   }, [auth.user?.id, key, load, enabled]);
@@ -123,7 +129,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     });
   }, [auth, key, target]);
 
-  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false) => {
+  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false, shareWithCreator = false) => {
     if (!auth.isAuthenticated && !replayed) {
       gateGuest(kind);
       return;
@@ -142,18 +148,21 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     try {
       const next = await apiRequest<MediaInteractionRecord>('/api/media-interactions/engagement', {
         method: 'POST',
-        body: JSON.stringify({ ...target, kind, engaged })
-      }, true);
+        body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged && shareWithCreator ? {shareWithCreator:true} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
+      }, true, auth.user?.id ?? null);
+      if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);
       setHasLoaded(true);
+      return true;
     } catch (error) {
+      if (activeScopeRef.current !== actionScope) return false;
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That action could not be completed.');
+      return false;
     } finally {
-      setPendingKind(null);
-      setIsLoading(false);
+      if (activeScopeRef.current === actionScope) { setPendingKind(null); setIsLoading(false); }
     }
-  }, [auth.isAuthenticated, gateGuest, hasLoaded, record, target]);
+  }, [auth.isAuthenticated, auth.user?.id, actionScope, gateGuest, hasLoaded, record, target]);
 
   useEffect(() => {
     if (!auth.isAuthenticated) return;
@@ -183,19 +192,20 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     try {
       const next = await apiRequest<MediaInteractionRecord>('/api/media-interactions/comments', {
         method: 'POST',
-        body: JSON.stringify({ ...target, body: trimmed })
-      }, true);
+        body: JSON.stringify({ ...target, body: trimmed, pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
+      }, true, auth.user?.id ?? null);
+      if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);
       setHasLoaded(true);
       return true;
     } catch (error) {
+      if (activeScopeRef.current !== actionScope) return false;
       setFailure(error instanceof Error ? error.message : 'Your comment could not be posted.');
       return false;
     } finally {
-      setIsPostingComment(false);
-      setIsLoading(false);
+      if (activeScopeRef.current === actionScope) {setIsPostingComment(false); setIsLoading(false); }
     }
-  }, [auth.isAuthenticated, gateGuest, target]);
+  }, [auth.isAuthenticated, auth.user?.id, actionScope, gateGuest, target]);
 
   const deleteComment = useCallback(async (commentId: string) => {
     loadTokenRef.current += 1;
@@ -206,16 +216,18 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
       const next = await apiRequest<MediaInteractionRecord>(`/api/media-interactions/comments/${encodeURIComponent(commentId)}`, {
         method: 'DELETE',
         body: JSON.stringify(target)
-      }, true);
+      }, true, auth.user?.id ?? null);
+      if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);
       setHasLoaded(true);
     } catch (error) {
+      if (activeScopeRef.current !== actionScope) return false;
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That comment could not be removed.');
     } finally {
-      setIsLoading(false);
+      if (activeScopeRef.current === actionScope) setIsLoading(false);
     }
-  }, [record, target]);
+  }, [record, target, auth.user?.id, actionScope]);
 
   const share = useCallback(async () => {
     const url = mediaDeepLink(target).toString();
@@ -245,6 +257,8 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     failure,
     retry: load,
     dismissFailure: () => setFailure(null),
+    saveWithCreator: () => setEngagement('save',true,false,true),
+    savePrivately: () => setEngagement('save',true),
     toggle: (kind: MediaEngagementKind) => void setEngagement(kind, !record.engaged[kind]),
     postComment,
     deleteComment,

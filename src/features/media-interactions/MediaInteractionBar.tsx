@@ -1,3 +1,10 @@
+import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
+import { Button } from '../../components/ui/Button';
+import { useContext } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { MobilePageContext } from './MobilePageContext';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -26,8 +33,10 @@ export function MediaInteractionBar({
   target,
   placement = 'page',
   pageCount,
-  isOwner = false
+  isOwner = false,
+  contextOnly = false
 }: {
+  contextOnly?: boolean;
   target: MediaInteractionTarget;
   placement?: 'page' | 'focused';
   /** The focused attachment's total, separate from its engagement counts. */
@@ -45,7 +54,7 @@ export function MediaInteractionBar({
     label: `Page ${target.pageIndex + 1}`
   }), [target.attachmentId, target.pageIndex, target.projectId]);
   const { ref: engagementRef, pageWidth, hostWidth, isVisible } = useMediaPageSize();
-  const activity = useMediaInteractions(presentedTarget, isVisible);
+  const activity = useMediaInteractions(presentedTarget, contextOnly || isVisible);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -77,10 +86,20 @@ export function MediaInteractionBar({
     composer.style.height = `${Math.min(112, Math.max(44, composer.scrollHeight))}px`;
   }, [commentBody, commentsOpen, isMobile]);
 
+  const auth = useAuth(), currentPage = useContext(MobilePageContext);
+  const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
+  useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
+    savePage: !activity.isResolvingEngagement && activity.pendingKind !== 'save' ? () => savePage() : undefined,
+    comment: () => setCommentsOpen(true),
+  }, labels: { savePage: activity.record.engaged.save ? 'Unsave this page' : 'Save this page' } }) : null, 15);
+  const [saveChoice,setSaveChoice]=useState(false);
+  useEffect(()=>setSaveChoice(false),[presentedTarget.attachmentId,presentedTarget.pageIndex,auth.user?.id]);
+  const savePage=()=>{if(auth.isAuthenticated && !activity.record.engaged.save)setSaveChoice(true);else activity.toggle('save');};
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
     ref={engagementRef}
     data-media-interaction=""
+    data-context-only={contextOnly || undefined}
     data-open={commentsOpen ? 'true' : undefined}
     className={`media-item-engagement absolute z-40 flex gap-2 ${placement === 'focused' ? 'media-item-engagement--focused bottom-2 left-2 flex-col-reverse items-start' : 'bottom-1 left-1 flex-col-reverse items-start'}`}
     style={{ maxWidth: `calc(100% - ${placement === 'focused' ? 16 : 8}px)` }}
@@ -90,7 +109,8 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    <div data-media-controls-row="" className="flex max-w-full items-center gap-2">
+    {saveChoice && <ProjectFormDialog title="Save this page" titleId="page-save-choice" onClose={()=>setSaveChoice(false)}><div className="p-5 grid gap-3"><p>Keep this bookmark private, or let the creator know you saved this page. Sharing shows your profile name to this creator.</p><Button disabled={activity.pendingKind==='save'} onClick={async()=>{if(await activity.savePrivately())setSaveChoice(false);}}>Save privately</Button><Button disabled={activity.pendingKind==='save'} variant="secondary" onClick={async()=>{if(await activity.saveWithCreator())setSaveChoice(false);}}>Save and let the creator know</Button>{activity.failure&&<p role="alert">{activity.failure}</p>}</div></ProjectFormDialog>}
+    <div hidden={contextOnly} data-media-controls-row="" className="flex max-w-full items-center gap-2">
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
@@ -108,7 +128,7 @@ export function MediaInteractionBar({
           disabled={activity.pendingKind === kind || activity.isResolvingEngagement}
           data-keep-color=""
           style={{ color }}
-          onClick={() => activity.toggle(kind)}
+          onClick={() => kind === 'save' ? savePage() : activity.toggle(kind)}
           className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
         >
           {activity.pendingKind === kind

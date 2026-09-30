@@ -1,3 +1,4 @@
+import { MobileProfileContext } from '../../presentation/mobile/MobileProfileContext';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { lazy, Suspense, useCallback, useState } from 'react';
 import { ArrowLeftIcon, BookmarkIcon } from 'lucide-react';
@@ -15,6 +16,8 @@ import { useAccountQuery } from './useAccountQuery';
 import { SavedPagesCollection } from './SavedPagesCollection';
 import { loadSavedCreators } from './collectionQueries';
 
+const ReadsList = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsList})));
+const ReadsProject = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsProject})));
 const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
@@ -70,24 +73,26 @@ function SavedCreatorRow({ id, profile, onRemoved }: { id: string; profile: Prof
     catch { setError('Could not remove this bookmark. Please try again.'); }
     finally { setPending(false); }
   }
-  return <li className="shape-container border border-[var(--hairline)] p-4">
+  return <MobileProfileContext profileId={id} name={profile?.name ?? 'Creator'} onUnsave={!pending ? remove : undefined}><li className="shape-container border border-[var(--hairline)] p-4">
     <div className="flex items-center gap-3">
-      {profile ? <Link to={buildPath('profile', { profileId: id })} className="flex min-w-0 flex-1 items-center gap-3 rounded-[8px] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+      {profile ? <Link data-preview-open="" to={buildPath('profile', { profileId: id })} className="flex min-w-0 flex-1 items-center gap-3 rounded-[8px] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
         <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 shrink-0" />
         <span className="min-w-0"><span className="block truncate text-[14px] font-semibold">{profile.name}</span><span className="block truncate text-[12px] text-[var(--text-secondary)]">{profile.headline}</span></span>
       </Link> : <span className="flex-1 text-[13px] text-[var(--text-secondary)]">This creator is no longer available.</span>}
       <button type="button" disabled={pending} onClick={() => void remove()} aria-label={`Remove ${profile?.name ?? 'unavailable creator'} from Saved`} title="Remove from Saved" className="shape-compact flex h-10 w-10 shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} keepColor fill="currentColor" style={{ color: 'var(--engagement-save-selected)' }} /></button>
     </div>
     {error && <p role="alert" className="mt-2 text-[12px] text-[var(--status-danger)]">{error}</p>}
-  </li>;
+  </li></MobileProfileContext>;
 }
 
 export function InsightsPage({ onBack }: { onBack: () => void }) {
+  const [params,setParams]=useSearchParams();const projectId=params.get('project');
   const { creatorSaves } = useServices();
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
   const state = useAccountQuery(query);
   return <section aria-label="Private creator insights">
-    <PersonalHeader title="Insights" onBack={onBack} />
+    <PersonalHeader title={projectId ? "Reads" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
+    {projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
     <div className="px-[var(--content-gutter)] py-6">
       <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>
       {state.loading ? <LoadingState label="Loading insights" /> : state.error ? <ErrorState title="Unable to load insights" description={state.error} onRetry={state.retry} /> : state.data ? <dl className="my-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -98,9 +103,9 @@ export function InsightsPage({ onBack }: { onBack: () => void }) {
         ] as const).map(([label, count, description]) => <div key={label} className="shape-container border border-[var(--hairline)] p-5"><dt className="text-[13px] font-semibold text-[var(--text-secondary)]">{label}</dt><dd className="mt-3 text-[32px] font-semibold tabular-nums">{count.toLocaleString()}</dd><dd className="mt-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">{description}</dd></div>)}
       </dl> : null}
       <p className="max-w-[640px] text-[13px] leading-relaxed text-[var(--text-secondary)]">Saves recognise interest without requiring a follow. Saver identities remain private. These are current totals, so removing a save reduces the count; saving again never adds a duplicate.</p>
-      <Suspense fallback={null}><LoadTimingInsights /></Suspense>
+      <Suspense fallback={null}><ReadsList/><LoadTimingInsights /></Suspense>
     </div>
-  </section>;
+  </>}</section>;
 }
 
 export function ActivityPage({ onBack }: { onBack: () => void }) {

@@ -1,3 +1,13 @@
+import { useProjectReach } from '../../features/reads/useProjectReach';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
+import { shareContextLink } from '../../presentation/mobile/SharedContextActions';
+import { copyPublicLink } from '../../utils/copyPublicLink';
+import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
+import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, HeartIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
@@ -283,8 +293,25 @@ export function ProjectMediaViewer({
    * one piece rather than as separate files to step between — a photo essay is
    * one work, not five attachments.
    */
+  const isDocumentReading = isMobileViewer && active?.kind === 'document';
+  const [readerRequest, setReaderRequest] = useState<{scope:string;page:number;sequence:number} | null>(null);
+  const acknowledgeReaderRequest = useCallback((sequence: number) => setReaderRequest(current => current?.sequence === sequence ? null : current), []);
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;
+  const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
+  const currentPage = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition.current - 1 : null;
+  const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
+  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
+  const journeyNavigate = useNavigate(), journeyAuth = useAuth();
+  useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
+  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
+  useMobileScreenActions(!readOnlyShare ? contextActions('project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+    reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
+    startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
+    thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
+    saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
+    share: () => shareContextLink(publicUrl, projectTitle), copy: () => copyPublicLink(publicUrl),
+  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } }) : null, 20);
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
@@ -313,7 +340,7 @@ export function ProjectMediaViewer({
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
   const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
-    enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d',
+    enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d' && !isDocumentReading,
     scope: `${projectId}:${active?.id ?? ''}`,
     onBack: mobileNavigation?.onBack,
   });
@@ -351,7 +378,7 @@ export function ProjectMediaViewer({
    */
   useEffect(() => {
     const surface = densitySurfaceRef.current;
-    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive) {
+    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive || isDocumentReading) {
       return undefined;
     }
     const handleDensityWheel = (event: WheelEvent) => {
@@ -437,8 +464,8 @@ export function ProjectMediaViewer({
       surface.removeEventListener('touchend', handleTouchEnd);
       surface.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer]);
-  const emptyMedia = <div data-premium-project-viewer="" data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
+  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer, isDocumentReading]);
+  const emptyMedia = <div data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
             <InterfaceIcon icon={FileIcon} size="lg" weight="medium" />
@@ -554,17 +581,19 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={readOnlyShare && isMobileViewer && active.kind === 'document' ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer onReaderRequestHandled={acknowledgeReaderRequest} readingMode={isDocumentReading} readerPageRequest={readerRequest?.scope === previewScope ? readerRequest : null} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={readOnlyShare && isMobileViewer && active.kind === 'document' ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
         }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
-  return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+  return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter readingMode={isDocumentReading} onSelectPage={isDocumentReading ? page => setReaderRequest(previous=>({scope:previewScope,page,sequence:(previous?.sequence ?? 0)+1})) : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !readOnlyShare && <MobileContextButton floating />}
+      {isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
           {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
@@ -736,5 +765,5 @@ export function ProjectMediaViewer({
             : <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[var(--text-primary)]">{projectSummary || 'This project has no description.'}</p>}
         </div>
       </MediaCommentsPopover>}
-    </div>;
+    </div></MobilePageContext.Provider>;
 }

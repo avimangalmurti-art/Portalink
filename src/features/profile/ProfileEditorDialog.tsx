@@ -112,8 +112,19 @@ export function ProfileEditorPage({
                   </select>
                 </label>
               </MobileProfileAvatarEditor>
+              <label className="flex min-h-11 items-center justify-between gap-4 text-sm">
+                Show Journey publicly
+                <input type="checkbox" checked={fields.showJourney} disabled={isBusy} onChange={event => editor.setShowJourney(event.target.checked)} />
+              </label>
 
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
+              <ProfileField id="profile-editor-headline" label="Headline" value={fields.portfolioHeadline} maxLength={80} placeholder="Your field and what you make" error={fieldErrors.portfolioHeadline} disabled={isBusy} onChange={value => editor.setField('portfolioHeadline', value)} />
+              <ProfileField id="profile-editor-school" label="School" value={fields.school} maxLength={120} error={fieldErrors.school} disabled={isBusy} onChange={value => editor.setField('school', value)} />
+              <ProfileField id="profile-editor-availability" label="Available" value={fields.availability} maxLength={120} placeholder="Internships · Summer 2027" error={fieldErrors.availability} disabled={isBusy} onChange={value => editor.setField('availability', value)} />
+              <label className="flex items-center gap-3"><input type="checkbox" checked={fields.contactEmailPublic} disabled={isBusy} onChange={event => editor.setEmployerFlag('contactEmailPublic',event.target.checked)} />Show a contact email publicly</label>
+              {fields.contactEmailPublic && <ProfileField id="profile-editor-contact" label="Public contact email" value={fields.contactEmail} maxLength={254} error={fieldErrors.contactEmail} disabled={isBusy} onChange={value => editor.setField('contactEmail',value)} />}
+              <p className="text-sm text-[var(--text-secondary)]">Choose the address you want visitors to use. Turning this off removes the saved address.</p>
+              <label className="flex items-center gap-3"><input type="checkbox" checked={fields.allowPdfDownload} disabled={isBusy} onChange={event => editor.setEmployerFlag('allowPdfDownload',event.target.checked)} />Allow portfolio PDF downloads</label>
               <ProfileField id="profile-editor-city" label={isMobile ? 'City, country' : 'Portalink city'} value={fields.location} optional={!isMobile} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder={isMobile ? 'City, country' : 'City for location discovery'} error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
               </section>
 

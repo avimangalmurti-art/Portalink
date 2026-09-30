@@ -6,6 +6,7 @@ import { useMobileBrowserSurface } from './mobile/useMobileBrowserSurface';
 import { useMobileViewportFrame } from './mobile/useMobileViewportFrame';
 import { useAppZoomBoundary } from './useAppZoomBoundary';
 import { useProjectScrollActivity } from './mobile/useProjectScrollActivity';
+import { MobileContextProvider } from './mobile/MobileContextActions';
 import './web/web.css';
 import './mobile/mobile.css';
 import './navigation.css';
@@ -25,5 +26,5 @@ export function AppPresentation({ children, ...props }: React.ComponentPropsWith
   const { pathname } = useLocation();
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
-  return <div {...props} ref={frameRef} data-presentation={presentation}>{children}</div>;
+  return <div {...props} ref={frameRef} data-presentation={presentation}><MobileContextProvider>{children}</MobileContextProvider></div>;
 }

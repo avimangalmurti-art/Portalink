@@ -1,3 +1,5 @@
+import { shareCardText, type PortfolioCard } from '../features/sharing/shareModel';
+import { readCoverThumbnail } from '../services/supabase/coverThumbnailReads';
 type PreviewConfiguration = { supabaseUrl: string; publishableKey: string };
 type SharedTarget = { profileId: string; categoryId?: string; projectId?: string };
 type Row = Record<string, unknown>;
@@ -5,7 +7,7 @@ type Preview = {
   title: string;
   description: string;
   type: 'profile' | 'article';
-  image: { path: string; width: number; height: number; alt: string };
+  image: { path: string; public?: boolean; width: number; height: number; alt: string };
 };
 type CachedPreview = { configuration: string; fingerprint: string; shell: string; html: string; expiresAt: number };
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
@@ -15,7 +17,7 @@ const previewCache = new Map<string, CachedPreview>();
 const CACHE_MILLISECONDS = 5 * 60 * 1_000;
 const MAX_CACHE_ENTRIES = 128;
 const MAX_PROJECT_ATTACHMENTS = 105;
-const projectSelect = 'id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!inner(id,name,headline,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
+const projectSelect = '*,id,profile_id,category_id,title,summary,is_hidden,position,published_at,profile:profiles!projects_profile_id_fkey!inner(id,name,headline,portfolio_headline,school,is_private),category:portfolio_categories!inner(id,profile_id,is_hidden),attachments:project_attachments(id,project_id,kind,mime_type,storage_path,is_cover,position,metadata)';
 
 export function isSharedPreviewPath(path: string): boolean {
   return sharedRoute.test(path);
@@ -68,10 +70,20 @@ function serviceOrigin(config: PreviewConfiguration): string | null {
 
 async function readRows(table: string, query: URLSearchParams, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<Row[] | null> {
   // Deliberately never forward request cookies, Authorization, or an owner key.
-  const response = await fetch(`${origin}/rest/v1/${table}?${query}`, {
+  let response = await fetch(`${origin}/rest/v1/${table}?${query}`, {
     headers: { apikey: config.publishableKey, accept: 'application/json' },
     cache: 'no-store', redirect: 'error', signal,
   });
+  if (!response.ok && query.get('select')?.includes('portfolio_headline')) {
+    const error = await response.clone().json().catch(() => null);
+    if ((error?.code === '42703' || error?.code === 'PGRST204') && /portfolio_headline|school/.test(String(error?.message ?? ''))) {
+      const legacy = new URLSearchParams(query);
+      legacy.set('select', (legacy.get('select') ?? '').replace(/,portfolio_headline,school/g, ''));
+      response = await fetch(`${origin}/rest/v1/${table}?${legacy}`, {
+        headers: { apikey: config.publishableKey, accept: 'application/json' }, cache: 'no-store', redirect: 'error', signal,
+      });
+    }
+  }
   if (!response.ok) return null;
   const rows: unknown = await response.json();
   if (!Array.isArray(rows) || rows.some(row => !record(row))) return null;
@@ -107,10 +119,15 @@ async function readProject(target: SharedTarget, origin: string, config: Preview
   else {
     // The profile wall stores an explicit order using negative positions.
     // Ordinary published projects otherwise appear newest first.
-    query.set('position', 'lt.0');
+    query.set('is_pinned', 'eq.true');
     query.set('order', 'position.asc,published_at.desc,id.asc');
   }
   let rows = await readRows('projects', query, origin, config, signal);
+  if (!target.projectId && rows?.length === 0) {
+    query.delete('is_pinned');
+    query.set('position', 'lt.0');
+    rows = await readRows('projects', query, origin, config, signal);
+  }
   if (!target.projectId && rows?.length === 0) {
     query.delete('position');
     query.set('order', 'published_at.desc,id.asc');
@@ -120,6 +137,9 @@ async function readProject(target: SharedTarget, origin: string, config: Preview
 }
 
 function coverImage(project: Row, profileId: string): Preview['image'] | null {
+  const thumbnail = readCoverThumbnail(project.cover_thumbnail, profileId, String(project.id));
+  const selected = thumbnail?.social ?? thumbnail?.variants.find(item => item.size === 800);
+  if (thumbnail && selected) return { path: selected.path, width: selected.width, height: selected.height, public: thumbnail.bucket === 'project-covers', alt: text(project.title, 120) || 'Project cover' };
   if (!Array.isArray(project.attachments) || project.attachments.length > MAX_PROJECT_ATTACHMENTS) return null;
   const attachments = project.attachments.map(record);
   if (attachments.some(row => !row || !sameId(row.project_id, String(project.id)))) return null;
@@ -151,13 +171,13 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!target.projectId) {
     const query = new URLSearchParams({ limit: '1', id: `eq.${target.categoryId ?? target.profileId}` });
     if (target.categoryId) {
-      query.set('select', 'id,profile_id,label,blurb,is_hidden,profile:profiles!inner(id,name,headline,is_private)');
+      query.set('select', 'id,profile_id,label,blurb,is_hidden,profile:profiles!inner(id,name,headline,portfolio_headline,school,is_private)');
       query.set('profile_id', `eq.${target.profileId}`);
       query.set('is_hidden', 'eq.false');
       query.set('profile.id', `eq.${target.profileId}`);
       query.set('profile.is_private', 'eq.false');
     } else {
-      query.set('select', 'id,name,headline,is_private');
+      query.set('select', 'id,name,headline,portfolio_headline,school,is_private');
       query.set('is_private', 'eq.false');
     }
     const rows = await readRows(target.categoryId ? 'portfolio_categories' : 'profiles', query, origin, config, signal);
@@ -179,10 +199,15 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!creator || !image) return null;
   const title = text(target.projectId ? project.title : category?.label, 120);
   if (target.categoryId && !title) return null;
+  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal }) : null;
+  const count = countResponse?.ok ? Number(countResponse.headers.get('content-range')?.split('/')[1]) : NaN;
+  if (!target.categoryId && (!Number.isSafeInteger(count) || count < 1)) return null;
+  const headline = typeof profile?.portfolio_headline === 'string' ? profile.portfolio_headline : typeof profile?.headline === 'string' ? profile.headline.split(/\r?\n/).find(line => line.trim()) ?? '' : '';
+  const card = shareCardText(creator, text(headline, 80), Number.isFinite(count) ? count : 1, text(profile?.school, 120));
   return {
-    title: title ? `${title} — ${creator} | Portalink` : `${creator} — Portfolio | Portalink`,
-    description: text(target.projectId ? project.summary : category?.blurb, 160)
-      || text(profile?.headline, 160) || text(project.summary, 160)
+    title: title ? `${title} — ${creator} | Portalink` : card.title,
+    description: !target.categoryId ? card.description : text(target.projectId ? project.summary : category?.blurb, 160)
+      || text(headline, 80) || text(project.summary, 160)
       || `Explore ${creator}'s creative work on Portalink.`,
     type: target.categoryId ? 'article' : 'profile', image,
   };
@@ -235,9 +260,9 @@ function rewriteHead(html: string, preview: Preview, image: string, canonical: s
 
 /** Personalized public share heads use existing anonymous reads and media
  * signing. Unavailable/private/coverless records retain the generic SPA shell. */
-export async function withSharedPreview(response: Response, request: Request, config: PreviewConfiguration): Promise<Response> {
+export async function withSharedPreview(response: Response, request: Request, config: PreviewConfiguration, resolvedProfileId?: string): Promise<Response> {
   const url = new URL(request.url);
-  const match = url.pathname.match(sharedRoute);
+  const match = url.pathname.match(sharedRoute) ?? (resolvedProfileId ? ['', resolvedProfileId] : null);
   if (!match || !prefersHtml(request.headers.get('accept')) || (request.method !== 'GET' && request.method !== 'HEAD')
     || !response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
   const headers = new Headers(response.headers);
@@ -259,7 +284,7 @@ export async function withSharedPreview(response: Response, request: Request, co
       if (cached && cached.expiresAt > Date.now() && cached.configuration === configuration && cached.fingerprint === fingerprint && cached.shell === shell) {
         html = cached.html;
       } else {
-        const image = await signImage(preview.image.path, origin, config, signal);
+        const image = preview.image.public ? `${url.origin}/media/covers/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
         if (image) {
           html = rewriteHead(shell, preview, image, `${url.origin}${url.pathname.replace(/\/$/, '')}`);
           previewCache.delete(cacheKey);
@@ -277,4 +302,16 @@ export async function withSharedPreview(response: Response, request: Request, co
   }
   if (html === shell) previewCache.delete(cacheKey);
   return new Response(html, { status: response.status, headers });
+}
+
+/** The sheet consumes precisely the same anonymous visibility read and card fields as crawlers. */
+export async function readPortfolioCard(profileId: string, siteOrigin: string, config: PreviewConfiguration): Promise<PortfolioCard | null> {
+  if (!uuid.test(profileId)) return null;
+  const origin = serviceOrigin(config);
+  if (!origin) return null;
+  const signal = AbortSignal.timeout(5000);
+  const preview = await readPublicPreview({ profileId }, origin, config, signal);
+  if (!preview) return null;
+  const image = preview.image.public ? `${siteOrigin}/media/covers/${preview.image.path}` : await signImage(preview.image.path, origin, config, signal);
+  return { title: preview.title, description: preview.description, image, width: preview.image.width, height: preview.image.height, url: `${siteOrigin}/share/${profileId}` };
 }

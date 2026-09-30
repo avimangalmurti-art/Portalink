@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -12,10 +13,10 @@ const configuration = { supabaseUrl: 'https://test.supabase.co', publishableKey:
 const source = readFileSync(new URL('../src/services/supabase/sharedProfileBundle.ts', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 function fixture() { return { profile: { id: profileId, name: 'Creator', handle: 'creator', headline: '', location: '', avatar_url: '', nav_heading: 'Projects', stats: [], social_links: {}, links: [], is_private: false }, categories: [], projects: [], attachments: [] }; }
-function harness(path = `/share/${profileId}`, fetchResult = async () => Response.json(fixture())) {
+function harness(path = `/share/${profileId}`, fetchResult = async () => Response.json(fixture()), resolution) {
   const calls = [], timers = new Map();
-  const window = { location: { pathname: path } };
-  const context = vm.createContext({ window, AbortController, Promise, Date, exports: {},
+  const window = { location: { pathname: path }, __PORTALINK_HANDLE__: resolution };
+  const context = vm.createContext({ window, AbortController, Promise, Date, exports: {}, require(name) { assert.equal(name, '../../features/journey/journey'); return sourceModule('src/features/journey/journey.ts'); },
     setTimeout(callback, delay) { timers.set(1, { callback, delay }); return 1; }, clearTimeout(id) { timers.delete(id); },
     fetch: async (url, options) => { calls.push({ url, options }); return fetchResult(url, options); },
   });
@@ -46,6 +47,14 @@ test('classic head preload starts one anonymous request before the reader and ad
   assert.equal(result.status, 'available'); assert.equal(result.bundle.profile.id, profileId); assert.equal(h.timers.size, 0);
   await h.read(client, profileId);
   assert.equal(sdkCalls, 1, 'A retry/invalidation makes a fresh SDK read instead of replaying the document preload');
+});
+
+test('handle shell adopts its resolved profile and starts only one bundle request', async () => {
+  const h = harness('/creator', undefined, { profileId, handle: 'creator', alias: false });
+  h.run();
+  const result = await h.read({ rpc: async () => { throw new Error('Duplicate request'); } }, profileId);
+  assert.equal(result.bundle.profile.id, profileId);
+  assert.equal(h.calls.length, 1);
 });
 
 test('preload scope accepts canonical share routes and ignores normal/invalid paths', async () => {

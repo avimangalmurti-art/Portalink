@@ -19,7 +19,7 @@ begin
     or manifest->>'sourceKey' !~ '^[a-f0-9]{64}$'
     or jsonb_typeof(manifest->'variants') is distinct from 'array'
     or jsonb_array_length(manifest->'variants') <> 3 then return false; end if;
-  if exists(select 1 from jsonb_object_keys(manifest) k where k not in ('version','bucket','sourceAttachmentId','sourceKey','frameBaked','variants')) then return false; end if;
+  if exists(select 1 from jsonb_object_keys(manifest) k where k not in ('version','bucket','sourceAttachmentId','sourceKey','frameBaked','variants','social')) then return false; end if;
   prefix := profile_id::text || '/' || project_id::text || '/';
   for variant in select value from jsonb_array_elements(manifest->'variants') loop
     if jsonb_typeof(variant) is distinct from 'object'
@@ -41,6 +41,13 @@ begin
     if hash_value is null then hash_value := split_part(variant->>'path','/',3);
     elsif hash_value <> split_part(variant->>'path','/',3) then return false; end if;
   end loop;
+  if manifest ? 'social' and (
+    jsonb_typeof(manifest->'social') is distinct from 'object'
+    or exists(select 1 from jsonb_object_keys(manifest->'social') k where k not in ('path','width','height'))
+    or manifest->'social'->'width' is distinct from '1200'::jsonb
+    or manifest->'social'->'height' is distinct from '630'::jsonb
+    or manifest->'social'->>'path' is distinct from prefix || hash_value || '/social.webp'
+  ) then return false; end if;
   return true;
 exception when invalid_text_representation or numeric_value_out_of_range then return false;
 end;
@@ -62,7 +69,7 @@ using (bucket_id = 'project-media' and exists (
     and p.profile_id=public.storage_path_uuid(storage.objects.name,1)
     and not p.is_hidden and not c.is_hidden and public.can_view_profile(p.profile_id)
     and p.cover_thumbnail->>'bucket'='project-media'
-    and p.cover_thumbnail->'variants' @> jsonb_build_array(jsonb_build_object('path',storage.objects.name))
+    and (p.cover_thumbnail->'variants' @> jsonb_build_array(jsonb_build_object('path',storage.objects.name)) or p.cover_thumbnail->'social'->>'path'=storage.objects.name)
 ));
 
 create or replace function public.set_project_cover_thumbnail(p_project_id uuid,p_expected_revision text,p_manifest jsonb)
@@ -86,7 +93,7 @@ begin
     if not exists(select 1 from public.project_attachments a where a.id=p_manifest->>'sourceAttachmentId' and a.project_id=work.id) then
       raise exception 'cover source does not belong to project' using errcode='22023';
     end if;
-    for variant in select value from jsonb_array_elements(p_manifest->'variants') loop
+    for variant in select value from jsonb_array_elements(p_manifest->'variants' || case when p_manifest ? 'social' then jsonb_build_array(p_manifest->'social') else '[]'::jsonb end) loop
       if not exists(select 1 from storage.objects o where o.bucket_id=p_manifest->>'bucket' and o.name=variant->>'path') then
         raise exception 'cover thumbnail object is missing' using errcode='22023';
       end if;

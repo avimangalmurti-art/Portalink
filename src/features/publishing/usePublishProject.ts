@@ -1,3 +1,5 @@
+import { composeProjectDescription, EMPTY_CREATION } from './firstProject';
+import { readFirstProjectDraft, saveFirstProjectDraft, clearFirstProjectDraft, type FirstProjectStage } from './firstProjectDraft';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -28,13 +30,13 @@ const EMPTY_METADATA: DraftMetadata = {
   summary: ''
 };
 /** The order fields are validated and focused in — the order they are read. */
-const FIELD_ORDER: (keyof DraftMetadata)[] = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false) {
+const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '') {
   const {
-    projects: projectService
+    projects: projectService, profiles: profileService
   } = useServices();
   const {
-    invalidateProfiles
+    invalidateProfiles, cacheProfile
   } = useProfileData();
   const auth = useAuth();
   // A project is a collection of assets of any family, so preparation is not
@@ -46,9 +48,16 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
    * enter an uploading state while that answer is "no".
    */
   const upload = useMediaUpload(media.capability);
+  const restoreMedia = media.restore, restoreUpload = upload.restore;
   const [draft, setDraft] = useState<ProjectDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<DraftMetadata>(EMPTY_METADATA);
+  const [firstProjectStage, setFirstProjectStage] = useState<FirstProjectStage>('files');
+  const [restoringDraft, setRestoringDraft] = useState(firstProject);
+  const [localDraftError, setLocalDraftError] = useState<string | null>(null);
+  const committedPublish = useRef<PublishResult | undefined>();
+  const [hasCommittedProject, setHasCommittedProject] = useState(false);
+  const draftCompleted = useRef(false);
   const [location, updateLocation] = useState('');
   const [hasChosenLocation, setHasChosenLocation] = useState(false);
   const setLocation = useCallback((value: string) => {
@@ -94,26 +103,55 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     draftRequestRef.current = requestKey;
     let isCurrent = true;
     setDraftError(null);
-    projectService.createDraft(profileId, categoryId).then((created) => {
-      if (isCurrent) {
-        setDraft(created);
+    draftCompleted.current = false;
+    setRestoringDraft(firstProject);
+    void (async () => {
+      let saved = null;
+      if (firstProject && auth.user?.id) {
+        try { saved = await readFirstProjectDraft(auth.user.id, profileId); }
+        catch (error) { if (isCurrent) setLocalDraftError(error instanceof Error ? error.message : 'Local draft storage is unavailable.'); }
       }
-    }).catch((caught) => {
+      if (!isCurrent) return;
+      if (saved) {
+        const existing = saved.committed ? saved.draft : await projectService.getDraft(saved.draft.id);
+        if (existing && existing.profileId === profileId && (saved.committed || existing.categoryId === categoryId)) {
+          if (!isCurrent) return;
+          setDraft(existing); setMetadata(saved.metadata); updateLocation(saved.location);
+          setHasChosenLocation(true); restoreMedia(saved.media); restoreUpload(saved, saved.media);
+          setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
+          committedPublish.current = saved.committed;
+          setHasCommittedProject(Boolean(saved.committed));
+          setRestoringDraft(false);
+          return;
+        }
+        // The server draft was removed; retain the selected files and authored details.
+        setMetadata(saved.metadata); restoreMedia(saved.media); updateLocation(saved.location);
+        setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
+      } else if (firstProject) setMetadata({ ...EMPTY_METADATA, creationDetails: { ...structuredClone(EMPTY_CREATION), madeIn: presetMadeIn } });
+      setRestoringDraft(false);
+      const created = await projectService.createDraft(profileId, categoryId);
+      if (isCurrent) setDraft(created);
+    })().catch((caught) => {
       if (isCurrent) {
-        // The attempt failed, so allow another one rather than locking the flow.
         draftRequestRef.current = null;
+        setRestoringDraft(false);
         setDraftError(caught instanceof Error ? caught.message : 'Could not start a draft.');
       }
     });
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, profileId, categoryId, isOwner, projectService]);
+  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload]);
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);
       setDraftError(null);
       setMetadata(EMPTY_METADATA);
+      if (firstProject && !committedPublish.current?.sessionOnly) media.clear();
+      setHasCommittedProject(false);
+      setFirstProjectStage('files');
+      setRestoringDraft(firstProject);
+      committedPublish.current = undefined;
       updateLocation('');
       setHasChosenLocation(false);
       setIgnoreInferredLocation(false);
@@ -132,7 +170,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on close.
   }, [isOpen]);
-  const setField = useCallback((key: keyof DraftMetadata, value: string) => {
+  const setField = useCallback((key: 'title' | 'summary', value: string) => {
     setMetadata((current) => ({
       ...current,
       [key]: value
@@ -143,6 +181,28 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }));
     setInvalidField(null);
   }, []);
+  const setCreationDetails = useCallback((details: NonNullable<DraftMetadata['creationDetails']>) => {
+    setMetadata(current => ({ ...current, creationDetails: details, summary: JSON.stringify(current.creationDetails?.answers) === JSON.stringify(details.answers) ? current.summary : composeProjectDescription(details.answers) }));
+  }, []);
+  const saveLocalDraft = useCallback(async () => {
+    if (!firstProject || !auth.user?.id || !profileId || restoringDraft || draftCompleted.current) return;
+    if (!draft) {
+      if (media.items.length) { setLocalDraftError('Your draft is still starting. Wait a moment before leaving.'); throw new Error('Draft is still starting.'); }
+      return;
+    }
+    try {
+      await saveFirstProjectDraft({ version: 1, accountId: auth.user.id, profileId, draft, metadata,
+        location, stage: step === 'preview' ? 'review' : firstProjectStage, media: media.items,
+        persisted: upload.persisted, attachments: upload.attachments, committed: committedPublish.current });
+      setLocalDraftError(null);
+    } catch (error) {
+      setLocalDraftError(error instanceof Error ? error.message : 'Your draft could not be saved on this device.');
+      throw error;
+    }
+  }, [firstProject, auth.user?.id, profileId, draft, metadata, location, step, firstProjectStage, media.items, upload.persisted, upload.attachments, restoringDraft]);
+  useEffect(() => {
+    if (isOpen) void saveLocalDraft().catch(() => undefined);
+  }, [isOpen, saveLocalDraft]);
   const isDirty = useMemo(() => FIELD_ORDER.some((key) => metadata[key].trim() !== '') || location.trim() !== '' || media.items.length > 0, [metadata, location, media.items.length]);
   const inferredRelevance = useMemo(() => deriveProjectRelevance({
     title: metadata.title,
@@ -153,13 +213,13 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     const nextErrors = {
       title: validateTitle(metadata.title),
       // Descriptions are prose, not captions: do not impose a character cap.
-      summary: metadata.summary.trim() ? null : 'Add a description before publishing.'
+      summary: firstProject || metadata.summary.trim() ? null : 'Add a description before publishing.'
     };
     setFieldErrors(nextErrors);
     const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]) ?? null;
     setInvalidField(firstInvalid);
     return firstInvalid === null;
-  }, [metadata]);
+  }, [metadata, firstProject]);
   /**
    * The production-ready publish sequence:
    *
@@ -193,6 +253,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }
     isPublishingRef.current = true;
     try {
+      if (!committedPublish.current) {
       // Publishing is one continuous action. Persist the current details here
       // instead of requiring a separate review step to save them first.
       try {
@@ -200,9 +261,10 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       } catch (caught) {
         throw new Error(caught instanceof Error && caught.message ? caught.message : 'These details could not be saved to your draft.');
       }
+      }
       const canPersist = media.capability?.isAvailable === true;
       let attachments = retriedAttachments ?? upload.attachments;
-      if (canPersist && attachments.length === 0) {
+      if (!committedPublish.current && canPersist && attachments.length === 0) {
         // Bytes first. A failure or a cancellation stops the sequence here, with
         // metadata, files, order, and cover all untouched.
         const uploaded = await upload.upload({
@@ -217,10 +279,11 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         }
         attachments = uploaded;
       }
-      const published = await projectService.publishProject({
+      const published = committedPublish.current ?? await projectService.publishProject({
         draftId: draft.id,
         profileId,
-        categoryId,
+        onCommitted: async confirmed => { committedPublish.current = confirmed; setHasCommittedProject(true); await saveLocalDraft(); },
+        categoryId: draft.categoryId,
         metadata,
         ...(manualLocation || hasChosenLocation ? { location: location.trim() } : {}),
         relevance: ignoreInferredLocation ? {
@@ -237,6 +300,25 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
           media: media.items
         })
       });
+      committedPublish.current = published;
+      setHasCommittedProject(true);
+      await saveLocalDraft().catch(() => undefined);
+      if (published.creationDetailsPending && metadata.creationDetails) {
+        try { await projectService.updateProjectCreationDetails(published.projectId, metadata.creationDetails); published.creationDetailsPending = false; }
+        catch { throw new Error('Your project is published. Its date, field and answers still need saving. Retry to save only these details.'); }
+      }
+      if (firstProject) {
+        // Keep the real cover in Review until the canonical profile contains the
+        // committed tile. Closing first would briefly reveal the zero-work view.
+        const refreshed = await profileService.getProfile(profileId);
+        if (!refreshed.projects.some(project => project.id === published.projectId)) {
+          throw new Error('Your project is published. Try again to open the updated portfolio.');
+        }
+        invalidateProfiles();
+        cacheProfile(refreshed);
+      }
+      draftCompleted.current = true;
+      if (firstProject && auth.user?.id && profileId) await clearFirstProjectDraft(auth.user.id, profileId).catch(() => undefined);
       if (attachments.length === 0) {
         // Session-only publishing: the previews now belong to the published
         // record for the rest of the session, so this hook stops revoking them.
@@ -246,7 +328,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         // longer needed by anything and are released immediately.
         media.clear();
       }
-      invalidateProfiles();
+      if (!firstProject) invalidateProfiles();
       setResult(published);
       setStep('done');
     } finally {
@@ -277,7 +359,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     setIsSavingDraft(true);
     setSaveDraftError(null);
     try {
-      await projectService.updateDraft(draft.id, metadata);
+      if (!committedPublish.current) await projectService.updateDraft(draft.id, metadata);
       setStep('preview');
     } catch (caught) {
       setSaveDraftError(caught instanceof Error && caught.message ? caught.message : 'These details could not be saved to your draft.');
@@ -299,6 +381,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
    * it. Local previews are only released once the service has agreed.
    */
   const discard = useCallback(async (): Promise<boolean> => {
+    if (committedPublish.current) { setDiscardError('This project has already been published. Its files cannot be discarded as a draft.'); return false; }
     setIsDiscarding(true);
     setDiscardError(null);
     /**
@@ -325,6 +408,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }
     try {
       await projectService.discardDraft(draft.id);
+      draftCompleted.current = true;
+      if (firstProject && auth.user?.id && profileId) await clearFirstProjectDraft(auth.user.id, profileId);
       media.clear();
       upload.reset();
       return true;
@@ -334,8 +419,8 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     } finally {
       setIsDiscarding(false);
     }
-  }, [draft, media, projectService, upload]);
-  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && metadata.summary.trim() ? 'ready' : 'editing';
+  }, [draft, media, projectService, upload, firstProject, auth.user?.id, profileId]);
+  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && (firstProject || metadata.summary.trim()) ? 'ready' : 'editing';
   /**
    * Retrying after a PUBLISH failure must not re-upload. The persisted
    * attachments are still held by the transport hook, so this repeats only the
@@ -359,9 +444,9 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       await publish.run(uploaded);
     }
   }, [draft, profileId, upload, publish]);
-  const isMetadataComplete = !validateTitle(metadata.title) && metadata.summary.trim() !== '';
+  const isMetadataComplete = !validateTitle(metadata.title) && (firstProject || metadata.summary.trim() !== '');
   // Stated plainly rather than leaving a disabled control unexplained.
-  const blockingReason = !media.isComplete ? 'Add at least one file to continue.' : validateTitle(metadata.title) ?? (!metadata.summary.trim() ? 'Add a description before continuing.' : null);
+  const blockingReason = !media.isComplete ? 'Add at least one file to continue.' : validateTitle(metadata.title) ?? (!firstProject && !metadata.summary.trim() ? 'Add a description before continuing.' : null);
   /**
    * Whether publishing will actually store the files. False while no storage
    * backend is connected, and the UI must say so rather than implying an upload.
@@ -369,6 +454,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const willPersistMedia = media.capability?.isAvailable === true;
   return {
     isOwner,
+    presetMadeIn, hasCommittedProject, firstProject, firstProjectStage, setFirstProjectStage, restoringDraft, localDraftError, saveLocalDraft, setCreationDetails,
     draft,
     draftError,
     metadata,

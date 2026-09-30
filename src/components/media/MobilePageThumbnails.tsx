@@ -70,7 +70,8 @@ function PageThumbnail({ number, source, pdfDocument }: {
   </span>;
 }
 
-export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSources, pdfDocument }: {
+export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSources, pdfDocument, onSelectPage }: {
+  onSelectPage?: (page: number) => void;
   id: string; current: number; total: number; surfaceRef: React.RefObject<HTMLDivElement>;
   previewSources: readonly (string | null | undefined)[]; pdfDocument: PdfDocument | null;
 }) {
@@ -86,7 +87,7 @@ export function MobilePageThumbnails({ id, current, total, surfaceRef, previewSo
   return <nav id={id} ref={listRef} data-mobile-page-thumbnails="" className="mobile-page-thumbnails" aria-label="Project pages">
     {Array.from({ length: total }, (_, index) => <button key={index + 1} type="button"
       aria-label={`Go to page ${index + 1}`} aria-current={current === index + 1 ? 'page' : undefined}
-      onClick={() => jumpToProjectPage(surfaceRef.current, index + 1)} className="mobile-page-thumbnail">
+      onClick={() => onSelectPage ? onSelectPage(index + 1) : jumpToProjectPage(surfaceRef.current, index + 1)} className="mobile-page-thumbnail">
       <PageThumbnail number={index + 1} source={previewSources[index]} pdfDocument={pdfDocument} />
       <span className="mobile-page-thumbnail-number" aria-hidden="true">{index + 1}</span>
     </button>)}

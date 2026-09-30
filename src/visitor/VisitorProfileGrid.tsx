@@ -1,3 +1,7 @@
+import { EmployerOverview } from '../features/employer/EmployerOverview';
+import { profileHeadline } from '../features/employer/employer';
+import { JourneyToggle } from '../features/journey/JourneyToggle';
+import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { MoreHorizontalIcon } from 'lucide-react';
 import type { Profile } from '../types/domain';
@@ -16,6 +20,7 @@ import { interactionIntent } from '../features/auth/interactionIntent';
 import { useSearchParams } from 'react-router-dom';
 import '../components/profile/profile-header.css';
 
+const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
 const ProfileBioSheet = lazy(() => import('../features/profile/ProfileBioSheet').then(module => ({ default: module.ProfileBioSheet })));
 const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCollectionGrid').then(module => ({ default: module.ProfileCollectionGrid })));
 
@@ -25,6 +30,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
 }) {
   const [optionsOpen, setOptionsOpen] = useState(false), [bioOpen, setBioOpen] = useState(false);
   const auth = useAuth();
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId);
   const ownProfile = auth.viewerProfileId === profile.id;
   const follows = useFollows(optionsOpen && auth.isAuthenticated && !ownProfile ? profile.id : null);
   const [search] = useSearchParams();
@@ -47,6 +53,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
               <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
               {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
+          {profileHeadline(profile) && <p className="profile-short-headline">{profileHeadline(profile)}</p>}
             </div>
           </div>
         </div>
@@ -66,9 +73,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       </header>}
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
+    {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
+    {profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {portalsView ? <Suspense fallback={<p role="status">Opening portals…</p>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView ? <Suspense fallback={<p role="status">Opening Journey…</p>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<p role="status">Opening portals…</p>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>

@@ -32,7 +32,7 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
       const selected = bundle.projects.find(project => project.id === projectId && project.categoryId === categoryId);
       if (!selected) return bundle; // Existing route handles truthful project-not-found.
       const view = await projects.getProjectView(projectId);
-      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
+      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.isPubliclyVisible === false || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
       return { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? view.project : project) };
     }).then(profile => {
       if (!cancelled && currentScope.current === scope) setState({ scope, key, profile, status: 'ready', error: null });

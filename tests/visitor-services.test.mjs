@@ -39,6 +39,7 @@ function registry() {
     imports.push(name);
     switch (name) {
       case './deferredService': return deferred;
+      case './supabase/profileSharing': return { profileSharing: {} };
       case './supabase/authService': return { supabaseAuthService: auth };
       case './localPreferences': return { localPreferencesService: preferences };
       case './supabase/contentReaders': return { supabaseProfileReadService: {
@@ -70,7 +71,7 @@ test('public landing reads use the canonical public reader without loading accou
   await h.services.profiles.getSharedProfile('creator');
   await h.services.profiles.getProfile('creator');
   assert.deepEqual(h.calls, [['shared', 'creator'], ['shared', 'creator']]);
-  assert.deepEqual(h.imports, ['./supabase/authService', './supabase/contentReaders', './localPreferences', './deferredService']);
+  assert.deepEqual(h.imports, ['./supabase/profileSharing', './supabase/authService', './supabase/contentReaders', './localPreferences', './deferredService']);
 });
 
 test('opening a full project loads only canonical project reads and preserves method this binding', async () => {

@@ -53,6 +53,8 @@ function setup() {
   const owner = load('src/server/rumOwner.ts', {}, { fetch });
   const rum = load('src/server/rum.ts');
   const worker = load('src/sites-worker.ts', {
+    './features/sharing/shareModel': load('src/features/sharing/shareModel.ts'),
+    './server/shareAddress': {}, './server/projectReach': {},
     './server/sharedPreview': {}, './server/publicMedia': { isPublicMediaRoute: () => false },
     './server/rumOwner': owner, './server/rum': rum,
   }, { fetch }).default;

@@ -12,13 +12,14 @@ function compile(path, imports, globals = {}) {
   }).outputText, { exports, require: imports, ...globals });
   return exports;
 }
+const employer = compile('../src/features/employer/employer.ts', name => { assert.fail(`Unexpected employer import: ${name}`); });
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
 const linkHelpers = compile('../src/features/profile/profileLinks.ts', () => ({profileLinkIconNames:['globe','instagram','soundcloud']}));
 const placeholder = new Proxy({}, { get: (_, key) => key });
 function nodes(tree) {
-  if (!tree || typeof tree !== 'object') return [];
+  if (!tree || typeof tree !== 'object' || tree.props?.style?.display === 'none') return [];
   return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
 
@@ -184,16 +185,24 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
-    if (name === 'react-router-dom') return { useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {}, useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1 };
     if (name.endsWith('/viewer')) return { canAuthor: (role) => role === 'owner', needsAccount: (role) => role === 'guest' };
+    if (name.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{}})};
+    if (name.endsWith('/firstProject')) return {readLivePortfolio:()=>null,livePortfolioDismissed:()=>false};
+    if (name.endsWith('/AuthContext')) return {useAuth:()=>({viewerProfileId:'viewer'})};
+    if (name.endsWith('/useJourneySelection')) return {useJourneySelection:()=>({view:'portfolio',select(){}})};
+    if (name.endsWith('/employer')) return employer;
+    if (name.endsWith('/journey')) return {journeyAllowed:()=>false};
     if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [], counts: {}, loading: false, error: null, nextOffset: null }) };
+    if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions() {}, useMobileContextPress: () => ({}) };
+    if (name.endsWith('/contextActions')) return { contextActions: () => ({ primary: [], groups: [] }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
@@ -201,7 +210,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
-  }, { URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ?? { scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
+  }, { URL, URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
   const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
   return { navigation, projectOrder, density, flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
@@ -623,7 +632,7 @@ test('mobile owner header keeps Bio first with links and the remaining owner act
   assert.deepEqual(actions.map(node => node.type === 'ProfileShareMenu' ? 'Copy public link' : node.props['aria-label']),
     ['Edit profile', 'Copy public link', 'Reorder projects']);
   assert.equal(actions[1].props.compact, true);
-  assert.equal(actions[1].props.shareUrl, 'https://example.com/share/owner');
+  assert.equal(typeof actions[1].props.onOpen, 'function');
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
   nodes(tree).find(node=>node.type==='PlatformGrid').props.onCollaboration(); actions[0].props.onClick();
@@ -770,7 +779,11 @@ test('empty owner portfolios can publish directly while visitor, shared and popu
     const onPublishProject = () => { publications++; };
     const owner = profileHarness('', { presentation, props: { onPublishProject } });
     const empty = nodes(owner.render()).find(node => node.type === 'EmptyState' && node.props.title === 'No work published yet');
-    assert.equal(empty.props.action.label, 'Add a project'); empty.props.action.onClick();
+    if (presentation === 'mobile') {
+      assert.equal(empty, undefined);
+      const tiles = nodes(owner.render()).filter(node => node.type === 'button' && node.props.className === 'first-project-empty-tile');
+      assert.equal(tiles.length, 1); tiles[0].props.onClick();
+    } else { assert.equal(empty.props.action.label, 'Add a project'); empty.props.action.onClick(); }
     assert.equal(publications, 1);
     for (const access of [{ viewerRole: 'visitor' }, { viewerRole: 'guest' }, { viewerRole: 'owner', isSharedView: true }]) {
       const denied = profileHarness('', { ...access, presentation, props: { onPublishProject } });
@@ -786,7 +799,7 @@ test('empty owner portfolios can publish directly while visitor, shared and popu
   }
 });
 
-test('profile headers keep bio in its section and use Portals consistently on shared and regular profiles', () => {
+test('profile headers show the first bio line and use Portals consistently on shared and regular profiles', () => {
   const profile = { id: 'owner', name: 'Owner', headline: 'Jolly Good\nWorking across media.', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
   for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) {
     const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole: 'guest' });
@@ -796,7 +809,8 @@ test('profile headers keep bio in its section and use Portals consistently on sh
     const copy = nodes(tree).find(node => node.props?.className?.includes('profile-identity-copy'));
     const children = React.Children.toArray(copy.props.children);
     assert.equal(children[0].type, 'h1'); assert.equal(children[1].props.children, 'London');
-    assert.equal(nodes(copy).some(node => node.props?.children === profile.headline || node.props?.children === 'Jolly Good'), false);
+    assert.equal(nodes(copy).find(node => node.props?.className === 'profile-short-headline')?.props.children, 'Jolly Good');
+    assert.equal(nodes(copy).some(node => node.props?.children === profile.headline), false);
     const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
     assert.equal(Boolean(stats), !isSharedView, 'Shared headers omit counts; ordinary profiles retain them');
     if (stats) {
@@ -822,7 +836,7 @@ test('shared gallery keeps published projects without chosen covers and opts the
     const opened = [];
     const h = profileHarness('', { presentation, isSharedView, viewerRole: 'guest', projects, props: { onOpenProject: (...args) => opened.push(args) } });
     const items = wall(h.render()).props.items;
-    assert.deepEqual(items.map(item => item.key), isSharedView ? ['covered', 'uncovered'] : ['covered']);
+    assert.deepEqual(Array.from(items, item => item.key), isSharedView ? ['covered', 'uncovered'] : ['covered']);
     for (const item of items) {
       const tile = nodes(item.content).find(node => node.type?.name === 'ProfileProjectTile');
       const card = tile.type(tile.props);

@@ -44,7 +44,7 @@ function harness(presentation = 'web') {
   function render(changes = {}, propChanges = {}) {
     currentFlow = {
       step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {}, isSavingDraft: false,
-      media: { items: [] }, metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
+      media: { items: [] }, firstProject: false, location: '', metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
       inferredRelevance: {}, upload: {}, publish: {}, ...changes,
     };
     cursor = 0;
@@ -129,7 +129,7 @@ test('disabled Publish explains the missing detail, then clears the helper when 
     assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
     assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
   }
-  const tree = harness(presentation).render({ metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
+  const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
   assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
   assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
   assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));
@@ -138,7 +138,7 @@ test('disabled Publish explains the missing detail, then clears the helper when 
 
 test('publishing accepts the complete long description without an input cap', () => {
   const summary = 'First paragraph — café 🌍\n\nSecond paragraph.\n'.repeat(2500);
-  const tree = harness().render({ metadata: { title: 'Long-form project', summary } });
+  const tree = harness().render({ firstProject: false, metadata: { title: 'Long-form project', summary } });
   const fields = nodes(tree);
   const description = fields.find((node) => node.props?.id === 'publish-summary');
   assert.equal(description.props.maxLength, undefined);
@@ -174,4 +174,38 @@ test('a later publication can announce and prototype results retain their warnin
   h.render({ step: 'done', result: prototype });
   assert.equal(h.calls.length, 2);
   assert.equal(h.calls[1].result, prototype);
+});
+
+test('first-project dashed-tile reentry resumes the saved Details step instead of resetting to Files', () => {
+  const tree = harness('mobile').render({firstProjectStage:'details',metadata:{title:'Saved title',summary:'',creationDetails:{madeIn:'2024-05',field:'Design',answers:{what:'Saved answer',did:'',learned:''}}}, media:{items:[{id:'saved-file'}]}}, {firstProject:{name:'Mira',categories:['Work']}});
+  const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
+  assert.equal(guided.props.editingStep,'details');assert.equal(guided.props.flow.metadata.creationDetails.answers.what,'Saved answer');assert.equal(guided.props.flow.media.items[0].id,'saved-file');
+});
+test('first-project close cannot abandon a draft when local checkpoint fails', async () => {
+  let closed=0;
+  const tree=harness('mobile').render({saveLocalDraft:async()=>{throw Error('quota');}}, {firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  await tree.props.onClose();assert.equal(closed,0);
+});
+
+
+test('first-project recovery retains safe close and locked fields after switching to WEB', async () => {
+  let saved=0,closed=0;
+  const tree=harness('web').render({hasCommittedProject:true,saveLocalDraft:async()=>saved++,canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  await tree.props.onClose();assert.equal(saved,1);assert.equal(closed,1);
+  const guided = nodes(tree).find(node => node.type === 'MobilePublishFlow');
+  assert.equal(guided.props.flow.hasCommittedProject, true);
+  const exports = {};
+  const compiledFlow = ts.transpileModule(readFileSync(new URL('../src/features/publishing/MobilePublishFlow.tsx', import.meta.url), 'utf8'), {
+    compilerOptions: {jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, esModuleInterop: true},
+  }).outputText;
+  vm.runInNewContext(compiledFlow, {exports, require(name) {
+    if (name === 'react') return {...React, useRef: value => ({current:value}), useEffect() {}};
+    if (name === './firstProject') return {EMPTY_CREATION:{answers:{what:'',did:'',learned:''}}};
+    return new Proxy({}, {get:(_,key)=>key});
+  }});
+  const review = nodes(exports.MobilePublishFlow(guided.props));
+  assert.equal(review.find(node=>node.props?.children==='Edit details').props.disabled,true);
+  assert.equal(review.find(node=>node.props?.children==='Edit files and cover').props.disabled,true);
+  assert.equal(review.find(node=>node.props?.type==='submit').props.disabled,false);
+  assert.ok(React.Children.toArray(review.find(node=>node.props?.type==='submit').props.children).includes('Finish saving details'));
 });

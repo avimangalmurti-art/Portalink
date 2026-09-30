@@ -8,10 +8,9 @@ import ts from 'typescript';
 const source = ts.createSourceFile('App.tsx', fs.readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const declarations = new Map();
 const functions = new Map();
-let studioBranch, composeAction;
+let studioBranch;
 function visit(node) {
   if (ts.isFunctionDeclaration(node) && node.name) functions.set(node.name.text, node);
-  if (ts.isJsxAttribute(node) && node.name.getText(source) === 'onMobileCreateProject') composeAction = node.initializer.expression;
   if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) declarations.set(node.name.text, node.initializer);
   if (ts.isConditionalExpression(node) && node.condition.getText(source) === 'isMobileStudioOpen' && node.whenTrue.getText(source).includes('<StudioPage')) studioBranch = node;
   ts.forEachChild(node, visit);
@@ -52,7 +51,7 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.context.isProtectedRoute, true);
     assert.match(result.context.screenMainClassName, /overflow-hidden/);
     result.screen.props.onBack();
-    evaluate(composeAction, result.context)();
+    result.screen.props.onNewProject();
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
     assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
   }
@@ -92,22 +91,11 @@ test('mobile Studio requires the existing auth gate and cannot mount private con
 });
 
 
-test('only the ready authenticated mobile Studio routes expose navigation compose', () => {
-  for (const [platform, kind] of [['web', 'studio'], ['web', 'saved'], ['mobile', 'home'], ['mobile', 'messages']]) {
-    const result = renderRoute('mobile', 'studio');
-    result.context.presentation = platform;
-    result.context.route.kind = kind;
-    for (const name of ['isStudioOpen', 'isSavedOpen', 'isMobileStudioOpen']) result.context[name] = evaluate(declarations.get(name), result.context);
-    assert.equal(evaluate(composeAction, result.context), undefined);
-  }
-  for (const auth of [
-    { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null },
-    { isAuthenticated: true, isInitializing: true, phase: 'initializing', user: { id: 'a' } },
-    { isAuthenticated: true, isInitializing: false, phase: 'signing-out', user: { id: 'a' } },
-  ]) {
-    const result = renderRoute('mobile', 'studio', { auth });
-    assert.equal(evaluate(composeAction, result.context), undefined);
-  }
+test('ready mobile Studio supplies creation through the screen, with no extra dock compose button', () => {
+  for (const route of ['studio', 'saved']) assert.equal(typeof renderRoute('mobile', route).screen.props.onNewProject, 'function');
+  for (const route of ['studio', 'saved']) assert.equal(renderRoute('web', route).screen.props.onNewProject, undefined);
+  assert.equal(renderRoute('mobile', 'studio', { auth: { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null } }).screen.props.onNewProject, undefined);
+  assert.ok(!source.text.includes('onMobileCreateProject'));
 });
 
 test('closing creation restores the mobile trigger without stealing another destination or dialog focus', () => {
@@ -118,7 +106,7 @@ test('closing creation restores the mobile trigger without stealing another dest
       focus(options) { calls.push(['focus', options.preventScroll]); }
     }
     const opener = new Element(), body = {}, doc = { body, activeElement: opener, querySelector: () => after === 'another-modal' ? {} : null };
-    const context = vm.createContext({ HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
+    const context = vm.createContext({ firstProjectPublisher:false, setFirstProjectPublisher() {}, setJourneyMadeIn() {}, HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
       requestGlobalPublish: () => { calls.push('create'); doc.activeElement = body; },
       setIsPublishOpen: value => calls.push(['open', value]), setPublishTargetCategoryId: value => calls.push(['target', value]),
       requestAnimationFrame: frame => frames.push(frame),

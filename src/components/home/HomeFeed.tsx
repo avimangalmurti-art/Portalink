@@ -1,3 +1,6 @@
+import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
@@ -29,6 +32,7 @@ type HomeFeedProps = {
   /** Shows the mobile Home discovery and refresh entry. */
   showSearchPlaceholder?: boolean;
   onExploreWorld?: () => void;
+  firstProjectAction?: () => void;
   emptyAction?: { label: string; onClick: () => void };
   emptySecondaryAction?: { label: string; onClick: () => void };
   emptyTitle?: string;
@@ -70,6 +74,7 @@ export function HomeFeed({
   locationId,
   showSearchPlaceholder = false,
   onExploreWorld,
+  firstProjectAction,
   emptyAction,
   emptySecondaryAction,
   emptyTitle = 'Your Home feed is ready',
@@ -78,7 +83,7 @@ export function HomeFeed({
   const isMobile = usePresentation() === 'mobile';
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
-  const { viewerProfileId } = useAuth();
+  const { viewerProfileId, isAuthenticated } = useAuth();
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
@@ -175,6 +180,10 @@ export function HomeFeed({
     writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
   }, [scrollMemoryKey]);
 
+  useMobileScreenActions(showSearchPlaceholder ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
+    refresh: !feed.isRefreshing && feed.status !== 'loading' ? () => { setHasReloaded(true); feed.retry(); } : undefined,
+  } }) : null, 5);
+  if (isMobile && firstProjectAction) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
         ref={autoScrollRef}
@@ -199,6 +208,7 @@ export function HomeFeed({
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
           </header>}
+          {!locationId && <WeeklyReadNote />}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}

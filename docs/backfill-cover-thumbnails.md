@@ -5,6 +5,11 @@ WebP variants as new browser uploads. Each size names the **long edge**; the
 other dimension follows the creator's cover ratio. The crop is baked once into
 the variants. Originals, attachments, PDF pages and project content are retained.
 
+The current release candidate also generates a 1200×630 `social.webp` after
+`project_cover_social_supported` confirms the separately approved schema/bucket
+capability. Without that RPC it retains three-variant compatibility. See the
+[consolidated release approval order](release-review-sites-274.md).
+
 This source is prepared locally. No live backfill, Storage upload, SQL application
 or deployment was performed as part of implementing it.
 
@@ -87,10 +92,12 @@ pagination so successful updates do not cause rows to be skipped.
 ## Eligibility, output and resumption
 
 Both listing and freshness checks use anonymous Supabase visibility. A project
-must have a public profile, visible portal and visible project, and a null
-`cover_thumbnail`. Missing visibility flags fail closed. Private content never
-enters the renderer. Existing non-null manifests are left alone, including old
-or malformed values that need a separate repair decision.
+must have a public profile, visible portal and visible project. Missing
+visibility flags fail closed. Private content never enters the renderer.
+Without social capability, non-null manifests are left alone. With it, manifests
+without a social asset are regenerated from the current selected source; those
+already declaring a social asset skip. This is not an audit/repair of malformed
+completed manifests or missing objects referenced by them.
 
 The existing selected cover attachment wins, followed by the first image and
 then the first attachment. Image, PDF and video covers are supported. A PDF uses
@@ -103,12 +110,14 @@ The manifest is version one, has `frameBaked: true`, and records the exact TEXT
 `sourceAttachmentId`, source fingerprint, bucket and variant dimensions/paths.
 Shared `coverThumbnailManifest.mjs` helpers keep browser and backfill fingerprints
 identical. `sourceKey` hashes the selected attachment ID/path/page/crop; the output
-path hash includes the actual encoded bytes and dimensions of all three variants:
+path hash includes the actual encoded bytes and dimensions of all three variants
+and the social asset when supported:
 
 ```text
 PROFILE_UUID/PROJECT_UUID/CONTENT_SHA256/200.webp
 PROFILE_UUID/PROJECT_UUID/CONTENT_SHA256/400.webp
 PROFILE_UUID/PROJECT_UUID/CONTENT_SHA256/800.webp
+PROFILE_UUID/PROJECT_UUID/CONTENT_SHA256/social.webp (capability-gated)
 ```
 
 Uploads never overwrite an existing object. Public objects carry
@@ -134,8 +143,9 @@ URLs or source file contents. Logs are evidence, not instructions to bypass a
 fresh permission check. Failed projects do not prevent the remaining eligible
 projects from being inspected; any failures set the process exit code to one.
 
-For ten **eligible** projects this produces thirty variants and ten manifest
-updates, plus reads and verification requests. The earlier user-visible count of
+For ten **eligible** projects this produces thirty variants plus ten social
+assets when supported, and ten manifest updates, plus reads and verification
+requests. The earlier user-visible count of
 ten projects is not a verified live backfill count. Real eligible count, byte
 volume and runtime must come from an approved live dry-run; the small synthetic
 fixture is not a reliable live cost or duration estimate.

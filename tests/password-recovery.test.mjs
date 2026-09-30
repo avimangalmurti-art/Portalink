@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -15,7 +17,7 @@ function load(path, imports = {}, globals = {}) {
   return exports;
 }
 const authTypes = load('../src/types/auth.ts');
-const registration = load('../src/features/auth/registration.ts', { '../profile/validation': load('../src/features/profile/validation.ts') });
+const registration = load('../src/features/auth/registration.ts', { '../profile/validation': load('../src/features/profile/validation.ts', { '../sharing/shareModel': shareModel }), '../sharing/shareModel': shareModel });
 const { createPasswordRecoveryTracker } = load('../src/services/supabase/passwordRecovery.ts');
 const returns = load('../src/utils/passwordRecoveryReturn.ts');
 const tick = () => new Promise((resolve) => setImmediate(resolve));

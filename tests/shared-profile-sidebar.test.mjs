@@ -35,7 +35,7 @@ function harness(initialPresentation = 'web') {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
-    if (name.endsWith('/MobileSharedProfileDrawer')) return { MobileSharedProfileDrawer: 'mobile-shared-drawer' };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
     if (name === '../../utils/panelLayoutDefaults') return layoutDefaults;
@@ -118,12 +118,11 @@ test('public navigation can collapse and expand without offering layout resize h
 });
 
 test('shared navigation keeps the creator name as its only home link and keeps bio out of the sidebar', () => {
-  for (const presentation of ['mobile', 'web']) {
+  for (const presentation of ['web']) {
     const h = harness(presentation);
     const profile = { id: 'creator', name: 'Creator', headline: 'Jolly Good\nWorking across cities.', categories: [] };
     const wrapper = h.render({ profile });
-    let closed = 0;
-    const tree = presentation === 'mobile' ? wrapper.props.children(() => { closed++; }) : wrapper;
+    const tree = wrapper;
     assert.equal(nodes(tree).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
     assert.equal(nodes(tree).some(node => node.props.children === 'Jolly Good'), false);
     assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator portals'));
@@ -132,7 +131,6 @@ test('shared navigation keeps the creator name as its only home link and keeps b
     assert.equal(home(tree).props.to, '/share/creator');
     assert.ok(nodes(home(tree)).some(node => node.props.children === 'Creator'));
     assert.equal(nodes(tree).some(node => node.props.icon === 'HomeIcon' || node.props.children === 'Profile'), false);
-    if (presentation === 'mobile') { home(tree).props.onClick(); assert.equal(closed, 1); }
   }
 });
 
@@ -163,44 +161,13 @@ test('empty public portfolios still offer expansion and return-to-profile', () =
   assert.equal(home(tree).props.to, '/share/empty');
 });
 
-test('MOBILE uses a full-content drawer without overwriting the WEB collapse preference', () => {
-  const h = harness();
-  toggle(h.render()).props.onClick();
+test('MOBILE shows one floating context button and preserves WEB collapse preference', () => {
+  const h = harness(); toggle(h.render()).props.onClick();
   assert.equal(h.render().props['data-collapsed'], 'true');
   h.setPresentation('mobile');
-  const wrapper = h.render({ activeCategoryId: 'photos' });
-  assert.equal(wrapper.type, 'mobile-shared-drawer');
-  assert.equal(wrapper.props.name, 'Creator Name');
-  const close = () => h.calls.push('close');
-  const tree = wrapper.props.children(close);
-  assert.equal(tree.props['data-mobile-shared-sidebar'], true);
-  assert.equal(tree.props['data-collapsed'], 'false');
-  assert.equal(tree.props.style, undefined);
-  assert.equal(toggle(tree).props['aria-label'], 'Close profile navigation');
-  assert.equal(nodes(tree).some(node => node.type === 'resize-handle'), false);
-  assert.equal(portals(tree)[0].props['aria-current'], 'page');
-  assert.ok(nodes(portals(tree)[0]).some(node => node.props?.children === 'Photography'));
-  const profileLink = home(tree);
-  assert.equal(profileLink.props.to, '/share/creator');
-  profileLink.props.onClick();
-  portals(tree)[0].props.onClick();
-  toggle(tree).props.onClick();
-  assert.deepEqual(h.calls, ['close', 'close', 'photos', 'close']);
-  h.setPresentation('web');
-  const web = h.render();
-  assert.equal(web.type, 'aside');
-  assert.equal(web.props['data-collapsed'], 'true');
-  assert.equal(web.props['data-mobile-shared-sidebar'], undefined);
-  assert.equal(nodes(web).some(node => node.type === 'mobile-shared-drawer'), false);
-});
-
-test('MOBILE Settings closes the drawer and navigates directly without a popup', () => {
-  const h = harness('mobile');
-  const close = () => h.calls.push('close');
-  const tree = h.render().props.children(close);
-  const settings = nodes(tree).find(node => node.props?.['aria-label'] === 'Open settings');
-  assert.equal(settings.props['aria-haspopup'], undefined);
-  settings.props.onClick();
-  assert.deepEqual(h.calls, ['close', 'settings']);
-  assert.equal(nodes(h.render().props.children(close)).some(node => node.props?.role === 'menu'), false);
+  const tree = h.render({ activeCategoryId: 'photos' });
+  assert.equal(tree.type, 'context-button'); assert.equal(tree.props.floating, true);
+  assert.equal(nodes(tree).some(node => node.type === 'aside' || node.type === 'nav'), false);
+  h.setPresentation('web'); const web = h.render();
+  assert.equal(web.type, 'aside'); assert.equal(web.props['data-collapsed'], 'true');
 });

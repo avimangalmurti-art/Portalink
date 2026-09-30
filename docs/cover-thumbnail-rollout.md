@@ -5,6 +5,11 @@ Supabase project. No public bucket, live objects, or existing migration history
 were changed by this work. A source review, SQL approval, backfill approval and
 application deployment are separate decisions.
 
+For the complete current candidate, use the consolidated [Sites274 release
+review](release-review-sites-274.md). Its ordered inventory supersedes the early
+three-step list below: Journey/employer also carry the same final bundle RPC,
+and the social-cover capability follows the updated schema/bucket guards.
+
 ## Review and approval order
 
 1. `supabase/pending/cover_thumbnail_schema.sql`: nullable `projects.cover_thumbnail`,
@@ -35,8 +40,9 @@ from public profile/category/project visibility, manifest, source-attachment,
 storage-object or revision checks. Null clears a manifest without requiring
 public visibility. Keep service credentials out of browser code and `VITE_*`.
 
-The version-1 JSON manifest has only `version`, `bucket`, `sourceAttachmentId`,
-`sourceKey`, `frameBaked` and `variants`. The source attachment ID is **text**,
+The version-1 JSON manifest has `version`, `bucket`, `sourceAttachmentId`,
+`sourceKey`, `frameBaked`, `variants` and, after the approved capability, optional
+`social` (1200×630 `social.webp` under the same hash). The source attachment ID is **text**,
 matching the existing attachment table, and must belong to the project.
 `sourceKey` is a 64-character lowercase hex fingerprint of source identity,
 storage path, selected page and framing. SQL checks its format and project
@@ -47,6 +53,12 @@ width/height pair has the exact corresponding longest edge. All paths use
 `PROFILE_UUID/PROJECT_UUID/HASH/SIZE.webp` with the same 64-character lowercase
 content hash. The hash represents the generated variant bytes. Originals and
 the full project viewer retain their existing storage and reading paths.
+
+Backfill checks `project_cover_social_supported` before rendering. When supported,
+it upgrades older three-file manifests, includes the landscape asset bytes in the
+hash and persists all four assets. Complete social manifests skip on repeat runs.
+When the RPC is specifically missing it retains three-file compatibility; real
+permission/network errors stop the operation. This review ran only offline fixtures.
 
 Before the schema exists, absence of an own `cover_thumbnail` column in a project
 row means retain the existing cover and do not upload thumbnails. When the column

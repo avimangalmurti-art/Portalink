@@ -22,6 +22,7 @@ function harness({ presentation = 'mobile', isOwner = false, mobileLayout, share
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup, Item: 'li' }, useDragControls: () => ({}), AnimatePresence: () => null, motion: { div: 'div' } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
+    if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/ProjectCover')) return { ProjectCover };

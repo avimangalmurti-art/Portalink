@@ -1,0 +1,40 @@
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useServices } from '../contexts/ServicesContext';
+import { handleFromPath, parseResolution, portfolioPath, type HandleResolution } from '../features/sharing/shareModel';
+import type { AppRoute } from '../app/useAppRoute';
+declare global { interface Window { __PORTALINK_HANDLE__?: HandleResolution } }
+export function useHandleRoute(original: AppRoute): { route: AppRoute; pending: boolean; error: string; retry: () => void } {
+  const location = useLocation(), navigate = useNavigate(), { profiles } = useServices(), handle = handleFromPath(location.pathname);
+  const [error,setError] = useState<{ handle: string; message: string } | null>(null);
+  const [attempt,setAttempt] = useState(0);
+  const [state, setState] = useState<{ handle: string | null; value: HandleResolution | null; done: boolean }>(() => {
+    const value = parseResolution(window.__PORTALINK_HANDLE__);
+    return { handle, value: value?.handle === handle ? value : null, done: value?.handle === handle };
+  });
+  useEffect(() => {
+    if (!handle) {
+      setError(null);
+      if (state.handle !== null) setState({ handle: null, value: null, done: false });
+      return;
+    }
+    if (state.handle === handle && state.done) return;
+    let active = true; setError(null);
+    void profiles.resolvePublicHandle?.(handle).then(value => {
+      if (!active) return;
+      setState({ handle, value, done: true });
+      if (value?.alias) navigate(portfolioPath(value.profileId, value.handle) + location.search, { replace: true });
+    }).catch(() => { if (active) { setState({ handle, value: null, done: true }); setError({ handle, message: 'This portfolio could not load. Please try again.' }); } });
+    if (!profiles.resolvePublicHandle) setState({ handle, value: null, done: true });
+    return () => { active = false; };
+  }, [handle, state.handle, state.done, profiles, navigate, location.search, attempt]);
+  const uuidProfileId = original.kind === 'sharedProfile' ? original.profileId : null;
+  // SPA visits to old UUID roots use the same canonical address as HTTP redirects.
+  useEffect(() => {
+    if (handle || !uuidProfileId) return;
+    let active = true;
+    void profiles.getShareAddress?.(uuidProfileId).then(address => { if (active && address.handle) navigate(portfolioPath(uuidProfileId, address.handle) + location.search, { replace: true }); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [handle, uuidProfileId, profiles, navigate, location.search]);
+  return { error: handle && error?.handle === handle ? error.message : '', retry: () => { setState(current => ({...current,done:false})); setAttempt(n=>n+1); }, route: handle && state.handle === handle && state.value ? { kind: 'sharedProfile', profileId: state.value.profileId } : original, pending: Boolean(handle && (state.handle !== handle || !state.done)) };
+}

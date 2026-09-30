@@ -1,9 +1,23 @@
+import { EmployerOverview } from '../features/employer/EmployerOverview';
+import { profileHeadline } from '../features/employer/employer';
+import { useAuth } from '../contexts/AuthContext';
+import { JourneyToggle } from '../features/journey/JourneyToggle';
+import { useJourneySelection } from '../features/journey/useJourneySelection';
+import { journeyAllowed } from '../features/journey/journey';
+import { readLivePortfolio, livePortfolioDismissed } from '../features/publishing/firstProject';
+import { Suspense, lazy } from 'react';
+import { PortfolioLiveCard } from '../features/publishing/PortfolioLiveCard';
+import { useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
+import { contextActions } from '../presentation/mobile/contextActions';
+import { useServices } from '../contexts/ServicesContext';
+import { portfolioPath } from '../features/sharing/shareModel';
+import { copyPublicLink } from '../utils/copyPublicLink';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
 import { CheckIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
@@ -23,7 +37,7 @@ import { ProfileAvatar } from './profile/ProfileAvatar';
 import { resolveProfileLinks } from '../features/profile/profileLinks';
 import { ProfileShareMenu } from './profile/ProfileShareMenu';
 import { ProjectPreviewCard } from './profile/ProjectPreviewCard';
-import { ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
+import { DeleteProjectDialog, ProjectEditorDialog } from '../features/projects/ProjectEditorDialog';
 import { useProjectManagement, type ProjectManagement } from '../features/projects/useProjectManagement';
 import { useProfileProjectOrder } from '../features/profile/useProfileProjectOrder';
 import { useProjectGridDensity } from '../features/profile/useProjectGridDensity';
@@ -32,6 +46,10 @@ import { useProfileConnections } from '../features/follows/useProfileConnections
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 import { ProfileBioSheet } from '../features/profile/ProfileBioSheet';
 import './profile/profile-header.css';
+const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
+const ThenNowDialog = lazy(() => import('../features/journey/ThenNowDialog').then(m => ({ default: m.ThenNowDialog })));
+const StartHereDialog = lazy(() => import('../features/employer/StartHereDialog').then(m => ({default:m.StartHereDialog})));
+const ProfileShareDialog = lazy(() => import('../features/sharing/ProfileShareDialog').then(m => ({ default: m.ProfileShareDialog })));
 
 /**
  * A creator's profile overview.
@@ -43,6 +61,7 @@ import './profile/profile-header.css';
  * chrome around another person's (or nobody's) work.
  */
 type UserProfilePageProps = {
+  publishedProjectId?: string;
   /** The canonical record. Read through the profile data boundary, so a saved edit shows immediately. */
   profile: Profile;
   onBack: () => void;
@@ -87,6 +106,7 @@ type UserProfilePageProps = {
   onEditProfile?: () => void;
   /** Starts the existing publisher with an owned category as its default. */
   onPublishProject?: () => void;
+  onAddJourneyProject?: (year?: number) => void;
   /** Existing Messages entry point, with its normal account gate. */
   onCollaboration?: () => void;
   onMessage?: () => void;
@@ -206,7 +226,12 @@ function ProfileProjectTile({
   descriptionEditor,
   onEditDescription,
   onEditProject,
-  onRepositionPreview
+  onChangeCover,
+  onDeleteProject,
+  onRepositionPreview,
+  onUseInThenNow,
+  onUseAsStartHere,
+  onReads
 }: {
   project: Project;
   creator: Pick<Profile, 'id' | 'name' | 'avatar'>;
@@ -218,7 +243,12 @@ function ProfileProjectTile({
   descriptionEditor?: InlineDescriptionEditor;
   onEditDescription?: () => void;
   onEditProject?: () => void;
+  onChangeCover?: () => void;
+  onDeleteProject?: () => void;
   onRepositionPreview?: () => void;
+  onUseInThenNow?: () => void;
+  onUseAsStartHere?: () => void;
+  onReads?: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showCreator = usePresentation() !== 'mobile';
@@ -234,7 +264,7 @@ function ProfileProjectTile({
     action?.();
   };
 
-  return <ProjectPreviewCard project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
+  return <ProjectPreviewCard contextHandlers={{ reads: onReads, startHere: onUseAsStartHere, thenNow: onUseInThenNow, edit: onEditProject, cover: onChangeCover, delete: onDeleteProject }} project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
       sharedCoverFallback={isSharedView}
       allowPdfFallback={!isSharedView}
       allowVideoFallback={!isSharedView}
@@ -250,6 +280,9 @@ function ProfileProjectTile({
               <InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" />
             </button>
             {isMenuOpen ? <span ref={menuRef} tabIndex={-1} role="menu" aria-label={`Edit ${project.title}`} className="shape-compact absolute bottom-[calc(100%+6px)] right-0 z-40 flex w-48 flex-col overflow-hidden border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[var(--shadow-pop)]">
+                {onReads && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onReads)}>Reads</button>}
+                {onUseAsStartHere && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onUseAsStartHere)}>Use as Start here</button>}
+                {onUseInThenNow && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onUseInThenNow)}>Use in Then/Now</button>}
                 {onRepositionPreview ? <button type="button" role="menuitem" onClick={() => runAction(onRepositionPreview)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={MoveIcon} size="sm" weight="medium" />
                     Reposition preview…
@@ -297,6 +330,7 @@ function ProfileIdentityAndLinks({
             {displayName}
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
+          {profileHeadline(profile) && <p className="profile-short-headline">{profileHeadline(profile)}</p>}
           {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} />}
         </div>
       </div>
@@ -346,6 +380,7 @@ function ProfileStats({
 
 export function UserProfilePage({
   profile,
+  publishedProjectId,
   mobilePortalsView,
   mobileContent,
   mobileContentView,
@@ -359,6 +394,7 @@ export function UserProfilePage({
   onOpenProject,
   onEditProfile,
   onPublishProject,
+  onAddJourneyProject,
   onCollaboration,
   onMessage,
   shareUrl,
@@ -368,8 +404,22 @@ export function UserProfilePage({
   const isMobile = usePresentation() === 'mobile';
   const [searchParams, setSearchParams] = useSearchParams();
   const showsOwnerTools = canAuthor(viewerRole) && !isSharedView;
+  const auth = useAuth();
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId);
+  const canSeeJourney = journeyAllowed(profile, showsOwnerTools);
+  const [pairSelection, setPairSelection] = useState<string | null>(null);
+  const startHereId = showsOwnerTools ? searchParams.get('startHere') : null;
+  const startHereSelection = profile.projects.find(project => project.id === startHereId);
+  const closeStartHere = () => setSearchParams(previous => {const next = new URLSearchParams(previous);next.delete('startHere');return next;},{replace:true});
+  const requestedPair = showsOwnerTools ? searchParams.get('journeyPair') : null;
+  const pairOpen = pairSelection !== null || Boolean(requestedPair && profile.projects.some(p => p.id === requestedPair));
+  const closePair = () => {
+    setPairSelection(null);
+    if (requestedPair) setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('journeyPair'); return next; }, { replace: true });
+  };
   const requestedView = searchParams.get('view');
   const activeView: ProfileContentView = isMobile && mobileContent && mobileContentView ? mobileContentView : (requestedView === 'portals' || (showsOwnerTools && (requestedView === 'followers' || requestedView === 'following'))) ? requestedView : 'projects';
+  const isJourney = canSeeJourney && journey.view === 'journey' && activeView === 'projects' && !mobileContent;
   const setActiveView = (view: ProfileContentView) => {
     if (isMobile && onMobileViewChange) {
       onMobileViewChange(view);
@@ -433,11 +483,13 @@ export function UserProfilePage({
   );
   const orderedCardProjects = useMemo(() => {
     const projectsById = new Map(cardProjects.map((project) => [project.id, project]));
-    return projectOrder.order
+    const order = isMobile ? [...projectOrder.order, ...cardProjects.map(project => project.id).filter(id => !projectOrder.order.includes(id))] : projectOrder.order;
+    return order
       .map((projectId) => projectsById.get(projectId))
       .filter((project): project is Project => Boolean(project));
-  }, [cardProjects, projectOrder.order]);
-  const showsMobileReorder = showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
+  }, [cardProjects, projectOrder.order, isMobile]);
+  const navigate = useNavigate();
+  const showsMobileReorder = !isJourney && showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
   const canReorderProjects = orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
   const startReordering = () => {
     if (!showsMobileReorder || !canReorderProjects) return;
@@ -445,6 +497,34 @@ export function UserProfilePage({
     setIsReorderingProjects(true);
     setIsMobileToolsOpen(false);
   };
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareAuto, setShareAuto] = useState(false);
+  const offeredHandle = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isMobile || !showsOwnerTools || profile.isPrivate || offeredHandle.current === profile.id || livePortfolioDismissed(profile.id) || !(readLivePortfolio(profile.id) || publishedProjectId)) return;
+    try { if (localStorage.getItem(`portalink.handle-intro:${profile.id}`) === '1') return; } catch { /* Optional convenience. */ }
+    offeredHandle.current = profile.id; setShareAuto(true); setShareOpen(true);
+  }, [isMobile, showsOwnerTools, profile.id, profile.isPrivate, publishedProjectId]);
+  const publicProfileUrl = shareUrl ?? new URL(buildPath('sharedProfile', { profileId: profile.id }), window.location.origin).href;
+  const { profiles: profileServices } = useServices();
+  const readsNavigate = useNavigate();
+  const prepareProfileLink = async () => {
+    await onBeforeShare?.();
+    const address = await profileServices.getShareAddress?.(profile.id);
+    if (showsOwnerTools && address?.handle) await profileServices.markHandleShared?.(profile.id, address.handle);
+    return address?.handle ? new URL(portfolioPath(profile.id, address.handle), window.location.origin).href : publicProfileUrl;
+  };
+  const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
+    editProfile: onEditProfile, newProject: onPublishProject,
+    share: !profile.isPrivate ? () => setShareOpen(true) : undefined,
+    copy: !profile.isPrivate ? async () => copyPublicLink(await prepareProfileLink()) : undefined,
+    reorder: showsMobileReorder && canReorderProjects ? startReordering : undefined,
+    insights: () => navigate(buildPath('insights')), settings: () => navigate(buildPath('controlCenter')),
+    follow: follow && !follow.isResolving && !follow.isPending && !follow.resolveError ? follow.onToggle : undefined,
+    message: onMessage,
+  }, labels: { share: showsOwnerTools ? 'Share link' : 'Share', follow: follow?.isFollowing ? 'Unfollow' : follow?.isRequested ? 'Cancel request' : 'Follow' } });
+  useMobileScreenActions(!isSharedView && !mobileProjectSelected ? profileActions : null);
+  const profilePress = useMobileContextPress(!isSharedView ? profileActions : null, true);
   const finishReordering = async () => {
     if (finishingReorder.current || projectOrder.isSaving) return;
     finishingReorder.current = true;
@@ -488,11 +568,16 @@ export function UserProfilePage({
               onCancel: () => { void projectManagement.editor.close(); }
             } : undefined}
             onEditDescription={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'description') : undefined}
+            onReads={showsOwnerTools && !isSharedView ? () => readsNavigate(`/insights?project=${project.id}`) : undefined}
+            onUseAsStartHere={showsOwnerTools && project.isPubliclyVisible !== false ? () => setSearchParams(previous => {const next = new URLSearchParams(previous); next.set('startHere',project.id);return next;}) : undefined}
+            onUseInThenNow={showsOwnerTools && project.isPubliclyVisible !== false ? () => setPairSelection(project.id) : undefined}
             onEditProject={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id) : undefined}
+            onChangeCover={showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'files') : undefined}
+            onDeleteProject={showsOwnerTools && !isSharedView && !isReorderingProjects ? () => projectManagement.deletion.request(project.id) : undefined}
             onRepositionPreview={project.cover && showsOwnerTools && !isSharedView && !isReorderingProjects && projectManagement.editor.projectId === null ? () => projectManagement.editor.open(project.id, 'cover') : undefined}
           />
         </div>
-  })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor]);
+  })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor, projectManagement.deletion, setSearchParams, readsNavigate]);
   const followers = connections.counts.followers?.toLocaleString() ?? readStat(profile, 'Followers');
   const following = connections.counts.following?.toLocaleString() ?? readStat(profile, 'Following');
   // Every region of the page — toolbar, identity, and wall — now sits on the
@@ -544,7 +629,7 @@ export function UserProfilePage({
       document.removeEventListener('click', click, true);
     };
   }, [hasMobilePortalOverlay]);
-  const isMobileWall = isMobile && (activeView === 'projects' || (activeView === 'portals' && Boolean(mobilePortalOverlay))) && (!nestedMobileContent || Boolean(mobilePortalOverlay));
+  const isMobileWall = !isJourney && isMobile && (activeView === 'projects' || (activeView === 'portals' && Boolean(mobilePortalOverlay))) && (!nestedMobileContent || Boolean(mobilePortalOverlay));
   const wallMemoryRef = useRef(mobileWallScrollMemory);
   wallMemoryRef.current = mobileWallScrollMemory;
   useEffect(() => {
@@ -561,18 +646,21 @@ export function UserProfilePage({
 
   const isWebWorkspace = !isMobile && Boolean(mobileContent);
   const isMobileProject = isMobile && Boolean(mobileContent) && mobileProjectSelected;
-  const projectWall = imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your portfolio and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
+  const projectWall = isMobile && showsOwnerTools && profile.projects.length === 0 ? <div className="first-project-empty-grid"><button type="button" className="first-project-empty-tile" onClick={onPublishProject}><span aria-hidden="true">+</span><span>Your first project</span></button></div> : imageryCells.length === 0 ? <EmptyState title="No work published yet" description={showsOwnerTools ? 'Add a project to start building your portfolio and share your work.' : `${displayName} has not published any work yet.`} action={showsOwnerTools && onPublishProject ? { label: 'Add a project', onClick: onPublishProject } : undefined} /> : <div className="w-full" style={{ maxWidth: gridWidth ? `${gridWidth}px` : undefined }}>
     <JustifiedImageWall key={profile.id} label={`${displayName} — profile imagery`} columns={columnsPerRow} onColumnsChange={density.setColumns} allowLayoutControls={!isSharedView} items={imageryCells} reorderMode={isReorderingProjects ? {
       enabled: isReorderingProjects,
       disabled: projectOrder.isSaving,
       onMove: projectOrder.move,
       onMoveByOffset: projectOrder.moveByOffset
     } : undefined} />
+    {isMobile && showsOwnerTools && <PortfolioLiveCard profile={profile} publishedProjectId={publishedProjectId} onBeforeShare={onBeforeShare} onOpenShare={() => setShareOpen(true)} />}
   </div>;
   // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
-      <div data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
+      {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
+      {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={() => { setShareOpen(false); setShareAuto(false); }} /></Suspense>}
+      <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView} summaryCounts={isSharedView ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
@@ -581,11 +669,13 @@ export function UserProfilePage({
         </div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
+      {isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
       {density.saveError && <p role="status" className="px-2 py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
       {isMobile && isReorderingProjects && <div data-profile-reorder-controls="" className="px-2 pb-2 text-[12px] text-[var(--text-secondary)]">
         <p role="status">{projectOrder.saveError ? 'The order wasn’t saved. Tap Done to try again.' : 'Swipe to scroll. Hold a project to move it. Tap outside the cards to save.'}</p>
       </div>}
-      {isMobileToolsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
+      {/* Keep the existing creator-save lifecycle available to the mobile sheet when tools are collapsed. */}
+      {((isMobile && !showsOwnerTools && !isSharedView) || isMobileToolsOpen) && <header style={{ display: isMobileToolsOpen ? undefined : 'none' }} id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           {showsOwnerTools && visibility.isPrivate && followRequests.count > 0 && <div className="relative">
               <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="side-panel-primary-control side-panel-control-row border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
@@ -663,7 +753,7 @@ export function UserProfilePage({
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className="sr-only">Edit profile</span>
               </button> : null}
-            {showsOwnerTools && shareUrl ? <ProfileShareMenu shareUrl={shareUrl} onBeforeCopy={onBeforeShare} compact /> : null}
+            {showsOwnerTools && !profile.isPrivate && shareUrl ? <ProfileShareMenu onOpen={() => setShareOpen(true)} compact /> : null}
             {showsOwnerTools && <button type="button" data-profile-reorder-start="" aria-label="Reorder projects" title="Reorder projects" disabled={!showsMobileReorder || !canReorderProjects} onClick={startReordering}
               className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)] disabled:opacity-45">
               <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
@@ -710,8 +800,10 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
+      {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} onMessage={!isSharedView && !showsOwnerTools && auth.isAuthenticated ? onMessage : undefined} />}
+      {canSeeJourney && !mobileContent && <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {isMobileWall ? <>
+        {isJourney ? <Suspense fallback={<p role="status">Opening Journey…</p>}><JourneyView profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'journey') : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall ? <>
           <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
             mobileWallScrollMemory?.save(event.currentTarget.scrollTop);
@@ -729,7 +821,9 @@ export function UserProfilePage({
           </div>}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
+      {showsOwnerTools && pairOpen && <Suspense fallback={null}><ThenNowDialog key={pairSelection ?? requestedPair} profile={profile} selectedId={pairSelection || requestedPair || undefined} onClose={closePair} /></Suspense>}
       {showsOwnerTools && !isSharedView && projectManagement.editor.mode !== 'description' ? <ProjectEditorDialog management={projectManagement} /> : null}
+      {showsOwnerTools && !isSharedView && projectManagement.deletion?.projectId && <DeleteProjectDialog management={projectManagement} projectTitle={profile.projects.find(project => project.id === projectManagement.deletion.projectId)?.title ?? 'Project'} onDeleted={projectManagement.deletion.cancel} />}
     </div>;
 }
 function Fact({

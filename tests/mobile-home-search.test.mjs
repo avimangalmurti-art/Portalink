@@ -1,9 +1,11 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
 
 function nodes(node) {
   if (!React.isValidElement(node)) return [];
@@ -33,6 +35,10 @@ function harness(presentation = 'mobile', props = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, window: { sessionStorage: { getItem: () => null }, addEventListener() {}, removeEventListener() {} }, require(name) {
     if (name === 'react') return react;
+    if (name.endsWith('/contextActions')) return actionMap;
+    if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions() {} };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner' }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };

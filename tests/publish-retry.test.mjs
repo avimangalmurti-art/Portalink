@@ -15,7 +15,8 @@ function harness({ retryResult = [{ id: 'stored', storagePath: 'confirmed/path' 
   const calls = [];
   let complete;
   const context = vm.createContext({
-    draft: { id: 'draft' }, profileId: 'owner', categoryId: 'portal', isPublishingRef: { current: false }, validate: () => true,
+    committedPublish: { current: undefined }, setHasCommittedProject: () => {}, saveLocalDraft: async () => {}, draftCompleted: { current: false }, firstProject: false, auth: {},
+    draft: { id: 'draft', categoryId: 'portal' }, profileId: 'owner', categoryId: 'portal', isPublishingRef: { current: false }, validate: () => true,
     metadata: { title: 'Project', summary: 'Description' }, manualLocation: true, hasChosenLocation: true, location: 'London',
     ignoreInferredLocation: false, inferredRelevance: {},
     media: { items: [{ id: 'selected' }], capability: { isAvailable: true }, clear: () => calls.push('clear'), releaseOwnership: () => calls.push('release') },
@@ -54,4 +55,32 @@ test('cancelled retry and failed publication cannot report a completed project',
   assert.equal(failed.calls.includes('clear'), false);
   assert.equal(failed.context.isPublishingRef.current, false);
   assert.equal(failed.calls.some(item=>Array.isArray(item)&&item[0]==='result'), false);
+});
+
+test('a committed publication retries only pending details and never re-uploads or creates another project', async () => {
+  const h=harness();
+  h.context.committedPublish.current={projectId:'already-published',creationDetailsPending:true};
+  h.context.metadata.creationDetails={madeIn:'2024-05',field:'Design',answers:{what:'',did:'',learned:'Saved'}};
+  let attempts=0;
+  h.context.projectService.updateProjectCreationDetails=async(id,details)=>{assert.equal(id,'already-published');assert.equal(details.answers.learned,'Saved');if(++attempts===1)throw Error('network');};
+  await assert.rejects(h.context.publish.run(),/already|published/);
+  assert.equal(h.context.committedPublish.current.projectId,'already-published');
+  await h.context.publish.run();
+  assert.equal(attempts,2);assert.equal(h.calls.includes('save'),false);assert.equal(h.calls.includes('unexpected-upload'),false);assert.equal(h.calls.some(value=>Array.isArray(value)&&value[0]==='publish'),false);
+  assert.ok(h.calls.some(value=>Array.isArray(value)&&value[0]==='result'&&value[1]==='already-published'));
+});
+
+
+test('first publication keeps its real preview until the canonical profile contains the committed tile',async()=>{
+ const h=harness();h.context.firstProject=true;h.context.auth={user:{id:'account'}};
+ h.context.committedPublish.current={projectId:'already-published'};
+ h.context.clearFirstProjectDraft=async()=>{};let ready=false;
+ h.context.profileService={getProfile:async()=>({id:'owner',projects:ready?[{id:'already-published'}]:[]})};
+ h.context.cacheProfile=profile=>h.calls.push(['cache',profile.projects[0].id]);
+ await assert.rejects(h.context.publish.run(),/updated portfolio/);
+ assert.equal(h.calls.includes('clear'),false);
+ assert.equal(h.calls.some(value=>Array.isArray(value)&&value[0]==='result'),false);
+ ready=true;await h.context.publish.run();
+ assert.ok(h.calls.some(value=>Array.isArray(value)&&value[0]==='cache'&&value[1]==='already-published'));
+ assert.equal(h.calls.includes('unexpected-upload'),false);
 });

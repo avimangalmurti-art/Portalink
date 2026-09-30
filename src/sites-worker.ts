@@ -1,7 +1,11 @@
+import { readPortfolioCard } from './server/sharedPreview';
+import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
+import { resolveShareRequest, injectShareResolution } from './server/shareAddress';
 import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
 import { handleRumIngest, readRumSummary } from './server/rum';
 import { authorizeRumOwner } from './server/rumOwner';
+import { ingestReach, handleReachRead, preparePageAction, savePagePrivately } from './server/projectReach';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -307,9 +311,14 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     if (!ENGAGEMENT_KINDS.includes(kind as EngagementKind) || typeof engaged !== 'boolean') throw new Error('Invalid engagement action.')
     await requireReadableTargets(request, [target], user)
     if (engaged) {
-      await db.prepare(`INSERT OR IGNORE INTO media_engagements
+      const save = db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
-        .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind).run()
+        .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind)
+      if (kind === 'save' && body.shareWithCreator === true) {
+        const event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'save',body.pageHeading)
+        try { await db.batch(event ? [save,event] : [save]) } catch { throw json({error:'Sharing a save is not available yet. You can save privately.'},503) }
+      } else if (kind === 'save') await savePagePrivately(db, save, user.id, target)
+      else await save.run()
     } else {
       await db.prepare(`DELETE FROM media_engagements
         WHERE account_id = ? AND project_id = ? AND attachment_id = ? AND page_index = ? AND kind = ?`)
@@ -326,10 +335,19 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     if (!comment) throw new Error('Write something before posting.')
     await requireReadableTargets(request, [target], user)
     const author = authorIdentity(user)
-    await db.prepare(`INSERT INTO media_comments
+    const commentId = crypto.randomUUID()
+    const write = db.prepare(`INSERT INTO media_comments
       (id, account_id, project_id, attachment_id, page_index, author_name, author_avatar_url, body)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(crypto.randomUUID(), user.id, target.projectId, target.attachmentId, target.pageIndex, author.name, author.avatarUrl, comment).run()
+      .bind(commentId, user.id, target.projectId, target.attachmentId, target.pageIndex, author.name, author.avatarUrl, comment)
+    let event
+    try { event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'comment',body.pageHeading,commentId) } catch { /* Existing comment remains available. */ }
+    if (event) {
+      try { await db.batch([write,event]) } catch(error) {
+        if (!/no such table.*project_page_actions/i.test(String(error))) throw error
+        await write.run()
+      }
+    } else await write.run()
     return json(await interactionRecord(db, target, user), 201)
   }
 
@@ -352,6 +370,9 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
+    if (url.pathname === '/api/reach') return ingestReach(request,environment.DB,reachConfig)
+    if (url.pathname.startsWith('/api/reach/')) return handleReachRead(request,environment.DB,reachConfig)
     if (isPublicMediaRoute(url.pathname)) return handlePublicMedia(request, {
       supabaseUrl: SUPABASE_URL, waitUntil: context ? promise => context.waitUntil(promise) : undefined,
     });
@@ -382,12 +403,21 @@ const worker = {
       }
     }
 
+    if (url.pathname.startsWith('/api/portfolio-card/')) {
+      if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+      try {
+        const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), url.origin, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
+        return json(card ?? { error: 'Public preview is not available yet.' }, card ? 200 : 404);
+      } catch { return json({ error: 'Public preview is temporarily unavailable.' }, 503); }
+    }
     const accept = request.headers.get('accept') ?? ''
     const asset = url.pathname.startsWith('/assets/');
     // Every shared path belongs to the visitor entry, including its not-found
     // state. Metadata lookups retain their stricter canonical route validation.
-    const shared = url.pathname.startsWith('/share/');
+    const shared = isPublicSharePath(url.pathname);
     const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared ? prefersHtml(accept) : accept.includes('text/html'));
+    const address = navigation && shared ? await resolveShareRequest(request, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY }) : {};
+    if (address.redirect) return address.redirect;
     const assetRequest = navigation ? new Request(new URL(shared ? '/share.html' : '/', request.url), request) : request;
     if (navigation && shared) {
       assetRequest.headers.delete('if-none-match');
@@ -404,11 +434,13 @@ const worker = {
     } else if (navigation || response.headers.get('content-type')?.includes('text/html')) {
       headers.set('cache-control', navigation && shared ? 'private, no-store' : 'no-cache');
     }
-    const shell = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    if (address.resolution) for (const name of ['content-length','content-encoding','etag','last-modified']) headers.delete(name);
+    if (address.unavailable) headers.set('retry-after', '30');
+    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
     if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
     return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,
-    });
+    }, address.resolution?.profileId);
   },
 }
 

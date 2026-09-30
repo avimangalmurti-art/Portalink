@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
@@ -80,6 +81,7 @@ test('profile data starts alongside the local session hint and server-readable r
       project_attachments: [],
     };
     const run = serviceFunction('loadProfiles', {
+      ...sourceModule('src/features/employer/employer.ts'), ...sourceModule('src/features/journey/journey.ts'),
       requireSupabase: () => ({ auth: { getSession: () => auth },
         from: table => query({ data: rows[table], error: null }, () => { if (table === 'profiles') profileStarted = true; }),
       }),

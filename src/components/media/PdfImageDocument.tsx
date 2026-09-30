@@ -1,3 +1,4 @@
+import { rememberPageHeading } from '../../features/reads/pageHeadings';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
@@ -33,6 +34,9 @@ type PdfImageDocumentProps = {
   showMediaInteractions?: boolean;
   isOwner?: boolean;
   pageViewToggleRequest?: number;
+  readingMode?: boolean;
+  readerPageRequest?: {page:number; sequence:number} | null;
+  onReaderRequestHandled?: (sequence:number) => void;
 };
 
 type PdfImagePageProps = {
@@ -43,6 +47,7 @@ type PdfImagePageProps = {
   label: string;
   enabled: boolean;
   isFocused: boolean;
+  readingMode?: boolean;
   retainCanvasWhileLoading: boolean;
   zoom: number;
   showMediaInteractions: boolean;
@@ -59,7 +64,7 @@ function PdfImagePage({
   pageNumber,
   label,
   enabled,
-  isFocused,
+  isFocused, readingMode = false,
   retainCanvasWhileLoading,
   zoom,
   showMediaInteractions,
@@ -171,7 +176,7 @@ function PdfImagePage({
     // every wheel or pinch frame. The canvas is rendered once at the fitted
     // device resolution, which keeps the gesture responsive and removes the
     // render queue that previously made zoom feel delayed.
-    const cssScale = isFocused ? Math.min(widthScale, heightScale) : widthScale;
+    const cssScale = isFocused && !readingMode ? Math.min(widthScale, heightScale) : widthScale;
     const cssViewport = page.getViewport({ scale: cssScale });
     const deviceScale = Math.max(1, window.devicePixelRatio || 1);
     const dimensionScale = MAX_RENDER_DIMENSION / Math.max(cssViewport.width, cssViewport.height);
@@ -227,6 +232,10 @@ function PdfImagePage({
         }
         settled = true;
         setPaintedPageNumber(pageNumber);
+        void page.getTextContent().then(content => {
+          const items=content.items.filter((item): item is Extract<typeof item,{str:string}> => 'str' in item && Boolean(item.str.trim()));
+          const first=items[0];if(first)rememberPageHeading(attachmentId,pageNumber-1,items.filter(item=>Math.abs(item.transform[5]-first.transform[5])<3).map(item=>item.str).join(' '));
+        }).catch(()=>undefined);
         setStatus('ready');
         markRumPdf(viewToken);
         onSettledRef.current(pageNumber);
@@ -245,11 +254,12 @@ function PdfImagePage({
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
     };
-  }, [isFocused, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
+  }, [attachmentId, isFocused, readingMode, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
 
   return <div
     ref={hostRef}
     data-project-page-number={pageNumber}
+    data-reach-attachment={attachmentId} data-project-page-ready={status === 'ready' && paintedPageNumber === pageNumber}
     data-project-page-total={document.numPages}
     data-focused-page-scroll={isFocused ? '' : undefined}
     data-focused-page-loading={retainCanvasWhileLoading && paintedPageNumber !== pageNumber ? '' : undefined}
@@ -332,7 +342,7 @@ function PdfImagePage({
  * There is intentionally no PDF toolbar, iframe, pagination chrome, or browser
  * plug-in UI: the document reads like a vertical sequence of uploaded artwork.
  */
-export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0 }: PdfImageDocumentProps) {
+export function PdfImageDocument({ projectId, attachmentId, source, label, columns = 1, onError, onPageCount, onPreviewDocument, onFocusModeChange, memoryKey, controlsVisible = true, showMediaInteractions = true, isOwner = false, pageViewToggleRequest = 0, readingMode = false, readerPageRequest = null, onReaderRequestHandled }: PdfImageDocumentProps) {
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const onErrorRef = useRef(onError);
   const onPageCountRef = useRef(onPageCount);
@@ -353,17 +363,18 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   }, [attachmentId]);
   const [focusedPageNumber, setFocusedPageNumber] = useState<number | null>(() => linkedPageNumber()
     ?? readViewerMemory(memoryKey).focusedPageNumber
-    ?? null);
+    ?? (readingMode ? 1 : null));
   const handledViewToggleRequestRef = useRef(pageViewToggleRequest);
   const exitFocus = useCallback(() => {
+    if (readingMode) return;
     setFocusedPageNumber((current) => {
       updateViewerMemory(memoryKey, { focusedPageNumber: null, ...(current !== null ? { lastFocusedPageNumber: current } : {}) });
       return null;
     });
-  }, [memoryKey]);
+  }, [memoryKey, readingMode]);
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
-    active: focusedPageNumber !== null,
+    active: focusedPageNumber !== null, stayFocused: readingMode,
     onEnter: (pageNumber, nextZoom) => {
       if (pageNumber > pageCount) return;
       updateViewerMemory(`${memoryKey}:page:${pageNumber}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
@@ -373,9 +384,9 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     memoryKey: focusedPageNumber ? `${memoryKey}:page:${focusedPageNumber}` : memoryKey
   });
   useEffect(() => {
-    onFocusModeChange?.(focusedPageNumber !== null);
+    onFocusModeChange?.(!readingMode && focusedPageNumber !== null);
     return () => onFocusModeChange?.(false);
-  }, [focusedPageNumber, onFocusModeChange]);
+  }, [focusedPageNumber, onFocusModeChange, readingMode]);
   const columnCount = Math.min(normalizePagesPerRow(columns, 1), pageCount || MAX_PAGES_PER_ROW);
 
   onErrorRef.current = onError;
@@ -404,7 +415,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
     setDocument(null);
     setPageCount(0);
     setRenderThrough(0);
-    setFocusedPageNumber(linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? null);
+    setFocusedPageNumber(linkedPageNumber() ?? readViewerMemory(memoryKey).focusedPageNumber ?? (readingMode ? 1 : null));
     void (async () => {
       const pdfjs = await loadPdfJs();
       if (cancelled) {
@@ -441,14 +452,20 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       window.clearTimeout(loadTimeout);
       void loadingTask?.destroy();
     };
-  }, [linkedPageNumber, memoryKey, source]);
+  }, [linkedPageNumber, memoryKey, source, readingMode]);
 
   const focusPage = useCallback((pageNumber: number) => {
     setFocusedPageNumber(pageNumber);
     updateViewerMemory(memoryKey, { focusedPageNumber: pageNumber, lastFocusedPageNumber: pageNumber });
   }, [memoryKey]);
   useEffect(() => {
-    if (pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
+    if (readingMode && readerPageRequest && pageCount) {
+      focusPage(Math.min(pageCount,readerPageRequest.page));
+      onReaderRequestHandled?.(readerPageRequest.sequence);
+    }
+  }, [readingMode, readerPageRequest, pageCount, focusPage, onReaderRequestHandled]);
+  useEffect(() => {
+    if (readingMode || pageViewToggleRequest <= handledViewToggleRequestRef.current) return;
     handledViewToggleRequestRef.current = pageViewToggleRequest;
     if (focusedPageNumber !== null) {
       exitFocus();
@@ -459,13 +476,13 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       ? rememberedPage
       : pageCount > 0 ? 1 : null;
     if (pageToRestore !== null) focusPage(pageToRestore);
-  }, [exitFocus, focusPage, focusedPageNumber, memoryKey, pageCount, pageViewToggleRequest]);
+  }, [exitFocus, focusPage, focusedPageNumber, memoryKey, pageCount, pageViewToggleRequest, readingMode]);
   const moveFocusedPage = useCallback((direction: -1 | 1) => {
     if (focusedPageNumber === null) return;
     const next = Math.min(pageCount, Math.max(1, focusedPageNumber + direction));
     if (next !== focusedPageNumber) focusPage(next);
   }, [focusPage, focusedPageNumber, pageCount]);
-  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageNumber !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus });
+  const { isMobile, swipeStyle, swipeHandlers } = useFocusedPageSwipe({ active: focusedPageNumber !== null, zoom, onMove: moveFocusedPage, onExit: exitFocus, readingMode });
   useEffect(() => {
     if (focusedPageNumber !== null && pageCount > 0 && focusedPageNumber > pageCount) exitFocus();
   }, [exitFocus, focusedPageNumber, pageCount]);
@@ -491,10 +508,10 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
       moveFocusedPage(1);
     }
   }} {...swipeHandlers} data-mobile-focused-view={isMobile && focusedPageNumber !== null ? '' : undefined} className={`${focusedPageNumber === null ? 'overflow-y-auto p-2 sm:p-4' : 'overflow-hidden p-0 outline-none'} premium-media-mode-enter relative min-h-0 flex-1 bg-[var(--surface-sunken)]`} style={focusedPageNumber === null ? undefined : swipeStyle}>
-    {focusedPageNumber !== null ? <FocusedPageExitControl
+    {!readingMode && focusedPageNumber !== null ? <FocusedPageExitControl
       onExit={exitFocus}
     /> : null}
-    {focusedPageNumber !== null && pageCount > 1 ? <>
+    {!readingMode && focusedPageNumber !== null && pageCount > 1 ? <>
         {!isMobile && focusedPageNumber > 1 ? <button type="button" data-viewer-page-control="" tabIndex={controlsVisible ? 0 : -1} onClick={() => moveFocusedPage(-1)} data-side="previous" aria-label="Previous page" className="premium-viewer-page-control side-panel-compact-control absolute left-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center text-white">
           <InterfaceIcon icon={ChevronLeftIcon} size="lg" weight="medium" />
         </button> : null}
@@ -516,7 +533,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           pageNumber={pageNumber}
           label={label}
           enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
-          isFocused={focusedPageNumber === pageNumber}
+          isFocused={focusedPageNumber === pageNumber} readingMode={readingMode}
           retainCanvasWhileLoading={isMobile}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}
           showMediaInteractions={showMediaInteractions && !isMobile}
@@ -527,7 +544,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         />
       </li>)}
     </ol>}
-    {isMobile && document && focusedPageNumber !== null && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pageCount} isOwner={isOwner} target={{
+    {isMobile && !readingMode && document && focusedPageNumber !== null && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pageCount} isOwner={isOwner} target={{
       projectId,
       attachmentId,
       pageIndex: focusedPageNumber - 1,

@@ -13,16 +13,21 @@ function methods(service, names) {
 }
 const readProfile = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'loadProfiles').getText(source);
 const plain = value => JSON.parse(JSON.stringify(value));
+const journey = {};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/journey/journey.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:journey});
+const employer = {};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/features/employer/employer.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:employer});
 const gridDensity = {};
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/utils/projectGridDensity.ts', import.meta.url), 'utf8'), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
 }).outputText, { exports: gridDensity });
-function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } } } = {}) {
+function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message: 'RPC not installed' } }, journeyReadError = null } = {}) {
   const db = {
     profiles: [{id:'owner',account_id:'account',name:'Original',handle:'owner',headline:'Bio',location:'City',links:[],social_links:{},is_private:false}],
     portfolio_categories: ['one','two'].map((id,position)=>({id,profile_id:'owner',label:id,position,icon_name:'FolderIcon',is_hidden:false})),
     projects: ['a','b','c'].map((id,i)=>({id,profile_id:'owner',category_id:i===1?'two':'one',position:i,published_at:`2026-09-${20-i}`,is_hidden:false,is_pinned:false,design:{typefaceId:'default'}})),
     project_attachments: [],
+    profile_journey_pairs: [],
   };
   let denied=false,failId=null,viewer='account';
   const writes=[], rpcCalls=[], tableCalls=[];
@@ -35,8 +40,10 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
       eq(key,value){filters.push(row=>row[key]===value);return query;},
       in(key,values){filters.push(row=>values.includes(row[key]));return query;},
       order(key,options={}){orders.push([key,options.ascending!==false]);return query;},
-      single(){singular=true;return query;},
+      single(){singular=true;return query;},maybeSingle(){singular=true;return query;},
       then(resolve,reject){
+        if(table==='profile_journey_pairs' && journeyReadError)return Promise.resolve({data:null,error:journeyReadError}).then(resolve,reject);
+        assert.ok(table in db, `Unexpected fixture table: ${table}`);
         let rows=db[table].filter(row=>filters.every(filter=>filter(row)));
         if(patch){
           if(rows.some(row=>row.id===failId))return Promise.resolve({data:null,error:{message:'Connection interrupted'}}).then(resolve,reject);
@@ -51,9 +58,11 @@ function fixture({ rpcResult = { data: null, error: { code: 'PGRST202', message:
     };return query;
   }};
   class ServiceError extends Error {constructor(code,message){super(message);this.code=code;}}
+  const creation = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/services/supabase/projectCreationDetails.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:creation,crypto,require:name=>name==='./client'?{requireSupabase:()=>client}:{}});
   const exports={};
   vm.runInNewContext(ts.transpileModule(`${readProfile}\nconst supabaseProfileService={${methods('supabaseProfileService',['getProfile','getProjectGridLayout','updateProjectGridLayout','updateProfile','getPortfolioArrangement','savePortfolioArrangement','renameCategory','setCategoryIcon'])}};\nconst supabaseProjectService={${methods('supabaseProjectService',['saveProfileProjectOrder','getProjectArrangement','saveProjectArrangement','updateProjectDesign'])}};\nexports.profiles=supabaseProfileService;exports.projects=supabaseProjectService;`,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS}}).outputText,{
-    exports,...gridDensity,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
+    exports,...gridDensity,...journey,...creation,...employer,requireSupabase:()=>client,ProfileServiceError:ServiceError,CategoryMutationError:ServiceError,ProjectMutationError:ServiceError,
     throwProfileError:error=>{throw new Error(error.message);},normalizePublicAppearance:value=>value??null,normalizeHandle:value=>value.replace(/^@/,''),
     uploadAvatar:async()=>'/test-avatar.png',deriveInitials:()=>'',asStats:()=>[],asStringRecord:value=>value??{},asLinks:value=>value??[],
     hydrateProjects:async rows=>new Map(rows.map(row=>[row.id,{id:row.id,categoryId:row.category_id}])),
@@ -72,6 +81,56 @@ test('profile identity, links, avatar, privacy and branding survive a fresh serv
   assert.equal(reloaded.name,'Saved name');assert.equal(reloaded.headline,'Saved bio');assert.equal(reloaded.location,'Saved city');
   assert.equal(reloaded.isPrivate,true);assert.equal(reloaded.avatar,'/test-avatar.png');assert.equal(reloaded.links[0].href,'https://example.test');
   assert.deepEqual(plain(reloaded.publicAppearance),appearance);
+});
+
+test('owners read their private Journey pair independently of the public pair', async () => {
+  const h = fixture();
+  h.db.profiles[0].show_journey = false;
+  h.db.profiles[0].then_now = { then: 'a', now: 'b' };
+  h.db.profile_journey_pairs.push({ profile_id: 'owner', pair: { then: 'a', now: 'c' } },
+    { profile_id: 'another-profile', pair: { then: 'b', now: 'c' } });
+  assert.deepEqual(plain((await h.profiles.getProfile('owner')).thenNow), { then: 'a', now: 'c' });
+  assert.equal(h.tableCalls.filter(table => table === 'profile_journey_pairs').length, 1);
+  h.db.profile_journey_pairs = [];
+  assert.equal((await h.profiles.getProfile('owner')).thenNow, null, 'an available empty private table must not revive a stale public pair');
+  assert.equal(h.writes.length, 0);
+});
+
+test('private Journey pair reads fall back only when that specific table is missing', async () => {
+  for (const code of ['42P01', 'PGRST205']) {
+    const h = fixture({ journeyReadError: { code, message: 'public.profile_journey_pairs is missing' } });
+    h.db.profiles[0].then_now = { then: 'a', now: 'c' };
+    assert.deepEqual(plain((await h.profiles.getProfile('owner')).thenNow), { then: 'a', now: 'c' });
+    assert.equal(h.writes.length, 0);
+  }
+  for (const error of [
+    { code: '42501', message: 'profile_journey_pairs permission denied' },
+    { code: '57014', message: 'profile_journey_pairs query timed out' },
+    { code: '42P01', message: 'another_table is missing' },
+    { code: 'PGRST205', message: 'another_table is missing' },
+    { code: '42703', message: 'profile_journey_pairs.pair is missing' },
+  ]) {
+    const h = fixture({ journeyReadError: error });
+    h.db.profiles[0].then_now = { then: 'a', now: 'c' };
+    await assert.rejects(h.profiles.getProfile('owner'), failure => failure.message === error.message);
+    assert.equal(h.writes.length, 0);
+  }
+});
+
+test('other members and anonymous visitors never query private Journey pairs', async () => {
+  for (const viewer of ['other-account', null]) {
+    const h = fixture({ journeyReadError: { code: '42501', message: 'Private Journey reads are forbidden' } });
+    h.viewAs(viewer);
+    h.db.profiles[0].then_now = { then: 'a', now: 'b' };
+    h.db.profile_journey_pairs.push({ profile_id: 'owner', pair: { then: 'a', now: 'c' } });
+    assert.equal((await h.profiles.getProfile('owner')).thenNow, null);
+    h.db.profiles[0].show_journey = true;
+    assert.deepEqual(plain((await h.profiles.getProfile('owner')).thenNow), { then: 'a', now: 'b' });
+    h.db.projects.find(project => project.id === 'b').is_hidden = true;
+    assert.equal((await h.profiles.getProfile('owner')).thenNow, null, 'a public pair cannot expose a hidden project');
+    assert.ok(!h.tableCalls.includes('profile_journey_pairs'));
+    assert.equal(h.writes.length, 0);
+  }
 });
 
 test('lightweight layout reads and saves never hydrate portfolio content and enforce owner/range checks', async () => {

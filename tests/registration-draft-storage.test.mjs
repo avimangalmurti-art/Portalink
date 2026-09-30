@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -8,7 +10,7 @@ import ts from 'typescript';
 const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const compile = path => ts.transpileModule(source(path), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const validation = {};
-vm.runInNewContext(compile('src/features/profile/validation.ts'), { exports: validation });
+vm.runInNewContext(compile('src/features/profile/validation.ts'), { exports: validation, require(name) { assert.equal(name,'../sharing/shareModel'); return shareModel; } });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 const lifetime = 7 * 24 * 60 * 60 * 1000;
 const firstId = '00000000-0000-4000-8000-000000000001';
@@ -138,7 +140,7 @@ function harness(options) {
     vm.runInNewContext(compile('src/features/auth/registration.ts'), {
       exports, File, Blob, URL, indexedDB: db.indexedDB,
       Date: class extends Date { static now() { return clock.now; } },
-      require(name) { assert.equal(name, '../profile/validation'); return validation; },
+      require(name) { if(name==='../sharing/shareModel')return shareModel; assert.equal(name, '../profile/validation'); return validation; },
     });
     return exports;
   }

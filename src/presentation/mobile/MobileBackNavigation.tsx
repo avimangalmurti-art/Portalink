@@ -7,7 +7,9 @@ type BackNavigation = {
   register: (action: BackAction) => () => void;
 };
 const BackContext = createContext<BackNavigation | null>(null);
-const ScreenContext = createContext({ active: false, enabled: false });
+const ScreenContext = createContext({ active: true, enabled: false });
+
+export function useMobileScreenActive() { return useContext(ScreenContext).active; }
 
 /** One dispatcher for the mobile sidebar; WEB continues using its page controls. */
 export function MobileBackProvider({ onBack, children }: { onBack: BackAction; children: React.ReactNode }) {

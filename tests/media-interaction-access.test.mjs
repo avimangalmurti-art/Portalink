@@ -42,6 +42,9 @@ function setup() {
     require: id => {
       if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
       if (id === './server/rum' || id === './server/rumOwner') return {};
+      if (id === './server/projectReach') return { preparePageAction: async () => null, savePagePrivately: async (_db,statement) => statement.run() };
+      if (id === './features/sharing/shareModel') return { handleFromPath:()=>null,isPublicSharePath:()=>false };
+      if (id === './server/shareAddress') return {};
       assert.equal(id, './server/sharedPreview');
       return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     },

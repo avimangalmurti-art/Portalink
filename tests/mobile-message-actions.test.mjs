@@ -216,12 +216,20 @@ function sheetHarness(isMine = true) {
   const state = stateReact(), calls = []; let escape;
   const props = { message: ownMessage, isMine, pending: false,
     onClose: () => calls.push('close'), onReact: emoji => calls.push(['react', emoji]), onEdit: () => calls.push('edit'), onRequestUnsend: () => calls.push('confirm-unsend') };
-  const api = compile('../src/components/messages/MobileMessageActions.tsx', {
+  const sheetApi = compile('../src/components/messages/MobileActionSheet.tsx', {
     react: state.react,
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     '../../hooks/useModalFocus': { useModalFocus(open, _ref, close, preventScroll) { assert.equal(open, true); assert.equal(preventScroll, true); escape = close; } },
   });
-  const render = () => { state.reset(); return api.MobileMessageActions(props); };
+  const contextModule = compile('../src/presentation/mobile/contextActions.ts', {});
+  const api = compile('../src/components/messages/MobileMessageActions.tsx', {
+    react: state.react,
+    '../../presentation/mobile/contextActions': contextModule,
+    './MobileActionSheet': { MobileActionSheet: 'sheet' },
+    'react-dom': { flushSync: fn => fn() },
+    '../../presentation/mobile/contextFocus': { focusMobileContextButton() {} },
+  });
+  const render = () => { state.reset(); const adapter = api.MobileMessageActions(props); return sheetApi.MobileActionSheet(adapter.props); };
   return { render, props, calls, escape: () => escape() };
 }
 
@@ -235,15 +243,15 @@ test('action sheet supports focus dismissal, touch reactions and only shows edit
   for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[44px\] min-w-\[44px\]/);
   reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤']);
   h.escape(); assert.equal(h.calls.at(-1), 'close');
-  const overlay = nodes(tree).find(node => node.props.role === 'presentation');
+  const overlay = nodes(tree).find(node => node.props.className?.includes('mobile-context-scrim'));
   const background = {}; const before = h.calls.length;
   overlay.props.onClick({ target: {}, currentTarget: background }); assert.equal(h.calls.length, before);
   overlay.props.onClick({ target: background, currentTarget: background }); assert.equal(h.calls.at(-1), 'close');
   const incomingButtons = nodes(sheetHarness(false).render()).filter(node => node.type === 'button');
-  assert.equal(incomingButtons.length, 4, 'Incoming messages have only Close and three reactions');
+  assert.equal(incomingButtons.length, 5, 'Incoming messages have Close, React, and three emoji choices');
   h.props.pending = true;
-  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close message options');
-  assert.ok(mutationButtons.every(node => node.props.disabled));
+  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close actions');
+  assert.equal(mutationButtons.length, 0);
 });
 
 function conversationHarness(presentation = 'mobile') {

@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { readFileSync } from 'node:fs';
 
-function harness(mobile = true, { active: initialActive = true, entryReady: initialEntryReady = true, mounted = true } = {}) {
+function harness(mobile = true, { active: initialActive = true, entryReady: initialEntryReady = true, mounted = true, stayFocused = false } = {}) {
   let cursor = 0, zoom, exits = 0, key = 'one';
   let active = initialActive, entryReady = initialEntryReady;
   const slots = [], pending = [], events = new Map(), motions = [], saved = [], entryAttachments = [], entryRequests = [];
@@ -39,7 +39,7 @@ function harness(mobile = true, { active: initialActive = true, entryReady: init
       const m = { values: [], settleCount: 0, cancelled: false, update(ratio) { this.values.push(ratio); }, settle() { this.settleCount++; }, cancel() { this.cancelled = true; } }; motions.push(m); return m;
     } };
   } });
-  function render() { cursor = 0; zoom = exports.useSinglePageZoom({ surfaceRef: ref, active, entryReady, memoryKey: key,
+  function render() { cursor = 0; zoom = exports.useSinglePageZoom({ surfaceRef: ref, active, entryReady, stayFocused, memoryKey: key,
     onEnter: (page, nextZoom) => entryRequests.push([page, nextZoom]), onExit: () => exits++ }); pending.splice(0).forEach(fn => fn()); }
   render();
   return { render, motions, saved, events, entryAttachments, entryRequests, get zoom() { return zoom; }, get exits() { return exits; },
@@ -67,6 +67,11 @@ test('focused cancellation with remaining touches and page changes discard the u
   assert.equal(h.zoom, 1); assert.deepEqual(h.saved, []); assert.equal(h.motions[0].settleCount, 1);
   h.event('touchstart', 100); h.event('touchmove', 180); h.changePage(); assert.equal(h.motions[1].cancelled, true);
   h.event('touchend', 0, 0); h.render(); assert.equal(h.zoom, 1); assert.deepEqual(h.saved, []);
+});
+
+test('reading mode retains pinch zoom and resets outward pinches without returning to the grid',()=>{
+ const h=harness(true,{stayFocused:true});h.event('touchstart',100);h.event('touchmove',170);h.event('touchend',0,0);h.render();assert.equal(h.zoom,1.7);
+ h.event('touchstart',170);h.event('touchmove',40);h.event('touchend',0,0);h.render();assert.equal(h.zoom,1);assert.equal(h.exits,0);
 });
 
 test('mobile pinch-to-exit waits for release; ordinary WEB scrolling remains native', () => {

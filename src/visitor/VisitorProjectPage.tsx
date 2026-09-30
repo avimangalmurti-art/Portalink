@@ -63,7 +63,7 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
         placeholder="Search projects" aria-label={`Search projects in ${category?.label ?? 'this portal'}`} className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" /></div>
     </div>}
     {indexExpanded && <nav data-project-index-list="" aria-label={`${category?.label ?? 'Project'} index`} className="side-panel-content-inset scrollbar-hidden min-h-0 flex-1 overflow-y-auto pb-4">
-      <ProjectIndexList projects={visibleProjects} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
+      <ProjectIndexList profileId={profile.id} projects={visibleProjects} typefaceStacks={Object.fromEntries(categoryProjects.map(item => [item.id, getTypefaceStack(item.design?.typefaceId ?? 'default')]))}
         typefaceIds={{}} hiddenIds={[]} pinnedIds={categoryProjects.filter(item => item.isPinned).map(item => item.id)} activeProjectId={project.id} isOwner={false} sharedReadOnly
         onReorder={() => undefined} onToggleHidden={() => undefined} onTogglePinned={() => undefined}
         onSelect={id => { changeIndex(false); onSelect(id); }} />

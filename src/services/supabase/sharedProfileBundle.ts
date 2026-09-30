@@ -1,9 +1,12 @@
+import { readThenNow } from '../../features/journey/journey';
 import type { MediaKind } from '../../types/domain';
 
 /** Public share rows only. Account IDs and owner-only profile preferences never
  * cross this boundary. Cover attachment metadata stays opaque for the existing
  * media mapper; the bundle is not a replacement for the full project viewer. */
 export type SharedProfileRow = {
+  portfolio_headline?: string | null; school?: string; availability?: string; contact_email_public?: boolean; contact_email?: string | null; allow_pdf_download?: boolean; start_here_project_id?: string | null;
+  show_journey?: boolean; then_now?: unknown;
   id: string; name: string; handle: string; headline: string; location: string;
   avatar_url: string; nav_heading: string; stats: unknown; social_links: unknown;
   links: unknown; is_private: false; public_appearance?: unknown; project_grid_columns?: number;
@@ -13,6 +16,8 @@ export type SharedCategoryRow = {
   blurb: string; position: number; is_hidden: false;
 };
 export type SharedProjectRow = {
+  then_now_caption?: string | null;
+  made_in?: string | null; field?: string | null; story_answers?: unknown;
   id: string; profile_id: string; category_id: string; title: string; summary: string;
   design: unknown; position: number; is_hidden: false; is_pinned: boolean;
   published_at: string; revision: string; cover_thumbnail: unknown;
@@ -70,6 +75,14 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
     || !Array.isArray(p.stats) || !object(p.social_links) || !Array.isArray(p.links)
     || (p.project_grid_columns !== undefined && !integer(p.project_grid_columns))) return invalid();
   const profile: SharedProfileRow = {
+    portfolio_headline: typeof p.portfolio_headline === 'string' ? p.portfolio_headline.slice(0,80) : null,
+    school: typeof p.school === 'string' ? p.school.slice(0,120) : '',
+    availability: typeof p.availability === 'string' ? p.availability.slice(0,120) : '',
+    contact_email_public: p.contact_email_public === true,
+    contact_email: p.contact_email_public === true && typeof p.contact_email === 'string' ? p.contact_email : null,
+    allow_pdf_download: p.allow_pdf_download !== false,
+    start_here_project_id: typeof p.start_here_project_id === 'string' ? p.start_here_project_id : null,
+    show_journey: p.show_journey === true, then_now: null,
     id: p.id, name: p.name as string, handle: p.handle as string, headline: p.headline as string,
     location: p.location as string, avatar_url: p.avatar_url as string, nav_heading: p.nav_heading as string,
     stats: p.stats, social_links: p.social_links, links: p.links, is_private: false,
@@ -100,6 +113,10 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
       summary: row.summary as string, design: row.design, position: row.position as number, is_hidden: false,
       is_pinned: row.is_pinned, published_at: row.published_at as string, revision: row.revision,
       cover_thumbnail: row.cover_thumbnail,
+      ...(typeof row.then_now_caption === 'string' || row.then_now_caption === null ? { then_now_caption: row.then_now_caption } : {}),
+      ...(typeof row.made_in === 'string' || row.made_in === null ? { made_in: row.made_in } : {}),
+      ...(typeof row.field === 'string' || row.field === null ? { field: row.field } : {}),
+      ...(object(row.story_answers) || row.story_answers === null ? { story_answers: row.story_answers } : {}),
       ...(row.topic_keys !== undefined ? { topic_keys: row.topic_keys as string[] } : {}),
       ...(row.content_location !== undefined ? { content_location: row.content_location as string | null } : {}),
       ...(row.page_count !== undefined ? { page_count: row.page_count as number } : {}),
@@ -110,6 +127,9 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
   });
   uniqueIds(projects);
   const projectIds = new Set(projects.map(row => row.id));
+  if (!profile.start_here_project_id || !projectIds.has(profile.start_here_project_id)) profile.start_here_project_id = null;
+  const pair = readThenNow(p.then_now);
+  if (profile.show_journey && pair && projectIds.has(pair.then) && projectIds.has(pair.now)) profile.then_now = pair;
   const counts = new Map<string, number>();
   const attachments: SharedAttachmentRow[] = value.attachments.map(row => {
     if (!object(row) || !strings(row, ['id', 'kind', 'file_name', 'display_name', 'extension', 'mime_type', 'type_label', 'storage_path', 'status'])

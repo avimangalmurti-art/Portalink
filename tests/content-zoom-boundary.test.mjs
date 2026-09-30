@@ -1,9 +1,11 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
 
 function compile(path, require, globals = {}) {
   const exports = {};
@@ -78,15 +80,20 @@ function densityHarness({ readOnly = false, mobile = false } = {}) {
   const layout = compile('../src/features/projects/pageLayout.ts', () => ({}));
   const { ProjectMediaViewer } = compile('../src/components/media/ProjectMediaViewer.tsx', name => {
     if (name === 'react') return react;
+    if (name.endsWith('/contextActions')) return actionMap;
+    if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/contentPinchMotion')) return { touchMidpoint: touches => ({ x: touches[1].clientX / 2, y: 0 }), beginContentPinch: () => { const m = { updates: [], settled: [], cancelled: false, update(...args) { this.updates.push(args); }, settle(value) { this.settled.push(value); }, cancel() { this.cancelled = true; } }; motions.push(m); return m; } };
     if (name.endsWith('/pinchGesture')) return pinch;
     if (name.endsWith('/pageLayout')) return layout;
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
-    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({}) };
+    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ isPending: () => false, isEngaged: () => false }) };
+    if (name.endsWith('/MobilePageContext')) return { MobilePageContext: React.createContext(null) };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({}) };
     return new Proxy({}, { get: () => () => null });
-  }, { URLSearchParams, performance: { now: () => 1000 }, WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
-    window: { location: { search: '' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
+  }, { URL, URLSearchParams, performance: { now: () => 1000 }, WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
+    window: { location: { search: '', pathname: '/p/creator/c/category/project', origin: 'https://portalink.test' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
   });
   const attachments = ['one', 'two'].map(id => ({ id, kind: 'image', displayName: id, typeLabel: 'Image' }));
   const setPages = next => { pages = next; };

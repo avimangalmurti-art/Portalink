@@ -34,6 +34,7 @@ export function useSinglePageZoom({
   active,
   onEnter,
   entryReady = true,
+  stayFocused = false,
   onExit,
   memoryKey
 }: {
@@ -41,6 +42,7 @@ export function useSinglePageZoom({
   active: boolean;
   onEnter?: (pageNumber: number, zoom: number) => void;
   entryReady?: boolean;
+  stayFocused?: boolean;
   onExit: () => void;
   memoryKey?: string;
 }) {
@@ -128,7 +130,7 @@ export function useSinglePageZoom({
       if (memoryKey) updateViewerMemory(memoryKey, { zoom: MIN_ZOOM });
       exitPullRef.current = 0;
       pinchStartRef.current = null;
-      onExitRef.current();
+      if (!stayFocused) onExitRef.current();
     };
     const distanceBetween = (first: Touch, second: Touch) => Math.hypot(
       second.clientX - first.clientX,
@@ -144,7 +146,7 @@ export function useSinglePageZoom({
       const isZoomGesture = event.ctrlKey || event.metaKey;
       if (!isZoomGesture) {
         exitPullRef.current = 0;
-        if (zoomRef.current <= MIN_ZOOM + 0.005) exit();
+        if (!stayFocused && zoomRef.current <= MIN_ZOOM + 0.005) exit();
         return;
       }
 
@@ -241,7 +243,7 @@ export function useSinglePageZoom({
       surface.removeEventListener('touchcancel', handleTouchEnd);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [active, entryReady, memoryKey, setZoom, surfaceRef, isMobile]);
+  }, [active, entryReady, memoryKey, setZoom, surfaceRef, isMobile, stayFocused]);
 
   return zoom;
 }

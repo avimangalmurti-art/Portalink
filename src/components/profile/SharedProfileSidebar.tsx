@@ -10,7 +10,7 @@ import { buildPath } from '../../app/routes';
 import { useResizablePanelWidth } from '../ui/ResizablePanelHandle';
 import { panelLayoutDefaults, PANEL_LAYOUT_RESET_EVENT } from '../../utils/panelLayoutDefaults';
 import { usePresentation } from '../../presentation/usePresentation';
-import { MobileSharedProfileDrawer } from '../../presentation/mobile/MobileSharedProfileDrawer';
+import { MobileContextButton } from '../../presentation/mobile/MobileContextActions';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
@@ -105,5 +105,5 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <MobileSharedProfileDrawer name={profile.name} onClose={() => undefined}>{renderSidebar}</MobileSharedProfileDrawer> : renderSidebar();
+  return isMobile ? <MobileContextButton floating /> : renderSidebar();
 }

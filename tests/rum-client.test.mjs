@@ -12,7 +12,8 @@ function load(path, globals = {}) {
   vm.runInNewContext(code, { exports, URL, ...globals });
   return exports;
 }
-const core = load('src/features/performance/rumCore.ts');
+const shareModel=load('src/features/sharing/shareModel.ts');
+const core = load('src/features/performance/rumCore.ts',{require:()=>shareModel});
 const json = value => JSON.parse(JSON.stringify(value));
 const version = 'abcdef1234567';
 function fixture() {
@@ -24,7 +25,7 @@ function fixture() {
 }
 
 test('RUM emits only four route kinds, never identifiers or unrelated screens', () => {
-  for (const [path, kind] of [['/share/creator', 'share'], ['/share/creator/c/category', 'share'], ['/p/creator', 'profile'],
+  for (const [path, kind] of [['/mira', 'share'], ['/share/creator', 'share'], ['/share/creator/c/category', 'share'], ['/p/creator', 'profile'],
     ['/p/creator/c/category', 'profile'], ['/share/creator/c/category/project', 'project'], ['/p/creator/c/category/project', 'project'],
     ['/', 'home'], ['/feed/following', 'home'], ['/studio', null], ['/messages', null], ['/insights', null],
     ['/p/creator/collaboration', null], ['/profile/edit', null]]) assert.equal(core.rumRouteKind(path), kind, path);
@@ -151,5 +152,5 @@ test('instrumentation marks image loads and successful document render completio
   for (const source of ['PdfPage.tsx', 'PdfImageDocument.tsx']) {
     assert.match(read(`src/components/media/${source}`), /renderTask\.promise\.then\([\s\S]*setStatus\('ready'\);\s*markRumPdf\(viewToken\)/);
   }
-  assert.match(read('src/components/media/DocumentAttachment.tsx'), /onLoad=\{\(\) => \{\s*markRumPdf\(viewTokenRef\.current\)/);
+  assert.match(read('src/components/media/DocumentAttachment.tsx'), /onLoad=\{\(event\) => \{[\s\S]*?markRumPdf\(viewTokenRef\.current\)/);
 });

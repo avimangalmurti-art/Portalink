@@ -30,7 +30,7 @@ export async function thumbnailSourceKey({ id, storagePath, pageNumber, frame })
 }
 
 /** Hash the actual encoded output, including its dimensions, in size order. */
-export async function thumbnailContentHash(variants) {
+export async function thumbnailContentHash(variants, social) {
   const ordered = [...variants].sort((left, right) => left.size - right.size);
   if (ordered.length !== 3 || ordered.some((variant, index) => variant.size !== [200, 400, 800][index])) throw new Error('Three cover thumbnail variants are required.');
   const parts = [encoder.encode('portalink-cover-v1\n')];
@@ -38,6 +38,7 @@ export async function thumbnailContentHash(variants) {
     const bytes = variant.blob instanceof Uint8Array ? variant.blob : new Uint8Array(await variant.blob.arrayBuffer());
     parts.push(encoder.encode(`${variant.size}:${variant.width}:${variant.height}:${bytes.byteLength}\n`), bytes);
   }
+  if (social) { const bytes = new Uint8Array(await social.blob.arrayBuffer()); parts.push(encoder.encode(`social:1200:630:${bytes.byteLength}\n`), bytes); }
   const bytes = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0));
   let offset = 0;
   for (const part of parts) { bytes.set(part, offset); offset += part.byteLength; }

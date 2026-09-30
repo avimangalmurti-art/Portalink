@@ -16,6 +16,7 @@ const controlsSelector = [
   '[data-mobile-project-view] .premium-viewer-exit-control',
   '[data-mobile-project-view] [data-viewer-page-control]',
   '[data-mobile-project-view] [data-focused-page-count]',
+  '[data-mobile-project-view] [data-document-reader-header]',
   // Page navigation remains available while all other reading controls hide.
   '[data-mobile-project-view] button:not([data-mobile-page-navigator] *)', '[data-mobile-project-view] audio',
 ].join(',');

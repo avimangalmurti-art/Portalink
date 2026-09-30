@@ -21,7 +21,7 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
   const categoryIds = [...new Set(projectRows.map((row) => row.category_id))];
   const [profileResult, categoryResult, attachmentResult] = await Promise.all([
     client.from('profiles').select('id,name,headline,avatar_url,location,is_private').in('id', profileIds),
-    client.from('portfolio_categories').select('id,label').in('id', categoryIds),
+    client.from('portfolio_categories').select('id,label,is_hidden').in('id', categoryIds),
     client.from('project_attachments').select('*').in('project_id', requestedIds).order('position'),
   ]);
   if (profileResult.error) throwProfileError(profileResult.error, 'Project creators could not be loaded.');
@@ -29,7 +29,7 @@ async function loadRequestedProjectViews(projectIds: string[]): Promise<ProjectV
   if (attachmentResult.error) throw new Error(attachmentResult.error.message);
 
   const creatorRows = (profileResult.data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url' | 'location' | 'is_private'>>;
-  const categoryRows = (categoryResult.data ?? []) as unknown as Array<Pick<CategoryRow, 'id' | 'label'>>;
+  const categoryRows = (categoryResult.data ?? []) as unknown as Array<Pick<CategoryRow, 'id' | 'label' | 'is_hidden'>>;
   // Project RLS and category RLS are separate. A hidden category must not become
   // visible merely because its project id is known. Owners can read their own
   // hidden categories through the existing category policy.

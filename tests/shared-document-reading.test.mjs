@@ -54,6 +54,10 @@ test('single-column rendered documents retain vertical reading and the existing 
   const list = nodes(tree).find(node => node.type === 'ol');
   assert.equal(list.props.style.gridTemplateColumns, 'repeat(1, minmax(0, 1fr))');
   assert.equal(nodes(list).filter(node => node.type === 'img').length, 3);
+  const pages = nodes(list).filter(node => node.type === 'img');
+  assert.equal(pages[0].props.fetchpriority, 'high');
+  assert.equal(pages[1].props.fetchpriority, 'auto');
+  assert.ok(pages.every(page => page.props.fetchPriority === undefined), 'React 18 receives the supported lowercase DOM attribute');
   assert.ok(nodes(tree).some(node => /overflow-y-auto/.test(node.props.className ?? '')));
   const firstPage = nodes(list).find(node => node.type === 'li');
   const touch = { pointerType: 'touch', clientX: 90, clientY: 100, preventDefault() { /* Synthetic touch event. */ } };
@@ -74,7 +78,8 @@ test('live PDF overview fits width even when the page is taller than the viewpor
   }
   visit(file); assert.ok(scale);
   for (const width of [390, 430]) {
-    assert.equal(vm.runInNewContext(scale, { isFocused: false, widthScale: width / 600, heightScale: 300 / 900 }), width / 600);
-    assert.equal(vm.runInNewContext(scale, { isFocused: true, widthScale: width / 600, heightScale: 300 / 900 }), 300 / 900);
+    assert.equal(vm.runInNewContext(scale, { readingMode: false, isFocused: false, widthScale: width / 600, heightScale: 300 / 900 }), width / 600);
+    assert.equal(vm.runInNewContext(scale, { readingMode: true, isFocused: true, widthScale: width / 600, heightScale: 300 / 900 }), width / 600);
+    assert.equal(vm.runInNewContext(scale, { readingMode: false, isFocused: true, widthScale: width / 600, heightScale: 300 / 900 }), 300 / 900);
   }
 });

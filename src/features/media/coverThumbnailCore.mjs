@@ -27,11 +27,11 @@ export function coverThumbnailGeometry(width, height, input = {}) {
 }
 
 /** Runtime methods are adapters only; source selection, cropping and sizes stay identical. */
-export async function renderCoverVariants(input, runtime) {
+async function render(input, runtime, social) {
   if (!input.sourceUrl) throw new Error('Choose a cover before preparing its thumbnail.');
   const zoom = clamp(finite(input.frame?.zoom, 1), 1, 3);
   let decoded;
-  if (input.kind === 'document') decoded = await runtime.renderPdfPage(input.sourceUrl, Math.max(1, Math.floor(finite(input.pageNumber, 1))), Math.ceil(800 * zoom));
+  if (input.kind === 'document') decoded = await runtime.renderPdfPage(input.sourceUrl, Math.max(1, Math.floor(finite(input.pageNumber, 1))), Math.ceil((social ? 1200 : 800) * zoom));
   else if (input.kind === 'image') decoded = await runtime.loadImage(input.sourceUrl);
   else if (input.kind === 'video') decoded = input.posterUrl
     ? await runtime.loadImage(input.posterUrl) : await runtime.loadVideoFrame(input.sourceUrl);
@@ -56,6 +56,19 @@ export async function renderCoverVariants(input, runtime) {
         (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
       variants.push({ size, width, height, blob: await runtime.encodeWebp(canvas) });
     }
-    return variants;
+    if (!social) return { variants };
+    const canvas = runtime.createCanvas(1200, 630), context = canvas.getContext('2d');
+    if (!context) throw new Error('The share cover canvas could not be prepared.');
+    context.fillStyle = '#ffffff'; context.fillRect(0, 0, 1200, 630);
+    context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high';
+    const source = geometry.source;
+    const width = Math.min(1200, 630 * geometry.ratio), height = width / geometry.ratio;
+    const scale = geometry.contain ? Math.min(width / source.width, height / source.height) : null;
+    const drawnWidth = scale === null ? width : source.width * scale, drawnHeight = scale === null ? height : source.height * scale;
+    context.drawImage(decoded.source, source.x, source.y, source.width, source.height, (1200-drawnWidth)/2, (630-drawnHeight)/2, drawnWidth, drawnHeight);
+    return { variants, social: { width: 1200, height: 630, blob: await runtime.encodeWebp(canvas) } };
   } finally { await decoded.dispose?.(); }
 }
+
+export async function renderCoverVariants(input, runtime) { return (await render(input, runtime, false)).variants; }
+export function renderCoverAssets(input, runtime) { return render(input, runtime, true); }

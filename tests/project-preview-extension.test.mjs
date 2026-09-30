@@ -30,6 +30,7 @@ function cardHarness(presentation = 'mobile') {
     if (name === 'react-router-dom') return { Link: 'link' };
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
+    if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useContentPreview')) return { useContentPreview: () => ({ expanded, events: {}, ref: {}, open: (event, action) => action(), toggleDetails: () => details++ }) };
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 0.75, getProjectCoverPreview: () => undefined };

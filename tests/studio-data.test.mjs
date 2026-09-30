@@ -44,7 +44,9 @@ test('Studio All retains every saved kind and an explicit unavailable Drafts exp
   const all = model.studioSections(rows, 'all', 'projects');
   assert.deepEqual(Array.from(all, section => section.id), ['drafts', 'published', 'bookmarks', 'activity']);
   assert.equal(all[0].rows.length, 0);
-  assert.match(all[0].description, /cannot be reopened/);
+  assert.match(all[0].description, /Drafts cannot be listed here yet/);
+  assert.match(all[0].description, /New project to resume a draft saved on this device/);
+  assert.match(all[0].description, /Your first project on your profile/);
   assert.equal(all[2].rows.length, 3);
   assert.equal(model.studioSections(rows, 'bookmarks', 'pages')[0].rows[0].kind, 'saved-page');
   assert.equal(model.studioCategory('unknown'), 'all');

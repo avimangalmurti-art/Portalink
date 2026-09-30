@@ -1,3 +1,4 @@
+import { profileHeadline, validContactEmail } from '../employer/employer';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -22,6 +23,8 @@ export type ProfileEditorFields = {
   name: string;
   location: string;
   isPrivate: boolean;
+  showJourney: boolean;
+  portfolioHeadline: string; school: string; availability: string; contactEmail: string; contactEmailPublic: boolean; allowPdfDownload: boolean;
   links: EditableProfileLink[];
 };
 export type EditableProfileLink = ProfileLink & { id: string };
@@ -32,6 +35,9 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
     name: profile.name,
     location: profile.location ?? '',
     isPrivate: profile.isPrivate === true,
+    showJourney: profile.showJourney === true,
+    portfolioHeadline: profileHeadline(profile), school: profile.school ?? '', availability: profile.availability ?? '',
+    contactEmail: profile.contactEmailPublic ? profile.contactEmail ?? '' : '', contactEmailPublic: profile.contactEmailPublic === true, allowPdfDownload: profile.allowPdfDownload !== false,
     links: resolveProfileLinks(profile.links, profile.socialLinks).map((link, index) => ({
       ...link,
       id: `profile-link-${index}`
@@ -54,7 +60,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
   const [fields, setFields] = useState<ProfileEditorFields | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string | null;
-    location?: string | null;
+    location?: string | null; portfolioHeadline?: string | null; school?: string | null; availability?: string | null; contactEmail?: string | null;
   }>({});
   const [linkErrors, setLinkErrors] = useState<Record<string, ProfileLinkFieldError>>({});
   /*
@@ -101,7 +107,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     // the moment it is selected.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
-  const setField = useCallback((key: 'name' | 'location', value: string) => {
+  const setField = useCallback((key: 'name' | 'location' | 'portfolioHeadline' | 'school' | 'availability' | 'contactEmail', value: string) => {
     setFields((current) => current ? {
       ...current,
       [key]: value
@@ -113,6 +119,10 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
   }, []);
   const setVisibility = useCallback((isPrivate: boolean) => {
     setFields((current) => current ? { ...current, isPrivate } : current);
+  }, []);
+  const setEmployerFlag = useCallback((key: 'contactEmailPublic' | 'allowPdfDownload', value: boolean) => { setFields(current => current ? {...current,[key]:value,...(key === 'contactEmailPublic' && !value ? {contactEmail:''} : {})} : current); }, []);
+  const setShowJourney = useCallback((showJourney: boolean) => {
+    setFields(current => current ? { ...current, showJourney } : current);
   }, []);
   const setProfileLink = useCallback((linkId: string, patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName' | 'hidden'>>) => {
     setFields((current) => current ? {
@@ -187,6 +197,8 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (fields.isPrivate !== original.isPrivate) {
       return true;
     }
+    if (fields.showJourney !== original.showJourney) return true;
+    if (['portfolioHeadline','school','availability','contactEmail','contactEmailPublic','allowPdfDownload'].some(key => fields[key as keyof ProfileEditorFields] !== original[key as keyof ProfileEditorFields])) return true;
     return JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(original.links));
   }, [loadedProfile, fields, avatar.avatar]);
   const save = useAsyncAction(async (input: UpdateProfileInput) => {
@@ -211,7 +223,11 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     }
     const nextErrors = {
       name: validateProfileName(fields.name),
-      location: validateLocation(fields.location)
+      location: validateLocation(fields.location),
+      portfolioHeadline: fields.portfolioHeadline.length > 80 ? 'Keep the headline to 80 characters.' : null,
+      school: fields.school.length > 120 ? 'Keep school to 120 characters.' : null,
+      availability: fields.availability.length > 120 ? 'Keep availability to 120 characters.' : null,
+      contactEmail: fields.contactEmailPublic && !validContactEmail(fields.contactEmail.trim()) ? 'Enter the email you want to show publicly.' : null
     };
     const nextLinkErrors = Object.fromEntries(fields.links.map((link) => [link.id, {
       label: isProfileLinkAction(link.action) ? null : validateProfileLinkLabel(link.label),
@@ -225,12 +241,19 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (!fields || !loadedProfile || !validate()) {
       return;
     }
+    const original = fieldsFromProfile(loadedProfile);
     await save.run({
+      ...(fields.portfolioHeadline !== original.portfolioHeadline ? {portfolioHeadline: fields.portfolioHeadline.trim()} : {}),
+      ...(fields.school !== original.school ? {school: fields.school.trim()} : {}),
+      ...(fields.availability !== original.availability ? {availability: fields.availability.trim()} : {}),
+      ...(fields.allowPdfDownload !== original.allowPdfDownload ? {allowPdfDownload: fields.allowPdfDownload} : {}),
+      ...(fields.contactEmailPublic !== original.contactEmailPublic || fields.contactEmail !== original.contactEmail ? {contactEmailPublic: fields.contactEmailPublic, contactEmail: fields.contactEmailPublic ? fields.contactEmail.trim() : ''} : {}),
       // Only edited fields are written: another tab or profile surface may
       // have saved newer values while this editor was open.
       ...(fields.name.trim() !== loadedProfile?.name.trim() ? { name: fields.name.trim() } : {}),
       ...(fields.location.trim() !== (loadedProfile?.location ?? '').trim() ? { location: fields.location.trim() } : {}),
       ...(fields.isPrivate !== (loadedProfile?.isPrivate === true) ? { isPrivate: fields.isPrivate } : {}),
+      ...(fields.showJourney !== (loadedProfile?.showJourney === true) ? { showJourney: fields.showJourney } : {}),
       ...(JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(fieldsFromProfile(loadedProfile).links)) ? {
         links: persistentLinks(fields.links),
         // Migrate legacy destinations only when the link list is edited.
@@ -253,6 +276,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     linkErrors,
     setField,
     setVisibility,
+    setShowJourney, setEmployerFlag,
     setProfileLink,
     addProfileLink,
     removeProfileLink,

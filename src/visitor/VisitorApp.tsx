@@ -1,3 +1,6 @@
+import { isPublicSharePath } from '../features/sharing/shareModel';
+import { useHandleRoute } from './useHandleRoute';
+import { SharedContextActions } from '../presentation/mobile/SharedContextActions';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppRoute, type AppRoute } from '../app/useAppRoute';
@@ -31,7 +34,9 @@ const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 
 /** Public reading starts alongside session restoration, never behind it. */
 export function VisitorApp() {
-  const route = useAppRoute(), location = useLocation(), navigate = useNavigate(), auth = useAuth();
+  const originalRoute = useAppRoute();
+  const { route, pending: handlePending, error: handleError, retry: retryHandle } = useHandleRoute(originalRoute);
+  const location = useLocation(), navigate = useNavigate(), auth = useAuth();
   const presentation = usePresentation();
   const pageScroll = useRef(new Map<string, number>());
   useEffect(() => {
@@ -44,7 +49,7 @@ export function VisitorApp() {
   const appearance = useDeviceAppearance(presentation);
   const { theme, accentColor, systemGray, highContrast, reduceTranslucency } = appearance;
   const shared = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';
-  const sharedShell = /^\/share(?:\/|$)/i.test(location.pathname);
+  const sharedShell = isPublicSharePath(location.pathname);
   const lastSharedRoute = useRef<SharedRoute | null>(null);
   if (shared) lastSharedRoute.current = route as SharedRoute;
   const settingsReturn = readSharedReturnPath(location.state?.settingsReturn);
@@ -129,6 +134,7 @@ export function VisitorApp() {
   const openProject = (category: string, id: string) => { if (profileId) navigate(buildPath('sharedProject', { profileId, categoryId: category, projectId: id })); };
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
   return <AppPresentation data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+    <SharedContextActions title={profile?.name} />
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={appearance.chooseMode}
         onOpenCategory={id => navigate(buildPath('sharedProfileCategory', { profileId: profile.id, categoryId: id }))}
@@ -147,7 +153,7 @@ export function VisitorApp() {
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}
                       reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
                       onBack={back} onOpenProfile={openOwnProfile} />
-                      : invalidShared ? <p role="alert" className="p-5">This shared page could not be found.</p>
+                      : handleError ? <div className="p-5"><p role="alert">{handleError}</p><button type="button" onClick={retryHandle}>Try again</button></div> : handlePending ? pending : invalidShared ? <p role="alert" className="p-5">This shared page could not be found.</p>
                       : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <div className="p-5"><p role="alert">{query.error || 'This portfolio could not be found.'}</p>{query.status === 'error' && <button type="button" onClick={query.retry}>Try again</button>}</div>
                       : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
                         onBackToProfile={() => navigate(buildPath('sharedProfile', { profileId: profile.id }))} onSelect={id => openProject(project.categoryId, id)} /> : <p className="p-5">This project could not be found.</p>

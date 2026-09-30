@@ -2,7 +2,7 @@ import React from 'react';
 import type { Profile } from '../../types/domain';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 
-export type VideoCreator = Pick<Profile, 'name' | 'avatar'>;
+export type VideoCreator = Pick<Profile, 'name' | 'avatar'> & Partial<Pick<Profile, 'id'>>;
 
 /** Keep identity and source outside the player, including virtualized clips. */
 export function MobileVideoFrame({ creator, sourceTitle, children }: {

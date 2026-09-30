@@ -16,7 +16,7 @@ create or replace function public.project_cover_write_allowed(object_name text)
 returns boolean language plpgsql volatile security invoker set search_path=pg_catalog as $$
 declare owner_id uuid; hidden_project boolean; hidden_category boolean; private_profile boolean;
 begin
-  if object_name is null or object_name !~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/[a-f0-9]{64}/(200|400|800)\.webp$' then return false; end if;
+  if object_name is null or object_name !~ '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/[a-f0-9]{64}/(200|400|800|social)\.webp$' then return false; end if;
   select u.account_id,p.is_hidden,c.is_hidden,u.is_private into owner_id,hidden_project,hidden_category,private_profile
   from public.projects p join public.profiles u on u.id=p.profile_id
   join public.portfolio_categories c on c.id=p.category_id and c.profile_id=p.profile_id

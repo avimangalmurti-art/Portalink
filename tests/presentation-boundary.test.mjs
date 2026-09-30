@@ -85,6 +85,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const { AppPresentation, AppPresentationProvider } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
     if (name === 'react') return React;
     if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextProvider: 'MobileContextProvider' };
     if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
@@ -109,7 +110,8 @@ test('both presentations keep the same provider, DOM host, and child element ide
     assert.equal(tree.provider.props.children, children);
     const host = tree.host;
     assert.equal(host.type, 'div'); assert.equal(host.key, null);
-    assert.equal(host.props.children, children);
+    assert.equal(host.props.children.type, 'MobileContextProvider');
+    assert.equal(host.props.children.props.children, children);
     assert.equal(host.props.style, props.style);
     assert.equal(host.props.className, props.className);
     assert.equal(host.props['data-layout-mode'], 'adaptive');

@@ -6,10 +6,12 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+const journey = {};
+vm.runInNewContext(ts.transpileModule(read('../src/features/journey/journey.ts'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText, {exports:journey});
 const exports = {};
 vm.runInNewContext(ts.transpileModule(read('../src/services/supabase/sharedProfileBundle.ts'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS },
-}).outputText, { exports });
+}).outputText, { exports, require: name => { assert.equal(name, '../../features/journey/journey'); return journey; } });
 const { parseSharedProfileBundle, readSharedProfileBundle, isMissingSharedProfileBundleRpc } = exports;
 const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -205,4 +207,15 @@ test('isolated SQL covers public bundle, private fallback, immutable paths, revi
     await setRole('anon');
     assert.equal((await bundle(11)).projects.find(project => project.id === id(35)).kind, null, 'An attachment-free project has no invented media kind');
   } finally { await db.close(); }
+});
+
+test('bundle pair needs public Journey and two visible projects; caption absence differs from a cleared caption', () => {
+  const value=fixture(); value.profile.show_journey=true;
+  value.projects.push({...value.projects[0],id:id(32)});
+  value.profile.then_now={then:id(31),now:id(32)};
+  let result=parseSharedProfileBundle(value,id(11));assert.equal(result.profile.then_now.now,id(32));
+  assert.equal(Object.hasOwn(result.projects[0],'then_now_caption'),false);
+  value.projects[0].then_now_caption=null; result=parseSharedProfileBundle(value,id(11));assert.equal(result.projects[0].then_now_caption,null);
+  value.profile.show_journey=false;assert.equal(parseSharedProfileBundle(value,id(11)).profile.then_now,null);
+  value.profile.show_journey=true;value.projects.pop();assert.equal(parseSharedProfileBundle(value,id(11)).profile.then_now,null);
 });

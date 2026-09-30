@@ -1,5 +1,5 @@
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
-const COVER_PATH = new RegExp(`^${UUID}/${UUID}/[a-f0-9]{64}/(?:200|400|800)\\.webp$`, 'i');
+const COVER_PATH = new RegExp(`^${UUID}/${UUID}/[a-f0-9]{64}/(?:200|400|800|social)\\.webp$`, 'i');
 const AVATAR_PATH = new RegExp(`^${UUID}/[a-zA-Z0-9._-]+$`, 'i');
 const VERSIONED_AVATAR = new RegExp(`^${UUID}/(?:${UUID}-.+|registration-${UUID}-[a-f0-9]{64})$`, 'i');
 

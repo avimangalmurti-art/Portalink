@@ -1,4 +1,4 @@
-import { renderCoverVariants, type CoverThumbnailInput, type CoverThumbnailRuntime, type DecodedCoverSource } from './coverThumbnailCore.mjs';
+import { renderCoverAssets, renderCoverVariants, type CoverThumbnailInput, type CoverThumbnailRuntime, type DecodedCoverSource } from './coverThumbnailCore.mjs';
 
 export type { CoverThumbnailInput, CoverThumbnailVariant } from './coverThumbnailCore.mjs';
 
@@ -24,7 +24,7 @@ async function loadImage(url: string): Promise<DecodedCoverSource> {
   return { source: image, width: image.naturalWidth, height: image.naturalHeight, dispose: () => { image.src = ''; } };
 }
 
-async function renderPdfPage(url: string, pageNumber: number, maxLongEdge: number): Promise<DecodedCoverSource> {
+async function renderPdfPage(url: string, pageNumber: number, maxLongEdge: number, onDocumentInfo?: (info: LocalDocumentInfo) => void): Promise<DecodedCoverSource> {
   // The same PDF.js loader, range options and page.render path as PdfPage; this
   // module is itself imported only by publishing, never by thumbnail grids.
   const { loadPdfJs, pdfSourceOptions } = await import('../../components/media/PdfPage');
@@ -39,6 +39,10 @@ async function renderPdfPage(url: string, pageNumber: number, maxLongEdge: numbe
       const pdf = await task.promise;
       const page = await pdf.getPage(Math.min(pdf.numPages, pageNumber));
       const base = page.getViewport({ scale: 1 });
+      if (onDocumentInfo) void pdf.getMetadata().then(({ info }) => {
+        const data = info as { Title?: string; CreationDate?: string };
+        onDocumentInfo({ title: data.Title, createdAt: pdfjs.PDFDateString.toDateObject(data.CreationDate ?? ''), pageCount: pdf.numPages, width: base.width, height: base.height });
+      }).catch(() => onDocumentInfo({ pageCount: pdf.numPages, width: base.width, height: base.height }));
       const viewport = page.getViewport({ scale: maxLongEdge / Math.max(base.width, base.height) });
       const canvas = createCanvas(Math.max(1, Math.round(viewport.width)), Math.max(1, Math.round(viewport.height)));
       await page.render({ canvas, viewport, background: '#ffffff' }).promise;
@@ -78,6 +82,11 @@ const browserRuntime: CoverThumbnailRuntime = {
 };
 
 /** Bakes the chosen frame once at publish time; originals remain untouched. */
-export function generateCoverThumbnails(input: CoverThumbnailInput) {
-  return renderCoverVariants(input, browserRuntime);
+export type LocalDocumentInfo = { title?: string; createdAt?: Date | null; pageCount: number; width?: number; height?: number };
+export function generateCoverThumbnails(input: CoverThumbnailInput, onDocumentInfo?: (info: LocalDocumentInfo) => void) {
+  return renderCoverVariants(input, onDocumentInfo ? { ...browserRuntime,
+    renderPdfPage: (url, page, size) => renderPdfPage(url, page, size, onDocumentInfo),
+  } : browserRuntime);
 }
+
+export function generateShareCoverAssets(input: CoverThumbnailInput) { return renderCoverAssets(input, browserRuntime); }

@@ -300,6 +300,8 @@ export class ProcessingServiceError extends Error {
 /* ── Draft ──────────────────────────────────────────────────────────────── */
 
 export type DraftMetadata = {
+  thenNowCaption?: string;
+  creationDetails?: import('./domain').ProjectCreationDetails;
   title: string;
   summary: string;
 };
@@ -331,6 +333,8 @@ export type ProjectDraft = {
  * the bytes were persisted.
  */
 export type PublishProjectInput = {
+  /** Checkpoint the confirmed identity before cover/detail follow-up work. */
+  onCommitted?: (result: PublishResult) => Promise<void>;
   draftId: Id;
   profileId: Id;
   categoryId: Id;
@@ -345,6 +349,8 @@ export type PublishProjectInput = {
   media?: PreparedMedia[];
 };
 export type PublishResult = {
+  /** The project exists; retry only the details write, never publication. */
+  creationDetailsPending?: boolean;
   projectId: Id;
   /** Publication succeeded; optional recoverable cover preparation notice. */
   message?: string;

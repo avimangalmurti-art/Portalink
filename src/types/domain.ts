@@ -44,6 +44,16 @@ export type PublicAppearance = {
 
 /** A creator's public identity plus the portfolio structure they own. */
 export type Profile = {
+  /** Public Journey is explicitly opt-in; absent older columns remain private. */
+  portfolioHeadline?: string | null;
+  school?: string;
+  availability?: string;
+  contactEmailPublic?: boolean;
+  contactEmail?: string;
+  allowPdfDownload?: boolean;
+  startHereProjectId?: Id | null;
+  showJourney?: boolean;
+  thenNow?: { then: Id; now: Id } | null;
   id: Id;
   name: string;
   handle: string;
@@ -78,7 +88,7 @@ export type Profile = {
  * profile editing reuses one validation vocabulary rather than growing a second
  * model. `avatar` is a prepared, not-yet-uploaded file.
  */
-export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns'>> & {
+export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns' | 'showJourney' | 'thenNow' | 'portfolioHeadline' | 'school' | 'availability' | 'contactEmailPublic' | 'contactEmail' | 'allowPdfDownload' | 'startHereProjectId'>> & {
   /** Normalized without the leading "@"; uniqueness is re-checked on write. */
   handle?: string;
   avatar?: import('./profile').PreparedAvatar;
@@ -256,6 +266,7 @@ export type ProjectDesign = {
 };
 /** Immutable, pre-rendered cover artwork; originals remain separate attachments. */
 export type ProjectCoverThumbnail = {
+  social?: { path: string; width: 1200; height: 630; sourceUrl?: string | null };
   version: 1;
   bucket: 'project-covers' | 'project-media';
   sourceAttachmentId: string;
@@ -269,7 +280,17 @@ export type ProjectCoverThumbnail = {
     sourceUrl?: string | null;
   }>;
 };
+export type ProjectCreationDetails = {
+  /** Creator-reviewed month, YYYY-MM. */
+  madeIn: string;
+  field: string;
+  answers: { what: string; did: string; learned: string };
+};
 export type Project = {
+  thenNowCaption?: string;
+  /** Known from the stored project and portal visibility; absent on legacy fixtures. */
+  isPubliclyVisible?: boolean;
+  creationDetails?: ProjectCreationDetails;
   id: Id;
   categoryId: Id;
   title: string;

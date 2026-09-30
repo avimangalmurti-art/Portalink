@@ -3,13 +3,13 @@ import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
-import { renderCoverVariants } from '../src/features/media/coverThumbnailCore.mjs';
+import { renderCoverVariants, renderCoverAssets } from '../src/features/media/coverThumbnailCore.mjs';
 import { thumbnailSourceKey, thumbnailContentHash } from '../src/features/media/coverThumbnailManifest.mjs';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const SOURCE_LIMIT = 256 * 1024 * 1024;
 const DEFAULT_FIXTURE = fileURLToPath(new URL('../tests/fixtures/cover-thumbnails/fixture.json', import.meta.url));
-const SELECT = 'id,profile_id,category_id,revision,is_hidden,cover_thumbnail,profiles!inner(id,is_private),portfolio_categories!inner(id,profile_id,is_hidden),project_attachments(id,project_id,kind,storage_path,position,is_cover,size_bytes,mime_type,metadata)';
+const SELECT = 'id,profile_id,category_id,revision,is_hidden,cover_thumbnail,profiles!projects_profile_id_fkey!inner(id,is_private),portfolio_categories!inner(id,profile_id,is_hidden),project_attachments(id,project_id,kind,storage_path,position,is_cover,size_bytes,mime_type,metadata)';
 
 class BackfillError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -66,9 +66,9 @@ function safeRenderedPage(page, row, attachmentId) {
     && /\/page_[0-9]+\.webp$/.test(page.storagePath);
 }
 
-export async function planProject(row) {
+export async function planProject(row, { includeSocial = false } = {}) {
   if (!publicProject(row)) return { skip: 'not-public-visible' };
-  if (row.cover_thumbnail != null) return { skip: 'already-has-thumbnail' };
+  if (row.cover_thumbnail != null && (!includeSocial || row.cover_thumbnail.social)) return { skip: 'already-has-thumbnail' };
   if (!UUID.test(row.revision)) return { skip: 'missing-revision' };
   const attachments = [...(row.project_attachments ?? [])].filter(attachment => attachment.project_id === row.id)
     .sort((left, right) => left.position - right.position);
@@ -98,6 +98,7 @@ export async function runBackfill(adapter, runtime, { apply = false, limit = Inf
   const summary = { mode: apply ? 'apply' : 'dry-run', considered: 0, eligible: 0, generated: 0, applied: 0, skipped: 0, failed: 0, bytes: 0 };
   await adapter.preflight();
   const bucket = await adapter.targetBucket();
+  const includeSocial = await adapter.supportsSocial?.() === true;
   if (!['project-covers', 'project-media'].includes(bucket)) fail('invalid-bucket', 'No supported existing thumbnail bucket is available.');
   for await (const row of adapter.projects()) {
     if (summary.considered >= limit) break;
@@ -106,13 +107,15 @@ export async function runBackfill(adapter, runtime, { apply = false, limit = Inf
     const context = { projectId: row.id, mode: summary.mode };
     const uploadedPaths = [];
     try {
-      const plan = await planProject(row);
+      const plan = await planProject(row, { includeSocial });
       if (plan.skip) { summary.skipped++; await log({ ...context, status: 'skipped', reason: plan.skip }); continue; }
       summary.eligible++;
       await log({ ...context, status: 'started', kind: plan.input.kind, sourceKey: plan.sourceKey });
-      const variants = await renderCoverVariants(plan.input, runtime);
-      const hash = await thumbnailContentHash(variants);
-      const encoded = await Promise.all(variants.map(async variant => ({ ...variant,
+      const { variants, social } = includeSocial ? await renderCoverAssets(plan.input, runtime)
+        : { variants: await renderCoverVariants(plan.input, runtime) };
+      const hash = await thumbnailContentHash(variants, social);
+      const assets = social ? [...variants, { ...social, size: 'social' }] : variants;
+      const encoded = await Promise.all(assets.map(async variant => ({ ...variant,
         bytes: variant.blob instanceof Uint8Array ? variant.blob : new Uint8Array(await variant.blob.arrayBuffer()),
         path: `${plan.profileId}/${plan.projectId}/${hash}/${variant.size}.webp`,
       })));
@@ -120,12 +123,13 @@ export async function runBackfill(adapter, runtime, { apply = false, limit = Inf
       const bytes = encoded.reduce((total, variant) => total + variant.bytes.byteLength, 0);
       summary.bytes += bytes;
       const manifest = { version: 1, bucket, sourceAttachmentId: plan.sourceAttachmentId, sourceKey: plan.sourceKey, frameBaked: true,
-        variants: encoded.map(({ size, path: objectPath, width, height }) => ({ size, path: objectPath, width, height })) };
+        variants: encoded.filter(item => item.size !== 'social').map(({ size, path: objectPath, width, height }) => ({ size, path: objectPath, width, height })),
+        ...(social ? { social: { path: encoded.find(item => item.size === 'social').path, width: 1200, height: 630 } } : {}) };
       if (apply) {
         // Anonymous, fresh reads close the gap between a queued row and a creator edit.
         const assertCurrent = async () => {
           const fresh = await adapter.currentProject(plan.projectId);
-          const current = fresh ? await planProject(fresh) : { skip: 'not-public-visible' };
+          const current = fresh ? await planProject(fresh, { includeSocial }) : { skip: 'not-public-visible' };
           if (current.skip || current.revision !== plan.revision || current.sourceKey !== plan.sourceKey) fail('project-changed', 'Visibility, cover, revision or thumbnail changed; this project was not updated.');
         };
         for (const variant of encoded) {
@@ -142,7 +146,7 @@ export async function runBackfill(adapter, runtime, { apply = false, limit = Inf
         await adapter.persist(plan.projectId, plan.revision, manifest);
         summary.applied++;
       }
-      await log({ ...context, status: apply ? 'completed' : 'would-write', sourceKey: plan.sourceKey, bucket, variants: manifest.variants,
+      await log({ ...context, status: apply ? 'completed' : 'would-write', sourceKey: plan.sourceKey, bucket, variants: manifest.variants, social: manifest.social,
         bytes, elapsedMs: Date.now() - projectStarted });
     } catch (error) {
       summary.failed++;
@@ -221,7 +225,7 @@ export async function createFixtureAdapter(fixturePath) {
   const fixture = JSON.parse(await readFile(resolved, 'utf8'));
   const noWrite = () => fail('fixture-write-denied', 'Fixture adapters cannot write Storage or database records.');
   return {
-    preflight: async () => {}, targetBucket: async () => fixture.bucket ?? 'project-media',
+    preflight: async () => {}, targetBucket: async () => fixture.bucket ?? 'project-media', supportsSocial: async () => fixture.social === true,
     async *projects() { for (const row of fixture.projects ?? []) yield row; },
     async readSource(source) {
       const relative = fixture.files?.[source];
@@ -247,6 +251,12 @@ export async function createSupabaseAdapter(environment) {
     .eq('is_hidden', false).eq('profiles.is_private', false).eq('portfolio_categories.is_hidden', false);
   const check = (error, code, message) => { if (error) fail(code, message); };
   return {
+    async supportsSocial() {
+      const { data, error } = await serviceClient.rpc('project_cover_social_supported');
+      if (error && (error.code === 'PGRST202' || error.code === '42883')) return false;
+      check(error, 'capability-read-failed', 'Could not verify social-cover support; no uploads were attempted.');
+      return data === true;
+    },
     async preflight() {
       const { error } = await publicClient.from('projects').select('id,cover_thumbnail').limit(1);
       check(error, 'schema-unavailable', 'The cover-thumbnail schema is unavailable. Apply the separately reviewed thumbnail SQL before a live backfill; no uploads were attempted.');
@@ -264,10 +274,10 @@ export async function createSupabaseAdapter(environment) {
       return 'project-media';
     },
     async *projects() {
-      // Keyset pagination remains stable while completed rows stop matching NULL.
+      // Include older three-file manifests so an approved capability can upgrade them.
       let after = null;
       for (;;) {
-        let query = projectQuery().is('cover_thumbnail', null).order('id').limit(100);
+        let query = projectQuery().order('id').limit(100);
         if (after) query = query.gt('id', after);
         const { data, error } = await query;
         check(error, 'project-read-failed', 'Could not read the anonymous-visible projects. No private records are eligible.');

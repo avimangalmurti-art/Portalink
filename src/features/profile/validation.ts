@@ -1,3 +1,4 @@
+import { normalizePublicHandle, validHandle } from '../sharing/shareModel';
 /**
  * Profile validation, shared by onboarding and later profile editing.
  *
@@ -7,7 +8,7 @@
  */
 
 export const HANDLE_MIN_LENGTH = 3;
-export const HANDLE_MAX_LENGTH = 20;
+export const HANDLE_MAX_LENGTH = 30;
 export const NAME_MAX_LENGTH = 48;
 export const LOCATION_MAX_LENGTH = 48;
 
@@ -16,7 +17,7 @@ export const LOCATION_MAX_LENGTH = 48;
  * Lowercased, no leading "@", separators collapsed to a single underscore.
  */
 export function normalizeHandle(value: string): string {
-  return value.trim().toLowerCase().replace(/^@+/, '').replace(/[\s.-]+/g, '_').replace(/[^a-z0-9_]/g, '').replace(/_{2,}/g, '_');
+  return normalizePublicHandle(value);
 }
 
 /** Presentation form of a stored handle. */
@@ -36,24 +37,7 @@ export function validateProfileName(value: string): string | null {
 
 /** Format only. Availability is a separate, asynchronous question. */
 export function validateHandle(value: string): string | null {
-  const raw = value.trim().replace(/^@+/, '');
-  if (!raw) {
-    return 'Choose a handle.';
-  }
-  if (/[^A-Za-z0-9_.\-\s]/.test(raw)) {
-    return 'Use letters, numbers, and underscores only.';
-  }
-  const handle = normalizeHandle(value);
-  if (handle.length < HANDLE_MIN_LENGTH) {
-    return `Use at least ${HANDLE_MIN_LENGTH} characters.`;
-  }
-  if (handle.length > HANDLE_MAX_LENGTH) {
-    return `Use ${HANDLE_MAX_LENGTH} characters or fewer.`;
-  }
-  if (!/^[a-z0-9]/.test(handle)) {
-    return 'Start with a letter or number.';
-  }
-  return null;
+  return validHandle(normalizeHandle(value)) ? null : 'Use 3–30 lowercase letters, numbers or dots, and a non-reserved address.';
 }
 /** Optional field: only length is checked. */
 export function validateLocation(value: string): string | null {

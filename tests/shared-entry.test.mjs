@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -17,7 +19,7 @@ function load(path, imports, globals = {}) {
   return exports;
 }
 const nodes = tree => !React.isValidElement(tree) ? [] : [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)];
-const registration = load('../src/features/auth/registration.ts', { '../profile/validation': {} });
+const registration = load('../src/features/auth/registration.ts', { '../profile/validation': sourceModule('src/features/profile/validation.ts', { '../sharing/shareModel': shareModel }), '../sharing/shareModel': shareModel });
 
 test('shared collaboration preserves guest entry and its optional auth return destination', () => {
   const path = '/share/creator/collaboration';

@@ -13,8 +13,9 @@ function execute(code, imports = {}, globals = {}) {
   return exports;
 }
 const load = (path, imports, globals) => execute(source(path), imports, globals);
-const validation = load('src/features/profile/validation.ts');
-const registration = load('src/features/auth/registration.ts', { '../profile/validation': validation });
+const shareModel = load('src/features/sharing/shareModel.ts');
+const validation = load('src/features/profile/validation.ts', { '../sharing/shareModel': shareModel });
+const registration = load('src/features/auth/registration.ts', { '../profile/validation': validation, '../sharing/shareModel': shareModel });
 const authTypes = load('src/types/auth.ts');
 const id = 'bf9c6b61-ac26-432c-9a9e-ebf55721cfff';
 const draft = { version: 1, id, name: '  Example Creator  ', location: '  City  ', accentColor: '#0A84FF', hasAvatar: false };

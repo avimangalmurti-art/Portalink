@@ -20,6 +20,7 @@ import type { PublishResult } from '../../types/publishing';
  * re-checked by the service — hiding this dialog is UX, not authorization.
  */
 type PublishProjectDialogProps = {
+  firstProject?: { madeIn?: string; name: string; categories: string[] };
   isOpen: boolean;
   profileId: string | null;
   categoryId: string | null;
@@ -29,6 +30,7 @@ type PublishProjectDialogProps = {
 };
 export function PublishProjectDialog({
   isOpen,
+  firstProject,
   profileId,
   categoryId,
   categoryLabel,
@@ -36,7 +38,7 @@ export function PublishProjectDialog({
   onPublished
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile);
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, Boolean(firstProject), firstProject?.madeIn);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -108,7 +110,7 @@ export function PublishProjectDialog({
   if (!isOpen || step === 'done') {
     return null;
   }
-  function requestClose() {
+  async function requestClose() {
     if (isRecovering) {
       return;
     }
@@ -116,6 +118,10 @@ export function PublishProjectDialog({
     // creator is told to cancel it first rather than losing track of it.
     if (publishFlow.hasUploadInFlight) {
       uploadErrorRef.current?.focus();
+      return;
+    }
+    if (firstProject) {
+      try { await publishFlow.saveLocalDraft(); onClose(); } catch { /* Keep files visible when local persistence fails. */ }
       return;
     }
     if (isDirty && step !== 'done') {
@@ -130,7 +136,7 @@ export function PublishProjectDialog({
     setField
   } = publishFlow;
   const publishHint = !metadata.title.trim() ? 'Add a title to publish.'
-    : !metadata.summary.trim() ? 'Add a description to publish.'
+    : !firstProject && !metadata.summary.trim() ? 'Add a description to publish.'
     : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
@@ -156,13 +162,13 @@ export function PublishProjectDialog({
                   <AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1">
                     {publishFlow.publish.error}
-                    {publishFlow.canRetryPublishOnly ? ' Your files are already stored, so trying again publishes the project without uploading them a second time.' : ' Your draft, details, and selected files are still here.'}
+                    {publishFlow.hasCommittedProject ? ' Your project is published. Try again to finish saving its details.' : publishFlow.canRetryPublishOnly ? ' Your files are already stored, so trying again publishes the project without uploading them a second time.' : ' Your draft, details, and selected files are still here.'}
                     <button type="button" onClick={publishFlow.retryPublish} disabled={isRecovering} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">Try again</button>
                   </span>
                 </div>}
 
   </>;
-  return <ProjectFormDialog mobileFlow={isMobile} title="New project" titleId="publish-dialog-title" description={<>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <ProjectFormDialog mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : firstProject ? "Your first project" : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
@@ -174,9 +180,9 @@ export function PublishProjectDialog({
               <ErrorState description="Only the owner of this profile can publish work here." />
             </div> : publishFlow.draftError ? <div className="project-form-content scrollbar-slim">
               <ErrorState description={publishFlow.draftError} />
-            </div> : !publishFlow.draft ? <div className="project-form-content scrollbar-slim">
+            </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : isMobile ? <MobilePublishFlow flow={publishFlow} editingStep={mobileEditingStep} onEditingStepChange={setMobileEditingStep} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : isMobile || firstProject ? <MobilePublishFlow flow={publishFlow} editingStep={firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();
@@ -189,18 +195,18 @@ export function PublishProjectDialog({
               <div className="project-form-fields">
                   {/* The picker receives transport state and callbacks only. It
                  knows nothing about storage. */}
-                  <MediaPicker compact={isMobile} media={media} upload={publishFlow.upload} disabled={isPublishing || publishFlow.isSavingDraft} />
-                  <CoverFilmstrip compact={isMobile} media={media} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
+                  <MediaPicker compact={isMobile} media={media} upload={publishFlow.upload} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} />
+                  <CoverFilmstrip compact={isMobile} media={media} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject || publishFlow.upload.isBusy || publishFlow.upload.phase === 'uploaded'} />
                   <section className="project-form-details" aria-labelledby="publish-details-label">
                     <h3 id="publish-details-label" className={isMobile ? 'sr-only' : 'text-[13px] font-semibold text-[var(--text-primary)]'}>Project details</h3>
                     {/* Everything a visitor will see is entered here. Nothing is
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
-                    <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description" required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft} onChange={(value) => setField('summary', value)} />
-                    {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
+                    <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('title', value)} />
+                     <ProfileField id="publish-summary" label="Description" required={!firstProject} multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
+                    {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
-                        <button type="button" onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                        <button type="button" disabled={publishFlow.hasCommittedProject} onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                           {publishFlow.ignoreInferredLocation ? 'Use the place mentioned in the project' : 'This project is not location-specific'}
                         </button>
                       </div> : null}
@@ -210,7 +216,7 @@ export function PublishProjectDialog({
               <div className="project-form-actions flex flex-col items-end gap-1.5">
                 {publishHint ? <p id="publish-hint" role="status" className={isMobile ? 'w-full text-[13px] text-[var(--text-secondary)]' : 'text-[12px] text-[var(--text-secondary)]'}>{publishHint}</p> : null}
                 <Button type="submit" variant="primary" size="lg" isLoading={isPublishing} disabled={!publishFlow.canPublish || publishFlow.isSavingDraft}>
-                  {isPublishing ? 'Publishing…' : 'Publish'}
+                  {isPublishing ? 'Publishing…' : publishFlow.hasCommittedProject ? 'Finish saving details' : 'Publish'}
                 </Button>
               </div>
             </form>}

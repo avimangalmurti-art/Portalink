@@ -75,7 +75,6 @@ type SidebarProps = {
   /** Canonical profile address; when present, profile access works before hydration. */
   profileHref?: string;
   /** Contextual MOBILE compose action beside the navigation capsule. */
-  onMobileCreateProject?: () => void;
   /**
    * Opens the profile currently being VIEWED, which is not always the viewer's
    * own. The portal row names that creator, so it must land on them.
@@ -406,7 +405,6 @@ export function Sidebar({
   onNavigate,
   onProfileOpen,
   profileHref,
-  onMobileCreateProject,
   onMessagesOpen,
   theme,
   onThemeChange,
@@ -617,12 +615,8 @@ export function Sidebar({
   const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
-  if (isMobile) return <MobileNavigation
-    theme={theme} onThemeChange={onThemeChange} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
-    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} onCreateProject={onMobileCreateProject}
-    settings={<SettingsTrigger collapsed onOpen={onControlCenterOpen} />}
-    liveControl={liveShow ? <button type="button" className="mobile-nav-destination nav-button shape-compact" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`}><InterfaceIcon icon={Disc3Icon} /></button> : undefined}
-  />;
+  if (isMobile) return <MobileNavigation onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
+    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside

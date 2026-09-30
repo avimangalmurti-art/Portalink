@@ -23,11 +23,13 @@ export function readCoverThumbnail(value: unknown, profileId: string, projectId:
     prefix = currentPrefix;
     variants.push({ size, path: variant.path, width: variant.width, height: variant.height });
   }
-  return { version: 1, bucket: item.bucket, sourceAttachmentId: item.sourceAttachmentId, sourceKey: item.sourceKey, frameBaked: true, variants };
+  const social = item.social;
+  if (social && (social.path !== `${prefix}/social.webp` || social.width !== 1200 || social.height !== 630)) return undefined;
+  return { ...(social ? { social: { path: social.path, width: 1200, height: 630 } as const } : {}), version: 1, bucket: item.bucket, sourceAttachmentId: item.sourceAttachmentId, sourceKey: item.sourceKey, frameBaked: true, variants };
 }
 
 export function coverThumbnailWithUrls(thumbnail: ProjectCoverThumbnail, privateUrls: Map<string, string>): ProjectCoverThumbnail {
-  return { ...thumbnail, variants: thumbnail.variants.map(variant => ({ ...variant,
+  return { ...thumbnail, ...(thumbnail.social ? { social: { ...thumbnail.social, sourceUrl: thumbnail.bucket === 'project-covers' ? publicCoverUrl(thumbnail.social.path) : privateUrls.get(thumbnail.social.path) ?? null } } : {}), variants: thumbnail.variants.map(variant => ({ ...variant,
     sourceUrl: thumbnail.bucket === 'project-covers'
       ? publicCoverUrl(variant.path)
       : privateUrls.get(variant.path) ?? null,
