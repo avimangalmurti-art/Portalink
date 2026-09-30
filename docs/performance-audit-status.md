@@ -2,6 +2,10 @@
 
 Source: the user's 15-page `Preformance edit instructions.pdf`, supplied September 28, 2026. All pages were read. This is an implementation record, not a claim that the audit's historical line numbers or measurements still describe production.
 
+## September 30 source-only public media and timing collection
+
+[Public media and RUM](public-media-and-rum.md) now records the source implementation of public cover/avatar edge caching and anonymous load timings, with a guarded owner table in Insights. The D1 migration `drizzle/0002_page_timings.sql` is prepared, not applied; no publish or runtime owner configuration change occurred. Hosted post-release measurements still remain to collect. Public Storage transformations were confirmed by a read-only image request, but removing the extra stored cover sizes remains blocked by the existing three-object setter contract and needs a separate Supabase schema review.
+
 ## September 30 source-only visitor entry
 
 The later [visitor-entry asset audit](visitor-entry-assets.md) supersedes the historical startup byte totals below for the current local branch. It records both main and /share entries separately. Live Sites273 is unchanged; no cover SQL, bucket or backfill has been applied. The 350KB raw visitor JS target remains unmet.

@@ -8,6 +8,10 @@ import { ProfileDataProvider } from "./contexts/ProfileDataContext";
 import { EngagementProvider } from "./contexts/EngagementContext";
 import { ApplicationBootstrap } from "./app/ApplicationBootstrap";
 import { services } from "./services";
+import { initializeRum } from './features/performance/rum';
+import { RumPageView } from './features/performance/RumPageView';
+
+initializeRum(__APP_VERSION__, import.meta.env.VITE_RUNTIME_MODE !== 'prototype' && import.meta.env.PROD);
 
 const rootEl = document.getElementById("root");
 if (rootEl) {
@@ -18,6 +22,7 @@ if (rootEl) {
   // everything: the shell derives its destination from the location rather than
   // maintaining a second navigation state machine.
   ReactDOM.createRoot(rootEl).render(<BrowserRouter>
+      <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
           <ProfileDataProvider>

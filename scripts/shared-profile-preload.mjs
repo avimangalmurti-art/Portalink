@@ -5,6 +5,7 @@ function startSharedProfilePreload(configuration) {
   const route = new RegExp('^/share/(' + uuid + ')(?:/collaboration|/c/' + uuid + '(?:/' + uuid + ')?)?/?$', 'i');
   const match = window.location.pathname.match(route);
   if (!match || window.__PORTALINK_SHARED_BUNDLE_PRELOAD__) return;
+  const pathname = window.location.pathname;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);
   const promise = Promise.resolve().then(() => fetch(configuration.supabaseUrl + '/rest/v1/rpc/shared_profile_bundle', {
@@ -13,6 +14,11 @@ function startSharedProfilePreload(configuration) {
     body: JSON.stringify({ profile_id: match[1].toLowerCase() }),
     credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer', signal: controller.signal,
   })).then(async response => {
+    // The response can beat the module graph. Preserve its real arrival time;
+    // the client adopts this mark without issuing another request.
+    if (response.ok && typeof performance !== 'undefined') {
+      window.__PORTALINK_RUM_PRELOAD_DATA__ = { pathname, at: performance.now() };
+    }
     const body = await response.json();
     if (response.ok) return { data: body, error: null };
     return { data: null, error: {

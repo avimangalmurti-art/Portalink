@@ -14,6 +14,8 @@ function load(path, imports = {}, globals = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+    if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
+    if (id === './server/rum' || id === './server/rumOwner') return {};
     if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
     return imports[id];

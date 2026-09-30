@@ -1,5 +1,5 @@
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
-import React, { useCallback, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useState } from 'react';
 import { ArrowLeftIcon, BookmarkIcon } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
@@ -14,6 +14,8 @@ import type { Profile, ProjectLocation } from '../../types/domain';
 import { useAccountQuery } from './useAccountQuery';
 import { SavedPagesCollection } from './SavedPagesCollection';
 import { loadSavedCreators } from './collectionQueries';
+
+const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
@@ -96,6 +98,7 @@ export function InsightsPage({ onBack }: { onBack: () => void }) {
         ] as const).map(([label, count, description]) => <div key={label} className="shape-container border border-[var(--hairline)] p-5"><dt className="text-[13px] font-semibold text-[var(--text-secondary)]">{label}</dt><dd className="mt-3 text-[32px] font-semibold tabular-nums">{count.toLocaleString()}</dd><dd className="mt-2 text-[12px] leading-relaxed text-[var(--text-secondary)]">{description}</dd></div>)}
       </dl> : null}
       <p className="max-w-[640px] text-[13px] leading-relaxed text-[var(--text-secondary)]">Saves recognise interest without requiring a follow. Saver identities remain private. These are current totals, so removing a save reduces the count; saving again never adds a duplicate.</p>
+      <Suspense fallback={null}><LoadTimingInsights /></Suspense>
     </div>
   </section>;
 }

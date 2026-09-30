@@ -10,6 +10,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
 import { FocusedPageCounter } from './FocusedPageCounter';
+import { markRumPdf, rumViewToken } from '../../features/performance/rum';
 
 const MAX_RENDER_DIMENSION = 2048;
 const PDF_LOAD_TIMEOUT_MS = 30_000;
@@ -190,6 +191,7 @@ function PdfImagePage({
 
     let cancelled = false;
     let settled = false;
+    const viewToken = rumViewToken();
     const renderTask = page.render({
       canvas: renderCanvas,
       viewport: renderViewport,
@@ -225,6 +227,7 @@ function PdfImagePage({
         settled = true;
         setPaintedPageNumber(pageNumber);
         setStatus('ready');
+        markRumPdf(viewToken);
         onSettledRef.current(pageNumber);
       }
     }).catch((error: unknown) => {

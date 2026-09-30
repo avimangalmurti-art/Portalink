@@ -87,7 +87,9 @@ function setup() {
     return exports;
   }
   const preview = compile('../src/server/sharedPreview.ts');
-  const worker = compile('../src/sites-worker.ts', { './server/sharedPreview': preview }).default;
+  const worker = compile('../src/sites-worker.ts', { './server/sharedPreview': preview,
+    './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
+  }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');
   const request = (path, extraHeaders = {}, method = 'GET') => {
     const headers = new Headers({ accept: 'text/html', 'user-agent': 'Twitterbot/1.0' });

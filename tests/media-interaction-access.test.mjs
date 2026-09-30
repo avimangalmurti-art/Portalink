@@ -40,6 +40,8 @@ function setup() {
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, crypto, btoa, atob,
     require: id => {
+      if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
+      if (id === './server/rum' || id === './server/rumOwner') return {};
       assert.equal(id, './server/sharedPreview');
       return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     },

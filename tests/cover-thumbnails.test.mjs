@@ -9,9 +9,9 @@ import { coverThumbnailGeometry, renderCoverVariants } from '../src/features/med
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 function execute(path, require = () => ({}), globals = {}) {
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(read(path), { compilerOptions: {
+  vm.runInNewContext(ts.transpileModule(read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', 'undefined'), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true,
-  } }).outputText, { exports, require, ...globals });
+  } }).outputText, { exports, require, URL, ...globals });
   return exports;
 }
 function runtime() {
@@ -81,7 +81,8 @@ test('renderer rejects unsupported/invalid sources and disposes decoded media af
   assert.throws(() => coverThumbnailGeometry(0, 100), /dimensions/);
 });
 
-const { coverThumbnailSources } = execute('src/features/media/coverThumbnailSources.ts');
+const publicUrls = execute('src/features/media/publicMediaUrl.ts');
+const { coverThumbnailSources } = execute('src/features/media/coverThumbnailSources.ts', () => publicUrls);
 const thumbnail = { version: 1, frameBaked: true, sourceKey: 'hash', variants: [
   { size: 800, width: 566, height: 800, sourceUrl: '/cover-800.webp' },
   { size: 200, width: 142, height: 200, sourceUrl: '/cover-200.webp' },
@@ -135,11 +136,16 @@ test('responsive thumbnail sizes track the actual tile width through density/sid
     useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], next => { state[i] = next; }]; },
     useLayoutEffect: effect => effects.push(effect),
   };
-  const { ResponsiveImage } = execute('src/components/ui/ResponsiveImage.tsx', () => react, {
+  const { ResponsiveImage } = execute('src/components/ui/ResponsiveImage.tsx', name => {
+    if (name === 'react') return react;
+    if (name.endsWith('/rum')) return { rumViewToken: () => null, markRumCover() {} };
+    if (name.endsWith('/publicMediaUrl')) return { publicMediaUrl: source => source };
+    throw new Error(`Unexpected dependency ${name}`);
+  }, {
     ResizeObserver: class { constructor(fn) { resize = fn; } observe() {} disconnect() {} },
   });
   const render = () => { cursor = 0; return ResponsiveImage({ src: '/cover.webp', alt: 'Cover', measureWidth: true, sizes: '90vw' }); };
-  assert.equal(render().props.src, undefined, 'No wrong-size download starts before measurement'); effects.shift()();
+  assert.equal(render().props.src, undefined, 'No wrong-size download starts before measurement'); effects.splice(0).forEach(effect => effect());
   assert.equal(render().props.sizes, '170px');
   assert.equal(render().props.src, '/cover.webp');
   measured = 306.4; resize();

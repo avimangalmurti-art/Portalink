@@ -1,4 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { publicMediaUrl } from '../../features/media/publicMediaUrl';
+import { markRumCover, rumViewToken } from '../../features/performance/rum';
 
 export type ResponsiveImageSource = {
   srcSet: string;
@@ -18,6 +20,8 @@ type CommonImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'alt' | 
   loading?: 'eager' | 'lazy';
   /** Responsive grids can resize without viewport changes (density and sidebars). */
   measureWidth?: boolean;
+  /** Only project artwork participates in first-cover timing, never avatars. */
+  trackCoverPaint?: boolean;
 };
 
 type MeaningfulImageProps = CommonImageProps & {
@@ -51,9 +55,14 @@ export function ResponsiveImage({
   draggable,
   measureWidth = false,
   fetchPriority,
+  trackCoverPaint = false,
   ...imageProps
 }: ResponsiveImageProps) {
   const imageRef = useRef<HTMLImageElement>(null);
+  const viewTokenRef = useRef<number | null>(null);
+  // The router observer starts a new view in the preceding layout effect;
+  // reading during render would still see the old view for a cached grid.
+  useLayoutEffect(() => { viewTokenRef.current = rumViewToken(); });
   const [measuredWidth, setMeasuredWidth] = useState<number>();
   const [viewportPriority, setViewportPriority] = useState<boolean>();
   useLayoutEffect(() => {
@@ -91,7 +100,7 @@ export function ResponsiveImage({
     ref={imageRef}
     sizes={sizes}
     data-responsive-image=""
-    src={sourceReady ? src : undefined}
+    src={sourceReady ? publicMediaUrl(src) : undefined}
     srcSet={sourceReady ? imageProps.srcSet : undefined}
     alt={decorative ? '' : alt}
     aria-hidden={decorative ? true : imageProps['aria-hidden']}
@@ -99,6 +108,10 @@ export function ResponsiveImage({
     {...priorityAttribute}
     decoding="async"
     draggable={draggable ?? false}
+    onLoad={event => {
+      if (trackCoverPaint && event.currentTarget.naturalWidth > 0) markRumCover(viewTokenRef.current);
+      imageProps.onLoad?.(event);
+    }}
   />;
 
   if (sources.length === 0) {

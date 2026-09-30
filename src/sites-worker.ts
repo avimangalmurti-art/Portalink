@@ -1,4 +1,7 @@
 import { prefersHtml, withSharedPreview } from './server/sharedPreview';
+import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
+import { handleRumIngest, readRumSummary } from './server/rum';
+import { authorizeRumOwner } from './server/rumOwner';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -23,6 +26,7 @@ interface D1Database {
 interface SitesEnvironment {
   ASSETS: StaticAssets
   DB?: D1Database
+  RUM_OWNER_PROFILE_ID?: string
 }
 
 type EngagementKind = 'like' | 'save' | 'repost'
@@ -346,8 +350,28 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 }
 
 const worker = {
-  async fetch(request: Request, environment: SitesEnvironment): Promise<Response> {
+  async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    if (isPublicMediaRoute(url.pathname)) return handlePublicMedia(request, {
+      supabaseUrl: SUPABASE_URL, waitUntil: context ? promise => context.waitUntil(promise) : undefined,
+    });
+    if (url.pathname.startsWith('/media/')) return new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } });
+    if (url.pathname === '/api/rum') return handleRumIngest(request, environment.DB);
+    if (url.pathname === '/api/rum/summary') {
+      if (request.method !== 'GET') return new Response(null, { status: 405, headers: { allow: 'GET', 'cache-control': 'no-store' } });
+      try {
+        await authorizeRumOwner(request, { ownerProfileId: environment.RUM_OWNER_PROFILE_ID,
+          supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY }, authenticatedUser);
+        const response = await readRumSummary(environment.DB);
+        // Allows the confirmed owner to see an unavailable state before the
+        // separately approved D1 migration, without exposing a panel to others.
+        response.headers.set('x-portalink-rum-owner', 'true');
+        return response;
+      } catch (error) {
+        return error instanceof Response ? error : json({ error: 'Load timings are unavailable.' }, 503);
+      }
+    }
+    if (url.pathname.startsWith('/api/rum/')) return json({ error: 'Not found.' }, 404);
     if (url.pathname.startsWith('/api/media-interactions')) {
       if (!environment.DB) return json({ error: 'Page activity is not available yet.' }, 503)
       try {

@@ -12,9 +12,9 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 const plain = value => JSON.parse(JSON.stringify(value));
 function execute(source, require = () => ({}), globals = {}) {
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(source, { compilerOptions: {
+  vm.runInNewContext(ts.transpileModule(source.replaceAll('import.meta.env.VITE_SUPABASE_URL', 'undefined'), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
-  } }).outputText, { exports, require, ...globals });
+  } }).outputText, { exports, require, URL, ...globals });
   return exports;
 }
 const manifest = (bucket = 'project-covers', projectId = PROJECT) => ({ version: 1, bucket, sourceAttachmentId: 'attachment', sourceKey: SOURCE_HASH, frameBaked: true,
@@ -48,7 +48,8 @@ function harness(options = {}) {
     }; } },
   };
   const media = execute(read('src/services/supabase/mediaUrlCache.ts'), () => ({ requireSupabase: () => client }));
-  const reads = execute(read('src/services/supabase/coverThumbnailReads.ts'), () => ({ requireSupabase: () => client }));
+  const publicUrls = execute(read('src/features/media/publicMediaUrl.ts'));
+  const reads = execute(read('src/services/supabase/coverThumbnailReads.ts'), () => publicUrls);
   const service = execute(read('src/services/supabase/coverThumbnails.ts'), name => {
     if (name === './coverThumbnailReads') return reads;
     if (name === './client') return { requireSupabase: () => client };
@@ -158,7 +159,7 @@ test('one createSignedUrls call signs every private cover variant across project
 test('public covers resolve directly without any signing; private covers use only returned signed candidates', () => {
   const h = harness();
   const publicResult = h.service.coverThumbnailWithUrls(manifest(), new Map());
-  assert.ok(publicResult.variants.every(item => item.sourceUrl.startsWith('https://storage.test/public/project-covers/')));
+  assert.ok(publicResult.variants.every(item => item.sourceUrl.startsWith('/media/covers/')));
   const privateManifest = manifest('project-media');
   const signed = new Map([[privateManifest.variants[0].path, 'https://storage.test/signed/known']]);
   const privateResult = h.service.coverThumbnailWithUrls(privateManifest, signed);

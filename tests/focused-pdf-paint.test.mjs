@@ -41,6 +41,7 @@ function harness(retainCanvasWhileLoading = true) {
     require(name) {
       if (name === 'react') return hooks;
       if (name === './viewerMemory') return { readViewerMemory: () => ({}), updateViewerMemory() {} };
+      if (name === '../../features/performance/rum') return { rumViewToken: () => null, markRumPdf() {} };
       return { InterfaceIcon: () => null, RotateCcwIcon: () => null };
     },
   });

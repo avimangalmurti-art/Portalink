@@ -213,7 +213,10 @@ test('App supplies shared registration destinations on both platforms and keeps 
 
 test('shared preboot chooses neutral first paint before the body and leaves other routes unmarked', () => {
   const html = read('../index.html');
-  const script = html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+  // The independent RUM clock now precedes the appearance/bootstrap script.
+  // Execute the actual shared-view initializer, not whichever script is first.
+  const script = [...html.matchAll(/<script>\s*([\s\S]*?)<\/script>/g)]
+    .map(match => match[1]).find(source => source.includes("toggleAttribute('data-shared-view'"));
   assert.ok(script); assert.ok(html.indexOf(script) < html.indexOf('<body>'));
   for (const [pathname, expected] of [['/share/a', true], ['/share/a/c/b/c', true], ['/share', true], ['/', false], ['/settings', false], ['/shared/a', false]]) for (const presentation of ['mobile', 'web']) {
     const attributes = new Map();

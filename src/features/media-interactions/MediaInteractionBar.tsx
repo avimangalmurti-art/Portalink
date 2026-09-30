@@ -6,6 +6,7 @@ import { mediaToolbarLayout, mobileFocusedMediaToolbarLayout } from './mediaTool
 import { usePresentation } from '../../presentation/usePresentation';
 import { useMediaPageSize } from './useMediaPageSize';
 import { MediaCommentsPopover } from './MediaCommentsPopover';
+import { publicMediaUrl } from '../media/publicMediaUrl';
 
 const countFormatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const displayCount = (count: number) => count > 0 ? countFormatter.format(count) : '';
@@ -177,7 +178,7 @@ export function MediaInteractionBar({
           {activity.record.comments.map((comment) => <li key={comment.id} data-comment="" className="group/comment">
             <div className="flex items-start gap-2">
               <span data-comment-avatar="" className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[9px] font-semibold text-white/70">
-                {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt="" loading="lazy" decoding="async" width={24} height={24} className="h-full w-full object-cover" /> : comment.authorName.slice(0, 1).toUpperCase()}
+                {comment.authorAvatarUrl ? <img src={publicMediaUrl(comment.authorAvatarUrl)} alt="" loading="lazy" decoding="async" width={24} height={24} className="h-full w-full object-cover" /> : comment.authorName.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

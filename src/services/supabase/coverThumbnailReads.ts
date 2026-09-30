@@ -1,5 +1,5 @@
 import type { ProjectCoverThumbnail } from '../../types/domain';
-import { requireSupabase } from './client';
+import { publicCoverUrl } from '../../features/media/publicMediaUrl';
 
 const SIZES = [200, 400, 800] as const;
 const HASH = /^[a-f0-9]{64}$/;
@@ -29,7 +29,7 @@ export function readCoverThumbnail(value: unknown, profileId: string, projectId:
 export function coverThumbnailWithUrls(thumbnail: ProjectCoverThumbnail, privateUrls: Map<string, string>): ProjectCoverThumbnail {
   return { ...thumbnail, variants: thumbnail.variants.map(variant => ({ ...variant,
     sourceUrl: thumbnail.bucket === 'project-covers'
-      ? requireSupabase().storage.from('project-covers').getPublicUrl(variant.path).data.publicUrl
+      ? publicCoverUrl(variant.path)
       : privateUrls.get(variant.path) ?? null,
   })) };
 }

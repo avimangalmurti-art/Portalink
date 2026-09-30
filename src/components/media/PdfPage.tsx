@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FileTextIcon } from 'lucide-react';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import './pdf-page.css';
+import { markRumPdf, rumViewToken } from '../../features/performance/rum';
 
 export type PdfJs = typeof import('pdfjs-dist');
 export type PdfLoadingTask = ReturnType<PdfJs['getDocument']>;
@@ -181,10 +182,12 @@ export function PdfPage({
       viewport,
       background: '#ffffff'
     });
+    const viewToken = rumViewToken();
 
     void renderTask.promise.then(() => {
       if (!cancelled) {
         setStatus('ready');
+        markRumPdf(viewToken);
       }
     }).catch((error: unknown) => {
       if (!cancelled && !(error instanceof Error && error.name === 'RenderingCancelledException')) {

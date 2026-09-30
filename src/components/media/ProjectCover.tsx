@@ -86,6 +86,7 @@ export function ProjectCover({
     // A failed thumbnail stays a placeholder; never download the original or
     // start a PDF worker because one cacheable image could not be fetched.
     return !storedImage || imageFailed ? placeholder : <ResponsiveImage {...storedImage}
+      trackCoverPaint
       alt={alt} sizes={sizes} measureWidth priority={priority} data-project-cover-thumbnail=""
       onError={() => setImageFailed(true)} className={`h-full w-full ${fit === 'cover' ? 'object-cover' : 'object-contain'} ${className}`} />;
   }
@@ -116,6 +117,7 @@ export function ProjectCover({
           className={`h-full w-full ${effectiveFit === 'cover' ? 'object-cover' : 'object-contain'}`}
         />
       : <ResponsiveImage
+          trackCoverPaint
           src={useDocumentPreview && previewSource ? previewSource : source}
           alt={alt}
           width={Math.max(1, Math.round(safeRatio * 1000))}

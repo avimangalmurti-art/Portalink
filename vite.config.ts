@@ -4,12 +4,15 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import react from '@vitejs/plugin-react'
 import { sites } from '@openai/sites-vite-plugin'
 import { sharedProfilePreloadPlugin } from './scripts/shared-profile-preload.mjs'
+import { appVersionHash } from './scripts/app-version.mjs'
+import { publicMediaPreviewPlugin } from './scripts/public-media-preview.mjs'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
-  plugins: [react(), sites(), sharedProfilePreloadPlugin({ supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY }), {
+  define: { __APP_VERSION__: JSON.stringify(appVersionHash()) },
+  plugins: [react(), sites(), publicMediaPreviewPlugin({ supabaseUrl: env.VITE_SUPABASE_URL }), sharedProfilePreloadPlugin({ supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY }), {
     name: 'portalink-visitor-entry',
     configureServer(server) {
       // Development mirrors the worker's public HTML selection without a redirect.

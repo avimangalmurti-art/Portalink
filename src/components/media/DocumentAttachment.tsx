@@ -13,6 +13,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import { FocusedPageExitControl } from './FocusedPageExitControl';
 import { FocusedPageCounter } from './FocusedPageCounter';
+import { markRumPdf, rumViewToken } from '../../features/performance/rum';
 
 function deepLinkedDocumentPage(attachmentId: string, pageCount?: number): number | null {
   if (typeof window === 'undefined') return null;
@@ -63,6 +64,8 @@ export function DocumentAttachment({
     onRetry: () => void;
   };
 }) {
+  const viewTokenRef = useRef<number | null>(null);
+  useLayoutEffect(() => { viewTokenRef.current = rumViewToken(); });
   const memoryKey = `${memoryScope}:document:${projectId}:${attachment.id}:rendered`;
   const liveDocumentMemoryKey = `${memoryScope}:document:${projectId}:${attachment.id}:live`;
   const renderedPages = (attachment.metadata?.renderedPages ?? [])
@@ -224,7 +227,10 @@ export function DocumentAttachment({
               loading={(isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               fetchPriority={(isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'high' : 'auto'}
               decoding="async"
-              onLoad={isMobile && focusedPageIndex === index ? restoreFocusedScroll : undefined}
+              onLoad={() => {
+                markRumPdf(viewTokenRef.current);
+                if (isMobile && focusedPageIndex === index) restoreFocusedScroll();
+              }}
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined}
             />
