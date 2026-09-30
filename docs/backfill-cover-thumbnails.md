@@ -82,12 +82,20 @@ database writes. After reviewing that output and obtaining the task's explicit
 authorization for live backfill, use:
 
 ```powershell
-node.exe scripts/backfill-cover-thumbnails.mjs --apply --limit 10 --log logs/cover-thumbnail-apply.jsonl
+node.exe scripts/backfill-cover-thumbnails.mjs --apply --fail-fast --limit 10 --log logs/cover-thumbnail-apply.jsonl
 ```
 
 Omitting `--apply` always means dry-run. Omit `--limit` to process all eligible
 rows. Projects are handled sequentially and discovered with stable keyset
 pagination so successful updates do not cause rows to be skipped.
+
+Use `--fail-fast` for the approved apply run. It stops after the first per-project
+failure (including render, upload, freshness check or manifest persistence), logs
+the failure, and returns a summary with `stoppedOnFailure: true` and exit code 1.
+No later project is requested from the iterator or processed; a listing page
+already fetched can contain later rows. Ineligible/skipped projects do not stop
+the run. Completed work and immutable uploads from the failed attempt are retained
+for safe resumption. The option also works with `--dry-run` and local fixtures.
 
 ## Eligibility, output and resumption
 
@@ -141,7 +149,12 @@ the manifest is saved. The JSONL log records per-project start, object upload or
 reuse, completion, skip, failure and cleanup. It contains no credentials, signed
 URLs or source file contents. Logs are evidence, not instructions to bypass a
 fresh permission check. Failed projects do not prevent the remaining eligible
-projects from being inspected; any failures set the process exit code to one.
+projects from being inspected unless `--fail-fast` is supplied; this preserves
+the existing continue-on-error default. Any failures set the process exit code
+to one. Summary counts include only considered projects: `generated` and `bytes`
+count completed encodes (even if uploading/persisting later fails), while
+`applied` counts successful manifest writes. `failFast` records the selected mode;
+`stoppedOnFailure` distinguishes a failure stop from reaching the end or limit.
 
 For ten **eligible** projects this produces thirty variants plus ten social
 assets when supported, and ten manifest updates, plus reads and verification

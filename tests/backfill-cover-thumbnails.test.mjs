@@ -4,6 +4,7 @@ import { readFile, mkdtemp, writeFile, unlink, rmdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { parseArgs, planProject, runBackfill, createFixtureAdapter, createNodeRuntime } from '../scripts/backfill-cover-thumbnails.mjs';
 import { thumbnailSourceKey, thumbnailContentHash } from '../src/features/media/coverThumbnailManifest.mjs';
 import { renderCoverVariants } from '../src/features/media/coverThumbnailCore.mjs';
@@ -51,8 +52,11 @@ function mockPipeline({ rows = [row()], bucket = 'project-media', failUpload = 0
 
 test('CLI defaults to dry-run and fixture apply is rejected before any adapter can be created', () => {
   assert.equal(parseArgs([]).apply, false);
+  assert.equal(parseArgs([]).failFast, false);
   assert.equal(parseArgs(['--dry-run', '--fixture']).fixture, fixturePath);
   assert.equal(parseArgs(['--apply']).apply, true);
+  assert.equal(parseArgs(['--apply', '--fail-fast']).failFast, true);
+  assert.equal(parseArgs(['--dry-run', '--fixture', '--fail-fast']).failFast, true);
   for (const args of [['--apply', '--fixture'], ['--fixture', 'not-a-file.json', '--apply'], ['--apply', '--dry-run'], ['--limit', '0'], ['--log']]) {
     assert.throws(() => parseArgs(args));
   }
@@ -127,6 +131,93 @@ test('a partial upload failure resumes existing deterministic objects before one
   const second = await h.run({ apply: true });
   assert.equal(second.applied, 1); assert.equal(h.uploads.length, 3); assert.equal(h.manifests.length, 1);
   assert.ok(h.events.some(event => event.status === 'reused-object' && event.size === 200));
+});
+
+for (const failure of ['render', 'upload', 'persist']) {
+  test(`fail-fast stops at a ${failure} failure, preserves counts/uploads and never requests the next project`, async () => {
+    const rows = [fixture.projects[3], fixture.projects[0], fixture.projects[1], fixture.projects[2]];
+    const h = mockPipeline({ rows, bucket: 'project-covers', failUpload: failure === 'upload' ? 5 : 0 });
+    const requested = [], encodedBytes = [];
+    h.adapter.projects = async function* () {
+      for (const record of h.records) {
+        requested.push(record.id);
+        yield structuredClone(record);
+      }
+    };
+    const encode = h.runtime.encodeWebp;
+    h.runtime.encodeWebp = async canvas => {
+      const blob = await encode(canvas);
+      encodedBytes.push(blob.size);
+      return blob;
+    };
+    if (failure === 'render') {
+      const render = h.runtime.renderPdfPage;
+      h.runtime.renderPdfPage = async (...args) => { await render(...args); throw new Error('Simulated render failure'); };
+    }
+    if (failure === 'persist') {
+      const persist = h.adapter.persist;
+      h.adapter.persist = async (id, ...args) => {
+        if (id === rows[2].id) throw new Error('Simulated persistence failure');
+        return persist(id, ...args);
+      };
+    }
+    const result = await h.run({ apply: true, failFast: true });
+    assert.deepEqual(requested, rows.slice(0, 3).map(project => project.id));
+    assert.equal(result.failFast, true); assert.equal(result.stoppedOnFailure, true);
+    assert.equal(result.considered, 3); assert.equal(result.skipped, 1); assert.equal(result.eligible, 2);
+    assert.equal(result.generated, failure === 'render' ? 1 : 2);
+    assert.equal(result.applied, 1); assert.equal(result.failed, 1);
+    assert.equal(result.bytes, encodedBytes.reduce((total, bytes) => total + bytes, 0));
+    assert.equal(h.manifests.length, 1);
+    assert.equal(h.records[2].cover_thumbnail, null);
+    assert.deepEqual(h.records[3], rows[3], 'The later project is unchanged');
+    const retainedCount = failure === 'render' ? 0 : failure === 'upload' ? 1 : 3;
+    assert.equal(h.objects.size, 3 + retainedCount); assert.equal(h.removals.length, 0);
+    assert.equal(h.events.find(event => event.status === 'retained-public-uploads')?.paths.length ?? 0, retainedCount);
+    assert.deepEqual(h.events.filter(event => event.status === 'failed').map(event => event.projectId), [rows[2].id]);
+    assert.ok(h.events.every(event => event.projectId !== rows[3].id));
+  });
+}
+
+test('without fail-fast a failed project still allows the next eligible project to complete', async () => {
+  const h = mockPipeline({ rows: fixture.projects.slice(0, 2), failUpload: 2 });
+  const result = await h.run({ apply: true });
+  assert.equal(result.failFast, false); assert.equal(result.stoppedOnFailure, false);
+  assert.equal(result.considered, 2); assert.equal(result.generated, 2);
+  assert.equal(result.failed, 1); assert.equal(result.applied, 1);
+  assert.equal(h.records[0].cover_thumbnail, null);
+  assert.ok(h.records[1].cover_thumbnail);
+});
+
+test('fixture-only CLI fail-fast logs the failure and summary and exits nonzero before a later source', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'portalink-fail-fast-test-'));
+  const fixtureFile = path.join(directory, 'fixture.json'), imageFile = path.join(directory, 'bad.webp'), logFile = path.join(directory, 'run.jsonl');
+  try {
+    const projects = structuredClone(fixture.projects.slice(0, 2));
+    await writeFile(imageFile, 'not an image');
+    await writeFile(fixtureFile, JSON.stringify({ projects, files: {
+      [projects[0].project_attachments[0].storage_path]: 'bad.webp',
+      [projects[1].project_attachments[0].storage_path]: 'never-opened.pdf',
+    } }));
+    const script = fileURLToPath(new URL('../scripts/backfill-cover-thumbnails.mjs', import.meta.url));
+    const result = spawnSync(process.execPath, [script, '--dry-run', '--fail-fast', '--fixture', fixtureFile, '--log', logFile], {
+      encoding: 'utf8', windowsHide: true, timeout: 30_000,
+    });
+    assert.ifError(result.error); assert.equal(result.status, 1, result.stderr);
+    const events = result.stdout.trim().split(/\r?\n/).map(line => JSON.parse(line));
+    const summary = events.at(-1);
+    assert.equal(summary.status, 'summary'); assert.equal(summary.fixture, true);
+    assert.equal(summary.failFast, true); assert.equal(summary.stoppedOnFailure, true);
+    assert.equal(summary.considered, 1); assert.equal(summary.eligible, 1); assert.equal(summary.failed, 1);
+    assert.equal(summary.generated, 0); assert.equal(summary.applied, 0); assert.equal(summary.bytes, 0);
+    assert.deepEqual(events.filter(event => event.status === 'failed').map(event => event.projectId), [projects[0].id]);
+    assert.ok(events.every(event => event.projectId !== projects[1].id));
+    const saved = (await readFile(logFile, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line));
+    assert.deepEqual(saved.map(({ at, ...event }) => event), events);
+  } finally {
+    for (const file of [fixtureFile, imageFile, logFile]) await unlink(file).catch(error => { if (error.code !== 'ENOENT') throw error; });
+    await rmdir(directory);
+  }
 });
 
 test('social capability upgrades older manifests once and writes the landscape asset', async () => {

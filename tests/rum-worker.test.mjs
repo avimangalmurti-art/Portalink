@@ -219,9 +219,10 @@ test('actual SQLite window query matches nearest-rank math and exact time bounda
   } finally { sqlite.close(); }
 });
 
-test('pending timing migration stays outside automatic Sites deployment and adds only its table/index', () => {
-  assert.equal(existsSync(new URL('../drizzle/0002_page_timings.sql', import.meta.url)), false);
-  const migration = readFileSync(new URL('../drizzle-pending/0002_page_timings.sql', import.meta.url), 'utf8');
+test('approved timing migration matches the reviewed candidate and adds only its table/index', () => {
+  assert.equal(existsSync(new URL('../drizzle/0002_page_timings.sql', import.meta.url)), true);
+  const migration = readFileSync(new URL('../drizzle/0002_page_timings.sql', import.meta.url), 'utf8');
+  assert.equal(migration, readFileSync(new URL('../drizzle-pending/0002_page_timings.sql', import.meta.url), 'utf8'));
   assert.match(migration, /PREPARED ONLY/);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS page_timings/);
   assert.match(migration, /CREATE INDEX IF NOT EXISTS idx_page_timings_at ON page_timings\(at\)/);

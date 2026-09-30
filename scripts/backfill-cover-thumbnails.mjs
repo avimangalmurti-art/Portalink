@@ -20,12 +20,13 @@ const safeError = error => error instanceof BackfillError ? { code: error.code, 
   : { code: 'processing-failed', message: 'Thumbnail preparation failed; no manifest was saved. Inspect this project before retrying.' };
 
 export function parseArgs(args) {
-  const options = { apply: false, fixture: null, log: 'logs/cover-thumbnail-backfill.jsonl', limit: Infinity, ffmpeg: null, help: false };
+  const options = { apply: false, failFast: false, fixture: null, log: 'logs/cover-thumbnail-backfill.jsonl', limit: Infinity, ffmpeg: null, help: false };
   let explicitDryRun = false;
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--apply') options.apply = true;
     else if (arg === '--dry-run') explicitDryRun = true;
+    else if (arg === '--fail-fast') options.failFast = true;
     else if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--fixture') options.fixture = args[index + 1] && !args[index + 1].startsWith('--') ? args[++index] : DEFAULT_FIXTURE;
     else if (['--log', '--limit', '--ffmpeg'].includes(arg)) {
@@ -93,9 +94,9 @@ export async function planProject(row, { includeSocial = false } = {}) {
 }
 
 /** Sequential, bounded work. Logs are audit evidence; database/object state decides resumption. */
-export async function runBackfill(adapter, runtime, { apply = false, limit = Infinity, log = () => {} } = {}) {
+export async function runBackfill(adapter, runtime, { apply = false, failFast = false, limit = Infinity, log = () => {} } = {}) {
   const started = Date.now();
-  const summary = { mode: apply ? 'apply' : 'dry-run', considered: 0, eligible: 0, generated: 0, applied: 0, skipped: 0, failed: 0, bytes: 0 };
+  const summary = { mode: apply ? 'apply' : 'dry-run', failFast, stoppedOnFailure: false, considered: 0, eligible: 0, generated: 0, applied: 0, skipped: 0, failed: 0, bytes: 0 };
   await adapter.preflight();
   const bucket = await adapter.targetBucket();
   const includeSocial = await adapter.supportsSocial?.() === true;
@@ -158,6 +159,10 @@ export async function runBackfill(adapter, runtime, { apply = false, limit = Inf
           message: 'Immutable variants are retained for safe retry or guarded visibility cleanup; a concurrent publication may reference them.' });
       }
       await log({ ...context, status: 'failed', ...safeError(error), elapsedMs: Date.now() - projectStarted });
+      if (failFast) {
+        summary.stoppedOnFailure = true;
+        break;
+      }
     }
   }
   return { ...summary, elapsedMs: Date.now() - started };
@@ -320,7 +325,7 @@ export async function createSupabaseAdapter(environment) {
 export async function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   if (options.help) {
-    console.log('Usage: node scripts/backfill-cover-thumbnails.mjs [--dry-run | --apply] [--fixture [file.json]] [--limit N] [--log file.jsonl] [--ffmpeg existing-executable]');
+    console.log('Usage: node scripts/backfill-cover-thumbnails.mjs [--dry-run | --apply] [--fail-fast] [--fixture [file.json]] [--limit N] [--log file.jsonl] [--ffmpeg existing-executable]');
     return { help: true };
   }
   // This branch happens before environment access or construction of network clients.
