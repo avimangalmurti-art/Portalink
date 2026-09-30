@@ -131,6 +131,22 @@
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
+/* A resolved content reader owns its controls. Ignore outgoing screens and
+   portalled collection previews so ordinary navigation returns immediately. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-project-view]) .mobile-navigation-layer {
+  display: none;
+}
+
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-project-view]) .codex-workspace {
+  --mobile-dock-clearance: 0px;
+  --mobile-content-safe-bottom: var(--safe-area-bottom);
+}
+
+/* Shared readers retain their separate, measured sign-in bar clearance. */
+#root .codex-shell[data-presentation='mobile']:not(.shared-portalink-shell):has(.app-screen-layer:not(.screen-exit) [data-mobile-project-view]) {
+  --mobile-project-actions-bottom: var(--mobile-dock-bottom);
+}
+
 /* Neighboring phone rails share control sizes, header centers and row spacing. */
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-navigation, [data-project-index-panel], [data-project-response-rail], .shared-profile-sidebar) {
   --sidebar-primary-control: var(--mobile-sidebar-control);
@@ -2548,8 +2564,8 @@
   right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) + 52px);
 }
 
-/* Project actions sit together above the unchanged primary dock. The last
-   page can scroll clear of both rows without resizing the artwork viewport. */
+/* Leave room for the reader controls at the end of the last page without
+   resizing the artwork viewport. Shared readers also clear the sign-in bar. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), calc(var(--mobile-project-actions-bottom) + 56px));
 }
@@ -2791,22 +2807,25 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
   position: fixed;
   top: auto;
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom));
-  right: max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2);
-  width: 44px !important;
+  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom) - 4px);
+  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
+  width: 56px !important;
   max-width: 56px;
   max-height: calc(var(--mobile-viewport-height, 100dvh) - var(--safe-area-top) - var(--mobile-project-actions-bottom) - 16px);
-  padding: 0;
-  align-items: center;
-  border-radius: 24px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open='true'] {
-  width: 56px !important;
-  right: calc(max(var(--mobile-navigation-inset-end), (100% - var(--mobile-navigation-frame-width)) / 2) - 6px);
-  bottom: calc(var(--mobile-fixed-offset, 100% - var(--mobile-viewport-height, 100dvh)) + var(--mobile-project-actions-bottom) - 4px);
   padding: 4px;
+  align-items: center;
+  border-radius: 28px;
+  overflow: hidden;
 }
-[data-presentation='mobile'] [data-mobile-engagement-content] { flex: 0 0 auto; width: 48px; }
+/* Only the action stack scrolls on short screens; its toggle stays beside the
+   project-list button at the same coordinates in both open and closed states. */
+[data-presentation='mobile'] [data-mobile-engagement-content] {
+  flex: 0 1 auto;
+  min-height: 0;
+  width: 48px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
 [data-presentation='mobile'] [data-mobile-engagement-content][hidden] { display: none; }
 [data-presentation='mobile'] .mobile-project-engagement-toggle {
   display: flex;
