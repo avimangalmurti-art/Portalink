@@ -102,7 +102,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
-      const [poster, media] = tree.props.children;
+      const [poster, media] = tree.props.children[0].props.children.props.children;
       if (media) media.ref.current = video;
       h.flush(); return { poster, media, tree };
     },
@@ -140,7 +140,7 @@ test('embedded Hello World media uses the looping mobile clip on both platforms 
     assert.equal(tree.props['aria-live'], undefined);
     assert.equal(tree.props['aria-modal'], undefined);
     assert.equal(tree.props.tabIndex, undefined);
-    assert.equal(tree.props.children[2], undefined);
+    assert.equal(tree.props.children[1], undefined);
     assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
     assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=4d282896');
     assert.equal(media.props.poster, undefined);
@@ -231,7 +231,7 @@ test('WEB starts its short presentation budget on the first frame, not during bu
 test('returning MOBILE intro is video-only with one 1500ms budget and no extra exit fade', () => {
   const h=loader({presentation:'mobile',timedIntro:true});
   let {tree,media}=h.render();
-  assert.equal(tree.props.children[2],undefined);
+  assert.equal(tree.props.children[1],undefined);
   assert.equal(media.props.controls,false); assert.equal(media.props.loop,true);
   assert.equal(h.exitDuration,0);
   assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
@@ -262,7 +262,7 @@ test('a verified guest switches pending MOBILE playback to the continuous welcom
   assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
   h.setLanding(welcome); h.render(); h.start(); h.paint();
   assert.equal(h.render().media.props.loop,true);
-  assert.equal(h.render().tree.props.children[2].props['aria-busy'],false);
+  assert.equal(h.render().tree.props.children[1].props['aria-busy'],false);
   assert.equal(h.timers.size,0); h.unmount();
 });
 
@@ -629,7 +629,7 @@ const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){
 test('mobile welcome loops without the splash deadline and keeps all entry actions available', () => {
   const h=loader({presentation:'mobile',landing:welcome});
   const {media,tree}=h.render(); assert.equal(media.props.loop,true);
-  const actions=tree.props.children[2];
+  const actions=tree.props.children[1];
   assert.equal(actions.props['aria-busy'],false);
   assert.equal(actions.props.children[0].props.disabled,false);
   assert.equal(actions.props.children[0].props.children,'Create account');
@@ -670,7 +670,7 @@ test('welcome ignores stale playback failures after hide/resume and keeps reduce
     const {media,tree,poster}=fallback.render(); assert.ok(media); assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=6dceb1fd');
     if(options.reduced) { fallback.start(); fallback.paint(); }
     assert.equal(fallback.completed,1);
-    assert.equal(tree.props.children[2].props['aria-busy'],false); fallback.unmount();
+    assert.equal(tree.props.children[1].props['aria-busy'],false); fallback.unmount();
   }
 });
 
@@ -708,13 +708,13 @@ test('mobile retries are bounded while its fallback remains animated', async () 
 test('mobile welcome can disable its actions until its caller marks them ready', () => {
   const pending={...welcome,ready:false};
   const h=loader({presentation:'mobile',landing:pending});
-  const controls=tree=>React.Children.toArray(tree.props.children[2].props.children).flatMap(node=>node.type==='button'?[node]:React.Children.toArray(node.props.children).filter(child=>child.type==='button'));
+  const controls=tree=>React.Children.toArray(tree.props.children[1].props.children).flatMap(node=>node.type==='button'?[node]:React.Children.toArray(node.props.children).filter(child=>child.type==='button'));
   let {tree}=h.render();
-  assert.equal(tree.props.children[2].props.style,undefined,'do not hide the action row and look like an old splash');
-  assert.equal(tree.props.children[2].props['aria-busy'],true);
+  assert.equal(tree.props.children[1].props.style,undefined,'do not hide the action row and look like an old splash');
+  assert.equal(tree.props.children[1].props['aria-busy'],true);
   assert.equal(controls(tree).length,4); controls(tree).forEach(button=>assert.equal(button.props.disabled,true));
   pending.ready=true; tree=h.render().tree;
-  assert.equal(tree.props.children[2].props['aria-busy'],false);
+  assert.equal(tree.props.children[1].props['aria-busy'],false);
   controls(tree).forEach(button=>assert.equal(button.props.disabled,false));
   h.unmount();
 });

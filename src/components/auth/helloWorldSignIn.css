@@ -1,6 +1,6 @@
 /* Sign-in shares Hello World's canvas and animation on both presentations.
    Scope every override to this view; signup and recovery retain their frames. */
-#root .codex-shell .auth-signin-experience[data-account-signin] {
+#root .codex-shell .auth-signin-experience.account-welcome-overlay[data-account-signin] {
   background: #f8fdfc !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;

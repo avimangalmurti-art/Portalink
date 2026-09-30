@@ -284,11 +284,15 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       exit={{ opacity: 0 }}
       transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}
     >
-      <img src={posterSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media" style={isMobile && showVideo ? { visibility: 'hidden' } : undefined} />
-      {!showStill && !failed && <video key={presentation} ref={videoRef} src={videoSrc} poster={isMobile ? undefined : posterSrc} autoPlay={!playbackHidden} loop={isMobile || undefined} muted playsInline preload="auto"
-        controls={false} disablePictureInPicture disableRemotePlayback tabIndex={-1}
-        aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-media portalink-splash-video"
-        style={{ opacity: showVideo ? 1 : 0 }} />}
+      <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
+        <div className="portalink-splash-frame">
+          <img src={posterSrc} alt="" aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-asset" style={isMobile && showVideo ? { visibility: 'hidden' } : undefined} />
+          {!showStill && !failed && <video key={presentation} ref={videoRef} src={videoSrc} poster={isMobile ? undefined : posterSrc} autoPlay={!playbackHidden} loop={isMobile || undefined} muted playsInline preload="auto"
+            controls={false} disablePictureInPicture disableRemotePlayback tabIndex={-1}
+            aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-asset portalink-splash-video"
+            style={{ opacity: showVideo ? 1 : 0 }} />}
+        </div>
+      </div>
       {landing && <div className="mobile-share-landing-actions" aria-busy={!landing.ready}>
         <button type="button" className="mobile-share-create" disabled={!landing.ready} onClick={landing.onCreateAccount}>Create account</button>
         <div className="mobile-share-secondary">

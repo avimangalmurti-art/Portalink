@@ -99,6 +99,7 @@ body,
 
 /* Preserve the supplied splash artwork in both themes, including its backdrop. */
 .portalink-splash {
+  --portalink-splash-background: #f5eaf4;
   background-color: #f5eaf4;
   background-image: none;
   contain: strict;
@@ -107,12 +108,51 @@ body,
 }
 
 .portalink-splash-media {
-  display: block;
+  display: grid;
+  place-items: center;
+  container-type: size;
   grid-area: 1 / 1;
   width: min(100vw, 100dvh, 576px);
-  height: auto;
+  height: min(100vw, 100dvh, 576px);
   max-height: 100dvh;
-  object-fit: contain;
+  pointer-events: none;
+}
+
+.portalink-splash[data-presentation='mobile'],
+.portalink-welcome-media {
+  --portalink-splash-background: #f8fdfc;
+}
+
+/* Size the painted frame itself to the asset ratio. A full-viewport video with
+   object-fit: contain leaves internal letterbox edges that outer clipping misses. */
+.portalink-splash-frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh * var(--portalink-media-ratio)));
+  aspect-ratio: var(--portalink-media-ratio);
+  overflow: hidden;
+  background: var(--portalink-splash-background);
+  color-scheme: light;
+}
+.portalink-splash-frame > .portalink-splash-asset {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: var(--portalink-splash-background);
+  object-fit: fill;
+}
+/* Cover the decoded/composited perimeter and blend its tiny color variation into
+   the canvas, for both the video and fallback without changing the artwork scale. */
+.portalink-splash-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 3px 4px var(--portalink-splash-background);
 }
 
 /* Decorative startup media never offers native playback UI. The MOBILE animated

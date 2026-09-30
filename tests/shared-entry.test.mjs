@@ -228,6 +228,8 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
     assert.equal(root.dataset.appearance, 'light');
   }
   assert.match(html, /html\[data-shared-view\] #portalink-preboot picture\s*\{\s*display:\s*none;/);
+  assert.match(html, /html\[data-shared-view\] #portalink-preboot \.portalink-preboot-media,\s*html\[data-shared-view\] #portalink-preboot picture\s*\{\s*display:\s*none;/,
+    'hide the sized media wrapper too, so the shared loading label stays centered');
   assert.match(html, /html\[data-shared-view\] #portalink-preboot::after\s*\{[^}]*Opening shared content/);
   const app = read('../src/App.tsx');
   assert.match(app, /isSharedRoute && <SharedSignInBar/);
