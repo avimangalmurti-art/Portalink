@@ -186,7 +186,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
           && rule.parent.params === '(max-width: 639px)'
           && rule.nodes.length > 0 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
             (node.prop === 'height' && node.value === 'auto')
-            || (node.prop === 'min-height' && node.value === '100svh')
+            || (node.prop === 'min-height' && node.value === '100dvh')
             || (node.prop === 'overflow' && node.value === 'visible')
             || (selector === 'html:root' && node.prop === 'overflow-x' && node.value === 'clip')
           ));

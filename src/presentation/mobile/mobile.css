@@ -107,7 +107,7 @@
   /* The document owns page scrolling. The measured viewport is only for
      temporary overlays and zoom/pan stages, never the page's clipping frame. */
   height: auto !important;
-  min-height: 100svh;
+  min-height: 100dvh;
   overflow: visible;
   /* Let the canvas reach both display edges. Insets belong to controls and
      scroll-content ends, never to the viewport that clips the entire screen. */
@@ -3067,8 +3067,8 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  padding: 0 12px calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 16px);
-  scroll-padding-bottom: calc(var(--mobile-dock-bottom) + var(--mobile-dock-size) + 16px);
+  padding: 0 12px var(--mobile-content-safe-bottom);
+  scroll-padding-bottom: var(--mobile-content-safe-bottom);
 }
 #root .codex-shell[data-presentation='mobile'] :is(.studio-list, .studio-section ul) { list-style: none; margin: 0; padding: 0; }
 #root .codex-shell[data-presentation='mobile'] .studio-section h2 { margin: 14px 8px 4px; padding-bottom: 7px; border-bottom: 1px solid var(--hairline); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
@@ -3094,13 +3094,14 @@
   #root .codex-shell[data-presentation='mobile'] .studio-category { transition: none; }
 }
 
-/* MOBILE document canvas: native browser scrolling lets Safari's floating
-   chrome reveal the page behind it. WEB's contained workspace is unchanged. */
+/* MOBILE document canvas: fill the current viewport as Safari's chrome changes,
+   but let the document grow and scroll. Insets belong to content/controls once,
+   never to a frame around the canvas. WEB's contained workspace is unchanged. */
 @media (max-width: 639px) {
   html:root, html:root body, html:root #root,
   html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
     height: auto;
-    min-height: 100svh;
+    min-height: 100dvh;
     overflow: visible;
   }
   html:root { overflow-x: clip; }
@@ -3111,12 +3112,12 @@
   overflow: visible;
   flex: 1 1 auto;
 }
-#root .codex-shell[data-presentation='mobile'] #app-viewport { min-height: 100svh; }
+#root .codex-shell[data-presentation='mobile'] #app-viewport { min-height: 100dvh; }
 #root .codex-shell[data-presentation='mobile'] .app-screen-layer:not(.screen-exit) {
   position: relative;
   inset: auto;
   height: auto;
-  min-height: 100svh;
+  min-height: 100dvh;
   /* A transformed ancestor would trap fixed reading controls in the page. */
   transform: none;
   will-change: auto;
@@ -3129,10 +3130,15 @@
   overflow: visible;
   flex-basis: auto;
 }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content],
 #root .codex-shell[data-presentation='mobile'] [data-feed-artwork-edge] [data-feed-scroll-content] {
   padding-top: var(--mobile-content-safe-top);
 }
+/* The sticky search header already owns Home's top safe area. The inner feed
+   owns the final-row clearance; its old outer pb-7 must not add it again. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] { padding-top: 0; }
+#root .codex-shell[data-presentation='mobile'] .feed-edge-fade { padding-bottom: 0; }
+/* Settings' page scroller supplies the same bottom clearance as other routes. */
+#root .codex-shell[data-presentation='mobile'] .settings-page { padding-bottom: 0; }
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-profile-wall, .mobile-portals-scroll) {
   padding-bottom: var(--mobile-content-safe-bottom);
 }
