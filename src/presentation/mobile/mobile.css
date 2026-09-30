@@ -700,13 +700,15 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
-  position: absolute;
+  /* Anchor the capsule itself to Safari's viewport so its bottom position does
+     not depend on the full-height rail frame during destination changes. */
+  position: fixed;
   z-index: 1;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: var(--mobile-control-group-gap);
-  inset-inline: 0;
+  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-navigation-inset-end);
   max-width: var(--mobile-navigation-frame-width);
   margin-inline: auto;
   bottom: var(--mobile-dock-bottom);
