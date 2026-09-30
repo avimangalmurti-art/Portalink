@@ -99,7 +99,7 @@ test('collapse keeps all creator portal icons named, clickable and selected with
   tree = h.render({ activeCategoryId: 'type' });
   assert.equal(tree.props['data-collapsed'], 'true');
   assert.equal(portals(tree)[1].props['aria-current'], 'page');
-  assert.equal(home(tree).props.to, '/share/creator');
+  assert.equal(home(tree), undefined, 'Expand navigation to use the creator name; no redundant home icon');
   assert.ok(nodes(tree).some((node) => node.type === 'nav' && /overflow-y-auto/.test(node.props.className)));
 });
 
@@ -117,19 +117,22 @@ test('public navigation can collapse and expand without offering layout resize h
   assert.deepEqual(h.calls, []);
 });
 
-test('shared identity uses the first trimmed bio line and names navigation Collections', () => {
+test('shared navigation keeps the creator name as its only home link and keeps bio out of the sidebar', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
-    const profile = { id: 'creator', name: 'Creator', headline: '  Architect and designer\r\nWorking across cities.  ', categories: [] };
+    const profile = { id: 'creator', name: 'Creator', headline: 'Jolly Good\nWorking across cities.', categories: [] };
     const wrapper = h.render({ profile });
-    const tree = presentation === 'mobile' ? wrapper.props.children(() => {}) : wrapper;
-    const headline = nodes(tree).find(node => node.props['data-shared-profile-headline'] !== undefined);
-    assert.equal(headline.props.children, 'Architect and designer');
-    assert.doesNotMatch(headline.props.className, /truncate|line-clamp/);
-    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator collections'));
-    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Collections');
-    const empty = h.render({ profile: { ...profile, headline: '   ' } });
-    assert.equal(nodes(presentation === 'mobile' ? empty.props.children(() => {}) : empty).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
+    let closed = 0;
+    const tree = presentation === 'mobile' ? wrapper.props.children(() => { closed++; }) : wrapper;
+    assert.equal(nodes(tree).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
+    assert.equal(nodes(tree).some(node => node.props.children === 'Jolly Good'), false);
+    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator portals'));
+    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Portals');
+    assert.equal(nodes(tree).filter(node => node.type === 'Link').length, 1);
+    assert.equal(home(tree).props.to, '/share/creator');
+    assert.ok(nodes(home(tree)).some(node => node.props.children === 'Creator'));
+    assert.equal(nodes(tree).some(node => node.props.icon === 'HomeIcon' || node.props.children === 'Profile'), false);
+    if (presentation === 'mobile') { home(tree).props.onClick(); assert.equal(closed, 1); }
   }
 });
 
@@ -151,9 +154,12 @@ test('empty public portfolios still offer expansion and return-to-profile', () =
   const h = harness();
   const profile = { id: 'empty', name: 'Empty Creator', categories: [] };
   toggle(h.render({ profile })).props.onClick();
-  const tree = h.render({ profile });
+  let tree = h.render({ profile });
   assert.equal(portals(tree).length, 0);
   assert.equal(toggle(tree).props['aria-label'], 'Expand navigation');
+  assert.equal(home(tree), undefined);
+  toggle(tree).props.onClick();
+  tree = h.render({ profile });
   assert.equal(home(tree).props.to, '/share/empty');
 });
 
@@ -174,7 +180,7 @@ test('MOBILE uses a full-content drawer without overwriting the WEB collapse pre
   assert.equal(nodes(tree).some(node => node.type === 'resize-handle'), false);
   assert.equal(portals(tree)[0].props['aria-current'], 'page');
   assert.ok(nodes(portals(tree)[0]).some(node => node.props?.children === 'Photography'));
-  const profileLink = nodes(tree).find(node => node.props?.className === 'mobile-shared-profile-home sidebar-pill-row');
+  const profileLink = home(tree);
   assert.equal(profileLink.props.to, '/share/creator');
   profileLink.props.onClick();
   portals(tree)[0].props.onClick();

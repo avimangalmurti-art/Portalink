@@ -33,26 +33,30 @@ test('desktop layout exposes every supported density and reset through the exist
   assert.equal(nodes(WebGalleryControls({ columns: 2, onChange() {} })).find(node => node.type === 'button').props.disabled, true);
 });
 
-test('layout controls remain desktop-only while regular gallery gestures and share restrictions are preserved', () => {
+test('layout controls remain desktop-only while shared galleries retain local card zoom', () => {
   for (const presentation of ['web', 'mobile']) for (const hasItems of [false, true]) for (const enabled of [false, true]) for (const allowLayoutControls of [false, true]) {
     const chooseColumns = () => {};
+    const onColumnsChange = () => {};
     let gesturesEnabled;
+    let zoomCallback;
     const { JustifiedImageWall } = load('../src/components/profile/JustifiedImageWall.tsx', {
       react: { ...React, useMemo: fn => fn() },
       '../../hooks/useElementSize': { useElementSize: () => ({ width: 1000 }) },
-      '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled) => { gesturesEnabled = enabled; return { columns: 4, chooseColumns }; } },
+      '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled, _resetKey, onChange) => { gesturesEnabled = enabled; zoomCallback = onChange; return { columns: 5, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
       '../../presentation/mobile/MobileGalleryControls': { MobileGalleryControls: 'mobile-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
     });
-    const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', reorderMode: { enabled }, allowLayoutControls });
+    const tree = JustifiedImageWall({ items: hasItems ? [{ key: 'a', ratio: 1, content: 'A' }] : [], columns: 4, label: 'Projects', onColumnsChange, reorderMode: { enabled }, allowLayoutControls });
     const web = nodes(tree).find(node => node.type === 'web-controls');
     const mobile = nodes(tree).find(node => node.type === 'mobile-controls');
     assert.equal(Boolean(web), allowLayoutControls && presentation === 'web' && hasItems && !enabled);
     assert.equal(Boolean(mobile), false);
-    assert.equal(gesturesEnabled, allowLayoutControls && !enabled);
+    assert.equal(gesturesEnabled, !enabled);
+    assert.equal(zoomCallback, onColumnsChange, 'Shared viewing retains its local density callback');
+    assert.equal(nodes(tree).find(node => node.props?.role === 'list').props['data-profile-wall-columns'], 5, 'The wall uses the zoom selection even when layout chrome is hidden');
     assert.equal(nodes(tree).some(node => node.type === 'zoom'), allowLayoutControls);
     if (web) assert.equal(web.props.onChange, chooseColumns);
   }

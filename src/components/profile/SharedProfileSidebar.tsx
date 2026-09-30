@@ -1,6 +1,6 @@
 import { useCompactNavigation } from '../../hooks/useCompactNavigation';
 import React, { useEffect, useState } from 'react';
-import { HomeIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
+import { MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -67,15 +67,10 @@ export function SharedProfileSidebar({
         </div>
       </div>
 
-      <nav id="shared-profile-portals" aria-label={`${profile.name} collections`} className={`min-h-0 flex-1 overflow-y-auto py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
-        {!isCollapsed && profile.headline?.trim() && <p data-shared-profile-headline="" className="break-words px-2 pb-2 pt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">{profile.headline.trim().split(/\r?\n/, 1)[0]}</p>}
-        {isMobile && <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} className="mobile-shared-profile-home sidebar-pill-row" aria-current={activeCategoryId ? undefined : 'page'}><InterfaceIcon icon={HomeIcon} weight="medium" /><span>Profile</span></Link>}
-        {isCollapsed ? <Link to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} title={`${profile.name} — Profile`} aria-current={activeCategoryId ? undefined : 'page'} className={`sidebar-rail-slot shape-compact mx-auto mb-2 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${activeCategoryId ? 'text-[var(--text-primary)] hover:text-[var(--accent-text)]' : 'text-[var(--accent-text)]'}`}>
-            <InterfaceIcon icon={HomeIcon} weight="medium" />
-          </Link> : null}
+      <nav id="shared-profile-portals" aria-label={`${profile.name} portals`} className={`min-h-0 flex-1 overflow-y-auto py-2 ${isCollapsed ? 'px-0' : 'px-2'}`}>
         <h2 className={isCollapsed ? 'sr-only' : 'relative my-2 flex h-7 w-full shrink-0 items-center'}>
           <span data-shared-portals-heading="" className="portals-heading flex h-full min-w-0 flex-1 items-center truncate bg-transparent pl-2 pr-2 text-left text-inherit text-[var(--text-tertiary)]">
-            Collections
+            Portals
           </span>
         </h2>
         <ul className={`sidebar-pill-group m-0 flex list-none flex-col p-0 ${isCollapsed ? 'items-center' : ''}`}>

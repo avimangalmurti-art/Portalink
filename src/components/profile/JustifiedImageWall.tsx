@@ -87,13 +87,13 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   label: string;
   onColumnsChange?: (columns: number) => void;
   reorderMode?: ReorderMode;
-  /** Public shares retain the creator's layout and ordinary browser zoom. */
+  /** Hides layout chrome on public shares while retaining local card zoom. */
   allowLayoutControls?: boolean;
 }) {
   const { ref, width } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
   // Measurement and pinch selection survive loading/entering/exiting reorder.
-  const view = useContentZoom<HTMLDivElement>(columns, allowLayoutControls && !reorderMode?.enabled, columns, onColumnsChange);
+  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) return [];
