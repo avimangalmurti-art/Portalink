@@ -1,5 +1,23 @@
 # Performance instructions: implementation and release status
 
+## September 30, 2026 — backfill complete; worker fixes approved for publication
+
+The approved Apply completed at **22:41:54 UTC**: **10 considered / 10 generated / 10 applied / 0 skipped / 0 failed**, 47,433 ms. Uploaded **40 new WebPs, 786,466 bytes**, no reused objects: 200/400/800 plus 1200×630 social per project. All 10 manifests and 40 decoded assets match their receipts. Storage now has 97 objects across 4 buckets; all 57 originals retain identity, path, size, ETag, MIME and cache metadata. Fresh read-only selection skips all 10 as already complete, with zero generation/writes. Do not repeat Apply.
+
+Delivery verification stopped on small proxy covers (502), then identified an internal shared-shell redirect and an unsupported worker request option. Local fixes preserve transformed raster MIME (raw masters/social remain WebP), fetch the canonical internal `/share` asset, and replace worker `redirect: error` with `manual`, retaining rejection of all upstream redirects. The lookup correction also covers link previews, RUM owner verification and Reads. Permissions, visibility, configuration and originals are unchanged.
+
+The user approved publication and live verification. **91 focused tests, typecheck, lint (0 errors / 90 existing warnings), and production client + worker build pass.** A built-worker Node harness with real anonymous reads passed UUID-to-handle 301, handle200, both crawler cards and three cover variants200. One prior metadata read timed out into the intended generic-shell fallback; the subsequent complete check passed. This is not native workerd/hosted evidence. Live cache HIT and physical-phone speed remain unverified. Sites276/runtime revision2 remains active until the new deployment receipt is recorded.
+
+Evidence: ignored `logs/backend-activation-20260930/` with `backfill-release-*`, `cover-manifests-postflight.json`, `storage-postflight.json`, `backfill-readonly-postflight.json`, `delivery-diagnostic.json` and `delivery-fix-*`. The backup is the user's confirmed dashboard backup, not a local dump. Previously approved Supabase/Storage/D1/RUM activation remains applied. Deletion/PDF-processing HOLD items and SMTP are unchanged. Earlier retry notes below are historical and superseded by this record.
+
+## Latest cover-backfill retry — September 30, 2026
+
+Latest backfill status: approved dry-run rendered7 covers in18,421ms, skipped3 multipart PDFs, and performed0 uploads/manifest writes. Prepared multipart support passes38 focused tests but awaits the next approved live retry. This is operator-side rendering time, not visitor first-paint performance.
+
+## September 30 backend activation update
+
+Sites276 is live; approved cover schema/public bucket/capability, shared bundle, D1 timings/reach and the RUM owner configuration are active. Existing originals and D1 interactions are preserved. **The cover backfill remains incomplete:** its live dry-run skipped all10 existing originals because they use the uploader's draft directory. No covers/manifests were written. The local validator correction passes22 focused tests and awaits a continued live retry. Therefore do not mark upload-time/backfilled cover delivery or the first-paint target complete. The visitor JS budget miss and physical-phone timing checks remain as recorded. Current receipts and limits: [handoff](agent-handoff.md).
+
 Source: the user's 15-page `Preformance edit instructions.pdf`, supplied September 28, 2026. All pages were read. This is an implementation record, not a claim that the audit's historical line numbers or measurements still describe production.
 
 ## September 30 release-candidate review since Sites274

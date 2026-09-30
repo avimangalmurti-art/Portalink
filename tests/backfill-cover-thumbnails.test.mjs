@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { parseArgs, planProject, runBackfill, createFixtureAdapter, createNodeRuntime } from '../scripts/backfill-cover-thumbnails.mjs';
+import { parseArgs, planProject, runBackfill, createFixtureAdapter, createNodeRuntime, readMultipartSource, createSupabaseAdapter } from '../scripts/backfill-cover-thumbnails.mjs';
+import { MANIFEST_SUFFIX, PART_BYTES, multipartSpec, partPath } from '../public/portalink-media-core.js';
 import { thumbnailSourceKey, thumbnailContentHash } from '../src/features/media/coverThumbnailManifest.mjs';
 import { renderCoverVariants } from '../src/features/media/coverThumbnailCore.mjs';
 
@@ -73,6 +74,59 @@ test('planning rejects private or hidden content, completed manifests and unsupp
   assert.equal((await planProject(malformed)).skip, 'invalid-source-path');
 });
 
+test('selected project originals accept the uploader draft directory and retain project-directory compatibility', async () => {
+  const source = row(), attachment = source.project_attachments[0];
+  assert.equal((await planProject(source)).input.sourceUrl, attachment.storage_path);
+  const draftId = '55555555-5555-4555-8555-555555555555';
+  assert.notEqual(draftId, source.id);
+  attachment.storage_path = `${source.profile_id}/${draftId}/66666666-6666-4666-8666-666666666666-My-project_2.pdf`;
+  const plan = await planProject(source);
+  assert.equal(plan.sourceAttachmentId, attachment.id);
+  assert.equal(plan.input.sourceUrl, attachment.storage_path);
+  const h = mockPipeline({ rows: [source] });
+  assert.equal((await h.run()).generated, 1);
+  assert.deepEqual(h.renders, [attachment.storage_path]);
+  assert.equal(h.uploads.length, 0);
+});
+
+test('draft originals reject wrong owners, foreign attachments and noncanonical paths', async () => {
+  const source = row(), attachment = source.project_attachments[0];
+  const draftId = '55555555-5555-4555-8555-555555555555';
+  const file = '66666666-6666-4666-8666-666666666666-artwork.png';
+  const prefix = `${source.profile_id}/${draftId}`;
+  for (const invalid of [
+    `77777777-7777-4777-8777-777777777777/${draftId}/${file}`,
+    `${source.profile_id}/not-a-uuid/${file}`,
+    `${prefix}/artwork.png`, `${prefix}/${file}/extra`, `${prefix}/../${file}`,
+    `${prefix}/%2e%2e`, `${prefix}/${file}%20`, `${prefix}/${file}\\other`,
+    `https://example.invalid/${prefix}/${file}`, `${prefix}/${file}?download=1`,
+    `${prefix}/${file}#fragment`, `${prefix}/${file}\n`, `${prefix}/${file} `,
+    `${prefix}/66666666-6666-4666-8666-666666666666-`,
+    `${prefix}/66666666-6666-4666-8666-666666666666--name.png`,
+  ]) {
+    attachment.storage_path = invalid;
+    assert.equal((await planProject(source)).skip, 'invalid-source-path', invalid);
+  }
+  attachment.storage_path = `${prefix}/${file}`;
+  attachment.project_id = draftId;
+  assert.equal((await planProject(source)).skip, 'no-supported-cover');
+});
+
+test('draft original compatibility never broadens rendered-page or video-poster namespaces', async () => {
+  const draftId = '55555555-5555-4555-8555-555555555555';
+  const file = '66666666-6666-4666-8666-666666666666-preview.webp';
+  const document = structuredClone(fixture.projects[1]), attachment = document.project_attachments[0];
+  attachment.storage_path = `${document.profile_id}/${draftId}/66666666-6666-4666-8666-666666666666-report.pdf`;
+  attachment.metadata.renderedPages = [{ attachmentId: attachment.id, withinDocumentIndex: 2,
+    storagePath: `${document.profile_id}/${draftId}/${file}` }];
+  assert.equal((await planProject(document)).input.sourceUrl, attachment.storage_path);
+  attachment.metadata.multipart = { version: 1 };
+  assert.equal((await planProject(document)).skip, 'invalid-multipart-source');
+  const video = structuredClone(fixture.projects[2]), videoAttachment = video.project_attachments[0];
+  videoAttachment.metadata.posterStoragePath = `${video.profile_id}/${draftId}/${file}`;
+  assert.equal((await planProject(video)).input.posterUrl, undefined);
+});
+
 test('cover identity, page selection and creator crop determine the source fingerprint', async () => {
   const source = row(), original = await planProject(source);
   assert.equal(original.sourceAttachmentId, source.project_attachments[0].id, 'Attachment identities are exact TEXT values, not assumed UUIDs');
@@ -89,7 +143,7 @@ test('cover identity, page selection and creator crop determine the source finge
   const plan = await planProject(document);
   assert.equal(plan.input.sourceUrl, page); assert.equal(plan.input.pageNumber, 2);
   delete document.project_attachments[0].metadata.renderedPages;
-  assert.equal((await planProject(document)).skip, 'multipart-source-needs-rendered-cover');
+  assert.equal((await planProject(document)).skip, 'invalid-multipart-source');
 });
 
 test('hashes are canonical across field/variant order and respond to encoded content changes', async () => {
@@ -310,6 +364,197 @@ test('fixture source mappings cannot escape their local directory', async () => 
     await assert.rejects(adapter.readSource('missing'), /relative files/);
     await assert.rejects(adapter.readSource('remote'));
   } finally { await unlink(fixtureFile); await rmdir(directory); }
+});
+
+function multipartDocument(sizeBytes = PART_BYTES + 7) {
+  const document = structuredClone(fixture.projects[1]);
+  const attachment = document.project_attachments[0];
+  attachment.storage_path += MANIFEST_SUFFIX;
+  attachment.size_bytes = sizeBytes;
+  attachment.metadata.multipart = multipartSpec(sizeBytes);
+  return document;
+}
+
+test('multipart PDF planning validates stored size, format and limit while retaining rendered-cover preference', async () => {
+  const document = multipartDocument(), attachment = document.project_attachments[0];
+  assert.deepEqual((await planProject(document)).multipart, multipartSpec(PART_BYTES + 7));
+  for (const mutate of [
+    a => { a.size_bytes++; }, a => { a.metadata.multipart.version = 2; },
+    a => { a.metadata.multipart.partBytes = 10; }, a => { a.metadata.multipart.partCount++; },
+    a => { delete a.metadata.multipart; }, a => { a.storage_path = a.storage_path.replace(MANIFEST_SUFFIX, ''); },
+    a => { a.kind = 'image'; },
+  ]) {
+    const invalid = structuredClone(document); mutate(invalid.project_attachments[0]);
+    assert.equal((await planProject(invalid)).skip, 'invalid-multipart-source');
+  }
+  assert.equal((await planProject(multipartDocument(256 * 1024 * 1024 + 1))).skip, 'source-over-256-mib');
+  attachment.metadata.renderedPages = [{ attachmentId: attachment.id, withinDocumentIndex: 2,
+    storagePath: `${document.profile_id}/${document.id}/selected.webp` }];
+  const rendered = await planProject(document);
+  assert.equal(rendered.multipart, undefined);
+  assert.match(rendered.input.sourceUrl, /selected.webp$/);
+});
+
+test('multipart reconstruction uses exact computed parts and ignores manifest-supplied URLs', async () => {
+  const document = multipartDocument(), attachment = document.project_attachments[0], spec = attachment.metadata.multipart;
+  const first = new Uint8Array(PART_BYTES).fill(17), last = new Uint8Array(7).fill(29), requested = [];
+  const assembled = await readMultipartSource(async source => {
+    requested.push(source);
+    if (source === attachment.storage_path) return new TextEncoder().encode(JSON.stringify({ ...spec, urls: ['https://example.invalid/private'], paths: ['../other'] }));
+    if (source === partPath(attachment.storage_path, 0)) return first;
+    if (source === partPath(attachment.storage_path, 1)) return last;
+    assert.fail('Unexpected source');
+  }, attachment.storage_path, spec);
+  assert.deepEqual(requested, [attachment.storage_path, partPath(attachment.storage_path, 0), partPath(attachment.storage_path, 1)]);
+  assert.equal(assembled.byteLength, spec.sizeBytes);
+  assert.deepEqual(assembled.subarray(0, PART_BYTES), first);
+  assert.deepEqual(assembled.subarray(PART_BYTES), last);
+});
+
+test('multipart size and path validation reject before reading any source', async () => {
+  const document = multipartDocument(), attachment = document.project_attachments[0];
+  let reads = 0; const reader = async () => { reads++; throw new Error('Must not read'); };
+  for (const [source, spec] of [
+    [attachment.storage_path, multipartSpec(256 * 1024 * 1024 + 1)],
+    [attachment.storage_path, { version: 1 }], ['https://example.invalid/file' + MANIFEST_SUFFIX, multipartSpec(2)],
+    ['owner/../file' + MANIFEST_SUFFIX, multipartSpec(2)], ['owner/%2e%2e/file' + MANIFEST_SUFFIX, multipartSpec(2)],
+    ['owner/file.pdf', multipartSpec(2)],
+  ]) await assert.rejects(readMultipartSource(reader, source, spec), error => error.code === 'invalid-multipart-source');
+  assert.equal(reads, 0);
+});
+
+test('multipart malformed, oversized and mismatched manifests stop before any part read', async () => {
+  const document = multipartDocument(), attachment = document.project_attachments[0], spec = attachment.metadata.multipart;
+  for (const manifest of ['{', ' '.repeat(16385), JSON.stringify({ ...spec, sizeBytes: spec.sizeBytes + 1 }), JSON.stringify({ ...spec, version: 2 })]) {
+    const reads = [];
+    await assert.rejects(readMultipartSource(async source => { reads.push(source); return new TextEncoder().encode(manifest); }, attachment.storage_path, spec));
+    assert.deepEqual(reads, [attachment.storage_path]);
+  }
+});
+
+test('multipart missing, short and oversized parts stop before requesting later parts', async () => {
+  const document = multipartDocument(), attachment = document.project_attachments[0], spec = attachment.metadata.multipart;
+  for (const length of [-1, PART_BYTES - 1, PART_BYTES + 1]) {
+    const reads = [];
+    await assert.rejects(readMultipartSource(async source => {
+      reads.push(source);
+      if (source === attachment.storage_path) return new TextEncoder().encode(JSON.stringify(spec));
+      if (length === -1) throw new Error('Anonymous source unavailable');
+      return new Uint8Array(length);
+    }, attachment.storage_path, spec));
+    assert.deepEqual(reads, [attachment.storage_path, partPath(attachment.storage_path, 0)]);
+  }
+  const small = multipartSpec(7);
+  for (const length of [6, 8]) await assert.rejects(readMultipartSource(async source => source === attachment.storage_path
+    ? new TextEncoder().encode(JSON.stringify(small)) : new Uint8Array(length), attachment.storage_path, small), error => error.code === 'multipart-part-size');
+});
+
+test('multipart fixture PDF produces real selected-page WebPs without network or writes', async () => {
+  const pdf = await readFile(path.join(path.dirname(fixturePath), 'report.pdf'));
+  const document = multipartDocument(pdf.byteLength), attachment = document.project_attachments[0];
+  const spec = attachment.metadata.multipart, reads = [];
+  const runtime = await createNodeRuntime(async source => {
+    reads.push(source);
+    if (source === attachment.storage_path) return new TextEncoder().encode(JSON.stringify(spec));
+    if (source === partPath(attachment.storage_path, 0)) return pdf;
+    throw new Error('Unexpected source');
+  });
+  const h = mockPipeline({ rows: [document] });
+  const result = await runBackfill(h.adapter, runtime, { failFast: true });
+  assert.equal(result.generated, 1); assert.equal(result.failed, 0); assert.equal(result.applied, 0);
+  assert.equal(h.uploads.length, 0); assert.equal(h.manifests.length, 0);
+  assert.deepEqual(reads, [attachment.storage_path, partPath(attachment.storage_path, 0)]);
+  const decoded = await runtime.renderPdfPage(attachment.storage_path, 2, 800, spec);
+  const pixel = decoded.source.getContext('2d').getImageData(10, 10, 1, 1).data;
+  assert.ok(pixel[2] > pixel[0] * 2, 'The selected PDF page stays blue');
+  await decoded.dispose();
+});
+
+test('multipart read failures honor fail-fast and metadata changes prevent uploads', async () => {
+  const document = multipartDocument();
+  const h = mockPipeline({ rows: [document, row()] });
+  h.runtime.renderPdfPage = async (source, page, edge, spec) => {
+    assert.deepEqual(spec, document.project_attachments[0].metadata.multipart);
+    throw new Error('Missing part');
+  };
+  const failed = await h.run({ apply: true, failFast: true });
+  assert.equal(failed.stoppedOnFailure, true); assert.equal(failed.considered, 1);
+  assert.equal(failed.failed, 1); assert.equal(h.uploads.length, 0);
+  const changed = mockPipeline({ rows: [document] });
+  changed.adapter.currentProject = async () => multipartDocument(PART_BYTES + 8);
+  const stopped = await changed.run({ apply: true, failFast: true });
+  assert.equal(stopped.failed, 1); assert.equal(changed.uploads.length, 0);
+});
+
+const testEnvironment = { SUPABASE_URL: 'https://fixture.supabase.co', SUPABASE_ANON_KEY: 'fixture-anonymous-key', SUPABASE_SERVICE_ROLE_KEY: 'fixture-service-key' };
+const storageJson = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+test('installed Storage SDK lists the exact thumbnail directory and matches exact object names', async () => {
+  const calls = [], pages = [[], [{ id: 'one', name: '1200.webp' }], [{ id: null, name: '200.webp' }], [{ id: 'one', name: '200.webp' }]];
+  const adapter = await createSupabaseAdapter(testEnvironment, { fetch: async (url, options) => {
+    calls.push({ url: String(url), method: options.method, body: JSON.parse(options.body) });
+    return storageJson(pages.shift());
+  } });
+  for (const expected of [false, false, false, true]) assert.equal(await adapter.objectExists('project-covers', 'profile/project/hash/200.webp'), expected);
+  assert.equal(calls.length, 4);
+  for (const call of calls) {
+    assert.equal(call.method, 'POST'); assert.equal(call.url, 'https://fixture.supabase.co/storage/v1/object/list/project-covers');
+    assert.equal(call.body.prefix, 'profile/project/hash'); assert.equal(call.body.search, '200.webp');
+    assert.equal(call.body.limit, 100); assert.equal(call.body.offset, 0);
+  }
+});
+
+test('thumbnail inspection paginates successful listings before declaring absence', async () => {
+  const offsets = [], full = Array.from({ length: 100 }, (_, index) => ({ id: String(index), name: `copy-${index}-200.webp` }));
+  const adapter = await createSupabaseAdapter(testEnvironment, { fetch: async (url, options) => {
+    const { offset } = JSON.parse(options.body); offsets.push(offset);
+    return storageJson(offset === 0 ? full : [{ id: 'exact', name: '200.webp' }]);
+  } });
+  assert.equal(await adapter.objectExists('project-covers', 'profile/project/hash/200.webp'), true);
+  assert.deepEqual(offsets, [0, 100]);
+});
+
+test('thumbnail inspection rejects Storage failures and malformed success through the installed SDK', async () => {
+  for (const response of [
+    () => new Response(null, { status: 400 }),
+    () => storageJson({ statusCode: '400', error: 'Bad Request', message: 'Bad Request' }, 400),
+    () => storageJson({ statusCode: '403', message: 'Forbidden' }, 403),
+    () => storageJson({ statusCode: '404', message: 'Bucket not found' }, 404),
+    () => storageJson({ statusCode: '500', message: 'Server failure' }, 500),
+    () => storageJson(null), () => storageJson({}), () => storageJson([{ name: '200.webp' }]),
+    () => storageJson([{ id: '', name: '200.webp' }]),
+    () => { throw new Error('Network failed'); },
+  ]) {
+    const adapter = await createSupabaseAdapter(testEnvironment, { fetch: async () => response() });
+    await assert.rejects(adapter.objectExists('project-covers', 'profile/project/hash/200.webp'), error => error.code === 'object-inspection-failed');
+  }
+});
+
+test('real SDK absence checks upload immutably before persistence and errors stop with zero writes', async () => {
+  const requests = [];
+  const real = await createSupabaseAdapter(testEnvironment, { fetch: async (url, options) => {
+    const address = String(url); requests.push({ address, options });
+    if (address.includes('/object/list/')) return storageJson([]);
+    if (address.includes('/storage/v1/object/project-covers/')) return storageJson({ Key: 'stored' });
+    if (address.endsWith('/rest/v1/rpc/set_project_cover_thumbnail')) return storageJson(null);
+    throw new Error('Unexpected request');
+  } });
+  const h = mockPipeline({ bucket: 'project-covers' });
+  Object.assign(h.adapter, { objectExists: real.objectExists, upload: real.upload, persist: real.persist });
+  const applied = await h.run({ apply: true, failFast: true });
+  assert.equal(applied.applied, 1); assert.equal(applied.failed, 0);
+  const writes = requests.filter(r => r.address.includes('/object/project-covers/'));
+  assert.equal(writes.length, 3);
+  for (const { options } of writes) {
+    const headers = new Headers(options.headers);
+    assert.equal(headers.get('x-upsert'), 'false'); assert.equal(headers.get('content-type'), 'image/webp');
+    assert.equal(headers.get('cache-control'), 'public, max-age=31536000, immutable');
+  }
+  assert.ok(requests.at(-1).address.endsWith('/rest/v1/rpc/set_project_cover_thumbnail'));
+  const denied = await createSupabaseAdapter(testEnvironment, { fetch: async () => storageJson({ message: 'Denied' }, 403) });
+  const stopped = mockPipeline({ rows: [row(), row()] }); stopped.adapter.objectExists = denied.objectExists;
+  const result = await stopped.run({ apply: true, failFast: true });
+  assert.equal(result.failed, 1); assert.equal(result.considered, 1); assert.equal(stopped.uploads.length, 0); assert.equal(stopped.manifests.length, 0);
 });
 
 test('posterless video reports a missing ffmpeg prerequisite without installing or submitting work', async () => {

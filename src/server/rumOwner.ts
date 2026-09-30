@@ -19,7 +19,7 @@ export async function authorizeRumOwner(request: Request, config: OwnerConfigura
   try {
     response = await fetcher(`${config.supabaseUrl}/rest/v1/profiles?${query}`, {
       headers: { authorization, apikey: config.publishableKey, accept: 'application/json' },
-      redirect: 'error', signal: AbortSignal.timeout(8_000),
+      redirect: 'manual', signal: AbortSignal.timeout(8_000),
     });
   } catch { throw denied(503); }
   if (!response.ok) throw denied(response.status === 401 ? 401 : 503);

@@ -418,7 +418,10 @@ const worker = {
     const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared ? prefersHtml(accept) : accept.includes('text/html'));
     const address = navigation && shared ? await resolveShareRequest(request, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY }) : {};
     if (address.redirect) return address.redirect;
-    const assetRequest = navigation ? new Request(new URL(shared ? '/share.html' : '/', request.url), request) : request;
+    // ASSETS canonicalizes /share.html to /share with a redirect. Fetch its
+    // canonical path internally so that redirect cannot replace the visitor's
+    // profile or project URL in the browser.
+    const assetRequest = navigation ? new Request(new URL(shared ? '/share' : '/', request.url), request) : request;
     if (navigation && shared) {
       assetRequest.headers.delete('if-none-match');
       assetRequest.headers.delete('if-modified-since');

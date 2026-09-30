@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { spawn } from 'node:child_process';
 import { renderCoverVariants, renderCoverAssets } from '../src/features/media/coverThumbnailCore.mjs';
 import { thumbnailSourceKey, thumbnailContentHash } from '../src/features/media/coverThumbnailManifest.mjs';
+import { MANIFEST_SUFFIX, partPath, readMultipartSpec } from '../public/portalink-media-core.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const SOURCE_LIMIT = 256 * 1024 * 1024;
@@ -57,6 +58,20 @@ function safeSourcePath(value, row) {
     && (segments[1] === row.id || (['pdf-pages', 'pdf-previews', 'video-previews'].includes(segments[1]) && segments[2] === row.id));
 }
 
+function safeOriginalPath(attachment, row) {
+  if (attachment.project_id !== row.id) return false;
+  if (safeSourcePath(attachment.storage_path, row)) return true;
+  if (typeof attachment.storage_path !== 'string' || /[\\%:\u0000-\u001f\u007f]/.test(attachment.storage_path)) return false;
+  // Uploads retain their draft directory after publication. Only this selected,
+  // project-associated original may use it; derived pages/posters stay scoped
+  // to the project, and anonymous Storage SELECT still authorizes every read.
+  const segments = attachment.storage_path.split('/');
+  if (segments.length !== 3 || segments[0] !== row.profile_id || !UUID.test(segments[1])) return false;
+  const file = segments[2];
+  return UUID.test(file.slice(0, 36)) && file[36] === '-'
+    && /^[a-zA-Z0-9._](?:[a-zA-Z0-9._-]*[a-zA-Z0-9._])?$/.test(file.slice(37));
+}
+
 function safeRenderedPage(page, row, attachmentId) {
   if (page?.attachmentId !== attachmentId || typeof page.storagePath !== 'string') return false;
   if (safeSourcePath(page.storagePath, row)) return true;
@@ -76,18 +91,24 @@ export async function planProject(row, { includeSocial = false } = {}) {
   const cover = attachments.find(attachment => attachment.is_cover && attachment.storage_path)
     ?? attachments.find(attachment => attachment.kind === 'image' && attachment.storage_path) ?? attachments[0];
   if (!cover || !['image', 'document', 'video'].includes(cover.kind)) return { skip: 'no-supported-cover' };
-  if (typeof cover.id !== 'string' || !cover.id || !safeSourcePath(cover.storage_path, row)) return { skip: 'invalid-source-path' };
+  if (typeof cover.id !== 'string' || !cover.id || !safeOriginalPath(cover, row)) return { skip: 'invalid-source-path' };
   const metadata = cover.metadata && typeof cover.metadata === 'object' ? cover.metadata : {};
   const pageNumber = Number.isSafeInteger(metadata.coverPageNumber) && metadata.coverPageNumber > 0 ? metadata.coverPageNumber : 1;
   const sourceKey = await thumbnailSourceKey({ id: cover.id, storagePath: cover.storage_path, pageNumber, frame: metadata.coverFrame });
   // A completed, selected PDF page avoids reopening a large or multipart original.
   const rendered = cover.kind === 'document' && Array.isArray(metadata.renderedPages)
     ? metadata.renderedPages.find(page => page.withinDocumentIndex === pageNumber && safeRenderedPage(page, row, cover.id)) : null;
-  if (metadata.multipart && !rendered) return { skip: 'multipart-source-needs-rendered-cover' };
+  let multipart;
+  if (!rendered && (metadata.multipart != null || cover.storage_path.endsWith(MANIFEST_SUFFIX))) {
+    multipart = readMultipartSpec(metadata.multipart);
+    if (cover.kind !== 'document' || !cover.storage_path.endsWith(MANIFEST_SUFFIX)
+      || !multipart || multipart.sizeBytes !== cover.size_bytes) return { skip: 'invalid-multipart-source' };
+  }
   if (!rendered && cover.size_bytes > SOURCE_LIMIT) return { skip: 'source-over-256-mib' };
   const poster = cover.kind === 'video' && safeSourcePath(metadata.posterStoragePath, row) ? metadata.posterStoragePath : undefined;
   return {
     projectId: row.id, profileId: row.profile_id, revision: row.revision, sourceAttachmentId: cover.id, sourceKey,
+    ...(multipart ? { multipart } : {}),
     input: { kind: cover.kind, sourceUrl: rendered?.storagePath ?? cover.storage_path, posterUrl: poster, pageNumber,
       frame: metadata.coverFrame, aspectRatio: metadata.widthPixels > 0 && metadata.heightPixels > 0 ? metadata.widthPixels / metadata.heightPixels : undefined },
   };
@@ -112,8 +133,13 @@ export async function runBackfill(adapter, runtime, { apply = false, failFast = 
       if (plan.skip) { summary.skipped++; await log({ ...context, status: 'skipped', reason: plan.skip }); continue; }
       summary.eligible++;
       await log({ ...context, status: 'started', kind: plan.input.kind, sourceKey: plan.sourceKey });
-      const { variants, social } = includeSocial ? await renderCoverAssets(plan.input, runtime)
-        : { variants: await renderCoverVariants(plan.input, runtime) };
+      // Keep multipart reading inside the Node adapter; the shared/browser
+      // renderer still receives an ordinary source path and the same geometry.
+      const coverRuntime = plan.multipart ? { ...runtime,
+        renderPdfPage: (source, page, edge) => runtime.renderPdfPage(source, page, edge, plan.multipart),
+      } : runtime;
+      const { variants, social } = includeSocial ? await renderCoverAssets(plan.input, coverRuntime)
+        : { variants: await renderCoverVariants(plan.input, coverRuntime) };
       const hash = await thumbnailContentHash(variants, social);
       const assets = social ? [...variants, { ...social, size: 'social' }] : variants;
       const encoded = await Promise.all(assets.map(async variant => ({ ...variant,
@@ -131,7 +157,8 @@ export async function runBackfill(adapter, runtime, { apply = false, failFast = 
         const assertCurrent = async () => {
           const fresh = await adapter.currentProject(plan.projectId);
           const current = fresh ? await planProject(fresh, { includeSocial }) : { skip: 'not-public-visible' };
-          if (current.skip || current.revision !== plan.revision || current.sourceKey !== plan.sourceKey) fail('project-changed', 'Visibility, cover, revision or thumbnail changed; this project was not updated.');
+          if (current.skip || current.revision !== plan.revision || current.sourceKey !== plan.sourceKey
+            || JSON.stringify(current.multipart) !== JSON.stringify(plan.multipart)) fail('project-changed', 'Visibility, cover, revision or thumbnail changed; this project was not updated.');
         };
         for (const variant of encoded) {
           await assertCurrent();
@@ -173,6 +200,36 @@ function bounded(bytes) {
   return bytes;
 }
 
+/** Read only deterministic parts of an already-authorized selected original. */
+export async function readMultipartSource(readSource, source, expected) {
+  const spec = readMultipartSpec(expected);
+  if (!spec || spec.sizeBytes > SOURCE_LIMIT || typeof source !== 'string'
+    || !source.endsWith(MANIFEST_SUFFIX) || /[\\%:\u0000-\u001f\u007f?#]/.test(source)
+    || source.split('/').some(segment => !segment || segment === '.' || segment === '..')) {
+    fail('invalid-multipart-source', 'The multipart source is invalid or exceeds the 256 MiB limit.');
+  }
+  const manifestBytes = await readSource(source);
+  if (manifestBytes.byteLength > 16 * 1024) fail('invalid-multipart-manifest', 'The multipart manifest exceeds its size limit.');
+  let manifest;
+  try { manifest = readMultipartSpec(JSON.parse(new TextDecoder().decode(manifestBytes))); }
+  catch { fail('invalid-multipart-manifest', 'The multipart manifest is not valid JSON.'); }
+  if (!manifest || ['version', 'sizeBytes', 'partBytes', 'partCount'].some(key => manifest[key] !== spec[key])) {
+    fail('multipart-manifest-changed', 'The multipart manifest does not match the selected attachment.');
+  }
+  const bytes = new Uint8Array(spec.sizeBytes);
+  for (let index = 0; index < spec.partCount; index++) {
+    // Never follow paths/URLs supplied by the manifest. Existing anonymous
+    // Storage permissions independently authorize every deterministic part.
+    const part = await readSource(partPath(source, index));
+    const offset = index * spec.partBytes;
+    if (part.byteLength !== Math.min(spec.partBytes, spec.sizeBytes - offset)) {
+      fail('multipart-part-size', 'A stored file part is incomplete or has an unexpected length.');
+    }
+    bytes.set(part, offset);
+  }
+  return bytes;
+}
+
 /** Uses the existing pdfjs-dist optional native canvas; does not install anything. */
 export async function createNodeRuntime(readSource, { ffmpeg = 'ffmpeg' } = {}) {
   let native;
@@ -183,8 +240,8 @@ export async function createNodeRuntime(readSource, { ffmpeg = 'ffmpeg' } = {}) 
     const image = await native.loadImage(bounded(await readSource(source)));
     return { source: image, width: image.width, height: image.height };
   };
-  const renderPdfPage = async (source, pageNumber, maxLongEdge) => {
-    const bytes = bounded(await readSource(source));
+  const renderPdfPage = async (source, pageNumber, maxLongEdge, multipart) => {
+    const bytes = bounded(multipart ? await readMultipartSource(readSource, source, multipart) : await readSource(source));
     if (Buffer.from(bytes.subarray(0, 5)).toString('ascii') !== '%PDF-') {
       const image = await native.loadImage(bytes); // Already-rendered selected document page.
       return { source: image, width: image.width, height: image.height };
@@ -244,13 +301,14 @@ export async function createFixtureAdapter(fixturePath) {
   };
 }
 
-export async function createSupabaseAdapter(environment) {
+export async function createSupabaseAdapter(environment, { fetch: fetcher } = {}) {
   const { SUPABASE_URL: url, SUPABASE_ANON_KEY: anonKey, SUPABASE_SERVICE_ROLE_KEY: serviceKey } = environment;
   if (!url || !anonKey || !serviceKey) fail('environment-required', 'Live inspection requires explicitly supplied SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY. No .env file is loaded. Use --fixture for offline verification.');
   const parsed = new URL(url);
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password) fail('invalid-service-url', 'SUPABASE_URL must be an HTTPS service origin.');
   const { createClient } = await import('@supabase/supabase-js');
-  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } };
+  const options = { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    ...(fetcher ? { global: { fetch: fetcher } } : {}) };
   const publicClient = createClient(url, anonKey, options), serviceClient = createClient(url, serviceKey, options);
   const projectQuery = () => publicClient.from('projects').select(SELECT)
     .eq('is_hidden', false).eq('profiles.is_private', false).eq('portfolio_categories.is_hidden', false);
@@ -303,9 +361,27 @@ export async function createSupabaseAdapter(environment) {
       return new Uint8Array(await data.arrayBuffer());
     },
     async objectExists(bucket, objectPath) {
-      const { data, error } = await serviceClient.storage.from(bucket).exists(objectPath);
-      check(error, 'object-inspection-failed', 'Could not verify the thumbnail object before upload.');
-      return data;
+      // Storage's HEAD-based exists() reports an ambiguous 400 for a missing
+      // object. Only a successful, exhausted directory listing proves absence;
+      // never treat an authorization/network/server error as permission to write.
+      const separator = objectPath.lastIndexOf('/');
+      const directory = objectPath.slice(0, separator), name = objectPath.slice(separator + 1);
+      const inspectionFailure = () => fail('object-inspection-failed', 'Could not verify the thumbnail object before upload.');
+      if (separator < 1 || !/^(200|400|800|social)\.webp$/.test(name)
+        || directory.split('/').some(segment => !segment || segment === '.' || segment === '..')) inspectionFailure();
+      try {
+        for (let offset = 0; offset < 10_000; offset += 100) {
+          const { data, error } = await serviceClient.storage.from(bucket).list(directory, {
+            search: name, limit: 100, offset, sortBy: { column: 'name', order: 'asc' },
+          });
+          if (error || !Array.isArray(data) || data.length > 100
+            || data.some(item => !item || typeof item.name !== 'string'
+              || (item.id !== null && (typeof item.id !== 'string' || !item.id)))) inspectionFailure();
+          if (data.some(item => item.name === name && item.id !== null)) return true;
+          if (data.length < 100) return false;
+        }
+      } catch { inspectionFailure(); }
+      inspectionFailure();
     },
     async upload(bucket, objectPath, bytes) {
       const publicCover = bucket === 'project-covers';

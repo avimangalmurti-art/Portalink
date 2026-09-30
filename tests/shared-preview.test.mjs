@@ -48,6 +48,7 @@ function setup() {
       assert.equal(headers.get('authorization'), null, 'Never forward the viewer session');
       assert.equal(headers.get('cookie'), null);
       assert.equal(options.cache, 'no-store');
+      assert.equal(options.redirect, 'manual', 'workerd supports manual/follow only; no redirected lookup is followed');
       assert.ok(options.signal instanceof AbortSignal, 'Optional upstream operations have an abort deadline');
       if (state.failure) throw state.failure;
       if (state.waitForAbort) return new Promise((resolve, reject) => {
@@ -107,7 +108,8 @@ function setup() {
     }
     return worker.fetch(new Request('https://portalink.example' + path, { headers, method }), { ASSETS: { fetch: async request => {
       assetRequests.push(request);
-      if (!['/', '/share.html'].includes(new URL(request.url).pathname)) return new Response('Not found', { status: 404 });
+      if (new URL(request.url).pathname === '/share.html') return new Response(null, { status: 307, headers: { location: '/share' } });
+      if (!['/', '/share'].includes(new URL(request.url).pathname)) return new Response('Not found', { status: 404 });
       const body = html();
       const responseHeaders = { 'content-type': 'text/html', etag: 'template-etag',
         'last-modified': 'yesterday', 'content-length': String(Buffer.byteLength(body)) };
@@ -181,7 +183,8 @@ test('browser shared navigations receive the visitor shell without waiting for m
       const h = setup(); h.state.waitForAbort = true;
       const response = await h.request(path, { 'user-agent': userAgent, 'if-none-match': 'template-etag' });
       assert.equal(response.status, 200);
-      assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
+      assert.equal(response.headers.get('location'), null, 'Internal asset canonicalization never redirects a shared URL');
+      assert.equal(new URL(h.assetRequests[0].url).pathname, '/share');
       assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
       assert.equal(response.headers.get('cache-control'), 'private, no-store');
       assert.equal(await response.text(), shell);
@@ -198,7 +201,7 @@ test('normal app routes retain the app shell while shared HEAD requests stay bod
   }
   const h = setup(); const response = await h.request(projectPath, { 'user-agent': 'Mozilla/5.0' }, 'HEAD');
   assert.equal(response.status, 200); assert.equal(await response.text(), '');
-  assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html'); assert.equal(h.calls.length, 0);
+  assert.equal(new URL(h.assetRequests[0].url).pathname, '/share'); assert.equal(h.calls.length, 0);
 });
 
 test('project card binds every route ID and uses matching project cover, summary and article type', async () => {
@@ -444,6 +447,17 @@ test('upstream and Storage failures keep generic HTML and do not poison the next
   assertImage(await (await h.request(profilePath)).text());
 });
 
+test('redirected metadata and signing requests keep generic HTML without following Location', async () => {
+  for (const status of [302, 307]) {
+    const h = setup(); h.state.status = status;
+    assertGeneric(await (await h.request(projectPath)).text());
+    assert.equal(h.calls.length, 1);
+    const signing = setup(); signing.state.signStatus = status;
+    assertGeneric(await (await signing.request(projectPath)).text());
+    assert.equal(signing.signs().length, 1);
+  }
+});
+
 test('a stalled upstream is aborted and falls back to the generic shell instead of serving a cached card', async () => {
   const h = setup();
   assertImage(await (await h.request(profilePath)).text());
@@ -502,7 +516,7 @@ test('crawler HTML, wildcard and absent Accept headers work; higher JSON prefere
     const response = await h.request(profilePath, { accept, 'if-none-match': 'template-etag', 'if-modified-since': 'yesterday' });
     assert.equal(response.status, 200);
     assertImage(await response.text());
-    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
+    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share');
     assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
     assert.equal(h.assetRequests[0].headers.get('if-modified-since'), null);
   }
@@ -527,7 +541,7 @@ test('HEAD navigation stays bodyless, strips stale validators and makes no Supab
     assert.equal(response.status, 200);
     assert.equal(response.body, null);
     assert.equal(await response.text(), '');
-    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
+    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share');
     assert.equal(h.assetRequests[0].method, 'HEAD');
     assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
     assert.equal(h.assetRequests[0].headers.get('if-modified-since'), null);
@@ -558,7 +572,7 @@ test('all invalid /share/ paths use the visitor shell without metadata lookup fo
         assert.equal(response.status, 200);
         assertGeneric(await response.text());
         const assetRequest = h.assetRequests.at(-1);
-        assert.equal(new URL(assetRequest.url).pathname, '/share.html');
+        assert.equal(new URL(assetRequest.url).pathname, '/share');
         assert.equal(assetRequest.headers.get('if-none-match'), null);
         assert.equal(assetRequest.headers.get('if-modified-since'), null);
         assert.equal(response.headers.get('cache-control'), 'private, no-store');
@@ -574,7 +588,7 @@ test('invalid shared HEAD uses the visitor entry and non-HTML requests keep the 
   const response = await h.request(path, { 'if-none-match': 'template-etag' }, 'HEAD');
   assert.equal(response.status, 200);
   assert.equal(response.body, null);
-  assert.equal(new URL(h.assetRequests.at(-1).url).pathname, '/share.html');
+  assert.equal(new URL(h.assetRequests.at(-1).url).pathname, '/share');
   assert.equal(h.assetRequests.at(-1).headers.get('if-none-match'), null);
   for (const accept of ['application/json', 'application/json;q=1,text/html;q=0.8', 'text/html;q=0,*/*;q=1']) {
     await h.request(path, { accept });

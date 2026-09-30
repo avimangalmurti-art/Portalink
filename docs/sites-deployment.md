@@ -1,5 +1,23 @@
 # Existing Sites deployment
 
+## September 30, 2026 — backfill complete; worker fixes approved for publication
+
+The approved Apply completed at **22:41:54 UTC**: **10 considered / 10 generated / 10 applied / 0 skipped / 0 failed**, 47,433 ms. Uploaded **40 new WebPs, 786,466 bytes**, no reused objects: 200/400/800 plus 1200×630 social per project. All 10 manifests and 40 decoded assets match their receipts. Storage now has 97 objects across 4 buckets; all 57 originals retain identity, path, size, ETag, MIME and cache metadata. Fresh read-only selection skips all 10 as already complete, with zero generation/writes. Do not repeat Apply.
+
+Delivery verification stopped on small proxy covers (502), then identified an internal shared-shell redirect and an unsupported worker request option. Local fixes preserve transformed raster MIME (raw masters/social remain WebP), fetch the canonical internal `/share` asset, and replace worker `redirect: error` with `manual`, retaining rejection of all upstream redirects. The lookup correction also covers link previews, RUM owner verification and Reads. Permissions, visibility, configuration and originals are unchanged.
+
+The user approved publication and live verification. **91 focused tests, typecheck, lint (0 errors / 90 existing warnings), and production client + worker build pass.** A built-worker Node harness with real anonymous reads passed UUID-to-handle 301, handle200, both crawler cards and three cover variants200. One prior metadata read timed out into the intended generic-shell fallback; the subsequent complete check passed. This is not native workerd/hosted evidence. Live cache HIT and physical-phone speed remain unverified. Sites276/runtime revision2 remains active until the new deployment receipt is recorded.
+
+Evidence: ignored `logs/backend-activation-20260930/` with `backfill-release-*`, `cover-manifests-postflight.json`, `storage-postflight.json`, `backfill-readonly-postflight.json`, `delivery-diagnostic.json` and `delivery-fix-*`. The backup is the user's confirmed dashboard backup, not a local dump. Previously approved Supabase/Storage/D1/RUM activation remains applied. Deletion/PDF-processing HOLD items and SMTP are unchanged. Earlier retry notes below are historical and superseded by this record.
+
+## Latest cover-backfill retry — September 30, 2026
+
+Latest continuation changed only the local backfill script, tests and documentation. Dry-run:7 generated/3 multipart skips/0 writes; prepared multipart support has38 passing focused tests and has not run live. Sites276 remains unchanged.
+
+## September 30, 2026 activation snapshot
+
+Sites **276**, source `ed263ea0055155a9231aab2ce8dfd35d0196fe07`, is live at the existing public URL. D1 activation succeeded at19:28:41UTC; the same saved version was redeployed at19:29:17UTC to activate runtime revision2 with the specified RUM owner. Existing Supabase connection, public audience and DB binding are preserved. D1 0000/0001 data is intact and0002/0003 tables are present. No GitHub push/merge. Later local backfill-path repair and final documentation are uncommitted; covers have not yet been populated. The current [handoff](agent-handoff.md) supersedes earlier deployment snapshots below.
+
 GitHub `main` is the source of truth. Publishing the website is a separate operation through the existing Sites project. A GitHub push, successful CI run, or local build does not deploy it. The [quality workflow](../.github/workflows/quality.yml) runs checks and has no deployment step.
 
 ## Recorded snapshot

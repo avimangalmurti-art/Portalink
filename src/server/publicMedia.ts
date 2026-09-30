@@ -15,6 +15,7 @@ export interface PublicMediaOptions {
 export const IMMUTABLE_MEDIA_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 const LEGACY_AVATAR_CACHE_CONTROL = 'public, max-age=300, must-revalidate';
 const IMAGE_TYPES = new Set(['image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/png', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon']);
+const TRANSFORMED_COVER_TYPES = new Set(['image/avif', 'image/jpeg', 'image/png', 'image/webp']);
 const MAX_ETAG_BUFFER_BYTES = 8 * 1024 * 1024;
 
 export function isPublicMediaRoute(pathname: string): boolean {
@@ -143,7 +144,10 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
     return failure(upstream.status === 404 ? 404 : 502);
   }
   const contentType = upstream.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? '';
-  if (!IMAGE_TYPES.has(contentType) || (object.bucket === 'project-covers' && contentType !== 'image/webp')) return failure(502);
+  // Storage transformations may encode a WebP master as JPEG/PNG/AVIF. Preserve
+  // that actual raster MIME; untransformed cover objects must still be WebP.
+  if (!IMAGE_TYPES.has(contentType) || (object.bucket === 'project-covers'
+    && !(variant ? TRANSFORMED_COVER_TYPES.has(contentType) : contentType === 'image/webp'))) return failure(502);
   const headers = new Headers({
     'content-type': contentType,
     'cache-control': immutablePublicMediaPath(object.bucket, object.path) ? IMMUTABLE_MEDIA_CACHE_CONTROL : LEGACY_AVATAR_CACHE_CONTROL,

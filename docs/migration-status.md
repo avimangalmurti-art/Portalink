@@ -1,5 +1,29 @@
 # Migration status register
 
+## September 30, 2026 — backfill complete; worker fixes approved for publication
+
+The approved Apply completed at **22:41:54 UTC**: **10 considered / 10 generated / 10 applied / 0 skipped / 0 failed**, 47,433 ms. Uploaded **40 new WebPs, 786,466 bytes**, no reused objects: 200/400/800 plus 1200×630 social per project. All 10 manifests and 40 decoded assets match their receipts. Storage now has 97 objects across 4 buckets; all 57 originals retain identity, path, size, ETag, MIME and cache metadata. Fresh read-only selection skips all 10 as already complete, with zero generation/writes. Do not repeat Apply.
+
+Delivery verification stopped on small proxy covers (502), then identified an internal shared-shell redirect and an unsupported worker request option. Local fixes preserve transformed raster MIME (raw masters/social remain WebP), fetch the canonical internal `/share` asset, and replace worker `redirect: error` with `manual`, retaining rejection of all upstream redirects. The lookup correction also covers link previews, RUM owner verification and Reads. Permissions, visibility, configuration and originals are unchanged.
+
+The user approved publication and live verification. **91 focused tests, typecheck, lint (0 errors / 90 existing warnings), and production client + worker build pass.** A built-worker Node harness with real anonymous reads passed UUID-to-handle 301, handle200, both crawler cards and three cover variants200. One prior metadata read timed out into the intended generic-shell fallback; the subsequent complete check passed. This is not native workerd/hosted evidence. Live cache HIT and physical-phone speed remain unverified. Sites276/runtime revision2 remains active until the new deployment receipt is recorded.
+
+Evidence: ignored `logs/backend-activation-20260930/` with `backfill-release-*`, `cover-manifests-postflight.json`, `storage-postflight.json`, `backfill-readonly-postflight.json`, `delivery-diagnostic.json` and `delivery-fix-*`. The backup is the user's confirmed dashboard backup, not a local dump. Previously approved Supabase/Storage/D1/RUM activation remains applied. Deletion/PDF-processing HOLD items and SMTP are unchanged. Earlier retry notes below are historical and superseded by this record.
+
+## Latest cover-backfill retry — September 30, 2026
+
+Latest continuation: corrected live dry-run rendered7 of10 projects;3 multipart PDFs were skipped. No covers uploaded or manifests written. A bounded multipart-reader correction is prepared locally with38 passing focused tests, awaiting continuation after the required stop. Existing migration/config activation is unchanged.
+
+## September 30, 2026 approved creator-release activation
+
+Fresh dashboard backup was confirmed by the user; full Storage metadata listing and the existing D1 rows were saved under ignored logs. Through the authenticated Supabase SQL editor, applied and individually verified, in order: `cover_thumbnail_schema.sql`, `project_covers_public_bucket.sql`, `share_cover_capability.sql`, `profile_handle_addresses.sql`, `profile_journey.sql`, `profile_employer.sql` from `supabase/pending/`. Filenames/comments retain their reviewed names; they now have an application record. Consolidated receipt checks23 source function bodies/security contracts and15 triggers, with valid constraints/policies and zero privacy/pin/contact integrity defects.
+
+Skipped `first_project_context.sql` because Journey includes it; skipped the duplicate standalone `shared_profile_bundle.sql` because the exact final body was installed by Journey/employer; skipped `notifications_read_state.sql` because its timestamptz column already exists. The live database has no `supabase_migrations.schema_migrations` table; no ledger was created/repaired. Account-deletion and historical PDF-processing HOLD items remain unapplied.
+
+Sites276 applied active `drizzle/0002_page_timings.sql` then `0003_project_read_signals.sql`, copied byte-for-byte from the approved `drizzle-pending/` references. Live table inspection confirmed all six new tables; original `media_comments`/`media_engagements` rows match the snapshot exactly. Runtime revision2 includes the specified RUM owner. The cover bucket is created but remains empty: the dry-run skipped10 unsupported draft-directory originals and no apply ran. See [handoff](agent-handoff.md) and ignored `logs/backend-activation-20260930/` for receipts and the prepared local path correction.
+
+The counts and pending claims in older dated sections below are historical.
+
 The original register was recorded on 2026-09-14 from repository source at commit `5512bd0` and the evidence linked below; that documentation-only pass did not connect to a database or change deployment state. Later dated application records below are separate evidence.
 
 Updated 2026-09-29 with a prepared, unapplied PDF safety correction; the approved September 28 performance and September 27 grid-density applications remain recorded separately. There are **37 Supabase migration files**, one excluded account-deletion SQL candidate, and two separate Sites/D1 migration files. A file in Git establishes the intended change; it does not establish that a database received it. A successful isolated test establishes behavior in its synthetic database. A manual application record establishes that operation; only the specified catalog checks establish the observed schema, not a migration-ledger entry or all runtime behavior.

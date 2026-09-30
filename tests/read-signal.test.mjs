@@ -23,6 +23,21 @@ test('anonymous writes strip identity and reject hidden/private projects',async(
   assert.equal(f.calls[0].options.headers.authorization,undefined);assert.equal(f.calls[0].options.headers.cookie,undefined);
   for(const mutate of [()=>f.project.is_hidden=true,()=>{f.project.is_hidden=false;f.project.profile.is_private=true;},()=>{f.project.profile.is_private=false;f.project.category.is_hidden=true;}]){mutate();assert.equal((await ingest(f)).status,404);}
 });
+
+test('redirected reach lookup is refused before reads or writes and never follows Location',async()=>{
+  for(const status of [302,307]) {
+    const f=fixture();let calls=0;
+    f.config.fetcher=async(_url,options)=>{
+      calls++;assert.equal(options.redirect,'manual');
+      return Response.json([f.project],{status,headers:{location:'https://untrusted.example/collect'}});
+    };
+    assert.equal((await ingest(f)).status,503);assert.equal(calls,1);
+    assert.equal(f.sqlite.prepare('SELECT count(*) n FROM project_reach_events').get().n,0);
+    calls=0;
+    assert.equal((await api.handleReachRead(request(`/api/reach/summary?project_id=${ids.project}`,undefined,ids.owner),f.db,f.config)).status,503);
+    assert.equal(calls,1);
+  }
+});
 test('atomic upsert deduplicates a tab per day, monotonically advances histogram, finishes once',async()=>{
   const f=fixture();for(const page of [-1,0,0,2,1,2])assert.equal((await ingest(f,{furthest_page:page})).status,204);
   let row=f.sqlite.prepare('SELECT * FROM project_reach_daily').get();assert.equal(row.opened,1);assert.equal(row.finished,1);assert.deepEqual(JSON.parse(row.max_page_hist),{'0':0,'2':1,'-1':0});

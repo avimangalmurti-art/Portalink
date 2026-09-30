@@ -24,7 +24,7 @@ test('shared card text, mailto and optional referral contain exactly authored va
 });
 test('address resolver handles permanent UUID and expiring alias redirects without forwarding identity',async()=>{
  let data={profileId:id,handle:'avi',alias:true}; const calls=[];
- const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(url,options)=>{calls.push(options);return Response.json(data);}});
+ const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(url,options)=>{assert.equal(options.redirect,'manual');calls.push(options);return Response.json(data);}});
  const config={supabaseUrl:'https://test.supabase.co',publishableKey:'public'};
  let result=await server.resolveShareRequest(new Request('https://site.test/old.avi?via=abc',{headers:{Authorization:'secret'}}),config);
  assert.equal(result.redirect.status,301);assert.equal(result.redirect.headers.get('location'),'https://site.test/avi?via=abc');assert.equal(new Headers(calls[0].headers).has('authorization'),false);
@@ -57,6 +57,47 @@ test('worker distinguishes a transient handle lookup failure from a missing addr
  const server = load('src/server/shareAddress.ts', {'../features/sharing/shareModel':model}, {fetch:async()=>Response.json({message:'unavailable'},{status:503})});
  const result = await server.resolveShareRequest(new Request('https://site.test/avi'),{supabaseUrl:'https://test.supabase.co',publishableKey:'public'});
  assert.equal(result.unavailable,true); assert.equal(result.missing,undefined);
+});
+
+test('address lookup refuses upstream redirects without following or exposing the public key', async () => {
+ for (const status of [301,302,307,308]) {
+  let calls=0;
+  const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(_url,options)=>{
+   calls++; assert.equal(options.redirect,'manual');
+   return new Response(null,{status,headers:{location:'https://untrusted.example/collect'}});
+  }});
+  const result=await server.resolveShareRequest(new Request('https://site.test/avi'),{supabaseUrl:'https://test.supabase.co',publishableKey:'public'});
+  assert.equal(result.unavailable,true); assert.equal(result.redirect,undefined); assert.equal(calls,1);
+ }
+});
+
+test('worker handle and UUID routes use canonical internal assets without leaking their redirect', async () => {
+ let data={profileId:id,handle:'avi',alias:false};
+ const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(_url,options)=>{
+  if(options.redirect==='error') throw new TypeError('workerd: Unsupported redirect mode');
+  assert.equal(options.redirect,'manual'); return Response.json(data);
+ }});
+ const source=readFileSync(new URL('../src/sites-worker.ts',import.meta.url),'utf8')
+  .replaceAll('import.meta.env.VITE_SUPABASE_URL',"'https://test.supabase.co'")
+  .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY',"'public'");
+ const exports={},assetPaths=[];
+ const imports={'./features/sharing/shareModel':model,'./server/shareAddress':server,'./server/sharedPreview':{prefersHtml:()=>true},'./server/publicMedia':{isPublicMediaRoute:()=>false},'./server/rum':{},'./server/rumOwner':{},'./server/projectReach':{}};
+ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,URL,Headers,Request,Response,require:name=>{assert.ok(name in imports);return imports[name];}});
+ const request=(path,method='GET')=>exports.default.fetch(new Request('https://site.test'+path,{method,headers:{accept:'text/html','user-agent':'Browser'}}),{ASSETS:{fetch:async req=>{
+  const path=new URL(req.url).pathname;assetPaths.push(path);
+  if(path==='/share.html')return new Response(null,{status:307,headers:{location:'/share'}});
+  assert.ok(path==='/'||path==='/share');return new Response(req.method==='HEAD'?null:`<head></head><body>${path==='/share'?'Visitor':'Member'}</body>`,{headers:{'content-type':'text/html'}});
+ }}});
+ for(const method of ['GET','HEAD']) {
+  const response=await request('/avi?via=friend',method);assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);
+  assert.equal(assetPaths.at(-1),'/share');assert.equal(response.headers.get('cache-control'),'private, no-store');
+  assert.equal(method==='HEAD'?await response.text():'', '');
+ }
+ data={handle:'avi',confirmed:true};let response=await request('/share/'+id+'?via=friend');assert.equal(response.status,301);assert.equal(response.headers.get('location'),'https://site.test/avi?via=friend');
+ data={profileId:id,handle:'avi',alias:true};response=await request('/old.avi');assert.equal(response.status,301);
+ data=null;response=await request('/unknown');assert.equal(response.status,404);assert.equal(response.headers.get('location'),null);
+ response=await request('/share/'+id+'/c/'+id+'/'+id);assert.equal(response.status,200);assert.equal(response.headers.get('location'),null);
+ for(const path of ['/','/studio','/messages','/p/'+id]) {response=await request(path);assert.equal(response.status,200);assert.equal(assetPaths.at(-1),'/');}
 });
 
 test('clipboard fallback selects inside the modal focus boundary', async () => {

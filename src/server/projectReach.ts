@@ -123,7 +123,7 @@ const projectSelect = 'id,profile_id,category_id,title,pdf_page_count,is_hidden,
 async function supabaseRows<T>(config: Config, table: string, query: URLSearchParams, authorization?: string | null): Promise<T[]> {
     if (!config.supabaseUrl || !config.publishableKey)
         throw unavailable();
-    const response = await (config.fetcher ?? fetch)(`${config.supabaseUrl}/rest/v1/${table}?${query}`, { headers: { apikey: config.publishableKey, accept: 'application/json', ...(authorization ? { authorization } : {}) }, redirect: 'error', signal: AbortSignal.timeout(8000) }).catch(() => { throw unavailable(); });
+    const response = await (config.fetcher ?? fetch)(`${config.supabaseUrl}/rest/v1/${table}?${query}`, { headers: { apikey: config.publishableKey, accept: 'application/json', ...(authorization ? { authorization } : {}) }, redirect: 'manual', signal: AbortSignal.timeout(8000) }).catch(() => { throw unavailable(); });
     if (!response.ok)
         throw unavailable();
     const rows: unknown = await response.json();

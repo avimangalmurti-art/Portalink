@@ -81,6 +81,28 @@ test('only fixed public prefixes and canonical thumbnail/object paths can be fet
   assert.equal(isPublicMediaRoute('/media/covers-wrong/file'), false);
 });
 
+test('transformed covers preserve the actual raster MIME and cache it without accepting active content', async () => {
+  for (const contentType of ['image/jpeg', 'image/png', 'image/avif', 'image/webp']) {
+    const h = harness({ response: () => new Response('transformed fixture', { headers: { 'content-type': contentType, etag: '"transformed"' } }) });
+    const first = await h.request();
+    assert.equal(first.status, 200); assert.equal(first.headers.get('content-type'), contentType);
+    assert.equal(first.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+    assert.equal(first.headers.get('vary'), 'Accept');
+    const second = await h.request();
+    assert.equal(second.headers.get('x-portalink-media-cache'), 'HIT');
+    assert.equal(second.headers.get('content-type'), contentType); assert.equal(h.calls.length, 1);
+  }
+  for (const contentType of ['image/svg+xml', 'text/html', 'application/json']) {
+    const h = harness({ response: () => new Response('not a raster cover', { headers: { 'content-type': contentType } }) });
+    assert.equal((await h.request()).status, 502); assert.equal(h.entries.size, 0);
+  }
+  for (const size of ['800', 'social']) {
+    const h = harness({ response: () => new Response('wrong stored type', { headers: { 'content-type': 'image/jpeg' } }) });
+    assert.equal((await h.request(`/media/covers/${COVER.replace('200.webp', size + '.webp')}`)).status, 502);
+    assert.equal(h.entries.size, 0);
+  }
+});
+
 test('no incoming authorization, cookies, user agent, IP, range or conditionals reach Storage', async () => {
   const h = harness();
   await h.request(undefined, { headers: {

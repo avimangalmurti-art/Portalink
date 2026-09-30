@@ -72,7 +72,7 @@ async function readRows(table: string, query: URLSearchParams, origin: string, c
   // Deliberately never forward request cookies, Authorization, or an owner key.
   let response = await fetch(`${origin}/rest/v1/${table}?${query}`, {
     headers: { apikey: config.publishableKey, accept: 'application/json' },
-    cache: 'no-store', redirect: 'error', signal,
+    cache: 'no-store', redirect: 'manual', signal,
   });
   if (!response.ok && query.get('select')?.includes('portfolio_headline')) {
     const error = await response.clone().json().catch(() => null);
@@ -80,7 +80,7 @@ async function readRows(table: string, query: URLSearchParams, origin: string, c
       const legacy = new URLSearchParams(query);
       legacy.set('select', (legacy.get('select') ?? '').replace(/,portfolio_headline,school/g, ''));
       response = await fetch(`${origin}/rest/v1/${table}?${legacy}`, {
-        headers: { apikey: config.publishableKey, accept: 'application/json' }, cache: 'no-store', redirect: 'error', signal,
+        headers: { apikey: config.publishableKey, accept: 'application/json' }, cache: 'no-store', redirect: 'manual', signal,
       });
     }
   }
@@ -199,7 +199,7 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   if (!creator || !image) return null;
   const title = text(target.projectId ? project.title : category?.label, 120);
   if (target.categoryId && !title) return null;
-  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'error', signal }) : null;
+  const countResponse = !target.categoryId ? await fetch(`${origin}/rest/v1/projects?${new URLSearchParams({ select: 'id,category:portfolio_categories!inner(id,is_hidden)', profile_id: `eq.${target.profileId}`, is_hidden: 'eq.false', 'category.is_hidden': 'eq.false' })}`, { method: 'HEAD', headers: { apikey: config.publishableKey, Prefer: 'count=exact' }, credentials: 'omit', cache: 'no-store', redirect: 'manual', signal }) : null;
   const count = countResponse?.ok ? Number(countResponse.headers.get('content-range')?.split('/')[1]) : NaN;
   if (!target.categoryId && (!Number.isSafeInteger(count) || count < 1)) return null;
   const headline = typeof profile?.portfolio_headline === 'string' ? profile.portfolio_headline : typeof profile?.headline === 'string' ? profile.headline.split(/\r?\n/).find(line => line.trim()) ?? '' : '';
@@ -218,7 +218,7 @@ async function signImage(path: string, origin: string, config: PreviewConfigurat
   const expectedPath = `/storage/v1/object/sign/project-media/${encodedPath}`;
   const response = await fetch(`${origin}${expectedPath}`, {
     method: 'POST', headers: { apikey: config.publishableKey, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ expiresIn: 21_600 }), cache: 'no-store', redirect: 'error', signal,
+    body: JSON.stringify({ expiresIn: 21_600 }), cache: 'no-store', redirect: 'manual', signal,
   });
   if (!response.ok) return null;
   const body = record(await response.json());

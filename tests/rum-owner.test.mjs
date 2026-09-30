@@ -44,7 +44,7 @@ function setup() {
     assert.equal(url.searchParams.get('select'), 'id,account_id');
     assert.equal(url.searchParams.get('id'), `eq.${OWNER_PROFILE}`);
     assert.equal(url.searchParams.get('limit'), '1');
-    assert.equal(init.redirect, 'error');
+    assert.equal(init.redirect, 'manual');
     const account = headers.get('authorization') === 'Bearer owner' ? OWNER_ACCOUNT : OTHER_ACCOUNT;
     assert.equal(url.searchParams.get('account_id'), `eq.${account}`);
     if (state.profileFailure) return state.profileFailure();
@@ -152,6 +152,20 @@ test('a confirmed owner can see a migration-pending state; invalid methods and s
   assert.equal((await s.request('owner', 'POST')).status, 405);
   assert.equal((await s.request('owner', 'GET', '/api/rum/unknown')).status, 404);
   assert.equal(s.calls.length, 0);
+});
+
+test('redirected owner lookup never follows Location or grants access to D1', async () => {
+  for (const status of [302, 307]) {
+    const s = setup();
+    s.state.profileFailure = () => Response.json([{ id: OWNER_PROFILE, account_id: OWNER_ACCOUNT }], {
+      status, headers: { location: 'https://untrusted.example/collect' },
+    });
+    const response = await s.request();
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('x-portalink-rum-owner'), null);
+    assert.equal(s.databaseReads.length, 0);
+    assert.equal(s.calls.length, 2, 'Only session verification and one profile lookup');
+  }
 });
 
 function client({ session = { access_token: 'synthetic-token' }, sessionFailure = false, response = Response.json({}) } = {}) {

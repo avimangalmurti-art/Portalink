@@ -1,6 +1,26 @@
 # Release review: creator portfolio candidate since Sites 274
 
-## September 30 approved-rollout follow-up: stopped before mutations
+## September 30, 2026 — backfill complete; worker fixes approved for publication
+
+The approved Apply completed at **22:41:54 UTC**: **10 considered / 10 generated / 10 applied / 0 skipped / 0 failed**, 47,433 ms. Uploaded **40 new WebPs, 786,466 bytes**, no reused objects: 200/400/800 plus 1200×630 social per project. All 10 manifests and 40 decoded assets match their receipts. Storage now has 97 objects across 4 buckets; all 57 originals retain identity, path, size, ETag, MIME and cache metadata. Fresh read-only selection skips all 10 as already complete, with zero generation/writes. Do not repeat Apply.
+
+Delivery verification stopped on small proxy covers (502), then identified an internal shared-shell redirect and an unsupported worker request option. Local fixes preserve transformed raster MIME (raw masters/social remain WebP), fetch the canonical internal `/share` asset, and replace worker `redirect: error` with `manual`, retaining rejection of all upstream redirects. The lookup correction also covers link previews, RUM owner verification and Reads. Permissions, visibility, configuration and originals are unchanged.
+
+The user approved publication and live verification. **91 focused tests, typecheck, lint (0 errors / 90 existing warnings), and production client + worker build pass.** A built-worker Node harness with real anonymous reads passed UUID-to-handle 301, handle200, both crawler cards and three cover variants200. One prior metadata read timed out into the intended generic-shell fallback; the subsequent complete check passed. This is not native workerd/hosted evidence. Live cache HIT and physical-phone speed remain unverified. Sites276/runtime revision2 remains active until the new deployment receipt is recorded.
+
+Evidence: ignored `logs/backend-activation-20260930/` with `backfill-release-*`, `cover-manifests-postflight.json`, `storage-postflight.json`, `backfill-readonly-postflight.json`, `delivery-diagnostic.json` and `delivery-fix-*`. The backup is the user's confirmed dashboard backup, not a local dump. Previously approved Supabase/Storage/D1/RUM activation remains applied. Deletion/PDF-processing HOLD items and SMTP are unchanged. Earlier retry notes below are historical and superseded by this record.
+
+## Latest cover-backfill retry — September 30, 2026
+
+Latest approved continuation:7 generated covers,3 multipart-source skips,0 applied/errors in18,421ms. No live writes. A Node-only bounded multipart correction is prepared with38 passing focused tests; user continuation is required after the stop report before another dry-run/apply. See current handoff.
+
+## September 30 execution status — Sites276 and backend active; cover retry pending
+
+The user confirmed a fresh dashboard backup, approved SQL Editor activation and later publication. Six approved Supabase/Storage scripts succeeded and their catalog/function/privacy checks passed; duplicate context/bundle scripts and the existing notification column were skipped. Sites276 (`ed263ea0055155a9231aab2ce8dfd35d0196fe07`) applied D1 0002/0003, preserving existing interactions. Runtime revision2 activates the specified RUM owner. The ordered inventory below remains the reviewed reference; HOLD items remain excluded.
+
+The live cover dry-run considered10 and skipped10 because its original-path validator did not recognize the uploader's draft directory. **No covers were uploaded or manifests written.** A local source correction has22 passing focused tests and awaits an explicitly continued live retry under the user's stop-on-failure instruction. See [current handoff](agent-handoff.md) for receipts, timestamps, exact counts and limits. Earlier statements below describe the original review or blocked attempt, not current deployment/schema state.
+
+## Historical September 30 backup-blocked attempt — superseded
 
 The user subsequently approved the ordered non-HOLD backend rollout, conditioned on a fresh database backup and full Storage listing, with no publication. The Storage listing is complete: 57 objects across 3 buckets, exported as 60 metadata records in ignored `logs/release-backend-20260930/storage-inventory.csv` (73,120 bytes; SHA-256 `b451a685e0eecde13be19ed087267fef334bb91de5cb9a7cf513e62d508960e0`). A fresh complete local database backup could not be obtained with available access. The dashboard's scheduled physical backup at 2026-09-30 10:47:52 UTC is not a downloaded pre-rollout dump. Therefore **zero migrations, Storage changes, runtime changes or backfill writes were applied**; all backfill counts are zero because it was not run. Sites remains at version 274. RUM_OWNER_PROFILE_ID remains pending with the user-approved value `49e4e861-795a-47f2-b4a6-b071351c4d4b`.
 
