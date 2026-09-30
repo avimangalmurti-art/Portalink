@@ -309,6 +309,9 @@ textarea {
    dimensions and treatment — this task is the token foundation, not a redesign,
    and the existing high-contrast system continues to apply alongside it. */
 .high-contrast {
+  --content-preview-edge-width: 2px;
+  --content-preview-edge-color: var(--hairline-strong);
+  --content-preview-ink: var(--control-text);
   --mac-label-primary: #000000;
   --mac-label-secondary: rgba(0, 0, 0, 0.75);
   --mac-label-tertiary: rgba(0, 0, 0, 0.55);
@@ -599,6 +602,11 @@ textarea {
 /* System accessibility settings augment the same semantic tokens. These media
    queries update live and do not require a reload or a separate app-only mode. */
 @media (prefers-contrast: more) {
+  :is(.theme-light, .theme-dark) {
+    --content-preview-edge-width: 2px;
+    --content-preview-edge-color: var(--hairline-strong);
+    --content-preview-ink: var(--control-text);
+  }
   .theme-light {
     --label-primary: rgba(0, 0, 0, 0.98);
     --label-secondary: rgba(0, 0, 0, 0.78);
@@ -1226,6 +1234,13 @@ button[data-portalink-tile],
 }
 .project-preview-extension[aria-hidden='true'] { pointer-events: none; }
 .project-preview-extension-content { border-top: 1px solid var(--control-border); }
+/* Borderless cards and their expanded details use an inset accessibility edge,
+   without resizing the artwork or changing ordinary-mode presentation. */
+.feed-card,
+.project-preview-extension[aria-hidden='false'] {
+  outline: var(--content-preview-edge-width, 0px) solid var(--content-preview-edge-color, transparent);
+  outline-offset: calc(-1 * var(--content-preview-edge-width, 0px));
+}
 #root .codex-shell .project-preview-creator { background: transparent; border: 0; }
 @media (prefers-reduced-motion: reduce) {
   .project-preview-image,
@@ -1411,17 +1426,17 @@ button[data-portalink-tile],
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  border: 1px solid transparent;
+  border: var(--content-preview-edge-width, 1px) solid var(--content-preview-edge-color, transparent);
   border-radius: inherit;
   transition: border-color 150ms var(--ease-standard);
 }
 @media (hover: hover) and (pointer: fine) {
   .individual-content-outline:hover::after {
-    border-color: var(--hairline-strong);
+    border-color: var(--content-preview-edge-color, var(--hairline-strong));
   }
 }
 .individual-content-outline:focus-within::after {
-  border-color: var(--hairline-strong);
+  border-color: var(--content-preview-edge-color, var(--hairline-strong));
 }
 @media (prefers-reduced-motion: reduce) {
   .individual-content-outline::after {
@@ -1800,11 +1815,10 @@ button[data-portalink-tile],
 .feed-starfield .feed-card p {
   color: var(--feed-card-text) !important;
 }
-/* The project description is the meaning-bearing text revealed by the content
-   interaction. Keep it tied to the chosen accent even though the feed's broad
-   legibility rule makes the rest of the card text neutral. */
+/* Descriptions retain the chosen accent ordinarily. High Contrast uses the
+   readable ink paired with the card's chosen gray, including across themes. */
 #root .codex-shell [data-project-hover-description] {
-  color: var(--accent-text) !important;
+  color: var(--content-preview-ink, var(--accent-text)) !important;
 }
 /* Creator attribution is an integrated card footer, so its ink resolves from
    the same opaque surface as the rest of the card. */

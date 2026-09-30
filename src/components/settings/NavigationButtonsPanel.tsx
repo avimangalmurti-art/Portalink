@@ -234,7 +234,7 @@ export function NavigationButtonsPanel({
               <div>
                 <SwitchRow
                   label="High Contrast"
-                  description="Sharpen edges between navigation states."
+                  description="Strengthen card edges and text, and navigation states."
                   isOn={highContrast}
                   onToggle={() => onHighContrastChange(!highContrast)}
                   accent={accent}
