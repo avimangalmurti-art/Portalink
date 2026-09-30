@@ -286,6 +286,7 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
 
 test('profile options omit self-follow, recover failed state, and preserve the existing portals/category views', () => {
   const h = hooks(), followed = [], state = { own: true, resolveError: null, search: new URLSearchParams(), categoryId: null };
+  const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London' };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
@@ -302,9 +303,17 @@ test('profile options omit self-follow, recover failed state, and preserve the e
     if (name === '../utils/projectPresentation') return { getProjectAspectRatio: () => 1 };
     return named(name.split('/').at(-1));
   });
-  const render = () => h.render(() => VisitorProfileGrid({ profile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() {} }));
+  const render = () => h.render(() => VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() {} }));
+  const identity = nodes(render()).find(node => node.props?.className?.includes('profile-identity-copy'));
+  assert.deepEqual(React.Children.toArray(identity.props.children).map(node => node.props.children), ['Creator', 'London']);
+  assert.equal(one(render(), 'lazy:../features/profile/ProfileBioSheet'), undefined);
   button(render(), 'Profile options').props.onClick();
   assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);
+  one(render(), 'PlatformGrid').props.onOpenBio();
+  const bio = one(render(), 'lazy:../features/profile/ProfileBioSheet');
+  assert.equal(bio.props.bio, bioProfile.headline); assert.equal(bio.props.canEdit, false);
+  bio.props.onClose();
+  assert.equal(one(render(), 'lazy:../features/profile/ProfileBioSheet'), undefined);
   assert.equal(button(render(), 'Follow'), undefined); assert.equal(followed.at(-1), null);
   state.own = false; state.resolveError = 'Unavailable';
   assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);

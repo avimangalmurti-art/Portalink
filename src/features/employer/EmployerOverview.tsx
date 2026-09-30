@@ -8,7 +8,8 @@ const PortfolioPdfDialog = lazy(() => import('./PortfolioPdfDialog').then(module
 
 export function EmployerOverview({profile, onOpen, onMessage}: {profile: Profile; onOpen: (project: Project) => void; onMessage?: () => void}) {
   const [exportOpen, setExportOpen] = useState(false);
-  const facts = profileFacts(profile), contact = contactHref(profile), start = startHereProject(profile);
+  const facts = profileFacts(profile).filter(fact => fact.label !== 'Field' && fact.label !== 'City');
+  const contact = contactHref(profile), start = startHereProject(profile);
   const canExport = profile.allowPdfDownload !== false && publicProjects(profile).length > 0;
   const month = start && projectMonth(start);
   if (!facts.length && !contact && !canExport && !onMessage && !start) return null;
@@ -19,7 +20,7 @@ export function EmployerOverview({profile, onOpen, onMessage}: {profile: Profile
         {contact && <a href={contact} data-ui-control="button" data-control-size="md" data-control-variant="primary">Email {profile.name.trim().split(/\s+/)[0]}</a>}
         {canExport && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={() => setExportOpen(true)}>Download portfolio PDF</button>}
         {onMessage && <button type="button" data-ui-control="button" data-control-size="md" data-control-variant="secondary" onClick={onMessage}>Message</button>}
-      </div>{(contact || canExport) && <p>No account needed.{contact && ' Email opens in your mail app.'}</p>}
+      </div>
     </div>}
     {start && <button type="button" className="employer-start" onClick={() => onOpen(start)} aria-label={`Start here: ${start.title}`}>
       <span className="employer-start-cover"><ProjectCover source={start.cover} thumbnail={start.coverThumbnail} kind={start.coverKind} alt={start.coverAlt || start.title} sizes="92px" priority="viewport" allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={start.attachments} /></span>

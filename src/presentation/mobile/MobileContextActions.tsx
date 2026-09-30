@@ -68,7 +68,7 @@ export function MobileScreenActions({ model, priority = 0 }: { model: ContextAct
 export function useMobileActions() { return useContext(MobileActions); }
 export function MobileContextButton({ floating = false }: { floating?: boolean }) {
   const actions = useMobileActions();
-  return <div className={floating ? 'mobile-context-floating' : 'mobile-context-slot'}>{actions?.hint && <span className="mobile-context-hint" role="tooltip">Actions for this screen</span>}<button ref={actions?.button} type="button" className="mobile-context-button mobile-dock-destination" data-keep-color="" aria-label="Actions for this screen" aria-haspopup="dialog" aria-expanded={actions?.opened ?? false} onClick={() => actions?.open()}><InterfaceIcon icon={SlidersHorizontalIcon} /></button></div>;
+  return <div className={floating ? 'mobile-context-floating' : 'mobile-context-slot'}><button ref={actions?.button} type="button" className="mobile-context-button mobile-dock-destination" data-keep-color="" aria-label="Actions for this screen" aria-haspopup="dialog" aria-expanded={actions?.opened ?? false} onClick={() => actions?.open()}><InterfaceIcon icon={SlidersHorizontalIcon} /></button></div>;
 }
 /** Held touch is supplementary to the visible context button; scrolling cancels it. */
 export function useMobileHold(onHold: (() => void) | null) {

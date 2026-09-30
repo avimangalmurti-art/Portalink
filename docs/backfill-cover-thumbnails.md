@@ -1,6 +1,18 @@
 # Cover-thumbnail backfill
 
-## September 30, 2026 — named edge-cache correction, publication authorized
+## September 30, 2026 — Sites279 live; edge cache verified
+
+### Sites279 publication and verified edge reuse
+
+Published **Sites279** successfully at **2026-09-30 16:15:07 America/Los_Angeles (23:15:07 UTC)** from source `745fc4f22e0d849f7843b61b45d7039d6ce42a9c`; deployment `appgdep_6abd97f00a948191a48c314f9ccc980c`, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_d83bd322256c81918af0720769e96d41`. Existing public audience and runtime revision2 retained. Site source mirror updated; no GitHub push/merge.
+
+**Live verification passed at23:15:16UTC:** representative200/400/800 covers,1200×630 social cover and a public avatar all returned repeated **HIT**, correct decoded dimensions/MIME, ETag, Vary:Accept and `public, max-age=31536000, immutable`. Cached HEAD returned200 without a body and conditional GET returned304 for all five objects. The400/800/social/avatar requests each demonstrated MISS then HIT; the200cover retained its earlier named-cache entry across deployments. Repeated samples took45–74ms here; these are command-line observations from one connection/edge, not physical-phone or worldwide first-paint measurements. Legacy avatars’300-second policy is covered by the focused tests; no legacy live-avatar check was needed.
+
+UUID share redirects301 to `/portalite`; canonical handle and main shell200. Private media prefix404, malformed cover400, unauthenticated RUM/Reads summaries401. No invalid/private media object entered the cache.16 focused tests, typecheck, lint (0 errors /90 existing warnings), production client+worker build and independent read-only review passed. No further SQL, Storage, backfill, runtime or platform-trust changes. Existing media data is untouched.
+
+The remaining Sites277 edge-cache issue is **resolved**. Named caches preserve Site isolation; cache-stage diagnostics contain no request URLs, headers, account details or upstream exception text. Publication archive matched the built worker and contained exactly unchanged approved D1 0000–0003, no pending/HOLD files. Archive SHA256:`3ee84b0b7c1642cb5a4ef839146d1e7cc4619812403d3af2d9df39a045a8a5f7`.
+
+Receipts in ignored `logs/backend-activation-20260930/`: `deployment-278.json`, `deployment-279.json`, `cache-live-postflight-278.json` (intermediate header failure), `cache-live-postflight.json` (final success), `cache-final-archive-check.json`, `cache-fix-{tests,typecheck,lint,build}.log`. Only post-publication documentation is uncommitted. Older unresolved-cache notes below are historical and superseded by this receipt.
 
 The user requested fixing and publishing the remaining edge-cache issue. `src/server/publicMedia.ts` now opens the isolated `portalink-public-media-v1` named cache and never accesses `caches.default`, which Cloudflare disables for untrusted Workers for Platforms namespaces. Public-cover/avatar path validation, Accept-specific keys, immutable/legacy-avatar headers, MIME checks, identity stripping and background `waitUntil` writes are preserved. Cache-open/read failures safely bypass; all cache-operation failures emit fixed stage-only diagnostics without input or exception details. No Storage, SQL, runtime configuration, namespace trust or visibility changes.
 

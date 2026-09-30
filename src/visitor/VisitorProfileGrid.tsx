@@ -1,5 +1,4 @@
 import { EmployerOverview } from '../features/employer/EmployerOverview';
-import { profileHeadline } from '../features/employer/employer';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useMemo, useState } from 'react';
@@ -53,7 +52,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
               <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
               {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
-          {profileHeadline(profile) && <p className="profile-short-headline">{profileHeadline(profile)}</p>}
             </div>
           </div>
         </div>

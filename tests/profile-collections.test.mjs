@@ -799,17 +799,18 @@ test('empty owner portfolios can publish directly while visitor, shared and popu
   }
 });
 
-test('profile headers show the first bio line and use Portals consistently on shared and regular profiles', () => {
+test('profile headers keep Bio behind its control and use Portals consistently on shared and regular profiles', () => {
   const profile = { id: 'owner', name: 'Owner', headline: 'Jolly Good\nWorking across media.', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
-  for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) {
-    const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole: 'guest' });
+  for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole });
     const tree = h.render({ profile });
     assert.equal(wall(tree).props.allowLayoutControls, !isSharedView);
     assert.equal(nodes(tree).some(node => node.props?.['data-shared-profile-headline'] !== undefined), false);
     const copy = nodes(tree).find(node => node.props?.className?.includes('profile-identity-copy'));
     const children = React.Children.toArray(copy.props.children);
     assert.equal(children[0].type, 'h1'); assert.equal(children[1].props.children, 'London');
-    assert.equal(nodes(copy).find(node => node.props?.className === 'profile-short-headline')?.props.children, 'Jolly Good');
+    assert.equal(nodes(copy).some(node => node.props?.className === 'profile-short-headline'), false);
+    assert.equal(nodes(copy).some(node => node.props?.children === 'Jolly Good'), false);
     assert.equal(nodes(copy).some(node => node.props?.children === profile.headline), false);
     const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
     assert.equal(Boolean(stats), !isSharedView, 'Shared headers omit counts; ordinary profiles retain them');

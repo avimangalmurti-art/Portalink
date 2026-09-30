@@ -15,7 +15,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
     <div ref={dialogRef} className="mobile-context-sheet" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{if(!e.isPrimary||e.button!==0)return;if(e.target instanceof Element&&e.target.closest('button'))return;start.current={x:e.clientX,y:e.clientY,id:e.pointerId};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerUp={e=>{const from=start.current;start.current=null;if(from&&from.id===e.pointerId&&e.clientY-from.y>64&&Math.abs(e.clientX-from.x)<60)onClose();}} onPointerCancel={()=>{start.current=null;}}>
         <div className="mobile-context-handle" aria-hidden="true" />
-        <div className="mobile-context-heading"><InterfaceIcon icon={SlidersHorizontalIcon}/><div><h2 id={titleId}>{model.title}</h2><p>Actions for this screen</p></div><button type="button" onClick={onClose} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
+        <div className="mobile-context-heading"><InterfaceIcon icon={SlidersHorizontalIcon}/><div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={onClose} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
       </header>
       <div className="mobile-context-body">
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={()=>onAction(action)}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}

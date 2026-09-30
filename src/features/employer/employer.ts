@@ -5,7 +5,8 @@ export function profileHeadline(profile: Pick<Profile, 'headline' | 'portfolioHe
   return (typeof profile.portfolioHeadline === 'string' ? profile.portfolioHeadline : (profile.headline ?? '').split(/\r?\n/).find(line => line.trim()) ?? '').trim().slice(0, 80);
 }
 export function profileFacts(profile: Profile) {
-  const field = profileHeadline(profile).split(/\s+[·|—]\s+/)[0];
+  // Bio belongs in its sheet; never reuse its first line as a public header fact.
+  const field = (profile.portfolioHeadline ?? '').trim().slice(0, 80).split(/\s+[·|—]\s+/)[0];
   return [['School', profile.school], ['Field', field], ['City', profile.location], ['Available', profile.availability]]
     .filter((entry): entry is [string, string] => Boolean(entry[1]?.trim())).map(([label, value]) => ({label, value: value.trim()}));
 }

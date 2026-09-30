@@ -1,5 +1,4 @@
 import { EmployerOverview } from '../features/employer/EmployerOverview';
-import { profileHeadline } from '../features/employer/employer';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
@@ -330,7 +329,6 @@ function ProfileIdentityAndLinks({
             {displayName}
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
-          {profileHeadline(profile) && <p className="profile-short-headline">{profileHeadline(profile)}</p>}
           {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} />}
         </div>
       </div>

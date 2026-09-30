@@ -139,7 +139,7 @@
   --mobile-content-safe-bottom: max(var(--safe-area-bottom), var(--mobile-dock-clearance));
 }
 
-/* Five destinations and the separate compose button still fit small phones
+/* Actions and the four destinations still fit small phones
    without shrinking a touch target below 44px. */
 @media (max-width: 359px) {
   #root .codex-shell[data-presentation='mobile'] {
@@ -148,13 +148,13 @@
   }
 }
 
-/* A resolved content reader owns its controls. Ignore outgoing screens and
-   portalled collection previews so ordinary navigation returns immediately. */
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-project-view]) .mobile-navigation-layer {
+/* Readers and the profile's Portals chooser own their controls. Ignore outgoing
+   screens so ordinary navigation returns immediately when they close. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-project-view], .mobile-profile-portal-overlay)) .mobile-navigation-layer {
   display: none;
 }
 
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-project-view]) .codex-workspace {
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-project-view], .mobile-profile-portal-overlay)) .codex-workspace {
   --mobile-dock-clearance: 0px;
   --mobile-content-safe-bottom: var(--safe-area-bottom);
 }
@@ -540,10 +540,14 @@
   pointer-events: none;
   touch-action: pan-y;
   opacity: 1;
-  transition: opacity 160ms ease;
+  transition: none;
 }
 
-/* Browser and standalone controls share one safe-area + gap baseline. */
+/* Installed apps have no Safari toolbar: tuck the main capsule down to the
+   home-indicator safe area, retaining an edge gap on devices without an inset. */
+html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
+  bottom: max(8px, var(--safe-area-bottom));
+}
 
 /* Browsing briefly tucks away the entire dock without moving the page. */
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] {
@@ -585,7 +589,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
-  min-width: calc(6 * var(--mobile-control-target) + 5 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
+  min-width: calc(5 * var(--mobile-control-target) + 4 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -595,7 +599,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(6, minmax(var(--mobile-control-target), 1fr));
+  grid-template-columns: repeat(5, minmax(var(--mobile-control-target), 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: var(--mobile-control-inset);
@@ -1800,7 +1804,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
-  --mobile-portal-popup-available: calc(100% - 24px - var(--mobile-content-safe-bottom));
+  --mobile-portal-popup-available: calc(100% - 24px);
   position: absolute;
   inset: 12px 16px auto;
   height: auto;
@@ -2947,8 +2951,8 @@
 #root .codex-shell[data-presentation='mobile'] .studio-selection-toolbar { position: fixed; }
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay {
   position: fixed;
-  top: var(--safe-area-top);
-  bottom: var(--mobile-dock-clearance);
+  top: max(var(--safe-area-top), var(--mobile-portal-popup-top, 0px));
+  bottom: var(--safe-area-bottom);
 }
 /* Zoom/pan, video and a live conversation are interaction viewports inside
    the document. Keep their internal controls/keyboard sizing, not a root lock. */

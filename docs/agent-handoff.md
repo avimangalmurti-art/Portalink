@@ -1,6 +1,84 @@
 # Current agent handoff
 
-## September 30, 2026 — named edge-cache correction, publication authorized
+## September 30, 2026 — Accumulated UI release authorized; preparing publication
+
+The user explicitly approved publishing all accumulated changes. This supersedes the publication approval hold in the local task notes below. Release scope: installed-PWA dock spacing; Bio/duplicate Field/City/helper-copy removals; Portals chooser/header clearance and dock hiding; immediate dock return; exactly five dock controls with globe access through Home Actions. All 116 focused tests pass; independent read-only review found no blockers. Fresh typecheck, full lint and production client/worker build run in the Sites release workflow before saving. Existing public audience, backend data, four active D1 migrations and runtime revision 2 are retained. No GitHub push, new SQL, Storage or configuration changes.
+
+
+
+## September 30, 2026 — MOBILE globe access through Home Actions; unpublished
+
+User requested only Actions, Messages, Studio, Home and Profile in the bottom bar, with globe access from Home's action popup. Removed Explore, its icon import and callback prop from src/presentation/mobile/MobileNavigation.tsx, and removed only the mobile callback argument in src/components/Sidebar.tsx. Home's existing Explore globe action already calls openPortalink and is retained without a duplicate handler. src/presentation/mobile/mobile.css now allocates five equal dock columns/minimum targets (four intervening gaps); shared width/spacing tokens and all prior pending fixes are preserved. Updated tests/mobile-navigation.test.mjs for the exact five-item contract. Existing Home discovery and desktop globe entries remain.
+
+Level 2: 47 focused Node tests pass (navigation, contextual actions, dock scrolling), typecheck passes, targeted lint passes with 0 errors and 21 existing Sidebar warnings. Actual-App synthetic-services browser at 420 × 912: dock has exactly the five requested controls, five equal 60.8 px columns in its unchanged 328 px width, no horizontal overflow; Home Actions → Explore opens /portalink and renders the interactive globe, Back returns Home. WEB 1280 × 900 retains sidebar globe access and opens /portalink with no mobile dock. Initial fixture development reload was reset before verification. Read-only scope audit confirms only the mobile Sidebar call changed. Evidence: ignored logs/home-globe-qa/{tests.log,typecheck.log,lint.log,home-mobile.jpg,home-actions-mobile.jpg}. No physical-device claim; production build must be refreshed before publication.
+
+Owned branch codex/creator-share-previews, HEAD 745fc4f22e0d849f7843b61b45d7039d6ce42a9c. No publish/push/SQL/Storage/config changes; Sites279 remains live and publication approval remains pending.
+
+
+
+## September 30, 2026 — MOBILE navigation returns immediately; unpublished
+
+User requested immediate reactivation of the bottom navigation. In the owned checkout, src/presentation/mobile/useMobileDockScroll.ts restores on scrollend from the active scroller (document or nested content), with a 100 ms fallback only where native scrollend is unavailable, replacing the former 700 ms delay. Existing deliberate tap, keyboard/focus, route cleanup, exclusions and inert behavior remain. src/presentation/mobile/mobile.css removes the visible-state 160 ms fade-in while retaining fade-out. Position, installed-app spacing, Portals/viewer hiding and WEB are unchanged.
+
+Level 2: eight focused Node tests pass (dock gesture/end/fallback/cleanup and Portals geometry), typecheck and targeted hook lint pass. Updated tests/mobile-dock-scroll.test.mjs cover document and nested scrollend, unrelated scroller events and a paused native gesture. Independent read-only review passed. Actual-App synthetic-services preview at 420 × 912: content scroll and return, Studio/Profile navigation, visible opacity 1 with transition none and unchanged 42 px browser bottom inset. WEB 1280 × 900 remains desktop with no mobile capsule or horizontal overflow. Initial fixture development reload was reset before verification. No physical-iPhone timing claim. Evidence: ignored logs/dock-speed-qa/{tests.log,typecheck.log,lint.log,navigation-mobile.jpg}. Production build must be refreshed before publishing; no broad build was needed for this focused interaction edit.
+
+All prior pending edits preserved. No publish/push/SQL/Storage/config changes. Owned branch codex/creator-share-previews, HEAD 745fc4f22e0d849f7843b61b45d7039d6ce42a9c; Sites279 remains live. Publication approval remains pending.
+
+
+
+## September 30, 2026 — Profile/action helper text removed; unpublished
+
+User requested removal of visible No account needed on profiles and Actions for this screen when opening the action button. Removed the profile contact helper paragraph from src/features/employer/EmployerOverview.tsx, the subtitle from src/components/messages/MobileActionSheet.tsx, and the visible discovery tooltip from src/presentation/mobile/MobileContextActions.tsx. The action button retains its accessible label, popup/expanded semantics, per-screen sheet title and existing actions/focus behavior. PDF export composer's separate instructional copy is unchanged. No data/permission/auth changes; prior pending edits preserved.
+
+Level1: rebuilt isolated actual-App fixture;420×912 profile has neither visible string, action button opens Your profile with no repeated subtitle, closes correctly and restores button focus.1280×900 profile also omits the contact helper line, desktop layout unchanged. Read-only scope review confirmed visible copies and accessibility preservation. Screenshot: ignored logs/profile-copy-qa/actions-mobile.jpg. Fixture's initial development reload was reset before final verification. No broad tests/build for this copy-only micro-edit; refresh production build before publication (last successful production build was preceding Portals fix).
+
+No publish/push/SQL/Storage/config changes. All accumulated edits remain local in owned codex/creator-share-previews at HEAD745fc4f22e0d849f7843b61b45d7039d6ce42a9c; Sites279 remains live and publication approval is pending.
+
+## September 30, 2026 — MOBILE Portals chooser clears header and hides main dock; unpublished
+
+Latest user reported Portals selected from profile counters cut off behind the profile header and requested no main bottom navigation while Portals is selected. Reproduced at420×912: header bottom168.89px, chooser top71px, header z60 over chooser z40. src/presentation/mobile/useMobilePortalPopupSize.ts now measures the sticky header's viewport bottom into the chooser overlay, observing header/chooser resize plus window and visual-viewport resize/scroll; all listeners clean up when closed. Existing chooser height retention for drill-down remains. src/presentation/mobile/mobile.css anchors the chooser12px below that measured edge, reserves safe-bottom once, and hides the main dock/clears its reserved space while the current screen has the chooser. Outgoing screens are excluded. Existing reader hiding and dismissal behavior remain; WEB is unchanged.
+
+Level2:48 focused Node tests (popup geometry/lifecycle, portal controls, profile collections/dismissal, dock scrolling), typecheck, targeted lint, production client+worker build and diff whitespace checks pass. Browser actual App with isolated synthetic services:420×912 collapsed header→panel12px gap; expanded header→12px at390/420/430; nav hidden in chooser and selected portal/project index. Go back and Projects dismiss correctly and restore nav; return from a selected portal retains clear header geometry. WEB1280 keeps its existing in-flow Portals grid and desktop navigation. A development fixture reload was reset before final checks. No live/physical iPhone claim. Screenshot and logs: ignored logs/profile-portals-qa/{portals-420.jpg,tests.log,typecheck.log,lint.log,build.log}.
+
+Source files for this task: mobile.css, useMobilePortalPopupSize.ts, tests/mobile-portal-popup.test.mjs. Prior installed-app navigation and Bio/Field/City fixes preserved; current production build includes all accumulated source edits. No publish/push/SQL/Storage/config changes. Sites279 still live; publishing approval remains pending. Owned branch codex/creator-share-previews, HEAD745fc4f22e0d849f7843b61b45d7039d6ce42a9c.
+
+## September 30, 2026 — ALL profile details: remove Field and duplicate City; unpublished
+
+User requested removal of the Field and City sections under the profile edit buttons. src/features/employer/EmployerOverview.tsx now filters those two facts from the visible profile introduction for regular and shared profiles. City remains beside the name; School/Available and existing contact/export/Start-here actions remain. Stored fields, editor and PDF fact data are unchanged. An empty filtered facts row is omitted; the overview already returns null if no other content exists. Prior Bio and installed-navigation fixes preserved.
+
+Level1: rebuilt the isolated actual-App fixture and checked420×912 mobile and1280×900 WEB with expanded profile tools. Only School/Available remain below controls; city text occurs once in both presentations. Read-only scope review confirmed both regular-profile and dedicated visitor callers use this component. Screenshot: ignored logs/profile-facts-qa/profile-mobile.jpg. No broad suites or new tests for this two-line presentation change; latest production build predates this micro-edit and must be refreshed before publishing. No physical-device claim.
+
+No publish/push/SQL/Storage/config changes. Sites279 remains live; publication approval remains pending for the accumulated edits. Owned branch codex/creator-share-previews, HEAD745fc4f22e0d849f7843b61b45d7039d6ce42a9c.
+
+## September 30, 2026 — ALL profile headers: Bio only through its icon; unpublished
+
+Latest user explicitly reverses earlier header-Bio exposure: remove biography from profile headers for owners and viewers. Removed the short-headline paragraphs/imports from src/components/UserProfilePage.tsx and src/visitor/VisitorProfileGrid.tsx, including both legacy/shared and dedicated visitor paths. src/features/employer/employer.ts no longer derives the Field fact from long Bio; only the separate explicit portfolioHeadline can supply it. Full Bio, Bio icon/sheet, owner editing and data are preserved. Unrelated share metadata/PDF headline behavior is unchanged. Prior standalone navigation CSS and post-Sites279 docs remain intact.
+
+60 focused tests pass across profile collections/Bio access, visitor navigation and employer facts; updated three existing test files to prevent header/Field regressions and confirm visitor Bio opens/closes. Typecheck, targeted lint (0 errors, 2 pre-existing warnings), production client+worker build and diff whitespace checks pass. Browser: freshly bundled actual App/VisitorApp with synthetic services at420×912 and1280×900 shows only name/city/appropriate metrics in the identity area; Bio absent before icon, opens full text and closes for owner and signed-out handle visitor. Owner/member/shared combinations additionally exercised in Node. A stale local fixture module was resolved using a fresh preview server; no source workaround. No physical-device/live verification claimed. Evidence: ignored logs/bio-header-qa/{tests.log,typecheck.log,lint.log,build.log,header-mobile.jpg}.
+
+No publish, GitHub push, SQL, Storage or config changes. Sites279 remains live. The prior specific publication-approval block is still pending; this user message requests a new fix, not permission to publish. Both fixes are ready in the owned codex/creator-share-previews checkout at HEAD745fc4f22e0d849f7843b61b45d7039d6ce42a9c.
+
+## September 30, 2026 — MOBILE installed-app navigation spacing; publication pending
+
+User requested a lower main navigation capsule only when opened from the home screen, preserving Safari placement. In the owned codex/creator-share-previews checkout, src/presentation/mobile/mobile.css now scopes bottom: max(8px, var(--safe-area-bottom)) to html[data-standalone] and the mobile main capsule. Existing standalone detection is reused. With the iPhone 34px inset this lowers the capsule 8px (42px to 34px); devices with no inset retain an 8px edge gap. Shared sign-in/viewer controls, content clearance and WEB are unchanged.
+
+Level 1 verification: reused isolated synthetic app fixture with current source CSS at420×912, emulated59px top/34px bottom; browser baseline42px and installed34px, consistent on Profile/Studio/Messages/Home. WEB1280×900 retained desktop navigation with no mobile capsule or horizontal overflow. Seven existing startup/dock tests and production client+worker build passed; read-only review found no scope/cascade issue. No new physical iPhone/PWA test; verify actual home-indicator clearance on device after reopening. Evidence: ignored logs/standalone-nav-qa/{focused-tests.log,build.log,installed-420.jpg}. Source change is CSS only; no backend/config/Storage/GitHub changes.
+
+Publication remains pending: automatic approval review rejected the packaging/publication command because the latest request authorizes editing/verification and repository instructions require separate publication approval. No publication command ran and Sites279 remains live at745fc4f22e0d849f7843b61b45d7039d6ce42a9c. The change is reviewed, built, uncommitted and ready for the user's specific publication approval. Prior post-Sites279 documentation changes are preserved.
+
+## September 30, 2026 — Sites279 live; edge cache verified
+
+### Sites279 publication and verified edge reuse
+
+Published **Sites279** successfully at **2026-09-30 16:15:07 America/Los_Angeles (23:15:07 UTC)** from source `745fc4f22e0d849f7843b61b45d7039d6ce42a9c`; deployment `appgdep_6abd97f00a948191a48c314f9ccc980c`, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_d83bd322256c81918af0720769e96d41`. Existing public audience and runtime revision2 retained. Site source mirror updated; no GitHub push/merge.
+
+**Live verification passed at23:15:16UTC:** representative200/400/800 covers,1200×630 social cover and a public avatar all returned repeated **HIT**, correct decoded dimensions/MIME, ETag, Vary:Accept and `public, max-age=31536000, immutable`. Cached HEAD returned200 without a body and conditional GET returned304 for all five objects. The400/800/social/avatar requests each demonstrated MISS then HIT; the200cover retained its earlier named-cache entry across deployments. Repeated samples took45–74ms here; these are command-line observations from one connection/edge, not physical-phone or worldwide first-paint measurements. Legacy avatars’300-second policy is covered by the focused tests; no legacy live-avatar check was needed.
+
+UUID share redirects301 to `/portalite`; canonical handle and main shell200. Private media prefix404, malformed cover400, unauthenticated RUM/Reads summaries401. No invalid/private media object entered the cache.16 focused tests, typecheck, lint (0 errors /90 existing warnings), production client+worker build and independent read-only review passed. No further SQL, Storage, backfill, runtime or platform-trust changes. Existing media data is untouched.
+
+The remaining Sites277 edge-cache issue is **resolved**. Named caches preserve Site isolation; cache-stage diagnostics contain no request URLs, headers, account details or upstream exception text. Publication archive matched the built worker and contained exactly unchanged approved D1 0000–0003, no pending/HOLD files. Archive SHA256:`3ee84b0b7c1642cb5a4ef839146d1e7cc4619812403d3af2d9df39a045a8a5f7`.
+
+Receipts in ignored `logs/backend-activation-20260930/`: `deployment-278.json`, `deployment-279.json`, `cache-live-postflight-278.json` (intermediate header failure), `cache-live-postflight.json` (final success), `cache-final-archive-check.json`, `cache-fix-{tests,typecheck,lint,build}.log`. Only post-publication documentation is uncommitted. Older unresolved-cache notes below are historical and superseded by this receipt.
 
 The user requested fixing and publishing the remaining edge-cache issue. `src/server/publicMedia.ts` now opens the isolated `portalink-public-media-v1` named cache and never accesses `caches.default`, which Cloudflare disables for untrusted Workers for Platforms namespaces. Public-cover/avatar path validation, Accept-specific keys, immutable/legacy-avatar headers, MIME checks, identity stripping and background `waitUntil` writes are preserved. Cache-open/read failures safely bypass; all cache-operation failures emit fixed stage-only diagnostics without input or exception details. No Storage, SQL, runtime configuration, namespace trust or visibility changes.
 

@@ -21,6 +21,8 @@ test('Start here requires an existing visible project on a public profile',()=>{
 test('facts include only supplied values and derive Field from the short headline',()=>{
  assert.deepEqual(plain(e.profileFacts(profile({portfolioHeadline:'Interaction design · Research',school:'SFSU',availability:'Autumn'}))),[{label:'School',value:'SFSU'},{label:'Field',value:'Interaction design'},{label:'City',value:'London'},{label:'Available',value:'Autumn'}]);
  assert.deepEqual(plain(e.profileFacts(profile({headline:'',location:''}))),[]);
+ assert.deepEqual(plain(e.profileFacts(profile())),[{label:'City',value:'London'}]);
+ assert.deepEqual(plain(e.profileFacts(profile({portfolioHeadline:null,location:''}))),[]);
 });
 test('contact never falls back to authentication email and requires explicit opt-in',()=>{
  assert.equal(e.contactHref(profile({email:'auth@example.com'})),null);

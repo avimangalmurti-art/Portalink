@@ -1,7 +1,7 @@
 import { useEffect, type RefObject } from 'react';
 
-// Brief reading pauses should not repeatedly flash navigation over the work.
-const IDLE_DELAY = 700;
+// Scrollend restores immediately; this short fallback covers older browsers.
+const IDLE_DELAY = 100;
 const excluded = '.mobile-navigation-layer, [data-mobile-project-view], [role="dialog"], [role="menu"], [inert], .screen-exit, [aria-hidden="true"], input, textarea, select, [contenteditable="true"]';
 
 /** Browsing hides only the dock; project reading owns its separate tap-to-reveal state. */
@@ -14,6 +14,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     let timer: number | undefined;
     let intent = false;
     let hidden = false;
+    let scrollingTarget: EventTarget | null = null;
     let previousInert = false;
     let gesture: { id: number; x: number; y: number } | null = null;
     const overlayOpen = () => Boolean(document.querySelector('[aria-modal="true"], [role="menu"]'));
@@ -22,6 +23,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       window.clearTimeout(timer);
       timer = undefined;
       intent = false;
+      scrollingTarget = null;
       if (!hidden) return;
       hidden = false;
       dock.inert = previousInert;
@@ -37,8 +39,14 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
       if (!hidden) { previousInert = dock.inert; hidden = true; dock.inert = true; }
       dock.setAttribute('data-scrolling', '');
       dock.setAttribute('aria-hidden', 'true');
+      scrollingTarget = event.target;
       window.clearTimeout(timer);
-      timer = window.setTimeout(restore, IDLE_DELAY);
+      if (scrollingTarget && !('onscrollend' in scrollingTarget)) {
+        timer = window.setTimeout(restore, IDLE_DELAY);
+      }
+    };
+    const scrollEnd = (event: Event) => {
+      if (event.target === scrollingTarget) restore();
     };
     const wheel = (event: WheelEvent) => {
       intent = !event.ctrlKey && !event.metaKey && Boolean(event.deltaX || event.deltaY) && eligible(event.target) && !overlayOpen();
@@ -65,6 +73,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     const key = () => restore();
     const focus = () => restore();
     document.addEventListener('scroll', scroll, { capture: true, passive: true });
+    document.addEventListener('scrollend', scrollEnd, { capture: true, passive: true });
     document.addEventListener('wheel', wheel, { capture: true, passive: true });
     document.addEventListener('pointerdown', down, true);
     document.addEventListener('pointermove', move, true);
@@ -75,6 +84,7 @@ export function useMobileDockScroll(enabled: boolean, pathname: string, dockRef:
     return () => {
       restore();
       document.removeEventListener('scroll', scroll, true);
+      document.removeEventListener('scrollend', scrollEnd, true);
       document.removeEventListener('wheel', wheel, true);
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointermove', move, true);

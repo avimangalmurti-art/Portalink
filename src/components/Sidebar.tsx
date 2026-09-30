@@ -615,7 +615,7 @@ export function Sidebar({
   const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
-  if (isMobile) return <MobileNavigation onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
+  if (isMobile) return <MobileNavigation onMessages={onMessagesOpen}
     onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
