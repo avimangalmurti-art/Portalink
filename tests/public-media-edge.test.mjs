@@ -173,14 +173,48 @@ test('public SVG avatar is sandboxed and upstream cookies/private headers are di
   assert.equal(response.headers.get('x-private'), null);
 });
 
-test('the Sites caches.default global is used when no cache was injected', async () => {
-  const h = harness();
-  const { handlePublicMedia: withGlobalCache } = execute('src/server/publicMedia.ts', () => urls, { caches: { default: h.options.cache } });
-  const options = { ...h.options, cache: undefined };
-  const request = new Request(`${SITE}/media/covers/${COVER}`);
-  assert.equal((await withGlobalCache(request, options)).headers.get('x-portalink-media-cache'), 'MISS');
-  assert.equal((await withGlobalCache(request, options)).headers.get('x-portalink-media-cache'), 'HIT');
-  assert.equal(h.calls.length, 1);
+test('Sites uses its isolated named cache even when caches.default is disabled', async () => {
+  const h = harness(), opened = [], background = [];
+  const { handlePublicMedia: withGlobalCache } = execute('src/server/publicMedia.ts', () => urls, { caches: {
+    get default() { throw new Error('Unavailable in an untrusted dispatch namespace'); },
+    async open(name) { opened.push(name); return h.options.cache; },
+  } });
+  const options = { ...h.options, cache: undefined, waitUntil: work => background.push(work) };
+  for (const path of [`/media/covers/${COVER}`, `/media/avatars/${AVATAR}`]) {
+    const request = new Request(SITE + path);
+    const first = await withGlobalCache(request, options);
+    assert.equal(first.headers.get('x-portalink-media-cache'), 'MISS');
+    assert.equal(await first.text(), 'image fixture');
+    await Promise.all(background);
+    const second = await withGlobalCache(request, options);
+    assert.equal(second.headers.get('x-portalink-media-cache'), 'HIT');
+    assert.equal(await second.text(), 'image fixture');
+  }
+  assert.deepEqual(opened, Array(4).fill('portalink-public-media-v1'));
+  assert.equal(h.calls.length, 2);
+  await withGlobalCache(new Request(`${SITE}/media/covers/${COVER}`), h.options);
+  assert.equal(opened.length, 4, 'An injected cache bypasses the runtime cache opener');
+});
+
+test('unavailable named cache bypasses and cache failures never prevent public image delivery', async () => {
+  for (const phase of ['missing', 'open', 'match', 'put']) {
+    const h = harness(), warnings = [], background = [];
+    const rejected = () => { throw new Error('sensitive URL and upstream details must not be logged'); };
+    const caches = phase === 'missing' ? undefined : {
+      get default() { assert.fail('Never fall back to the disabled default cache'); },
+      async open() {
+        if (phase === 'open') rejected();
+        return { match: phase === 'match' ? rejected : h.options.cache.match, put: phase === 'put' ? rejected : h.options.cache.put };
+      },
+    };
+    const { handlePublicMedia: handler } = execute('src/server/publicMedia.ts', () => urls, { caches, console: { warn: message => warnings.push(message) } });
+    const response = await handler(new Request(`${SITE}/media/covers/${COVER}`), { ...h.options, cache: undefined, waitUntil: task => background.push(task) });
+    await Promise.all(background);
+    assert.equal(response.status, 200); assert.equal(await response.text(), 'image fixture');
+    assert.equal(response.headers.get('x-portalink-media-cache'), phase === 'put' ? 'MISS' : 'BYPASS');
+    assert.deepEqual(warnings, phase === 'missing' ? [] : [`Portalink public media cache unavailable (${phase}).`]);
+    assert.equal(h.entries.size, 0);
+  }
 });
 
 test('mutations, redirects, HTML and upstream errors never enter the public cache', async () => {

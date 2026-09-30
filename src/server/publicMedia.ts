@@ -44,10 +44,17 @@ function parseObject(url: URL): { bucket: PublicMediaBucket; path: string } | nu
   }
 }
 
-function defaultCache(): PublicMediaCache | undefined {
-  // Sites runs this worker on workerd. Local runtimes without its Cloudflare
-  // Cache API still serve public objects; they do not pretend to cache them.
-  return (globalThis as unknown as { caches?: { default?: PublicMediaCache } }).caches?.default;
+async function publicMediaCache(): Promise<PublicMediaCache | undefined> {
+  // Workers for Platforms disables caches.default in untrusted namespaces.
+  // A named cache remains isolated to this Site without changing platform trust.
+  try {
+    const storage = (globalThis as unknown as { caches?: { open(name: string): Promise<PublicMediaCache> } }).caches;
+    return storage?.open ? await storage.open('portalink-public-media-v1') : undefined;
+  } catch {
+    // Fixed messages only: no URL, headers, account details or upstream errors.
+    console.warn('Portalink public media cache unavailable (open).');
+    return undefined;
+  }
 }
 
 async function bytesForEtag(response: Response): Promise<ArrayBuffer | null> {
@@ -111,12 +118,15 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
   const cacheUrl = new URL(url.origin + url.pathname);
   cacheUrl.searchParams.set('__accept', accept);
   const cacheKey = new Request(cacheUrl, { method: 'GET' });
-  const cache = options.cache ?? defaultCache();
+  let cache = options.cache ?? await publicMediaCache();
   if (cache) {
     try {
       const cached = await cache.match(cacheKey);
       if (cached) return clientResponse(cached, request, 'HIT');
-    } catch { /* A cache outage must not prevent public images loading. */ }
+    } catch {
+      console.warn('Portalink public media cache unavailable (match).');
+      cache = undefined;
+    }
   }
   const variant = object.bucket === 'project-covers' ? /\/(200|400)\.webp$/.exec(object.path)?.[1] : undefined;
   if (variant) {
@@ -171,7 +181,11 @@ export async function handlePublicMedia(request: Request, options: PublicMediaOp
   }
   const response = new Response(body, { status: 200, headers });
   if (cache) {
-    const write = cache.put(cacheKey, response.clone()).catch(() => undefined);
+    const mediaCache = cache;
+    const entry = response.clone();
+    const write = Promise.resolve().then(() => mediaCache.put(cacheKey, entry)).catch(() => {
+      console.warn('Portalink public media cache unavailable (put).');
+    });
     if (options.waitUntil) options.waitUntil(write);
     else await write;
   }
