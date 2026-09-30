@@ -90,14 +90,14 @@ function setup() {
   const worker = compile('../src/sites-worker.ts', { './server/sharedPreview': preview }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');
   const request = (path, extraHeaders = {}, method = 'GET') => {
-    const headers = new Headers({ accept: 'text/html' });
+    const headers = new Headers({ accept: 'text/html', 'user-agent': 'Twitterbot/1.0' });
     for (const [name, value] of Object.entries(extraHeaders)) {
       if (value === null) headers.delete(name);
       else headers.set(name, value);
     }
     return worker.fetch(new Request('https://portalink.example' + path, { headers, method }), { ASSETS: { fetch: async request => {
       assetRequests.push(request);
-      if (new URL(request.url).pathname !== '/') return new Response('Not found', { status: 404 });
+      if (!['/', '/share.html'].includes(new URL(request.url).pathname)) return new Response('Not found', { status: 404 });
       const body = html();
       const responseHeaders = { 'content-type': 'text/html', etag: 'template-etag',
         'last-modified': 'yesterday', 'content-length': String(Buffer.byteLength(body)) };
@@ -163,6 +163,32 @@ test('profile card uses its first project cover, creator title, public-only quer
   assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
   assert.equal(response.headers.get('cache-control'), 'private, no-store');
   for (const name of ['etag', 'last-modified', 'content-length', 'content-encoding']) assert.equal(response.headers.get(name), null);
+});
+
+test('browser shared navigations receive the visitor shell without waiting for metadata reads', async () => {
+  for (const path of [profilePath, categoryPath, projectPath, profilePath + '/collaboration']) {
+    for (const userAgent of ['Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1', null]) {
+      const h = setup(); h.state.waitForAbort = true;
+      const response = await h.request(path, { 'user-agent': userAgent, 'if-none-match': 'template-etag' });
+      assert.equal(response.status, 200);
+      assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
+      assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
+      assert.equal(response.headers.get('cache-control'), 'private, no-store');
+      assert.equal(await response.text(), shell);
+      assert.equal(h.calls.length, 0, 'Browser first paint performs no worker-side Supabase read or signing');
+    }
+  }
+});
+
+test('normal app routes retain the app shell while shared HEAD requests stay bodyless and skip metadata', async () => {
+  for (const path of ['/', '/discover', '/share', '/shared/example', '/p/' + id(1)]) {
+    const h = setup(); const response = await h.request(path, { 'user-agent': 'Mozilla/5.0' });
+    assert.equal(response.status, 200); assert.equal(new URL(h.assetRequests[0].url).pathname, '/');
+    assert.equal(h.calls.length, 0); assert.equal(response.headers.get('cache-control'), 'no-cache');
+  }
+  const h = setup(); const response = await h.request(projectPath, { 'user-agent': 'Mozilla/5.0' }, 'HEAD');
+  assert.equal(response.status, 200); assert.equal(await response.text(), '');
+  assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html'); assert.equal(h.calls.length, 0);
 });
 
 test('project card binds every route ID and uses matching project cover, summary and article type', async () => {
@@ -440,13 +466,13 @@ test('cache isolates path, canonical origin and publishable configuration', asyn
   assert.equal(h.signs().length, 4);
 });
 
-test('browser, wildcard and absent Accept headers work; explicit higher JSON preference or HTML exclusion skips metadata', async () => {
+test('crawler HTML, wildcard and absent Accept headers work; higher JSON preference or HTML exclusion skips metadata', async () => {
   for (const accept of ['text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', '*/*', null]) {
     const h = setup();
     const response = await h.request(profilePath, { accept, 'if-none-match': 'template-etag', 'if-modified-since': 'yesterday' });
     assert.equal(response.status, 200);
     assertImage(await response.text());
-    assert.equal(new URL(h.assetRequests[0].url).pathname, '/');
+    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
     assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
     assert.equal(h.assetRequests[0].headers.get('if-modified-since'), null);
   }
@@ -471,7 +497,7 @@ test('HEAD navigation stays bodyless, strips stale validators and makes no Supab
     assert.equal(response.status, 200);
     assert.equal(response.body, null);
     assert.equal(await response.text(), '');
-    assert.equal(new URL(h.assetRequests[0].url).pathname, '/');
+    assert.equal(new URL(h.assetRequests[0].url).pathname, '/share.html');
     assert.equal(h.assetRequests[0].method, 'HEAD');
     assert.equal(h.assetRequests[0].headers.get('if-none-match'), null);
     assert.equal(h.assetRequests[0].headers.get('if-modified-since'), null);
@@ -480,12 +506,49 @@ test('HEAD navigation stays bodyless, strips stale validators and makes no Supab
   }
 });
 
-test('ordinary navigation and invalid shared routes leave generic metadata and make no lookup', async () => {
+test('ordinary navigation keeps the normal shell and generic metadata without a lookup', async () => {
   const h = setup();
-  for (const path of ['/', '/settings', '/share/not-a-record', profilePath + '/c/invalid', profilePath + '/extra']) {
+  for (const path of ['/', '/settings']) {
     const response = await h.request(path);
     assert.equal(response.status, 200);
     assertGeneric(await response.text());
+    assert.equal(new URL(h.assetRequests.at(-1).url).pathname, '/');
+  }
+  assert.equal(h.calls.length, 0);
+});
+
+test('all invalid /share/ paths use the visitor shell without metadata lookup for preferred HTML', async () => {
+  const paths = ['/share/', '/share/not-a-record', profilePath + '/c/invalid', profilePath + '/extra', profilePath + '/collaboration/extra'];
+  for (const accept of ['text/html', '*/*', null]) {
+    const h = setup();
+    for (const path of paths) {
+      for (const userAgent of ['Twitterbot/1.0', 'Mozilla/5.0', 'UnrecognizedPreviewBot/1.0']) {
+        const response = await h.request(path, { accept, 'user-agent': userAgent,
+          'if-none-match': 'template-etag', 'if-modified-since': 'yesterday' });
+        assert.equal(response.status, 200);
+        assertGeneric(await response.text());
+        const assetRequest = h.assetRequests.at(-1);
+        assert.equal(new URL(assetRequest.url).pathname, '/share.html');
+        assert.equal(assetRequest.headers.get('if-none-match'), null);
+        assert.equal(assetRequest.headers.get('if-modified-since'), null);
+        assert.equal(response.headers.get('cache-control'), 'private, no-store');
+      }
+    }
+    assert.equal(h.calls.length, 0, 'Invalid shared paths never enter metadata queries');
+  }
+});
+
+test('invalid shared HEAD uses the visitor entry and non-HTML requests keep the original path', async () => {
+  const path = '/share/not-a-record/extra';
+  const h = setup();
+  const response = await h.request(path, { 'if-none-match': 'template-etag' }, 'HEAD');
+  assert.equal(response.status, 200);
+  assert.equal(response.body, null);
+  assert.equal(new URL(h.assetRequests.at(-1).url).pathname, '/share.html');
+  assert.equal(h.assetRequests.at(-1).headers.get('if-none-match'), null);
+  for (const accept of ['application/json', 'application/json;q=1,text/html;q=0.8', 'text/html;q=0,*/*;q=1']) {
+    await h.request(path, { accept });
+    assert.equal(new URL(h.assetRequests.at(-1).url).pathname, path);
   }
   assert.equal(h.calls.length, 0);
 });

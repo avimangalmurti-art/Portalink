@@ -31,8 +31,13 @@ export type SharedProfileBundle = {
   attachments: SharedAttachmentRow[];
 };
 type RpcError = { code?: string; message?: string; details?: string; hint?: string };
+type RpcReply = { data: unknown; error: RpcError | null };
+type SharedBundlePreload = { version: 1; profileId: string; startedAt: number; promise: PromiseLike<RpcReply> };
+declare global {
+  interface Window { __PORTALINK_SHARED_BUNDLE_PRELOAD__?: SharedBundlePreload }
+}
 export type SharedProfileBundleClient = {
-  rpc: (name: 'shared_profile_bundle', args: { profile_id: string }) => PromiseLike<{ data: unknown; error: RpcError | null }>;
+  rpc: (name: 'shared_profile_bundle', args: { profile_id: string }) => PromiseLike<RpcReply>;
 };
 export type SharedProfileBundleResult =
   | { status: 'unsupported' }
@@ -124,12 +129,25 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
   return { profile, categories, projects, attachments };
 }
 
+/** Single-use document preload; retries, later routes and invalidations read
+ * fresh data. This anonymous response never becomes an authenticated cache. */
+function takeSharedBundlePreload(profileId: string): PromiseLike<RpcReply> | null {
+  if (typeof window === 'undefined') return null;
+  const preload = window.__PORTALINK_SHARED_BUNDLE_PRELOAD__;
+  delete window.__PORTALINK_SHARED_BUNDLE_PRELOAD__;
+  if (!preload || preload.version !== 1 || preload.profileId !== profileId.toLowerCase()
+    || !Number.isFinite(preload.startedAt) || Date.now() - preload.startedAt < 0 || Date.now() - preload.startedAt > 30_000
+    || !preload.promise || typeof preload.promise.then !== 'function') return null;
+  return preload.promise;
+}
+
 export async function readSharedProfileBundle(client: SharedProfileBundleClient, profileId: string): Promise<SharedProfileBundleResult> {
   if (!uuid(profileId)) throw new Error('A valid profile ID is required.');
-  const { data, error } = await client.rpc('shared_profile_bundle', { profile_id: profileId });
+  const normalizedId = profileId.toLowerCase();
+  const { data, error } = await (takeSharedBundlePreload(normalizedId) ?? client.rpc('shared_profile_bundle', { profile_id: normalizedId }));
   if (error) {
     if (isMissingSharedProfileBundleRpc(error)) return { status: 'unsupported' };
     throw new Error(error.message || 'The shared profile could not be loaded.');
   }
-  return { status: 'available', bundle: parseSharedProfileBundle(data, profileId) };
+  return { status: 'available', bundle: parseSharedProfileBundle(data, normalizedId) };
 }

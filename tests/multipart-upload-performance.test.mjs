@@ -39,6 +39,7 @@ function harness({ sessionError = null, importFailure = false } = {}) {
     if (name === '../../types/publishing') return { UploadServiceError, ProcessingServiceError: Error };
     if (name === './client') return { requireSupabase: () => client, requireSupabaseProjectUrl: () => 'https://test.supabase.co' };
     if (name === './contentServices') return { PROJECT_MEDIA_BUCKET: 'project-media' };
+    if (name === './mediaProcessingReads') return { supabaseMediaProcessingReadService: {} };
     if (name === '../../../public/portalink-media-core.js') return core;
     if (name === './multipartMedia') return { ...core, ensureMultipartReader: async () => {},
       multipartSource: async (...args) => { virtual.push(args); return `virtual/${args[0]}`; },

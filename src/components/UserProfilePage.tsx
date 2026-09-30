@@ -236,6 +236,9 @@ function ProfileProjectTile({
 
   return <ProjectPreviewCard project={project} creator={creator} onOpen={onOpen} onOpenComments={onOpenComments}
       sharedCoverFallback={isSharedView}
+      allowPdfFallback={!isSharedView}
+      allowVideoFallback={!isSharedView}
+      priority={isSharedView ? 'viewport' : undefined}
       showCreator={showCreator}
       onCollapse={() => setIsMenuOpen(false)}
       disabled={disabled || Boolean(descriptionEditor)} showEngagementMetrics={showEngagementMetrics}
@@ -274,6 +277,7 @@ function ProfileIdentityAndLinks({
   displayName,
   links,
   showLinks = true,
+  avatarPriority = false,
   onOpenBio,
   summaryCounts
 }: {
@@ -281,12 +285,13 @@ function ProfileIdentityAndLinks({
   displayName: string;
   links: ProfileLink[];
   showLinks?: boolean;
+  avatarPriority?: boolean;
   onOpenBio?: () => void;
   summaryCounts?: { projectCount: number; portalCount: number; followers: string | null; following: string | null; expanded: boolean; canViewConnections: boolean; activeView: ProfileContentView; onSelect: (view: ProfileContentView) => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
-        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" />
+        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" priority={avatarPriority} />
         <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
           <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
@@ -555,7 +560,7 @@ export function UserProfilePage({
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       <div data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} summaryCounts={isSharedView ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView} summaryCounts={isSharedView ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>

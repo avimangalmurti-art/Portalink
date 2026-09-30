@@ -6,10 +6,10 @@ import ts from 'typescript';
 
 // Execute the production read/write methods against an isolated PostgREST
 // model, including its important zero-row UPDATE semantics. No real accounts.
-const source = ts.createSourceFile('content.ts', readFileSync(new URL('../src/services/supabase/contentServices.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true);
+const source = ts.createSourceFile('content.ts', ['contentServices', 'contentReaders'].map(name => readFileSync(new URL(`../src/services/supabase/${name}.ts`, import.meta.url), 'utf8')).join('\n'), ts.ScriptTarget.Latest, true);
 function methods(service, names) {
-  const declaration = source.statements.flatMap(n => ts.isVariableStatement(n) ? [...n.declarationList.declarations] : []).find(n => n.name.getText(source) === service);
-  return declaration.initializer.properties.filter(n => names.includes(n.name?.getText(source))).map(n => n.getText(source)).join(',\n');
+  const declarations = source.statements.flatMap(n => ts.isVariableStatement(n) ? [...n.declarationList.declarations] : []).filter(n => [service, service.replace('Service', 'ReadService')].includes(n.name.getText(source)));
+  return declarations.flatMap(n => n.initializer.properties).filter(n => names.includes(n.name?.getText(source))).map(n => n.getText(source)).join(',\n');
 }
 const readProfile = source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === 'loadProfiles').getText(source);
 const plain = value => JSON.parse(JSON.stringify(value));

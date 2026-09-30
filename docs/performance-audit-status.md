@@ -2,6 +2,10 @@
 
 Source: the user's 15-page `Preformance edit instructions.pdf`, supplied September 28, 2026. All pages were read. This is an implementation record, not a claim that the audit's historical line numbers or measurements still describe production.
 
+## September 30 source-only visitor entry
+
+The later [visitor-entry asset audit](visitor-entry-assets.md) supersedes the historical startup byte totals below for the current local branch. It records both main and /share entries separately. Live Sites273 is unchanged; no cover SQL, bucket or backfill has been applied. The 350KB raw visitor JS target remains unmet.
+
 ## Current boundary
 
 The pass covers shared WEB/MOBILE services, startup loading, feeds, messaging, uploads, the existing Sites/D1 worker, and the existing media workers. Existing accounts, content, storage connections, access boundaries, routes, appearance, profile design, navigation, and 2–13 grid density are retained. Following explicit user approval on September 28, the owning task applied the six performance migrations to the existing Portalink Supabase project; all six transactions succeeded. Sites version 266 was published successfully at 2026-09-28 09:28 UTC from source `972392087eeabcf08bc249bd4620ba51376cd279`. The approved D1 index is included in that release; current Sites tools do not expose an index catalog or per-migration receipt for independent confirmation. PDF/video worker changes remain source only; no media-worker hosting or deployment was performed.

@@ -1,12 +1,12 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { CreatorAvatar } from './CreatorAvatar';
 import { ModalPortal } from '../ui/ModalPortal';
-import { ResponsiveImage } from '../ui/ResponsiveImage';
+import { ResponsiveImage, type ImagePriority } from '../ui/ResponsiveImage';
 
 /** Compact identities share a preview with the larger profile-page avatar. */
-export function ProfileAvatar({ name, avatar, size = 'compact' }: { name: string; avatar?: string | null; size?: 'compact' | 'profile' }) {
+export function ProfileAvatar({ name, avatar, size = 'compact', priority = false }: { name: string; avatar?: string | null; size?: 'compact' | 'profile'; priority?: ImagePriority }) {
   const [isOpen, setIsOpen] = useState(false);
-  const thumbnail = <CreatorAvatar name={name} avatar={avatar} shape="squircle" className={`h-full w-full ${size === 'profile' ? 'text-[24px]' : 'text-[12px]'}`} />;
+  const thumbnail = <CreatorAvatar name={name} avatar={avatar} priority={priority} shape="squircle" className={`h-full w-full ${size === 'profile' ? 'text-[24px]' : 'text-[12px]'}`} />;
 
   return <>
       <button type="button" onClick={() => setIsOpen(true)} aria-haspopup="dialog" aria-expanded={isOpen} aria-label={`View ${name}'s profile image`} className={`${size === 'profile' ? 'profile-identity-avatar shape-squircle' : 'h-10 w-10 shape-squircle-compact'} flex shrink-0 items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>

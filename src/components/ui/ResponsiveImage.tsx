@@ -7,12 +7,14 @@ export type ResponsiveImageSource = {
   sizes?: string;
 };
 
+export type ImagePriority = boolean | 'viewport';
+
 type CommonImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'alt' | 'decoding' | 'loading' | 'src'> & {
   src: string;
   /** Additional format or resolution candidates, ordered most preferred first. */
   sources?: ResponsiveImageSource[];
   /** Loads immediately and receives high network priority for above-fold art. */
-  priority?: boolean;
+  priority?: ImagePriority;
   loading?: 'eager' | 'lazy';
   /** Responsive grids can resize without viewport changes (density and sidebars). */
   measureWidth?: boolean;
@@ -48,24 +50,42 @@ export function ResponsiveImage({
   alt = '',
   draggable,
   measureWidth = false,
+  fetchPriority,
   ...imageProps
 }: ResponsiveImageProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number>();
+  const [viewportPriority, setViewportPriority] = useState<boolean>();
   useLayoutEffect(() => {
-    if (!measureWidth || !imageRef.current) return;
+    if ((!measureWidth && priority !== 'viewport') || !imageRef.current) return;
     const image = imageRef.current;
-    const measure = () => { const width = Math.ceil(image.getBoundingClientRect().width); if (width > 0) setMeasuredWidth(width); };
+    const measure = () => {
+      const bounds = image.getBoundingClientRect();
+      const width = Math.ceil(bounds.width);
+      if (measureWidth && width > 0) setMeasuredWidth(width);
+      if (priority === 'viewport' && viewportPriority === undefined && bounds.width > 0 && bounds.height > 0) {
+        const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+        setViewportPriority(bounds.bottom > 0 && bounds.top < viewportHeight && bounds.right > 0 && bounds.left < viewportWidth);
+      }
+    };
     measure();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
     observer?.observe(image);
     return () => observer?.disconnect();
-  }, [measureWidth]);
+  }, [measureWidth, priority, viewportPriority]);
   const sizes = measureWidth && measuredWidth ? `${measuredWidth}px` : imageProps.sizes;
   // Measure in the layout phase before exposing resolution candidates. Without
   // this, an eager image can start downloading the 800px file under a temporary
   // 100vw assumption even when its actual grid tile needs only 200px.
-  const sourceReady = !measureWidth || measuredWidth !== undefined;
+  const sourceReady = (!measureWidth || measuredWidth !== undefined) && (priority !== 'viewport' || viewportPriority !== undefined);
+  const eager = priority === true || (priority === 'viewport' && viewportPriority === true);
+  // React 18 warns for camel-case fetchPriority. The lowercase DOM attribute is
+  // supported by browsers; keep its values typed and exclude the camel-case
+  // React prop from the spread above.
+  const priorityAttribute: { fetchpriority?: React.ImgHTMLAttributes<HTMLImageElement>['fetchPriority'] } = {
+    fetchpriority: eager ? 'high' : fetchPriority,
+  };
   const image = <img
     {...imageProps}
     ref={imageRef}
@@ -75,8 +95,8 @@ export function ResponsiveImage({
     srcSet={sourceReady ? imageProps.srcSet : undefined}
     alt={decorative ? '' : alt}
     aria-hidden={decorative ? true : imageProps['aria-hidden']}
-    loading={priority ? 'eager' : loading}
-    fetchPriority={priority ? 'high' : imageProps.fetchPriority}
+    loading={eager ? 'eager' : loading}
+    {...priorityAttribute}
     decoding="async"
     draggable={draggable ?? false}
   />;

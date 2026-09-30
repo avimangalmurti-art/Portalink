@@ -48,7 +48,9 @@ function harness(options = {}) {
     }; } },
   };
   const media = execute(read('src/services/supabase/mediaUrlCache.ts'), () => ({ requireSupabase: () => client }));
+  const reads = execute(read('src/services/supabase/coverThumbnailReads.ts'), () => ({ requireSupabase: () => client }));
   const service = execute(read('src/services/supabase/coverThumbnails.ts'), name => {
+    if (name === './coverThumbnailReads') return reads;
     if (name === './client') return { requireSupabase: () => client };
     if (name === './mediaUrlCache') return media;
     if (name.endsWith('/coverThumbnailManifest.mjs')) return {
@@ -190,7 +192,7 @@ test('public cleanup rejects unknown files and refuses deletion when Storage rep
 
 function hydrationHarness() {
   const h = harness();
-  const source = ts.createSourceFile('content.ts', read('src/services/supabase/contentServices.ts'), ts.ScriptTarget.Latest, true);
+  const source = ts.createSourceFile('content.ts', read('src/services/supabase/contentReaders.ts'), ts.ScriptTarget.Latest, true);
   const fn = source.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'hydrateProjects');
   const resolved = [], multipart = [];
   const { hydrate } = execute(`${fn.getText(source)}\nexports.hydrate = hydrateProjects;`, undefined, {

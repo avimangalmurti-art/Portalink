@@ -39,21 +39,22 @@ test('legacy videos are normalized on read without mutating stored file data', (
   assert.equal(original.kind, 'unknown');
   assert.equal(assets.resolveStoredMediaKind('unknown', 'layout.psd', 'image/vnd.adobe.photoshop'), 'unknown');
   assert.equal(assets.resolveStoredMediaKind('unknown', 'file', 'video/quicktime'), 'video');
-  const source = readFileSync(new URL('../src/services/supabase/contentServices.ts', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/services/supabase/contentReaders.ts', import.meta.url), 'utf8');
   assert.match(source, /kind: playback \? 'video' : resolveStoredMediaKind\(/);
 });
 
 const VideoAttachmentPlaceholder = () => null, ProcessingNotice = () => null;
 const { AttachmentRenderer } = compile('../src/components/media/AttachmentRenderer.tsx', name => {
-  if (name === 'react') return React;
+  if (name === 'react') return { ...React, lazy: load => Object.assign(() => null, { load }) };
   if (name.endsWith('/VideoAttachment')) return { VideoAttachment: VideoAttachmentPlaceholder };
   if (name.endsWith('/ProcessingNotice')) return { ProcessingNotice };
   return new Proxy({}, { get: () => () => null });
 });
-test('queued and failed conversion never blocks an available original; missing sources retain processing notice', () => {
+test('queued and failed conversion never blocks an available original; missing sources retain processing notice', async () => {
   for (const status of ['conversion-required', 'processing', 'processing-failed', 'ready']) {
     const tree = AttachmentRenderer({ attachment: { ...original, kind: 'video', status } });
-    assert.equal(tree.props.children.type, VideoAttachmentPlaceholder);
+    assert.equal(tree.props.children.type, React.Suspense);
+    assert.equal((await tree.props.children.props.children.type.load()).default, VideoAttachmentPlaceholder);
   }
   const pending = AttachmentRenderer({ attachment: { ...original, kind: 'video', status: 'processing', sourceUrl: null } });
   assert.equal(pending.props.children.type, ProcessingNotice);

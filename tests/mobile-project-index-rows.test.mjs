@@ -11,7 +11,7 @@ const ReorderGroup = () => null;
 function nodes(node) {
   return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
 }
-function harness({ presentation = 'mobile', isOwner = false, mobileLayout, publishedAt = '2026-09-14T12:00:00Z' } = {}) {
+function harness({ presentation = 'mobile', isOwner = false, mobileLayout, sharedReadOnly, publishedAt = '2026-09-14T12:00:00Z' } = {}) {
   const exports = {};
   const react = { ...React, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
     useRef: current => ({ current }), useCallback: fn => fn, useLayoutEffect() {} };
@@ -34,7 +34,7 @@ function harness({ presentation = 'mobile', isOwner = false, mobileLayout, publi
     coverKind: 'document', coverPageNumber: 3, coverAspectRatio: 0.75, coverFrame: { x: 0.4, y: 0.6, zoom: 1.2 }, publishedAt };
   const selections = [];
   const props = { projects: [project], typefaceStacks: { work: 'Custom Project Typeface' }, typefaceIds: {},
-    hiddenIds: [], pinnedIds: [], activeProjectId: 'work', isOwner, mobileLayout, mobileReorderFromMenu: true,
+    hiddenIds: [], pinnedIds: [], activeProjectId: 'work', isOwner, mobileLayout, sharedReadOnly, mobileReorderFromMenu: true,
     onSelect: id => selections.push(id), onReorder() {}, onToggleHidden() {}, onTogglePinned() {} };
   const tree = exports.ProjectIndexList(props);
   const group = nodes(tree).find(node => node.type === MobileReorderList);
@@ -76,6 +76,22 @@ test('missing and invalid publication dates are omitted without inventing metada
     const h = harness({ publishedAt });
     assert.equal(nodes(h.label).some(node => node.type === 'time'), false);
     assert.ok(nodes(h.label).some(node => node.type === ProjectCover));
+  }
+});
+
+test('shared MOBILE grid/list thumbnails are viewport-prioritized bitmaps without PDF or video fallbacks', () => {
+  for (const mobileLayout of ['list', 'grid']) {
+    const h = harness({ sharedReadOnly: true, mobileLayout });
+    const cover = nodes(h.label).find(node => node.type === ProjectCover);
+    assert.equal(cover.props.priority, 'viewport');
+    assert.equal(cover.props.allowPdfFallback, false);
+    assert.equal(cover.props.allowVideoFallback, false);
+  }
+  for (const isOwner of [true, false]) {
+    const cover = nodes(harness({ isOwner }).label).find(node => node.type === ProjectCover);
+    assert.equal(cover.props.allowPdfFallback, true);
+    assert.equal(cover.props.allowVideoFallback, true);
+    assert.equal(cover.props.priority, undefined);
   }
 });
 

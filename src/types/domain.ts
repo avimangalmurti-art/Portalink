@@ -276,6 +276,8 @@ export type Project = {
   summary: string;
   /** Canonical publication time, used for recency without inventing an age. */
   publishedAt?: string;
+  /** Published index grouping, readable without loading owner arrangement tools. */
+  isPinned?: boolean;
   /** Content-derived discovery metadata; never copied from the creator's home. */
   relevance?: ProjectRelevance;
   cover: string;

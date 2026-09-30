@@ -14,7 +14,7 @@ function execute(source, globals = {}) {
   return exports;
 }
 function serviceFunction(name, globals) {
-  const file = ts.createSourceFile('content.ts', read('src/services/supabase/contentServices.ts'), ts.ScriptTarget.Latest, true);
+  const file = ts.createSourceFile('content.ts', ['contentServices', 'contentReaders'].map(name => read(`src/services/supabase/${name}.ts`)).join('\n'), ts.ScriptTarget.Latest, true);
   const fn = file.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name);
   assert.ok(fn);
   return execute(`${fn.getText(file)}\nexports.run = ${name};`, globals).run;

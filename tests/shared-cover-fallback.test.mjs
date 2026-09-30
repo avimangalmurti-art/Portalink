@@ -59,6 +59,32 @@ test('shared cover fallback can display an existing first page without an origin
   assert.equal(original.type, 'pdf-page'); assert.equal(original.props.source, 'original.pdf'); assert.equal(original.props.pageNumber, 1);
 });
 
+test('visitor grids never open a PDF original, including a failed rendered-page cover', () => {
+  for (const props of [
+    { source: 'original.pdf', kind: 'document' },
+    { fallbackAttachments: [document()] },
+  ]) {
+    const result = harness()({ ...props, allowPdfFallback: false });
+    assert.equal(result.type, 'span');
+    assert.equal(result.props['aria-label'], 'Project artwork preview unavailable');
+  }
+  const render = harness();
+  const props = { source: 'original.pdf', kind: 'document', previewSource: 'first.webp', allowPdfFallback: false };
+  const first = render(props);
+  assert.equal(first.type, 'image');
+  assert.equal(first.props.src, 'first.webp');
+  first.props.onError();
+  assert.equal(render(props).type, 'span', 'A failed bitmap must not start a PDF worker');
+});
+
+test('visitor video covers never mount a playback element while ordinary video covers remain unchanged', () => {
+  const props = { source: 'original.mp4', kind: 'video' };
+  assert.equal(harness()(props).type, 'video');
+  const visitor = harness()({ ...props, allowVideoFallback: false });
+  assert.equal(visitor.type, 'span');
+  assert.equal(visitor.props['aria-label'], 'Project artwork preview unavailable');
+});
+
 test('explicit covers win, ordinary missing covers stay placeholders, and unavailable data is not invented', () => {
   const chosen = harness()({ source: 'chosen.png', fallbackAttachments: [image('other', 0)] });
   assert.equal(chosen.props.src, 'chosen.png');

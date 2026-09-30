@@ -23,6 +23,8 @@ function buildConfig(command, runtime) {
   const factory = execute(read('vite.config.ts').replaceAll('import.meta.url', 'configUrl'), {
     vite: { defineConfig: value => value, loadEnv: () => ({ VITE_RUNTIME_MODE: runtime }) },
     'node:url': { fileURLToPath },
+    'node:fs': { mkdirSync() {}, writeFileSync() {} },
+    './scripts/shared-profile-preload.mjs': { sharedProfilePreloadPlugin: () => ({}) },
     '@vitejs/plugin-react': { default: () => ({}) , __esModule: true },
     '@openai/sites-vite-plugin': { sites: () => ({}) },
   }, { configUrl: new URL('../vite.config.ts', import.meta.url).href, URL, process: { cwd: () => root } }).default;
@@ -47,7 +49,7 @@ test('the production startup graph excludes mock identities, seed imagery and un
   function visit(file) {
     if (visited.has(file)) return;
     visited.add(file);
-    if (!/\.[jt]sx?$/.test(file)) return;
+    if (!/\.[m]?[jt]sx?$/.test(file)) return;
     const ast = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
     for (const node of ast.statements) {
       if (!ts.isImportDeclaration(node) && !ts.isExportDeclaration(node)) continue;
@@ -59,7 +61,7 @@ test('the production startup graph excludes mock identities, seed imagery and un
       if (!specifier.startsWith('.') || /\.css$/.test(specifier)) continue;
       const alias = aliases.find(item => item.find.test(specifier));
       const base = alias?.replacement ?? resolve(dirname(file), specifier);
-      const target = ['', '.ts', '.tsx', '.js', '.json', '/index.ts', '/index.tsx'].map(extension => base + extension).find(candidate => existsSync(candidate) && /\.[jt]sx?$|\.json$/.test(candidate));
+      const target = ['', '.ts', '.tsx', '.js', '.mjs', '.json', '/index.ts', '/index.tsx'].map(extension => base + extension).find(candidate => existsSync(candidate) && /\.[m]?[jt]sx?$|\.json$/.test(candidate));
       assert.ok(target, `Cannot resolve ${specifier} from ${relative(root, file)}`);
       visit(target);
     }

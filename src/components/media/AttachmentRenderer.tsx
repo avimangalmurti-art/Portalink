@@ -1,125 +1,106 @@
-import React from 'react';
-import { AudioPlayer } from '../profile/AudioPlayer';
-import { PdfViewer } from '../profile/PdfViewer';
+import React, { lazy, Suspense } from 'react';
 import { MediaFrame } from './MediaFrame';
 import { ImageAttachment } from './ImageAttachment';
-import { AudioAttachment } from './AudioAttachment';
-import { DocumentAttachment } from './DocumentAttachment';
-import { VideoAttachment } from './VideoAttachment';
-import { ModelAttachment } from './ModelAttachment';
 import { GenericFileCard } from './GenericFileCard';
 import { ProcessingNotice } from './ProcessingNotice';
+import { LoadingState } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import type { PdfDocument } from './PdfPage';
 
-/**
- * The one place an attachment becomes a presentation.
- *
- * It reads `attachment.kind` and nothing else — no category, no region, no
- * filename inspection — so the same file renders identically wherever it is
- * filed. New renderers are added here; category pages never learn about them.
- */
+// A file's renderer is fetched only after that media kind is actually opened.
+// Image projects never initialize document, playback or model-viewer code.
+const AudioAttachment = lazy(() => import('./AudioAttachment').then(module => ({ default: module.AudioAttachment })));
+const AudioPlayer = lazy(() => import('../profile/AudioPlayer').then(module => ({ default: module.AudioPlayer })));
+const DocumentAttachment = lazy(() => import('./DocumentAttachment').then(module => ({ default: module.DocumentAttachment })));
+const PdfViewer = lazy(() => import('../profile/PdfViewer').then(module => ({ default: module.PdfViewer })));
+const VideoAttachment = lazy(() => import('./VideoAttachment').then(module => ({ default: module.VideoAttachment })));
+const ModelAttachment = lazy(() => import('./ModelAttachment').then(module => ({ default: module.ModelAttachment })));
+
+type AttachmentRendererProps = {
+  projectId: string;
+  attachment: ProjectAttachment;
+  videoActive?: boolean;
+  /** Every image in project order, so a multi-image piece stays one viewer. */
+  imagePages?: ProjectAttachment[];
+  imageColumns?: number;
+  projectTitle: string;
+  /** Separately uploaded artwork for an audio project. */
+  artwork?: { url: string; alt: string };
+  processing?: {
+    state: ProjectAttachment['status']; message: string | null;
+    canRetry: boolean; isRetrying: boolean; onRetry: () => void;
+  };
+  onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void;
+  onPreviewDocument?: (document: PdfDocument | null) => void;
+  onFocusModeChange?: (focused: boolean) => void;
+  controlsVisible?: boolean;
+  showMediaInteractions?: boolean;
+  isOwner?: boolean;
+  /** Public reading history stays separate from the signed-in workspace. */
+  memoryScope?: string;
+  pageViewToggleRequest?: number;
+  onClose: () => void;
+};
+
+/** The shared media-kind boundary; categories never choose a file's renderer. */
 export function AttachmentRenderer({
-  projectId,
-  attachment,
-  imagePages,
-  imageColumns,
-  projectTitle,
-  artwork,
-  processing,
-  onDocumentPageCountResolved,
-  onPreviewDocument,
-  onFocusModeChange,
-  controlsVisible,
-  videoActive,
-  showMediaInteractions = true,
-  isOwner = false,
-  memoryScope = 'workspace',
-  pageViewToggleRequest = 0,
-  onClose
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}: {projectId: string;attachment: ProjectAttachment;videoActive?: boolean; /**
-   * Every image the project holds, in order. A multi-image piece is ONE piece,
-   * so it is read as stacked pages rather than as separate files. Absent falls
-   * back to the active attachment alone.
-   */imagePages?: ProjectAttachment[]; /** How many image pages sit side by side. Presentation only. */imageColumns?: number;projectTitle: string; /**
-   * An image the project uploaded separately, used as the cover when the file being
-   * played is audio. Absent when the project holds no image.
-   */artwork?: {url: string;alt: string;}; /**
-   * The live processing state for this asset, when the service has been asked.
-   * Absent falls back to the record's own state.
-   */processing?: {state: ProjectAttachment['status'];message: string | null;canRetry: boolean;isRetrying: boolean;onRetry: () => void;}; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void;onPreviewDocument?: (document: PdfDocument | null) => void; /** Lets the surrounding project viewer become immersive while one page is isolated. */onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean; /** Public presentation links omit account engagement entirely. */showMediaInteractions?: boolean; /** True when the authenticated profile owns the project. */isOwner?: boolean; /** Keeps public-share history separate from the signed-in workspace. */memoryScope?: string; /** A new value toggles overview and the last focused page. */pageViewToggleRequest?: number;onClose: () => void;}) {// The title reads as the work when the project holds a single file, and as
-  // the file when it holds several.
-  const title = attachment.displayName || projectTitle;const state = processing?.state ?? attachment.status; /**
-   * A stored asset whose derived preview does not exist yet. Rendering a viewer
-   * here would present an empty frame as though a preview had been produced, so
-   * the state is stated instead — for either outcome, and never conflated with an
-   * upload failure.
-   */const canShowOriginalPdf = attachment.kind === 'document' && Boolean(attachment.sourceUrl);
-  const canShowVideo = attachment.kind === 'video' && Boolean(attachment.metadata?.playbackVideo?.sourceUrl
-    || attachment.sourceUrl);
-  if ((state === 'processing' || state === 'processing-failed') && !canShowOriginalPdf && !canShowVideo) {return <MediaFrame>
-        <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null} canRetry={isOwner && (processing?.canRetry ?? false)} isRetrying={processing?.isRetrying ?? false} onRetry={processing?.onRetry ?? (() => undefined)} />
-      </MediaFrame>;}switch (attachment.kind) {case 'audio': // A real file plays natively; seeded work with no file keeps the
-      // synthetic player and its derived length.
-      return attachment.sourceUrl ? <MediaFrame>
-          <AudioAttachment attachment={attachment} />
-        </MediaFrame> : <AudioPlayer fileName={title} duration={attachment.metadata?.durationSeconds ?? 0} artworkUrl={artwork?.url} artworkAlt={artwork?.alt} onClose={onClose} />;case 'document':
-      // A real document is shown as itself; seeded work keeps the paginated view.
-      return attachment.sourceUrl ? <MediaFrame>
-          <DocumentAttachment attachment={attachment} columns={imageColumns} processing={state === 'processing' || state === 'processing-failed' ? {
-          state,
-          message: processing?.message ?? null,
-          canRetry: processing?.canRetry ?? false,
-          isRetrying: processing?.isRetrying ?? false,
-          onRetry: processing?.onRetry ?? (() => undefined)
-        } : undefined} projectId={projectId} onPageCountResolved={(pageCount) => onDocumentPageCountResolved?.(attachment.id, pageCount)} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope} pageViewToggleRequest={pageViewToggleRequest} />
-        </MediaFrame> : <PdfViewer fileName={title} pageCount={attachment.metadata?.pageCount ?? 6} onClose={onClose} />;
+  projectId, attachment, imagePages, imageColumns, projectTitle, artwork, processing,
+  onDocumentPageCountResolved, onPreviewDocument, onFocusModeChange, controlsVisible,
+  videoActive, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace',
+  pageViewToggleRequest = 0, onClose,
+}: AttachmentRendererProps) {
+  const title = attachment.displayName || projectTitle;
+  const state = processing?.state ?? attachment.status;
+  const canShowOriginalPdf = attachment.kind === 'document' && Boolean(attachment.sourceUrl);
+  const canShowVideo = attachment.kind === 'video' && Boolean(attachment.metadata?.playbackVideo?.sourceUrl || attachment.sourceUrl);
+  // An original PDF or playable video remains available during processing.
+  // Other files state the confirmed processing result instead of an empty viewer.
+  if ((state === 'processing' || state === 'processing-failed') && !canShowOriginalPdf && !canShowVideo) {
+    return <MediaFrame>
+      <ProcessingNotice attachment={attachment} state={state} message={processing?.message ?? null}
+        canRetry={isOwner && (processing?.canRetry ?? false)} isRetrying={processing?.isRetrying ?? false}
+        onRetry={processing?.onRetry ?? (() => undefined)} />
+    </MediaFrame>;
+  }
+  const loading = <LoadingState label={`Loading ${title}…`} />;
+  switch (attachment.kind) {
+    case 'audio':
+      // Real files use native audio; existing seeded work keeps its synthetic player.
+      return attachment.sourceUrl ? <MediaFrame><Suspense fallback={loading}>
+        <AudioAttachment attachment={attachment} />
+      </Suspense></MediaFrame> : <Suspense fallback={<MediaFrame>{loading}</MediaFrame>}>
+        <AudioPlayer fileName={title} duration={attachment.metadata?.durationSeconds ?? 0}
+          artworkUrl={artwork?.url} artworkAlt={artwork?.alt} onClose={onClose} />
+      </Suspense>;
+    case 'document':
+      return attachment.sourceUrl ? <MediaFrame><Suspense fallback={loading}>
+        <DocumentAttachment attachment={attachment} columns={imageColumns}
+          processing={state === 'processing' || state === 'processing-failed' ? {
+            state, message: processing?.message ?? null, canRetry: processing?.canRetry ?? false,
+            isRetrying: processing?.isRetrying ?? false, onRetry: processing?.onRetry ?? (() => undefined),
+          } : undefined}
+          projectId={projectId} onPageCountResolved={pageCount => onDocumentPageCountResolved?.(attachment.id, pageCount)}
+          onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible}
+          showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope}
+          pageViewToggleRequest={pageViewToggleRequest} />
+      </Suspense></MediaFrame> : <Suspense fallback={<MediaFrame>{loading}</MediaFrame>}>
+        <PdfViewer fileName={title} pageCount={attachment.metadata?.pageCount ?? 6} onClose={onClose} />
+      </Suspense>;
     case 'image':
       return <MediaFrame>
-          <ImageAttachment projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]} columns={imageColumns} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope} pageViewToggleRequest={pageViewToggleRequest} />
-        </MediaFrame>;
+        <ImageAttachment projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]}
+          columns={imageColumns} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible}
+          showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope}
+          pageViewToggleRequest={pageViewToggleRequest} />
+      </MediaFrame>;
     case 'video':
-      return <MediaFrame>
-          <VideoAttachment attachment={attachment} active={videoActive} conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
-        </MediaFrame>;
+      return <MediaFrame><Suspense fallback={loading}>
+        <VideoAttachment attachment={attachment} active={videoActive}
+          conversion={processing ? { ...processing, canRetry: isOwner && processing.canRetry } : undefined} />
+      </Suspense></MediaFrame>;
     case 'model3d':
-      return <MediaFrame>
-          <ModelAttachment attachment={attachment} />
-        </MediaFrame>;
+      return <MediaFrame><Suspense fallback={loading}><ModelAttachment attachment={attachment} /></Suspense></MediaFrame>;
     default:
-      return <MediaFrame>
-          <GenericFileCard attachment={attachment} />
-        </MediaFrame>;
+      return <MediaFrame><GenericFileCard attachment={attachment} /></MediaFrame>;
   }
 }

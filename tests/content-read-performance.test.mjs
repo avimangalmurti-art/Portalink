@@ -4,10 +4,10 @@ import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
 
-const text = readFileSync(new URL('../src/services/supabase/contentServices.ts', import.meta.url), 'utf8');
+const text = ['contentServices', 'contentReaders', 'projectReaders'].map(name => readFileSync(new URL(`../src/services/supabase/${name}.ts`, import.meta.url), 'utf8')).join('\n');
 const source = ts.createSourceFile('content.ts', text, ts.ScriptTarget.Latest, true);
 const fn = name => source.statements.find(n => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(source);
-const methods = (service, names) => source.statements.flatMap(n => ts.isVariableStatement(n) ? [...n.declarationList.declarations] : []).find(n => n.name.getText(source) === service).initializer.properties.filter(n => names.includes(n.name?.getText(source))).map(n => n.getText(source)).join(',\n');
+const methods = (service, names) => source.statements.flatMap(n => ts.isVariableStatement(n) ? [...n.declarationList.declarations] : []).filter(n => [service, service.replace('Service', 'ReadService')].includes(n.name.getText(source))).flatMap(n => n.initializer.properties).filter(n => names.includes(n.name?.getText(source))).map(n => n.getText(source)).join(',\n');
 const plain = value => JSON.parse(JSON.stringify(value));
 function contentFixture({ hiddenCategory = false, owner = false } = {}) {
   const queries = [], hydration = [], signals = [];

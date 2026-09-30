@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ProfileDataProvider } from "./contexts/ProfileDataContext";
 import { EngagementProvider } from "./contexts/EngagementContext";
 import { ApplicationBootstrap } from "./app/ApplicationBootstrap";
+import { services } from "./services";
 
 const rootEl = document.getElementById("root");
 if (rootEl) {
@@ -17,7 +18,7 @@ if (rootEl) {
   // everything: the shell derives its destination from the location rather than
   // maintaining a second navigation state machine.
   ReactDOM.createRoot(rootEl).render(<BrowserRouter>
-      <ServicesProvider>
+      <ServicesProvider services={services}>
         <AuthProvider>
           <ProfileDataProvider>
             {/* Engagement is one record per project for the whole app, so a like

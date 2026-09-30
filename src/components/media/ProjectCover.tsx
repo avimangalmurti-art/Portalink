@@ -1,7 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { FileIcon } from 'lucide-react';
 import type { Project, ProjectAttachment, ProjectCoverFrame, ProjectCoverThumbnail } from '../../types/domain';
-import { ResponsiveImage } from '../ui/ResponsiveImage';
+import { ResponsiveImage, type ImagePriority } from '../ui/ResponsiveImage';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
 import { coverThumbnailSources } from '../../features/media/coverThumbnailSources';
@@ -19,7 +19,11 @@ type ProjectCoverProps = {
   className?: string;
   aspectRatio?: number;
   sizes?: string;
-  priority?: boolean;
+  priority?: ImagePriority;
+  /** Visitor grids show existing bitmaps or a placeholder, never a live PDF. */
+  allowPdfFallback?: boolean;
+  /** Visitor grids defer original video playback until the project is opened. */
+  allowVideoFallback?: boolean;
   frame?: ProjectCoverFrame;
   pageNumber?: number;
   onDocumentPageCountChange?: (pageCount: number) => void;
@@ -56,6 +60,8 @@ export function ProjectCover({
   aspectRatio: chosenAspectRatio,
   sizes,
   priority = false,
+  allowPdfFallback = true,
+  allowVideoFallback = true,
   frame,
   pageNumber: chosenPageNumber = 1,
   onDocumentPageCountChange,
@@ -73,7 +79,7 @@ export function ProjectCover({
   const storedImage = coverThumbnailSources(thumbnail);
   useEffect(() => setImageFailed(false), [source, storedImage?.src]);
   useEffect(() => setPreviewFailed(false), [source, previewSource]);
-  const placeholder = <span role="img" aria-label={imageFailed || thumbnail ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
+  const placeholder = <span role="img" aria-label={imageFailed || thumbnail || (kind === 'document' && !allowPdfFallback) || (kind === 'video' && !allowVideoFallback) ? `${alt} preview unavailable` : `${alt} has no cover`} className={`flex h-full w-full items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)] ${className}`}>
         <InterfaceIcon icon={FileIcon} size="xl" weight="medium" />
       </span>;
   if (thumbnail) {
@@ -93,6 +99,8 @@ export function ProjectCover({
   const safeRatio = aspectRatio && Number.isFinite(aspectRatio) && aspectRatio > 0 ? aspectRatio : 1;
   const useDocumentPreview = kind === 'document' && Boolean(previewSource) && !previewFailed;
   const renderPdf = kind === 'document' && !useDocumentPreview;
+  if (renderPdf && !allowPdfFallback) return placeholder;
+  if (kind === 'video' && !allowVideoFallback) return placeholder;
   const content = renderPdf
     ? <Suspense fallback={placeholder}><PdfPage source={source} label={`${alt}, PDF cover`} pageNumber={pageNumber} onPageCountChange={onDocumentPageCountChange} fit={normalizedFrame ? 'cover' : 'contain'} objectPosition={objectPosition} className="h-full w-full" /></Suspense>
     : kind === 'video'

@@ -1,4 +1,4 @@
-import { isSharedPreviewPath, prefersHtml, withSharedPreview } from './server/sharedPreview';
+import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -46,6 +46,10 @@ const JSON_HEADERS = {
   'cache-control': 'no-store',
   'x-content-type-options': 'nosniff',
 }
+
+// Link-preview crawlers still receive the existing public metadata. Browser
+// visitors get the shell immediately so its preload can overlap module loading.
+const LINK_PREVIEW_CRAWLER = /(?:facebookexternalhit|facebot|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|TelegramBot|SkypeUriPreview|Pinterestbot|Googlebot|bingbot|Applebot)/i;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS })
@@ -356,9 +360,11 @@ const worker = {
 
     const accept = request.headers.get('accept') ?? ''
     const asset = url.pathname.startsWith('/assets/');
-    const shared = isSharedPreviewPath(url.pathname);
+    // Every shared path belongs to the visitor entry, including its not-found
+    // state. Metadata lookups retain their stricter canonical route validation.
+    const shared = url.pathname.startsWith('/share/');
     const navigation = (request.method === 'GET' || request.method === 'HEAD') && !asset && (shared ? prefersHtml(accept) : accept.includes('text/html'));
-    const assetRequest = navigation ? new Request(new URL('/', request.url), request) : request;
+    const assetRequest = navigation ? new Request(new URL(shared ? '/share.html' : '/', request.url), request) : request;
     if (navigation && shared) {
       assetRequest.headers.delete('if-none-match');
       assetRequest.headers.delete('if-modified-since');
@@ -372,9 +378,11 @@ const worker = {
     if (response.ok && asset && /-[\w-]{8,}\.[a-z\d]+$/i.test(url.pathname)) {
       headers.set('cache-control', 'public, max-age=31536000, immutable');
     } else if (navigation || response.headers.get('content-type')?.includes('text/html')) {
-      headers.set('cache-control', 'no-cache');
+      headers.set('cache-control', navigation && shared ? 'private, no-store' : 'no-cache');
     }
-    return withSharedPreview(new Response(response.body, { status: response.status, statusText: response.statusText, headers }), request, {
+    const shell = new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
+    return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,
     });
   },
