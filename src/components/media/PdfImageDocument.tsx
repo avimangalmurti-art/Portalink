@@ -252,7 +252,7 @@ function PdfImagePage({
     role={isFocused ? undefined : 'button'}
     tabIndex={isFocused ? undefined : 0}
     aria-pressed={isFocused ? undefined : false}
-    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Double-click or double-tap to fill the viewer'}`}
+    aria-label={`${label}, page ${pageNumber}. ${isFocused ? 'Single-page view' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`}
     aria-busy={status === 'waiting' || status === 'loading' || (retainCanvasWhileLoading && paintedPageNumber !== pageNumber)}
     onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })}
     onDoubleClick={isFocused ? undefined : (event) => {
@@ -360,6 +360,11 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
   const zoom = useSinglePageZoom({
     surfaceRef: scrollRootRef,
     active: focusedPageNumber !== null,
+    onEnter: (pageNumber, nextZoom) => {
+      if (pageNumber > pageCount) return;
+      updateViewerMemory(`${memoryKey}:page:${pageNumber}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      focusPage(pageNumber);
+    },
     onExit: exitFocus,
     memoryKey: focusedPageNumber ? `${memoryKey}:page:${focusedPageNumber}` : memoryKey
   });

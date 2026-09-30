@@ -321,7 +321,7 @@ export function ProjectMediaViewer({
   const lastDensityStepRef = useRef(0);
   const densityCommitTimerRef = useRef<number | null>(null);
   const densityCommitCallbackRef = useRef(onPagesPerRowCommit);
-  const densityPinchRef = useRef<{ distance: number; pages: number; next: number; motion: ContentPinchMotion | null } | null>(null);
+  const densityPinchRef = useRef<{ distance: number; origin: { x: number; y: number }; pages: number; next: number; motion: ContentPinchMotion | null } | null>(null);
   const densitySettleRef = useRef<ContentPinchMotion | null>(null);
   useLayoutEffect(() => {
     densitySettleRef.current?.settle();
@@ -344,8 +344,8 @@ export function ProjectMediaViewer({
    * The work surface itself is the density instrument for touch or trackpad
    * pinches. Browsers expose a trackpad pinch as a wheel event with `ctrlKey`;
    * an ordinary two-finger vertical swipe has no modifier and must remain native
-   * page scrolling. Pinching inward reveals more, smaller pages and pinching
-   * outward reveals fewer, larger pages. The listener is non-passive so only the
+   * page scrolling. Pinching inward reveals more, smaller pages; page renderers
+   * claim an outward gesture to enter single-page zoom. The listener is non-passive so only the
    * recognized pinch can be contained inside the 1–9 density range instead of
    * also zooming the browser page.
    */
@@ -389,15 +389,18 @@ export function ProjectMediaViewer({
     const handleTouchStart = (event: TouchEvent) => {
       densityPinchRef.current?.motion?.cancel();
       const distance = pinchDistance(event.touches);
-      densityPinchRef.current = distance === null ? null : { distance, pages: normalizedPagesPerRow, next: normalizedPagesPerRow,
-        motion: isMobileViewer ? beginContentPinch(surface, touchMidpoint(event.touches)) : null };
+      densityPinchRef.current = distance === null ? null : { distance, origin: touchMidpoint(event.touches), pages: normalizedPagesPerRow, next: normalizedPagesPerRow,
+        motion: null };
     };
     const handleTouchMove = (event: TouchEvent) => {
       const pinch = densityPinchRef.current;
       const distance = pinchDistance(event.touches);
       if (!pinch || distance === null) return;
       if (event.cancelable) event.preventDefault();
-      if (isMobileViewer) pinch.motion?.update(Math.min(pinch.pages, Math.max(pinch.pages / 9, distance / pinch.distance)), touchMidpoint(event.touches));
+      if (isMobileViewer) {
+        pinch.motion ??= beginContentPinch(surface, pinch.origin);
+        pinch.motion?.update(Math.min(pinch.pages, Math.max(pinch.pages / 9, distance / pinch.distance)), touchMidpoint(event.touches));
+      }
       const next = normalizePagesPerRow(isMobileViewer ? pinch.pages * pinch.distance / distance : pinch.pages - pinchSteps(distance, pinch.distance));
       if (next === pinch.next) return;
       pinch.next = next;

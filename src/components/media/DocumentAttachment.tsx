@@ -122,6 +122,13 @@ export function DocumentAttachment({
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPageIndex !== null,
+    entryReady: renderedPages.length > 0,
+    onEnter: (pageNumber, nextZoom) => {
+      const index = pageNumber - 1;
+      if (!renderedPages[index]) return;
+      updateViewerMemory(`${memoryKey}:page:${index}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      focusPage(index);
+    },
     onExit: exitFocus,
     memoryKey: focusedPageIndex !== null ? `${memoryKey}:page:${focusedPageIndex}` : memoryKey
   });
@@ -186,7 +193,7 @@ export function DocumentAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Double-click or double-tap to fill the viewer'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);

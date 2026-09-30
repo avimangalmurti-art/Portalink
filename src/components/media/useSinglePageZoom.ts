@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { usePresentation } from '../../presentation/usePresentation';
 import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
+import { installPageZoomEntry } from './pageZoomEntry';
 
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
@@ -31,11 +32,15 @@ type PendingZoomAnchor = {
 export function useSinglePageZoom({
   surfaceRef,
   active,
+  onEnter,
+  entryReady = true,
   onExit,
   memoryKey
 }: {
   surfaceRef: RefObject<HTMLElement | null>;
   active: boolean;
+  onEnter?: (pageNumber: number, zoom: number) => void;
+  entryReady?: boolean;
   onExit: () => void;
   memoryKey?: string;
 }) {
@@ -48,8 +53,16 @@ export function useSinglePageZoom({
   const settlingMotionRef = useRef<ContentPinchMotion | null>(null);
   const pendingAnchorRef = useRef<PendingZoomAnchor | null>(null);
   const onExitRef = useRef(onExit);
+  const onEnterRef = useRef(onEnter);
 
   onExitRef.current = onExit;
+  onEnterRef.current = onEnter;
+
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (active || !entryReady || !surface || !onEnterRef.current) return;
+    return installPageZoomEntry(surface, (page, nextZoom) => onEnterRef.current?.(page, nextZoom));
+  }, [active, entryReady, memoryKey, surfaceRef]);
 
   const setZoom = useCallback((next: number, clientX?: number, clientY?: number) => {
     const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
@@ -104,7 +117,7 @@ export function useSinglePageZoom({
 
   useEffect(() => {
     const surface = surfaceRef.current;
-    if (!active || !surface) {
+    if (!active || !entryReady || !surface) {
       return undefined;
     }
 
@@ -158,7 +171,7 @@ export function useSinglePageZoom({
 
       exitPullRef.current = 0;
       const requestedZoom = zoomRef.current * Math.exp(-delta * WHEEL_ZOOM_SENSITIVITY);
-      setZoom(requestedZoom <= MIN_ZOOM + 0.012 ? MIN_ZOOM : requestedZoom, event.clientX, event.clientY);
+      setZoom(delta > 0 && requestedZoom <= MIN_ZOOM + 0.012 ? MIN_ZOOM : requestedZoom, event.clientX, event.clientY);
     };
     const handleTouchStart = (event: TouchEvent) => {
       pinchStartRef.current?.motion?.cancel();
@@ -228,7 +241,7 @@ export function useSinglePageZoom({
       surface.removeEventListener('touchcancel', handleTouchEnd);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [active, memoryKey, setZoom, surfaceRef, isMobile]);
+  }, [active, entryReady, memoryKey, setZoom, surfaceRef, isMobile]);
 
   return zoom;
 }

@@ -220,6 +220,12 @@ export function ImageAttachment({
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
+    onEnter: (pageNumber, nextZoom) => {
+      const page = pages[pageNumber - 1];
+      if (!page) return;
+      updateViewerMemory(`${memoryKey}:${page.id}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      focusPage(page.id);
+    },
     onExit: exitFocus,
     memoryKey: focusedPage ? `${memoryKey}:${focusedPage.id}` : memoryKey
   });
@@ -291,7 +297,7 @@ export function ImageAttachment({
     columnPages[index % columnCount].push(attachment);
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
-  return <div className="premium-media-mode-enter relative h-full w-full">
+  return <div ref={zoomSurfaceRef} className="premium-media-mode-enter relative h-full w-full">
       <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0">
       {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-[2px]">
           {/* The pages themselves stay list items, so a screen reader still hears
