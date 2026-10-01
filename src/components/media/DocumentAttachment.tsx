@@ -42,7 +42,7 @@ export function DocumentAttachment({
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
-  pageViewToggleRequest = 0, readingMode = false, readerPageRequest = null, onReaderRequestHandled,
+  pageViewToggleRequest = 0, readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled,
 
 
 }: {
@@ -58,6 +58,7 @@ export function DocumentAttachment({
   memoryScope?: string;
   pageViewToggleRequest?: number;
   readingMode?: boolean;
+  verticalReading?: boolean;
   readerPageRequest?: {page:number; sequence:number} | null;
   onReaderRequestHandled?: (sequence:number) => void;
   processing?: {
@@ -79,7 +80,7 @@ export function DocumentAttachment({
     attachment.metadata?.pageCount ?? 0
   );
   const [hasFailed, setHasFailed] = useState(false);
-  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => deepLinkedDocumentPage(attachment.id)
+  const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => verticalReading ? null : deepLinkedDocumentPage(attachment.id)
     ?? readViewerMemory(memoryKey).focusedPageNumber
     ?? (readingMode ? 0 : null));
   const [paintedReaderPage, setPaintedReaderPage] = useState<string | null>(null);
@@ -94,6 +95,7 @@ export function DocumentAttachment({
     }
   }, [knownPageCount, onPageCountResolved]);
   useEffect(() => {
+    if (verticalReading) { setFocusedPageIndex(null); lastTouchRef.current = null; return; }
     const linkedPage = deepLinkedDocumentPage(attachment.id, renderedPages.length);
     if (linkedPage !== null) {
       setFocusedPageIndex(linkedPage);
@@ -104,7 +106,7 @@ export function DocumentAttachment({
     const rememberedPage = readingMode && typeof livePage === 'number' ? livePage-1 : readViewerMemory(memoryKey).focusedPageNumber;
     setFocusedPageIndex(typeof rememberedPage === 'number' && rememberedPage >= 0 && rememberedPage < renderedPages.length ? rememberedPage : readingMode ? 0 : null);
     lastTouchRef.current = null;
-  }, [attachment.id, memoryKey, liveDocumentMemoryKey, renderedPages.length, readingMode]);
+  }, [attachment.id, memoryKey, liveDocumentMemoryKey, renderedPages.length, readingMode, verticalReading]);
   useEffect(() => {setPaintedReaderPage(null);},[focusedPageIndex]);
   const focusPage = useCallback((index: number) => {
     setFocusedPageIndex(index);
@@ -160,7 +162,8 @@ export function DocumentAttachment({
   useEffect(() => {
     if (focusedPageIndex !== null) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPageIndex]);
-  useDocumentReadingScroll(isMobile && focusedPageIndex === null && renderedPages.length > 0, zoomSurfaceRef, memoryKey);
+  const linkedPage = deepLinkedDocumentPage(attachment.id, renderedPages.length);
+  useDocumentReadingScroll(isMobile && focusedPageIndex === null && renderedPages.length > 0, zoomSurfaceRef, memoryKey, verticalReading && linkedPage !== null ? linkedPage + 1 : null);
   const restoreFocusedScroll = useCallback(() => {
     if (isMobile && focusedPageIndex === null) return;
     const root = zoomSurfaceRef.current;
@@ -252,8 +255,8 @@ export function DocumentAttachment({
                 markRumPdf(viewTokenRef.current);
                 if (isMobile && focusedPageIndex === index) restoreFocusedScroll();
               }}
-              className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
-              style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: readingMode ? 'auto' : `${zoom * 100}%`, flexShrink: readingMode ? 0 : undefined } : undefined}
+              className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : verticalReading ? 'h-auto w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
+              style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: readingMode || verticalReading ? 'auto' : `${zoom * 100}%`, flexShrink: readingMode || verticalReading ? 0 : undefined } : undefined}
             />
             {showMediaInteractions && !isMobile && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
@@ -269,7 +272,7 @@ export function DocumentAttachment({
           pageIndex: focusedPageIndex,
           label: attachment.displayName
         }} /> : null}
-      </div> : <PdfImageDocument readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
+      </div> : <PdfImageDocument verticalReading={verticalReading} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} projectId={projectId} attachmentId={attachment.id} source={attachment.sourceUrl} label={attachment.displayName} columns={columns} onError={handlePdfFailure} onPageCount={onPageCountResolved} onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} memoryKey={liveDocumentMemoryKey} controlsVisible={controlsVisible} showMediaInteractions={showMediaInteractions} isOwner={isOwner} pageViewToggleRequest={pageViewToggleRequest} />}
       {/* The original PDF is already usable here, so a queued/processing job
           does not need a persistent footer. A genuine preview failure remains
           visible because it is actionable and may offer a retry. */}

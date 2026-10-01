@@ -2661,18 +2661,40 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   align-items: center;
   gap: var(--mobile-control-gap);
   border-radius: 28px;
-  overflow: hidden;
+  overflow: visible;
 }
-/* Only the action stack scrolls on short screens; its toggle stays beside the
-   project-list button at the same coordinates in both open and closed states. */
-[data-presentation='mobile'] [data-mobile-engagement-content] {
-  flex: 0 1 auto;
-  min-height: 0;
-  width: var(--mobile-control-target);
-  overflow-y: auto;
+/* Engagement opens as its own horizontal capsule above the fixed controls.
+   The opener and project-list button keep their positions while it is open. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-engagement-content] {
+  position: absolute;
+  bottom: calc(100% + var(--mobile-control-group-gap));
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--mobile-control-group-gap);
+  width: max-content;
+  max-width: calc(100vw - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end));
+  padding: var(--mobile-control-inset);
+  border-radius: 999px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: var(--navigation-shadow);
+  -webkit-backdrop-filter: var(--navigation-blur);
+  backdrop-filter: var(--navigation-blur);
+  overflow-x: auto;
   scrollbar-width: none;
 }
-[data-presentation='mobile'] [data-mobile-engagement-content][hidden] { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-engagement-content][hidden] { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-engagement-content] .side-panel-navigation-list {
+  flex-direction: row;
+  flex-shrink: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-response-rail][data-rail-expanded='false'] [data-mobile-engagement-content] [data-project-rail-actions] {
+  margin: 0;
+  padding: 0 0 0 var(--mobile-control-group-gap);
+  border-top: 0;
+  border-left: 1px solid var(--navigation-border);
+}
 [data-presentation='mobile'] .mobile-project-engagement-toggle {
   display: flex;
   flex: 0 0 var(--mobile-control-target);
@@ -2987,6 +3009,15 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
   padding-top: var(--mobile-content-safe-top);
 }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) .premium-media-mode-enter {
+  padding-inline: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-project-stage] {
+  padding-top: calc(var(--mobile-content-safe-top) + var(--mobile-control-edge) + var(--mobile-control-size) + 18px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-document-reader-header] {
+  position: fixed;
+}
 /* Focused readers keep the same canvas at the status/home-indicator edges.
    Their footer clears the shared account bar, including enlarged text. */
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
@@ -3020,6 +3051,38 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 #root .codex-shell[data-presentation='mobile'] .mobile-context-button svg { color: inherit !important; }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-floating { position: fixed; z-index: 45; left: var(--mobile-navigation-inset-start); bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px); width: var(--mobile-control-size); }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-floating button { height: var(--mobile-control-size); }
+/* The reader's standalone Actions control uses the same glass and baseline as
+   its portal button. The normal five-destination dock keeps its own styling. */
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]:not(.screen-exit *)) .mobile-context-floating {
+  bottom: var(--mobile-project-actions-bottom);
+}
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]:not(.screen-exit *)) .mobile-context-floating .mobile-context-button {
+  --navigation-item-rest-surface: var(--navigation-surface);
+  --navigation-item-shadow: var(--navigation-shadow);
+  background: var(--navigation-item-surface, var(--navigation-item-rest-surface)) !important;
+  color: var(--navigation-item-foreground, var(--navigation-foreground)) !important;
+  box-shadow: var(--navigation-item-shadow) !important;
+  -webkit-backdrop-filter: var(--navigation-blur);
+  backdrop-filter: var(--navigation-blur);
+}
+#root .codex-shell[data-presentation='mobile']:has([data-mobile-project-view]:not(.screen-exit *)) .mobile-context-floating .mobile-context-button:active {
+  --navigation-item-surface: var(--navigation-pressed-surface);
+  --navigation-item-foreground: var(--navigation-pressed-foreground);
+}
+/* The document scrolls in the continuous reader; focused media and its index
+   can scroll internally. Hide only their indicators, never scrolling itself. */
+html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
+html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view],
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] * {
+  scrollbar-width: none;
+}
+html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body::-webkit-scrollbar,
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]::-webkit-scrollbar,
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] *::-webkit-scrollbar {
+  display: none;
+}
 [data-presentation='mobile'] .mobile-context-hint { position: absolute; bottom: calc(100% + 10px); left: 0; padding: 8px 12px; border-radius: 12px; width: max-content; max-width: 220px; font-size: 12px; background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 2px 12px rgb(0 0 0 / 14%); pointer-events: none; }
 [data-presentation='mobile'] .mobile-context-notice { position: fixed; z-index: 110; inset-inline: 16px; top: max(16px, env(safe-area-inset-top)); border: 1px solid var(--hairline); border-radius: 16px; padding: 12px; background: var(--surface-raised); color: var(--text-primary); }
 [data-presentation='mobile'] .mobile-context-notice button { float: right; min-width: 44px; min-height: 44px; }
@@ -3028,7 +3091,7 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 [data-presentation='mobile'] .mobile-project-page-counter[hidden] { display: none !important; }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-floating:where(body:has([aria-modal='true']) *) { visibility: hidden; }
 
-/* Phone document reader: one width-fitted page; navigation remains reachable
+/* Phone document reader: width-fitted pages; navigation remains reachable
    during paint. Only document pages opt into this header and progress strip. */
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] {
   position: absolute; z-index: 45; top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
@@ -3050,7 +3113,6 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-value { background: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-moz-progress-bar { background: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] .mobile-page-thumbnails { top: calc(100% + 16px); left: 0; bottom: auto; max-height: 60dvh; }
-#root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-mobile-focused-view] { padding-top: calc(var(--focused-control-top) + var(--mobile-control-size) + 18px); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-focused-page-scroll] { align-items: flex-start; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] .premium-focused-media { margin-block: 0; }
 

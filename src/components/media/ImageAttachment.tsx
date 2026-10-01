@@ -149,7 +149,8 @@ export function ImageAttachment({
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
-  pageViewToggleRequest = 0
+  pageViewToggleRequest = 0,
+  verticalReading = false
 
 
 
@@ -158,7 +159,7 @@ export function ImageAttachment({
 
 
 
-}: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
+}: {projectId: string; verticalReading?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
    */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;memoryScope?: string;pageViewToggleRequest?: number;}) {
@@ -166,6 +167,7 @@ export function ImageAttachment({
   const pageIdsKey = pages.map((page) => page.id).join('|');
   const linkedImageId = deepLinkedImageId(pages);
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
+    if (verticalReading) return null;
     if (linkedImageId) return linkedImageId;
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     return remembered && pages.some((page) => page.id === remembered) ? remembered : null;
@@ -177,6 +179,7 @@ export function ImageAttachment({
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
   useEffect(() => {
+    if (verticalReading) { setFocusedPageId(null); return; }
     if (linkedImageId) {
       setFocusedPageId(linkedImageId);
       return;
@@ -184,7 +187,7 @@ export function ImageAttachment({
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     const pageIds = pageIdsKey ? pageIdsKey.split('|') : [];
     setFocusedPageId(remembered && pageIds.includes(remembered) ? remembered : null);
-  }, [linkedImageId, memoryKey, pageIdsKey]);
+  }, [linkedImageId, memoryKey, pageIdsKey, verticalReading]);
   useEffect(() => {
     if (focusedPageId && !pageIdsKey.split('|').includes(focusedPageId)) {
       setFocusedPageId(null);
@@ -242,7 +245,7 @@ export function ImageAttachment({
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
 
-  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey);
+  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
   useLayoutEffect(() => {
     if (isMobile || focusedPage) return;
     const element = gridScrollRef.current;

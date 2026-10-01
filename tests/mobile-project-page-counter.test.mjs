@@ -9,11 +9,12 @@ const rect = (top, bottom, left = 0, right = 390) => ({ top, bottom, left, right
 const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${number}`, projectPageTotal: `${total}` },
   bounds, getBoundingClientRect() { return this.bounds; } });
 
-function mount(pages = [], { delayedRef = false } = {}) {
+function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
   const states = [], refs = [], documentEvents = new Map();
   let effectIndex = 0, stateIndex = 0, refIndex = 0, effect, visibilityEffect, visibilityCleanup, frame, onMutation, onResize, cleanedMutations = false, cleanedResize = false;
   const events = new Map(), windowEvents = new Map(), observed = new Set();
   const surface = { pages, bounds: rect(0, 800), querySelectorAll() { return this.pages; },
+    closest: () => readingEnd ? {} : null, querySelector: () => null,
     getBoundingClientRect() { return this.bounds; }, addEventListener(name, fn, opts) { events.set(name, { fn, opts }); },
     removeEventListener(name) { events.delete(name); } };
   const surfaceRef = { current: delayedRef ? null : surface };
@@ -37,9 +38,9 @@ function mount(pages = [], { delayedRef = false } = {}) {
     MutationObserver: class { constructor(fn) { onMutation = fn; } observe() {} disconnect() { cleanedMutations = true; } },
     ResizeObserver: class { constructor(fn) { onResize = fn; } observe(node) { observed.add(node); } unobserve(node) { observed.delete(node); } disconnect() { cleanedResize = true; } },
     requestAnimationFrame: fn => { frame = fn; return 1; }, cancelAnimationFrame: () => { frame = null; },
-    window: { innerWidth: 390, innerHeight: 800, addEventListener: (name, fn) => windowEvents.set(name, fn), removeEventListener: name => windowEvents.delete(name) },
+    window: { innerWidth: 390, innerHeight: 800, scrollY: readingEnd ? 800 : 0, addEventListener: (name, fn) => windowEvents.set(name, fn), removeEventListener: name => windowEvents.delete(name) },
     Node: Object,
-    document: { addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
+    document: { documentElement: { scrollHeight: 1600 }, addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
   const render = (scope = 'project:images') => { stateIndex = 0; refIndex = 0; effectIndex = 0;
     return exports.MobileProjectPageCounter({ surfaceRef, scope }); };
@@ -61,6 +62,15 @@ test('shows the actual most-visible page while a nested renderer scrolls', () =>
   one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
   assert.equal(h.render().props.children.find(child=>child?.props?.['data-mobile-project-page-count'] !== undefined).props['aria-label'], 'Page 2 of 3. Show page previews');
   h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('the shorter final page becomes current when vertical reading reaches the end', () => {
+  const h = mount([page(2, 3, rect(-30, 500)), page(3, 3, rect(502, 750))], { readingEnd: true });
+  h.flush();
+  assert.equal(h.position.current, 3);
+  h.surface.querySelector = () => ({}); h.scroll();
+  assert.equal(h.position.current, 2, 'Focused zoom continues using visible page geometry');
+  h.cleanup();
 });
 
 test('waits for real page metadata and handles a delayed parent ref and asynchronous PDF catalog', () => {

@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## September 30, 2026 — Sites280 live; accumulated profile/navigation fixes
+
+Published Sites280 at 23:52:49 UTC from `1299880c35459cc144838300d272d598d96b8ab4`; deployment `appgdep_6abda0c800e0819192d9c546295ad5b1` succeeded. Public audience, runtime revision2 and active D1 migrations0000–0003 retained. The release includes all UI changes since Sites279: installed-app dock spacing, profile Bio/facts/helper cleanup, Portals overlay and dock hiding, immediate navigation return and five-button navigation with Home action-sheet globe access. No GitHub push, backend/config/Storage changes or backfill.
+
+116 focused tests, typecheck, full lint (0 errors /90 existing warnings), production client+worker build and archive checks passed. Live MOBILE420 and WEB1280 checks passed for the affected profile/navigation and shared entry. See the current [handoff](agent-handoff.md) for precise evidence and limits; ignored `logs/ui-release-20260930/receipt.json` records the saved version and successful deployment. Physical-iPhone and installed-PWA checks remain device-only verification.
+
 ## September 30, 2026 — Sites279 live; edge cache verified
 
 ### Sites279 publication and verified edge reuse

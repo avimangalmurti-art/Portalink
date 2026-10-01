@@ -712,8 +712,8 @@ export function UserProfilePage({
           {<div data-mobile-profile-links="" className="w-full min-w-0 basis-full">
             <PlatformGrid links={profileLinks} profileName={displayName} isSharedView={isSharedView} onOpenBio={() => setIsBioOpen(true)} onCollaboration={onCollaboration} onMessage={onMessage} />
           </div>}
-          {/* Mobile owner actions follow the profile links in one icon row. */}
-          <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} data-profile-visitor-actions={!showsOwnerTools && !isSharedView ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
+          {/* Mobile owner actions are available in the main navigation's action popup. */}
+          {(!isMobile || !showsOwnerTools) && <div data-profile-owner-actions={showsOwnerTools ? '' : undefined} data-profile-visitor-actions={!showsOwnerTools && !isSharedView ? '' : undefined} className="side-panel-control-row ml-auto min-w-0 max-w-full flex-wrap justify-end">
             {/* A signed-in visitor can follow. A guest is told plainly that this
                needs an account rather than being shown a control that silently
                fails, and reading the work stays open either way. */}
@@ -757,7 +757,7 @@ export function UserProfilePage({
               <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />
             </button>}
 
-          </div>
+          </div>}
         </div>
       </header>}
 

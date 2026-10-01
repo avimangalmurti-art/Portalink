@@ -6,10 +6,15 @@ import React from 'react';
 import ts from 'typescript';
 
 function load() {
+  const scrolling = {};
+  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/projectPageScroll.ts', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS },
+  }).outputText, { exports: scrolling, getComputedStyle: element => ({ overflowY: element.overflow ?? 'visible' }) });
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobilePageThumbnails.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require: name => {
+    if (name === './projectPageScroll') return scrolling;
     assert.equal(name, 'react'); return { ...React, useRef: () => ({ current: null }), useLayoutEffect() {} };
   }, getComputedStyle: element => ({ overflowY: element.overflow ?? 'visible' }) });
   return exports.MobilePageThumbnails;

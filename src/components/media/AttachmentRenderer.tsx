@@ -40,6 +40,7 @@ type AttachmentRendererProps = {
   memoryScope?: string;
   pageViewToggleRequest?: number;
   readingMode?: boolean;
+  verticalReading?: boolean;
   readerPageRequest?: {page:number; sequence:number} | null;
   onReaderRequestHandled?: (sequence:number) => void;
   onClose: () => void;
@@ -50,7 +51,7 @@ export function AttachmentRenderer({
   projectId, attachment, imagePages, imageColumns, projectTitle, artwork, processing,
   onDocumentPageCountResolved, onPreviewDocument, onFocusModeChange, controlsVisible,
   videoActive, showMediaInteractions = true, isOwner = false, memoryScope = 'workspace',
-  readingMode = false, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
+  readingMode = false, verticalReading = false, readerPageRequest = null, onReaderRequestHandled, pageViewToggleRequest = 0, onClose,
 }: AttachmentRendererProps) {
   const title = attachment.displayName || projectTitle;
   const state = processing?.state ?? attachment.status;
@@ -77,7 +78,7 @@ export function AttachmentRenderer({
       </Suspense>;
     case 'document':
       return attachment.sourceUrl ? <MediaFrame><Suspense fallback={loading}>
-        <DocumentAttachment readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
+        <DocumentAttachment verticalReading={verticalReading} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
           processing={state === 'processing' || state === 'processing-failed' ? {
             state, message: processing?.message ?? null, canRetry: processing?.canRetry ?? false,
             isRetrying: processing?.isRetrying ?? false, onRetry: processing?.onRetry ?? (() => undefined),
@@ -91,7 +92,7 @@ export function AttachmentRenderer({
       </Suspense>;
     case 'image':
       return <MediaFrame>
-        <ImageAttachment projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]}
+        <ImageAttachment verticalReading={verticalReading} projectId={projectId} pages={imagePages && imagePages.length > 0 ? imagePages : [attachment]}
           columns={imageColumns} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible}
           showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope}
           pageViewToggleRequest={pageViewToggleRequest} />

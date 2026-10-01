@@ -76,6 +76,11 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
       }
       let visible: PagePosition | null = null;
       let largestArea = 0;
+      // At the end of a vertical document, a short final page can occupy less
+      // area than the preceding portrait page. It is still the current page.
+      const atReadingEnd = window.scrollY > 0 && surface.closest('[data-mobile-page-reader]')
+        && !surface.querySelector('[data-mobile-focused-view]')
+        && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
       for (const page of pages) {
         if (!observedPages.has(page)) {
           resize?.observe(page);
@@ -88,7 +93,8 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
         const area = Math.max(0, Math.min(bottom, rect.bottom) - Math.max(top, rect.top))
           * Math.max(0, Math.min(right, rect.right) - Math.max(left, rect.left));
         // In a multi-column row, ties follow the work's page order, not DOM column order.
-        if (area > 0 && (area > largestArea + 0.5 || (Math.abs(area - largestArea) <= 0.5 && (!visible || current < visible.current)))) {
+        if (area > 0 && (atReadingEnd ? !visible || current > visible.current
+          : area > largestArea + 0.5 || (Math.abs(area - largestArea) <= 0.5 && (!visible || current < visible.current)))) {
           largestArea = area;
           visible = { scope, current, total, ready: page.dataset.projectPageReady !== 'false' };
         }

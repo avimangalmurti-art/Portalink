@@ -124,7 +124,6 @@ export function ProfileEditorPage({
               <label className="flex items-center gap-3"><input type="checkbox" checked={fields.contactEmailPublic} disabled={isBusy} onChange={event => editor.setEmployerFlag('contactEmailPublic',event.target.checked)} />Show a contact email publicly</label>
               {fields.contactEmailPublic && <ProfileField id="profile-editor-contact" label="Public contact email" value={fields.contactEmail} maxLength={254} error={fieldErrors.contactEmail} disabled={isBusy} onChange={value => editor.setField('contactEmail',value)} />}
               <p className="text-sm text-[var(--text-secondary)]">Choose the address you want visitors to use. Turning this off removes the saved address.</p>
-              <label className="flex items-center gap-3"><input type="checkbox" checked={fields.allowPdfDownload} disabled={isBusy} onChange={event => editor.setEmployerFlag('allowPdfDownload',event.target.checked)} />Allow portfolio PDF downloads</label>
               <ProfileField id="profile-editor-city" label={isMobile ? 'City, country' : 'Portalink city'} value={fields.location} optional={!isMobile} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder={isMobile ? 'City, country' : 'City for location discovery'} error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
               </section>
 

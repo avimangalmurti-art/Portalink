@@ -9,13 +9,14 @@ import { MobilePageContext } from '../../features/media-interactions/MobilePageC
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, HeartIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
 import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import { jumpToProjectPage } from './projectPageScroll';
 import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
@@ -294,8 +295,7 @@ export function ProjectMediaViewer({
    * one work, not five attachments.
    */
   const isDocumentReading = isMobileViewer && active?.kind === 'document';
-  const [readerRequest, setReaderRequest] = useState<{scope:string;page:number;sequence:number} | null>(null);
-  const acknowledgeReaderRequest = useCallback((sequence: number) => setReaderRequest(current => current?.sequence === sequence ? null : current), []);
+  const isVerticalReading = isMobileViewer && (active?.kind === 'document' || active?.kind === 'image');
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;
   const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
@@ -378,7 +378,7 @@ export function ProjectMediaViewer({
    */
   useEffect(() => {
     const surface = densitySurfaceRef.current;
-    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive || isDocumentReading) {
+    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive || isVerticalReading) {
       return undefined;
     }
     const handleDensityWheel = (event: WheelEvent) => {
@@ -464,7 +464,7 @@ export function ProjectMediaViewer({
       surface.removeEventListener('touchend', handleTouchEnd);
       surface.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer, isDocumentReading]);
+  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer, isVerticalReading]);
   const emptyMedia = <div data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
@@ -581,7 +581,7 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer onReaderRequestHandled={acknowledgeReaderRequest} readingMode={isDocumentReading} readerPageRequest={readerRequest?.scope === previewScope ? readerRequest : null} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={readOnlyShare && isMobileViewer && active.kind === 'document' ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
@@ -591,7 +591,7 @@ export function ProjectMediaViewer({
   return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter readingMode={isDocumentReading} onSelectPage={isDocumentReading ? page => setReaderRequest(previous=>({scope:previewScope,page,sequence:(previous?.sequence ?? 0)+1})) : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter readingMode={isDocumentReading && !isImmersive} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
       {isMobileViewer && !readOnlyShare && <MobileContextButton floating />}
       {isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
@@ -677,7 +677,7 @@ export function ProjectMediaViewer({
         </div>}
         </div>
         <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobileEngagementOpen(open => !open)}>
-          <InterfaceIcon icon={mobileEngagementOpen ? XIcon : HeartIcon} size="lg" weight="regular" />
+          <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>

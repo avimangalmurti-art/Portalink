@@ -1,26 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { PdfDocument } from './PdfPage';
 
-/** Move the overview reading surface without focusing or expanding a page. */
-function jumpToProjectPage(surface: HTMLElement | null, number: number) {
-  const page = surface?.querySelector<HTMLElement>(`[data-project-page-number="${number}"]`);
-  if (!surface || !page) return false;
-  let scroller = page.parentElement;
-  while (scroller && surface.contains(scroller)) {
-    if (/(auto|scroll)/.test(getComputedStyle(scroller).overflowY) && scroller.scrollHeight > scroller.clientHeight) {
-      scroller.scrollTo({ top: scroller.scrollTop + page.getBoundingClientRect().top - scroller.getBoundingClientRect().top,
-        behavior: 'instant' });
-      return true;
-    }
-    scroller = scroller.parentElement;
-  }
-  if (surface.closest('[data-mobile-page-reader]') && !surface.querySelector('[data-mobile-focused-view]')) {
-    const safeTop = parseFloat(getComputedStyle(surface).getPropertyValue('--mobile-content-safe-top')) || 0;
-    window.scrollTo({ top: window.scrollY + page.getBoundingClientRect().top - safeTop, behavior: 'instant' });
-    return true;
-  }
-  return false;
-}
+import { jumpToProjectPage } from './projectPageScroll';
 
 function PageThumbnail({ number, source, pdfDocument }: {
   number: number; source?: string | null; pdfDocument: PdfDocument | null;

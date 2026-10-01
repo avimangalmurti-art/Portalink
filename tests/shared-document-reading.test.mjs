@@ -20,11 +20,12 @@ function jsxExpression(path, tag, attribute) {
   visit(file); assert.ok(expression); return expression;
 }
 
-test('only MOBILE shared documents override authored density to one width-fit column', () => {
+test('MOBILE documents and image projects use one width-fit column while WEB keeps authored density', () => {
   const expression = jsxExpression('../src/components/media/ProjectMediaViewer.tsx', 'AttachmentRenderer', 'imageColumns');
   for (const readOnlyShare of [false, true]) for (const isMobileViewer of [false, true]) for (const kind of ['document', 'image', 'video']) for (const normalizedPagesPerRow of [1, 3, 7]) {
-    const actual = vm.runInNewContext(expression, { readOnlyShare, isMobileViewer, active: { kind }, hasPageLayout: true, normalizedPagesPerRow });
-    assert.equal(actual, readOnlyShare && isMobileViewer && kind === 'document' ? 1 : normalizedPagesPerRow);
+    const isVerticalReading = isMobileViewer && ['document', 'image'].includes(kind);
+    const actual = vm.runInNewContext(expression, { isVerticalReading, hasPageLayout: true, normalizedPagesPerRow });
+    assert.equal(actual, isVerticalReading ? 1 : normalizedPagesPerRow);
   }
 });
 
@@ -43,17 +44,18 @@ test('single-column rendered documents retain vertical reading and the existing 
     if (name === './useSinglePageZoom') return { useSinglePageZoom: () => 1 };
     if (name === './useDocumentReadingScroll') return { useDocumentReadingScroll() {} };
     if (name === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: true, swipeStyle: {}, swipeHandlers: {} }) };
-    if (name === './viewerMemory') return { readViewerMemory: () => ({}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
+    if (name === './viewerMemory') return { readViewerMemory: () => ({focusedPageNumber: 1}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 };
     if (name === './PdfImageDocument') return { PdfImageDocument: 'live-pdf' };
     return new Proxy({}, { get: () => 'control' });
   } });
   const attachment = { id: 'pdf', displayName: 'Report', sourceUrl: 'report.pdf', metadata: { renderedPages: [1, 2, 3].map(index => ({ withinDocumentIndex: index, sourceUrl: `page-${index}.png`, storagePath: `page-${index}`, width: 600, height: 900 })) } };
-  const render = props => { cursor = 0; return exports.DocumentAttachment({ attachment, projectId: 'project', memoryScope: 'shared', columns: 1, ...props }); };
+  const render = props => { cursor = 0; return exports.DocumentAttachment({ attachment, projectId: 'project', memoryScope: 'shared', columns: 1, verticalReading: true, ...props }); };
   const tree = render();
   const list = nodes(tree).find(node => node.type === 'ol');
   assert.equal(list.props.style.gridTemplateColumns, 'repeat(1, minmax(0, 1fr))');
   assert.equal(nodes(list).filter(node => node.type === 'img').length, 3);
+  assert.ok(nodes(list).filter(node => node.type === 'img').every(node => node.props.className.includes('w-full')), 'Pages fill width even if the stored image is small');
   const pages = nodes(list).filter(node => node.type === 'img');
   assert.equal(pages[0].props.fetchpriority, 'high');
   assert.equal(pages[1].props.fetchpriority, 'auto');
@@ -67,6 +69,7 @@ test('single-column rendered documents retain vertical reading and the existing 
   assert.match(writes.at(-1).key, /^shared:document:/);
   const live = nodes(render({ attachment: { ...attachment, metadata: {} } })).find(node => node.type === 'live-pdf');
   assert.equal(live.props.columns, 1);
+  assert.equal(live.props.verticalReading, true);
 });
 
 test('live PDF overview fits width even when the page is taller than the viewport', () => {
