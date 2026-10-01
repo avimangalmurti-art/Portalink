@@ -1,6 +1,5 @@
 import { isPublicSharePath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
-import { SharedContextActions } from '../presentation/mobile/SharedContextActions';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppRoute, type AppRoute } from '../app/useAppRoute';
@@ -18,6 +17,7 @@ import { resolveAccentTokens } from '../utils/accentTokens';
 import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
+import { PublicActionSheet } from './mobile/PublicActionSheet';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
@@ -133,8 +133,7 @@ export function VisitorApp() {
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
   const openProject = (category: string, id: string) => { if (profileId) navigate(buildPath('sharedProject', { profileId, categoryId: category, projectId: id })); };
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
-  return <AppPresentation data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
-    <SharedContextActions title={profile?.name} />
+  return <AppPresentation actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={appearance.chooseMode}
         onOpenCategory={id => navigate(buildPath('sharedProfileCategory', { profileId: profile.id, categoryId: id }))}

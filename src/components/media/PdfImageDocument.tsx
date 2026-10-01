@@ -297,7 +297,7 @@ function PdfImagePage({
     className={`${isFocused ? 'flex h-full w-full items-start justify-start overflow-auto overscroll-contain' : 'w-full touch-manipulation overflow-hidden'} group/media relative bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}
     style={isFocused ? undefined : { aspectRatio }}
   >
-    {(status === 'waiting' || status === 'loading') && !(retainCanvasWhileLoading && paintedPageNumber !== null) ? <span aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
+    {(status === 'waiting' || status === 'loading') && !(retainCanvasWhileLoading && paintedPageNumber !== null) ? <span data-initial-page-loading={pageNumber === 1 ? '' : undefined} aria-hidden="true" className="premium-media-placeholder absolute inset-0 flex items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" />
     </span> : null}
     {retainCanvasWhileLoading && paintedPageNumber !== null && paintedPageNumber !== pageNumber && status === 'loading' ? <span role="status" className="absolute bottom-3 right-3 z-10 flex items-center gap-2 rounded-[var(--control-radius)] bg-[var(--surface-raised)] px-3 py-2 text-sm text-[var(--text-secondary)]">
@@ -522,7 +522,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         </button> : null}
         <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />
       </> : null}
-    {!document && <div data-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
+      {!document && <div data-page-loading="" data-initial-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}

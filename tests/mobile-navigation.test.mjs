@@ -28,11 +28,23 @@ test('dock orders Messages, Studio, Actions, Home and Profile, with no rail or s
  assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
-test('dock width reserves five touch targets and the shared mobile sidebar becomes one floating button',()=>{
+test('dock width reserves five touch targets and public mobile navigation stays separate',()=>{
  const css=read('../src/presentation/mobile/mobile.css');
  assert.match(css,/repeat\(5, minmax\(var\(--mobile-control-target\), 1fr\)\)/);
  assert.match(css,/min-width: calc\(5 \* var\(--mobile-control-target\)/);
  assert.doesNotMatch(css,/\.mobile-navigation-scroll|\.mobile-navigation\s*\{|\.mobile-shared-drawer/);
- assert.match(read('../src/components/profile/SharedProfileSidebar.tsx'),/isMobile \? <MobileContextButton floating \/> : renderSidebar\(\)/);
+ assert.match(read('../src/components/profile/SharedProfileSidebar.tsx'),/isMobile \? <PublicProfileDrawer/);
  assert.equal(fs.existsSync(new URL('../src/presentation/mobile/MobileSharedProfileDrawer.tsx',import.meta.url)),false);
+});
+
+test('installed dock is bounded to the visible viewport and keeps its safe-area gap',()=>{
+ const css=read('../src/presentation/mobile/mobile.css');
+ const layer=css.match(/\.mobile-navigation-layer:where\(html\[data-standalone\] \*\)\s*\{([^}]+)\}/)[1];
+ const dock=css.match(/\.mobile-floating-navigation:where\(html\[data-standalone\] \*\)\s*\{([^}]+)\}/)[1];
+ assert.match(layer,/height: min\(100dvh, var\(--mobile-dock-viewport-height, 100dvh\)\)/);
+ assert.doesNotMatch(layer,/100vh/);
+ assert.match(layer,/top: 0/);
+ assert.match(dock,/position: absolute/);
+ assert.match(dock,/bottom: max\(8px, var\(--safe-area-bottom\)\)/);
+ assert.doesNotMatch(read('../src/visitor/mobile/public-mobile.css'),/--mobile-dock-viewport-height/);
 });

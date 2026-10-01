@@ -470,6 +470,21 @@ test('mobile page previews use image order, available rendered pages, or the loa
   assert.equal(nodes(harness({ mobile: false }).render()).find(node => node.type === AttachmentRenderer).props.onPreviewDocument, undefined);
 });
 
+test('segmented document progress is enabled only for platform mobile readers', () => {
+  const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+  const platform = harness({ mediaKind: 'document' });
+  const platformCounter = counter(platform.render());
+  assert.equal(platformCounter.props.readingMode, true);
+  assert.equal(platformCounter.props.segmentedProgress, true);
+  assert.equal(platformCounter.props.density, undefined, 'progress does not require permission to change density');
+  const sharedCounter = counter(harness({ mediaKind: 'document', readOnlyShare: true }).render());
+  assert.equal(sharedCounter.props.readingMode, true);
+  assert.equal(sharedCounter.props.segmentedProgress, false, 'public mobile keeps its native progress presentation');
+  assert.equal(counter(harness({ mediaKind: 'document', mobile: false }).render()), undefined);
+  nodes(platform.render()).find(node => node.type === AttachmentRenderer).props.onFocusModeChange(true);
+  assert.equal(counter(platform.render()).props.readingMode, false, 'focused zoom retains its own controls');
+});
+
 test('mobile density changes document and image columns immediately without waiting for save', () => {
   for (const mediaKind of ['document', 'image']) {
     const h = harness({ mediaKind }), drafts = [], commits = [];

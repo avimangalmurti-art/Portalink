@@ -8,7 +8,6 @@ import { useAppZoomBoundary } from './useAppZoomBoundary';
 import { useProjectScrollActivity } from './mobile/useProjectScrollActivity';
 import { MobileContextProvider } from './mobile/MobileContextActions';
 import './web/web.css';
-import './mobile/mobile.css';
 import './navigation.css';
 import './controls.css';
 
@@ -19,12 +18,12 @@ export function AppPresentationProvider({ children }: { children: React.ReactNod
 }
 
 /** Keep one host and stable children as the presentation changes. */
-export function AppPresentation({ children, ...props }: React.ComponentPropsWithoutRef<'div'>) {
+export function AppPresentation({ children, actionSheet, ...props }: React.ComponentPropsWithoutRef<'div'> & { actionSheet?: React.ComponentProps<typeof MobileContextProvider>['sheet'] }) {
   const presentation = usePresentation();
   const frameRef = useMobileBrowserSurface(presentation, props.style);
   useMobileViewportFrame(presentation, frameRef);
   const { pathname } = useLocation();
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
-  return <div {...props} ref={frameRef} data-presentation={presentation}><MobileContextProvider>{children}</MobileContextProvider></div>;
+  return <div {...props} ref={frameRef} data-presentation={presentation}><MobileContextProvider sheet={actionSheet}>{children}</MobileContextProvider></div>;
 }

@@ -45,7 +45,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={false} sharedCoverFallback /> }));
   const request = (label: string) => auth.requestAuthenticatedDestination(interactionIntent(label, window.location.pathname + window.location.search));
-  return <div data-profile-page="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+  return <div data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded={optionsOpen || undefined}>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">

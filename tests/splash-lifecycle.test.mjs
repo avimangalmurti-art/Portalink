@@ -451,7 +451,7 @@ test('splash native controls are suppressed only inside the decorative startup v
 });
 
 function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId } = {}) {
-  const h = hooks(), requested = [], location = {pathname:path,search,hash}, storage = new Map();
+  const h = hooks(), requested = [], redirects = [], location = {pathname:path,search,hash}, storage = new Map();
   if (storedProfileId) storage.set('portalink.sharedViewerProfileId', storedProfileId);
   let rendered;
   const auth = {isInitializing:true,isAuthenticated:authenticated,pendingView:recovery?'resetPassword':null,
@@ -468,8 +468,8 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
-  }, {window:{...h.window,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
+    }, {window:{...h.window,location:{replace:path=>redirects.push(path)},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
+  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
 }
 
 test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
@@ -481,7 +481,8 @@ test('shared entry bypasses every intro on both platforms while respecting sessi
     assert.equal(h.waiting.props.children.props.label,'Opening shared content…');
     h.auth.isInitializing=false;
     assert.equal(h.render(),null);
-    assert.equal(h.app.type,'app');
+    assert.equal(h.app?.type ?? null,presentation === 'mobile' ? null : 'app');
+    assert.deepEqual(h.redirects,presentation === 'mobile' ? ['/share/a/c/b/c?page=2'] : []);
     assert.equal(h.waiting,false);
     assert.equal(h.requested.length,0,'opening a public link never opens authentication');
     h.setPresentation(presentation==='mobile'?'web':'mobile');
@@ -490,7 +491,7 @@ test('shared entry bypasses every intro on both platforms while respecting sessi
     assert.equal(h.render(),null,'a session refresh keeps shared entry free of branded media');
     assert.equal(h.waiting.props.children.type,'loading');
     h.auth.isInitializing=false;
-    assert.equal(h.render(),null); assert.equal(h.app.type,'app');
+    assert.equal(h.render(),null); assert.equal(h.app?.type ?? null,presentation === 'mobile' ? 'app' : null);
   }
 });
 
@@ -499,7 +500,8 @@ test('shared profiles, categories and project fragments open directly without ch
     const h=sharedBootstrap({path,search:'?view=projects&page=2&media=image-a',hash,storedProfileId:'older'});
     h.auth.isInitializing=false;
     assert.equal(h.render(),null);
-    assert.equal(h.app.type,'app');
+    assert.equal(h.app,null);
+    assert.deepEqual(h.redirects,[path+'?view=projects&page=2&media=image-a'+hash]);
     assert.equal(h.location.pathname,path); assert.equal(h.location.search,'?view=projects&page=2&media=image-a'); assert.equal(h.location.hash,hash);
     assert.equal(h.storage.get('portalink.sharedViewerProfileId'),'a');
     assert.equal(h.requested.length,0);
@@ -509,7 +511,7 @@ test('shared profiles, categories and project fragments open directly without ch
 test('direct shared entry retains public Settings access and the existing guest route boundary', () => {
   const h=sharedBootstrap({path:'/share/creator',search:'?view=portals',storedProfileId:'older'});
   h.auth.isInitializing=false;
-  assert.equal(h.render(),null); assert.equal(h.app.type,'app');
+  assert.equal(h.render(),null); assert.equal(h.app,null);
   for (const path of ['/settings','/appearance']) {
     h.location.pathname=path; h.location.search='';
     assert.equal(h.render(),null); assert.equal(h.app.type,'app');

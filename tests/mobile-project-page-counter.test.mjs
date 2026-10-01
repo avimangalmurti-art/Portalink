@@ -70,6 +70,54 @@ test('shows the actual most-visible page while a nested renderer scrolls', () =>
   h.cleanup(); assert.equal(h.clean, true);
 });
 
+test('segmented reading progress follows the visible page forwards and backwards with one semantic value', () => {
+  const one = page(1, 3, rect(0, 600)), two = page(2, 3, rect(602, 1202)), three = page(3, 3, rect(1204, 1804));
+  const h = mount([one, two, three]); h.flush();
+  const assertProgress = current => {
+    const tree = h.render(undefined, { readingMode: true, segmentedProgress: true });
+    const progress = control(tree, 'Document reading progress');
+    assert.equal(progress.props.role, 'progressbar');
+    assert.equal(progress.props['aria-valuemin'], 0);
+    assert.equal(progress.props['aria-valuemax'], 3);
+    assert.equal(progress.props['aria-valuenow'], current);
+    assert.equal(progress.props['aria-valuetext'], `Page ${current} of 3`);
+    const segments = React.Children.toArray(progress.props.children);
+    assert.equal(segments.length, 3);
+    assert.ok(segments.every(segment => segment.props['aria-hidden'] === 'true'), 'page sections do not create duplicate accessible progress');
+    assert.deepEqual(segments.map(segment => segment.props['data-reached'] !== undefined), [1, 2, 3].map(pageNumber => pageNumber <= current));
+    assert.equal(nodes(tree).filter(node => node.props.role === 'progressbar' || node.type === 'progress').length, 1);
+    assert.ok(control(tree, `Page ${current} of 3. Show page previews`), 'page counter and progress describe the same visible page');
+  };
+  assertProgress(1);
+  one.bounds = rect(-600, 0); two.bounds = rect(2, 602); three.bounds = rect(604, 1204); h.scroll();
+  assertProgress(2);
+  one.bounds = rect(0, 600); two.bounds = rect(602, 1202); three.bounds = rect(1204, 1804); h.scroll();
+  assertProgress(1);
+  assert.equal(h.render('another-project', { readingMode: true, segmentedProgress: true }), null, 'progress cannot leak into the next document before its page is measured');
+  h.cleanup(); assert.equal(h.clean, true);
+});
+
+test('public/default readers preserve native progress and non-document readers show none', () => {
+  const h = mount([page(2, 3, rect(0, 600))]); h.flush();
+  for (const props of [{ readingMode: true }, { readingMode: true, segmentedProgress: false }]) {
+    const tree = h.render(undefined, props);
+    const progress = control(tree, 'Document reading progress');
+    assert.equal(progress.type, 'progress');
+    assert.equal(progress.props.value, 2);
+    assert.equal(progress.props.max, 3);
+    assert.equal(nodes(tree).some(node => node.props.role === 'progressbar'), false);
+  }
+  assert.equal(control(h.render(undefined, { segmentedProgress: true }), 'Document reading progress'), undefined);
+  h.surface.pages = [page(1, 1, rect(0, 600))]; h.mutate();
+  const progress = control(h.render(undefined, { readingMode: true, segmentedProgress: true }), 'Document reading progress');
+  assert.equal(progress.props['aria-valuemax'], 1);
+  assert.equal(progress.props['aria-valuenow'], 1);
+  const sections = React.Children.toArray(progress.props.children);
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].props['data-reached'], '');
+  h.cleanup();
+});
+
 test('the shorter final page becomes current when vertical reading reaches the end', () => {
   const h = mount([page(2, 3, rect(-30, 500)), page(3, 3, rect(502, 750))], { readingEnd: true });
   h.flush();

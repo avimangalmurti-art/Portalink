@@ -161,13 +161,20 @@ test('empty public portfolios still offer expansion and return-to-profile', () =
   assert.equal(home(tree).props.to, '/share/empty');
 });
 
-test('MOBILE shows one floating context button and preserves WEB collapse preference', () => {
+test('MOBILE restores the creator drawer and preserves WEB collapse preference', () => {
   const h = harness(); toggle(h.render()).props.onClick();
   assert.equal(h.render().props['data-collapsed'], 'true');
   h.setPresentation('mobile');
   const tree = h.render({ activeCategoryId: 'photos' });
-  assert.equal(tree.type, 'context-button'); assert.equal(tree.props.floating, true);
-  assert.equal(nodes(tree).some(node => node.type === 'aside' || node.type === 'nav'), false);
+  assert.equal(tree.type, 'PublicProfileDrawer');
+  let closed = 0;
+  const drawer = tree.props.children(() => closed++);
+  assert.equal(home(drawer).props.to, '/share/creator');
+  assert.equal(portals(drawer).length, 2);
+  portals(drawer)[0].props.onClick();
+  assert.equal(closed, 1);
+  assert.deepEqual(h.calls, ['photos']);
+  assert.equal(nodes(drawer).some(node => node.type === 'context-button'), false);
   h.setPresentation('web'); const web = h.render();
   assert.equal(web.type, 'aside'); assert.equal(web.props['data-collapsed'], 'true');
 });

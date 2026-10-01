@@ -105,6 +105,8 @@ test('each real media kind requests only its renderer and retains a polite loadi
     const fallback = pending.props.fallback;
     const loading = kind === 'document' ? fallback.props.children : fallback;
     assert.equal(fallback.props['data-page-loading'], kind === 'document' ? '' : undefined);
+    assert.equal(fallback.props['data-initial-page-loading'], kind === 'document' ? '' : undefined,
+      'only the document page boundary opts into the initial reader loading surface');
     assert.equal(loading.type, LoadingState);
     const status = LoadingState(loading.props);
     assert.equal(status.props.role, 'status');
@@ -125,6 +127,7 @@ test('seeded document and audio players are deferred without changing their exis
       onClose: close, artwork: { url: '/cover.webp', alt: 'Cover art' } });
     assert.equal(pending.type, React.Suspense);
     assert.equal(pending.props.fallback.type, h.components.MediaFrame);
+    assert.equal(pending.props.fallback.props.children.props['data-initial-page-loading'], kind === 'document' ? '' : undefined);
     assert.deepEqual(h.loaded, []);
     const renderer = pending.props.children;
     assert.equal((await renderer.type.load()).default, h.components[name]);

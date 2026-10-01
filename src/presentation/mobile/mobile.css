@@ -633,15 +633,14 @@
   transition: none;
 }
 
-/* Installed WebKit can keep a shortened bottom anchor until the first gesture.
-   Give the existing transparent layer an explicit, top-anchored height instead
-   of stretching between viewport edges; place the capsule inside that layer.
-   CSS vh includes the standalone safe areas without sampling VisualViewport.
-   The document remains the scroller and Safari keeps its viewport-fixed dock. */
+/* Keep the installed capsule low without extending its containing layer past
+   the visible app area. The hook reconciles this dock-only bound at mount,
+   splash completion, resume and resize; CSS also bounds stale measurements.
+   The document still scrolls and Safari retains its viewport-fixed dock. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer:where(html[data-standalone] *) {
   top: 0;
   bottom: auto;
-  height: 100vh;
+  height: min(100dvh, var(--mobile-dock-viewport-height, 100dvh));
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:where(html[data-standalone] *) {
@@ -2090,18 +2089,37 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view {
-  margin-top: 3px;
+  margin-top: 1px;
   margin-inline-end: -38px;
   min-width: 0;
+}
+/* Name, location and the compact pill share the avatar's 76px footprint.
+   Expanded identity text keeps its existing wrapping and type scale. */
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy:has(.profile-identity-view) > h1 {
+  font-size: 16px;
+  line-height: 20px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy:has(.profile-identity-view) > p {
+  font-size: 13px;
+  line-height: 17px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy:has(.profile-identity-view) > :is(h1, p) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
   width: 100%;
   max-width: none;
   margin: 0;
+  padding: 2px;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
   min-width: 0;
-  padding-inline: 8px;
+  min-height: 28px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 16px;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
   /* Override the shared neutral selected-button paint for this accent pill. */
@@ -3172,6 +3190,40 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   aspect-ratio: var(--page-loading-ratio, 8.5 / 11);
 }
 
+/* The opening loader fills the phone, not just the future page rectangle.
+   Keep the page's layout reservation; paint below the fixed controls. Once any
+   page is ready, later lazy pages and retries must never cover readable work. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::before {
+  --opening-loader-fill: color-mix(in srgb, var(--surface-sunken) 86%, var(--surface-raised));
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  /* Material tokens may be translucent; composite onto the canvas so the
+     original page placeholder cannot show through as a second rectangle. */
+  background: linear-gradient(var(--opening-loader-fill), var(--opening-loader-fill)), var(--surface-canvas);
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:has([data-initial-page-loading]):not(:has([data-project-page-ready='true'], [data-mobile-focused-view]))::after {
+  content: '';
+  position: fixed;
+  top: calc(50dvh - 9px);
+  left: calc(50% - 9px);
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
+  border-top-color: var(--text-secondary);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: premium-media-spin 800ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]::after { animation: none; }
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
   padding-top: var(--mobile-content-safe-top);
 }
@@ -3314,22 +3366,26 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   color: var(--navigation-selected-foreground);
 }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > button:disabled { opacity: .3; }
-/* The header starts after Back. Offset that inset so progress spans the screen
-   above all controls, independently of the counter and density pill widths. */
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress {
+/* Align page sections with the outer edges of Back and the final top pill. */
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-reader-progress {
   position: absolute;
-  left: calc(0px - var(--mobile-navigation-inset-start) - var(--mobile-control-size) - var(--mobile-control-group-gap));
-  top: -8px;
-  bottom: auto;
-  width: 100vw;
-  height: 2px;
-  border: 0;
-  appearance: none;
+  left: calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap));
+  top: -12px;
+  width: calc(100vw - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end));
+  height: 6px;
+  display: flex;
+  gap: min(4px, calc(25% / var(--reader-page-count)));
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-reader-progress > span {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 999px;
   background: var(--hairline-strong);
 }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-bar { background: var(--hairline-strong); }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-value { background: var(--accent-primary); }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-moz-progress-bar { background: var(--accent-primary); }
+#root .codex-shell[data-presentation='mobile'] .mobile-reader-progress > [data-reached] {
+  background: var(--accent-primary);
+}
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] .mobile-page-thumbnails { position: absolute; top: calc(100% + 16px); left: 0; bottom: auto; max-height: 60dvh; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-focused-page-scroll] { align-items: flex-start; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] .premium-focused-media { margin-block: 0; }

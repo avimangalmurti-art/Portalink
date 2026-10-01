@@ -1,5 +1,15 @@
 # WEB / MOBILE presentation architecture
 
+## October 1, 2026 — independent public MOBILE layout
+
+Public portfolio MOBILE now owns `src/visitor/mobile/public-mobile.css`, `PublicProfileDrawer.tsx` and `PublicActionSheet.tsx`. The visitor entry imports that stylesheet; the main entry imports `presentation/mobile/mobile.css`. `AppPresentation` no longer imports either mobile layout. It retains the same presentation provider and optional sheet injection, defaulting to the platform's existing sheet. Shared tokens/base styles, WEB styles, profile data, authentication, permissions and media rendering remain canonical. This is a presentation boundary, not another product/backend.
+
+The public sidebar restores the earlier left overlay with creator-name home link, Portals, Settings and Appearance, its bottom-left opener and dismiss/swipe interactions. The mobile platform keeps its five-button dock and current profile layout. Main-router navigation to a mobile public URL performs a same-URL replacement (including query/hash) so the existing worker/dev entry selection loads the visitor design. Desktop UUID navigation retains its current behavior; handle entry transfer remains as before.
+
+Future platform-only geometry belongs in `presentation/mobile/mobile.css`; public-only geometry belongs in `visitor/mobile/public-mobile.css` and public components. Do not re-import the platform stylesheet from a shared component, or replace the public sidebar with the platform action opener. Intentionally changing a shared token, primitive or media component still requires verification in both entries. Both initial and lazy production import graphs were checked for exclusive mobile stylesheet loading. Local fixture checks cover mobile390/420/430, desktop1280, public navigation/reading/sign-in and platform preservation; these are not physical-iPhone or live-auth proof.
+
+The September implementation report below is historical; its single mobile stylesheet statement predates this separation.
+
 Document 04 implementation, 2026-09-09. This is the minimum presentation boundary identified by the repository audit. It is implemented and checked locally; no production deployment was performed.
 
 ## Boundary and selection

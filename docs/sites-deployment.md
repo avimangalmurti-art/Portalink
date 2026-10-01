@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## October 1, 2026 — Sites284 live; navigation/profile/action-sheet refinements
+
+Sites284 succeeded at01:58:24 America/Los_Angeles (2026-10-01T08:58:24.342939+00:00), source 1701d2a82115944eaad352663a6c8a374720d656; deployment appgdep_6abe20a6bfa48191a95e251b3bf8191a. All accumulated mobile changes after Sites283 are published, including Messages opening the conversation list, revised dock order/installed-app anchor, profile disclosure and owner links, bottom-fixed action sheet, compact Studio header and reader controls. Public audience, runtime revision2 and active D1 migrations0000–0003 unchanged.
+
+155 focused tests, typecheck, full lint (0errors/90existing warnings), production client+worker build, independent review and archive validation passed. Existing local MOBILE/WEB fixture evidence is in the handoff. No GitHub push/merge, SQL, Storage or configuration changes; no hosted-browser or physical-device verification claim. Real iPhone cold launch and touch/safe-area behavior remain checks. Receipt: ignored logs/mobile-polish-release-20261001/receipt.json in the owned checkout.
+
 ## October 1, 2026 — Sites283 live; mobile globe and loading fixes
 
 Sites283 succeeded at00:36:58 America/Los_Angeles (2026-10-01T07:36:58.024220UTC), source c0880aef2b0d95f426b6abbf6fbc913a69cc097b; deployment appgdep_6abe0d918420819180c98edb7e3079f9. Includes mobile globe centering, portrait loading placeholders and mobile image load handoff. Slider clarification and Home Screen startup-art proposal remain unimplemented. Public audience, runtime revision2 and active D1 migrations unchanged.

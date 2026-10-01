@@ -45,8 +45,11 @@ export function ApplicationBootstrap() {
   const { pathname, search = '', hash = '' } = useLocation();
   const isHandleView = Boolean(handleFromPath(pathname));
   const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
-  useEffect(() => { if (isHandleView) window.location.replace(pathname + search + hash); }, [isHandleView, pathname, search, hash]);
   const presentation = useViewportPresentation();
+  // MOBILE public links own their entry and design even when opened from the
+  // platform router. The worker/dev server selects share.html on this request.
+  const usePublicEntry = isHandleView || (presentation === 'mobile' && isSharedView);
+  useEffect(() => { if (usePublicEntry) window.location.replace(pathname + search + hash); }, [usePublicEntry, pathname, search, hash]);
   const [openingPresentation] = useState(presentation);
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
@@ -110,7 +113,7 @@ export function ApplicationBootstrap() {
   const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !holdLanding && !hasPresentedLanding && !isRecovery;
 
   return <>
-      {isHandleView ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App /> : null}
+      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App /> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen

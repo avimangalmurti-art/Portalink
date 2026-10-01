@@ -3,23 +3,24 @@ import type { Presentation } from '../usePresentation';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../../app/splashLifecycle';
 
 const HEIGHT_PROPERTY = '--mobile-viewport-height';
+const DOCK_HEIGHT_PROPERTY = '--mobile-dock-viewport-height';
 
 /** Measure bounded overlays/readers only. The mobile page itself scrolls in the
  * document and must never use this value as its root height or clipping box.
- * Installed overlays keep CSS's stable 100vh fallback.
+ * Installed apps measure only the dock's visible bottom edge; the public page
+ * and other installed overlays retain their existing CSS sizing.
  */
 export function useMobileViewportFrame(presentation: Presentation, frameRef: RefObject<HTMLDivElement>) {
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (presentation !== 'mobile' || !frame) return;
 
-    // iOS can report a short VisualViewport until the first gesture. Never bake
-    // that measurement into the installed shell (dialogs still track keyboards).
-    if (window.matchMedia?.('(display-mode: standalone)').matches
-      || (window.navigator as Navigator & { standalone?: boolean })?.standalone) return;
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches
+      || (window.navigator as Navigator & { standalone?: boolean })?.standalone;
+    const heightProperty = standalone ? DOCK_HEIGHT_PROPERTY : HEIGHT_PROPERTY;
 
-    const previous = frame.style.getPropertyValue(HEIGHT_PROPERTY);
-    const priority = frame.style.getPropertyPriority(HEIGHT_PROPERTY);
+    const previous = frame.style.getPropertyValue(heightProperty);
+    const priority = frame.style.getPropertyPriority(heightProperty);
     const viewport = window.visualViewport;
     let pendingFrame = 0;
     let keyboardSettleTimer = 0;
@@ -37,6 +38,16 @@ export function useMobileViewportFrame(presentation: Presentation, frameRef: Ref
       if (viewport && Math.abs(viewport.scale - 1) > 0.01) return;
       let height = viewport?.height || window.innerHeight;
       if (!Number.isFinite(height) || height <= 0) return;
+      if (standalone) {
+        // 100vh may extend below the drawable app area during launch/resume.
+        // Bound only the controls, in layout-viewport coordinates. A panned
+        // visual viewport contributes its origin, never the document scroll.
+        const offset = viewport?.offsetTop;
+        height += typeof offset === 'number' && Number.isFinite(offset) && offset > 0 ? offset : 0;
+        if (Number.isFinite(window.innerHeight) && window.innerHeight > 0) {
+          height = Math.min(height, window.innerHeight);
+        }
+      }
       editingSession ||= isEditing();
       if (editingSession) {
         // Preserve the pre-focus size through every animation frame, not just
@@ -49,8 +60,8 @@ export function useMobileViewportFrame(presentation: Presentation, frameRef: Ref
       settledWidth = window.innerWidth;
       settledHeight = height;
       const value = `${Math.round(height * 100) / 100}px`;
-      if (frame.style.getPropertyValue(HEIGHT_PROPERTY) !== value) {
-        frame.style.setProperty(HEIGHT_PROPERTY, value);
+      if (frame.style.getPropertyValue(heightProperty) !== value) {
+        frame.style.setProperty(heightProperty, value);
       }
     };
     const schedule = () => {
@@ -94,8 +105,8 @@ export function useMobileViewportFrame(presentation: Presentation, frameRef: Ref
       viewport?.removeEventListener('scroll', schedule);
       document.removeEventListener('focusin', focus);
       document.removeEventListener('focusout', schedule);
-      if (previous) frame.style.setProperty(HEIGHT_PROPERTY, previous, priority);
-      else frame.style.removeProperty(HEIGHT_PROPERTY);
+      if (previous) frame.style.setProperty(heightProperty, previous, priority);
+      else frame.style.removeProperty(heightProperty);
     };
   }, [presentation, frameRef]);
 }

@@ -67,7 +67,7 @@ export function AttachmentRenderer({
     </MediaFrame>;
   }
   const loading = <LoadingState label={`Loading ${title}…`} />;
-  const documentLoading = <div data-page-loading="">{loading}</div>;
+  const documentLoading = <div data-page-loading="" data-initial-page-loading="">{loading}</div>;
   switch (attachment.kind) {
     case 'audio':
       // Real files use native audio; existing seeded work keeps its synthetic player.
