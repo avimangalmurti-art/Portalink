@@ -103,11 +103,13 @@ test('each real media kind requests only its renderer and retains a polite loadi
     assert.equal(pending.type, React.Suspense);
     assert.deepEqual(h.loaded, []);
     const fallback = pending.props.fallback;
-    assert.equal(fallback.type, LoadingState);
-    const status = LoadingState(fallback.props);
+    const loading = kind === 'document' ? fallback.props.children : fallback;
+    assert.equal(fallback.props['data-page-loading'], kind === 'document' ? '' : undefined);
+    assert.equal(loading.type, LoadingState);
+    const status = LoadingState(loading.props);
     assert.equal(status.props.role, 'status');
     assert.equal(status.props['aria-live'], 'polite');
-    assert.match(fallback.props.label, /Selected work/);
+    assert.match(loading.props.label, /Selected work/);
     const resolved = await pending.props.children.type.load();
     assert.equal(resolved.default, h.components[name]);
     assert.deepEqual(h.loaded, [module]);

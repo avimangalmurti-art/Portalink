@@ -522,7 +522,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
         </button> : null}
         <FocusedPageCounter current={focusedPageNumber} total={pageCount} showMediaInteractions={showMediaInteractions} />
       </> : null}
-    {!document && <div role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
+    {!document && <div data-page-loading="" role="status" aria-live="polite" className="premium-media-placeholder flex h-full min-h-48 items-center justify-center text-[var(--text-tertiary)]">
       <span className="premium-media-loading-mark" aria-hidden="true" />
       <span className="sr-only">Preparing page images</span>
     </div>}

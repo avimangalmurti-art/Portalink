@@ -175,7 +175,7 @@ export function PortalinkPage({
       openSuggestedCity(suggestions[activeSuggestion]);
     }
   }
-  return <div className="relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
+  return <div className="portalink-world relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
       <ScreenBack><div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
@@ -185,7 +185,7 @@ export function PortalinkPage({
       {/* Starfield backdrop. */}
       <div aria-hidden="true" className="portalink-stars pointer-events-none absolute inset-0" />
 
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-6" style={isMobile ? undefined : { containerType: 'size' }}>
+      <div className="portalink-world-stage relative z-10 flex min-h-0 flex-1 items-center justify-center px-6" style={isMobile ? undefined : { containerType: 'size' }}>
         {/* Rotation keeps pointer priority; zoom is a separate gesture, so a
            drag can never resolve into opening a city. */}
         <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={(event) => {
@@ -330,7 +330,7 @@ export function PortalinkPage({
 
       
 
-      <div className={`relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
+      <div className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
         {!isMobile && <div className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
           <label htmlFor={citySearchId} className="mb-2 block text-[13px] font-semibold text-[var(--portalink-text-primary)]">Find a city</label>
           <div className="flex min-h-11 items-center gap-2 rounded-[10px] border border-[var(--portalink-border-subtle)] bg-[var(--portalink-surface)] px-3 focus-within:ring-2 focus-within:ring-[var(--portalink-focus-ring)]">

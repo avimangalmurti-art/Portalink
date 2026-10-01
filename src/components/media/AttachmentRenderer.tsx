@@ -67,6 +67,7 @@ export function AttachmentRenderer({
     </MediaFrame>;
   }
   const loading = <LoadingState label={`Loading ${title}…`} />;
+  const documentLoading = <div data-page-loading="">{loading}</div>;
   switch (attachment.kind) {
     case 'audio':
       // Real files use native audio; existing seeded work keeps its synthetic player.
@@ -77,7 +78,7 @@ export function AttachmentRenderer({
           artworkUrl={artwork?.url} artworkAlt={artwork?.alt} onClose={onClose} />
       </Suspense>;
     case 'document':
-      return attachment.sourceUrl ? <MediaFrame><Suspense fallback={loading}>
+      return attachment.sourceUrl ? <MediaFrame><Suspense fallback={documentLoading}>
         <DocumentAttachment verticalReading={verticalReading} readingMode={readingMode} readerPageRequest={readerPageRequest} onReaderRequestHandled={onReaderRequestHandled} attachment={attachment} columns={imageColumns}
           processing={state === 'processing' || state === 'processing-failed' ? {
             state, message: processing?.message ?? null, canRetry: processing?.canRetry ?? false,
@@ -87,7 +88,7 @@ export function AttachmentRenderer({
           onPreviewDocument={onPreviewDocument} onFocusModeChange={onFocusModeChange} controlsVisible={controlsVisible}
           showMediaInteractions={showMediaInteractions} isOwner={isOwner} memoryScope={memoryScope}
           pageViewToggleRequest={pageViewToggleRequest} />
-      </Suspense></MediaFrame> : <Suspense fallback={<MediaFrame>{loading}</MediaFrame>}>
+      </Suspense></MediaFrame> : <Suspense fallback={<MediaFrame>{documentLoading}</MediaFrame>}>
         <PdfViewer fileName={title} pageCount={attachment.metadata?.pageCount ?? 6} onClose={onClose} />
       </Suspense>;
     case 'image':

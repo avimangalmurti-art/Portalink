@@ -21,6 +21,8 @@ function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
  * so one unreachable file never blanks the pages around it.
+ * On mobile, the observer gates nearby pages; native lazy loading cannot start
+ * an image that stays display:none until its load event.
  */
 function ImagePage({
   projectId,
@@ -29,13 +31,14 @@ function ImagePage({
   pageCount,
   priorityCount,
   isFocused = false,
+  isMobile = false,
   zoom = 1,
   showMediaInteractions = true,
   isOwner = false,
   focusMemoryKey,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -43,6 +46,10 @@ function ImagePage({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   // Remounting the element is what a retry actually means for an image.
   const [attempt, setAttempt] = useState(0);
+  const loadingStyle = {
+    '--page-loading-ratio': attachment.metadata?.widthPixels && attachment.metadata?.heightPixels
+      ? `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}` : undefined,
+  } as React.CSSProperties;
   useLayoutEffect(() => {
     if (!isFocused || !focusMemoryKey) return;
     const remembered = readViewerMemory(focusMemoryKey);
@@ -106,9 +113,9 @@ function ImagePage({
   }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
-      {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
+      {!shouldRender ? <div data-page-loading="" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
       {shouldRender ? <>
-      {status === 'loading' && <div role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
+      {status === 'loading' && <div data-page-loading="" style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
       {status === 'error' ? <div className="flex min-h-[240px] w-full items-center justify-center p-8">
@@ -116,7 +123,7 @@ function ImagePage({
         setStatus('loading');
         setAttempt((current) => current + 1);
       }} />
-        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
+        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading={isMobile ? 'eager' : 'lazy'} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
       {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} pageCount={pageCount} isOwner={isOwner} target={{
         projectId,
@@ -276,7 +283,7 @@ export function ImageAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={isMobile ? pages.length : 1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
+          <ImagePage isMobile={isMobile} projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={isMobile ? pages.length : 1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
         </ol>
         {isMobile && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pages.length} isOwner={isOwner} target={{
           projectId,
@@ -309,7 +316,7 @@ export function ImageAttachment({
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

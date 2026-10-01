@@ -196,6 +196,33 @@
   box-shadow: none;
 }
 
+/* Center the planet in the screen, independently of the document's auto-height
+   ancestors. Header and bottom controls share the canvas without offsetting it. */
+[data-presentation='mobile'] .portalink-world {
+  display: grid;
+  height: auto;
+  min-height: 100dvh;
+}
+[data-presentation='mobile'] .portalink-world-stage {
+  grid-area: 1 / 1;
+  min-height: 100dvh;
+  z-index: 1;
+}
+[data-presentation='mobile'] .portalink-world-stage > [role='group'] {
+  --world-control-clearance: max(calc(var(--safe-area-top, 0px) + 64px), var(--mobile-content-safe-bottom, 72px));
+  max-width: min(72vh, 720px, calc(100dvh - var(--world-control-clearance) - var(--world-control-clearance)));
+}
+[data-presentation='mobile'] .portalink-world > .global-control-header {
+  grid-area: 1 / 1;
+  align-self: start;
+}
+[data-presentation='mobile'] .portalink-world-search { display: none; }
+[data-presentation='mobile'] .portalink-world > [data-mobile-scroll-end] {
+  grid-area: 1 / 1;
+  align-self: end;
+}
+[data-presentation='mobile'] .portalink-world > [data-mobile-scroll-end]:empty { pointer-events: none; }
+
 /* Account journeys are full-screen phone views; WEB retains its popup.
    The shared VisualViewport hook sizes this frame above the keyboard. */
 #root .codex-shell[data-presentation='mobile'] .account-welcome-overlay {
@@ -3083,6 +3110,18 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   overflow: visible;
   flex-basis: auto;
 }
+/* Reserve a width-fitted page while the renderer/file loads, instead of the
+   shallow desktop loading block. Known image proportions stay unchanged. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-page-loading] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: var(--page-loading-ratio, 8.5 / 11);
+}
+
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
   padding-top: var(--mobile-content-safe-top);
 }

@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## September 30, 2026 — Sites282 live; mobile refinements
+
+Sites282 succeeded at22:46:52 America/Los_Angeles (2026-10-01T05:46:52.537935UTC), source ebf33debf08583da8429dfa3022166b114f25aa1; deployment appgdep_6abdf3c40df08191b86a344fcfa97454. Includes all seven pending mobile UI tasks after Sites281, including reader controls, portal popup behavior, signup action stability and centered discard confirmations. Public audience, runtime revision2 and D1 0000–0003 unchanged.
+
+215 focused tests, typecheck, full lint (0 errors/90 existing warnings), production client+worker build, independent release review and archive checks passed. Sites publication is confirmed. Local mobile/WEB fixture evidence and physical-device limits are in the handoff; no additional hosted-browser claim. No GitHub push/merge, new SQL, Storage or config changes. Receipt: ignored logs/mobile-refinements-release-20260930/receipt.json in the owned checkout.
+
 ## September 30, 2026 — Sites281 live; profile/reader release
 
 Sites281 deployed successfully at2026-10-01 03:09:29UTC from c7b6f43b59d1b5451bb4ec0b044c4e582744fe5f; deployment appgdep_6abdcee032188191bfcab451a44fdab4. Includes removal of portfolio PDF download, mobile owner tools in Actions, full-width vertical reading, hidden reader scrollbars, matching circular Actions and a horizontal engagement capsule opened by three dots. Public audience, runtime revision2 and active D1 0000–0003 unchanged.
