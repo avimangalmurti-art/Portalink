@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## October 1, 2026 — Sites283 live; mobile globe and loading fixes
+
+Sites283 succeeded at00:36:58 America/Los_Angeles (2026-10-01T07:36:58.024220UTC), source c0880aef2b0d95f426b6abbf6fbc913a69cc097b; deployment appgdep_6abe0d918420819180c98edb7e3079f9. Includes mobile globe centering, portrait loading placeholders and mobile image load handoff. Slider clarification and Home Screen startup-art proposal remain unimplemented. Public audience, runtime revision2 and active D1 migrations unchanged.
+
+48 focused tests, typecheck, full lint (0 errors/90 existing warnings), production client+worker build, independent review and archive checks passed. Native Sites publication confirmed. No GitHub push/merge, SQL, Storage or configuration changes; no additional hosted-browser/physical-device claim. Receipt: ignored logs/globe-loading-release-20261001/receipt.json in the owned checkout.
+
 ## September 30, 2026 — Sites282 live; mobile refinements
 
 Sites282 succeeded at22:46:52 America/Los_Angeles (2026-10-01T05:46:52.537935UTC), source ebf33debf08583da8429dfa3022166b114f25aa1; deployment appgdep_6abdf3c40df08191b86a344fcfa97454. Includes all seven pending mobile UI tasks after Sites281, including reader controls, portal popup behavior, signup action stability and centered discard confirmations. Public audience, runtime revision2 and D1 0000–0003 unchanged.

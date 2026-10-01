@@ -141,7 +141,6 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
     {readingMode && <><button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button><progress aria-label="Document reading progress" value={position.current} max={position.total} /></>}
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
     {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
-      <span>Pages/row <b>{density.value}</b></span>
       <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={density.value} disabled={density.saving}
         onChange={event => density.onChange(Number(event.currentTarget.value))}
         onPointerUp={event => density.onCommit(Number(event.currentTarget.value))}

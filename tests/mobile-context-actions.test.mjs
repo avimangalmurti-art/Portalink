@@ -66,30 +66,129 @@ test('registration composition stays in the active route kind and keeps canonica
  assert.deepEqual(Array.from(ids(merged)),['edit','share','delete']); assert.equal(merged.title,'Work');
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
-test('the common sheet supports close, backdrop, Escape, swipe and action delegation without placeholders', () => {
- const calls=[]; let escape;
- class ElementStub { closest() { return null; } }
+
+function sheetHarness() {
+ const slots=[], calls=[]; let cursor=0, escape, tree;
+ class ElementStub {
+  constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
+  closest(selector) {
+   if(selector==='button:not(.mobile-context-resize)')return this.kind==='button'?this:null;
+   if(selector==='.mobile-context-resize')return this.kind==='resize'?this:null;
+   return null;
+  }
+  setPointerCapture(id) { this.captured.add(id); }
+  hasPointerCapture(id) { return this.captured.has(id); }
+  releasePointerCapture(id) { this.captured.delete(id); }
+ }
+ const header=new ElementStub(), resize=new ElementStub('resize'), close=new ElementStub('button');
+ header.querySelector=selector=>selector==='.mobile-context-resize'?resize:null;
+ const viewport={getBoundingClientRect:()=>({top:0,bottom:800,height:800})};
+ const dialog={getBoundingClientRect:()=>{
+  const node=nodes(tree).find(node=>node.props.role==='dialog');
+  const height=node?.props.style?.height??(node?.props['data-expanded']?760:440);
+  return {top:800-height,bottom:800,height};
+ }};
+ const react={...React,useId:()=> 'title',useRef(initial){return slots[cursor++]??={current:initial};},useState(initial){
+  const index=cursor++; if(!(index in slots))slots[index]=initial;
+  return [slots[index],next=>{slots[index]=typeof next==='function'?next(slots[index]):next;}];
+ }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
-  react:{...React,useRef:()=>({current:null}),useId:()=> 'title'},
-  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},
-  '../../hooks/useModalFocus':{useModalFocus:(_open,_ref,fn)=>{escape=fn;}},
- }, { Element: ElementStub });
+  react,
+  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
+  '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
+ },{Element:ElementStub});
  const model=contextActions('home',{signedIn:true},{handlers:{explore:()=>calls.push('explore'),newProject:()=>calls.push('new')}});
- const tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run()});
- const list=nodes(tree), close=list.find(n=>n.props['aria-label']==='Close actions'), scrim=list.find(n=>n.props.className?.includes('mobile-context-scrim'));
- close.props.onClick(); escape(); const background={}; scrim.props.onClick({target:background,currentTarget:background});
- assert.deepEqual(calls,['close','close','close']);
- list.find(n=>n.type==='button'&&nodes(n).some(x=>x.type==='span'&&x.props.children==='Explore')).props.onClick(); assert.equal(calls.at(-1),'explore');
- const header=list.find(n=>n.type==='header');
- const context={setPointerCapture(){}}, target=new ElementStub();
- header.props.onPointerDown({isPrimary:true,button:0,target,currentTarget:context,pointerId:1,clientX:10,clientY:10});
- header.props.onPointerUp({pointerId:1,clientX:12,clientY:100});
- assert.equal(calls.at(-1),'close'); assert.equal(calls.length,5);
- target.closest=()=>({});
- header.props.onPointerDown({isPrimary:true,button:0,target,currentTarget:context,pointerId:1,clientX:10,clientY:10});
- header.props.onPointerUp({pointerId:1,clientX:12,clientY:100});
- assert.equal(calls.length,5,'A close-button press cannot also trigger a drag');
+ const render=()=>{
+  cursor=0;tree=MobileActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>action.run()});
+  nodes(tree).find(node=>node.props.role==='dialog').ref.current=dialog;
+  return tree;
+ };
+ const find=predicate=>nodes(render()).find(predicate);
+ const pointer=(name,overrides={})=>find(node=>node.type==='header').props[name]({
+  isPrimary:true,button:0,pointerId:1,clientX:100,clientY:600,target:header,currentTarget:header,...overrides,
+ });
+ const resizeButton=()=>find(node=>node.props.className==='mobile-context-resize');
+ return {render,find,calls,escape:()=>escape(),pointer,header,resize,close,resizeButton,
+  dialog:()=>find(node=>node.props.role==='dialog'),
+  clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
+ };
+}
+
+test('the common sheet supports close, backdrop, Escape, swipe and action delegation without placeholders', () => {
+ const h=sheetHarness(),list=nodes(h.render());
+ const close=list.find(n=>n.props['aria-label']==='Close actions'),scrim=list.find(n=>n.props.className?.includes('mobile-context-scrim'));
+ close.props.onClick();h.escape();const background={};scrim.props.onClick({target:background,currentTarget:background});
+ assert.deepEqual(h.calls,['close','close','close']);
+ scrim.props.onClick({target:{},currentTarget:background});assert.equal(h.calls.length,3,'Clicks inside the sheet do not dismiss it');
+ list.find(n=>n.type==='button'&&nodes(n).some(x=>x.type==='span'&&x.props.children==='Explore')).props.onClick();assert.equal(h.calls.at(-1),'explore');
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:690});
+ assert.equal(h.calls.at(-1),'close');assert.equal(h.calls.length,5);
+ h.pointer('onPointerDown',{target:h.close});h.pointer('onPointerUp',{clientY:690});
+ assert.equal(h.calls.length,5,'A close-button press cannot also trigger a drag');
  assert.ok(list.every(n=>n.type!=='button'||n.props.disabled===undefined));
+});
+
+test('the resize button exposes expansion to keyboard users without changing available actions',()=>{
+ const h=sheetHarness(),labels=()=>nodes(h.render()).filter(node=>node.type==='span').map(node=>node.props.children);
+ const initialLabels=labels();
+ assert.equal(h.dialog().props['data-expanded'],false);
+ assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
+ assert.equal(h.resizeButton().props['aria-expanded'],false);
+ h.clickResize(0);
+ assert.equal(h.dialog().props['data-expanded'],true);
+ assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');
+ assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.deepEqual(labels(),initialLabels);
+ assert.equal(h.dialog().props['aria-labelledby'],'title');
+ h.clickResize(0);
+ assert.equal(h.dialog().props['data-expanded'],false);
+ assert.deepEqual(h.calls,[]);
+});
+
+test('vertical dragging resizes within the viewport, expands, collapses and suppresses its follow-up click',()=>{
+ const h=sheetHarness();
+ h.pointer('onPointerDown',{target:h.resize});
+ assert.equal(h.resize.hasPointerCapture(1),true);
+ h.pointer('onPointerMove',{clientY:500});
+ assert.equal(h.dialog().props.style.height,540);
+ assert.equal(h.dialog().props.style.transform,undefined,'Dragging resizes rather than translating the sheet');
+ h.pointer('onPointerMove',{clientY:-500});
+ assert.ok(h.dialog().props.style.height<=800,'The dragged sheet stays inside its viewport');
+ h.pointer('onPointerUp',{clientY:450});
+ assert.equal(h.resize.hasPointerCapture(1),false);
+ assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props['data-expanded'],true);
+ h.clickResize();assert.equal(h.dialog().props['data-expanded'],true,'The drag-generated click does not undo expansion');
+ assert.deepEqual(h.calls,[]);
+ h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:690});h.pointer('onPointerUp',{clientY:690});
+ assert.equal(h.dialog().props['data-expanded'],false);
+ assert.deepEqual(h.calls,[],'Dragging an expanded sheet down collapses it before dismissal');
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:690});
+ assert.deepEqual(h.calls,['close']);
+});
+
+test('simple resize taps remain clicks; cancelled, horizontal and unrelated pointers cannot resize or dismiss',()=>{
+ const h=sheetHarness();
+ h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerUp',{clientY:602});h.clickResize();
+ assert.equal(h.dialog().props['data-expanded'],true,'A stationary handle press still activates its button');
+ h.clickResize(0);
+ for(const ignored of [{isPrimary:false},{button:2},{target:h.close}]){
+  h.pointer('onPointerDown',ignored);h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+ }
+ h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerMove',{pointerId:2,clientY:450});h.pointer('onPointerUp',{pointerId:2,clientY:450});
+ assert.equal(h.dialog().props.style,undefined);
+ h.pointer('onPointerMove',{clientX:180,clientY:450});h.pointer('onPointerUp',{clientX:180,clientY:450});
+ h.clickResize();
+ assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+ h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerUp',{clientX:180});h.clickResize();
+ assert.equal(h.dialog().props['data-expanded'],false,'Horizontal handle drags cannot become toggle clicks, even without a move event');
+ for(const cancel of ['onPointerCancel','onLostPointerCapture']){
+  h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});assert.ok(h.dialog().props.style.height>440);
+  h.pointer(cancel);h.pointer('onPointerUp',{clientY:450});
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+ }
+ assert.deepEqual(h.calls,[]);
 });
 test('provider re-resolves capabilities and restores context focus before handing off an action', () => {
  const slots=[]; let cursor=0, location={pathname:'/',search:''}, account='me'; const effects=[], calls=[];

@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const nodes=tree=>React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];
-test('dock has only Actions, Messages, Studio, Home and Profile, with no rail or separate compose',()=>{
+test('dock orders Messages, Studio, Actions, Home and Profile, with no rail or separate compose',()=>{
  const exports={}; const calls=[];
  vm.runInNewContext(ts.transpileModule(read('../src/presentation/mobile/MobileNavigation.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
   if(name==='react')return {...React,useRef:()=>({current:null})};
@@ -16,10 +16,16 @@ test('dock has only Actions, Messages, Studio, Home and Profile, with no rail or
   if(name==='./useMobileDockScroll')return{useMobileDockScroll:(...args)=>calls.push(args)};
   return new Proxy({},{get:(_o,key)=>key});
  }});
- const tree=exports.MobileNavigation({onMessages(){},onProfile(){},isProfileActive:false});
+ const destinations=[];
+ const tree=exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onProfile(...args){destinations.push(['profile',args]);},isProfileActive:false});
  const dock=nodes(tree).find(n=>n.props.className==='mobile-navigation-dock');
- assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Actions','Messages','Studio','Home','Profile']);
+ assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Messages','Studio','Actions','Home','Profile']);
  assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(calls[0][0],true);
+ for(const label of ['Messages','Profile']){
+  const destination=nodes(tree).find(n=>n.props.item?.label===label);
+  destination.type(destination.props).props.onClick({type:'click',target:{}});
+ }
+ assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
 test('dock width reserves five touch targets and the shared mobile sidebar becomes one floating button',()=>{

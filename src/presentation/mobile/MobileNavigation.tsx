@@ -11,7 +11,7 @@ type Props = { onMessages: () => void; onProfile: () => void; profileHref?: stri
 function Destination({ item }: { item: Item }) {
   const props = { className: 'mobile-nav-destination nav-button mobile-dock-destination', 'aria-label': item.label, 'aria-current': item.active ? 'page' as const : undefined, title: item.label };
   const icon = <InterfaceIcon icon={item.icon} weight="medium" />;
-  return item.href ? <Link {...props} to={item.href}>{icon}</Link> : <button {...props} type="button" onClick={item.action}>{icon}</button>;
+  return item.href ? <Link {...props} to={item.href}>{icon}</Link> : <button {...props} type="button" onClick={() => item.action?.()}>{icon}</button>;
 }
 /** Screen actions and four stable destinations share one viewport-fixed capsule. */
 export function MobileNavigation({ onMessages, onProfile, profileHref, isProfileActive }: Props) {
@@ -25,5 +25,5 @@ export function MobileNavigation({ onMessages, onProfile, profileHref, isProfile
     { label: 'Home', icon: HomeIcon, href: buildPath('home'), active: pathname === buildPath('home') },
     { label: 'Profile', icon: CircleUserRoundIcon, href: profileHref, action: onProfile, active: isProfileActive },
   ];
-  return <div className="mobile-navigation-layer" data-mobile-navigation-layer=""><div ref={dockRef} className="mobile-floating-navigation"><nav className="mobile-navigation-quick-links" aria-label="Quick navigation"><div className="mobile-navigation-dock"><MobileContextButton />{destinations.map(item => <Destination key={item.label} item={item}/>)}</div></nav></div></div>;
+  return <div className="mobile-navigation-layer" data-mobile-navigation-layer=""><div ref={dockRef} className="mobile-floating-navigation"><nav className="mobile-navigation-quick-links" aria-label="Quick navigation"><div className="mobile-navigation-dock">{destinations.slice(0, 2).map(item => <Destination key={item.label} item={item}/>)}<MobileContextButton />{destinations.slice(2).map(item => <Destination key={item.label} item={item}/>)}</div></nav></div></div>;
 }

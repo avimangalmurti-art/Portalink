@@ -2,7 +2,7 @@ import { useMobileScreenActions } from '../../presentation/mobile/MobileContextA
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArchiveIcon, BellIcon, BookmarkIcon, CheckIcon, ChevronLeftIcon, CopyIcon, EllipsisIcon, FilePenLineIcon, LayoutGridIcon, ListIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
+import { ArchiveIcon, BellIcon, BookmarkIcon, CheckIcon, CopyIcon, EllipsisIcon, FilePenLineIcon, LayoutGridIcon, ListIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
@@ -247,16 +247,18 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
+    <ScreenBack action={back}>{null}</ScreenBack>
     <header className="studio-header">
       <div className="studio-header-actions">
-        <ScreenBack action={back} visibleOnMobile><button type="button" className="studio-round-control" aria-label={selecting ? 'Exit selection' : 'Go back'} onClick={back} disabled={bulkPending}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /></button></ScreenBack>
-        <div className="flex items-center gap-2">
+        <div className="studio-heading">
+          <h1 ref={heading} tabIndex={-1} className="studio-title">Studio</h1>
+          <p className="studio-status">{statusLine}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? <InterfaceIcon icon={XIcon} /> : 'Select'}</button>
           <button type="button" className="studio-round-control" aria-label="Studio view options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button>
         </div>
       </div>
-      <h1 ref={heading} tabIndex={-1} className="studio-title">Studio</h1>
-      <p className="studio-status">{statusLine}</p>
       <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input ref={searchInput} type="search" aria-label="Search Studio" placeholder={category === 'all' ? 'Search Studio' : `Search ${categoryDetails[category].label.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {view === 'categories' && <div ref={pillList} className="studio-categories scrollbar-hidden" role="group" aria-label="Studio categories">
         {STUDIO_CATEGORIES.map(kind => <button key={kind} type="button" className="studio-category" data-keep-color="" aria-label={categoryDetails[kind].label} aria-pressed={category === kind} disabled={bulkPending} onClick={() => chooseCategory(kind)}><InterfaceIcon icon={categoryDetails[kind].icon} />{category === kind && <span>{categoryDetails[kind].label}</span>}</button>)}

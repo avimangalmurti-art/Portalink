@@ -248,10 +248,31 @@ test('action sheet supports focus dismissal, touch reactions and only shows edit
   overlay.props.onClick({ target: {}, currentTarget: background }); assert.equal(h.calls.length, before);
   overlay.props.onClick({ target: background, currentTarget: background }); assert.equal(h.calls.at(-1), 'close');
   const incomingButtons = nodes(sheetHarness(false).render()).filter(node => node.type === 'button');
-  assert.equal(incomingButtons.length, 5, 'Incoming messages have Close, React, and three emoji choices');
+  assert.equal(incomingButtons.length, 6, 'Incoming messages have Resize, Close, React, and three emoji choices');
   h.props.pending = true;
-  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close actions');
+  const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close actions' && node.props.className !== 'mobile-context-resize');
   assert.equal(mutationButtons.length, 0);
+});
+
+test('message sheet resizing preserves reactions and pending state still permits resizing and dismissal', () => {
+  const h = sheetHarness();
+  const resize = () => nodes(h.render()).find(node => node.props.className === 'mobile-context-resize');
+  const dialog = () => nodes(h.render()).find(node => node.props.role === 'dialog');
+  resize().props.onClick({ detail: 0 });
+  assert.equal(dialog().props['data-expanded'], true);
+  const reactions = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-pressed'] !== undefined);
+  assert.equal(reactions.length, 3);
+  reactions[1].props.onClick();
+  assert.equal(h.calls.at(-1)[0], 'react');
+  h.props.pending = true;
+  assert.equal(nodes(h.render()).some(node => node.props['aria-pressed'] !== undefined), false);
+  assert.equal(resize().props.disabled, undefined);
+  const before = h.calls.length;
+  resize().props.onClick({ detail: 0 });
+  assert.equal(dialog().props['data-expanded'], false);
+  assert.equal(h.calls.length, before, 'Resizing cannot invoke a message mutation');
+  nodes(h.render()).find(node => node.props['aria-label'] === 'Close actions').props.onClick();
+  assert.equal(h.calls.at(-1), 'close');
 });
 
 function conversationHarness(presentation = 'mobile') {

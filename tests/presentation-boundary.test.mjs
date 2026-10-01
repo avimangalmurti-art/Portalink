@@ -192,7 +192,20 @@ test('every platform CSS selector is scoped, including nested rules and selector
             || (node.prop === 'overflow' && node.value === 'visible')
             || (selector === 'html:root' && node.prop === 'overflow-x' && node.value === 'clip')
           ));
-        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas, `Unscoped ${mode} selector: ${selector}`);
+        // The existing portal popup locks its document ancestor only while an
+        // active MOBILE overlay exists; it must not become a global root lock.
+        const mobilePortalScrollLock = mode === 'mobile'
+          && selector === "html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobile-project-index-overlay):not(.screen-exit *, [inert] *, [aria-hidden='true'] *))"
+          && rule.nodes.length === 2 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+            (node.prop === 'overflow' && node.value === 'hidden')
+            || (node.prop === 'overscroll-behavior' && node.value === 'none')
+          ));
+        const readerRoot = "html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))";
+        const mobileReaderScrollbar = mode === 'mobile' && rule.nodes.length === 1 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+          ([readerRoot, `${readerRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
+          || ([`${readerRoot}::-webkit-scrollbar`, `${readerRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
+        ));
+        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar, `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

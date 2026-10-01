@@ -222,15 +222,15 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile Journey choice is first in expanded profile tools and survives closing them', () => {
+test('mobile closed header shows Journey choice; expanding shows counts then links without losing selection', () => {
   const h = profileHarness('', { presentation: 'mobile' });
   const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
   let tree = h.render();
-  assert.equal(toggle(tree), undefined);
-  nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
-  tree = h.render();
-  const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
-  assert.equal(React.Children.toArray(tools.props.children.props.children)[0].type, 'JourneyToggle');
+  assert.equal(toggle(tree).props.view, 'portfolio');
+  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
+  assert.equal(identity.props.profileView.type, 'JourneyToggle');
+  assert.equal(identity.props.profileView.props, toggle(tree).props);
   assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
   toggle(tree).props.onChange('journey');
   tree = h.render();
@@ -239,6 +239,12 @@ test('mobile Journey choice is first in expanded profile tools and survives clos
   nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
   tree = h.render();
   assert.equal(toggle(tree), undefined);
+  const all = nodes(tree);
+  const stats = all.find(node => node.type?.name === 'ProfileStats');
+  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  const tools = all.find(node => node.props?.id === 'profile-navigation-tools');
+  assert.ok(all.indexOf(stats) < all.indexOf(tools));
+  assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
   assert.equal(toggle(h.render()).props.view, 'journey');
@@ -247,11 +253,13 @@ test('mobile Journey choice is first in expanded profile tools and survives clos
 test('profile Journey controls retain owner/public permissions, editor guard and desktop placement', () => {
   for (const [viewerRole, showJourney, allowed] of [['owner', false, true], ['member', true, true], ['member', false, false], ['guest', false, false]]) {
     const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
-    openProfileOptions(h);
     assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+    openProfileOptions(h);
+    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), false);
   }
+  const privateShare = profileHarness('', { presentation: 'mobile', viewerRole: 'owner', isSharedView: true, showJourney: false });
+  assert.equal(nodes(privateShare.render()).some(node => node.type === 'JourneyToggle'), false);
   const editing = profileHarness('', { presentation: 'mobile', editorProjectId: 'work' });
-  openProfileOptions(editing);
   assert.equal(nodes(editing.render()).find(node => node.type === 'JourneyToggle').props.disabled, true);
   const web = profileHarness('', { presentation: 'web' });
   for (const expanded of [false, true]) {
@@ -345,22 +353,21 @@ test('mobile portal chooser consumes outside taps across the screen and preserve
   assert.equal(setup('web').listeners.size, 0, 'WEB collections have no popup dismissal listener');
 });
 
-test('both mobile portal counts float the supplied chooser above the wall and preserve a profile history entry', () => {
+test('disclosed mobile portal count floats the supplied chooser above the wall and preserves profile history', () => {
   const mobilePortalsView = React.createElement('section', { 'aria-label': 'Portal list' });
   for (const viewerRole of ['owner', 'visitor', 'guest']) {
-    for (const expanded of [false, true]) {
+    for (const reopen of [false, true]) {
       const h = profileHarness('keep=value', { presentation: 'mobile', viewerRole, projects: reorderProjects, props: { mobilePortalsView } });
       let tree = h.render();
-      if (expanded) {
-        nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
-        tree = h.render();
-        const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
-        nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
-      } else {
-        const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-        const summary = nodes(identity.type(identity.props)).find(node => node.props?.['aria-label'] === 'Profile content');
-        nodes(summary).filter(node => node.type === 'button')[1].props.onClick();
+      assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+      openProfileOptions(h);
+      if (reopen) {
+        nodes(h.render()).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+        openProfileOptions(h);
       }
+      tree = h.render();
+      const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
+      nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
       const portalTree = h.render();
       assert.ok(nodes(portalTree).some(node => node.props === mobilePortalsView.props));
       assert.ok(wall(portalTree), 'Opening Portals must leave the artwork mounted underneath');
@@ -591,6 +598,8 @@ test('mobile Profile options retain links and visitor controls without duplicate
     const children = React.Children.toArray(tools.props.children.props.children);
     const linkRow = children.find(node => node.props?.['data-mobile-profile-links'] !== undefined);
     assert.equal(linkRow.props.children.type, 'PlatformGrid');
+    assert.deepEqual(Array.from(linkRow.props.children.props.links.filter(link => link.action), link => link.action),
+      viewerRole === 'owner' ? ['bio', 'collaboration'] : ['bio', 'collaboration', 'message']);
     assert.deepEqual(JSON.parse(JSON.stringify(linkRow.props.children.props.links.filter(link => !link.action))), links);
     if (viewerRole === 'owner') {
       const actions = children.find(node => node.props?.['data-profile-owner-actions'] !== undefined);
@@ -708,7 +717,7 @@ test('mobile Bio is available to owners, visitors and guests, with no links and 
       const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
       const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
       assert.equal(grid.props.isSharedView, isSharedView);
-      assert.equal(grid.props.links.length, 3);
+      assert.equal(grid.props.links.length, viewerRole === 'owner' && !isSharedView ? 2 : 3);
       grid.props.onOpenBio();
       const sheet = nodes(h.render()).find(node => node.type === 'ProfileBioSheet');
       assert.equal(sheet.props.canEdit, viewerRole === 'owner' && !isSharedView, 'Editing is owner-only, independent of Edit profile navigation');
@@ -855,6 +864,7 @@ test('profile headers keep Bio behind its control and use Portals consistently o
   const profile = { id: 'owner', name: 'Owner', headline: 'Jolly Good\nWorking across media.', location: 'London', projects: reorderProjects, categories: [{ id: 'photos', label: 'Photography' }], stats: [] };
   for (const presentation of ['mobile', 'web']) for (const isSharedView of [false, true]) for (const viewerRole of ['owner', 'visitor', 'guest']) {
     const h = profileHarness('', { presentation, projects: reorderProjects, isSharedView, viewerRole });
+    if (presentation === 'mobile') openProfileOptions(h);
     const tree = h.render({ profile });
     assert.equal(wall(tree).props.allowLayoutControls, !isSharedView);
     assert.equal(nodes(tree).some(node => node.props?.['data-shared-profile-headline'] !== undefined), false);

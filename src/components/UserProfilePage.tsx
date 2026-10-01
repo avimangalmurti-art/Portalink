@@ -311,6 +311,7 @@ function ProfileIdentityAndLinks({
   showLinks = true,
   avatarPriority = false,
   onOpenBio,
+  profileView,
   summaryCounts
 }: {
   profile: Profile;
@@ -319,6 +320,7 @@ function ProfileIdentityAndLinks({
   showLinks?: boolean;
   avatarPriority?: boolean;
   onOpenBio?: () => void;
+  profileView?: React.ReactNode;
   summaryCounts?: { projectCount: number; portalCount: number; followers: string | null; following: string | null; expanded: boolean; canViewConnections: boolean; activeView: ProfileContentView; onSelect: (view: ProfileContentView) => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
@@ -329,6 +331,7 @@ function ProfileIdentityAndLinks({
             {displayName}
           </h1>
           {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
+          {profileView && <div className="profile-identity-view">{profileView}</div>}
           {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} />}
         </div>
       </div>
@@ -368,11 +371,14 @@ function ProfileStats({
     { id: 'following', count: following ?? '0', label: 'following' },
   ] as const;
   return <div role="group" aria-label="Profile content" className="profile-summary-counts">
-    {views.filter(view => !compact || view.id === 'projects' || view.id === 'portals').map((view) => !canViewConnections && (view.id === 'followers' || view.id === 'following') ? <span key={view.id} className="profile-count-control">
+    {views.filter(view => !compact || view.id === 'projects' || view.id === 'portals').map((view, index) => <React.Fragment key={view.id}>
+      {index > 0 && <span className="profile-count-separator" aria-hidden="true">·</span>}
+      {!canViewConnections && (view.id === 'followers' || view.id === 'following') ? <span className="profile-count-control">
       <span className="font-semibold tabular-nums">{view.count}</span> {view.label}
-    </span> : <button key={view.id} type="button" aria-pressed={activeView === view.id} aria-controls="profile-content" disabled={disabled} onClick={() => onSelect(view.id)} className="profile-count-control">
+    </span> : <button type="button" aria-pressed={activeView === view.id} aria-controls="profile-content" disabled={disabled} onClick={() => onSelect(view.id)} className="profile-count-control">
       <span className="font-semibold tabular-nums">{view.count}</span> {view.label}
-    </button>)}
+    </button>}
+    </React.Fragment>)}
   </div>;
 }
 
@@ -465,7 +471,9 @@ export function UserProfilePage({
   const showsFollow = viewerRole === 'visitor';
   const showsSignInToFollow = needsAccount(viewerRole);
   const displayName = profile.name;
-  const profileLinks = useMemo(() => resolveProfileLinks(profile.links, profile.socialLinks), [profile.links, profile.socialLinks]);
+  const profileLinks = useMemo(() => resolveProfileLinks(profile.links, profile.socialLinks)
+    .filter(link => !(isMobile && showsOwnerTools && link.action === 'message')),
+  [profile.links, profile.socialLinks, isMobile, showsOwnerTools]);
 
   // Read straight off the record, so the figure states how much work exists
   // rather than how many tiles happen to be rendered below it.
@@ -660,7 +668,9 @@ export function UserProfilePage({
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={() => { setShareOpen(false); setShareAuto(false); }} /></Suspense>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView} summaryCounts={isSharedView ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
+          profileView={isMobile && !isMobileToolsOpen && canSeeJourney && !mobileContent ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
+          summaryCounts={isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
@@ -675,7 +685,6 @@ export function UserProfilePage({
       {/* Keep the existing creator-save lifecycle available to the mobile sheet when tools are collapsed. */}
       {((isMobile && !showsOwnerTools && !isSharedView) || isMobileToolsOpen) && <header style={{ display: isMobileToolsOpen ? undefined : 'none' }} id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          {isMobile && canSeeJourney && !mobileContent && <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
           {showsOwnerTools && visibility.isPrivate && followRequests.count > 0 && <div className="relative">
               <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="side-panel-primary-control side-panel-control-row border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <UserPlusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

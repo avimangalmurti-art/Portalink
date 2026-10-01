@@ -633,9 +633,20 @@
   transition: none;
 }
 
-/* Installed apps have no Safari toolbar: tuck the main capsule down to the
-   home-indicator safe area, retaining an edge gap on devices without an inset. */
-html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation {
+/* Installed WebKit can keep a shortened bottom anchor until the first gesture.
+   Give the existing transparent layer an explicit, top-anchored height instead
+   of stretching between viewport edges; place the capsule inside that layer.
+   CSS vh includes the standalone safe areas without sampling VisualViewport.
+   The document remains the scroller and Safari keeps its viewport-fixed dock. */
+#root .codex-shell[data-presentation='mobile'] .mobile-navigation-layer:where(html[data-standalone] *) {
+  top: 0;
+  bottom: auto;
+  height: 100vh;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation:where(html[data-standalone] *) {
+  position: absolute;
+  inset-inline: 0;
   bottom: max(8px, var(--safe-area-bottom));
 }
 
@@ -2078,6 +2089,26 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   margin: 0;
 }
 
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view {
+  margin-top: 3px;
+  margin-inline-end: -38px;
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
+  min-width: 0;
+  padding-inline: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
+  /* Override the shared neutral selected-button paint for this accent pill. */
+  background: var(--accent-primary) !important;
+  color: var(--accent-foreground) !important;
+}
+
 /* Another creator's links and Follow/Save share a row when they fit. Extra
    links or larger text may wrap naturally without squeezing touch targets. */
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) [data-mobile-profile-links] {
@@ -2302,6 +2333,23 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 }
 
 /* Expanded profile counts use the phone width instead of the avatar's column. */
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header:not([data-expanded]) .profile-summary-counts {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-summary-counts > .profile-count-separator + .profile-count-control::before { content: none; }
+#root .codex-shell[data-presentation='mobile'] .profile-summary-counts > .profile-count-separator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding-inline: calc(7px + .125em);
+  color: var(--text-tertiary);
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-summary-counts > .profile-count-separator {
+  flex-grow: 1;
+}
+
 #root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-summary-counts) .profile-identity-main {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
@@ -2896,8 +2944,10 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 12px;
 }
+
+#root .codex-shell[data-presentation='mobile'] .studio-heading { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
 #root .codex-shell[data-presentation='mobile'] :is(.studio-round-control, .studio-text-control) {
   display: inline-flex;
@@ -3144,10 +3194,29 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
 }
 /* Context sheets share the app's appearance and material tokens on body portals. */
-[data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 36%); }
-[data-presentation='mobile'] .mobile-context-sheet { display: flex; flex-direction: column; max-height: calc(100% - max(16px, env(safe-area-inset-top))); width: min(100%, 480px); border: 1px solid var(--hairline); border-radius: 28px 28px 0 0; background: var(--surface-raised); color: var(--text-primary); box-shadow: 0 -8px 40px rgb(0 0 0 / 18%); outline: none; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
-[data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 10px 20px 16px; touch-action: none; }
-[data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; margin: 0 auto 18px; border-radius: 8px; background: var(--text-tertiary); opacity: .55; }
+[data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 20%); }
+/* This sheet shows the page sharply through its material. Other dialogs keep
+   their existing scrim; both overrides beat the shared dialog material rules. */
+#root .codex-shell [data-presentation='mobile'].mobile-context-scrim {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet {
+  display: flex; flex-direction: column; height: min(440px, 55%);
+  max-height: calc(100% - max(16px, var(--safe-area-top)));
+  width: min(100%, 480px); border: 1px solid var(--hairline);
+  border-color: var(--context-outline, var(--hairline)) !important;
+  border-radius: 28px 28px 0 0 !important;
+  background: var(--material-thick) !important; color: var(--text-primary);
+  box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  outline: none; padding-bottom: max(16px, var(--safe-area-bottom));
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { height: calc(100% - max(16px, var(--safe-area-top))); }
+#root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
+[data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 0 20px 16px; touch-action: none; user-select: none; }
+[data-presentation='mobile'] .mobile-context-resize { display: grid; place-items: center; width: 72px; height: 44px; margin: 0 auto; border-radius: 999px; cursor: ns-resize; }
+[data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; border-radius: 8px; background: var(--text-tertiary); }
 [data-presentation='mobile'] .mobile-context-heading { display: flex; align-items: center; gap: 12px; }
 [data-presentation='mobile'] .mobile-context-heading > div { min-width: 0; flex: 1; }
 [data-presentation='mobile'] .mobile-context-heading h2 { font-size: 19px; font-weight: 650; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3162,6 +3231,14 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] .mobile-context-group button[data-destructive] { color: var(--status-danger); }
 [data-presentation='mobile'] .mobile-context-sheet button:focus-visible, [data-presentation='mobile'] .mobile-context-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
 [data-presentation='mobile'] .mobile-context-sheet button:active { background: var(--surface-hover); }
+#root .codex-shell[data-presentation='mobile'].high-contrast .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+@media (prefers-contrast: more) {
+  [data-presentation='mobile'] .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+}
+[data-presentation='mobile'] .mobile-context-sheet button,
+[data-presentation='mobile'] .mobile-context-group { box-shadow: inset 0 0 0 var(--context-outline-width, 0px) var(--context-outline, transparent); }
+[data-presentation='mobile'] .mobile-context-sheet .mobile-context-group button { border-radius: 0; box-shadow: none; }
+[data-presentation='mobile'] .mobile-context-group button + button { border-top: var(--context-outline-width, 1px) solid var(--context-outline, var(--hairline)); }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-slot { position: relative; min-width: 0; }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-button { width: 100%; min-width: 44px; min-height: 44px; border-radius: 999px; background: var(--accent-primary) !important; color: var(--accent-foreground) !important; pointer-events: auto; }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-button svg { color: inherit !important; }
@@ -3237,7 +3314,19 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   color: var(--navigation-selected-foreground);
 }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > button:disabled { opacity: .3; }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress { position: absolute; left: 12px; bottom: -7px; width: calc(100% - 24px); height: 2px; border: 0; appearance: none; background: var(--hairline-strong); }
+/* The header starts after Back. Offset that inset so progress spans the screen
+   above all controls, independently of the counter and density pill widths. */
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress {
+  position: absolute;
+  left: calc(0px - var(--mobile-navigation-inset-start) - var(--mobile-control-size) - var(--mobile-control-group-gap));
+  top: -8px;
+  bottom: auto;
+  width: 100vw;
+  height: 2px;
+  border: 0;
+  appearance: none;
+  background: var(--hairline-strong);
+}
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-bar { background: var(--hairline-strong); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-value { background: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-moz-progress-bar { background: var(--accent-primary); }
@@ -3281,21 +3370,11 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   left: calc(100% + var(--mobile-control-group-gap));
   right: auto;
 }
-#root .codex-shell[data-presentation='mobile'] .mobile-project-density > span {
-  position: absolute;
-  top: 7px;
-  inset-inline: 12px;
-  text-align: center;
-  font-size: 11px;
-  line-height: 14px;
-  white-space: nowrap;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile'] .mobile-project-density b { font-weight: 600; font-variant-numeric: tabular-nums; }
 #root .codex-shell[data-presentation='mobile'] .mobile-project-density input {
   position: absolute;
   inset-inline: 14px;
-  bottom: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: calc(100% - 28px);
   height: 44px;
   margin: 0;
