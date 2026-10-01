@@ -506,6 +506,69 @@
   min-height: 48px;
   padding-block: 10px;
 }
+/* All three signup steps use the compact profile stack's action position.
+   Only the fields scroll; selection, validation and busy labels cannot move
+   or resize the action. A smaller visible viewport can shrink the field area
+   to keep the same action reachable above the keyboard. */
+#root .codex-shell [data-mobile-onboarding]:has(.mobile-onboarding-fields) .account-welcome-content {
+  gap: 12px;
+  overflow: hidden;
+}
+#root .codex-shell [data-mobile-onboarding]:has(.mobile-onboarding-fields) .account-welcome-heading {
+  position: static;
+  flex: 0 0 auto;
+  min-height: 44px;
+  margin: 0;
+  padding-block: 6px;
+}
+#root .codex-shell [data-mobile-onboarding]:has(.mobile-onboarding-fields) .mobile-onboarding-body:not([hidden]) {
+  flex: 0 1 570px;
+  min-height: 0;
+  max-height: 570px;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-form:has(> .mobile-onboarding-fields) {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 48px;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  scroll-padding-block: 8px;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields::-webkit-scrollbar { display: none; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields > * { flex: 0 0 auto; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-form:has(> .mobile-onboarding-fields) > .mobile-onboarding-footer {
+  display: block;
+  width: min(100%, 250px);
+  height: 48px;
+  justify-self: center;
+  align-self: start;
+  margin: 0;
+  padding: 0;
+}
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-form:has(> .mobile-onboarding-fields) > .mobile-onboarding-footer button {
+  width: 100%;
+  height: 48px;
+  min-height: 48px !important;
+  max-height: 48px;
+  padding: 10px 20px;
+  border-radius: 999px !important;
+  white-space: nowrap;
+  transform: none !important;
+  transition-property: background-color, color, border-color, opacity;
+}
+/* Safari chrome changes must not reflow the choices on the first tap. */
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields .mobile-onboarding-appearance { gap: 16px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields .mobile-onboarding-brand { font-size: 48px; }
+#root .codex-shell [data-mobile-onboarding] .mobile-onboarding-fields .mobile-onboarding-swatches button { height: 48px; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input { position: relative; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input > svg { position: absolute; top: 15px; left: 15px; pointer-events: none; }
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-input input { min-height: 52px; padding-left: 50px; }
@@ -873,7 +936,7 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 /* One right-hand rail on the phone; opening its panels never remounts or
    resizes the work. Back floats independently above the left canvas. */
 #root .codex-shell[data-presentation='mobile'] .mobile-project-back {
-  position: absolute;
+  position: fixed;
   top: calc(8px + var(--mobile-content-safe-top));
   left: max(8px, env(safe-area-inset-left, 0px));
   z-index: 45;
@@ -1657,7 +1720,7 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 }
 
 /* The sheet owns this moment; media remains mounted and keeps its position. */
-#root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-page-comments-open] *):not([data-mobile-media-comments] *) {
+#root .codex-shell[data-presentation='mobile'] :is([data-project-reading-control], .mobile-project-back):where([data-page-comments-open] *):not([data-mobile-media-comments] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -1803,7 +1866,7 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   pointer-events: auto;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page {
   --mobile-portal-popup-available: calc(100% - 24px);
   position: absolute;
   inset: 12px 16px auto;
@@ -1845,14 +1908,14 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   scroll-padding-bottom: 8px;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *, .high-contrast *) {
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page:where(.reduce-translucency *, .high-contrast *) {
   background: var(--surface-raised);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
 @media (prefers-reduced-transparency: reduce) {
-  #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page {
+  #root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page {
     background: var(--surface-raised);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
@@ -1979,6 +2042,13 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools > .side-panel-control-row {
   row-gap: 8px;
+}
+
+#root .codex-shell[data-presentation='mobile'] #profile-navigation-tools .journey-toggle {
+  flex-basis: 100%;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 /* Another creator's links and Follow/Save share a row when they fit. Extra
@@ -2421,7 +2491,7 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter {
-  position: absolute;
+  position: fixed;
   z-index: 45;
   top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
   left: calc(var(--mobile-navigation-inset-start) + var(--mobile-control-size) + var(--mobile-control-group-gap));
@@ -2447,17 +2517,13 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   transition: transform 160ms ease;
 }
 
-#root .codex-shell[data-presentation='mobile'][data-project-reading] .mobile-project-page-counter {
-  transform: translateX(calc(-1 * (var(--mobile-control-size) + var(--mobile-control-group-gap))));
-}
-
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
   --interface-icon-size: 20px;
   color: inherit !important;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-page-thumbnails {
-  position: absolute;
+  position: fixed;
   z-index: 46;
   top: calc(116px + var(--mobile-content-safe-top));
   bottom: calc(var(--mobile-dock-clearance) + 12px);
@@ -2991,10 +3057,21 @@ html[data-standalone] #root .codex-shell[data-presentation='mobile'] .mobile-flo
   --mobile-fixed-offset: 0px;
 }
 
-#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay .mobile-portals-scroll {
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay > .mobile-portals-page > .mobile-portals-scroll {
   overflow-y: auto;
   min-height: 0;
-  flex: 1 1 0;
+  flex: 1 1 auto;
+}
+
+/* Keep the document at its current position while either portal popup is open.
+   The lock ends with the popup; full-page Portals and WEB remain scrollable. */
+html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobile-project-index-overlay):not(.screen-exit *, [inert] *, [aria-hidden='true'] *)) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+[data-presentation='mobile'] .mobile-profile-portal-overlay .mobile-portals-scroll,
+[data-presentation='mobile'] .mobile-project-index-overlay [data-project-index-list] {
+  overscroll-behavior: contain;
 }
 /* PDF/image overviews are pages, not inset scroll boxes. A focused page still
    has a bounded zoom viewport; the DOM focus marker switches this atomically. */
@@ -3106,15 +3183,92 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   background: transparent; box-shadow: none; backdrop-filter: none; transform: none;
   display: flex; align-items: center; justify-content: center; border-radius: 999px;
 }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-project-page-counter { flex: 1; font-size: 13px; gap: 6px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-document-reader-header] > .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-item-rest-surface: transparent;
+  --navigation-item-shadow: none;
+  flex: 1; font-size: 13px; gap: 6px;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+/* Selection belongs to the one outer pill, not another pill inside it. */
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header]:has(> .mobile-project-page-counter[aria-expanded='true']) {
+  background: var(--navigation-selected-surface);
+  color: var(--navigation-selected-foreground);
+}
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > button:disabled { opacity: .3; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress { position: absolute; left: 12px; bottom: -7px; width: calc(100% - 24px); height: 2px; border: 0; appearance: none; background: var(--hairline-strong); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-bar { background: var(--hairline-strong); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-webkit-progress-value { background: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress::-moz-progress-bar { background: var(--accent-primary); }
-#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] .mobile-page-thumbnails { top: calc(100% + 16px); left: 0; bottom: auto; max-height: 60dvh; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] .mobile-page-thumbnails { position: absolute; top: calc(100% + 16px); left: 0; bottom: auto; max-height: 60dvh; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] [data-focused-page-scroll] { align-items: flex-start; }
 #root .codex-shell[data-presentation='mobile'] [data-document-reading-view] .premium-focused-media { margin-block: 0; }
+
+/* The per-project density setting lives beside Back and the page counter. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
+  --mobile-density-width: clamp(100px, 28vw, 124px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] {
+  right: calc(var(--mobile-navigation-inset-end) + var(--mobile-density-width) + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled] > .mobile-project-page-counter {
+  font-size: 13px;
+  gap: 4px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > .mobile-project-page-counter [data-interface-icon-frame] {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density {
+  position: fixed;
+  z-index: 45;
+  top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
+  right: var(--mobile-navigation-inset-end);
+  width: var(--mobile-density-width);
+  height: var(--mobile-control-size);
+  border: 0;
+  border-radius: 999px;
+  background: var(--project-control-surface);
+  color: var(--project-control-foreground);
+  box-shadow: var(--project-control-shadow);
+  -webkit-backdrop-filter: var(--project-control-blur);
+  backdrop-filter: var(--project-control-blur);
+  pointer-events: auto;
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-project-density {
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--mobile-control-group-gap));
+  right: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density > span {
+  position: absolute;
+  top: 7px;
+  inset-inline: 12px;
+  text-align: center;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density b { font-weight: 600; font-variant-numeric: tabular-nums; }
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density input {
+  position: absolute;
+  inset-inline: 14px;
+  bottom: 0;
+  width: calc(100% - 28px);
+  height: 44px;
+  margin: 0;
+  accent-color: var(--project-control-foreground);
+  background: transparent;
+  cursor: pointer;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density:focus-within {
+  outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
+  outline-offset: 3px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density:has(input:disabled) { opacity: .4; }
 
 /* First-session creation stays inside the established mobile publish surface. */
 [data-presentation='mobile'] .first-project-files { display: flex; flex-direction: column; gap: 14px; min-width: 0; }

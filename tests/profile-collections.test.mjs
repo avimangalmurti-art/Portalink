@@ -13,6 +13,7 @@ function compile(path, imports, globals = {}) {
   return exports;
 }
 const employer = compile('../src/features/employer/employer.ts', name => { assert.fail(`Unexpected employer import: ${name}`); });
+const journeyHelpers = compile('../src/features/journey/journey.ts', () => ({}));
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
@@ -174,6 +175,7 @@ function profileHarness(search = '', options = {}) {
   const projectOrder = { order: projects.map(project => project.id), reset() {}, dismissError() {}, isSaving: false, commit: async () => true, ...options.projectOrder };
   let outside;
   let mobileActions;
+  const journey = { view: options.journeyView ?? 'portfolio', select(view) { journey.view = view; } };
   const react = { ...React,
     useState(initial) { const i = cursor++; if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial; return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
     useEffect(effect, deps) {
@@ -197,9 +199,9 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{}})};
     if (name.endsWith('/firstProject')) return {readLivePortfolio:()=>null,livePortfolioDismissed:()=>false};
     if (name.endsWith('/AuthContext')) return {useAuth:()=>({viewerProfileId:'viewer'})};
-    if (name.endsWith('/useJourneySelection')) return {useJourneySelection:()=>({view:'portfolio',select(){}})};
+    if (name.endsWith('/useJourneySelection')) return { useJourneySelection: () => journey };
     if (name.endsWith('/employer')) return employer;
-    if (name.endsWith('/journey')) return {journeyAllowed:()=>false};
+    if (name.endsWith('/journey')) return journeyHelpers;
     if (name.endsWith('/useProfileVisibility')) return { useProfileVisibility: () => ({ isPrivate: false }) };
     if (name.endsWith('/useFollowRequests')) return { useFollowRequests: () => ({ count: 0, requests: [] }) };
     if (name.endsWith('/useProfileConnections')) return { useProfileConnections: () => ({ items: [], counts: {}, loading: false, error: null, nextOffset: null }) };
@@ -213,12 +215,56 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
   }, { URL, URLSearchParams, requestAnimationFrame: fn => { fn(); return 1; }, cancelAnimationFrame() {}, window: options.window ? Object.assign(options.window, { location: { origin: 'https://portalink.test' } }) : { location: { origin: 'https://portalink.test' }, scrollTo() {}, addEventListener() {}, removeEventListener() {}, localStorage: { getItem: () => null } }, document: options.document, Element: options.Element });
-  const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [] };
+  const profile = { id: 'owner', name: 'Owner', projects, categories: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], stats: [], showJourney: options.showJourney };
   return { navigation, projectOrder, density, action: id => [...(mobileActions?.primary ?? []), ...(mobileActions?.groups.flat() ?? [])].find(action => action.id === id), flushEffects: () => { while (pendingEffects.length) pendingEffects.shift()(); }, outside: () => outside, search: () => params.toString(), render: (updates = {}) => {
     cursor = 0;
     return UserProfilePage({ profile, viewerRole: options.viewerRole ?? 'owner', isSharedView: options.isSharedView, onBack() {}, onOpenProject() {}, ...options.props, ...updates });
   } };
 }
+
+test('mobile Journey choice is first in expanded profile tools and survives closing them', () => {
+  const h = profileHarness('', { presentation: 'mobile' });
+  const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
+  let tree = h.render();
+  assert.equal(toggle(tree), undefined);
+  nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+  tree = h.render();
+  const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
+  assert.equal(React.Children.toArray(tools.props.children.props.children)[0].type, 'JourneyToggle');
+  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
+  toggle(tree).props.onChange('journey');
+  tree = h.render();
+  assert.equal(toggle(tree).props.view, 'journey');
+  assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
+  nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+  tree = h.render();
+  assert.equal(toggle(tree), undefined);
+  assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
+  nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
+  assert.equal(toggle(h.render()).props.view, 'journey');
+});
+
+test('profile Journey controls retain owner/public permissions, editor guard and desktop placement', () => {
+  for (const [viewerRole, showJourney, allowed] of [['owner', false, true], ['member', true, true], ['member', false, false], ['guest', false, false]]) {
+    const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
+    openProfileOptions(h);
+    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+  }
+  const editing = profileHarness('', { presentation: 'mobile', editorProjectId: 'work' });
+  openProfileOptions(editing);
+  assert.equal(nodes(editing.render()).find(node => node.type === 'JourneyToggle').props.disabled, true);
+  const web = profileHarness('', { presentation: 'web' });
+  for (const expanded of [false, true]) {
+    if (expanded) openProfileOptions(web);
+    const tree = web.render(), direct = React.Children.toArray(tree.props.children);
+    const toggle = nodes(tree).find(node => node.type === 'JourneyToggle');
+    assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
+    assert.ok(direct.some(node => node.type === toggle.type));
+    const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
+    assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
+    assert.ok(direct.findIndex(node => node.type === 'JourneyToggle') > direct.findIndex(node => node.type === 'EmployerOverview'));
+  }
+});
 
 test('count controls replace the project area, report real Portal count, and restore from the profile URL', () => {
   const h = profileHarness('keep=value');

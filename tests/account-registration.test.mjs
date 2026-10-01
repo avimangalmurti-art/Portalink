@@ -472,13 +472,48 @@ test('one registration form validates account and profile fields before the sing
   });
   let step = 'appearance';
   const onStepChange = next => {step = next;};
-  const render = () => hooks.render(() => SignUpForm({step, onStepChange, registrationReturnPath: '/share/creator/c/portal/project?page=2&access_token=do-not-persist', accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
+  let actionKey;
+  const render = () => {
+    const tree = hooks.render(() => SignUpForm({step, onStepChange, registrationReturnPath: '/share/creator/c/portal/project?page=2&access_token=do-not-persist', accentColor: '#0A84FF', firstFieldRef: {current: null}, onBusyChange() {}, onDirtyChange() {}, onViewChange() {}}));
+    if (tree.type === 'form') {
+      const children = React.Children.toArray(tree.props.children);
+      const fields = children.find(node => node.props.className === (presentation === 'mobile' ? 'mobile-onboarding-fields' : 'contents'));
+      assert.ok(fields, 'step content has one independent layout region');
+      assert.equal(typeof tree.props.onSubmit, 'function');
+      if (presentation === 'mobile') {
+        const actions = nodes(tree).filter(node => node.type === 'Action');
+        assert.equal(actions.length, 1, `${step} has exactly one primary action`);
+        assert.equal(nodes(fields).some(node => node.type === 'Action'), false, 'scrolling fields cannot contain the fixed action');
+        const action = children.find(node => node.type === 'Action');
+        assert.ok(action, 'the action stays a direct form child across every signup step');
+        actionKey ??= action.key;
+        assert.equal(action.key, actionKey, 'step, errors and busy state retain the same action mount');
+        assert.equal(action.props.busy, mock.isLoading);
+        assert.equal(action.props.onClick, undefined, 'native form submission retains validation and duplicate-submit protection');
+        assert.equal(action.props.children, mock.isLoading ? 'Creating account…' : step === 'account' ? 'Create account' : 'Continue');
+      } else {
+        assert.equal(nodes(tree).some(node => node.type === 'Action' || node.type === 'Appearance'), false);
+        assert.equal(children.find(node => node.type === 'Button').props.type, 'submit');
+        assert.equal(nodes(tree).some(node => node.props.className === 'mobile-onboarding-fields'), false);
+      }
+    }
+    return tree;
+  };
   let tree = render();
   assert.equal(tree.props.role, 'status');
   assert.equal(tree.props.onSubmit, undefined, 'Draft restoration completes before an editable signup appears');
   await tick(); tree = render();
   if (presentation === 'mobile') {
+    assert.equal(nodes(tree).find(node => node.type === 'Appearance').props.children, undefined, 'appearance choices no longer own a second action');
+    mock.isLoading = true; tree = render();
+    await tree.props.onSubmit({preventDefault() {}});
+    assert.equal(step, 'appearance', 'busy activation does not navigate or submit');
+    assert.equal(submitted.length, 0);
+    mock.isLoading = false; mock.error = {message: 'Please try again'}; tree = render();
+    const fields = nodes(tree).find(node => node.props.className === 'mobile-onboarding-fields');
+    assert.ok(nodes(fields).some(node => node.props.message === 'Please try again'), 'errors remain inside the scrollable fields');
+    mock.error = null; tree = render();
     assert.equal(nodes(tree).some(node => node.props?.id === 'auth-signup-email'), false);
     await tree.props.onSubmit({preventDefault() {}}); assert.equal(step, 'profile');
     tree = render();

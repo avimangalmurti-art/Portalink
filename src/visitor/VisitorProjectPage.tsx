@@ -51,8 +51,7 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
   const indexExpanded = isMobile ? indexOpen : layout.indexOpen;
   const index = <aside data-project-index-panel="" data-collapsed={!indexExpanded} data-shared-navigation-panel="" className="ps-panel relative flex h-full min-h-0 shrink-0 flex-col" style={isMobile ? undefined : { width: layout.indexWidth, display: layout.indexWidth === 0 ? 'none' : undefined }}>
     {isMobile && indexExpanded && category ? <MobilePortalProjectToolbar category={category} onBack={onBackToProfile} sharedReadOnly
-      layout="list" onLayout={() => undefined} sort="saved" onSort={() => undefined} pagesPerRow={project.design?.pagesPerRow ?? 3}
-      canAdjustPages={false} savingPages={false} onPagesChange={() => undefined} onPagesCommit={() => undefined} />
+      layout="list" onLayout={() => undefined} sort="saved" onSort={() => undefined} />
     : <header data-shared-navigation-header="" className={`global-control-header side-panel-control-row shrink-0 ${indexExpanded ? 'px-2' : 'justify-center'}`}>
       {indexExpanded && <span className="min-w-0 flex-1 truncate px-2">{category?.label ?? 'Projects'}</span>}
       <button ref={isMobile ? undefined : indexOpener} data-project-index-toggle="" type="button" data-ui-control="icon" data-control-size="md" data-control-variant="ghost"

@@ -7,11 +7,12 @@ export function useDescriptionSheetScrollBoundary(ref: RefObject<HTMLDivElement>
     if (!overlay) return;
     let touchY: number | null = null;
     const canScroll = (target: EventTarget | null, delta: number) => {
-      let element = target instanceof Element ? target.closest<HTMLElement>('.project-description-body, .project-description-editor, textarea') : null;
+      const scrollable = '.project-description-body, .project-description-editor, .project-description-discard, textarea';
+      let element = target instanceof Element ? target.closest<HTMLElement>(scrollable) : null;
       while (element && overlay.contains(element)) {
         const available = Math.max(0, element.scrollHeight - element.clientHeight);
         if (available > 0 && (delta < 0 ? element.scrollTop > 0 : element.scrollTop < available - 1)) return true;
-        element = element.parentElement?.closest<HTMLElement>('.project-description-body, .project-description-editor, textarea') ?? null;
+        element = element.parentElement?.closest<HTMLElement>(scrollable) ?? null;
       }
       return false;
     };

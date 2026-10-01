@@ -20,12 +20,12 @@ function jsxExpression(path, tag, attribute) {
   visit(file); assert.ok(expression); return expression;
 }
 
-test('MOBILE documents and image projects use one width-fit column while WEB keeps authored density', () => {
+test('MOBILE uses its explicit local density while WEB keeps authored density', () => {
   const expression = jsxExpression('../src/components/media/ProjectMediaViewer.tsx', 'AttachmentRenderer', 'imageColumns');
-  for (const readOnlyShare of [false, true]) for (const isMobileViewer of [false, true]) for (const kind of ['document', 'image', 'video']) for (const normalizedPagesPerRow of [1, 3, 7]) {
+  for (const isMobileViewer of [false, true]) for (const kind of ['document', 'image', 'video']) for (const normalizedPagesPerRow of [1, 3, 7]) for (const mobilePagesPerRow of [1, 2, 5]) {
     const isVerticalReading = isMobileViewer && ['document', 'image'].includes(kind);
-    const actual = vm.runInNewContext(expression, { isVerticalReading, hasPageLayout: true, normalizedPagesPerRow });
-    assert.equal(actual, isVerticalReading ? 1 : normalizedPagesPerRow);
+    const actual = vm.runInNewContext(expression, { isVerticalReading, mobilePagesPerRow, hasPageLayout: true, normalizedPagesPerRow });
+    assert.equal(actual, isVerticalReading ? mobilePagesPerRow : normalizedPagesPerRow);
   }
 });
 
@@ -61,6 +61,9 @@ test('single-column rendered documents retain vertical reading and the existing 
   assert.equal(pages[1].props.fetchpriority, 'auto');
   assert.ok(pages.every(page => page.props.fetchPriority === undefined), 'React 18 receives the supported lowercase DOM attribute');
   assert.ok(nodes(tree).some(node => /overflow-y-auto/.test(node.props.className ?? '')));
+  const denser = render({ columns: 2 });
+  assert.equal(nodes(denser).find(node => node.type === 'ol').props.style.gridTemplateColumns, 'repeat(2, minmax(0, 1fr))');
+  assert.equal(nodes(denser).filter(node => node.type === 'img').length, 3, 'explicit density keeps every page in vertical document flow');
   const firstPage = nodes(list).find(node => node.type === 'li');
   const touch = { pointerType: 'touch', clientX: 90, clientY: 100, preventDefault() { /* Synthetic touch event. */ } };
   firstPage.props.onPointerUp(touch); now += 100; firstPage.props.onPointerUp(touch);

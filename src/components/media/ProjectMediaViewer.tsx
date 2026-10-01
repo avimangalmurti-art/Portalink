@@ -110,6 +110,7 @@ export function ProjectMediaViewer({
   pagesPerRow = 3,
   onPagesPerRowChange,
   onPagesPerRowCommit,
+  savingPageLayout = false,
   pageViewToggleRequest = 0,
   onPageFocusModeChange,
   processing,
@@ -129,7 +130,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -298,6 +299,15 @@ export function ProjectMediaViewer({
   const isVerticalReading = isMobileViewer && (active?.kind === 'document' || active?.kind === 'image');
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;
+  // Opening work on a phone still starts at full width. Only an explicit
+  // slider choice changes that reading; WEB keeps the authored density.
+  const [mobileDensity, setMobileDensity] = useState<{ scope: string; value: number } | null>(null);
+  const mobilePagesPerRow = mobileDensity?.scope === previewScope ? mobileDensity.value : 1;
+  const changeMobileDensity = (value: number) => {
+    const next = normalizePagesPerRow(value);
+    setMobileDensity({ scope: previewScope, value: next });
+    onPagesPerRowChange?.(next);
+  };
   const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
   const currentPage = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition.current - 1 : null;
   const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
@@ -581,7 +591,7 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? 1 : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
@@ -591,7 +601,7 @@ export function ProjectMediaViewer({
   return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
-      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter readingMode={isDocumentReading && !isImmersive} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={!readOnlyShare && hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
       {isMobileViewer && !readOnlyShare && <MobileContextButton floating />}
       {isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">

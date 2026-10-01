@@ -5,6 +5,7 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { ModalPortal } from '../ui/ModalPortal';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { Button } from '../ui/Button';
+import { DiscardConfirmationLayer } from '../ui/DiscardConfirmationLayer';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import './project-dialog.css';
 
@@ -52,10 +53,7 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
   onKeep: () => void;
   onDiscard: () => void | Promise<void>;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useModalFocus(true, ref, () => { if (!busy) onKeep(); });
-  return <div role="presentation" className="modal-scrim fixed inset-0 z-[90] flex items-center justify-center bg-black/50 px-4">
-    <div ref={ref} tabIndex={-1} role="alertdialog" aria-modal="true" aria-label={title} className="w-full max-w-[340px] rounded-[14px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] p-5 text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none">
+  return <DiscardConfirmationLayer label={title} onKeep={() => { if (!busy) onKeep(); }}>
       <h3 className="text-[16px] font-semibold leading-tight">{title}</h3>
       <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>
       {error ? <p role="alert" className="mt-3 flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed"><AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" /><span>{error}</span></p> : null}
@@ -63,6 +61,5 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
         <Button variant="secondary" disabled={busy} onClick={onKeep}>Keep editing</Button>
         <Button variant="danger" isLoading={busy} disabled={busy} onClick={() => void onDiscard()}>{error ? 'Try again' : 'Discard changes'}</Button>
       </div>
-    </div>
-  </div>;
+  </DiscardConfirmationLayer>;
 }

@@ -6,6 +6,7 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { findNavAccent, isLightSurface, navAccents } from '../../data/navButtonTokens';
 import { resolveAccentTokens } from '../../utils/accentTokens';
 import { Button } from '../ui/Button';
+import { DiscardConfirmationLayer } from '../ui/DiscardConfirmationLayer';
 import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { usePresentation } from '../../presentation/usePresentation';
 import { PortalinkSplashLoader } from '../ui/PortalinkSplashLoader';
@@ -64,6 +65,8 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
       const active = document.activeElement;
       if (active instanceof HTMLElement && active.matches('input, textarea, [contenteditable="true"]')) active.blur();
       if (contentRef.current) contentRef.current.scrollTop = 0;
+      const stepFields = contentRef.current?.querySelector<HTMLElement>('.mobile-onboarding-fields');
+      if (stepFields) stepFields.scrollTop = 0;
       headingRef.current?.focus({ preventScroll: true });
     };
     showWelcome();
@@ -77,10 +80,15 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
     if (!mobileRef.current) headingRef.current?.focus({ preventScroll: true });
   }, [title]);
   useEffect(() => {
-    if (!pendingLeave) return;
+    if (!pendingLeave || isMobile) return;
     confirmationRef.current?.scrollIntoView({ block: 'nearest' });
     confirmationRef.current?.querySelector('button')?.focus();
-  }, [pendingLeave]);
+  }, [pendingLeave, isMobile]);
+  const keepEditing = () => { setPendingLeave(null); headingRef.current?.focus({ preventScroll: true }); };
+  const confirmation = <>
+    <p className="text-sm">Discard your changes?</p>
+    <div className="mt-3 flex gap-2"><Button size="sm" onClick={keepEditing}>Keep editing</Button><Button size="sm" variant="danger" disabled={busy} onClick={() => { if (busy || !pendingLeave) return; const leave = pendingLeave; setPendingLeave(null); leave(); }}>Discard</Button></div>
+  </>;
   const selected = findNavAccent(accentColor);
   return <div ref={viewportRef} data-mobile-onboarding={onboarding ? theme : undefined} data-account-signin={signIn || undefined} className="modal-scrim auth-signin-experience account-welcome-overlay fixed inset-x-0 z-[80] flex items-center justify-center p-4" style={{
     top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)',
@@ -114,12 +122,10 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
             </div>
           </div>
         </div>}
-        {pendingLeave && <div ref={confirmationRef} role="alertdialog" aria-label="Discard account details" className="mb-4 rounded-xl bg-[var(--surface-sunken)] p-3">
-          <p className="text-sm">Discard your changes?</p>
-          <div className="mt-3 flex gap-2"><Button size="sm" onClick={() => { setPendingLeave(null); headingRef.current?.focus(); }}>Keep editing</Button><Button size="sm" variant="danger" disabled={busy} onClick={() => { if (busy) return; const leave = pendingLeave; setPendingLeave(null); leave(); }}>Discard</Button></div>
-        </div>}
+        {pendingLeave && !isMobile && <div ref={confirmationRef} role="alertdialog" aria-label="Discard account details" className="mb-4 rounded-xl bg-[var(--surface-sunken)] p-3">{confirmation}</div>}
         <div className={onboarding ? 'mobile-onboarding-body' : undefined} hidden={Boolean(pendingLeave)}>{typeof children === 'function' ? children(requestLeave) : children}</div>
       </div>
     </section>
+    {pendingLeave && isMobile && <DiscardConfirmationLayer label="Discard account details" onKeep={keepEditing}>{confirmation}</DiscardConfirmationLayer>}
   </div>;
 }

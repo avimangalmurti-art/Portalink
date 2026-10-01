@@ -6,8 +6,9 @@ import React from 'react';
 import ts from 'typescript';
 
 function nodes(node) { return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : []; }
-function harness(owner = false, props = {}) {
-  let cursor = 0, closes = 0, escape;
+function harness(owner = false, props = {}, fullscreen = false) {
+  let cursor = 0, closes = 0, escape, portalHost;
+  const appHost = {}, fullscreenHost = {};
   const slots = [], calls = [];
   const style = { removeProperty(name) { delete this[name]; } };
   const panel = { style, getBoundingClientRect: () => ({ height: 400 }), setAttribute() {}, removeAttribute() {} };
@@ -21,9 +22,10 @@ function harness(owner = false, props = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectDescriptionSheet.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true }
-  }).outputText, { exports, document: { querySelector: () => ({}) }, require(name) {
+  }).outputText, { exports, document: { querySelector: () => appHost, fullscreenElement: fullscreen ? fullscreenHost : null }, require(name) {
     if (name === 'react') return react;
-    if (name === 'react-dom') return { createPortal: element => element };
+    if (name === 'react-dom') return { createPortal: (element, host) => { portalHost = host; return element; } };
+    if (name.endsWith('/DiscardConfirmationLayer')) return { DiscardConfirmationLayer: 'discard-layer' };
     if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => viewport };
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close, preventScroll) => {
       assert.equal(preventScroll, true, 'Sliding sheets must not scroll their overlay to the translated focus target');
@@ -39,7 +41,8 @@ function harness(owner = false, props = {}) {
   };
   const button = (label) => nodes(render()).find(n => n.type === 'button' && (n.props['aria-label'] === label || n.props.children === label));
   const click = label => button(label).props.onClick({ stopPropagation() {} });
-  return { render, button, click, editor, calls, panel, escape: () => escape(), get closes() { return closes; } };
+  return { render, button, click, editor, calls, panel, escape: () => escape(), get closes() { return closes; },
+    get portalHost() { return portalHost; }, appHost, fullscreenHost };
 }
 
 test('description opens at half height, expands by drag or accessible button, and leaves scrolling to its body', () => {
@@ -114,4 +117,59 @@ test('cancelled drags restore the snap point and a saved description is shown fr
   h.editor.phase = 'saved'; h.editor.result = { project: { summary: 'Stored description' } };
   assert.ok(nodes(h.render()).some(n => n.type === 'p' && n.props.children === 'Stored description'));
   assert.ok(h.button('Done'));
+});
+
+test('dirty description confirmation is outside the resized sheet inside its visible viewport and fullscreen portal', async () => {
+  for (const fullscreen of [false, true]) {
+    const h = harness(true, {}, fullscreen);
+    h.click('Description options'); h.click('Edit description');
+    nodes(h.render()).find(node => node.type === 'textarea').props.onChange({ target: { value: 'Keep this draft' } });
+    h.click('Reduce description sheet');
+    h.panel.style.height = '320px';
+    h.click('Close description');
+    let tree = h.render();
+    const viewport = nodes(tree).find(node => node.props['data-project-description-overlay'] === '');
+    const sheet = nodes(tree).find(node => node.type === 'section');
+    let layer = nodes(tree).find(node => node.type === 'discard-layer');
+    assert.ok(layer);
+    assert.equal(React.Children.toArray(viewport.props.children).some(node => node.props === layer.props), true);
+    assert.equal(nodes(sheet).some(node => node.type === 'discard-layer'), false, 'The resized/transformed sheet cannot bound the confirmation');
+    assert.equal(sheet.props['data-expanded'], undefined);
+    assert.equal(layer.props.label, 'Discard your description changes?');
+    assert.equal(layer.props.className, 'project-description-discard');
+    assert.match(viewport.props.style.top, /dialog-viewport-top/);
+    assert.match(viewport.props.style.height, /dialog-viewport-height/);
+    assert.equal(h.portalHost, fullscreen ? h.fullscreenHost : h.appHost);
+    assert.equal(h.closes, 0);
+    assert.equal(nodes(tree).some(node => node.type === 'form'), false);
+    layer.props.onKeep(); tree = h.render();
+    assert.equal(nodes(tree).some(node => node.type === 'discard-layer'), false);
+    assert.equal(nodes(tree).find(node => node.type === 'textarea').props.value, 'Keep this draft');
+    assert.equal(h.panel.style.height, '320px', 'Keeping edits does not reset the sheet snap/drag size');
+    assert.equal(h.closes, 0);
+    h.click('Close description'); tree = h.render();
+    layer = nodes(tree).find(node => node.type === 'discard-layer');
+    await nodes(layer).find(node => node.type === 'button' && node.props.children === 'Discard changes').props.onClick();
+    assert.equal(h.closes, 1);
+    assert.deepEqual(h.calls.at(-1), ['close']);
+    assert.equal(nodes(h.render()).some(node => node.type === 'discard-layer'), false);
+  }
+});
+
+test('failed discard keeps its confirmation and draft until Keep editing or a successful retry', async () => {
+  const h = harness(true);
+  h.click('Description options'); h.click('Edit description');
+  nodes(h.render()).find(node => node.type === 'textarea').props.onChange({ target: { value: 'Unsaved text' } });
+  let attempts = 0;
+  h.editor.close = async () => { attempts++; return attempts > 1; };
+  h.click('Close description'); await h.click('Discard changes');
+  assert.equal(h.closes, 0);
+  assert.equal(attempts, 1);
+  assert.ok(nodes(h.render()).find(node => node.type === 'discard-layer'));
+  h.click('Keep editing');
+  assert.equal(nodes(h.render()).find(node => node.type === 'textarea').props.value, 'Unsaved text');
+  assert.equal(attempts, 1, 'Keep editing must not retry cleanup or discard');
+  h.click('Close description'); await h.click('Discard changes');
+  assert.equal(h.closes, 1);
+  assert.equal(attempts, 2);
 });

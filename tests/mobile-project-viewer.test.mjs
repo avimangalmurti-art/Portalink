@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
+const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
@@ -63,7 +64,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     } };
     if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: id => { serviceIds.push(id); return engagement; } };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: id => { serviceIds.push(id); return {}; } };
-    if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
+    if (name.endsWith('/pageLayout')) return pageLayout;
     if (name.endsWith('/viewerMemory')) return {
       readViewerMemory: key => viewerMemory.get(key) ?? {},
       updateViewerMemory(key, patch) {
@@ -469,6 +470,85 @@ test('mobile page previews use image order, available rendered pages, or the loa
   assert.equal(nodes(harness({ mobile: false }).render()).find(node => node.type === AttachmentRenderer).props.onPreviewDocument, undefined);
 });
 
+test('mobile density changes document and image columns immediately without waiting for save', () => {
+  for (const mediaKind of ['document', 'image']) {
+    const h = harness({ mediaKind }), drafts = [], commits = [];
+    const props = { pagesPerRow: 7, onPagesPerRowChange: value => drafts.push(value), onPagesPerRowCommit: value => commits.push(value) };
+    const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
+    const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+    let tree = h.render(props);
+    assert.equal(media(tree).props.imageColumns, 1, 'each newly opened mobile project starts at full width');
+    assert.equal(media(tree).props.verticalReading, true);
+    assert.equal(counter(tree).props.density.value, 1);
+    counter(tree).props.density.onChange(2);
+    tree = h.render(props);
+    assert.equal(media(tree).props.imageColumns, 2, 'local layout updates before the parent echoes its draft');
+    assert.equal(counter(tree).props.density.value, 2);
+    assert.deepEqual(drafts, [2]);
+    assert.deepEqual(commits, []);
+    counter(tree).props.density.onCommit(2);
+    assert.deepEqual(commits, [2]);
+    tree = h.render({ ...props, savingPageLayout: true, pagesPerRow: 9 });
+    assert.equal(counter(tree).props.density.saving, true);
+    assert.equal(media(tree).props.imageColumns, 2, 'a saved design refresh does not reset local reading');
+    counter(tree).props.density.onChange(100);
+    tree = h.render(props);
+    assert.equal(media(tree).props.imageColumns, pageLayout.MAX_PAGES_PER_ROW);
+    counter(tree).props.density.onChange(-5);
+    tree = h.render(props);
+    assert.equal(media(tree).props.imageColumns, pageLayout.MIN_PAGES_PER_ROW);
+    counter(tree).props.density.onCommit(100);
+    assert.equal(commits.at(-1), pageLayout.MAX_PAGES_PER_ROW);
+  }
+});
+
+test('mobile density is scoped to the open project and attachment and member changes stay local', () => {
+  const h = harness({ mediaKind: 'document' }), drafts = [];
+  const props = { pagesPerRow: 5, onPagesPerRowChange: value => drafts.push(value) };
+  const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
+  const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+  let tree = h.render(props);
+  counter(tree).props.density.onChange(3);
+  counter(tree).props.density.onCommit(3); // Member has no persistence callback.
+  tree = h.render(props);
+  assert.equal(media(tree).props.imageColumns, 3);
+  button(tree, 'second, Video').props.onClick();
+  tree = h.render(props);
+  assert.equal(media(tree).props.attachment.id, 'second');
+  assert.equal(media(tree).props.imageColumns, 1);
+  counter(tree).props.density.onChange(2);
+  tree = h.render({ ...props, projectId: 'another-project' });
+  assert.equal(counter(tree).props.scope, 'another-project:first');
+  assert.equal(media(tree).props.imageColumns, 1);
+  assert.deepEqual(drafts, [3, 2]);
+  media(tree).props.onFocusModeChange(true);
+  tree = h.render({ ...props, projectId: 'another-project' });
+  assert.equal(counter(tree).props.showControl, false, 'explicit zoom retains ownership of its controls');
+  h.openIndex();
+  assert.equal(counter(h.render(props)), undefined, 'the portal popup does not receive the reading pill');
+});
+
+test('density control stays out of public shares, WEB, non-page media and callback-free readers', () => {
+  const callbacks = { pagesPerRow: 7, onPagesPerRowChange() { assert.fail('No draft'); }, onPagesPerRowCommit() { assert.fail('No save'); } };
+  for (const mediaKind of ['image', 'document']) {
+    const shared = harness({ mediaKind, readOnlyShare: true }).render(callbacks);
+    assert.equal(nodes(shared).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+    assert.equal(nodes(shared).find(node => node.type === AttachmentRenderer).props.imageColumns, 1);
+    const web = harness({ mobile: false, mediaKind }).render(callbacks);
+    assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
+    assert.equal(nodes(web).find(node => node.type === AttachmentRenderer).props.imageColumns, 7);
+  }
+  for (const mediaKind of ['video', 'audio', 'model3d']) {
+    const tree = harness({ mediaKind }).render(callbacks);
+    assert.equal(nodes(tree).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+  }
+  const noCallbacks = harness({ mediaKind: 'document' }).render();
+  assert.equal(nodes(noCallbacks).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+  const single = harness({ mediaKind: 'image' });
+  single.attachments.splice(1);
+  assert.equal(nodes(single.render(callbacks)).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+});
+
 test('project workspace combines only resolved mobile projects and uses the existing Back callback', () => {
   const compile = (path, require) => {
     const exports = {};
@@ -496,7 +576,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   const Viewer = () => null;
   const Index = () => null;
   const IndexPortal = () => null;
-  let arrangementRead = {};
+  let arrangementRead = {}, typographyRead = {};
   const react = { ...React, useState(initial) {
       const i = cursor++;
       if (!(i in slots)) slots[i] = typeof initial === 'function' ? initial() : initial;
@@ -526,7 +606,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/viewer')) return { canAuthor: role => role === 'owner' };
     if (name.endsWith('/useProjectArrangement')) return { useProjectArrangement: () => ({ arrange: projects => Object.freeze(projects), pinnedIds: [], hiddenIds: [], isLoading: false, isSaving: false, ...arrangementRead }) };
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ deletion: { projectId: null }, editor: {} }) };
-    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3 }) };
+    if (name.endsWith('/useProjectTypography')) return { useProjectTypography: () => ({ resolveTypefaceId: () => null, resolvePagesPerRow: () => 3, ...typographyRead }) };
     if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'sans-serif' };
     if (name.endsWith('/projectAttachments')) return { resolveProjectAttachments: project => project.attachments ?? [] };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value };
@@ -560,6 +640,8 @@ test('project workspace combines only resolved mobile projects and uses the exis
     'A visitor sees the viewed profile creator, independent of their own account identity');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.avatar, props.profile.avatar);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, props.onBack);
+  assert.equal(typeof nodes(tree).find(node => node.type === Viewer).props.onPagesPerRowChange, 'function');
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.onPagesPerRowCommit, undefined, 'members cannot persist creator layout');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onBack, button(tree, 'Go back').props.onClick,
     'Swiping and the existing floating Back button must use the same route callback');
   const videoSequence = () => nodes(tree).find(node => node.type === Viewer).props.videoSequence;
@@ -579,6 +661,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   arrangementRead = {};
   props.activeProjectId = 'work';
   tree = render({ ...props, sharedReadOnly: true });
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.onPagesPerRowChange, undefined, 'public shares retain their read-only density');
   assert.equal(videoSequence().scope, 'shared:owner:portal', 'Public browsing has its own sequence identity');
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.name, props.profile.name);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.avatar, props.profile.avatar);
@@ -602,6 +685,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(Array.from(index().projects, project => project.id), ['second', 'work']);
   assert.equal(index().mobileReorderDisabled, true, 'Recent sorting must not overwrite saved order');
   assert.equal(button(toolbar(projectList), 'Add a new project to Portal'), undefined, 'Visitors never receive authoring controls');
+  assert.equal(nodes(toolbar(projectList)).some(node => node.props.type === 'range'), false);
   toolbarProps().onSort('title'); tree = render(props);
   assert.deepEqual(Array.from(index().projects, project => project.id), ['work', 'second']);
   assert.equal(index().mobileReorderDisabled, true);
@@ -612,11 +696,17 @@ test('project workspace combines only resolved mobile projects and uses the exis
   toolbarProps().onLayout('grid'); tree = render(props);
   assert.equal(index().mobileLayout, 'grid');
   assert.deepEqual(props.profile.projects.map(project => project.id), ['work', 'second'], 'Browsing sorts never mutate stored order');
+  typographyRead = { savingProjectId: 'work' };
   tree = render({ ...props, viewerRole: 'owner' });
   assert.equal(toolbarProps().onCreate, props.onCreateProject, 'The owner receives the existing creation callback');
+  assert.equal(typeof nodes(tree).find(node => node.type === Viewer).props.onPagesPerRowCommit, 'function');
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.savingPageLayout, true, 'owner save state reaches the reader control');
+  assert.equal(nodes(toolbar(currentList())).some(node => node.props.type === 'range'), false);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.creator.name, props.profile.name,
     'Permission changes must not change the displayed source creator');
   tree = render(props);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.savingPageLayout, false, 'another viewer is not blocked by the owner save state');
+  typographyRead = {};
   nodes(projectList).find(node => node.type === Index).props.onSelect('second');
   render(props);
   tree = render(props);

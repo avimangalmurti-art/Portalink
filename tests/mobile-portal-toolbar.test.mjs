@@ -12,11 +12,9 @@ function compile(path, require) {
   }).outputText, { exports, require });
   return exports;
 }
-const layout = compile('../src/features/projects/pageLayout.ts', () => ({}));
 const Camera = () => null, InterfaceIcon = () => null;
 const { MobilePortalProjectToolbar } = compile('../src/components/profile/MobilePortalProjectToolbar.tsx', name => {
   if (name === 'react') return React;
-  if (name.endsWith('/pageLayout')) return layout;
   if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon };
   if (name.endsWith('/categoryIcons')) return { getCategoryIcon: icon => { assert.equal(icon, 'camera'); return Camera; } };
   return new Proxy({}, { get: () => () => null });
@@ -25,11 +23,9 @@ function nodes(node) { return React.isValidElement(node) ? [node, ...React.Child
 const control = (tree, name) => nodes(tree).find(node => node.props['aria-label'] === name);
 function harness() {
   const calls = [];
-  const props = { category: { label: 'Photography', iconName: 'camera' }, layout: 'list', sort: 'recent', pagesPerRow: 1,
-    canAdjustPages: true, savingPages: false, onBack: () => calls.push(['back']),
+  const props = { category: { label: 'Photography', iconName: 'camera' }, layout: 'list', sort: 'recent', onBack: () => calls.push(['back']),
     onLayout: value => calls.push(['layout', value]),
-    onSort: value => calls.push(['sort', value]), onPagesChange: value => calls.push(['pages', value]),
-    onPagesCommit: value => calls.push(['commit', value]) };
+    onSort: value => calls.push(['sort', value]) };
   return { props, calls, render: () => MobilePortalProjectToolbar(props) };
 }
 
@@ -62,20 +58,16 @@ test('mobile omits search while list/grid and sorting retain their controlled ac
   assert.deepEqual(h.calls.at(-1), ['layout', 'list']);
 });
 
-test('page-density controls preserve draft/commit callbacks, limits, save blocking, and media applicability', () => {
-  const h = harness(); let tree = h.render();
-  const slider = control(tree, 'Pages per row');
-  assert.equal(slider.props.min, layout.MIN_PAGES_PER_ROW);
-  assert.equal(slider.props.max, layout.MAX_PAGES_PER_ROW);
-  assert.equal(slider.props['aria-valuetext'], '1 page per row');
-  slider.props.onChange({ currentTarget: { value: '3' } });
-  for (const action of ['onPointerUp', 'onKeyUp', 'onBlur']) slider.props[action]({ currentTarget: { value: '3' } });
-  assert.deepEqual(h.calls, [['pages', 3], ['commit', 3], ['commit', 3], ['commit', 3]]);
-  h.props.savingPages = true; h.props.pagesPerRow = 3; tree = h.render();
-  assert.equal(control(tree, 'Pages per row').props.disabled, true);
-  assert.equal(control(tree, 'Pages per row').props['aria-valuetext'], '3 pages per row');
-  h.props.canAdjustPages = false;
-  assert.equal(control(h.render(), 'Pages per row'), undefined);
+test('portal popup keeps browsing controls without a duplicate page-density slider', () => {
+  const h = harness();
+  for (const owner of [false, true]) {
+    h.props.onCreate = owner ? () => h.calls.push(['create']) : undefined;
+    const tree = h.render();
+    assert.equal(control(tree, 'Pages per row'), undefined);
+    assert.equal(nodes(tree).some(node => node.props.type === 'range'), false);
+    assert.ok(control(tree, 'Sort projects'));
+    assert.ok(control(tree, 'Show project grid'));
+  }
 });
 
 test('public project navigation keeps its title and Back path without layout or sorting controls', () => {

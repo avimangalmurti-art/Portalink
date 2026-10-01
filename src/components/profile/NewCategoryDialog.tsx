@@ -100,7 +100,7 @@ export function NewCategoryDialog({
           <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">New {itemName}</h2>
         </div>
 
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+        <div ref={contentRef} data-portal-icon-scroll="" className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
           {/* The choice, shown as the thing being made: the selected mark at the
              size it will be recognised at. */}
           <div className="flex justify-center pt-4">

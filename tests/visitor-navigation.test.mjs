@@ -284,9 +284,9 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
   assert.equal(one(h.render(), 'ProjectMediaViewer').props.pageCount, 12);
 });
 
-test('profile options omit self-follow, recover failed state, and preserve the existing portals/category views', () => {
-  const h = hooks(), followed = [], state = { own: true, resolveError: null, search: new URLSearchParams(), categoryId: null };
-  const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London' };
+function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
+  const h = hooks(), followed = [], state = { own: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
+  const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
@@ -294,9 +294,10 @@ test('profile options omit self-follow, recover failed state, and preserve the e
     if (name === 'react-router-dom') return { useSearchParams: () => [state.search] };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => ({ isAuthenticated: true, viewerProfileId: state.own ? profileId : 'other' }) };
+    if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
     if (name === '../features/follows/useFollows') return { useFollows: id => { followed.push(id); return { resolveError: state.resolveError, retryResolve: () => { state.resolveError = null; } }; } };
     if (name === '../features/auth/interactionIntent') return intents;
-    if (name === '../features/journey/useJourneySelection') return {useJourneySelection:()=>({view:'portfolio',select(){}})};
+    if (name === '../features/journey/useJourneySelection') return { useJourneySelection: () => ({ view: state.view, select(view) { state.view = view; } }) };
     if (name === '../features/employer/employer') return employer;
     if (name === '../features/profile/useProjectGridDensity') return { useProjectGridDensity: () => ({ columns: 3 }) };
     if (name === '../features/profile/profileLinks') return { resolveProfileLinks: (links, socialLinks) => { assert.equal(links, profile.links); assert.equal(socialLinks, profile.socialLinks); return links; } };
@@ -304,6 +305,11 @@ test('profile options omit self-follow, recover failed state, and preserve the e
     return named(name.split('/').at(-1));
   });
   const render = () => h.render(() => VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() {} }));
+  return { render, state, followed, bioProfile };
+}
+
+test('profile options omit self-follow, recover failed state, and preserve the existing portals/category views', () => {
+  const { render, state, followed, bioProfile } = visitorProfileHarness();
   const identity = nodes(render()).find(node => node.props?.className?.includes('profile-identity-copy'));
   assert.deepEqual(React.Children.toArray(identity.props.children).map(node => node.props.children), ['Creator', 'London']);
   assert.equal(one(render(), 'lazy:../features/profile/ProfileBioSheet'), undefined);
@@ -325,4 +331,51 @@ test('profile options omit self-follow, recover failed state, and preserve the e
   state.categoryId = 'portal';
   assert.ok(button(render(), 'Back to profile')); assert.equal(one(render(), 'h2').props.children, 'Photography');
   assert.equal(one(render(), 'lazy:../components/profile/ProfileCollectionGrid'), undefined);
+});
+
+test('shared mobile Journey switch belongs to expanded options and retains its selection', () => {
+  const { render, state } = visitorProfileHarness({ presentation: 'mobile', showJourney: true });
+  state.own = false;
+  assert.equal(one(render(), 'JourneyToggle'), undefined);
+  button(render(), 'Profile options').props.onClick();
+  let tree = render();
+  const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
+  assert.equal(React.Children.toArray(tools.props.children.props.children)[0].type, 'JourneyToggle');
+  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
+  one(tree, 'JourneyToggle').props.onChange('journey');
+  assert.equal(one(render(), 'lazy:../features/journey/JourneyView').props.owner, false);
+  button(render(), 'Profile options').props.onClick();
+  tree = render();
+  assert.equal(one(tree, 'JourneyToggle'), undefined);
+  assert.ok(one(tree, 'lazy:../features/journey/JourneyView'));
+  button(tree, 'Profile options').props.onClick();
+  assert.equal(one(render(), 'JourneyToggle').props.view, 'journey');
+  state.categoryId = 'portal';
+  assert.equal(one(render(), 'JourneyToggle'), undefined);
+  assert.equal(one(render(), 'lazy:../features/journey/JourneyView'), undefined);
+  state.categoryId = null; state.search.set('view', 'portals');
+  assert.equal(one(render(), 'JourneyToggle'), undefined);
+  assert.equal(one(render(), 'lazy:../features/journey/JourneyView'), undefined);
+});
+
+test('shared Journey permission and WEB switch placement are unchanged', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const denied = visitorProfileHarness({ presentation, showJourney: false });
+    denied.state.view = 'journey';
+    for (const own of [true, false]) {
+      denied.state.own = own;
+      if (!button(denied.render(), 'Profile options').props['aria-expanded']) button(denied.render(), 'Profile options').props.onClick();
+      assert.equal(one(denied.render(), 'JourneyToggle'), undefined);
+      assert.equal(one(denied.render(), 'lazy:../features/journey/JourneyView'), undefined);
+    }
+  }
+  const web = visitorProfileHarness({ presentation: 'web', showJourney: true });
+  for (const expanded of [false, true]) {
+    if (expanded) button(web.render(), 'Profile options').props.onClick();
+    const tree = web.render(), direct = React.Children.toArray(tree.props.children);
+    assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
+    const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
+    assert.equal(one(tools, 'JourneyToggle'), undefined);
+    assert.ok(direct.findIndex(node => node.type === 'JourneyToggle') > direct.findIndex(node => node.type === 'EmployerOverview'));
+  }
 });

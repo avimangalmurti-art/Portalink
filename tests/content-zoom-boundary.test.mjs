@@ -157,20 +157,27 @@ test('project gestures preserve native scrolling, read-only permissions and canc
 });
 
 
-test('MOBILE pinch previews continuously without grid reflow, then commits once on release', () => {
-  const h = densityHarness({ mobile: true }); h.start(100);
-  h.move(112); h.move(125);
-  assert.equal(h.pages, 3); assert.deepEqual(h.commits, []);
-  assert.deepEqual(h.motions[0].updates.map(args => args[0]), [1.12, 1.25]);
-  h.end(); assert.equal(h.pages, 2); assert.deepEqual(h.commits, [2]);
-  h.render(); assert.equal(h.motions[0].settled.length, 1);
-  h.end(); assert.deepEqual(h.commits, [2]); h.cleanup();
+test('MOBILE vertical readers leave pinch and scrolling to their page renderers', () => {
+  const h = densityHarness({ mobile: true });
+  for (const event of ['wheel', 'touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+    assert.equal(h.listeners.has(event), false, `${event} must not also change the overview density`);
+  }
+  assert.equal(h.pages, 3, 'opening a mobile reader does not overwrite authored density');
+  assert.deepEqual(h.motions, []);
+  assert.deepEqual(h.commits, []);
+  h.cleanup();
 });
 
-test('MOBILE cancellation and project changes restore previews without saving', () => {
-  const h = densityHarness({ mobile: true }); h.start(100); h.move(160);
-  h.listeners.get('touchcancel')(); assert.equal(h.pages, 3);
-  assert.deepEqual(h.motions[0].settled, [false]); assert.deepEqual(h.commits, []);
-  h.start(100); h.move(60); h.changeProject();
-  assert.equal(h.motions[1].cancelled, true); h.end(); assert.deepEqual(h.commits, []); h.cleanup();
+test('MOBILE project changes never reattach density gestures or schedule unintended saves', () => {
+  for (const readOnly of [false, true]) {
+    const h = densityHarness({ mobile: true, readOnly });
+    h.render(); h.changeProject(); h.render();
+    assert.equal(h.listeners.size, 0);
+    assert.equal(h.timers.size, 0);
+    assert.deepEqual(h.motions, []);
+    assert.deepEqual(h.commits, []);
+    assert.equal(h.pages, 3);
+    h.cleanup();
+    assert.equal(h.listeners.size, 0);
+  }
 });

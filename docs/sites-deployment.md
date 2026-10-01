@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## September 30, 2026 — Sites281 live; profile/reader release
+
+Sites281 deployed successfully at2026-10-01 03:09:29UTC from c7b6f43b59d1b5451bb4ec0b044c4e582744fe5f; deployment appgdep_6abdcee032188191bfcab451a44fdab4. Includes removal of portfolio PDF download, mobile owner tools in Actions, full-width vertical reading, hidden reader scrollbars, matching circular Actions and a horizontal engagement capsule opened by three dots. Public audience, runtime revision2 and active D1 0000–0003 unchanged.
+
+163 focused tests, typecheck, full lint (0 errors/90 existing warnings), production client+worker build, diff review and archive verification passed. Sites confirms successful publication; local fixture browser coverage and physical-device limits are detailed in the handoff. No additional hosted-browser claim, GitHub push/merge or backend/Storage changes. Receipt: ignored logs/reader-release-20260930/receipt.json in the owned checkout.
+
 ## September 30, 2026 — Sites280 live; accumulated profile/navigation fixes
 
 Published Sites280 at 23:52:49 UTC from `1299880c35459cc144838300d272d598d96b8ab4`; deployment `appgdep_6abda0c800e0819192d9c546295ad5b1` succeeded. Public audience, runtime revision2 and active D1 migrations0000–0003 retained. The release includes all UI changes since Sites279: installed-app dock spacing, profile Bio/facts/helper cleanup, Portals overlay and dock hiding, immediate navigation return and five-button navigation with Home action-sheet globe access. No GitHub push, backend/config/Storage changes or backfill.

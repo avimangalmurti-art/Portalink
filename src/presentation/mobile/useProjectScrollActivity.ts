@@ -17,6 +17,7 @@ const controlsSelector = [
   '[data-mobile-project-view] [data-viewer-page-control]',
   '[data-mobile-project-view] [data-focused-page-count]',
   '[data-mobile-project-view] [data-document-reader-header]',
+  '[data-mobile-project-view] .mobile-project-density',
   // Page navigation remains available while all other reading controls hide.
   '[data-mobile-project-view] button:not([data-mobile-page-navigator] *)', '[data-mobile-project-view] audio',
 ].join(',');
@@ -49,6 +50,9 @@ export function useProjectScrollActivity(enabled: boolean, pathname: string, nav
     const clearIdle = () => { window.clearTimeout(idleTimer); idleTimer = undefined; };
     const syncControls = () => {
       frame.querySelectorAll<HTMLElement>(controlsSelector).forEach(element => {
+        // Back must remain usable at every scroll position; the portal/index
+        // opener still follows the rest of the reader's temporary chrome.
+        if (element.matches('.mobile-project-back:not(.mobile-project-portal-preview)')) return;
         if (!controls.has(element)) { controls.set(element, null); element.setAttribute('data-project-reading-control', ''); }
         if (hidden && controls.get(element) === null) { controls.set(element, element.inert); element.inert = true; }
       });

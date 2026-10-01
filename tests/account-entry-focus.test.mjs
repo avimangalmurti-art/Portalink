@@ -7,13 +7,18 @@ import ts from 'typescript';
 
 function welcomeHarness(mode = 'mobile') {
   const slots = [], layout = [], passive = [], listeners = new Map();
-  let cursor = 0;
+  let cursor = 0, stepFields = null, escape;
   const document = { activeElement: null };
   class Element {
-    constructor(type) { this.type = type; this.scrollTop = 200; this.blurs = 0; }
+    constructor(type) { this.type = type; this.scrollTop = 200; this.blurs = 0; this.children = []; this.scrolls = []; }
     matches() { return this.type === 'input'; }
     blur() { this.blurs++; document.activeElement = null; }
-    focus() { document.activeElement = this; }
+    focus(options) { document.activeElement = this; this.focusOptions = options; }
+    scrollIntoView(options) { this.scrolls.push(options); }
+    querySelector(selector) {
+      if (selector === '.mobile-onboarding-fields') return stepFields;
+      return this.children.find(child => child.type === selector) ?? this.children.map(child => child.querySelector(selector)).find(Boolean) ?? null;
+    }
   }
   const hook = queue => (effect, deps) => {
     const index = cursor++;
@@ -25,17 +30,22 @@ function welcomeHarness(mode = 'mobile') {
   };
   const react = { ...React,
     useRef: initial => { const index = cursor++; return slots[index] ??= { current: initial }; },
-    useState: initial => { cursor++; return [initial, () => {}]; },
+    useState: initial => {
+      const index = cursor++;
+      if (!(index in slots)) slots[index] = initial;
+      return [slots[index], next => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; }];
+    },
     useLayoutEffect: hook(layout), useEffect: hook(passive),
   };
   const imports = {
     '../../utils/radioGroupKeyboard': { handleRadioGroupKeyDown() {} },
     react, 'lucide-react': { ArrowLeftIcon: 'svg', ChevronLeftIcon: 'svg', XIcon: 'svg', CheckIcon: 'svg' },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
-    '../../hooks/useModalFocus': { useModalFocus() {} },
+    '../../hooks/useModalFocus': { useModalFocus: (_open, _ref, close) => { escape = close; } },
     '../../data/navButtonTokens': { findNavAccent: () => ({ id: 'pink' }), navAccents: [], isLightSurface: () => false },
     '../../utils/accentTokens': { resolveAccentTokens: () => ({}) },
     '../ui/Button': { Button: 'button' }, '../ui/AppearanceSwitch': { AppearanceSwitch: 'button' },
+    '../ui/DiscardConfirmationLayer': { DiscardConfirmationLayer: 'discard-layer' },
     '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {},
     '../../presentation/usePresentation': { usePresentation: () => mode },
   };
@@ -48,15 +58,20 @@ function welcomeHarness(mode = 'mobile') {
   }, require(name) { assert.ok(name in imports, name); return imports[name]; } });
   const attach = node => {
     if (!React.isValidElement(node)) return;
-    if (node.ref && typeof node.ref === 'object') node.ref.current ??= new Element(node.type);
-    React.Children.forEach(node.props.children, attach);
+    const element = node.ref && typeof node.ref === 'object' ? node.ref.current ??= new Element(node.type) : new Element(node.type);
+    element.children = React.Children.toArray(node.props.children).map(attach).filter(Boolean);
+    return element;
   };
   return {
-    document, listeners,
+    document, listeners, escape: () => escape(),
+    get stepFields() { return stepFields; },
+    control() { const control = new Element('button'); control.focus(); return control; },
     input() { const input = new Element('input'); input.focus(); return input; },
     render(title = 'Sign in', changes = {}) {
       cursor = 0;
       const tree = exports.AccountWelcomeSurface({ title, signIn: title === 'Sign in', accentColor: '#ff2d55', onDismiss() {}, children: null, ...changes });
+      if (nodes(tree).some(node => node.props.className === 'mobile-onboarding-fields')) stepFields ??= new Element('div');
+      else stepFields = null;
       attach(tree); return tree;
     },
     paint() { layout.splice(0).forEach(fn => fn()); },
@@ -90,6 +105,40 @@ test('mobile typing survives rerenders and keyboard resizing; a new account step
   h.render('Create your account'); h.paint(); h.afterPaint();
   assert.equal(h.document.activeElement.type, 'h2');
   assert.equal(input.blurs, 1);
+  h.unmount();
+});
+
+test('appearance changes keep the current step focus and both scrollers; real step navigation resets them', () => {
+  const h = welcomeHarness();
+  const children = React.createElement('form', { className: 'mobile-onboarding-form' },
+    React.createElement('div', { className: 'mobile-onboarding-fields' }, React.createElement('button', { type: 'button' }, 'Accent')));
+  const props = { mobileOnboarding: true, showAppearance: false, children };
+  let tree = h.render('Choose appearance', props); h.paint(); h.afterPaint();
+  const content = nodes(tree).find(node => node.props.className?.includes('account-welcome-content')).ref.current;
+  assert.equal(content.scrollTop, 0);
+  assert.equal(h.stepFields.scrollTop, 0);
+  const selected = h.control();
+  content.scrollTop = 24; h.stepFields.scrollTop = 120;
+  for (const appearance of [
+    { accentColor: '#30D158' }, { systemGray: 'gray3' }, { highContrast: true }, { reduceTranslucency: true }, { theme: 'light' },
+  ]) {
+    tree = h.render('Choose appearance', { ...props, ...appearance }); h.paint(); h.afterPaint();
+    assert.equal(h.document.activeElement, selected, 'choosing appearance must not refocus the heading');
+    assert.equal(content.scrollTop, 24);
+    assert.equal(h.stepFields.scrollTop, 120, 'appearance rerenders must not reset the field viewport');
+    assert.equal(nodes(tree).some(node => node.props.role === 'alertdialog'), false);
+  }
+  h.render('Create your profile', props); h.paint(); h.afterPaint();
+  assert.equal(content.scrollTop, 0);
+  assert.equal(h.stepFields.scrollTop, 0);
+  assert.equal(h.document.activeElement.type, 'h2');
+  const input = h.input();
+  content.scrollTop = 10; h.stepFields.scrollTop = 90;
+  h.render('Create account', props); h.paint(); h.afterPaint();
+  assert.equal(input.blurs, 1);
+  assert.equal(content.scrollTop, 0);
+  assert.equal(h.stepFields.scrollTop, 0);
+  assert.equal(h.document.activeElement.type, 'h2');
   h.unmount();
 });
 
@@ -173,4 +222,80 @@ test('the mobile onboarding CSS scope cannot be emitted on WEB even with a retai
   const tree = h.render('Create your account', { mobileOnboarding: true });
   assert.equal(tree.props['data-mobile-onboarding'], undefined);
   h.paint(); h.afterPaint(); h.unmount();
+});
+
+test('dirty account navigation keeps its draft and confirms the exact leave action in the appropriate platform surface', () => {
+  for (const mode of ['mobile', 'web']) {
+    const h = welcomeHarness(mode), actions = [];
+    let requestLeave;
+    const draft = React.createElement('input', { id: 'retained-draft', value: 'Unsubmitted name', readOnly: true });
+    const props = { dirty: true, mobileOnboarding: true, showAppearance: false, onDismiss: () => actions.push('dismiss'),
+      children: leave => { requestLeave = leave; return draft; } };
+    const render = () => { const tree = h.render('Create your account', props); h.paint(); h.afterPaint(); return tree; };
+    render();
+    requestLeave(() => actions.push('switch-account-flow'));
+    let tree = render();
+    const sheet = nodes(tree).find(node => node.type === 'section');
+    const content = nodes(tree).find(node => node.props.className?.includes('account-welcome-content'));
+    const layer = nodes(tree).find(node => node.type === 'discard-layer');
+    const inline = nodes(tree).find(node => node.props.role === 'alertdialog');
+    assert.deepEqual(actions, [], 'Opening confirmation cannot navigate or discard');
+    assert.equal(nodes(tree).find(node => node.props.hidden === true).props.children, draft, 'The draft stays mounted but hidden');
+    if (mode === 'mobile') {
+      assert.equal(React.Children.toArray(tree.props.children).some(node => node.props === layer.props), true, 'Confirmation is a sibling of the account card inside its viewport overlay');
+      assert.equal(nodes(sheet).some(node => node.type === 'discard-layer'), false, 'It must not inherit the form scroller position');
+      assert.equal(inline, undefined);
+      assert.equal(layer.props.label, 'Discard account details');
+      assert.match(tree.props.style.top, /dialog-viewport-top/);
+      assert.match(tree.props.style.height, /dialog-viewport-height/);
+    } else {
+      assert.equal(layer, undefined, 'WEB retains the existing inline confirmation');
+      assert.equal(nodes(content).some(node => node.props === inline.props), true);
+      assert.equal(inline.ref.current.scrolls.length, 1);
+      assert.equal(h.document.activeElement.type, 'button');
+    }
+    nodes(tree).find(node => node.type === 'button' && node.props.children === 'Keep editing').props.onClick();
+    tree = render();
+    assert.equal(nodes(tree).some(node => node.type === 'discard-layer' || node.props.role === 'alertdialog'), false);
+    assert.equal(nodes(tree).find(node => node.props.hidden === false).props.children, draft);
+    assert.equal(h.document.activeElement.type, 'h2');
+    assert.equal(h.document.activeElement.focusOptions.preventScroll, true);
+    assert.deepEqual(actions, []);
+    requestLeave(() => actions.push('switch-account-flow'));
+    tree = render();
+    nodes(tree).find(node => node.type === 'button' && node.props.children === 'Discard').props.onClick();
+    tree = render();
+    assert.deepEqual(actions, ['switch-account-flow'], 'Discard runs the pending callback, not an unrelated dismiss');
+    assert.equal(nodes(tree).some(node => node.type === 'discard-layer' || node.props.role === 'alertdialog'), false);
+    h.unmount();
+  }
+});
+
+test('mobile dirty Back, confirmation Escape and busy state never bypass discard consent', () => {
+  const h = welcomeHarness(), actions = [];
+  const props = { dirty: true, busy: true, onDismiss: () => actions.push('dismiss'), showAppearance: false };
+  const render = () => { const tree = h.render('Create your account', props); h.paint(); h.afterPaint(); return tree; };
+  const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && (node.props.children === label || node.props['aria-label'] === label));
+  let tree = render();
+  button(tree, 'Back').props.onClick();
+  assert.equal(nodes(render()).some(node => node.type === 'discard-layer'), false);
+  props.busy = false;
+  tree = render(); button(tree, 'Back').props.onClick(); tree = render();
+  assert.ok(nodes(tree).find(node => node.type === 'discard-layer'));
+  h.escape();
+  assert.equal(nodes(render()).some(node => node.type === 'discard-layer'), false);
+  assert.deepEqual(actions, []);
+  tree = render(); button(tree, 'Back').props.onClick(); render();
+  props.busy = true; tree = render();
+  assert.equal(button(tree, 'Discard').props.disabled, true);
+  button(tree, 'Discard').props.onClick();
+  assert.deepEqual(actions, []);
+  assert.ok(nodes(render()).find(node => node.type === 'discard-layer'));
+  props.busy = false; tree = render();
+  nodes(tree).find(node => node.type === 'discard-layer').props.onKeep();
+  assert.equal(nodes(render()).some(node => node.type === 'discard-layer'), false);
+  tree = render(); button(tree, 'Back').props.onClick(); tree = render();
+  button(tree, 'Discard').props.onClick();
+  assert.deepEqual(actions, ['dismiss']);
+  h.unmount();
 });

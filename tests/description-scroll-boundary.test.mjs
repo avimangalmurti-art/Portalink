@@ -8,10 +8,10 @@ function mount() {
   let effect;
   const listeners = new Map(), options = new Map();
   class Element {
-    constructor(scrollable = false, parentElement = null) {
-      Object.assign(this, { scrollable, parentElement, scrollTop: 0, scrollHeight: 100, clientHeight: 100 });
+    constructor(selector = null, parentElement = null) {
+      Object.assign(this, { selector: selector === true ? '.project-description-body' : selector, parentElement, scrollTop: 0, scrollHeight: 100, clientHeight: 100 });
     }
-    closest() { return this.scrollable ? this : this.parentElement?.closest() ?? null; }
+    closest(selectors) { return selectors.split(',').map(selector => selector.trim()).includes(this.selector) ? this : this.parentElement?.closest(selectors) ?? null; }
   }
   const overlay = new Element();
   Object.assign(overlay, {
@@ -66,8 +66,8 @@ test('touch scrolling allows reading but blocks rubber-banding, short bodies and
 });
 
 test('textarea and editor scrolling remain usable and multi-touch does not trap browser zoom', () => {
-  const h = mount(); h.body.scrollHeight = 700;
-  const textarea = new h.Element(true, h.body); textarea.scrollHeight = 400;
+  const h = mount(); h.body.scrollHeight = 700; h.body.selector = '.project-description-editor';
+  const textarea = new h.Element('textarea', h.body); textarea.scrollHeight = 400;
   assert.equal(h.fire('wheel', { target: textarea, deltaY: 30 }), false);
   textarea.scrollTop = 300;
   assert.equal(h.fire('wheel', { target: textarea, deltaY: 30 }), false, 'the editor may scroll once the textarea reaches its end');
@@ -75,5 +75,25 @@ test('textarea and editor scrolling remain usable and multi-touch does not trap 
   assert.equal(h.fire('wheel', { target: textarea, deltaY: 30 }), true);
   h.fire('touchstart', { touches: [{ clientY: 400 }] });
   assert.equal(h.fire('touchmove', { touches: [{ clientY: 380 }, { clientY: 420 }] }), false);
+  h.cleanup();
+});
+
+test('a confirmation in a short visible viewport can scroll to both actions without moving the page behind it', () => {
+  const h = mount();
+  const confirmation = new h.Element('.project-description-discard', h.overlay);
+  confirmation.scrollHeight = 260; confirmation.clientHeight = 120;
+  const button = new h.Element('button', confirmation);
+  assert.equal(h.fire('wheel', { target: button, deltaY: 30 }), false);
+  assert.equal(h.fire('wheel', { target: button, deltaY: -30 }), true);
+  h.fire('touchstart', { target: button, touches: [{ clientY: 300 }] });
+  assert.equal(h.fire('touchmove', { target: button, touches: [{ clientY: 260 }] }), false);
+  confirmation.scrollTop = 140;
+  assert.equal(h.fire('wheel', { target: button, deltaY: 30 }), true);
+  assert.equal(h.fire('wheel', { target: button, deltaY: -30 }), false);
+  assert.equal(h.fire('touchmove', { target: button, touches: [{ clientY: 220 }] }), true);
+  assert.equal(h.fire('touchmove', { target: button, touches: [{ clientY: 260 }] }), false);
+  assert.equal(h.fire('wheel', { target: h.overlay, deltaY: 30 }), true);
+  confirmation.scrollHeight = 100;
+  assert.equal(h.fire('wheel', { target: button, deltaY: 30 }), true, 'A fitting confirmation still contains the gesture');
   h.cleanup();
 });

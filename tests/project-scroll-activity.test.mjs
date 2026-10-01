@@ -17,6 +17,7 @@ class Target {
     return matches ? this : null;
   }
   getAttribute(key) { return this.attributes.get(key) ?? null; }
+  matches() { return false; }
   setAttribute(key, value) { this.attributes.set(key, value); }
   removeAttribute(key) { this.attributes.delete(key); }
 }
@@ -76,6 +77,21 @@ function harness() {
   };
 }
 const hide = h => { h.emit('wheel'); h.emit('scroll'); assert.equal(h.hidden, true); };
+
+test('Back remains visible and interactive while scroll and artwork taps hide other reader controls', () => {
+  const h = harness(), back = new Target({ control: true });
+  back.matches = selector => selector === '.mobile-project-back:not(.mobile-project-portal-preview)';
+  h.controls.push(back); h.render(); hide(h);
+  assert.equal(back.inert, false);
+  assert.equal(back.attributes.has('data-project-reading-control'), false);
+  assert.ok(h.controls.filter(control => control !== back).every(control => control.inert));
+  h.tick(700);
+  h.emit('pointerdown'); h.emit('pointerup'); h.tick(340);
+  assert.equal(h.hidden, true);
+  assert.equal(back.inert, false);
+  assert.equal(back.attributes.has('data-project-reading-control'), false);
+  h.unmount();
+});
 
 test('decorative PDF canvases inside a visible labelled page still start content scrolling', () => {
   const h = harness(), stage = new Target(); h.render();

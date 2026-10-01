@@ -14,6 +14,7 @@ import { resolveProfileLinks } from '../features/profile/profileLinks';
 import { useProjectGridDensity } from '../features/profile/useProjectGridDensity';
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
+import { usePresentation } from '../presentation/usePresentation';
 import { useFollows } from '../features/follows/useFollows';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import { useSearchParams } from 'react-router-dom';
@@ -29,6 +30,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
 }) {
   const [optionsOpen, setOptionsOpen] = useState(false), [bioOpen, setBioOpen] = useState(false);
   const auth = useAuth();
+  const isMobile = usePresentation() === 'mobile';
   const journey = useJourneySelection(profile.id, auth.viewerProfileId);
   const ownProfile = auth.viewerProfileId === profile.id;
   const follows = useFollows(optionsOpen && auth.isAuthenticated && !ownProfile ? profile.id : null);
@@ -59,6 +61,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       </header>
       {optionsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
+          {isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
           {!ownProfile && !follows.resolveError && <button type="button" className="side-panel-primary-control px-3.5" disabled={auth.isInitializing || follows.isPending || (auth.isAuthenticated && follows.isResolving)}
@@ -72,7 +75,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
-    {profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
+    {!isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
       {profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView ? <Suspense fallback={<p role="status">Opening Journey…</p>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<p role="status">Opening portals…</p>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>

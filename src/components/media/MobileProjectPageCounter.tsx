@@ -5,11 +5,13 @@ import { Grid2X2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { MobilePageThumbnails } from './MobilePageThumbnails';
 import type { PdfDocument } from './PdfPage';
+import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
 
 export type PagePosition = { scope: string; current: number; total: number; ready?: boolean };
 
 /** Read the pages actually displayed by the current renderer, including lazy PDF pages. */
-export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null, onPositionChange, showControl = true, readingMode = false, onSelectPage }: {
+export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null, onPositionChange, showControl = true, readingMode = false, onSelectPage, density }: {
+  density?: { value: number; saving: boolean; onChange: (value: number) => void; onCommit: (value: number) => void };
   onPositionChange?: (position: PagePosition | null) => void;
   showControl?: boolean;
   readingMode?: boolean;
@@ -127,15 +129,25 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   useEffect(() => () => onPositionChange?.(null), [onPositionChange]);
   useMobileScreenActions(showControl && position?.scope === scope ? contextActions('project', { signedIn: true }, { handlers: { pageIndex: () => setOpenScope(scope) } }) : null, 12);
   if (!position || position.scope !== scope) return null;
-  return <div ref={navigatorRef} data-mobile-page-navigator="" data-document-reader-header={readingMode || undefined} data-project-reading-control={readingMode || undefined}>
+  const showDensity = Boolean(density && showControl && position.total > 1);
+  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || undefined} data-project-reading-control={readingMode || undefined}>
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}>‹</button>}
     <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
     aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpenScope(open ? null : scope)}>
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />
-    <span>{readingMode ? `Page ${position.current} of ${position.total}` : `${position.current} of ${position.total}`}</span>
+    <span>{showDensity ? `${position.current} / ${position.total}` : readingMode ? `Page ${position.current} of ${position.total}` : `${position.current} of ${position.total}`}</span>
     </button>
     {readingMode && <><button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button><progress aria-label="Document reading progress" value={position.current} max={position.total} /></>}
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
+    {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
+      <span>Pages/row <b>{density.value}</b></span>
+      <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={density.value} disabled={density.saving}
+        onChange={event => density.onChange(Number(event.currentTarget.value))}
+        onPointerUp={event => density.onCommit(Number(event.currentTarget.value))}
+        onKeyUp={event => density.onCommit(Number(event.currentTarget.value))}
+        onBlur={event => density.onCommit(Number(event.currentTarget.value))}
+        aria-label="Pages per row" aria-valuetext={`${density.value} ${density.value === 1 ? 'page' : 'pages'} per row`} />
+    </label>}
   </div>;
 }

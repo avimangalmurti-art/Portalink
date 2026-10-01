@@ -281,10 +281,9 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     } finally { submittingRef.current = false; }
   }
   return <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? props.step : undefined} className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
+      <div className={isMobile ? 'mobile-onboarding-fields' : 'contents'}>
       {signUp.error && <FormError message={signUp.error.message} />}
-      {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props}>
-        <MobileOnboardingAction busy={signUp.isLoading}>Continue</MobileOnboardingAction>
-      </MobileOnboardingAppearance>}
+      {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props} />}
       {(!isMobile || props.step === 'profile') && <>
       <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
       <ProfileField id="auth-signup-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
@@ -319,7 +318,8 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       }));
     }} />
       </>}
-      {isMobile ? props.step !== 'appearance' && <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
+      </div>
+      {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
         {signUp.isLoading ? 'Creating account…' : 'Create account'}
       </Button>}
       {!isMobile && <ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} />}

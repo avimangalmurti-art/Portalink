@@ -4,6 +4,11 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { sourceModule } from './helpers/source-module.mjs';
+
+const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
+const nodes = node => React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
+const control = (tree, label) => nodes(tree).find(node => node.props['aria-label'] === label);
 
 const rect = (top, bottom, left = 0, right = 390) => ({ top, bottom, left, right });
 const page = (number, total, bounds) => ({ dataset: { projectPageNumber: `${number}`, projectPageTotal: `${total}` },
@@ -30,6 +35,7 @@ function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
         useId: () => 'page-previews', useEffect: fn => { if (effectIndex++ === 0) visibilityEffect = fn; }, useLayoutEffect: fn => { effect = fn; } };
       if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions() {} };
       if (name.endsWith('/contextActions')) return { contextActions: () => ({}) };
+      if (name.endsWith('/pageLayout')) return pageLayout;
       if (name === 'lucide-react') return { Grid2X2Icon: () => null };
       if (name === '../ui/InterfaceIcon') return { InterfaceIcon: () => null };
       if (name === './MobilePageThumbnails') return { MobilePageThumbnails: () => null };
@@ -42,8 +48,8 @@ function mount(pages = [], { delayedRef = false, readingEnd = false } = {}) {
     Node: Object,
     document: { documentElement: { scrollHeight: 1600 }, addEventListener: (name, fn) => documentEvents.set(name, fn), removeEventListener: name => documentEvents.delete(name) },
   });
-  const render = (scope = 'project:images') => { stateIndex = 0; refIndex = 0; effectIndex = 0;
-    return exports.MobileProjectPageCounter({ surfaceRef, scope }); };
+  const render = (scope = 'project:images', props = {}) => { stateIndex = 0; refIndex = 0; effectIndex = 0;
+    return exports.MobileProjectPageCounter({ surfaceRef, scope, ...props }); };
   assert.equal(render(), null);
   const cleanup = effect();
   const flush = () => { const callback = frame; frame = null; callback?.(); };
@@ -138,4 +144,54 @@ test('reader navigation survives pending paint while page actions get an explici
  assert.equal(h.position.current,2);assert.equal(h.position.ready,false);assert.ok(h.render());
  one.dataset.projectPageReady='true';h.mutate();assert.equal(h.position.ready,true);assert.equal(h.position.current,2);
  one.dataset.projectPageNumber='3';one.dataset.projectPageReady='false';h.mutate();assert.equal(h.position.current,3);assert.equal(h.position.ready,false);h.cleanup();
+});
+
+test('reader density pill preserves limits, draft and commit events, save blocking and page controls', () => {
+  const h = mount([page(2, 12, rect(0, 600))]); h.flush();
+  const calls = [];
+  const density = { value: 1, saving: false, onChange: value => calls.push(['change', value]), onCommit: value => calls.push(['commit', value]) };
+  const props = { density, readingMode: true, onSelectPage: value => calls.push(['page', value]) };
+  let tree = h.render(undefined, props);
+  assert.equal(tree.props['data-page-density-enabled'], true);
+  const slider = control(tree, 'Pages per row');
+  assert.equal(slider.props.type, 'range');
+  assert.equal(slider.props.min, pageLayout.MIN_PAGES_PER_ROW);
+  assert.equal(slider.props.max, pageLayout.MAX_PAGES_PER_ROW);
+  assert.equal(slider.props.step, 1);
+  assert.equal(slider.props.value, 1);
+  assert.equal(slider.props['aria-valuetext'], '1 page per row');
+  slider.props.onChange({ currentTarget: { value: '3' } });
+  assert.deepEqual(calls, [['change', 3]], 'dragging only updates the draft');
+  for (const event of ['onPointerUp', 'onKeyUp', 'onBlur']) slider.props[event]({ currentTarget: { value: '3' } });
+  assert.deepEqual(calls.slice(1), [['commit', 3], ['commit', 3], ['commit', 3]]);
+  density.value = 3; density.saving = true;
+  tree = h.render(undefined, props);
+  assert.equal(control(tree, 'Pages per row').props.disabled, true);
+  assert.equal(control(tree, 'Pages per row').props['aria-valuetext'], '3 pages per row');
+  const counter = nodes(tree).find(node => 'data-mobile-project-page-count' in node.props);
+  assert.equal(counter.props['aria-label'], 'Page 2 of 12. Show page previews');
+  assert.ok(nodes(counter).some(node => node.type === 'span' && node.props.children === '2 / 12'));
+  control(tree, 'Previous page').props.onClick();
+  control(tree, 'Next page').props.onClick();
+  assert.deepEqual(calls.slice(-2), [['page', 1], ['page', 3]]);
+  counter.props.onClick(); tree = h.render(undefined, props);
+  assert.ok(nodes(tree).find(node => node.props.total === 12 && node.props.current === 2), 'density does not replace page previews');
+  h.cleanup();
+});
+
+test('reader density is absent without permission, during focused view, and for one real page', () => {
+  const h = mount([page(1, 3, rect(0, 600))]); h.flush();
+  const density = { value: 1, saving: false, onChange() { assert.fail('Hidden control cannot change density'); }, onCommit() { assert.fail('Hidden control cannot save'); } };
+  for (const props of [{}, { density, showControl: false }]) {
+    const tree = h.render(undefined, props);
+    assert.equal(control(tree, 'Pages per row'), undefined);
+    assert.equal(tree.props['data-page-density-enabled'], undefined);
+  }
+  h.surface.pages = [page(1, 1, rect(0, 600))]; h.mutate();
+  const tree = h.render(undefined, { density, readingMode: true });
+  assert.equal(control(tree, 'Pages per row'), undefined);
+  assert.equal(control(tree, 'Previous page').props.disabled, true);
+  assert.equal(control(tree, 'Next page').props.disabled, true);
+  assert.equal(h.render('other-project', { density }), null);
+  h.cleanup();
 });

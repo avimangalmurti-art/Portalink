@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckIcon, Loader2Icon, SearchIcon } from 'lucide-react';
 import { getCategoryIcon, getPortalIconLabel, portalIconNames, searchPortalIcons } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
+import { usePresentation } from '../../presentation/usePresentation';
 
 const PAGE_SIZE = 60;
 
@@ -17,6 +18,8 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   /** When supplied, the parent owns the search field (including an empty query). */
   searchQuery?: string;
 }) {
+  const isMobile = usePresentation() === 'mobile';
+  const moreRef = useRef<HTMLDivElement>(null);
   const [localQuery, setLocalQuery] = useState('');
   const query = searchQuery ?? localQuery;
   const [page, setPage] = useState({ query: '', limit: PAGE_SIZE });
@@ -28,6 +31,25 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
     ? [initialSelected, ...matches.filter(name => name !== initialSelected)] : matches;
   const visible = ordered.slice(0, limit);
   const tabStop = visible.includes(selected) ? selected : visible[0];
+  const hasMore = ordered.length > limit;
+
+  useEffect(() => {
+    const marker = moreRef.current;
+    if (!isMobile || disabled || !hasMore || !marker) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setPage({ query, limit: ordered.length });
+      return;
+    }
+    let active = true;
+    const observer = new IntersectionObserver(entries => {
+      if (!active || !entries.some(entry => entry.isIntersecting)) return;
+      active = false;
+      observer.disconnect();
+      setPage({ query, limit: limit + PAGE_SIZE });
+    }, { root: marker.closest('[data-portal-icon-scroll]'), rootMargin: '400px 0px' });
+    observer.observe(marker);
+    return () => { active = false; observer.disconnect(); };
+  }, [isMobile, disabled, hasMore, query, limit, ordered.length]);
 
   return <section className="mt-5" aria-label="Icon library">
     {searchQuery === undefined && <div className="relative">
@@ -61,7 +83,8 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
         </button>;
       })}
     </div>
-    {ordered.length > limit && <button type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
-      className="mt-3 min-h-11 w-full rounded-[10px] border border-[var(--hairline)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Show more icons</button>}
+    {hasMore && (isMobile ? <div ref={moreRef} aria-hidden="true" className="h-px" /> :
+      <button type="button" disabled={disabled} onClick={() => setPage({ query, limit: limit + PAGE_SIZE })}
+        className="mt-3 min-h-11 w-full rounded-[10px] border border-[var(--hairline)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">Show more icons</button>)}
   </section>;
 }

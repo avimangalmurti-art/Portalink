@@ -4,6 +4,7 @@ import { MoreHorizontalIcon, XIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useDescriptionSheetScrollBoundary } from '../../hooks/useDescriptionSheetScrollBoundary';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { DiscardConfirmationLayer } from '../ui/DiscardConfirmationLayer';
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 
 /** The sheet handles reading and dismissal; the feature owns persistence. */
@@ -136,11 +137,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
         </div>}
         <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>
       </header>
-      {discard ? <div className="project-description-discard" role="alert">
-        <p>Discard your {label} changes?</p>
-        <button ref={keepRef} type="button" onClick={() => setDiscard(null)}>Keep editing</button>
-        <button type="button" onClick={async () => { if (await activeEditor?.close()) { const close = discard === 'close'; setDiscard(null); if (close) onClose(); } }}>Discard changes</button>
-      </div> : editing && !saved ? <form className="project-description-editor" onSubmit={event => { event.preventDefault(); if (!busy) void activeEditor.save(); }}>
+      {discard ? null : editing && !saved ? <form className="project-description-editor" onSubmit={event => { event.preventDefault(); if (!busy) void activeEditor.save(); }}>
         {phase === 'loading' ? <p role="status">Loading {label}…</p> : phase !== 'load-failed' && <textarea ref={textareaRef}
           aria-label={contentLabel === 'Description' ? 'Project description' : contentLabel} aria-invalid={Boolean(error)} aria-describedby={error ? 'project-description-error' : undefined}
           maxLength={activeEditor.maxLength} value={activeEditor.value} disabled={busy} onChange={event => activeEditor.onChange(event.target.value)} />}
@@ -158,5 +155,10 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
         {saved && <footer className="project-description-saved"><span role="status">{contentLabel} saved</span><button ref={doneRef} type="button" onClick={() => { void activeEditor.close(); }}>Done</button></footer>}
       </>}
     </section>
+    {discard && <DiscardConfirmationLayer label={`Discard your ${label} changes?`} onKeep={() => setDiscard(null)} className="project-description-discard">
+      <p>Discard your {label} changes?</p>
+      <button ref={keepRef} type="button" onClick={() => setDiscard(null)}>Keep editing</button>
+      <button type="button" onClick={async () => { if (await activeEditor?.close()) { const close = discard === 'close'; setDiscard(null); if (close) onClose(); } }}>Discard changes</button>
+    </DiscardConfirmationLayer>}
   </div></div>, host);
 }
