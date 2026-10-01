@@ -59,7 +59,6 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const data = useStudioData(category, tab);
   const refreshStudio = data.refresh;
   const management = useProjectManagement(auth.viewerProfileId);
-  const searchInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -234,7 +233,6 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const visibleSections = data.sections.map(section => ({ ...section, rows: filterStudioRows(section.rows, query) }));
   useMobileScreenActions(contextActions('studio', { signedIn: auth.isAuthenticated }, { handlers: {
     select: canSelect ? () => setSelecting(true) : undefined,
-    search: !bulkPending ? () => searchInput.current?.focus() : undefined,
     newProject: !bulkPending ? onNewProject : undefined,
     list: !bulkPending ? () => chooseView('list') : undefined,
     categories: !bulkPending ? () => chooseView('categories') : undefined,
@@ -259,7 +257,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
           <button type="button" className="studio-round-control" aria-label="Studio view options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button>
         </div>
       </div>
-      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input ref={searchInput} type="search" aria-label="Search Studio" placeholder={category === 'all' ? 'Search Studio' : `Search ${categoryDetails[category].label.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
+      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder={category === 'all' ? 'Search Studio' : `Search ${categoryDetails[category].label.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {view === 'categories' && <div ref={pillList} className="studio-categories scrollbar-hidden" role="group" aria-label="Studio categories">
         {STUDIO_CATEGORIES.map(kind => <button key={kind} type="button" className="studio-category" data-keep-color="" aria-label={categoryDetails[kind].label} aria-pressed={category === kind} disabled={bulkPending} onClick={() => chooseCategory(kind)}><InterfaceIcon icon={categoryDetails[kind].icon} />{category === kind && <span>{categoryDetails[kind].label}</span>}</button>)}
       </div>}

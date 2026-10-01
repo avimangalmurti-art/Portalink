@@ -18,16 +18,27 @@ function nodes(node) {
   return [node, ...React.Children.toArray(node.props.children).flatMap(nodes)];
 }
 const routes = load('src/app/routes.ts', () => ({ navigationDestinations: [] }));
-function harness(presentation = 'mobile', queryState = { data: [], loading: false }) {
+function harness(presentation = 'mobile', queryState = { data: [], loading: false }, resolvePlace) {
   const visits = [];
-  const city = { name: 'Oakland' };
-  const react = { ...React, useCallback: fn => fn, useState: value => [value, () => {}] };
+  const city = { id: 'oakland', name: 'Oakland', kind: 'city', legacy: true, countryCode: 'US' };
+  const slots = [], effects = [];
+  let cursor = 0, dirty = true;
+  const react = { ...React, useCallback: fn => fn,
+    useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === 'function' ? initial() : initial; return [slots[index], next => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; dirty = true; }]; },
+    useEffect(effect, deps) {
+      const index = cursor++, before = slots[index];
+      if (before && deps.every((value, position) => Object.is(value, before.deps[position]))) return;
+      const slot = slots[index] = { deps };
+      effects.push(() => { before?.cleanup?.(); slot.cleanup = effect(); });
+    },
+  };
   const imports = name => {
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { Link: 'a', useNavigate: () => path => visits.push(path), useSearchParams: () => [new URLSearchParams('tab=creators'), () => {}] };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/cities')) return { cities: [city] };
     if (name.endsWith('/location')) return { toLocationId: name => name.toLowerCase() };
+    if (name.endsWith('/locationDirectory')) return { locationDirectory: { resolve: resolvePlace ?? (async id => id === 'oakland' ? city : null) }, placeLabel: place => place.name };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: 'account' }, isAuthenticated: true }) };
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({}) };
@@ -36,18 +47,26 @@ function harness(presentation = 'mobile', queryState = { data: [], loading: fals
     if (name.endsWith('/engagement')) return { describeActivityCollection: () => ({ title: 'Saved', emptyTitle: 'No saved projects', emptyDescription: 'Save work to see it here.' }) };
     return placeholder;
   };
+  const { SearchBrowsePage } = load('src/components/SearchBrowsePage.tsx', imports);
   return { visits, city, load: path => load(path, imports),
+    async renderSearch(props) {
+      dirty = true; let tree;
+      for (let count = 0; count < 12; count++) {
+        if (dirty) { dirty = false; cursor = 0; tree = SearchBrowsePage(props); effects.splice(0).forEach(effect => effect()); }
+        await Promise.resolve();
+      }
+      return tree;
+    },
     browseProps: { onOpenAtlas: () => visits.push('/search'), onOpenWorld: () => visits.push('/portalink'), onReturnHome: () => visits.push('/'), onOpenLocation: id => visits.push(`/portalink/${id}`), onOpenProject() {}, onOpenCreator() {}, live: {}, query: '', onQueryChange() {} },
   };
 }
 
-test('World and city Back lead to Home and World in both presentations', () => {
+test('World and resolved city Back lead to Home and World in both presentations', async () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
-    const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
-    const world = SearchBrowsePage({ ...h.browseProps, view: 'world', locationId: null });
+    const world = await h.renderSearch({ ...h.browseProps, view: 'world', locationId: null });
     world.props.onSelectCity(h.city);
-    const city = SearchBrowsePage({ ...h.browseProps, view: 'location', locationId: 'oakland' });
+    const city = await h.renderSearch({ ...h.browseProps, view: 'location', locationId: 'oakland' });
     city.props.onBack();
     world.props.onBack();
     assert.deepEqual(h.visits, ['/portalink/oakland', '/portalink', '/']);
@@ -66,17 +85,33 @@ test('World back control names its actual platform destination and retains its a
   }
 });
 
-test('missing and empty cities offer a working route to another city in both presentations', () => {
+test('missing and empty cities offer a working route to another city in both presentations', async () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
-    const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
-    const missing = nodes(SearchBrowsePage({ ...h.browseProps, view: 'location', locationId: 'missing' })).find(node => node.type === 'EmptyState');
+    const missing = nodes(await h.renderSearch({ ...h.browseProps, view: 'location', locationId: 'missing' })).find(node => node.type === 'EmptyState');
     const { CityContentPage } = h.load('src/components/CityContentPage.tsx');
     const feed = nodes(CityContentPage({ city: h.city, onBack: h.browseProps.onOpenWorld })).find(node => node.type === 'HomeFeed');
     for (const action of [missing.props.action, feed.props.emptyAction]) {
       assert.equal(action.label, 'Browse another city'); action.onClick();
     }
     assert.deepEqual(h.visits, ['/portalink', '/portalink']);
+  }
+});
+
+test('directory destinations preserve their stable IDs and failed resolution can be retried', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const place = { id: 'gn-73', kind: 'region', name: 'Example Region', countryCode: 'US' };
+    let attempts = 0;
+    const h = harness(presentation, undefined, async id => { assert.equal(id, place.id); if (++attempts === 1) throw Error('Offline'); return place; });
+    const world = await h.renderSearch({ ...h.browseProps, view: 'world', locationId: null });
+    world.props.onSelectCity(place); assert.deepEqual(h.visits, ['/portalink/gn-73']);
+    const props = { ...h.browseProps, view: 'location', locationId: place.id };
+    const failed = await h.renderSearch(props);
+    assert.equal(failed.props.title, 'Location could not load');
+    failed.props.action.onClick();
+    const recovered = await h.renderSearch(props);
+    assert.equal(recovered.type, 'CityContentPage'); assert.equal(recovered.props.city, place);
+    assert.equal(attempts, 2);
   }
 });
 

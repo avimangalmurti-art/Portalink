@@ -98,7 +98,7 @@ function hooks() {
   }
   return { react, render };
 }
-function appHarness() {
+function appHarness({ firstVisit = false } = {}) {
   const h = hooks(), assigned = [], replaced = [], navigations = [], queryCalls = [], requests = [];
   let pendingIntent = null;
   const state = { route: { kind: 'sharedProfile', profileId }, location: { pathname: `/share/${profileId}`, search: '', hash: '', state: null }, presentation: 'mobile',
@@ -112,6 +112,8 @@ function appHarness() {
   const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
+    if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
     if (name === '../features/sharing/shareModel') return shareModel;
     if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:false,error:'',retry(){}})};
     if (name === 'react') return h.react;
@@ -138,6 +140,33 @@ function appHarness() {
     signedIn(overrides = {}) { state.auth = { ...state.auth, phase: 'authenticated', isAuthenticated: true, viewerProfileId: 'viewer', user: { id: 'account', profileId: 'viewer' }, session: { user: { id: 'account', profileId: 'viewer', isEmailVerified: true } }, ...overrides }; },
   };
 }
+
+test('first public mobile visit previews the mounted portfolio, then keeps the exact shared URL', () => {
+  const h = appHarness({ firstVisit: true });
+  h.state.location.search = '?via=friend'; h.state.location.hash = '#work';
+  let tree = h.render();
+  assert.ok(one(tree, 'VisitorProfileGrid'));
+  // WEB's sidebar styles depend on these being shell siblings, not wrapped.
+  const shellChildren = React.Children.toArray(one(tree, 'MobileBackProvider').props.children);
+  assert.ok(shellChildren.some(node => node.type === 'SharedProfileSidebar'));
+  assert.ok(shellChildren.some(node => node.props.className?.includes('codex-workspace')));
+  const intro = one(tree, 'lazy:./mobile/PublicPortfolioWelcome');
+  assert.equal(intro.props.appearance, appearance);
+  assert.ok(h.queryCalls.length > 0);
+  intro.props.onComplete(); tree = h.render();
+  assert.equal(nodes(tree).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
+  assert.equal(h.state.location.search + h.state.location.hash, '?via=friend#work');
+  assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
+});
+
+test('returning visitors, WEB, document deep links and account recovery bypass the public intro', () => {
+  const returning = appHarness();
+  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
+  for (const configure of [h => { h.state.presentation = 'web'; }, h => { h.state.route = {kind:'sharedProject',profileId,categoryId:'portal',projectId:'work'}; }, h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
+    const h = appHarness({ firstVisit: true }); configure(h);
+    assert.equal(nodes(h.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
+  }
+});
 
 test('shared messaging uses the canonical recipient key, gates guests without sending, and avoids a self-recipient', () => {
   const h = appHarness();
@@ -285,7 +314,7 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
 });
 
 function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
-  const h = hooks(), followed = [], state = { own: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
+  const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
     if (name === 'react') return h.react;
@@ -293,7 +322,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
     if (name === 'react-router-dom') return { useSearchParams: () => [state.search] };
     if (name === '../app/routes') return routes;
-    if (name === '../contexts/AuthContext') return { useAuth: () => ({ isAuthenticated: true, viewerProfileId: state.own ? profileId : 'other' }) };
+    if (name === '../contexts/AuthContext') return { useAuth: () => ({ isAuthenticated: state.signedIn, viewerProfileId: state.signedIn ? (state.own ? profileId : 'other') : null }) };
     if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
     if (name === '../features/follows/useFollows') return { useFollows: id => { followed.push(id); return { resolveError: state.resolveError, retryResolve: () => { state.resolveError = null; } }; } };
     if (name === '../features/auth/interactionIntent') return intents;
@@ -308,7 +337,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
   return { render, state, followed, bioProfile };
 }
 
-test('profile options omit self-follow, recover failed state, and preserve the existing portals/category views', () => {
+test('public profile options preserve Bio and the existing portals/category views', () => {
   const { render, state, followed, bioProfile } = visitorProfileHarness();
   const identity = nodes(render()).find(node => node.props?.className?.includes('profile-identity-copy'));
   assert.deepEqual(React.Children.toArray(identity.props.children).map(node => node.props.children), ['Creator', 'London']);
@@ -320,11 +349,10 @@ test('profile options omit self-follow, recover failed state, and preserve the e
   assert.equal(bio.props.bio, bioProfile.headline); assert.equal(bio.props.canEdit, false);
   bio.props.onClose();
   assert.equal(one(render(), 'lazy:../features/profile/ProfileBioSheet'), undefined);
-  assert.equal(button(render(), 'Follow'), undefined); assert.equal(followed.at(-1), null);
+  assert.equal(button(render(), 'Follow'), undefined); assert.equal(followed.length, 0);
   state.own = false; state.resolveError = 'Unavailable';
   assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);
-  assert.equal(button(render(), 'Follow'), undefined); button(render(), 'Try again').props.onClick();
-  assert.ok(button(render(), 'Follow'));
+  assert.equal(button(render(), 'Follow'), undefined); assert.equal(button(render(), 'Try again'), undefined);
   state.search.set('view', 'portals');
   const collection = one(render(), 'lazy:../components/profile/ProfileCollectionGrid');
   assert.equal(collection.props.shared, true); assert.equal(collection.props.kind, 'portals');
@@ -377,5 +405,22 @@ test('shared Journey permission and WEB switch placement are unchanged', () => {
     const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
     assert.equal(one(tools, 'JourneyToggle'), undefined);
     assert.ok(direct.findIndex(node => node.type === 'JourneyToggle') > direct.findIndex(node => node.type === 'EmployerOverview'));
+  }
+});
+
+
+test('public portfolio has no follow action or follow lookup for guests, members or the owner on either presentation', () => {
+  for (const presentation of ['mobile', 'web']) {
+    for (const [signedIn, own] of [[false, false], [true, false], [true, true]]) {
+      const h = visitorProfileHarness({ presentation });
+      Object.assign(h.state, { signedIn, own, resolveError: 'Follow unavailable' });
+      for (const expanded of [false, true]) {
+        if (expanded) button(h.render(), 'Profile options').props.onClick();
+        const tree = h.render();
+        for (const label of ['Follow', 'Following', 'Requested', 'Sign in to follow', 'Try again']) assert.equal(button(tree, label), undefined);
+        assert.equal(nodes(tree).some(node => node.props?.role === 'alert'), false);
+      }
+      assert.deepEqual(h.followed, []);
+    }
   }
 });

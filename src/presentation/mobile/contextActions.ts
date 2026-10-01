@@ -25,7 +25,7 @@ export function contextActions(kind: ContextKind, viewer: ContextViewer, target:
     home:{title:'Home',primary:['search','explore','newProject'],groups:[['refresh','settings'],['leaveLive']]},
     profile:viewer.owner ? {title:'Your profile',primary:['editProfile','share','newProject'],groups:[['reorder','insights','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
     project:viewer.owner ? {title:'Your project',primary:['edit','cover','share'],groups:[['startHere','thenNow',...(target.handlers.reads ? ['reads'] as ContextActionId[] : ['pageIndex'] as ContextActionId[]),...(target.handlers.reads || target.handlers.startHere && target.handlers.thenNow ? [] : ['copy'] as ContextActionId[]),'visibility'],['delete']]} : {title:'Project',primary:['saveProject','savePage','share'],groups:[['comment','pageIndex','copy'],['report']]},
-    studio:{title:'Studio',primary:['select','search','newProject'],groups:[['list','categories']]},
+    studio:{title:'Studio',primary:['select','newProject'],groups:[['list','categories']]},
     messages:{title:'Messages',primary:['newMessage','search'],groups:[['blocked']]},
     conversation:{title:'Conversation',primary:['viewProfile','share','mute'],groups:[['block','report']]},
     explore:{title:'Explore',primary:['search','yourWorld','myCity'],groups:[['reset']]},

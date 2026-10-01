@@ -41,6 +41,7 @@ import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pa
 import { cities } from '../../data/cities';
 import { getCountryCode } from '../../data/countryCodes';
 import { toLocationId } from '../../utils/location';
+import { locationDirectory, profileMatchesPlace } from '../../data/locationDirectory';
 import type { DiscoverySignal, ExplorationMode, HomeFeedMode, ProjectFeedCursor } from '../../types/discovery';
 import {
   buildUserContentSphere,
@@ -910,7 +911,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
     return (await this.getHomeDiscovery()).projects;
   },
   async listLocationProjects(locationId) {
-    const city = cities.find((entry) => toLocationId(entry.name) === locationId);
+    const city = await locationDirectory.resolve(locationId);
     if (!city) return [];
     const { data, error } = await requireSupabase()
       .from('profiles')
@@ -919,7 +920,7 @@ export const supabaseDiscoveryService: DiscoveryService = {
       .limit(500);
     if (error) throw new Error(error.message);
     const profileIds = ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'location'>>)
-      .filter((row) => creatorLocationMatches(row.location, city.name))
+      .filter((row) => city.legacy ? creatorLocationMatches(row.location, city.name) : profileMatchesPlace(row.location, city))
       .map((row) => row.id);
     const projectIds = await projectIdsForProfiles(profileIds);
     return projectViewsForIds(projectIds);

@@ -16,7 +16,7 @@ const all = ['search','explore','newProject','refresh','settings','editProfile',
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
  home:['search','explore','newProject','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
- project:['saveProject','savePage','share','comment','pageIndex','copy','report'], studio:['select','search','newProject','list','categories'],
+ project:['saveProject','savePage','share','comment','pageIndex','copy','report'], studio:['select','newProject','list','categories'],
  messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','block','report'], explore:['search','yourWorld','myCity','reset'],
  shared:['share','savePage','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],
 };

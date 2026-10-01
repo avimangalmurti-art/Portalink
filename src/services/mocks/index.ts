@@ -879,13 +879,14 @@ export const mockDiscoveryService: DiscoveryService = {
     return resolve([...published, ...curated]);
   },
   async listLocationProjects(locationId) {
-    const city = cities.find((entry) => toLocationId(entry.name) === locationId);
+    const { locationDirectory, profileMatchesPlace } = await import('../../data/locationDirectory');
+    const city = await locationDirectory.resolve(locationId);
     if (!city) return resolve([]);
     const located = prototypeViews()
-      .filter(({ view, flags }) => creatorLocationMatches(view.creator.location, city.name)
+      .filter(({ view, flags }) => (city.legacy ? creatorLocationMatches(view.creator.location, city.name) : profileMatchesPlace(view.creator.location, city))
         && decideProjectPlacement({
           view,
-          surface: 'location',
+          surface: city.legacy ? 'location' : 'discover',
           requestedLocationName: city.name,
           ...flags,
         }).eligible)

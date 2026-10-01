@@ -1,14 +1,13 @@
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
-import type { City } from '../data/cities';
+import { placeLabel, type DirectoryPlace } from '../data/locationDirectory';
 import { HomeFeed } from './home/HomeFeed';
 import type { Id, ProjectLocation } from '../types/domain';
 import { InterfaceIcon } from './ui/InterfaceIcon';
-import { toLocationId } from '../utils/location';
 import { usePresentation } from '../presentation/usePresentation';
 type CityContentPageProps = {
-  city: City;
+  city: DirectoryPlace;
   onBack: () => void;
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
@@ -32,20 +31,20 @@ export function CityContentPage({
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           {isMobile ? 'Back' : 'Back to World'}
         </button></ScreenBack>
-        <h1 className="min-w-0 truncate text-small font-bold text-[var(--text-primary)]">{city.name}</h1>
+        <h1 className="min-w-0 truncate text-small font-bold text-[var(--text-primary)]" title={placeLabel(city)}>{placeLabel(city)}</h1>
       </div>
       {/* The feed owns its own scroll so it can keep loading endlessly. */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <HomeFeed
-          key={city.name}
+          key={city.id}
           isSidebarCollapsed={false}
-          locationId={toLocationId(city.name)}
+          locationId={city.id}
           onOpenProject={onOpenProject}
           onOpenCreator={onOpenCreator}
           onWarmCreator={onWarmCreator}
-          scrollMemoryKey={`city:${city.name}`}
+          scrollMemoryKey={`city:${city.id}`}
           emptyTitle={`No work is placed in ${city.name} yet`}
-          emptyDescription={`Only public work from creators who choose ${city.name} as their profile city appears here.`}
+          emptyDescription={`Public work from creators who choose a profile location in ${city.name} appears here.`}
           emptyAction={{ label: 'Browse another city', onClick: onBack }}
         />
       </div>

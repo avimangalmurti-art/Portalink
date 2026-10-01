@@ -27,7 +27,7 @@
         if (!window.matchMedia?.('(max-width: 639px)').matches) return;
         let mode = 'auto';
         try {
-          const saved = JSON.parse(window.localStorage.getItem('portalinknetworks.interfaceAppearance.mobile') || 'null');
+          const saved = JSON.parse(window.localStorage.getItem('portalinknetworks.publicAppearance.mobile') || window.localStorage.getItem('portalinknetworks.interfaceAppearance.mobile') || 'null');
           const value = saved?.mode ?? window.localStorage.getItem('portalinknetworks.deviceAppearanceMode');
           if (['light', 'dark', 'auto'].includes(value)) mode = value;
         } catch { /* Storage is optional; use System. */ }

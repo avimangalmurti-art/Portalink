@@ -17,6 +17,7 @@ function execute(source, globals = {}) {
 const { createProfileHandle } = execute(read('src/utils/profileHandle.ts'));
 const shareModel=execute(read('src/features/sharing/shareModel.ts'));
 const validation = execute(read('src/features/profile/validation.ts'),{require:()=>shareModel});
+const directory = execute(read('src/data/locationDirectory.ts'), { require: () => ({ cities: [] }) });
 
 test('automatic handles support duplicate, long and non-ASCII names within the existing format', () => {
   const handles = new Set();
@@ -122,6 +123,7 @@ function component(file, name, props, overrides = {}) {
     if (dependency.endsWith('/validation')) return validation;
     if (dependency.endsWith('/data/cities')) return execute(read('src/data/cities.ts'));
     if (dependency.endsWith('/data/countryCodes')) return execute(read('src/data/countryCodes.ts'));
+    if (dependency.endsWith('/data/locationDirectory')) return directory;
     if (dependency.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (dependency.endsWith('/useProfileOnboarding')) return overrides;
     if (dependency.endsWith('/usePresentation')) return { usePresentation: () => overrides.presentation ?? 'web' };
@@ -157,36 +159,34 @@ test('account details collapse without reserving content and selection stays an 
   assert.ok(find(render({collapsible: false}), node => node.type === 'p'), 'Existing non-collapsible presentation remains available.');
 });
 
-test('native location choices preserve optional data and reset dependent city only on explicit changes', () => {
-  let value = '';
+test('the directory picker preserves custom text and applies only explicit choices within the profile limit', () => {
+  let value = 'Existing location outside catalogue';
   const render = component('src/components/profile/ProfileLocationPicker.tsx', 'ProfileLocationPicker', {
     id: 'location', value, onChange: next => { value = next; },
   });
-  const selects = tree => nodes(tree).filter(node => node.type === 'select');
   let tree = render();
-  assert.deepEqual(nodes(tree).filter(node => node.type === 'label').map(node => node.props.children), ['Country (optional)', 'City (optional)']);
-  assert.equal(selects(tree)[1].props.disabled, true);
-  selects(tree)[0].props.onChange({target: {value: 'US'}});
-  tree = render({value});
-  assert.equal(selects(tree)[0].props.value, 'US');
-  assert.ok(nodes(selects(tree)[1]).some(node => node.props.value === 'San Francisco'));
-  assert.ok(!nodes(selects(tree)[1]).some(node => node.props.value === 'London'));
-  selects(tree)[1].props.onChange({target: {value: 'San Francisco'}});
-  assert.equal(value, 'San Francisco, US');
+  assert.equal(tree.type, 'LocationSearch');
+  assert.equal(tree.props.label, 'Location (optional)');
+  assert.equal(tree.props.value, value);
+  assert.equal(tree.props.maxLength, validation.LOCATION_MAX_LENGTH);
+  assert.equal(value, 'Existing location outside catalogue', 'Rendering never normalizes or overwrites saved text.');
+  const city = { id: 'gn-1', kind: 'city', name: 'San Francisco', countryCode: 'US', regionName: 'California', uniqueInCountry: true };
+  assert.equal(tree.props.canSelect(city), true);
+  tree.props.onSelect(city);
+  assert.equal(value, 'San Francisco, California, US');
   assert.equal(validation.validateLocation(value), null);
-  selects(render({value}))[0].props.onChange({target: {value: 'GB'}});
+  const long = { ...city, name: 'x'.repeat(49) };
+  assert.equal(tree.props.canSelect(long), false);
+  tree.props.onSelect(long);
+  assert.equal(value, 'San Francisco, California, US', 'An over-limit choice is rejected, never truncated.');
+  tree.props.onChange('A custom location');
+  assert.equal(value, 'A custom location');
+  tree.props.onChange(''); assert.equal(value, '');
   tree = render({value});
-  assert.equal(selects(tree)[1].props.value, '');
-  assert.ok(nodes(selects(tree)[1]).some(node => node.props.value === 'London'));
-  selects(tree)[0].props.onChange({target: {value: ''}});
-  assert.equal(value, '');
-  value = 'Existing location outside catalogue';
-  tree = render({value});
-  assert.equal(value, 'Existing location outside catalogue', 'Rendering must never overwrite legacy/free-text values.');
-  assert.ok(find(tree, node => node.props.id === 'location-current'));
-  find(tree, node => node.type === 'button').props.onClick();
-  assert.equal(value, '');
-  assert.ok(selects(render({disabled: true})).every(node => node.props.disabled));
+  assert.equal(tree.props.value, '');
+  const disabled = render({ disabled: true, error: 'Use 48 characters or fewer.' });
+  assert.equal(disabled.props.disabled, true);
+  assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
 });
 
 test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
@@ -199,7 +199,8 @@ test('setup exposes large image selection, name and location and submits without
   });
   let tree = render();
   const fields = nodes(tree).filter((node) => node.type === 'ProfileField');
-  assert.deepEqual(fields.map((node) => node.props.label), presentation === 'mobile' ? ['Profile name'] : ['Profile name', 'Where are you from?']);
+  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name']);
+  assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
   assert.equal(fields[0].props.required, presentation === 'mobile');
   assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
   assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);

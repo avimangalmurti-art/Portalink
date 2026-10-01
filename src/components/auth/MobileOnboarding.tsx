@@ -8,16 +8,16 @@ import { Button } from '../ui/Button';
 
 export type MobileSignupStep = 'appearance' | 'account' | 'profile' | 'verification';
 
-export function MobileOnboardingAppearance(props: AccountAppearanceProps & { children?: React.ReactNode }) {
+export function MobileOnboardingAppearance(props: AccountAppearanceProps & { children?: React.ReactNode; showPreview?: boolean }) {
   const theme = props.theme ?? 'dark';
   const selected = findNavAccent(props.accentColor);
   return <div className="mobile-onboarding-appearance">
     {/* Preview the same neutral material as navigation without making the form
         itself translucent over the page behind it. */}
-    <div className="mobile-onboarding-preview" role="group" aria-label="Appearance preview"
+    {props.showPreview !== false && <div className="mobile-onboarding-preview" role="group" aria-label="Appearance preview"
       style={resolveNavButtonTokens(theme, props.accentColor, props.highContrast, props.reduceTranslucency, props.systemGray ?? 'gray') as React.CSSProperties}>
       <p className="mobile-onboarding-brand">Portalink<br />Networks</p>
-    </div>
+    </div>}
     {props.onSystemGrayChange && <fieldset><legend>System grey</legend>
       <div role="radiogroup" aria-label="System grey" onKeyDown={handleRadioGroupKeyDown} className="mobile-onboarding-swatches">
         {systemGrays.map(option => <button key={option.id} type="button" role="radio" aria-label={option.label} aria-checked={(props.systemGray ?? 'gray') === option.id} tabIndex={(props.systemGray ?? 'gray') === option.id ? 0 : -1} data-keep-color="" onClick={() => props.onSystemGrayChange?.(option.id)}>

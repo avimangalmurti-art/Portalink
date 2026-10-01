@@ -90,7 +90,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
     </header>
     <div className="settings-page-sections">
       <SettingsSection id="appearance" title="Appearance" subtitle="Theme, accent colour, layout">
-        {props.appearanceError ? <p role="alert">{props.appearanceError} <button type="button" onClick={props.onRetryAppearance} className="settings-text-action">Try again</button></p> : props.appearanceSaving ? <p role="status">Saving website colors…</p> : null}
+        {props.appearanceError ? <p role="alert">{props.appearanceError} <button type="button" onClick={props.onRetryAppearance} className="settings-text-action">Try again</button></p> : props.appearanceSaving ? <p role="status" className="settings-appearance-saving">Saving website colors…</p> : null}
         <NavigationButtonsPanel {...props} />
       </SettingsSection>
       <SettingsSection id="account" title="Account" subtitle="Profile, log out, delete account">

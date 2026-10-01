@@ -20,7 +20,7 @@ export function jumpToProjectPage(surface: HTMLElement | null, number: number) {
 
 export function projectPageScrollTop(surface: HTMLElement, page: HTMLElement) {
   const safeTop = parseFloat(getComputedStyle(surface).getPropertyValue('--mobile-content-safe-top')) || 0;
-  const readerHeader = surface.closest('[data-document-reading-view]')?.querySelector('[data-document-reader-header]');
+  const readerHeader = surface.closest('[data-mobile-page-reader]')?.querySelector('[data-document-reader-header]');
   const topInset = Math.max(safeTop, readerHeader?.getBoundingClientRect().bottom ?? 0);
   return window.scrollY + page.getBoundingClientRect().top - topInset;
 }

@@ -850,3 +850,29 @@ test('Back to portals targets the viewed creator collection rather than previous
     assert.deepEqual(calls, [[expected, true]]);
   }
 });
+
+
+test('public mobile image progress follows the image page context and preserves platform and WEB presentation', () => {
+  const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+  const media = tree => nodes(tree).find(node => node.type === AttachmentRenderer);
+  const shared = harness({ mediaKind: 'image', readOnlyShare: true });
+  let tree = shared.render();
+  assert.equal(counter(tree).props.readingMode, false);
+  assert.equal(counter(tree).props.showProgress, true);
+  assert.equal(counter(tree).props.segmentedProgress, false);
+  assert.equal(counter(tree).props.onSelectPage, undefined, 'image previews keep their existing scroll handler');
+  for (const current of [1, 2, 1]) {
+    counter(tree).props.onPositionChange({ scope: counter(tree).props.scope, current, total: 2 });
+    tree = shared.render();
+    const context = nodes(tree).find(node => node.type === 'mobile-page-context').props.value;
+    assert.equal(context.attachmentId, shared.attachments[current - 1].id);
+    assert.equal(context.pageIndex, current - 1);
+  }
+  media(tree).props.onFocusModeChange(true);
+  assert.equal(counter(shared.render()).props.showProgress, false);
+  media(tree).props.onFocusModeChange(false);
+  assert.equal(counter(shared.render()).props.showProgress, true);
+  assert.equal(counter(harness({ mediaKind: 'image' }).render()).props.showProgress, false, 'platform image controls retain their existing presentation');
+  assert.equal(counter(harness({ mediaKind: 'image', mobile: false, readOnlyShare: true }).render()), undefined);
+  for (const mediaKind of ['video', 'audio']) assert.equal(counter(harness({ mediaKind, readOnlyShare: true }).render())?.props.readingMode ?? false, false);
+});

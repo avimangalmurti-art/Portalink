@@ -216,7 +216,14 @@
   grid-area: 1 / 1;
   align-self: start;
 }
-[data-presentation='mobile'] .portalink-world-search { display: none; }
+[data-presentation='mobile'] .portalink-world-search {
+  display: block;
+  grid-area: 1 / 1;
+  align-self: end;
+  margin-bottom: calc(var(--mobile-control-size, 50px) + env(safe-area-inset-bottom, 0px) + 24px);
+  pointer-events: none;
+}
+[data-presentation='mobile'] .portalink-world-search .location-search { pointer-events: auto; }
 [data-presentation='mobile'] .portalink-world > [data-mobile-scroll-end] {
   grid-area: 1 / 1;
   align-self: end;
@@ -2109,12 +2116,14 @@
   text-overflow: ellipsis;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
+  border-radius: 10px;
   width: 100%;
   max-width: none;
   margin: 0;
   padding: 2px;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
+  border-radius: 8px;
   min-width: 0;
   min-height: 28px;
   padding: 6px 8px;
@@ -2125,6 +2134,30 @@
   /* Override the shared neutral selected-button paint for this accent pill. */
   background: var(--accent-primary) !important;
   color: var(--accent-foreground) !important;
+}
+
+/* Pair setup is a neutral outline action, not an accent link or filled pill. */
+#root .codex-shell[data-presentation='mobile'] .journey-pair-start {
+  --focus-ring: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 10px;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  box-shadow: none !important;
+  text-align: center;
+}
+#root .codex-shell[data-presentation='mobile'] .journey-pair-start:is(:hover, :active) {
+  border-color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .journey-pair-start:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
 }
 
 /* Another creator's links and Follow/Save share a row when they fit. Extra
@@ -2235,6 +2268,18 @@
   box-shadow: 0 10px 20px rgb(0 0 0 / 16%);
 }
 
+/* Share the available footer width evenly, reserving the same dot target as
+   the details control above it. Narrow cards can still wrap their metrics. */
+#root .codex-shell[data-presentation='mobile'] .project-preview-extension [data-project-preview-metrics] {
+  flex: 1 1 0;
+  justify-content: space-evenly;
+  column-gap: 4px;
+}
+#root .codex-shell[data-presentation='mobile'] .project-preview-extension button[aria-haspopup='menu'] {
+  width: 44px;
+  height: 44px;
+}
+
 /* Lift the packing cell as well, above neighbouring motion/DnD stacking contexts. */
 #root .codex-shell[data-presentation='mobile'] [data-project-preview-cell]:has(.project-preview-card[data-expanded='true']) {
   position: relative;
@@ -2255,7 +2300,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
   display: none;
   position: absolute;
-  right: 4px;
+  right: 8px;
   bottom: 4px;
   z-index: 5;
   width: 44px;
@@ -2397,6 +2442,22 @@
   justify-content: space-between;
   margin-inline-end: 0;
   overflow-x: auto;
+}
+
+/* Keep the view choice beside the avatar as counts and links open below it. */
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-identity-view) .profile-identity-main {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-identity-view) .profile-identity-avatar {
+  grid-row: 1 / 4;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded] .profile-identity-view {
+  grid-column: 2;
+  grid-row: 3;
+  margin-inline-end: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header[data-expanded]:has(.profile-identity-view) .profile-summary-counts {
+  grid-row: 4;
 }
 
 /* Fade only toward hidden description text; keep the first and last lines
@@ -3246,12 +3307,12 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
 }
 /* Context sheets share the app's appearance and material tokens on body portals. */
-[data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 20%); }
-/* This sheet shows the page sharply through its material. Other dialogs keep
-   their existing scrim; both overrides beat the shared dialog material rules. */
+[data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 46%); }
+/* Match the avatar preview's smoke and blur behind the sheet. The controls keep
+   their own surfaces; only the surrounding material reveals the softened page. */
 #root .codex-shell [data-presentation='mobile'].mobile-context-scrim {
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
+  backdrop-filter: blur(18px) saturate(115%) !important;
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet {
   display: flex; flex-direction: column; height: min(440px, 55%);
@@ -3259,13 +3320,16 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
   border-radius: 28px 28px 0 0 !important;
-  background: var(--material-thick) !important; color: var(--text-primary);
+  background: var(--material-regular) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   outline: none; padding-bottom: max(16px, var(--safe-area-bottom));
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { height: calc(100% - max(16px, var(--safe-area-top))); }
 #root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }
+}
 [data-presentation='mobile'] .mobile-context-sheet header { flex: none; padding: 0 20px 16px; touch-action: none; user-select: none; }
 [data-presentation='mobile'] .mobile-context-resize { display: grid; place-items: center; width: 72px; height: 44px; margin: 0 auto; border-radius: 999px; cursor: ns-resize; }
 [data-presentation='mobile'] .mobile-context-handle { width: 36px; height: 4px; border-radius: 8px; background: var(--text-tertiary); }

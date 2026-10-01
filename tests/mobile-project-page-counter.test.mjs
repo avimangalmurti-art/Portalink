@@ -75,7 +75,7 @@ test('segmented reading progress follows the visible page forwards and backwards
   const h = mount([one, two, three]); h.flush();
   const assertProgress = current => {
     const tree = h.render(undefined, { readingMode: true, segmentedProgress: true });
-    const progress = control(tree, 'Document reading progress');
+    const progress = control(tree, 'Reading progress');
     assert.equal(progress.props.role, 'progressbar');
     assert.equal(progress.props['aria-valuemin'], 0);
     assert.equal(progress.props['aria-valuemax'], 3);
@@ -97,19 +97,19 @@ test('segmented reading progress follows the visible page forwards and backwards
   h.cleanup(); assert.equal(h.clean, true);
 });
 
-test('public/default readers preserve native progress and non-document readers show none', () => {
+test('public/default readers preserve native progress and inactive reading headers show none', () => {
   const h = mount([page(2, 3, rect(0, 600))]); h.flush();
   for (const props of [{ readingMode: true }, { readingMode: true, segmentedProgress: false }]) {
     const tree = h.render(undefined, props);
-    const progress = control(tree, 'Document reading progress');
+    const progress = control(tree, 'Reading progress');
     assert.equal(progress.type, 'progress');
     assert.equal(progress.props.value, 2);
     assert.equal(progress.props.max, 3);
     assert.equal(nodes(tree).some(node => node.props.role === 'progressbar'), false);
   }
-  assert.equal(control(h.render(undefined, { segmentedProgress: true }), 'Document reading progress'), undefined);
+  assert.equal(control(h.render(undefined, { segmentedProgress: true }), 'Reading progress'), undefined);
   h.surface.pages = [page(1, 1, rect(0, 600))]; h.mutate();
-  const progress = control(h.render(undefined, { readingMode: true, segmentedProgress: true }), 'Document reading progress');
+  const progress = control(h.render(undefined, { readingMode: true, segmentedProgress: true }), 'Reading progress');
   assert.equal(progress.props['aria-valuemax'], 1);
   assert.equal(progress.props['aria-valuenow'], 1);
   const sections = React.Children.toArray(progress.props.children);
@@ -241,5 +241,23 @@ test('reader density is absent without permission, during focused view, and for 
   assert.equal(control(tree, 'Previous page').props.disabled, true);
   assert.equal(control(tree, 'Next page').props.disabled, true);
   assert.equal(h.render('other-project', { density }), null);
+  h.cleanup();
+});
+
+
+test('image reading progress updates without adding document next/previous controls', () => {
+  const one = page(1, 2, rect(0, 700)), two = page(2, 2, rect(702, 1402));
+  const h = mount([one, two]); h.flush();
+  const props = { readingMode: false, showProgress: true };
+  for (const current of [1, 2, 1]) {
+    one.bounds = current === 1 ? rect(0, 700) : rect(-700, 0);
+    two.bounds = current === 1 ? rect(702, 1402) : rect(2, 702);
+    h.scroll();
+    const tree = h.render(undefined, props), progress = control(tree, 'Reading progress');
+    assert.equal(progress.type, 'progress'); assert.equal(progress.props.value, current); assert.equal(progress.props.max, 2);
+    assert.equal(control(tree, 'Previous page'), undefined); assert.equal(control(tree, 'Next page'), undefined);
+    assert.equal(tree.props['data-document-reader-header'], true);
+    assert.ok(control(tree, `Page ${current} of 2. Show page previews`));
+  }
   h.cleanup();
 });

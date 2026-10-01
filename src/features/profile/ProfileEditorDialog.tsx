@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronDownIcon, LockKeyholeIcon } from 'lucide-react';
+import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MobileProfileAvatarEditor } from '../../components/profile/MobileProfileAvatarEditor';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useProfileEditor } from './useProfileEditor';
 import { ProfileLinksEditor } from './ProfileLinksEditor';
-import { LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
+import { NAME_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
 import './profileEditorPage.css';
 
@@ -124,7 +125,7 @@ export function ProfileEditorPage({
               <label className="flex items-center gap-3"><input type="checkbox" checked={fields.contactEmailPublic} disabled={isBusy} onChange={event => editor.setEmployerFlag('contactEmailPublic',event.target.checked)} />Show a contact email publicly</label>
               {fields.contactEmailPublic && <ProfileField id="profile-editor-contact" label="Public contact email" value={fields.contactEmail} maxLength={254} error={fieldErrors.contactEmail} disabled={isBusy} onChange={value => editor.setField('contactEmail',value)} />}
               <p className="text-sm text-[var(--text-secondary)]">Choose the address you want visitors to use. Turning this off removes the saved address.</p>
-              <ProfileField id="profile-editor-city" label={isMobile ? 'City, country' : 'Portalink city'} value={fields.location} optional={!isMobile} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder={isMobile ? 'City, country' : 'City for location discovery'} error={fieldErrors.location} disabled={isBusy} onChange={(value) => editor.setField('location', value)} />
+              <ProfileLocationPicker id="profile-editor-city" value={fields.location} error={fieldErrors.location} disabled={isBusy} onChange={value => editor.setField('location', value)} />
               </section>
 
               <section data-profile-editor-section="links" aria-label="Profile destinations" className="min-w-0 rounded-[14px] p-4">

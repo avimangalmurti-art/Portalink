@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## October 1, 2026 — Sites285 live; public mobile separation and reader polish
+
+Sites285 succeeded at02:49:47 America/Los_Angeles (2026-10-01T09:49:47.515607+00:00), source 77dd7303ee6a123432601326e77a48de75c25f11; deployment appgdep_6abe2cb2fddc8191ae4529699a0048a9. Includes all pending changes after Sites284: independent restored public mobile sidebar, installed-dock clipping correction, compact profile pill, full-screen initial loading and rounded inset page-progress sections. Public audience, runtime revision2 and active D1 migrations0000–0003 unchanged.
+
+244 focused tests, typecheck, full lint (0errors/90existing warnings), production client+worker build, independent review, CSS graph separation and260-file archive verification passed. Native Sites publication confirmed. Windows build launch/drive-letter packaging issues were resolved with the normal npm.cmd build and tar --force-local, reusing passed checks; no extra deployment. No GitHub push/merge, SQL, Storage or runtime configuration changes. Existing local browser evidence and physical-device limits remain in the handoff; no hosted-browser claim. Receipt: ignored logs/mobile-public-release-20261001/receipt.json.
+
 ## October 1, 2026 — Sites284 live; navigation/profile/action-sheet refinements
 
 Sites284 succeeded at01:58:24 America/Los_Angeles (2026-10-01T08:58:24.342939+00:00), source 1701d2a82115944eaad352663a6c8a374720d656; deployment appgdep_6abe20a6bfa48191a95e251b3bf8191a. All accumulated mobile changes after Sites283 are published, including Messages opening the conversation list, revised dock order/installed-app anchor, profile disclosure and owner links, bottom-fixed action sheet, compact Studio header and reader controls. Public audience, runtime revision2 and active D1 migrations0000–0003 unchanged.

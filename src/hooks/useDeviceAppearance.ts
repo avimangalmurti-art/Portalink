@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { interfaceAppearanceKey, readInterfaceAppearance, resolveAppearance, writeInterfaceAppearance, type InterfaceAppearance, type StoredAppearanceMode } from '../utils/appearancePreferences';
+import { interfaceAppearanceKey, readInterfaceAppearance, resolveAppearance, writeInterfaceAppearance, type AppearanceScope, type InterfaceAppearance, type StoredAppearanceMode } from '../utils/appearancePreferences';
 import type { Presentation } from '../presentation/usePresentation';
 
 /** Device appearance is independent of a signed-in account's public branding. */
-export function useDeviceAppearance(presentation: Presentation) {
-  const [settings, setSettings] = useState(() => ({ web: readInterfaceAppearance('web'), mobile: readInterfaceAppearance('mobile') }));
+export function useDeviceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform') {
+  const [settings, setSettings] = useState(() => ({ web: readInterfaceAppearance('web', scope), mobile: readInterfaceAppearance('mobile', scope) }));
   const appearance = settings[presentation];
   const [systemTheme, setSystemTheme] = useState(() => resolveAppearance('auto'));
   useEffect(() => {
@@ -14,9 +14,9 @@ export function useDeviceAppearance(presentation: Presentation) {
     const sync = () => setSystemTheme(resolveAppearance('auto'));
     const visible = () => { if (document.visibilityState === 'visible') sync(); };
     const stored = (event: StorageEvent) => {
-      for (const scope of ['web', 'mobile'] as const) {
-        if (event.key === interfaceAppearanceKey(scope) || event.key === null) {
-          setSettings(previous => ({ ...previous, [scope]: readInterfaceAppearance(scope) }));
+      for (const target of ['web', 'mobile'] as const) {
+        if (event.key === interfaceAppearanceKey(target, scope) || event.key === null) {
+          setSettings(previous => ({ ...previous, [target]: readInterfaceAppearance(target, scope) }));
         }
       }
     };
@@ -36,15 +36,15 @@ export function useDeviceAppearance(presentation: Presentation) {
       window.removeEventListener('storage', stored);
       document.removeEventListener('visibilitychange', visible);
     };
-  }, []);
+  }, [scope]);
   const chooseAppearance = useCallback((patch: Partial<InterfaceAppearance>) => {
     setSettings(previous => ({ ...previous, [presentation]: { ...previous[presentation], ...patch } }));
     if (patch.mode === 'auto') setSystemTheme(resolveAppearance('auto'));
   }, [presentation]);
   // Persist explicit slots, never whichever presentation happens to be active
   // when an effect runs. Both initial snapshots preserve existing preferences.
-  useEffect(() => { writeInterfaceAppearance('web', settings.web); }, [settings.web]);
-  useEffect(() => { writeInterfaceAppearance('mobile', settings.mobile); }, [settings.mobile]);
+  useEffect(() => { writeInterfaceAppearance('web', settings.web, scope); }, [settings.web, scope]);
+  useEffect(() => { writeInterfaceAppearance('mobile', settings.mobile, scope); }, [settings.mobile, scope]);
   const chooseMode = useCallback((mode: StoredAppearanceMode) => chooseAppearance({ mode }), [chooseAppearance]);
   return { ...appearance, chooseAppearance, chooseMode, systemTheme, theme: appearance.mode === 'auto' ? systemTheme : appearance.mode };
 }

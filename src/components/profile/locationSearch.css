@@ -1,0 +1,17 @@
+.location-search { position: relative; width: 100%; min-width: 0; color: var(--text-primary); }
+.location-search > label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; }
+.location-search > input { width: 100%; min-width: 0; min-height: 44px; border-radius: 8px; padding: 8px 12px; background: var(--surface-sunken); color: var(--text-primary); font-size: 16px; }
+.location-search-results { margin-top: 6px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-raised); overflow: hidden; }
+.location-search-results.is-above { position: absolute; inset-inline: 0; bottom: calc(100% + 8px); z-index: 30; box-shadow: var(--shadow-elevated); }
+.location-search-results ul { position: relative; margin: 0; padding: 4px; max-height: min(34vh, 300px); overflow-y: auto; overscroll-behavior: contain; list-style: none; }
+.location-search-results li { display: flex; gap: 10px; justify-content: space-between; align-items: center; min-height: 48px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+.location-search-results li[aria-selected='true'] { background: var(--surface-selected); }
+.location-search-results li[aria-disabled='true'] { opacity: .6; cursor: default; }
+.location-search-results li small { display: block; color: var(--text-secondary); font-size: 12px; }
+.location-search-results li > span { min-width: 0; overflow-wrap: anywhere; }
+.location-search-results li > small { max-width: 40%; overflow-wrap: anywhere; }
+.location-search-status:empty { display: none; }
+.location-search-status, .location-attribution { display: block; padding: 8px 12px; font-size: 12px; color: var(--text-secondary); }
+.location-search-status button, .location-attribution { text-decoration: underline; }
+.location-search > p { font-size: 13px; }
+.portalink-world-search .location-search { padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 14px; background: var(--surface-raised); }

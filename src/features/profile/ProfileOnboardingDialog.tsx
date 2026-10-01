@@ -13,7 +13,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { Button } from '../../components/ui/Button';
 import { useAvatarSelection, useCreateProfile } from './useProfileOnboarding';
-import { validateLocation, validateProfileName, LOCATION_MAX_LENGTH, NAME_MAX_LENGTH } from './validation';
+import { validateLocation, validateProfileName, NAME_MAX_LENGTH } from './validation';
 
 /**
  * Onboarding: connecting an authenticated account to the creator profile it
@@ -218,13 +218,7 @@ export function ProfileOnboardingDialog({
             }));
           }} />
 
-              {isMobile ? <ProfileLocationPicker id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} /> : <ProfileField id="onboarding-location" label="Where are you from?" optional value={location} autoComplete="address-level2" maxLength={LOCATION_MAX_LENGTH} placeholder="City" error={fieldErrors.location} disabled={isSubmitting} onChange={(value) => {
-            touched.current.location = true; setLocation(value);
-            setFieldErrors((current) => ({
-              ...current,
-              location: null
-            }));
-          }} />}
+              <ProfileLocationPicker id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
 
               {isMobile && <ProfileVisibilityField id="onboarding-visibility" collapsible isPrivate={isPrivate} onChange={value => { touched.current.isPrivate = true; setIsPrivate(value); }} disabled={isSubmitting} />}
 

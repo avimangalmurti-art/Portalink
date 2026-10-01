@@ -222,7 +222,7 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile closed header shows Journey choice; expanding shows counts then links without losing selection', () => {
+test('mobile header keeps its Journey choice when expanded alongside counts and links', () => {
   const h = profileHarness('', { presentation: 'mobile' });
   const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
   let tree = h.render();
@@ -238,7 +238,8 @@ test('mobile closed header shows Journey choice; expanding shows counts then lin
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
   tree = h.render();
-  assert.equal(toggle(tree), undefined);
+  assert.equal(toggle(tree).props.view, 'journey');
+  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
   const all = nodes(tree);
   const stats = all.find(node => node.type?.name === 'ProfileStats');
   assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
@@ -246,8 +247,12 @@ test('mobile closed header shows Journey choice; expanding shows counts then lin
   assert.ok(all.indexOf(stats) < all.indexOf(tools));
   assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
+  toggle(tree).props.onChange('portfolio');
+  tree = h.render();
+  assert.equal(toggle(tree).props.view, 'portfolio');
+  assert.equal(nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props['aria-expanded'], true);
   nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options').props.onClick();
-  assert.equal(toggle(h.render()).props.view, 'journey');
+  assert.equal(toggle(h.render()).props.view, 'portfolio');
 });
 
 test('profile Journey controls retain owner/public permissions, editor guard and desktop placement', () => {
@@ -255,7 +260,7 @@ test('profile Journey controls retain owner/public permissions, editor guard and
     const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
     assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
     openProfileOptions(h);
-    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), false);
+    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
   }
   const privateShare = profileHarness('', { presentation: 'mobile', viewerRole: 'owner', isSharedView: true, showJourney: false });
   assert.equal(nodes(privateShare.render()).some(node => node.type === 'JourneyToggle'), false);
@@ -907,5 +912,33 @@ test('shared gallery keeps published projects without chosen covers and opts the
       assert.equal(card.props.project.id, item.key);
       card.props.onOpen(); assert.deepEqual(opened.at(-1), [item.key, 'photos']);
     }
+  }
+});
+
+
+test('shared profile fallback omits following and retries while platform follow actions still work', () => {
+  for (const presentation of ['mobile', 'web']) {
+    let toggled = 0, signedIn = 0;
+    const follow = { isFollowing: false, isRequested: false, isResolving: false, isPending: false, resolveError: null,
+      mutationError: 'Follow unavailable', onToggle() { toggled++; }, onRetry() {} };
+    const props = { follow, onSignInRequest() { signedIn++; } };
+    for (const viewerRole of ['guest', 'visitor', 'owner']) {
+      const shared = profileHarness('', { presentation, viewerRole, isSharedView: true, props });
+      for (const expanded of [false, true]) {
+        if (expanded) openProfileOptions(shared);
+        const tree = shared.render();
+        assert.equal(nodes(tree).some(node => node.type === 'button' && /follow/i.test(node.props['aria-label'] ?? node.props.children)), false);
+        assert.equal(nodes(tree).some(node => node.props?.role === 'alert'), false);
+        assert.equal(nodes(tree).some(node => node.props?.['data-profile-visitor-actions'] !== undefined), false);
+      }
+    }
+    const member = profileHarness('', { presentation, viewerRole: 'visitor', props });
+    openProfileOptions(member);
+    const action = nodes(member.render()).find(node => node.props?.['aria-label'] === 'Follow Owner');
+    assert.ok(action); action.props.onClick(); assert.equal(toggled, 1);
+    const guest = profileHarness('', { presentation, viewerRole: 'guest', props });
+    openProfileOptions(guest);
+    const signIn = nodes(guest.render()).find(node => node.type === 'button' && node.props.children === 'Sign in to follow');
+    assert.ok(signIn); signIn.props.onClick(); assert.equal(signedIn, 1);
   }
 });

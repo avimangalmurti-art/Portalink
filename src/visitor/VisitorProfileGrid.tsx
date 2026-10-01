@@ -15,8 +15,6 @@ import { useProjectGridDensity } from '../features/profile/useProjectGridDensity
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresentation } from '../presentation/usePresentation';
-import { useFollows } from '../features/follows/useFollows';
-import { interactionIntent } from '../features/auth/interactionIntent';
 import { useSearchParams } from 'react-router-dom';
 import '../components/profile/profile-header.css';
 
@@ -32,8 +30,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const journey = useJourneySelection(profile.id, auth.viewerProfileId);
-  const ownProfile = auth.viewerProfileId === profile.id;
-  const follows = useFollows(optionsOpen && auth.isAuthenticated && !ownProfile ? profile.id : null);
   const [search] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
   const category = profile.categories.find(item => item.id === categoryId);
@@ -44,7 +40,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     <ProjectPreviewCard project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={false} sharedCoverFallback /> }));
-  const request = (label: string) => auth.requestAuthenticatedDestination(interactionIntent(label, window.location.pathname + window.location.search));
   return <div data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded={optionsOpen || undefined}>
@@ -64,12 +59,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
           {isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
-          {!ownProfile && !follows.resolveError && <button type="button" className="side-panel-primary-control px-3.5" disabled={auth.isInitializing || follows.isPending || (auth.isAuthenticated && follows.isResolving)}
-            aria-pressed={follows.isFollowing || follows.isRequested} aria-busy={follows.isPending || undefined}
-            onClick={() => auth.isAuthenticated ? follows.toggle() : request('follow this creator')}>{follows.isPending ? 'Working…' : follows.isFollowing ? 'Following' : follows.isRequested ? 'Requested' : 'Follow'}</button>}
-          {!ownProfile && (follows.resolveError || follows.mutationError) && <p role="alert">{follows.resolveError || follows.mutationError}
-            {(follows.resolveError || follows.retryMutation) && <button type="button" onClick={follows.resolveError ? follows.retryResolve : follows.retryMutation ?? undefined} className="ml-2 underline">Try again</button>}
-          </p>}
         </div>
       </header>}
     </div>

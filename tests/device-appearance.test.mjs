@@ -11,9 +11,23 @@ function compile(path, globals) {
   return exports;
 }
 const DEVICE_KEY = 'portalinknetworks.deviceAppearanceMode';
+test('public mobile appearance previews and persists without rewriting platform choices', () => {
+  const storage = new Map([['portalinknetworks.interfaceAppearance.mobile', JSON.stringify({ mode: 'light', accentColor:'#ff0000' })]]);
+  const h = harness({ storage, namespace: 'public' });
+  assert.equal(h.render('mobile').theme, 'light');
+  h.render('mobile').chooseAppearance({ mode:'dark', accentColor:'#00ff00', highContrast:true });
+  assert.equal(h.render('mobile').theme, 'dark');
+  assert.equal(JSON.parse(storage.get('portalinknetworks.interfaceAppearance.mobile')).mode, 'light');
+  const savedPublic = JSON.parse(storage.get('portalinknetworks.publicAppearance.mobile'));
+  assert.equal(savedPublic.mode, 'dark'); assert.equal(savedPublic.highContrast, true);
+  const returning = harness({ storage, namespace:'public' });
+  assert.equal(returning.render('mobile').accentColor, '#00ff00');
+  returning.render('mobile').chooseMode('auto'); returning.setDevice(true);
+  assert.equal(returning.render('mobile').theme, 'dark');
+});
 const scopedKey = scope => `portalinknetworks.interfaceAppearance.${scope}`;
 const saved = (storage, scope = 'web') => JSON.parse(storage.get(scopedKey(scope)));
-function harness({ dark = false, legacy = false, storage = new Map(), blockedStorage = false, mediaAvailable = true, server = false } = {}) {
+function harness({ dark = false, legacy = false, storage = new Map(), blockedStorage = false, mediaAvailable = true, server = false, namespace = 'platform' } = {}) {
   let cursor = 0;
   const slots = [];
   const mediaListeners = new Set(), windowListeners = new Map(), documentListeners = new Map();
@@ -50,7 +64,7 @@ function harness({ dark = false, legacy = false, storage = new Map(), blockedSto
   const { useDeviceAppearance } = compile('../src/hooks/useDeviceAppearance.ts', { ...globals, require: name => name === 'react' ? react : preferences });
   return {
     storage, mediaListeners, windowListeners, documentListeners, document,
-    render(scope = 'web') { cursor = 0; return useDeviceAppearance(scope); },
+    render(scope = 'web') { cursor = 0; return useDeviceAppearance(scope, namespace); },
     setDevice(next, notify = true) { media.matches = next; if (notify) mediaListeners.forEach(fn => fn()); },
     dispose() { slots.forEach(slot => slot.cleanup?.()); },
   };

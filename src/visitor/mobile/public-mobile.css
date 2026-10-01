@@ -1982,10 +1982,10 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) .premium-media-mode-enter {
   padding-inline: 0;
 }
-#root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-project-stage] {
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-project-stage] {
   padding-top: calc(var(--mobile-content-safe-top) + var(--mobile-control-edge) + var(--mobile-control-size) + 18px);
 }
-#root .codex-shell[data-presentation='mobile'] [data-document-reading-view]:not(:has([data-mobile-focused-view])) [data-document-reader-header] {
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-reader]:not(:has([data-mobile-focused-view])) [data-document-reader-header] {
   position: fixed;
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
@@ -2075,18 +2075,21 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener {
   position: absolute;
-  left: var(--mobile-navigation-inset-start);
+  left: max(28px, env(safe-area-inset-left, 0px));
   bottom: var(--mobile-dock-bottom);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--mobile-control-size);
-  height: var(--mobile-control-size);
+  width: 50px;
+  height: 50px;
   border: 1px solid var(--hairline-strong);
   background: var(--codex-sidebar-bg);
   color: var(--text-primary);
   box-shadow: 0 3px 14px rgb(0 0 0 / 0.16);
   pointer-events: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel [data-sidebar-toggle] {
+  --shared-header-control: 50px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-scrim {
   position: absolute;

@@ -18,6 +18,7 @@ import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
 import { PublicActionSheet } from './mobile/PublicActionSheet';
+import { completePublicWelcome, publicWelcomeCompleted, shouldWelcomePublicVisitor } from './mobile/publicWelcome';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
@@ -28,6 +29,7 @@ const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module 
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
 const ProfileOnboardingDialog = lazy(() => import('../features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const PublicPortfolioWelcome = lazy(() => import('./mobile/PublicPortfolioWelcome').then(module => ({ default: module.PublicPortfolioWelcome })));
 type SharedRoute = Extract<AppRoute, { kind: 'sharedProfile' | 'sharedCategory' | 'sharedProject' }>
   | { kind: 'sharedCollaboration'; profileId: string };
 const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -46,7 +48,7 @@ export function VisitorApp() {
     window.addEventListener('scroll', remember, { passive: true });
     return () => window.removeEventListener('scroll', remember);
   }, [presentation, location.pathname]);
-  const appearance = useDeviceAppearance(presentation);
+  const appearance = useDeviceAppearance(presentation, 'public');
   const { theme, accentColor, systemGray, highContrast, reduceTranslucency } = appearance;
   const shared = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';
   const sharedShell = isPublicSharePath(location.pathname);
@@ -65,6 +67,10 @@ export function VisitorApp() {
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
   const profile = query.profile, project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
+  const [welcomeCompleted, setWelcomeCompleted] = useState(publicWelcomeCompleted);
+  const showWelcome = shouldWelcomePublicVisitor(presentation, route.kind, Boolean(profile), welcomeCompleted,
+    Boolean(auth.pendingView || onboardingOpen || auth.session?.isPasswordRecovery));
+  const finishWelcome = useCallback(() => { completePublicWelcome(); setWelcomeCompleted(true); }, []);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
     if (profileId) navigate(buildPath(projectId ? 'sharedProfileCategory' : 'sharedProfile', { profileId, categoryId: categoryId ?? '' }));
@@ -167,6 +173,9 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
+      {showWelcome && <DeferredSurface active onClose={finishWelcome}>
+        <PublicPortfolioWelcome appearance={appearance} onComplete={finishWelcome} />
+      </DeferredSurface>}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}

@@ -10,11 +10,13 @@ import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pa
 export type PagePosition = { scope: string; current: number; total: number; ready?: boolean };
 
 /** Read the pages actually displayed by the current renderer, including lazy PDF pages. */
-export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null, onPositionChange, showControl = true, readingMode = false, segmentedProgress = false, onSelectPage, density }: {
+export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [], pdfDocument = null, onPositionChange, showControl = true, readingMode = false, showProgress = readingMode, segmentedProgress = false, onSelectPage, density }: {
   density?: { value: number; saving: boolean; onChange: (value: number) => void; onCommit: (value: number) => void };
   onPositionChange?: (position: PagePosition | null) => void;
   showControl?: boolean;
   readingMode?: boolean;
+  /** Images can report reading progress without document navigation buttons. */
+  showProgress?: boolean;
   /** Platform reader styling is independent of the public portfolio reader. */
   segmentedProgress?: boolean;
   onSelectPage?: (page: number) => void;
@@ -132,7 +134,7 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
   useMobileScreenActions(showControl && position?.scope === scope ? contextActions('project', { signedIn: true }, { handlers: { pageIndex: () => setOpenScope(scope) } }) : null, 12);
   if (!position || position.scope !== scope) return null;
   const showDensity = Boolean(density && showControl && position.total > 1);
-  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || undefined} data-project-reading-control={readingMode || undefined}>
+  return <div ref={navigatorRef} data-mobile-page-navigator="" data-page-density-enabled={showDensity || undefined} data-document-reader-header={readingMode || showProgress || undefined} data-project-reading-control={readingMode || showProgress || undefined}>
     {readingMode && <button type="button" aria-label="Previous page" disabled={position.current <= 1} onClick={() => onSelectPage?.(position.current-1)}>‹</button>}
     <button hidden={!showControl} ref={triggerRef} type="button" data-mobile-project-page-count="" className="mobile-project-page-counter"
     aria-label={`Page ${position.current} of ${position.total}. ${open ? 'Hide' : 'Show'} page previews`}
@@ -140,13 +142,12 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
     <InterfaceIcon icon={Grid2X2Icon} size="sm" weight="medium" />
     <span>{showDensity ? `${position.current} / ${position.total}` : readingMode ? `Page ${position.current} of ${position.total}` : `${position.current} of ${position.total}`}</span>
     </button>
-    {readingMode && <><button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button>
-      {segmentedProgress ? <div className="mobile-reader-progress" role="progressbar" aria-label="Document reading progress"
+    {readingMode && <button type="button" aria-label="Next page" disabled={position.current >= position.total} onClick={() => onSelectPage?.(position.current+1)}>›</button>}
+    {showProgress && (segmentedProgress ? <div className="mobile-reader-progress" role="progressbar" aria-label="Reading progress"
         aria-valuemin={0} aria-valuemax={position.total} aria-valuenow={position.current} aria-valuetext={`Page ${position.current} of ${position.total}`}
         style={{ '--reader-page-count': position.total } as React.CSSProperties}>
         {Array.from({ length: position.total }, (_, index) => <span key={index} aria-hidden="true" data-reached={index < position.current ? '' : undefined} />)}
-      </div> : <progress aria-label="Document reading progress" value={position.current} max={position.total} />}
-    </>}
+      </div> : <progress aria-label="Reading progress" value={position.current} max={position.total} />)}
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
     {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
       <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={density.value} disabled={density.saving}

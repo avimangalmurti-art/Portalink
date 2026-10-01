@@ -33,6 +33,8 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void, pre
   const onKey = (event: KeyboardEvent) => {
     if (!isTop() || event.defaultPrevented) return;
     if (event.key === 'Escape') {
+      // An expanded combobox consumes the first Escape to close its results.
+      if (event.target instanceof HTMLElement && event.target.closest('[role="combobox"][aria-expanded="true"]')) return;
       event.preventDefault();
       event.stopPropagation();
       onEscape();

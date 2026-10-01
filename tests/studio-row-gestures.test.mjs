@@ -166,7 +166,9 @@ test('selection presents real checkboxes, explicit options remain accessible, an
 
 test('Studio action sheet uses shared modal focus, explicit close and invokes only the chosen action', () => {
   const calls = [];
-  const react = { ...React, useId: () => 'studio-options', useRef: () => ({ current: null }) };
+  const react = { ...React, useId: () => 'studio-options', useRef: initial => ({ current: initial }),
+    useState: initial => [initial, () => assert.fail('Invoking an action must not resize the sheet')],
+  };
   const { MobileActionSheet } = compile('../src/components/messages/MobileActionSheet.tsx', {
     react,
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },

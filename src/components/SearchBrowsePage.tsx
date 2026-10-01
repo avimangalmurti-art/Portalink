@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Id, ProjectLocation } from '../types/domain';
-import { cities } from '../data/cities';
 import { toLocationId } from '../utils/location';
+import { locationDirectory, type DirectoryPlace } from '../data/locationDirectory';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PortalinkPage } from './PortalinkPage';
 import { CityContentPage } from './CityContentPage';
-import { EmptyState } from './ui/StateViews';
+import { EmptyState, LoadingState } from './ui/StateViews';
 import { usePresentation } from '../presentation/usePresentation';
 
 type SearchBrowsePageProps = {
@@ -36,8 +36,19 @@ export function SearchBrowsePage({
   onOpenLocation
 }: SearchBrowsePageProps) {
   const isMobile = usePresentation() === 'mobile';
+  const [resolved, setResolved] = useState<{ id: string; place: DirectoryPlace | null; failed?: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (view !== 'location' || !locationId) return;
+    let current = true;
+    void locationDirectory.resolve(locationId).then(place => { if (current) setResolved({ id: locationId, place }); })
+      .catch(() => { if (current) setResolved({ id: locationId, place: null, failed: true }); });
+    return () => { current = false; };
+  }, [view, locationId, attempt]);
   if (view === 'location') {
-    const selectedCity = cities.find((city) => toLocationId(city.name) === locationId) ?? null;
+    if (!resolved || resolved.id !== locationId) return <LoadingState label="Opening location…" />;
+    if (resolved.failed) return <EmptyState title="Location could not load" description="Try loading the directory again." action={{ label: 'Try again', onClick: () => { setResolved(null); setAttempt(value => value + 1); } }} />;
+    const selectedCity = resolved.place;
 
     if (!selectedCity) {
       return (
@@ -66,7 +77,7 @@ export function SearchBrowsePage({
     return (
       <PortalinkPage
         onBack={onReturnHome ?? onOpenAtlas}
-        onSelectCity={(city) => onOpenLocation(toLocationId(city.name))}
+        onSelectCity={(city) => onOpenLocation('id' in city ? city.id : toLocationId(city.name))}
         live={live}
       />
     );

@@ -157,13 +157,14 @@ export type InterfaceAppearance = {
   reduceTranslucency: boolean;
 };
 
-export function interfaceAppearanceKey(presentation: Presentation): string {
-  return `portalinknetworks.interfaceAppearance.${presentation}`;
+export type AppearanceScope = 'platform' | 'public';
+export function interfaceAppearanceKey(presentation: Presentation, scope: AppearanceScope = 'platform'): string {
+  return `portalinknetworks.${scope === 'public' && presentation === 'mobile' ? 'publicAppearance' : 'interfaceAppearance'}.${presentation}`;
 }
 
 /** Legacy values are a starting snapshot only; new choices never write them. */
-export function readInterfaceAppearance(presentation: Presentation): InterfaceAppearance {
-  const fallback: InterfaceAppearance = {
+export function readInterfaceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform'): InterfaceAppearance {
+  const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? readInterfaceAppearance(presentation) : {
     mode: readDeviceAppearanceMode(),
     accentColor: readAccentColor('#0A84FF'),
     systemGray: readNavSystemGray('gray6'),
@@ -171,7 +172,7 @@ export function readInterfaceAppearance(presentation: Presentation): InterfaceAp
     reduceTranslucency: readReduceTranslucency(false),
   };
   try {
-    const value = JSON.parse(read(interfaceAppearanceKey(presentation)) ?? 'null');
+    const value = JSON.parse(read(interfaceAppearanceKey(presentation, scope)) ?? 'null');
     if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
     return {
       mode: ['light', 'dark', 'auto'].includes(value.mode) ? value.mode : fallback.mode,
@@ -183,6 +184,6 @@ export function readInterfaceAppearance(presentation: Presentation): InterfaceAp
   } catch { return fallback; }
 }
 
-export function writeInterfaceAppearance(presentation: Presentation, value: InterfaceAppearance): void {
-  write(interfaceAppearanceKey(presentation), JSON.stringify(value));
+export function writeInterfaceAppearance(presentation: Presentation, value: InterfaceAppearance, scope: AppearanceScope = 'platform'): void {
+  write(interfaceAppearanceKey(presentation, scope), JSON.stringify(value));
 }
