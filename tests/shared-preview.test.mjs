@@ -615,3 +615,18 @@ test('sheet card and handle crawler metadata use the same public social asset an
  const html=await response.text();
  assert.equal(value(html,'og:title'),card.title);assert.equal(value(html,'og:description'),card.description);assert.equal(value(html,'og:image'),card.image);assert.equal(value(html,'og:image:width'),'1200');assert.equal(value(html,'og:image:height'),'630');assert.equal(h.signs().length,0);
 });
+
+
+test('portfolio card and pasted-link metadata use the profile avatar rather than latest project cover', async()=>{
+ const h=setup();
+ const avatar=`${id(1)}/avatar.webp`;
+ h.state.profiles[0].avatar_url=`${config.supabaseUrl}/storage/v1/object/public/avatars/${avatar}`;
+ h.state.projects[0].profile.avatar_url=h.state.profiles[0].avatar_url;
+ const card=await h.preview.readPortfolioCard(id(1),'https://portalink.example',config);
+ assert.equal(card.image,`https://portalink.example/media/avatars/${avatar}`);
+ const html=await(await h.request(profilePath)).text();
+ assert.equal(value(html,'og:image'),card.image);
+ assert.equal(value(html,'og:image:alt'),'Test creator profile picture');
+ const projectHtml=await(await h.request(projectPath)).text();
+ assertImage(projectHtml);
+});

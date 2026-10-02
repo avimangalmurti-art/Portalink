@@ -91,6 +91,7 @@ function ReorderableProfileLinkRow({
           <span className="profile-link-icon flex h-8 w-8 shrink-0 items-center justify-center" aria-hidden="true"><Icon className="h-[18px] w-[18px]" /></span>
           <span className="profile-link-name min-w-0 truncate">{link.label || 'Untitled link'}</span>
         </button>
+        <button type="button" disabled={disabled} onPointerDown={disabled ? undefined : event => dragControls.start(event)} aria-label={`Drag ${link.label || 'link'} to reorder`} className="flex h-11 w-11 shrink-0 touch-none items-center justify-center"><GripVerticalIcon aria-hidden="true" className="h-5 w-5" /></button>
         <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="profile-link-remove shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
         </button>
@@ -180,7 +181,7 @@ export function ProfileLinksEditor({
   onRemove,
   onReorder,
 }: ProfileLinksEditorProps) {
-  const visibleLinks = links.filter(link => !isProfileLinkAction(link.action) || !link.hidden);
+  const visibleLinks = links.filter(link => !isProfileLinkAction(link.action));
   const removedActions = links.filter(link => isProfileLinkAction(link.action) && link.hidden);
   const [selectedId, setSelectedId] = useState<string | null>(links[0]?.id ?? null);
   const [isChoosingIcon, setIsChoosingIcon] = useState(false);

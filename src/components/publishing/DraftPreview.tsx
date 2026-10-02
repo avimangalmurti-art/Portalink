@@ -1,3 +1,4 @@
+import { FormattedText } from '../text/FormattedText';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useMemo, useRef, useState } from 'react';
 import { CheckIcon, FileIcon, PencilIcon, RotateCcwIcon } from 'lucide-react';
@@ -146,7 +147,7 @@ export function DraftPreview({
         <div className="flex flex-col gap-1 p-3">
           <p className="text-[15px] font-semibold leading-tight text-[var(--text-primary)]">{metadata.title.trim()}</p>
           <p className="text-[12px] text-[var(--text-secondary)]">{categoryLabel}</p>
-          {metadata.summary.trim() && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-secondary)]">{metadata.summary.trim()}</p>}
+          {metadata.summary.trim() && <FormattedText className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]" text={metadata.summary.trim()} />}
         </div>
       </article>
 

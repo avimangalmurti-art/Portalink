@@ -3,7 +3,7 @@ import type { Profile } from '../../types/domain';
 import { useServices } from '../../contexts/ServicesContext';
 import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
 import { Button } from '../../components/ui/Button';
-import { defaultExportIds, exportCoverSource, exportPageTotal, exportProjectPageCount, PORTFOLIO_PAGE_LIMIT, profileHeadline, publicProjects } from './employer';
+import { defaultExportIds, exportCoverSource, exportPageTotal, exportProjectPageCount, PORTFOLIO_PAGE_LIMIT, publicProjects } from './employer';
 import { portfolioPath } from '../sharing/shareModel';
 
 export function PortfolioPdfDialog({profileId, onClose}: {profileId:string; onClose:()=>void}) {
@@ -66,7 +66,7 @@ export function PortfolioPdfDialog({profileId, onClose}: {profileId:string; onCl
         </label>)}</fieldset>
         <p>{chosen.length} selected · {total} pages including cover{chosen.some(project=>!project.pageCount)?' (estimated)':''}</p>
         {over && <p role="alert">Choose fewer projects to stay within the 120-page limit.</p>}
-        <div className="portfolio-pdf-cover-preview" aria-label="Portfolio cover preview"><small>PORTFOLIO</small><h3>{profile.name}</h3><p>{profileHeadline(profile)}</p><div className="portfolio-pdf-preview-covers">{chosen.slice(0,3).filter(project=>exportCoverSource(project)).map(project=><img key={project.id} src={exportCoverSource(project)} alt={project.title} />)}</div><small>{chosen.length} selected projects · {total} pages</small></div>
+        <div className="portfolio-pdf-cover-preview" aria-label="Portfolio cover preview"><small>PORTFOLIO</small><h3>{profile.name}</h3><div className="portfolio-pdf-preview-covers">{chosen.slice(0,3).filter(project=>exportCoverSource(project)).map(project=><img key={project.id} src={exportCoverSource(project)} alt={project.title} />)}</div><small>{chosen.length} selected projects · {total} pages</small></div>
         <p>Pages are flattened for reading, at up to 150 dpi. Video, audio and interactive projects cannot be included. The live link and QR keep the original work accessible.</p>
         {!ready && <Button disabled={busy || !chosen.length || over} onClick={()=>void generate()}>{busy?'Creating PDF…':'Create PDF'}</Button>}
         {busy && <Button variant="secondary" onClick={()=>{active.current?.abort();active.current=null;setBusy(false);setProgress('Canceled. You can choose a smaller selection and try again.');}}>Cancel</Button>}

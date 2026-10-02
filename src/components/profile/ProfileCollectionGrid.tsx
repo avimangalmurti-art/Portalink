@@ -1,3 +1,5 @@
+import { PreviewCreatorName } from './PreviewCreatorName';
+import { usePresentation } from '../../presentation/usePresentation';
 import { MobileProfileContext } from '../../presentation/mobile/MobileProfileContext';
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -23,6 +25,7 @@ type Props = {
 };
 
 export function ProfileCollectionGrid({ shared = false, profileId, kind, portals, people, loading, error, hasMore, onRetry, onLoadMore }: Props) {
+  const isMobile = usePresentation() === 'mobile';
   const isPortals = kind === 'portals';
   const title = isPortals ? 'Portals' : kind === 'followers' ? 'Followers' : 'Following';
   const count = isPortals ? portals.length : people.length;
@@ -37,7 +40,7 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
       </li>) : people.map((person) => <MobileProfileContext key={person.profileId} profileId={person.profileId} name={person.name}><li>
         <Link data-preview-open="" to={buildPath(shared ? 'sharedProfile' : 'profile', { profileId: person.profileId })} className="profile-collection-link" title={person.name}>
           <span className="profile-collection-tile squircle"><CreatorAvatar name={person.name} avatar={person.avatar} shape="squircle" className="h-full w-full text-[28px]" fallbackClassName="bg-transparent text-[var(--text-secondary)] ring-transparent" /></span>
-          <span className="profile-collection-name">{person.name}</span>
+          <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={person.name} active /> : person.name}</span>
         </Link>
       </li></MobileProfileContext>)}
     </ul>}

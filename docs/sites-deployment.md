@@ -1,3 +1,7 @@
+## October 1, 2026 — Sites289 published
+
+Publication succeeded at22:16:21 America/Los_Angeles, source b1cac2474e7b7c475b6a636cc48493fe056426a6, version289, deployment appgdep_6abf3e1c3a188191be32ab93a5126487. Includes compact left-aligned MOBILE Portfolio/Journey, profile disclosure arrows, mobile inbox header removal, remaining visitor Message duplicate removal, and full MOBILE Then/Now screen. Existing public audience/runtime revision2/backend/D1 migrations preserved. Typecheck, focused tests, lint (existing warnings), client/worker build and531-file archive validation passed. Phone/browser layout for pair chooser remains unverified. Source pushed only to Sites mirror; no GitHub merge/push or SQL applied. Native deployment succeeded at existing public URL. Windows workflow source push succeeded; packaging fallback used GNU tar plus Node gzip after helper packaging failed. Earlier unpublished statuses for these changes are superseded.
+
 # Existing Sites deployment
 
 ## October 1, 2026 — Sites288 live; accumulated profile/content changes

@@ -291,7 +291,7 @@ export function MessagesPage({
   const showList = !activeId;
   const isMobileNewChat = isMobile && isNewChatOpen;
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
-  return <section data-messages-page="" aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section data-messages-page="" data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>

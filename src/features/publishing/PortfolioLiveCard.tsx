@@ -1,3 +1,4 @@
+import { plainFormattedText } from '../../components/text/textFormatting';
 import { useServices } from '../../contexts/ServicesContext';
 import { PortfolioPreview } from '../sharing/PortfolioPreview';
 import { portfolioPath, type PortfolioCard } from '../sharing/shareModel';
@@ -38,7 +39,7 @@ export function PortfolioLiveCard({ profile, publishedProjectId, onBeforeShare, 
     <h3 id="portfolio-live-heading">Your portfolio is live</h3>
     {card ? <PortfolioPreview card={card} url={url}/> : <div className="portfolio-share-preview">
       <div className="portfolio-share-cover"><ProjectCover source={project.cover} thumbnail={project.coverThumbnail} kind={project.coverKind} pageNumber={project.coverPageNumber} frame={project.coverFrame} alt={project.title} fit="contain" priority /></div>
-      <div><strong>{profile.name}</strong>{profile.headline && <p>{profile.headline}</p>}<small>{url.replace(/^https?:\/\//, '')}</small></div>
+      <div><strong>{profile.name}</strong>{profile.headline && <p>{plainFormattedText(profile.headline)}</p>}<small>{url.replace(/^https?:\/\//, '')}</small></div>
     </div>}
     <div className="portfolio-live-actions"><Button variant="primary" disabled={busy} onClick={() => void share(false)}>Copy link</Button><Button variant="secondary" disabled={busy} onClick={() => void share(true)}>Send to someone</Button></div>
     <button type="button" className="first-project-skip" onClick={() => { dismissLivePortfolio(profile.id); setProjectId(null); }}>Not now</button>

@@ -1,3 +1,59 @@
+## October 2, 2026 — MOBILE project destination choice
+
+Same owning isolated checkout and branch codex/web-remove-gallery-toolbar; HEAD b1cac247. App mobile global/profile/portal/Journey/first-upload entry now shows ProjectPortalChoice before opening the publisher or making a project draft. Existing portals selectable (current/restored destination initially selected), or name and explicitly create a portal through management.createCategory; no silent Work creation on MOBILE. Validation, creation failure, busy duplicate-submission guard and account scoping preserved. No portal data/schema/backend changes. WEB publishing unchanged. Added ProjectPortalChoice.tsx and four behavioral tests; existing first-project and publish-completion checks pass (26 total). Typecheck, targeted ESLint (three existing App warnings), client/worker build (existing Vite warnings), diff check pass. No browser/physical-device proof or live service creation test; local/unpublished, prior pending edits preserved.
+
+## October 2, 2026 — MOBILE Bio and description formatting
+
+Owning branch codex/web-remove-gallery-toolbar, source HEAD b1cac247; isolated logs/web-remove-gallery-toolbar checkout. Added selection-based Format panel with heading styles, bold/italic/underline/strike, lists, indent/outdent, quotes, colours and live preview to Bio sheet and mobile publish/edit description fields. Safe React renderer reads lightweight markup in existing canonical text fields; no schema, SQL, dependency or backend changes. Description sheets, desktop viewer descriptions, project hover and publish previews render saved styles; plain Bio cards strip markup. Existing storage/save/discard and character limits retained (format syntax counts toward limits). New components/text files and text-formatting tests; adapted sheet tests to renderer boundary. Nine focused tests, typecheck, targeted ESLint and diff check passed. Production client/worker build passed with existing Vite extension/chunk-size warnings. No physical-phone or browser layout verification; local/unpublished. Earlier requested edits preserved.
+
+## October 2, 2026 — hide MOBILE dock during city search
+
+Scoped mobile CSS hides data-mobile-navigation-layer only while portalink-world-search has focus (including result/Done controls); blur/Done restores it automatically. Existing focus-driven full search screen and WEB navigation preserved. Selector checked against MobileNavigation DOM; diff check passes. No browser/phone verification claim. Local/unpublished; previous work retained.
+
+## October 2, 2026 — generic site share preview uses favicon artwork
+
+index.html main/invite link OpenGraph/Twitter image now references existing1254x1254 portalink-favicon.png with matching dimensions/alt; share.html generic fallback uses same artwork. Personalized portfolio avatar and project cover metadata from worker remain separate. Existing favicon/theme/onboarding Hello World assets unchanged; no asset editing or external WhatsApp message sent. Inspected favicon pixels and checked head metadata/diff. Local/unpublished; messaging services may retain older already-generated previews after publication.
+
+## October 2, 2026 — shared MOBILE identity header parity
+
+Public mobile header now mirrors in-platform compact identity rules: name20px line, location17px line, single-line overflow, compact28px view buttons/32px pill within76px avatar footprint. Previous public buttons-only adjustment did not constrain name/location or match corner/padding treatment; this adds exact existing in-platform styles without changing signed-in/WEB. Scoped diff verified; physical-phone result not claimed. Local/unpublished; all prior pending edits retained.
+
+## October 2, 2026 — portfolio preview uses profile avatar
+
+sharedPreview portfolio-level card/crawler metadata now selects avatar_url and validates same configured Supabase public avatars origin/path before generating canonical /media/avatars URL. Latest project cover is no longer portfolio preview image; category/project article covers unchanged. Missing/invalid avatars fall back to generic shell rather than upload art. Existing public/private/profile/category reads remain; no Storage/data changes. PortfolioPreview image alt/dimensions now describe profile picture. Portfolio metadata also omits removed headline/school facts per prior request. Focused card + crawler + project-image regression and ESLint pass; typecheck pending final check. Older broad shared-preview tests still assume portfolio cover imagery and have not been rerun/migrated in this turn. Browser/real phone not verified. Local/unpublished; requires Sites worker publication as part of next authorized publish, preserving D1/runtime settings.
+
+## October 2, 2026 — MOBILE inbox search safe-area clearance
+
+Reported real-phone screenshot shows headerless Messages search under status bar. MessagesPage now marks only headerless MOBILE inbox; scoped CSS adds existing mobile top safe inset plus12px padding. Composer/conversation headers and WEB unchanged. Focused inbox state test, ESLint and diff check pass; physical-phone result unverified. Local/unpublished; prior pending work preserved.
+
+## October 2, 2026 — MOBILE globe higher/frame-aligned drag
+
+Portalink globe shifted32CSSpx upward only in mobile.css. PortalinkPage MOBILE drag coalesces latest pointer positions into one requestAnimationFrame geometry update; final position flushes on release/cancel, animation frame cleaned on unmount. Drag tracks original pointer and ignores secondary touches; lost capture ends drag. WEB retains immediate rotation updates. No inertia/navigation/data changes. Two focused interaction tests and ESLint pass, diff clean; typecheck checked separately. No browser or physical-phone performance claim; actual smoothness on reported phone remains unverified. Local/unpublished atop Sites289; all prior pending work preserved.
+
+## October 2, 2026 — fixed profile actions/external reorder and unsupported fields removal
+
+User explicitly states Headline/School/Available/public contact email are not platform features, so removed editor controls across presentations, removed public facts/contact from EmployerOverview and corresponding headline/school PDF presentation. Stored profile values/Bio/auth email retained; no SQL/data deletion. Core Bio/Collaboration/Message resolve in fixed standard order, ignoring legacy hidden/order metadata; editor fields contain only external links, compact external rows now have drag handles. External order save/reopen and link limits verified. Files profileLinks.ts, useProfileEditor.ts, ProfileLinksEditor.tsx, ProfileEditorDialog.tsx, EmployerOverview.tsx, PortfolioPdfDialog.tsx, portfolioPdf.ts and tests. Fifty-two editor/profile tests + one removed-field check + eleven employer tests pass, focused ESLint no errors (existing useProfileEditor warning), diff clean. Typecheck passed; no browser/physical-phone claim. Local/unpublished; all prior pending work preserved.
+
+## October 2, 2026 — MOBILE connection names scroll like Home
+
+ProfileCollectionGrid uses canonical PreviewCreatorName for MOBILE follower/following labels, retaining original WEB text. Scoped mobile CSS keeps one line/current collection typography/alignment; overflowing names animate at Home speed, short names stay still. Reduced-motion names remain static single-line ellipsis here, full name retained in existing link title. Five focused collection/name tests, ESLint and diff check pass; no browser/phone claim. Local/unpublished; previous pending edits retained.
+
+## October 2, 2026 — shared MOBILE portals/header/guest engagement
+
+Shared sidebar MOBILE category taps now open SharedPortalPopup using canonical ProjectIndexList and MobilePortalProjectToolbar, modal focus/Back dismissal; selecting closes popup and opens canonical project route. WEB category navigation preserved; old mobile category-link redirect remains. Public MOBILE Portfolio/Journey reduced to28px visible button height to fit identity header; drawer opener uses accent/foreground. Guest shared MOBILE project engagement opener and like/save/share actions request signUp with exact return route; page like/bookmark/repost/comments/share likewise use signUp; authenticated actions and WEB preserved. No auto-replayed writes. New SharedPortalPopup.tsx plus VisitorApp, public-mobile.css, ProjectMediaViewer, EngagementBar, MediaInteractionBar and focused tests. Fifty-one focused navigation/engagement/media tests, typecheck and focused ESLint pass (existing one warning in media bar); diff check clean. Browser/phone visual verification remains outstanding. Local/unpublished atop Sites289; appearance-each-visit and centered bar pending edits retained. No backend/SQL/deployment changes.
+
+## October 2, 2026 — shared MOBILE appearance choice each visit
+
+User explicitly chose appearance prompt each time opening a portfolio share link. VisitorApp now scopes completion to mounted visit/profile rather than persistent browser welcome flag; publicWelcome removes obsolete persistent completion storage. Existing onboarding appearance controls and device appearance persistence retained; no creator appearance writes. Internal portfolio navigation after completion does not re-prompt. WEB/document deep links/account recovery guards preserved. Nineteen public welcome/navigation tests and focused ESLint pass; browser/phone not verified. Pending content-bar centering retained; local/unpublished.
+
+## October 2, 2026 — MOBILE content bar centering
+
+Combined bottom reader bar now anchors at viewport50% with half-width translation in signed-in and public MOBILE styles, replacing its right-edge anchor. Width/touch targets, bottom/safe-area placement and WEB retained. Scoped CSS diff/whitespace verified; no new browser or physical-phone claim. Local/unpublished atop Sites289 source b1cac247; prior publication receipt docs retained.
+
+## October 1, 2026 — Sites289 published
+
+Publication succeeded at22:16:21 America/Los_Angeles, source b1cac2474e7b7c475b6a636cc48493fe056426a6, version289, deployment appgdep_6abf3e1c3a188191be32ab93a5126487. Includes compact left-aligned MOBILE Portfolio/Journey, profile disclosure arrows, mobile inbox header removal, remaining visitor Message duplicate removal, and full MOBILE Then/Now screen. Existing public audience/runtime revision2/backend/D1 migrations preserved. Typecheck, focused tests, lint (existing warnings), client/worker build and531-file archive validation passed. Phone/browser layout for pair chooser remains unverified. Source pushed only to Sites mirror; no GitHub merge/push or SQL applied. Native deployment succeeded at existing public URL. Windows workflow source push succeeded; packaging fallback used GNU tar plus Node gzip after helper packaging failed. Earlier unpublished statuses for these changes are superseded.
+
 ## October 1, 2026 — MOBILE Then/Now pair chooser screen
 
 ThenNowDialog now renders a dedicated MOBILE full-viewport region through existing ModalPortal, with ScreenBack registration/visible Back, dynamic dialog viewport and safe-area-aware scrolling; no scrim/card or outside-tap dismissal. Desktop retains ProjectFormDialog. Shared pair validation, saving/error/removal logic unchanged; Back disabled during save. Files ThenNowDialog.tsx, mobile.css, then-now-screen.test.mjs. Fourteen focused pair/Journey tests, typecheck, focused ESLint and diff check pass. Browser/real-phone layout still unverified for this flow. Local/uncommitted/unpublished; prior edits retained. Other unspecified popup screens not converted speculatively.

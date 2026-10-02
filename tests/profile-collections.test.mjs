@@ -150,6 +150,7 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return React;
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => 'mobile' };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/categoryIcons')) return { getCategoryIcon: () => 'camera-icon' };
     return placeholder;
@@ -161,6 +162,11 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
     const children = React.Children.toArray(link.props.children);
     assert.match(children[0].props.className, /squircle/);
     assert.equal(children[1].props.className, 'profile-collection-name');
+    if (kind !== 'portals') {
+      const name = nodes(tree).find(node => node.type === 'PreviewCreatorName');
+      assert.equal(name.props.name, 'Person Name');
+      assert.equal(name.props.active, true);
+    }
     assert.equal(nodes(tree).some((node) => node.props?.role === 'dialog'), false);
   }
 });
@@ -888,7 +894,7 @@ test('profile headers keep Bio behind its control and use Portals consistently o
       assert.equal(controls[1].props.children.at(-1), 'portal');
     }
   }
-  const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
+  const { ProfileCollectionGrid } = compile('../src/components/profile/ProfileCollectionGrid.tsx', name => name.endsWith('/usePresentation') ? {usePresentation:()=> 'web'} : name === 'react' ? React : name === '../../app/routes' ? routes : name.endsWith('/categoryIcons') ? { getCategoryIcon: () => 'category-icon' } : placeholder);
   const shared = ProfileCollectionGrid({ shared: true, profileId: 'owner', kind: 'portals', portals: profile.categories, people: [], loading: false, error: null, hasMore: false });
   assert.equal(shared.props['aria-label'], 'Portals');
   assert.equal(nodes(shared).find(node => node.type === 'Link').props.to, '/share/owner/c/photos');

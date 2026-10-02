@@ -12,6 +12,7 @@ import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { TITLE_MAX_LENGTH } from '../publishing/validation';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { ProjectManagement } from './useProjectManagement';
 
 /**
@@ -31,6 +32,7 @@ export function ProjectEditorDialog({
   const {
     editor
   } = management;
+  const isMobile = usePresentation() === 'mobile';
   const isOpen = editor.projectId !== null;
   const [repositionId, setRepositionId] = useState<string | null>(null);
   const coverEdit = editor.attachmentEdits.find((item) => item.isCover);
@@ -233,7 +235,7 @@ export function ProjectEditorDialog({
               </section>
               <div className="project-form-details">
               <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
-              <ProfileField id="project-summary" label="Description" required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
+              <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
               </>}
             </>}

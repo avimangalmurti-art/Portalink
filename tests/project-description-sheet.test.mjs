@@ -71,7 +71,7 @@ test('profile Bio edits, saves and cancels within the same sheet without project
   const section = () => nodes(h.render()).find(node => node.type === 'section');
   assert.equal(section().props['data-expanded'], undefined);
   assert.ok(nodes(h.render()).some(node => node.type === 'h2' && node.props.children === 'Bio'));
-  assert.ok(nodes(h.render()).some(node => node.type === 'p' && node.props.children === 'No bio yet.'));
+  assert.ok(nodes(h.render()).some(node => node.props.text === 'No bio yet.'));
   h.click('Expand bio sheet');
   assert.equal(section().props['data-expanded'], true);
   h.click('Bio options'); h.click('Edit bio');
@@ -85,7 +85,7 @@ test('profile Bio edits, saves and cancels within the same sheet without project
   input = nodes(h.render()).find(n => n.type === 'textarea');
   input.props.onChange({ target: { value: 'Saved bio' } });
   nodes(h.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.ok(nodes(h.render()).some(n => n.type === 'p' && n.props.children === 'Saved bio'));
+  assert.ok(nodes(h.render()).some(n => n.props.text === 'Saved bio'));
   assert.ok(nodes(h.render()).some(n => n.props.role === 'status' && React.Children.toArray(n.props.children).join('') === 'Bio saved'));
   h.click('Done'); assert.equal(h.closes, 0);
   assert.deepEqual(h.calls, [], 'Bio does not invoke project editing services');
@@ -115,7 +115,7 @@ test('cancelled drags restore the snap point and a saved description is shown fr
   assert.equal(h.panel.style.height, undefined);
   h.click('Description options'); h.click('Edit description');
   h.editor.phase = 'saved'; h.editor.result = { project: { summary: 'Stored description' } };
-  assert.ok(nodes(h.render()).some(n => n.type === 'p' && n.props.children === 'Stored description'));
+  assert.ok(nodes(h.render()).some(n => n.props.text === 'Stored description'));
   assert.ok(h.button('Done'));
 });
 

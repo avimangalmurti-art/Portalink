@@ -1,3 +1,4 @@
+import { ProjectPortalChoice } from './features/publishing/ProjectPortalChoice';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
@@ -510,6 +511,7 @@ function AppContent() {
     return () => window.clearTimeout(timer);
   }, [publishConfirmation]);
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
+  const [portalChoice, setPortalChoice] = useState<{ accountId: string; preferredId: string | null } | null>(null);
   const [publishAccountId, setPublishAccountId] = useState<string | null>(null);
   const [globalCreateAccountId, setGlobalCreateAccountId] = useState<string | null>(null);
   const isGlobalCreatePending = globalCreateAccountId !== null && globalCreateAccountId === auth.user?.id;
@@ -524,6 +526,7 @@ function AppContent() {
     if (publishingAccountRef.current === accountId) return;
     const previousAccountId = publishingAccountRef.current;
     publishingAccountRef.current = accountId;
+    setPortalChoice(null);
     defaultCategoryRequest.current = null;
     setGlobalCreateAccountId(null);
     setPublishAccountId(null);
@@ -903,6 +906,7 @@ function AppContent() {
   // Publishing needs an account that owns this profile. A signed-in account
   // with no profile is onboarded rather than allowed to create orphaned work.
   function requestPublish() {
+    if (presentation === 'mobile') { requestGlobalPublish(); return; }
     if (onboardingStatus === 'required') {
       setIsOnboardingOpen(true);
       return;
@@ -914,7 +918,7 @@ function AppContent() {
       return;
     }
     setIsFirstProjectPublish(viewedProfile?.projects.length === 0);
-    setFirstProjectPublisher(presentation === 'mobile' && viewedProfile?.projects.length === 0);
+    setFirstProjectPublisher(false);
     setPublishTargetCategoryId(activeCategory.id);
     setPublishAccountId(auth.user?.id ?? null);
     setIsPublishOpen(true);
@@ -972,9 +976,16 @@ function AppContent() {
         ? await import('./features/publishing/firstProjectDraft').then(module => module.readFirstProjectDraft(createAccountId, viewedProfile.id)).catch(() => null) : null;
       if (!current) return;
       const target = viewedProfile.categories.find(category => category.id === saved?.draft.categoryId) ?? activeCategory ?? viewedProfile.categories[0] ?? null;
+      if (presentation === 'mobile' && createAccountId) {
+        setIsFirstProjectPublish(viewedProfile.projects.length === 0);
+        setFirstProjectPublisher(journeyMadeIn !== null || Boolean(saved) || viewedProfile.projects.length === 0);
+        setPortalChoice({ accountId: createAccountId, preferredId: target?.id ?? null });
+        setGlobalCreateAccountId(null);
+        return;
+      }
       if (!target) {
         const requestKey = `${createAccountId}:${viewedProfile.id}`;
-        if ((presentation === 'mobile' || journeyMadeIn !== null) && defaultCategoryRequest.current?.key !== requestKey) {
+        if (journeyMadeIn !== null && defaultCategoryRequest.current?.key !== requestKey) {
           const request = createFirstProjectCategory('Work', 'Grid2X2Icon');
           defaultCategoryRequest.current = { key: requestKey, promise: request };
           void request.then(category => {
@@ -1355,6 +1366,12 @@ function AppContent() {
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
+      {presentation === 'mobile' && portalChoice && portalChoice.accountId === auth.user?.id && isOwnerMode && viewedProfile && <ProjectPortalChoice key={portalChoice.accountId} categories={viewedProfile.categories} preferredId={portalChoice.preferredId} onCreate={name => management.createCategory(name, 'Grid2X2Icon')} onClose={() => { setPortalChoice(null); setFirstProjectPublisher(false); setJourneyMadeIn(null); }} onChoose={id => {
+        setPublishTargetCategoryId(id);
+        setPublishAccountId(portalChoice.accountId);
+        setPortalChoice(null);
+        setIsPublishOpen(true);
+      }} />}
       <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
         setIsPublishOpen(false);

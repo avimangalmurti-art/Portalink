@@ -1,3 +1,5 @@
+import { TextFormattingToolbar } from '../text/TextFormattingToolbar';
+import { FormattedText } from '../text/FormattedText';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreHorizontalIcon, XIcon } from 'lucide-react';
@@ -138,9 +140,9 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
         <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>
       </header>
       {discard ? null : editing && !saved ? <form className="project-description-editor" onSubmit={event => { event.preventDefault(); if (!busy) void activeEditor.save(); }}>
-        {phase === 'loading' ? <p role="status">Loading {label}…</p> : phase !== 'load-failed' && <textarea ref={textareaRef}
+        {phase === 'loading' ? <p role="status">Loading {label}…</p> : phase !== 'load-failed' && <><textarea ref={textareaRef}
           aria-label={contentLabel === 'Description' ? 'Project description' : contentLabel} aria-invalid={Boolean(error)} aria-describedby={error ? 'project-description-error' : undefined}
-          maxLength={activeEditor.maxLength} value={activeEditor.value} disabled={busy} onChange={event => activeEditor.onChange(event.target.value)} />}
+          maxLength={activeEditor.maxLength} value={activeEditor.value} disabled={busy} onChange={event => activeEditor.onChange(event.target.value)} /><TextFormattingToolbar inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy} maxLength={activeEditor.maxLength} /></>}
         {error && <p role="alert" id="project-description-error">{error}</p>}
         <footer>
           <button type="button" disabled={busy} onClick={() => dismiss('edit')}>Cancel</button>
@@ -149,7 +151,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
         </footer>
       </form> : <>
         <div className="project-description-body scrollbar-overlay" tabIndex={0} aria-label={contentLabel === 'Description' ? 'Project description text' : `${contentLabel} text`}>
-          <p data-font-preview="" style={{ fontFamily: typeface }}>{(saved ? activeEditor.savedValue : description) || emptyMessage}</p>
+          <FormattedText style={{ fontFamily: typeface }} text={(saved ? activeEditor.savedValue : description) || emptyMessage} />
           {details && <div className="project-description-details">{details}</div>}
         </div>
         {saved && <footer className="project-description-saved"><span role="status">{contentLabel} saved</span><button ref={doneRef} type="button" onClick={() => { void activeEditor.close(); }}>Done</button></footer>}

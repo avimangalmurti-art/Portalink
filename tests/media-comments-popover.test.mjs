@@ -226,6 +226,7 @@ function interactionBarHarness(mode) {
     '../../components/publishing/ProjectFormDialog': { ProjectFormDialog: 'project-form' },
     '../../components/ui/Button': { Button: 'button' },
     '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true }) },
+    '../auth/registration': { readSharedReturnPath: () => null },
     './MobilePageContext': { MobilePageContext: {} },
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
     '../../presentation/mobile/contextActions': { contextActions: () => ({ primary: [], groups: [] }) },

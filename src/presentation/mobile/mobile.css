@@ -209,6 +209,7 @@
   z-index: 1;
 }
 [data-presentation='mobile'] .portalink-world-stage > [role='group'] {
+  transform: translateY(-32px);
   --world-control-clearance: max(calc(var(--safe-area-top, 0px) + 64px), var(--mobile-content-safe-bottom, 72px));
   max-width: min(72vh, 720px, calc(100dvh - var(--world-control-clearance) - var(--world-control-clearance)));
 }
@@ -3636,6 +3637,9 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 /* One reader bar: portal, actions, engagement, creator. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   width: auto !important;
   max-width: calc(100vw - 32px);
   background: var(--navigation-surface, var(--surface-raised, #222)) !important;
@@ -3672,3 +3676,14 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'].journey-pair-screen > header button { width: 44px; height: 44px; display: grid; place-items: center; }
 [data-presentation='mobile'].journey-pair-screen > header h2 { font-size: 20px; font-weight: 600; }
 [data-presentation='mobile'].journey-pair-screen > form { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+
+/* Connection names use the same measured scrolling attribution as Home. */
+[data-presentation='mobile'] .profile-collection-name:has([data-preview-creator-name]) { display: block; width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; }
+[data-presentation='mobile'] .profile-collection-name [data-preview-creator-name] { display: block; width: 100%; font-size: inherit; font-weight: inherit; text-align: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-presentation='mobile'] .profile-collection-name [data-preview-creator-name] > span { white-space: nowrap; }
+
+/* The headerless inbox still needs status-bar clearance for Search. */
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
+
+/* Give active city search the screen without the app dock. */
+#root .codex-shell[data-presentation='mobile']:has(.portalink-world-search:focus-within) [data-mobile-navigation-layer] { display: none; }

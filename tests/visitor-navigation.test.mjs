@@ -132,7 +132,7 @@ function appHarness({ firstVisit = false } = {}) {
     if (name === '../data/navButtonTokens') return { resolveNavButtonTokens: () => ({}) };
     if (name === '../components/ui/DeferredDialog') return { DeferredDialog: 'DeferredDialog', DeferredSurface: 'DeferredSurface', DeferredSurfaceBoundary: 'DeferredSurfaceBoundary' };
     const component = name.split('/').at(-1);
-    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
+    if (['AppPresentation', 'MobileBackNavigation', 'SharedProfileSidebar', 'SharedContextActions', 'SharedSignInBar', 'VisitorProfileGrid', 'SharedPortalPopup'].includes(component)) return named(component === 'MobileBackNavigation' ? 'MobileBackProvider' : component);
     throw new Error(name);
   }, { window, document, requestAnimationFrame: fn => { fn(); return 1; } });
   return { state, assigned, replaced, navigations, queryCalls, requests, window,
@@ -159,8 +159,10 @@ test('first public mobile visit previews the mounted portfolio, then keeps the e
   assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
 });
 
-test('returning visitors, WEB, document deep links and account recovery bypass the public intro', () => {
+test('returning share-link visitors see appearance again; WEB, document links and recovery bypass it', () => {
   const returning = appHarness();
+  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), true);
+  one(returning.render(), 'lazy:./mobile/PublicPortfolioWelcome').props.onComplete();
   assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
   for (const configure of [h => { h.state.presentation = 'web'; }, h => { h.state.route = {kind:'sharedProject',profileId,categoryId:'portal',projectId:'work'}; }, h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
     const h = appHarness({ firstVisit: true }); configure(h);
@@ -438,4 +440,18 @@ test('MOBILE public project Back skips category overview and old category links 
       assert.equal(nodes(categoryTree).find(node=>node.props?.onOpen && node.props?.profile)?.props.categoryId, null);
     } else assert.equal(h.navigations.length, 0);
   }
+});
+
+
+test('MOBILE sidebar portal opens its project popup without navigating to the profile route', () => {
+  const h=appHarness();
+  one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
+  const popup=one(h.render(),'SharedPortalPopup');
+  assert.equal(popup.props.categoryId,'portal');
+  assert.equal(h.navigations.length,0);
+  popup.props.onClose();
+  assert.equal(nodes(h.render()).some(n=>n.type==='SharedPortalPopup'),false);
+  h.state.presentation='web';
+  one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
+  assert.ok(h.navigations.length>0);
 });

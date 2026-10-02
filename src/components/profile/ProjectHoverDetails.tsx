@@ -1,3 +1,4 @@
+import { FormattedText } from '../text/FormattedText';
 import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
@@ -50,7 +51,7 @@ export function ProjectHoverDetails({ summary, className = '', onOpen, href }: {
     'data-project-hover-description': '', onClick: onOpen,
     className: 'project-hover-scrollbar block h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-[1.45] text-[var(--accent-text)]',
   };
-  const text = <span className="block">{summary}</span>;
+  const text = <FormattedText text={summary} />;
   return <div ref={containerRef} className={`absolute inset-0 bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${className}`}>
     {href ? <Link to={href} tabIndex={-1} {...props}>{text}</Link> : <div {...props}>{text}</div>}
   </div>;

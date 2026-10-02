@@ -38,7 +38,7 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
     showJourney: profile.showJourney === true,
     portfolioHeadline: profileHeadline(profile), school: profile.school ?? '', availability: profile.availability ?? '',
     contactEmail: profile.contactEmailPublic ? profile.contactEmail ?? '' : '', contactEmailPublic: profile.contactEmailPublic === true, allowPdfDownload: profile.allowPdfDownload !== false,
-    links: resolveProfileLinks(profile.links, profile.socialLinks).map((link, index) => ({
+    links: resolveProfileLinks(profile.links, profile.socialLinks).filter(link => !isProfileLinkAction(link.action)).map((link, index) => ({
       ...link,
       id: `profile-link-${index}`
     }))

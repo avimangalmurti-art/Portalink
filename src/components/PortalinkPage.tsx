@@ -52,6 +52,7 @@ export function PortalinkPage({
   } = useServices();
   const geography = geographyService.readLocalGeography();
   const dragRef = useRef<{
+    pointerId: number;
     x: number;
     y: number;
     longitude: number;
@@ -92,12 +93,25 @@ export function PortalinkPage({
       if (frameId !== null) window.cancelAnimationFrame(frameId);
     };
   }, [isGlobeDetailReady]);
+  const rotationFrame = useRef<number | null>(null);
+  const pendingRotation = useRef<{ longitude: number; latitude: number } | null>(null);
+  const flushRotation = () => {
+    rotationFrame.current = null;
+    const next = pendingRotation.current;
+    pendingRotation.current = null;
+    if (next) { setCenterLongitude(next.longitude); setCenterLatitude(next.latitude); }
+  };
+  useEffect(() => () => {
+    if (rotationFrame.current !== null) window.cancelAnimationFrame(rotationFrame.current);
+  }, []);
   function zoomBy(delta: number) {
     setScale((current) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, current * delta)));
   }
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current || !event.isPrimary || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
+      pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       longitude: centerLongitude,
@@ -107,15 +121,23 @@ export function PortalinkPage({
   }
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const start = dragRef.current;
-    if (!start) {
+    if (!start || start.pointerId !== event.pointerId) {
       return;
     }
     // Turning slows as the camera closes in, so drag distance stays predictable.
     const sensitivity = 0.35 / Math.max(scale, 1);
-    setCenterLongitude(start.longitude - (event.clientX - start.x) * sensitivity);
-    setCenterLatitude(Math.max(-80, Math.min(80, start.latitude + (event.clientY - start.y) * sensitivity)));
+    const longitude = start.longitude - (event.clientX - start.x) * sensitivity;
+    const latitude = Math.max(-80, Math.min(80, start.latitude + (event.clientY - start.y) * sensitivity));
+    if (isMobile) {
+      pendingRotation.current = { longitude, latitude };
+      if (rotationFrame.current === null) rotationFrame.current = window.requestAnimationFrame(flushRotation);
+    } else { setCenterLongitude(longitude); setCenterLatitude(latitude); }
   }
-  function endDrag() {
+  function endDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    if (rotationFrame.current !== null) window.cancelAnimationFrame(rotationFrame.current);
+    flushRotation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     dragRef.current = null;
     setIsDragging(false);
   }
@@ -152,7 +174,7 @@ export function PortalinkPage({
       <div className="portalink-world-stage relative z-10 flex min-h-0 flex-1 items-center justify-center px-6" style={isMobile ? undefined : { containerType: 'size' }}>
         {/* Rotation keeps pointer priority; zoom is a separate gesture, so a
            drag can never resolve into opening a city. */}
-        <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={(event) => {
+        <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onWheel={(event) => {
         event.preventDefault();
         zoomBy(event.deltaY < 0 ? 1.08 : 1 / 1.08);
       }} onKeyDown={(event) => {

@@ -2,7 +2,7 @@ import { generate } from 'lean-qr';
 import type { Profile, Project } from '../../types/domain';
 import { loadPdfJs, pdfSourceOptions } from '../../components/media/PdfPage';
 import { assembleJpegPdf, type JpegPdfPage } from './jpegPdf';
-import { profileHeadline, profileFacts, PORTFOLIO_PAGE_LIMIT } from './employer';
+import { PORTFOLIO_PAGE_LIMIT } from './employer';
 import { projectMonth, learnedLine } from '../journey/journey';
 
 const DPI = 150 / 72, BYTE_LIMIT = 80 * 1024 * 1024;
@@ -78,9 +78,8 @@ export async function createPortfolioPdf(profile:Profile, projects:Project[], ur
   }
   check();onProgress('Preparing the portfolio cover…');
   const cover=canvas(612,792),c=cover.context;c.fillStyle='#666';c.font='12px system-ui';c.fillText(`PORTFOLIO · ${new Date().getFullYear()}`,36,48);
-  c.fillStyle='#111';c.font='bold 28px system-ui';let y=textLines(c,profile.name,36,95,540,34,2);
-  c.font='16px system-ui';y=textLines(c,profileHeadline(profile),36,y+14,540,22,3);
-  c.font='12px system-ui';c.fillStyle='#555';textLines(c,profileFacts(profile).filter(f=>f.label!=='Available'&&f.label!=='Field').map(f=>f.value).join(' · '),36,y+14,540,18,2);
+  c.fillStyle='#111';c.font='bold 28px system-ui';const y=textLines(c,profile.name,36,95,540,34,2);
+  c.font='12px system-ui';c.fillStyle='#555';textLines(c,profile.location ?? '',36,y+14,540,18,2);
   const coverTop=Math.max(235,y+70);
   for(const [index,project] of projects.slice(0,3).entries()){
     const thumbnail=project.coverThumbnail?.variants.find(v=>v.size===400)?.sourceUrl;

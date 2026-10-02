@@ -1,3 +1,4 @@
+import { readSharedReturnPath } from '../auth/registration';
 import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
 import { Button } from '../../components/ui/Button';
 import { useContext } from 'react';
@@ -87,14 +88,20 @@ export function MediaInteractionBar({
   }, [commentBody, commentsOpen, isMobile]);
 
   const auth = useAuth(), currentPage = useContext(MobilePageContext);
+  const requireAccount = () => {
+    const path = isMobile && !auth.isAuthenticated ? readSharedReturnPath(window.location.pathname + window.location.search) : null;
+    if (!path) return false;
+    auth.requestAuthenticatedDestination({ kind: 'route', path, label: 'engage with this page' }, 'signUp');
+    return true;
+  };
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
     savePage: !activity.isResolvingEngagement && activity.pendingKind !== 'save' ? () => savePage() : undefined,
-    comment: () => setCommentsOpen(true),
+    comment: () => { if (!requireAccount()) setCommentsOpen(true); },
   }, labels: { savePage: activity.record.engaged.save ? 'Unsave this page' : 'Save this page' } }) : null, 15);
   const [saveChoice,setSaveChoice]=useState(false);
   useEffect(()=>setSaveChoice(false),[presentedTarget.attachmentId,presentedTarget.pageIndex,auth.user?.id]);
-  const savePage=()=>{if(auth.isAuthenticated && !activity.record.engaged.save)setSaveChoice(true);else activity.toggle('save');};
+  const savePage=()=>{if(requireAccount())return;if(auth.isAuthenticated && !activity.record.engaged.save)setSaveChoice(true);else activity.toggle('save');};
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return <div
     ref={engagementRef}
@@ -128,7 +135,7 @@ export function MediaInteractionBar({
           disabled={activity.pendingKind === kind || activity.isResolvingEngagement}
           data-keep-color=""
           style={{ color }}
-          onClick={() => kind === 'save' ? savePage() : activity.toggle(kind)}
+          onClick={() => { if (!requireAccount()) { if (kind === 'save') savePage(); else activity.toggle(kind); } }}
           className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
         >
           {activity.pendingKind === kind
@@ -146,7 +153,7 @@ export function MediaInteractionBar({
         title={`Comments: ${activity.record.comments.length}`}
         data-keep-color=""
         style={{ color: 'var(--apple-purple)' }}
-        onClick={() => setCommentsOpen((open) => !open)}
+        onClick={() => { if (!requireAccount()) setCommentsOpen((open) => !open); }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && commentsOpen) {
             event.preventDefault();
@@ -165,7 +172,7 @@ export function MediaInteractionBar({
         aria-label={`${activity.shareState === 'shared' ? 'Shared' : 'Share'} ${presentedTarget.label}`}
         data-keep-color=""
         style={{ color: 'var(--engagement-share-selected)' }}
-        onClick={() => void activity.share()}
+        onClick={() => { if (!requireAccount()) void activity.share(); }}
         className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'var(--engagement-share-selected)' : 'none'} stroke="var(--engagement-share-selected)" />

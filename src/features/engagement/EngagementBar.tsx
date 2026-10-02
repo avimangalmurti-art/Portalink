@@ -41,7 +41,8 @@ export function EngagementBar({
   showCounts = false,
   variant = 'inline',
   isShared = false,
-  onShare
+  onShare,
+  onRequireAccount
 
 
 
@@ -61,7 +62,7 @@ export function EngagementBar({
    * the project rail is collapsed.
    * `viewer` is the mobile reading rail: neutral outlines and the essential
    * like/save/share actions. Other presentations retain the semantic colours.
-   */variant?: 'inline' | 'panel' | 'rail' | 'viewer'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isViewer = variant === 'viewer';const isRail = variant === 'rail' || isViewer;const shareColor = isViewer ? 'var(--project-control-foreground, currentColor)' : 'var(--engagement-share-selected)';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
+   */variant?: 'inline' | 'panel' | 'rail' | 'viewer'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;onRequireAccount?: () => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isViewer = variant === 'viewer';const isRail = variant === 'rail' || isViewer;const shareColor = isViewer ? 'var(--project-control-foreground, currentColor)' : 'var(--engagement-share-selected)';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
       <div className={isPanel ? `grid ${onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'side-panel-navigation-list items-center' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
         {ENGAGEMENT_KINDS.filter(kind => !isViewer || kind !== 'repost').map((kind) => {const Icon = ICONS[kind];const labels = describeEngagement(kind);
           const isEngaged = engagement.isEngaged(kind);
@@ -92,7 +93,7 @@ export function EngagementBar({
              * the pair instead would push it off the glyph by half the number's width,
              * and by a different amount for every count.
              */
-            return <button key={kind} type="button" data-semantic-action="engagement" onClick={() => engagement.toggle(kind)} disabled={isPending || engagement.isResolving || engagement.resolveError !== null} aria-pressed={isEngaged} aria-label={`${isEngaged ? labels.undo : labels.action}: ${projectTitle}`} data-keep-color={isEngaged ? '' : undefined} style={isEngaged ? {
+            return <button key={kind} type="button" data-semantic-action="engagement" onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle(kind)} disabled={!onRequireAccount && (isPending || engagement.isResolving || engagement.resolveError !== null)} aria-pressed={isEngaged} aria-label={`${isEngaged ? labels.undo : labels.action}: ${projectTitle}`} data-keep-color={isEngaged ? '' : undefined} style={isEngaged ? {
               color: engagedColor
             } : undefined} className={`flex flex-col items-center rounded-[8px] px-1 py-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${tone}`}>
                 <span className="grid grid-cols-[auto_auto] items-center justify-items-center gap-x-1.5 gap-y-1.5">
@@ -109,21 +110,21 @@ export function EngagementBar({
            * sighted viewer through the tooltip, and the FILL — not colour alone —
            * continues to report the state, so nothing is lost by dropping the text.
            */
-          return <button key={kind} type="button" data-semantic-action="engagement" onClick={() => engagement.toggle(kind)} disabled={isPending || engagement.isResolving || engagement.resolveError !== null} aria-pressed={isEngaged} title={isEngaged ? labels.state : labels.action} aria-label={`${isEngaged ? labels.undo : labels.action}: ${projectTitle}`} data-keep-color={isEngaged ? '' : undefined} style={isEngaged ? {
+          return <button key={kind} type="button" data-semantic-action="engagement" onClick={() => onRequireAccount ? onRequireAccount() : engagement.toggle(kind)} disabled={!onRequireAccount && (isPending || engagement.isResolving || engagement.resolveError !== null)} aria-pressed={isEngaged} title={isEngaged ? labels.state : labels.action} aria-label={`${isEngaged ? labels.undo : labels.action}: ${projectTitle}`} data-keep-color={isEngaged ? '' : undefined} style={isEngaged ? {
             color: engagedColor
           } : undefined} className={`side-panel-compact-control flex items-center justify-center gap-1 rounded-[8px] transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 ${isRail ? 'h-10 w-10' : showCounts ? 'min-w-8 px-1' : 'w-8'} ${tone}`}>
               <InterfaceIcon icon={Icon} size={interfaceIconSize} weight="regular" keepColor fill={paint.fill} stroke={paint.stroke} />
               {showCounts && total !== null && <span className="text-[11px] font-semibold tabular-nums">{new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(total)}</span>}
             </button>;
         })}
-        {onShare && (isPanel ? <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
+        {onShare && (isPanel ? <button type="button" data-semantic-action="share" onClick={onRequireAccount ?? onShare} aria-pressed={isShared} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
           color: shareColor
         }} className="flex flex-col items-center rounded-[8px] px-1 py-2 transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className="grid items-center justify-items-center gap-y-1.5">
               <InterfaceIcon icon={SendIcon} size="lg" weight="regular" keepColor fill={isShared ? shareColor : 'none'} stroke={shareColor} />
               <span className="text-[12px] leading-none">{isShared ? 'Shared' : 'Share'}</span>
             </span>
-          </button> : <button type="button" data-semantic-action="share" onClick={onShare} aria-pressed={isShared} title={isShared ? 'Shared' : 'Share'} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
+          </button> : <button type="button" data-semantic-action="share" onClick={onRequireAccount ?? onShare} aria-pressed={isShared} title={isShared ? 'Shared' : 'Share'} aria-label={`${isShared ? 'Shared' : 'Share'}: ${projectTitle}`} data-keep-color="" style={{
           color: shareColor
         }} className={`side-panel-compact-control flex items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isRail ? 'h-10 w-10' : 'w-8'}`}>
             <InterfaceIcon icon={isViewer ? ShareIcon : SendIcon} size={interfaceIconSize} weight="regular" keepColor fill={isShared && !isViewer ? shareColor : 'none'} stroke={shareColor} />

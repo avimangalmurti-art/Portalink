@@ -55,3 +55,13 @@ test('existing desktop rail retains repost, semantic outlines and its original s
   assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.stroke, 'var(--engagement-like-selected)');
   assert.equal(nodes(h.buttons[3]).find(node => node.type === InterfaceIcon).props.icon, icons.SendIcon);
 });
+
+
+test('shared guest engagement buttons all gate before mutations or sharing even while resolving', () => {
+  const calls=[];
+  const tree=EngagementBar({variant:'viewer',projectTitle:'Work',engagement:{isEngaged:()=>false,isPending:()=>false,count:()=>null,isResolving:true,resolveError:null,toggle:()=>assert.fail('guest mutation')},onShare:()=>assert.fail('guest share'),onRequireAccount:()=>calls.push('createAccount')});
+  const buttons=nodes(tree).filter(n=>n.type==='button');
+  assert.equal(buttons.length,3);
+  for(const button of buttons){assert.ok(!button.props.disabled);button.props.onClick();}
+  assert.deepEqual(calls,['createAccount','createAccount','createAccount']);
+});

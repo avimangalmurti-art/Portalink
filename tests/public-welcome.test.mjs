@@ -10,15 +10,15 @@ const load = (file, dependencies = {}, globals = {}) => {
     { exports, require: name => dependencies[name] ?? new Proxy({}, {get:(_,key)=>key}), ...globals });
   return exports;
 };
-test('completion is explicit and survives return visits, including blocked storage in the same tab', () => {
-  const values = new Map();
-  const window = {localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v)}};
-  const first = load('src/visitor/mobile/publicWelcome.ts', {}, {window});
-  assert.equal(first.publicWelcomeCompleted(), false);
-  first.completePublicWelcome(); assert.equal(first.publicWelcomeCompleted(), true);
-  assert.equal(load('src/visitor/mobile/publicWelcome.ts', {}, {window}).publicWelcomeCompleted(), true);
-  const blocked = load('src/visitor/mobile/publicWelcome.ts', {}, {window:{localStorage:{getItem(){throw Error();},setItem(){throw Error();}}}});
-  assert.equal(blocked.publicWelcomeCompleted(), false); blocked.completePublicWelcome(); assert.equal(blocked.publicWelcomeCompleted(), true);
+test('share-link appearance completion is scoped to the current portfolio visit', () => {
+  const source = readFileSync(new URL('../src/visitor/VisitorApp.tsx', import.meta.url),'utf8');
+  assert.match(source, /welcomedProfileId, setWelcomedProfileId.*useState<string \| null>\(null\)/);
+  assert.match(source, /welcomedProfileId === profileId/);
+  const {shouldWelcomePublicVisitor} = load('src/visitor/mobile/publicWelcome.ts');
+  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,false,false),true);
+  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,true,false),false);
+  assert.equal(shouldWelcomePublicVisitor('web','sharedProfile',true,false,false),false);
+  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,false,true),false);
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 test('timed splash advances to live controls; completion requires View portfolio or Escape', () => {

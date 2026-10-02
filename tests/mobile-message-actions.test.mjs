@@ -320,11 +320,13 @@ test('WEB empty right pane has a working New message action without adding it to
 
 test('MOBILE inbox removes the redundant header while WEB and new-message headers remain', () => {
   const mobile = conversationHarness('mobile');
+  assert.equal(mobile.render().props['data-mobile-inbox'], true);
   assert.equal(nodes(mobile.render()).some(node => node.type === 'header'), false);
   assert.equal(nodes(mobile.render()).find(node => node.props.id === 'messages-heading').props.className, 'sr-only');
   assert.equal(nodes(mobile.render()).some(node => node.props['aria-label'] === 'Message settings'), false);
   mobile.empty().props.action.onClick();
   assert.equal(mobile.hasNewChat(), true);
+  assert.equal(mobile.render().props['data-mobile-inbox'], undefined);
   assert.ok(nodes(mobile.render()).find(node => node.type === 'header'));
   assert.equal(nodes(mobile.render()).find(node => node.props.id === 'messages-heading').props.children, 'New message');
   const web = conversationHarness('web');

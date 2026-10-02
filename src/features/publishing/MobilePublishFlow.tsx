@@ -1,3 +1,4 @@
+import { FormattedText } from '../../components/text/FormattedText';
 import { FirstProjectFiles } from './FirstProjectFiles';
 import { EMPTY_CREATION } from './firstProject';
 import React, { useEffect, useRef } from 'react';
@@ -93,14 +94,14 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
           <p className="first-project-note">Your answers become the description. You can edit it any time — or connect your AI to draft from them.</p>
         </> : <>
         <ProfileField id="publish-title" label="Title" required value={flow.metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={flow.fieldErrors.title} disabled={busy} onChange={value => flow.setField('title', value)} />
-        <ProfileField id="publish-summary" label="Description" required multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
+        <ProfileField id="publish-summary" label="Description" formatting required multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
         <ProfileField id="publish-location" label="Location" optional value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />
         </>}
       </section> : <div className="mobile-publish-review">
         <CoverFilmstrip naturalShape={Boolean(firstProject)} compact readOnly media={flow.media} disabled />
         <div className="mobile-publish-review-details">
           <h4>{flow.metadata.title.trim()}</h4>
-          <p className="whitespace-pre-wrap">{flow.metadata.summary.trim()}</p>
+          <FormattedText text={flow.metadata.summary.trim()} />
           {firstProject && <p>{[flow.metadata.creationDetails?.madeIn, flow.metadata.creationDetails?.field].filter(Boolean).join(' · ')}</p>}
           <dl><div><dt>Portal</dt><dd>{categoryLabel}</dd></div>{flow.location.trim() && <div><dt>Location</dt><dd>{flow.location.trim()}</dd></div>}</dl>
           <button type="button" className="mobile-publish-edit" disabled={busy || flow.hasCommittedProject} onClick={() => edit('details')}>Edit details</button>

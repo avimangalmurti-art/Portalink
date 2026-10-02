@@ -1,3 +1,4 @@
+import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { isPublicSharePath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,7 +19,7 @@ import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
 import { PublicActionSheet } from './mobile/PublicActionSheet';
-import { completePublicWelcome, publicWelcomeCompleted, shouldWelcomePublicVisitor } from './mobile/publicWelcome';
+import { shouldWelcomePublicVisitor } from './mobile/publicWelcome';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
@@ -62,15 +63,16 @@ export function VisitorApp() {
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
   const profile = query.profile, project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
-  const [welcomeCompleted, setWelcomeCompleted] = useState(publicWelcomeCompleted);
-  const showWelcome = shouldWelcomePublicVisitor(presentation, route.kind, Boolean(profile), welcomeCompleted,
+  const [welcomedProfileId, setWelcomedProfileId] = useState<string | null>(null);
+  const showWelcome = shouldWelcomePublicVisitor(presentation, route.kind, Boolean(profile), welcomedProfileId === profileId,
     Boolean(auth.pendingView || onboardingOpen || auth.session?.isPasswordRecovery));
-  const finishWelcome = useCallback(() => { completePublicWelcome(); setWelcomeCompleted(true); }, []);
+  const finishWelcome = useCallback(() => { setWelcomedProfileId(profileId); }, [profileId]);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
     if (profileId) navigate(buildPath(projectId && presentation !== 'mobile' ? 'sharedProfileCategory' : 'sharedProfile', { profileId, categoryId: categoryId ?? '' }));
@@ -147,7 +149,7 @@ export function VisitorApp() {
   return <AppPresentation actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={appearance.chooseMode}
-        onOpenCategory={id => navigate(buildPath('sharedProfileCategory', { profileId: profile.id, categoryId: id }))}
+        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(buildPath('sharedProfileCategory', { profileId: profile.id, categoryId: id })); }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
         <SharedSignInBar name={profile?.name} />
@@ -178,6 +180,7 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
+      {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopupId(null)} onSelect={openProject} />}
       {showWelcome && <DeferredSurface active onClose={finishWelcome}>
         <PublicPortfolioWelcome appearance={appearance} onComplete={finishWelcome} />
       </DeferredSurface>}

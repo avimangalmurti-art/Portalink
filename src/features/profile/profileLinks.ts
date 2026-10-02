@@ -100,19 +100,7 @@ export function mergeProfileLinks(
   return merged.slice(0, MAX_PROFILE_LINKS);
 }
 
-/** Missing built-ins default on; explicit hidden records survive every save. */
+/** Core actions have fixed positions; only external destinations are editable. */
 export function resolveProfileLinks(links: readonly ProfileLink[] | undefined, socialLinks: Record<string, string> | undefined): ProfileLink[] {
-  const result: ProfileLink[] = [];
-  const seenActions = new Set<ProfileLinkAction>();
-  const external = mergeProfileLinks(links, socialLinks);
-  for (const link of links ?? []) {
-    if (isProfileLinkAction(link.action)) {
-      if (!seenActions.has(link.action)) result.push(normalizeProfileLink(link));
-      seenActions.add(link.action);
-    } else {
-      const index = external.findIndex(item => item.href === link.href.trim() && item.label === link.label.trim());
-      if (index >= 0) result.push(...external.splice(index, 1));
-    }
-  }
-  return [...STANDARD_PROFILE_LINKS.filter(link => link.action && !seenActions.has(link.action)).map(normalizeProfileLink), ...result, ...external];
+  return [...STANDARD_PROFILE_LINKS.map(normalizeProfileLink), ...mergeProfileLinks(links, socialLinks)];
 }

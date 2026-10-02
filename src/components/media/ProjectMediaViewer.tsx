@@ -1,3 +1,4 @@
+import { FormattedText } from '../text/FormattedText';
 import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
@@ -315,6 +316,7 @@ export function ProjectMediaViewer({
   const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
   const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
+  const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp') : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   useMobileScreenActions(contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
@@ -524,7 +526,7 @@ export function ProjectMediaViewer({
             </div>
             <div>
               {!isMobileViewer && <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>}
-              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
             </div>
             {sharedProjectMetadata}
           </div>;
@@ -680,7 +682,7 @@ export function ProjectMediaViewer({
           </button>}
         </div>
         <div data-project-rail-actions="" className="flex justify-center">
-          <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
+          <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
         </div>
         {(engagement.resolveError || engagement.failure) && <div className="side-panel-navigation-list items-center">
           <button ref={feedbackTriggerRef} type="button" aria-label="Review engagement error" aria-haspopup="dialog" aria-expanded={mobilePopup === 'engagement'} onClick={() => setMobilePopup('engagement')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
@@ -691,7 +693,7 @@ export function ProjectMediaViewer({
         <nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
           <MobileContextButton />
-          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobileEngagementOpen(open => !open)}>
+          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobileEngagementOpen(open => !open); }}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
@@ -709,7 +711,7 @@ export function ProjectMediaViewer({
               </button>}
           </div>
           <div data-project-rail-actions="" className="flex justify-center p-2">
-            <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
+            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
           </div>
           {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel(sharedInfoPanel === 'comments' ? 'project' : 'comments')} aria-pressed={sharedInfoPanel === 'comments'} aria-controls="shared-project-detail-panel" className="side-panel-content-inset min-h-11 text-left text-[13px] font-semibold text-[var(--text-primary)]">
             {sharedInfoPanel === 'comments' ? 'Show project information' : 'Show comments'}
@@ -743,12 +745,12 @@ export function ProjectMediaViewer({
              live here and NOT on the discovery or explore grids — a tile there is a
              way in to the project, not a place to respond to it. */}
           {isRailOpen && <div className="engagement-toolbar-actions min-w-0">
-              <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
+              <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
             </div>}
         </div>
 
         {!isRailOpen && <div data-project-rail-actions="" className="flex flex-1 justify-center py-2">
-            <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
+            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
           </div>}
 
         {/* Closed, the rail carries nothing but its own control: the engagement
@@ -762,9 +764,7 @@ export function ProjectMediaViewer({
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
                fields to fill the space. */}
-                {projectSummary ? <p data-font-preview="" style={{
-            fontFamily: contentTypefaceStack
-          }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
@@ -779,7 +779,7 @@ export function ProjectMediaViewer({
           {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
             : mobilePopup === 'verification' ? sharedVerification
             : readOnlyShare ? sharedProjectInformation
-            : <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[var(--text-primary)]">{projectSummary || 'This project has no description.'}</p>}
+            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
         </div>
       </MediaCommentsPopover>}
     </div></MobilePageContext.Provider>;

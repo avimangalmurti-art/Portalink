@@ -1,3 +1,4 @@
+import { plainFormattedText } from '../../components/text/textFormatting';
 import { MobileProfileContext } from '../../presentation/mobile/MobileProfileContext';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { lazy, Suspense, useCallback, useState } from 'react';
@@ -79,7 +80,7 @@ function SavedCreatorRow({ id, profile, onRemoved }: { id: string; profile: Prof
     <div className="flex items-center gap-3">
       {profile ? <Link data-preview-open="" to={buildPath('profile', { profileId: id })} className="flex min-w-0 flex-1 items-center gap-3 rounded-[8px] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
         <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="compact" className="h-10 w-10 shrink-0" />
-        <span className="min-w-0"><span className="block truncate text-[14px] font-semibold">{profile.name}</span><span className="block truncate text-[12px] text-[var(--text-secondary)]">{profile.headline}</span></span>
+        <span className="min-w-0"><span className="block truncate text-[14px] font-semibold">{profile.name}</span><span className="block truncate text-[12px] text-[var(--text-secondary)]">{plainFormattedText(profile.headline)}</span></span>
       </Link> : <span className="flex-1 text-[13px] text-[var(--text-secondary)]">This creator is no longer available.</span>}
       <button type="button" disabled={pending} onClick={() => void remove()} aria-label={`Remove ${profile?.name ?? 'unavailable creator'} from Saved`} title="Remove from Saved" className="shape-compact flex h-10 w-10 shrink-0 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={BookmarkIcon} keepColor fill="currentColor" style={{ color: 'var(--engagement-save-selected)' }} /></button>
     </div>
