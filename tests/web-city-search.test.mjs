@@ -165,12 +165,13 @@ test('keyboard selection scrolls only its suggestion list to keep the active loc
 
 test('WEB and MOBILE expose the same directory search while retaining their globe dimensions', () => {
   for (const presentation of ['web', 'mobile']) {
-    let cursor = 0; const slots = [], visits = [];
+    let cursor = 0; const slots = [], visits = [], viewportEnabled = [];
     const react = { ...React, useEffect() {}, useMemo: fn => fn(), useRef: value => ({ current: value }),
       useState(value) { const index = cursor++; if (!(index in slots)) slots[index] = typeof value === 'function' ? value() : value; return [slots[index], next => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; }]; } };
     const { PortalinkPage } = load('src/components/PortalinkPage.tsx', name => {
       if (name === 'react') return react;
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+      if (name.endsWith('/useDialogViewport')) return { useDialogViewport: enabled => { viewportEnabled.push(enabled); return { current: null }; } };
       if (name.endsWith('/ServicesContext')) return { useServices: () => ({ geography: { readLocalGeography: () => ({ cities: [] }) } }) };
       if (name.endsWith('/CityGlobe')) return { buildLandPaths: () => [], buildPolarCaps: () => [], isNightAt: () => false, GLOBE_ATMOSPHERE: {}, GLOBE_COLORS: {}, LAND_TONES_DAY: [], LAND_TONES_NIGHT: [], GLOBE_CENTER: 52, GLOBE_RADIUS: 50 };
       return placeholder;
@@ -183,5 +184,9 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     const globe = nodes(render()).find(node => node.props.role === 'group');
     assert.match(globe.props.className, presentation === 'mobile' ? /w-full max-w-\[min\(72vh,720px\)\]/ : /100cqw,100cqh,720px/);
     assert.equal(nodes(render()).some(node => node.props.style?.containerType === 'size'), presentation === 'web');
+    assert.ok(viewportEnabled.every(enabled => enabled === (presentation === 'mobile')));
+    const done = nodes(render()).find(node => node.props.className === 'portalink-search-done');
+    assert.equal(Boolean(done), presentation === 'mobile');
+    if (done) { let blurred = false; done.props.onClick({ currentTarget: { blur() { blurred = true; } } }); assert.equal(blurred, true); }
   }
 });

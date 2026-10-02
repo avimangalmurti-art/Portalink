@@ -424,3 +424,25 @@ test('public portfolio has no follow action or follow lookup for guests, members
     }
   }
 });
+
+test('MOBILE public project Back skips category overview and old category links replace to the portfolio', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness();
+    h.state.presentation = presentation;
+    h.state.route = {kind:'sharedProject',profileId,categoryId:'portal',projectId:'work'};
+    h.state.location.pathname = `/share/${profileId}/c/portal/work`;
+    const tree = h.render();
+    const project = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
+    assert.ok(project);
+    project.props.onBack();
+    assert.equal(h.navigations.at(-1)[0], presentation === 'mobile' ? `/share/${profileId}` : `/share/${profileId}/c/portal`);
+    h.state.route = {kind:'sharedCategory',profileId,categoryId:'portal'};
+    h.state.location.pathname = `/share/${profileId}/c/portal`;
+    h.navigations.length = 0;
+    const categoryTree = h.render();
+    if (presentation === 'mobile') {
+      assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}`, {replace:true}]);
+      assert.equal(nodes(categoryTree).find(node=>node.props?.onOpen && node.props?.profile)?.props.categoryId, null);
+    } else assert.equal(h.navigations.length, 0);
+  }
+});

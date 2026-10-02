@@ -12,6 +12,7 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from '../app/splashLifecycle';
 import { LocationSearch } from './profile/LocationSearch';
 import type { DirectoryPlace } from '../data/locationDirectory';
 import { usePresentation } from '../presentation/usePresentation';
+import { useDialogViewport } from '../hooks/useDialogViewport';
 type PortalinkPageProps = {
   onBack: () => void;
   onSelectCity: (city: City | DirectoryPlace) => void;
@@ -31,6 +32,7 @@ export function PortalinkPage({
   live
 }: PortalinkPageProps) {
   const isMobile = usePresentation() === 'mobile';
+  const searchViewportRef = useDialogViewport(isMobile);
   const [centerLongitude, setCenterLongitude] = useState(-20);
   const [centerLatitude, setCenterLatitude] = useState(18);
   const [scale, setScale] = useState(MIN_SCALE);
@@ -292,9 +294,10 @@ export function PortalinkPage({
 
       
 
-      <div className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
+      <div ref={searchViewportRef} className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
         <LocationSearch label="Find a place" value={query} onChange={setQuery} above
           onSelect={place => { focusCity(place); onSelectCity(place); }} />
+        {isMobile && <button type="button" className="portalink-search-done" onClick={event => event.currentTarget.blur()}>Done</button>}
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}

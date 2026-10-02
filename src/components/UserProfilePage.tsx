@@ -505,6 +505,19 @@ export function UserProfilePage({
   };
   const [shareOpen, setShareOpen] = useState(false);
   const [shareAuto, setShareAuto] = useState(false);
+  const shareReturn = useRef(false);
+  const mobileShareOpen = isMobile && (shareOpen || searchParams.get('share') === 'portfolio');
+  const openShare = () => {
+    if (!isMobile) { setShareOpen(true); return; }
+    shareReturn.current = true;
+    setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('share', 'portfolio'); return next; });
+  };
+  const closeShare = () => {
+    setShareOpen(false); setShareAuto(false);
+    if (searchParams.get('share') !== 'portfolio') return;
+    if (shareReturn.current) { shareReturn.current = false; navigate(-1); }
+    else setSearchParams(previous => { const next = new URLSearchParams(previous); next.delete('share'); return next; }, { replace: true });
+  };
   const offeredHandle = useRef<string | null>(null);
   useEffect(() => {
     if (!isMobile || !showsOwnerTools || profile.isPrivate || offeredHandle.current === profile.id || livePortfolioDismissed(profile.id) || !(readLivePortfolio(profile.id) || publishedProjectId)) return;
@@ -522,7 +535,7 @@ export function UserProfilePage({
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
     editProfile: onEditProfile, newProject: onPublishProject,
-    share: !profile.isPrivate ? () => setShareOpen(true) : undefined,
+    share: !profile.isPrivate ? openShare : undefined,
     copy: !profile.isPrivate ? async () => copyPublicLink(await prepareProfileLink()) : undefined,
     reorder: showsMobileReorder && canReorderProjects ? startReordering : undefined,
     insights: () => navigate(buildPath('insights')), settings: () => navigate(buildPath('controlCenter')),
@@ -659,13 +672,14 @@ export function UserProfilePage({
       onMove: projectOrder.move,
       onMoveByOffset: projectOrder.moveByOffset
     } : undefined} />
-    {isMobile && showsOwnerTools && <PortfolioLiveCard profile={profile} publishedProjectId={publishedProjectId} onBeforeShare={onBeforeShare} onOpenShare={() => setShareOpen(true)} />}
+    {isMobile && showsOwnerTools && <PortfolioLiveCard profile={profile} publishedProjectId={publishedProjectId} onBeforeShare={onBeforeShare} onOpenShare={openShare} />}
   </div>;
   // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
+  if (mobileShareOpen && !profile.isPrivate) return <Suspense fallback={<p role="status">Opening Share Portfolio…</p>}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>;
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
-      {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={() => { setShareOpen(false); setShareAuto(false); }} /></Suspense>}
+      {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
@@ -761,7 +775,7 @@ export function UserProfilePage({
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className="sr-only">Edit profile</span>
               </button> : null}
-            {showsOwnerTools && !profile.isPrivate && shareUrl ? <ProfileShareMenu onOpen={() => setShareOpen(true)} compact /> : null}
+            {showsOwnerTools && !profile.isPrivate && shareUrl ? <ProfileShareMenu onOpen={openShare} compact /> : null}
             {showsOwnerTools && <button type="button" data-profile-reorder-start="" aria-label="Reorder projects" title="Reorder projects" disabled={!showsMobileReorder || !canReorderProjects} onClick={startReordering}
               className="profile-action-button side-panel-compact-control shape-compact inline-flex items-center justify-center border border-[var(--hairline-strong)] text-[var(--text-primary)] disabled:opacity-45">
               <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />

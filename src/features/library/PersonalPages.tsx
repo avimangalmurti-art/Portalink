@@ -15,10 +15,12 @@ import type { Profile, ProjectLocation } from '../../types/domain';
 import { useAccountQuery } from './useAccountQuery';
 import { SavedPagesCollection } from './SavedPagesCollection';
 import { loadSavedCreators } from './collectionQueries';
+import { usePresentation } from '../../presentation/usePresentation';
 
 const ReadsList = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsList})));
 const ReadsProject = lazy(() => import('../reads/ReadsView').then(module=>({default:module.ReadsProject})));
 const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
+const MobileInsights = lazy(() => import('./MobileInsights').then(module => ({ default: module.MobileInsights })));
 
 function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
@@ -86,14 +88,15 @@ function SavedCreatorRow({ id, profile, onRemoved }: { id: string; profile: Prof
 }
 
 export function InsightsPage({ onBack }: { onBack: () => void }) {
+  const isMobile = usePresentation() === 'mobile';
   const [params,setParams]=useSearchParams();const projectId=params.get('project');
   const { creatorSaves } = useServices();
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
   const state = useAccountQuery(query);
-  return <section aria-label="Private creator insights">
-    <PersonalHeader title={projectId ? "Reads" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
+  return <section aria-label="Private creator insights" className={isMobile ? 'mobile-insights-page' : undefined}>
+    <PersonalHeader title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
     {projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
-    <div className="px-[var(--content-gutter)] py-6">
+    {isMobile ? <Suspense fallback={<LoadingState label="Loading insights" />}><MobileInsights saves={state} /></Suspense> : <div className="px-[var(--content-gutter)] py-6">
       <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>
       {state.loading ? <LoadingState label="Loading insights" /> : state.error ? <ErrorState title="Unable to load insights" description={state.error} onRetry={state.retry} /> : state.data ? <dl className="my-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         {([
@@ -104,7 +107,7 @@ export function InsightsPage({ onBack }: { onBack: () => void }) {
       </dl> : null}
       <p className="max-w-[640px] text-[13px] leading-relaxed text-[var(--text-secondary)]">Saves recognise interest without requiring a follow. Saver identities remain private. These are current totals, so removing a save reduces the count; saving again never adds a duplicate.</p>
       <Suspense fallback={null}><ReadsList/><LoadTimingInsights /></Suspense>
-    </div>
+    </div>}
   </>}</section>;
 }
 

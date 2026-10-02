@@ -1,3 +1,4 @@
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useEffect, useId, useRef, useState } from 'react';
 import { XIcon, CopyIcon, SendIcon, DownloadIcon, ArrowLeftIcon } from 'lucide-react';
@@ -22,7 +23,7 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
   const [card, setCard] = useState<PortfolioCard | null>(null), [previewError, setPreviewError] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const [audience, setAudience] = useState<Audience>('friend'), [to, setTo] = useState(''), [note, setNote] = useState(audienceNote('friend',profile.name));
   const { invalidateProfiles } = useProfileData();
-  useModalFocus(true, dialog, () => { if(!busy)close(); }, true);
+  useModalFocus(presentation === 'web', dialog, () => { if(!busy)close(); }, true);
   const [nativeReady, setNativeReady] = useState(false);
   const [via] = useState(() => crypto.randomUUID().replace(/-/g,'').slice(0,8));
   const url = new URL(portfolioPath(profile.id, address?.handle), window.location.origin).href;
@@ -70,9 +71,9 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     const blob=await new Promise<Blob|null>(resolve=>output.toBlob(resolve,'image/png'));if(!blob)throw new Error('QR image could not be saved.');const object=URL.createObjectURL(blob),a=document.createElement('a');a.href=object;a.download=`${address?.handle||'portfolio'}-qr.png`;a.click();setTimeout(()=>URL.revokeObjectURL(object),1000);complete();setNotice('QR image ready');
   });
   const claim = () => run(async()=>{if(!profiles.claimPublicHandle)throw new Error('Short addresses are not enabled yet.');const value=await profiles.claimPublicHandle(profile.id,handle);setAddress(value);setNativeReady(false);invalidateProfiles();finishIntro();});
-  return <ModalPortal><div ref={viewport} data-presentation={presentation} className="portfolio-share-scrim modal-scrim" style={{top:'var(--dialog-viewport-top, 0px)',height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget&&!busy)close();}}>
-    <div ref={dialog} className="portfolio-share-dialog" role="dialog" aria-modal="true" aria-labelledby={heading} tabIndex={-1}>
-      <header>{screen!=='share'&&<button type="button" onClick={finishIntro} aria-label="Back to sharing"><ArrowLeftIcon size={20}/></button>}<h2 id={heading}>{screen==='handle'?'Your address.':screen==='send'?'Send to someone':'Share your portfolio'}</h2><button type="button" onClick={close} disabled={busy} aria-label="Close share"><XIcon size={20}/></button></header>
+  const content = <div ref={viewport} data-presentation={presentation} className={presentation === 'mobile' ? 'portfolio-share-page' : 'portfolio-share-scrim modal-scrim'} style={{top:'var(--dialog-viewport-top, 0px)',height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(presentation === 'web' && e.target===e.currentTarget&&!busy)close();}}>
+    <div ref={dialog} className="portfolio-share-dialog" role={presentation === 'mobile' ? 'region' : 'dialog'} aria-modal={presentation === 'web' ? true : undefined} aria-labelledby={heading} tabIndex={-1}>
+      <header>{presentation === 'mobile' && <ScreenBack visibleOnMobile action={() => { if (!busy) { if (screen === 'share') close(); else finishIntro(); } }}><button type="button" disabled={busy} onClick={() => { if (screen === 'share') close(); else finishIntro(); }} aria-label="Back"><ArrowLeftIcon size={20}/></button></ScreenBack>}{presentation === 'web' && screen!=='share'&&<button type="button" onClick={finishIntro} aria-label="Back to sharing"><ArrowLeftIcon size={20}/></button>}<h2 id={heading}>{screen==='handle'?'Your address.':screen==='send'?'Send to someone':'Share your portfolio'}</h2>{presentation === 'web' && <button type="button" onClick={close} disabled={busy} aria-label="Close share"><XIcon size={20}/></button>}</header>
       <div className="portfolio-share-body">
         {screen==='handle'?<><p>A short link that feels like your own website.</p><label htmlFor={`${heading}-handle`}>Your address</label><div className="handle-field"><span>{window.location.host}/</span><input id={`${heading}-handle`} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={30} value={handle} onChange={e=>setHandle(normalizePublicHandle(e.target.value))}/></div><p role="status">{availability}</p><div className="share-suggestions">{handleSuggestions(profile.name).map(value=><button type="button" key={value} onClick={()=>setHandle(value)}>{value}</button>)}</div><p className="share-fine-print">After you share, an old address keeps working for 90 days if you change it. Your original portfolio link always works.</p><Button variant="primary" disabled={busy||!address?.available||!['Available','Your current address'].includes(availability)} onClick={()=>void claim()}>Use this address</Button><button type="button" className="share-text-button" onClick={finishIntro}>Continue with existing link</button></>:
         <>{screen==='share'?<><div className="share-address"><span>{url.replace(/^https?:\/\//,'')}</span>{owner&&<button type="button" onClick={()=>setScreen('handle')}>Edit handle</button>}</div><p className="share-fine-print">This is how your link previews when you paste it.</p></>:<><div className="share-suggestions" aria-label="Who is it for?">{(['professor','employer','friend'] as const).map(value=><button type="button" key={value} aria-pressed={audience===value} onClick={()=>{setAudience(value);setNote(audienceNote(value,profile.name));}}>{value==='employer'?'An employer':value==='professor'?'A professor':'A friend'}</button>)}</div><label htmlFor={`${heading}-to`}>To</label><input id={`${heading}-to`} type="email" value={to} autoComplete="off" placeholder="Email address" onChange={e=>setTo(e.target.value)}/><label htmlFor={`${heading}-note`}>Note</label><textarea id={`${heading}-note`} value={note} maxLength={3000} rows={4} onChange={e=>setNote(e.target.value)}/></>}
@@ -82,5 +83,6 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
         {notice&&<p role="status">{notice}</p>}{error&&<p role="alert">{error}</p>}
       </div>
     </div>
-  </div></ModalPortal>;
+  </div>;
+  return presentation === 'mobile' ? content : <ModalPortal>{content}</ModalPortal>;
 }

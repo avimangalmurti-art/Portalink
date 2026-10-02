@@ -73,8 +73,13 @@ export function VisitorApp() {
   const finishWelcome = useCallback(() => { completePublicWelcome(); setWelcomeCompleted(true); }, []);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
-    if (profileId) navigate(buildPath(projectId ? 'sharedProfileCategory' : 'sharedProfile', { profileId, categoryId: categoryId ?? '' }));
+    if (profileId) navigate(buildPath(projectId && presentation !== 'mobile' ? 'sharedProfileCategory' : 'sharedProfile', { profileId, categoryId: categoryId ?? '' }));
   };
+  useEffect(() => {
+    if (presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
+      navigate(buildPath('sharedProfile', { profileId }), { replace: true });
+    }
+  }, [presentation, route.kind, profileId, navigate]);
   useEffect(() => {
     if (!sharedShell && !settings) window.location.replace(location.pathname + location.search + location.hash);
   }, [sharedShell, settings, location.pathname, location.search, location.hash]);
@@ -163,8 +168,8 @@ export function VisitorApp() {
                       : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
                         onBackToProfile={() => navigate(buildPath('sharedProfile', { profileId: profile.id }))} onSelect={id => openProject(project.categoryId, id)} /> : <p className="p-5">This project could not be found.</p>
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
-                      : categoryId && !profile.categories.some(item => item.id === categoryId) ? <p className="p-5">This portal could not be found.</p>
-                      : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
+                      : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <p className="p-5">This portal could not be found.</p>
+                      : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={presentation === 'mobile' ? null : categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
                         onCollaboration={() => presentation === 'mobile' ? navigate(buildPath('sharedCollaboration', { profileId: profile.id })) : openMessages()} />}
                   </Suspense>
                 </DeferredSurfaceBoundary>
