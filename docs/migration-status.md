@@ -1,3 +1,4 @@
+<!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
 # Migration status register
 
 ## September 30, 2026 — Sites279 live; edge cache verified

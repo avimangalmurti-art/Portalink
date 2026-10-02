@@ -30,7 +30,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const journey = useJourneySelection(profile.id, auth.viewerProfileId);
-  const [search] = useSearchParams();
+  const [search, setSearch] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
@@ -49,6 +49,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
               <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
               {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
+              {isMobile && profile.showJourney === true && <div className="profile-identity-view"><JourneyToggle view={!categoryId && !portalsView ? journey.view : 'portfolio'} onChange={view => {
+                journey.select(view);
+                if (categoryId) onBack?.();
+                else if (portalsView) setSearch(previous => { const next = new URLSearchParams(previous); next.delete('view'); return next; });
+              }} /></div>}
             </div>
           </div>
         </div>
@@ -56,7 +61,6 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       </header>
       {optionsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
-          {isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
         </div>

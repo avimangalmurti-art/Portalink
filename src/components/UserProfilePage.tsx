@@ -299,11 +299,6 @@ function ProfileProjectTile({
     />;
 }
 
-/** Reads one labelled figure off the record. Absent means absent — never zero-by-invention. */
-function readStat(profile: Profile, label: string): string | null {
-  return profile.stats.find((stat) => stat.label.toLowerCase() === label.toLowerCase())?.value ?? null;
-}
-
 function ProfileIdentityAndLinks({
   profile,
   displayName,
@@ -367,8 +362,8 @@ function ProfileStats({
   const views = [
     { id: 'projects', count: projectCount, label: projectCount === 1 ? 'project' : 'projects' },
     { id: 'portals', count: portalCount, label: portalCount === 1 ? 'portal' : 'portals' },
-    { id: 'followers', count: followers ?? '0', label: 'followers' },
-    { id: 'following', count: following ?? '0', label: 'following' },
+    { id: 'followers', count: followers ?? '—', label: 'followers' },
+    { id: 'following', count: following ?? '—', label: 'following' },
   ] as const;
   return <div role="group" aria-label="Profile content" className="profile-summary-counts">
     {views.filter(view => !compact || view.id === 'projects' || view.id === 'portals').map((view, index) => <React.Fragment key={view.id}>
@@ -461,7 +456,7 @@ export function UserProfilePage({
    * profile — never while looking at someone else's.
    */
   const followRequests = useFollowRequests();
-  const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count);
+  const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count + (follow?.isFollowing ? 1 : 0));
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
   const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
   const [isBioOpen, setIsBioOpen] = useState(false);
@@ -540,7 +535,7 @@ export function UserProfilePage({
     reorder: showsMobileReorder && canReorderProjects ? startReordering : undefined,
     insights: () => navigate(buildPath('insights')), settings: () => navigate(buildPath('controlCenter')),
     follow: follow && !follow.isResolving && !follow.isPending && !follow.resolveError ? follow.onToggle : undefined,
-    message: onMessage,
+    message: isMobile && !showsOwnerTools ? undefined : onMessage,
   }, labels: { share: showsOwnerTools ? 'Share link' : 'Share', follow: follow?.isFollowing ? 'Unfollow' : follow?.isRequested ? 'Cancel request' : 'Follow' } });
   useMobileScreenActions(!isSharedView && !mobileProjectSelected ? profileActions : null);
   const profilePress = useMobileContextPress(!isSharedView ? profileActions : null, true);
@@ -597,8 +592,8 @@ export function UserProfilePage({
           />
         </div>
   })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor, projectManagement.deletion, setSearchParams, readsNavigate]);
-  const followers = connections.counts.followers?.toLocaleString() ?? readStat(profile, 'Followers');
-  const following = connections.counts.following?.toLocaleString() ?? readStat(profile, 'Following');
+  const followers = connections.counts.followers?.toLocaleString() ?? null;
+  const following = connections.counts.following?.toLocaleString() ?? null;
   // Every region of the page — toolbar, identity, and wall — now sits on the
   // same 8px edge, so their left and right boundaries agree and the page uses
   // the whole area rather than holding a margin the wall no longer keeps.
@@ -683,7 +678,7 @@ export function UserProfilePage({
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
-          profileView={isMobile && canSeeJourney && !mobileContent ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
+          profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
           summaryCounts={isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools, activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>

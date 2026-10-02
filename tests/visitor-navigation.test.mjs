@@ -12,7 +12,7 @@ function load(path, require, globals = {}) {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true,
   } }).outputText);
   const exports = {};
-  vm.runInNewContext(compiled.get(path), { exports, require, URL, ...globals });
+  vm.runInNewContext(compiled.get(path), { exports, require, URL, URLSearchParams, ...globals });
   return exports;
 }
 const routes = load('app/routes.ts', () => ({ navigationDestinations: [] }));
@@ -266,7 +266,7 @@ function readerHarness(presentation = 'mobile', width = 390) {
 test('mobile reader exposes Back and a framed, dismissible, scrollable project list', () => {
   const h = readerHarness(); let tree = h.render();
   button(tree, 'Go back').props.onClick(); assert.deepEqual(h.selected, ['back']);
-  button(tree, 'Project list').props.onClick(); tree = h.render();
+  one(tree, 'ProjectMediaViewer').props.mobileNavigation.onOpenIndex(); tree = h.render();
   assert.equal(button(tree, 'Go back'), undefined);
   const navigation = one(tree, 'ProjectMediaViewer').props.mobileNavigation;
   assert.equal(navigation.isIndexOpen, true);
@@ -320,7 +320,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
-    if (name === 'react-router-dom') return { useSearchParams: () => [state.search] };
+    if (name === 'react-router-dom') return { useSearchParams: () => [state.search, update => { state.search = update(state.search); }] };
     if (name === '../app/routes') return routes;
     if (name === '../contexts/AuthContext') return { useAuth: () => ({ isAuthenticated: state.signedIn, viewerProfileId: state.signedIn ? (state.own ? profileId : 'other') : null }) };
     if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
@@ -333,7 +333,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     if (name === '../utils/projectPresentation') return { getProjectAspectRatio: () => 1 };
     return named(name.split('/').at(-1));
   });
-  const render = () => h.render(() => VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() {} }));
+  const render = () => h.render(() => VisitorProfileGrid({ profile: bioProfile, categoryId: state.categoryId, onOpen() {}, onMessage() {}, onCollaboration() {}, onBack() { state.categoryId = null; } }));
   return { render, state, followed, bioProfile };
 }
 
@@ -361,29 +361,22 @@ test('public profile options preserve Bio and the existing portals/category view
   assert.equal(one(render(), 'lazy:../components/profile/ProfileCollectionGrid'), undefined);
 });
 
-test('shared mobile Journey switch belongs to expanded options and retains its selection', () => {
-  const { render, state } = visitorProfileHarness({ presentation: 'mobile', showJourney: true });
-  state.own = false;
-  assert.equal(one(render(), 'JourneyToggle'), undefined);
-  button(render(), 'Profile options').props.onClick();
-  let tree = render();
-  const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
-  assert.equal(React.Children.toArray(tools.props.children.props.children)[0].type, 'JourneyToggle');
-  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
-  one(tree, 'JourneyToggle').props.onChange('journey');
-  assert.equal(one(render(), 'lazy:../features/journey/JourneyView').props.owner, false);
-  button(render(), 'Profile options').props.onClick();
-  tree = render();
-  assert.equal(one(tree, 'JourneyToggle'), undefined);
-  assert.ok(one(tree, 'lazy:../features/journey/JourneyView'));
-  button(tree, 'Profile options').props.onClick();
-  assert.equal(one(render(), 'JourneyToggle').props.view, 'journey');
-  state.categoryId = 'portal';
-  assert.equal(one(render(), 'JourneyToggle'), undefined);
-  assert.equal(one(render(), 'lazy:../features/journey/JourneyView'), undefined);
-  state.categoryId = null; state.search.set('view', 'portals');
-  assert.equal(one(render(), 'JourneyToggle'), undefined);
-  assert.equal(one(render(), 'lazy:../features/journey/JourneyView'), undefined);
+test('shared mobile Journey switch stays in every profile header and exits portal views', () => {
+  const {render,state}=visitorProfileHarness({presentation:'mobile',showJourney:true});
+  assert.ok(one(render(),'JourneyToggle'));
+  button(render(),'Profile options').props.onClick();
+  const tools=nodes(render()).find(node=>node.props?.id==='profile-navigation-tools');
+  assert.equal(one(tools,'JourneyToggle'),undefined);
+  one(render(),'JourneyToggle').props.onChange('journey');
+  assert.ok(one(render(),'lazy:../features/journey/JourneyView'));
+  button(render(),'Profile options').props.onClick();
+  assert.equal(one(render(),'JourneyToggle').props.view,'journey');
+  for (const view of ['category','portals']) {
+    if (view==='category') state.categoryId='portal'; else state.search.set('view','portals');
+    assert.equal(one(render(),'JourneyToggle').props.view,'portfolio');
+    one(render(),'JourneyToggle').props.onChange('journey');
+    assert.ok(one(render(),'lazy:../features/journey/JourneyView'));
+  }
 });
 
 test('shared Journey permission and WEB switch placement are unchanged', () => {

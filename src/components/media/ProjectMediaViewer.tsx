@@ -1,5 +1,6 @@
 import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
+import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
 import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
@@ -9,7 +10,7 @@ import { MobilePageContext } from '../../features/media-interactions/MobilePageC
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
 import type { PagePosition } from './MobileProjectPageCounter';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
 import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
 import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
@@ -130,7 +131,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -316,13 +317,13 @@ export function ProjectMediaViewer({
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
-  useMobileScreenActions(!readOnlyShare ? contextActions('project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+  useMobileScreenActions(contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
     reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
     share: () => shareContextLink(publicUrl, projectTitle), copy: () => copyPublicLink(publicUrl),
-  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } }) : null, 20);
+  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } }), 20);
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
@@ -603,7 +604,7 @@ export function ProjectMediaViewer({
     if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
   }} className="flex h-full min-h-0 w-full flex-row">
       {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={!readOnlyShare && hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
-      {isMobileViewer && !readOnlyShare && <MobileContextButton floating />}
+
       {isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
       <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
@@ -687,9 +688,14 @@ export function ProjectMediaViewer({
           </button>
         </div>}
         </div>
-        <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobileEngagementOpen(open => !open)}>
+        <nav className="mobile-content-action-bar" aria-label="Content controls">
+          <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
+          <MobileContextButton />
+          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobileEngagementOpen(open => !open)}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
+          <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
+        </nav>
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>

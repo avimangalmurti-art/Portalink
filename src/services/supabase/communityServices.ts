@@ -62,6 +62,13 @@ async function followState(profileId: string): Promise<FollowState> {
 }
 
 export const supabaseSocialService: SocialService = {
+  async getProfileConnectionCounts(profileId) {
+    const { data, error } = await requireSupabase().rpc('profile_connection_counts', { p_profile_id: profileId });
+    if (error) throw new SocialServiceError('network', 'Couldn’t load connection counts.');
+    const counts = data as { followers: number; following: number } | null;
+    if (!counts || ![counts.followers, counts.following].every(value => Number.isSafeInteger(value) && value >= 0)) throw new SocialServiceError('network', 'Connection counts are unavailable.');
+    return counts;
+  },
   async listProfileConnections(profileId, kind, offset = 0) {
     const ownerId = await currentProfileId(false);
     if (ownerId !== profileId) throw new SocialServiceError('permission_denied', 'Only the profile owner can view this list.');

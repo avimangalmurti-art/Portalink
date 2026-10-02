@@ -122,14 +122,16 @@ test('mobile artwork opens on its first tap at every density; scrolling still ne
 });
 
 test('mobile details control opens and closes the preview without consuming the next artwork tap', () => {
-  const h = harness(); let p = h.render(false, 80, true); let opened = 0;
-  p.ref.current = { getBoundingClientRect: () => ({ width: 150 }) };
-  p.toggleDetails(); p = h.render(false, 80, true); assert.equal(p.expanded, true);
-  p.toggleDetails(); p = h.render(false, 80, true); assert.equal(p.expanded, false);
-  touch(p, true); p.toggleDetails(); assert.equal(h.render(false, 80, true).expanded, false, 'scrolling cannot open details');
-  p.events.onPointerCancel(); p.toggleDetails(); assert.equal(h.render(false, 80, true).expanded, false, 'cancelled touch cannot open details');
+  for (const width of [64, 88, 112, 150]) {
+  const h = harness(); let p = h.render(false, 0, true); let opened = 0;
+  p.ref.current = { getBoundingClientRect: () => ({ width }) };
+  p.toggleDetails(); p = h.render(false, 0, true); assert.equal(p.expanded, true);
+  p.toggleDetails(); p = h.render(false, 0, true); assert.equal(p.expanded, false);
+  touch(p, true); p.toggleDetails(); assert.equal(h.render(false, 0, true).expanded, false, 'scrolling cannot open details');
+  p.events.onPointerCancel(); p.toggleDetails(); assert.equal(h.render(false, 0, true).expanded, false, 'cancelled touch cannot open details');
   touch(p); p.open(click(), () => opened++); assert.equal(opened, 1);
-  p = h.render(true, 80, true); p.toggleDetails(); assert.equal(h.render(true, 80, true).expanded, false);
+  p = h.render(true, 0, true); p.toggleDetails(); assert.equal(h.render(true, 0, true).expanded, false);
+  }
 });
 function overlaps(a, b, cells) {
   return a.row < b.row + b.rows && b.row < a.row + a.rows &&

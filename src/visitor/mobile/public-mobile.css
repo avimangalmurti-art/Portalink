@@ -1516,31 +1516,28 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
-  display: none;
+  display: flex;
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  right: 0;
+  bottom: 0;
   z-index: 5;
   width: 44px;
   height: 44px;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
   border-radius: 0;
   background: transparent;
   color: #fff;
   border: 0;
-  padding: 0;
+  padding: 4px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details svg {
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 80%)) drop-shadow(0 0 1px rgb(0 0 0 / 90%));
 }
 
-@container mobile-project-card (min-width: 112px) {
-  #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
-    display: flex;
-  }
-}
 
 #root .codex-shell[data-presentation='mobile'] .profile-identity-and-links {
   flex: 1 1 auto;
@@ -2252,3 +2249,17 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   color: var(--text-primary);
 }
 [data-presentation='mobile'] .mobile-context-notice button { float: right; min-width: 44px; min-height: 44px; }
+
+/* One reader bar: portal, actions, engagement, creator. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
+  width: auto !important;
+  max-width: calc(100vw - 32px);
+  background: var(--navigation-surface, var(--surface-raised, #222)) !important;
+  color: var(--navigation-foreground, var(--text-primary, #fff));
+  box-shadow: var(--navigation-shadow);
+}
+[data-presentation='mobile'] .mobile-content-action-bar { display: flex; align-items: center; gap: var(--mobile-control-gap, 4px); }
+[data-presentation='mobile'] .mobile-content-action-bar > button,
+[data-presentation='mobile'] .mobile-content-action-bar .mobile-context-button { flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: transparent; color: inherit; padding: 0; }
+[data-presentation='mobile'] .mobile-content-action-bar .mobile-context-slot { display: flex; width: 44px; }
+[data-presentation='mobile'] .mobile-content-action-bar button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }

@@ -4,7 +4,7 @@ import { SavedChangeNotice } from '../ui/SavedChangeNotice';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { MobileProjectGestureHint } from '../../presentation/mobile/MobileProjectGestureHint';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, ListIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
+import { AlertCircleIcon, ChevronLeftIcon, FilePlusIcon, Grid2X2Icon, ImagePlusIcon, Maximize2Icon, Minimize2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, SearchIcon, SquareIcon } from 'lucide-react';
 // Canonical domain models, not the seed module's parallel copies.
 import type { Profile, PortfolioCategory as ProfileCategory } from '../../types/domain';
 import { ProjectIndexList } from './ProjectIndexList';
@@ -576,9 +576,7 @@ export function ProfileCategoryPage({
         <button type="button" onClick={onBack} aria-label="Go back" title="Go back" className="mobile-project-back">
           <InterfaceIcon icon={ChevronLeftIcon} weight="medium" mirroredInRtl />
         </button>
-        <button type="button" data-project-index-toggle="" aria-label={sharedReadOnly ? 'Project list' : 'Portal preview'} title={sharedReadOnly ? 'Project list' : 'Portal preview'} aria-expanded={false} onClick={() => onIndexCollapsedChange(false)} className="mobile-project-back mobile-project-portal-preview">
-          <InterfaceIcon icon={ListIcon} size="lg" weight="medium" />
-        </button>
+
       </>}
       {mobileIndexOnly ? <MobileProjectIndexPortal anchorRef={projectPresentationRef}>
         <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={onBackToPortals} />

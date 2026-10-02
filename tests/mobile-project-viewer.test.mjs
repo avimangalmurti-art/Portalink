@@ -42,7 +42,8 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
-    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name === 'react-router-dom') return { useNavigate: () => path => navigationCalls.push(path) };
+    if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions() {} };
@@ -608,6 +609,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useAppRoute')) return { useAppRoute: () => currentRoute };
@@ -689,7 +691,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   tree = render(props);
   button(tree, 'Go back').props.onClick();
   assert.equal(back, 1);
-  button(tree, 'Portal preview').props.onClick();
+  nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex();
   tree = render(props);
   assert.equal(indexVisibility.at(-1), true, 'Opening the navigation tells the shared profile header to appear');
   assert.equal(button(tree, 'Go back'), undefined, 'The open project list already has Back to portals beside its title');
@@ -734,7 +736,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, false);
   assert.equal(indexVisibility.at(-1), false, 'Dismissing navigation restores the content-only presentation');
   assert.ok(button(tree, 'Go back'), 'Closing the list restores the content viewer Back button');
-  assert.ok(button(tree, 'Portal preview'));
+  assert.ok(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.onOpenIndex);
   button(toolbar(projectList), 'Back to portals').props.onClick();
   assert.equal(button(projectList, 'Collapse document list'), undefined, 'The clean mobile header uses outside dismissal instead of a duplicate collapse control');
   assert.equal(portalReturns, 1);
@@ -875,4 +877,22 @@ test('public mobile image progress follows the image page context and preserves 
   assert.equal(counter(harness({ mediaKind: 'image' }).render()).props.showProgress, false, 'platform image controls retain their existing presentation');
   assert.equal(counter(harness({ mediaKind: 'image', mobile: false, readOnlyShare: true }).render()), undefined);
   for (const mediaKind of ['video', 'audio']) assert.equal(counter(harness({ mediaKind, readOnlyShare: true }).render())?.props.readingMode ?? false, false);
+});
+
+
+test('mobile content bar orders portal, actions, engagement and creator, with canonical profile navigation', () => {
+  for (const readOnlyShare of [false, true]) {
+    const h = harness({readOnlyShare});
+    const tree = h.render({creator:{id:'creator-id',name:'Creator',avatar:''}});
+    const bar = nodes(tree).find(node => node.props.className === 'mobile-content-action-bar');
+    const controls = React.Children.toArray(bar.props.children);
+    assert.equal(controls[0].props['aria-label'], 'Open portal');
+    assert.equal(controls[1].type, 'context-button');
+    assert.equal(controls[2].props['aria-label'], 'Show project engagement');
+    assert.equal(controls[3].props['aria-label'], 'View Creator profile');
+    controls[0].props.onClick();
+    assert.equal(withProp(h.render(), 'data-mobile-combined-rail').props['data-mobile-combined-rail'], '');
+    controls[3].props.onClick();
+    assert.equal(h.navigationCalls.at(-1), `${readOnlyShare ? 'sharedProfile' : 'profile'}:creator-id`);
+  }
 });

@@ -79,7 +79,7 @@ test('non-owner reads are refused before querying relationships and network fail
   await assert.rejects(serviceHarness('owner', { message: 'offline' }).service.listProfileConnections('owner', 'following'), (error) => error.code === 'network');
 });
 
-function hookHarness() {
+function hookHarness(withCounts = false) {
   let cursor = 0;
   const slots = [];
   const effects = [];
@@ -92,7 +92,8 @@ function hookHarness() {
     useCallback(callback, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) slots[i] = { callback, deps }; return slots[i].callback; },
     useEffect(effect, deps) { const i = cursor++; if (changed(slots[i]?.deps, deps)) effects.push(() => { slots[i]?.cleanup?.(); slots[i] = { deps, cleanup: effect() }; }); },
   };
-  const social = { listProfileConnections: (...args) => new Promise((resolve, reject) => pending.push({ args, resolve, reject })) };
+  const countRequests = [];
+  const social = { listProfileConnections: (...args) => new Promise((resolve, reject) => pending.push({ args, resolve, reject })), ...(withCounts ? {getProfileConnectionCounts: (...args) => new Promise((resolve, reject) => countRequests.push({args, resolve, reject}))} : {}) };
   const { useProfileConnections } = compile('../src/features/follows/useProfileConnections.ts', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
@@ -101,7 +102,7 @@ function hookHarness() {
     if (name.endsWith('/ServicesContext')) return { useServices: () => ({ social }) };
     return socialTypes;
   });
-  return { pending, switchAccount(id) { accountId = id; }, render(kind, refresh = 0) { cursor = 0; const result = useProfileConnections('owner', kind, refresh); effects.splice(0).forEach((effect) => effect()); return result; } };
+  return { pending, countRequests, switchAccount(id) { accountId = id; }, render(kind, refresh = 0) { cursor = 0; const result = useProfileConnections('owner', kind, refresh); effects.splice(0).forEach((effect) => effect()); return result; } };
 }
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const page = (id, nextOffset = null) => ({ items: [{ profileId: id, name: id, avatar: '' }], total: 2, nextOffset });
@@ -696,9 +697,7 @@ test('mobile owner header keeps Bio and links while Edit and Share work through 
   assert.equal(row, undefined);
   assert.equal(nodes(tree).some(node => node.type === 'ProfileShareMenu'), false);
   assert.equal(h.action('share').label, 'Share link');
-  const closedLazyCount = nodes(tree).filter(node => node.type?.$$typeof === Symbol.for('react.lazy')).length;
-  h.action('share').run();
-  assert.equal(nodes(h.render()).filter(node => node.type?.$$typeof === Symbol.for('react.lazy')).length, closedLazyCount + 1);
+
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Profile engagement collections'), false);
   assert.equal(nodes(tree).some(node => node.props?.['aria-label'] === 'Manage profile'), false);
   nodes(tree).find(node=>node.type==='PlatformGrid').props.onCollaboration(); h.action('editProfile').run();
@@ -712,6 +711,9 @@ test('mobile owner header keeps Bio and links while Edit and Share work through 
   assert.deepEqual(calls, ['collaboration', 'edit']);
   bio.props.onClose();
   assert.equal(nodes(h.render()).some(node => node.type === 'ProfileBioSheet'), false);
+  h.action('share').run();
+  assert.equal(new URLSearchParams(h.search()).get('share'), 'portfolio');
+  assert.equal(nodes(h.render()).some(node => node.type === 'PlatformGrid'), false, 'Sharing owns its own mobile screen');
 });
 
 test('mobile Bio is available to owners, visitors and guests, with no links and on shared profiles', () => {
@@ -941,4 +943,58 @@ test('shared profile fallback omits following and retries while platform follow 
     const signIn = nodes(guest.render()).find(node => node.type === 'button' && node.props.children === 'Sign in to follow');
     assert.ok(signIn); signIn.props.onClick(); assert.equal(signedIn, 1);
   }
+});
+
+
+test('connection totals use a counts-only RPC and reject unavailable totals rather than inventing zero', async () => {
+  for (const result of [{ data: { followers: 7, following: 3 }, error: null }, { data: null, error: null }, { data: null, error: { message: 'offline' } }]) {
+    const client = { async rpc(name, args) { assert.equal(name, 'profile_connection_counts'); assert.equal(args.p_profile_id, 'person'); return result; } };
+    const { supabaseSocialService } = compile('../src/services/supabase/communityServices.ts', name => name === './client' ? { requireSupabase: () => client } : name.endsWith('/social') ? socialTypes : {});
+    if (result.data) {
+      const totals = await supabaseSocialService.getProfileConnectionCounts('person');
+      assert.equal(totals.followers, 7); assert.equal(totals.following, 3);
+    } else await assert.rejects(supabaseSocialService.getProfileConnectionCounts('person'), error => error.code === 'network');
+  }
+});
+
+
+test('profile header loads current totals before opening any list and discards stale account responses', async () => {
+  const h = hookHarness(true);
+  h.render(null);
+  assert.equal(h.pending.length, 0);
+  assert.equal(h.countRequests.length, 1);
+  h.countRequests[0].resolve({followers:7,following:3}); await flush();
+  assert.equal(h.render(null).counts.followers, 7);
+  assert.equal(h.render(null).counts.following, 3);
+  h.render(null, 1);
+  h.switchAccount('account-b'); h.render(null, 1);
+  h.countRequests[1].resolve({followers:99,following:99}); await flush();
+  assert.equal(h.render(null,1).counts.followers, undefined);
+  h.countRequests[2].resolve({followers:0,following:2}); await flush();
+  assert.equal(h.render(null,1).counts.followers, 0);
+  assert.equal(h.render(null,1).counts.following, 2);
+});
+
+
+test('mobile visitor profile keeps Message in link icons without duplicating it in Actions; WEB is preserved', () => {
+  for (const presentation of ['mobile', 'web']) {
+    let messages = 0;
+    const onMessage = () => messages++;
+    const h = profileHarness('', {presentation, viewerRole:'visitor', props:{onMessage}});
+    const tree = openProfileOptions(h);
+    const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
+    assert.ok(grid.props.links.some(link => link.action === 'message'));
+    grid.props.onMessage(); assert.equal(messages, 1);
+    if (presentation === 'mobile') assert.equal(h.action('message'), undefined);
+  }
+});
+
+
+test('mobile nested profile headers retain Portfolio/Journey and return to the selected profile view', () => {
+  const selected=[];
+  const h=profileHarness('',{presentation:'mobile',props:{mobileContent:React.createElement('section',null,'Portal'),mobileContentView:'portals',onMobileViewChange:view=>selected.push(view)}});
+  const toggle=nodes(h.render()).find(node=>node.type==='JourneyToggle');
+  assert.ok(toggle);
+  toggle.props.onChange('journey');
+  assert.deepEqual(selected,['projects']);
 });

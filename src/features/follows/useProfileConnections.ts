@@ -43,6 +43,15 @@ export function useProfileConnections(profileId: string, kind: ProfileConnection
     return () => { request.current += 1; busy.current = false; };
   }, [load]);
 
+  useEffect(() => {
+    if (!social.getProfileConnectionCounts) return;
+    let active = true;
+    social.getProfileConnectionCounts(profileId).then(totals => {
+      if (active) setCounts({ key: ownerKey, ...totals });
+    }).catch(() => { if (active) setCounts({ key: ownerKey }); });
+    return () => { active = false; };
+  }, [social, profileId, ownerKey, refreshVersion]);
+
   const current = state.key === key ? state : empty(key);
   return {
     ...current,

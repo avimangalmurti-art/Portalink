@@ -382,6 +382,7 @@ export interface SearchService {
  */
 export interface SocialService {
   /** Confirmed connections only; the service enforces who can read the list. */
+  getProfileConnectionCounts?(profileId: Id): Promise<{ followers: number; following: number }>;
   listProfileConnections(profileId: Id, kind: import('../types/social').ProfileConnectionKind, offset?: number): Promise<import('../types/social').ProfileConnectionPage>;
   getFollowState(profileId: Id): Promise<FollowState>;
   followProfile(profileId: Id): Promise<FollowState>;

@@ -73,7 +73,6 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
     {!isMobile && <header className="global-control-header side-panel-control-row px-2"><button type="button" className="side-panel-primary-control px-3" onClick={onBack}>Back</button><span className="min-w-0 truncate px-2">{project.title}</span></header>}
     {isMobile && !indexOpen && !focused && <>
       <button type="button" className="mobile-project-back" aria-label="Go back" onClick={onBack}><InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl /></button>
-      <button ref={indexOpener} type="button" data-project-index-toggle="" className="mobile-project-back mobile-project-portal-preview" aria-label="Project list" aria-expanded={false} onClick={() => changeIndex(true)}><InterfaceIcon icon={ListIcon} size="lg" /></button>
     </>}
     <div ref={workspace.ref} className="relative flex min-h-0 flex-1">
       {!isMobile && index}
@@ -83,7 +82,7 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
         contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={project.design?.pagesPerRow ?? 3} onPageFocusModeChange={setFocused}
         processing={processing} responseRailWidth={{ ...rail, width: isMobile ? rail.width : layout.responseWidth }} singlePanel={isMobile ? null : layout.singlePanel}
         isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} readOnlyShare onClose={onBack}
-        mobileNavigation={isMobile ? { index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />
+        mobileNavigation={isMobile ? { indexOpener, index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />
       </section>
     </div>
   </div>;

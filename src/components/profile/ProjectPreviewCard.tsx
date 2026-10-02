@@ -50,8 +50,8 @@ export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, 
   const isMobile = usePresentation() === 'mobile';
   const press = useMobileProjectContext(project, creator.id, contextHandlers, disabled);
   // On phones artwork opens the work on its first tap. Details have a separate
-  // control on cards large enough to contain a comfortable touch target.
-  const preview = useContentPreview(disabled, 80, isMobile);
+  // control at every mobile grid density.
+  const preview = useContentPreview(disabled, isMobile ? 0 : 80, isMobile);
   const hasExtension = Boolean(showCreator || metrics || showEngagementMetrics || footerEnd);
   useEffect(() => { if (!preview.expanded) onCollapse?.(); }, [preview.expanded, onCollapse]);
   const openProps = {

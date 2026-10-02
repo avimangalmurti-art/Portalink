@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## October 1, 2026 — Sites287 live; this chat's five completed UI changes
+
+Sites287 successfully published at17:32:16 America/Los_Angeles (2026-10-02T00:32:16.513852+00:00), source2b2ce79d38a3982175aba109d7a15a94e34071ef; deployment appgdep_6abefb85a7008191808e7e74dba57698. Existing public URL/audience and runtime revision2 preserved. Includes WEB gallery toolbar removal, MOBILE Your insights, MOBILE location-search keyboard fit, MOBILE standalone Share Portfolio and MOBILE shared-category-screen removal. Earlier local/unpublished labels for these five completed tasks are superseded by this receipt. Separate cleanup work is not included.
+
+99 focused tests, typecheck, full lint (no errors/existing warnings) and connected production client+worker build passed. Archive530 files verified against client/worker build,257 location JSON assets and existing D1 0000–0003, with no private/log/pending migration files. Native Sites succeeded; prior local browser fixture evidence reused, no additional hosted-browser or physical-iPhone claim. Receipt and archive audit: ignored logs/chat-ui-release-20261001/. Source saved to existing Sites mirror, no GitHub push/merge, SQL, Storage, Auth/runtime configuration or independent worker deployment. Local post-publication documentation remains uncommitted.
+
 ## October 1, 2026 — Sites285 live; public mobile separation and reader polish
 
 Sites285 succeeded at02:49:47 America/Los_Angeles (2026-10-01T09:49:47.515607+00:00), source 77dd7303ee6a123432601326e77a48de75c25f11; deployment appgdep_6abe2cb2fddc8191ae4529699a0048a9. Includes all pending changes after Sites284: independent restored public mobile sidebar, installed-dock clipping correction, compact profile pill, full-screen initial loading and rounded inset page-progress sections. Public audience, runtime revision2 and active D1 migrations0000–0003 unchanged.
