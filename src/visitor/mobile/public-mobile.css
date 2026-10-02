@@ -1426,17 +1426,20 @@
 
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view {
   margin-top: 3px;
-  margin-inline-end: -38px;
+  margin-inline-end: 0;
   min-width: 0;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
-  width: 100%;
-  max-width: none;
+  width: fit-content;
+  justify-content: flex-start;
+  align-self: flex-start;
+  max-width: 100%;
   margin: 0;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
   min-width: 0;
   padding-inline: 8px;
+  flex: 0 0 auto;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
   background: var(--accent-primary) !important;

@@ -199,7 +199,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/viewer')) return { canAuthor: (role) => role === 'owner', needsAccount: (role) => role === 'guest' };
     if (name.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{}})};
     if (name.endsWith('/firstProject')) return {readLivePortfolio:()=>null,livePortfolioDismissed:()=>false};
-    if (name.endsWith('/AuthContext')) return {useAuth:()=>({viewerProfileId:'viewer'})};
+    if (name.endsWith('/AuthContext')) return {useAuth:()=>({viewerProfileId:'viewer',isAuthenticated:options.isAuthenticated})};
     if (name.endsWith('/useJourneySelection')) return { useJourneySelection: () => journey };
     if (name.endsWith('/employer')) return employer;
     if (name.endsWith('/journey')) return journeyHelpers;
@@ -980,21 +980,28 @@ test('mobile visitor profile keeps Message in link icons without duplicating it 
   for (const presentation of ['mobile', 'web']) {
     let messages = 0;
     const onMessage = () => messages++;
-    const h = profileHarness('', {presentation, viewerRole:'visitor', props:{onMessage}});
+    const h = profileHarness('', {presentation, viewerRole:'visitor', isAuthenticated:true, props:{onMessage}});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
     assert.ok(grid.props.links.some(link => link.action === 'message'));
     grid.props.onMessage(); assert.equal(messages, 1);
+    const introduction = nodes(tree).find(node => node.type === 'EmployerOverview');
+    assert.ok(introduction);
+    assert.equal(introduction.props.onMessage, presentation === 'mobile' ? undefined : onMessage);
     if (presentation === 'mobile') assert.equal(h.action('message'), undefined);
   }
 });
 
 
 test('mobile nested profile headers retain Portfolio/Journey and return to the selected profile view', () => {
-  const selected=[];
-  const h=profileHarness('',{presentation:'mobile',props:{mobileContent:React.createElement('section',null,'Portal'),mobileContentView:'portals',onMobileViewChange:view=>selected.push(view)}});
-  const toggle=nodes(h.render()).find(node=>node.type==='JourneyToggle');
-  assert.ok(toggle);
-  toggle.props.onChange('journey');
-  assert.deepEqual(selected,['projects']);
+  for (const viewerRole of ['owner', 'visitor']) {
+    for (const mobileContentView of ['portals', 'projects']) {
+      const selected=[];
+      const h=profileHarness('',{presentation:'mobile',viewerRole,showJourney:true,props:{mobileContent:React.createElement('section',null,'Content'),mobileContentView,onMobileViewChange:view=>selected.push(view)}});
+      const toggle=nodes(h.render()).find(node=>node.type==='JourneyToggle');
+      assert.ok(toggle);
+      toggle.props.onChange('journey');
+      assert.deepEqual(selected,['projects']);
+    }
+  }
 });

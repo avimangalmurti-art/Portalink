@@ -290,8 +290,12 @@ export function MessagesPage({
   } : { newMessage: openNewMessage, search: !isNewChatOpen ? () => searchInput.current?.focus() : undefined, blocked: () => setIsPrivacyOpen(true) }, labels: { mute: conversation?.isMuted ? 'Unmute' : 'Mute' } }));
   const showList = !activeId;
   const isMobileNewChat = isMobile && isNewChatOpen;
+  const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
   return <section data-messages-page="" aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
-      <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
+      {hideMobileListHeader ? <>
+        <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
+        <h1 id="messages-heading" className="sr-only">Messages</h1>
+      </> : <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
         <ScreenBack action={goBackFromMessages}><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
           <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
@@ -324,7 +328,7 @@ export function MessagesPage({
               {messaging.activeConversation.participant.id ? <ConversationMenuButton danger icon={BanIcon} label={`Block ${messaging.activeConversation.participant.name}`} onClick={() => { setIsConversationMenuOpen(false); setConfirmation('block'); }} /> : null}
             </div> : null}
         </div> : null}
-      </header>
+      </header>}
 
       {isPrivacyOpen ? <MessageControlsDialog permission={messaging.preferences.permission} isSaving={messaging.isSavingPreferences} error={messaging.error} onChange={messaging.updatePermission} onClose={() => setIsPrivacyOpen(false)} /> : null}
 

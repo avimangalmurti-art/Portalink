@@ -1,5 +1,11 @@
 # Existing Sites deployment
 
+## October 1, 2026 — Sites288 live; accumulated profile/content changes
+
+Sites288 succeeded at21:58:57 America/Los_Angeles (2026-10-02T04:58:57.507867+00:00), source286321980d4b6c13b2076c1503709ad210e4cb0f; deployment appgdep_6abf3a08a90c8191ba6802ed2b61940e. Includes dense-row dots/corner placement, MOBILE combined content controls with creator Profile, current follower/following counts, duplicate MOBILE Message removal and Portfolio/Journey in all MOBILE profile headers. Earlier local/unpublished labels for these tasks are superseded. Existing public URL/audience, runtime revision2 and D1 0000–0003 preserved. Previously approved counts-only Supabase function remains applied; publication did not reapply SQL.
+
+101 focused tests, typecheck, full lint (0 errors/89 existing warnings), connected production client+worker build and530-file archive validation passed;257 location JSON assets and unchanged D1/worker/backend verified. Windows helper packaging failed after source push; GNU tar plus Node gzip packaged the identical built dist and passed the archive audit. Native Sites success confirms publication. No GitHub push/merge, additional SQL, Storage/Auth/runtime changes or separate worker deployment. Receipt and archive audit: ignored logs/profile-content-release-20261001/. Existing local browser evidence reused; no hosted-browser or physical-device claim. Post-publication documentation remains uncommitted.
+
 ## October 1, 2026 — Sites287 live; this chat's five completed UI changes
 
 Sites287 successfully published at17:32:16 America/Los_Angeles (2026-10-02T00:32:16.513852+00:00), source2b2ce79d38a3982175aba109d7a15a94e34071ef; deployment appgdep_6abefb85a7008191808e7e74dba57698. Existing public URL/audience and runtime revision2 preserved. Includes WEB gallery toolbar removal, MOBILE Your insights, MOBILE location-search keyboard fit, MOBILE standalone Share Portfolio and MOBILE shared-category-screen removal. Earlier local/unpublished labels for these five completed tasks are superseded by this receipt. Separate cleanup work is not included.

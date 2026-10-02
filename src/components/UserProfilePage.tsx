@@ -18,7 +18,7 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
-import { CheckIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { SectionHeader } from './SectionHeader';
@@ -683,7 +683,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={isMobile ? (isMobileToolsOpen ? ChevronUpIcon : ChevronDownIcon) : MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
@@ -817,7 +817,7 @@ export function UserProfilePage({
          belongs to the identity and toolbar above, where the type sits on it.
          Holding the photographs off the same margin only narrowed the rows and
          left the sides of the page bare. */}
-      {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} onMessage={!isSharedView && !showsOwnerTools && auth.isAuthenticated ? onMessage : undefined} />}
+      {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} onMessage={!isMobile && !isSharedView && !showsOwnerTools && auth.isAuthenticated ? onMessage : undefined} />}
       {!isMobile && canSeeJourney && !mobileContent && <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
         {isJourney ? <Suspense fallback={<p role="status">Opening Journey…</p>}><JourneyView profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'journey') : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall ? <>

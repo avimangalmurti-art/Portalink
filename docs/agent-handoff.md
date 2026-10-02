@@ -1,4 +1,32 @@
+## October 1, 2026 — MOBILE Then/Now pair chooser screen
+
+ThenNowDialog now renders a dedicated MOBILE full-viewport region through existing ModalPortal, with ScreenBack registration/visible Back, dynamic dialog viewport and safe-area-aware scrolling; no scrim/card or outside-tap dismissal. Desktop retains ProjectFormDialog. Shared pair validation, saving/error/removal logic unchanged; Back disabled during save. Files ThenNowDialog.tsx, mobile.css, then-now-screen.test.mjs. Fourteen focused pair/Journey tests, typecheck, focused ESLint and diff check pass. Browser/real-phone layout still unverified for this flow. Local/uncommitted/unpublished; prior edits retained. Other unspecified popup screens not converted speculatively.
+
+## October 1, 2026 — visitor Portfolio/Journey parity clarified
+
+User clarified Portfolio/Journey should behave exactly like own-account profile headers, including portals and opened content. Existing shared UserProfilePage implementation already provides that behavior; no further presentation change required. Expanded focused nested-header regression to cover owner/visitor and portals/projects content; all four cases pass, diff check clean. Journey publication/privacy guards retained. This is profile-header scope. Pending local edits remain unpublished.
+
+## October 1, 2026 — remaining MOBILE visitor Message duplicate
+
+User reported another duplicate on other-user profiles. EmployerOverview was still receiving onMessage for signed-in visitors, creating an additional portfolio introduction button. UserProfilePage now supplies this optional callback only on WEB; MOBILE link-icon message entry and existing account gate remain. Focused component regression verifies authenticated MOBILE omission and WEB callback preservation; focused ESLint passes with two existing warnings, diff check clean. No browser/physical-device claim. Existing isolated branch/source and all pending edits preserved; local/uncommitted/unpublished.
+
+## October 1, 2026 — MOBILE Messages inbox header removal
+
+In isolated codex/web-remove-gallery-toolbar at 2863219, removed the redundant visible inbox header (Back/Messages/settings/new-message) on MOBILE only. Existing popup handlers retain new-message and settings dialog access; mobile sidebar Back registration and accessible heading remain. Composer and conversation headers and WEB header remain. Prior profile micro-edits preserved. Eleven focused message component tests and focused ESLint pass; diff check clean. No browser or physical-phone verification claimed for this edit. Local/uncommitted/unpublished; no service/database changes.
+
 # Current agent handoff
+
+## October 1, 2026 — MOBILE compact profile view buttons and disclosure arrow
+
+Continued isolated codex/web-remove-gallery-toolbar at Sites288 source2863219. MOBILE signed-in/public profile Portfolio/Journey group now sizes to its labels, aligns left and removes the old negative right margin; buttons no longer flex across the identity width. Profile options glyph changes from three dots to ChevronDown when closed / ChevronUp when open on MOBILE only. Other content three-dot controls and WEB profile icon/styles retained. Files: UserProfilePage.tsx, VisitorProfileGrid.tsx and both scoped mobile styles.
+
+Focused ESLint passes with two existing unused-symbol warnings; diff whitespace check passes. Actual public header fixture420x912 confirms compact left-aligned buttons, collapsed/expanded arrow and surrounding spacing. Screenshot logs/content-controls-qa/compact-header-420.png. No physical-device claim. Local/uncommitted/unpublished; Sites288 remains live. No data/backend/config changes.
+
+## October 1, 2026 — Sites288 live; accumulated profile/content changes
+
+Sites288 succeeded at21:58:57 America/Los_Angeles (2026-10-02T04:58:57.507867+00:00), source286321980d4b6c13b2076c1503709ad210e4cb0f; deployment appgdep_6abf3a08a90c8191ba6802ed2b61940e. Includes dense-row dots/corner placement, MOBILE combined content controls with creator Profile, current follower/following counts, duplicate MOBILE Message removal and Portfolio/Journey in all MOBILE profile headers. Earlier local/unpublished labels for these tasks are superseded. Existing public URL/audience, runtime revision2 and D1 0000–0003 preserved. Previously approved counts-only Supabase function remains applied; publication did not reapply SQL.
+
+101 focused tests, typecheck, full lint (0 errors/89 existing warnings), connected production client+worker build and530-file archive validation passed;257 location JSON assets and unchanged D1/worker/backend verified. Windows helper packaging failed after source push; GNU tar plus Node gzip packaged the identical built dist and passed the archive audit. Native Sites success confirms publication. No GitHub push/merge, additional SQL, Storage/Auth/runtime changes or separate worker deployment. Receipt and archive audit: ignored logs/profile-content-release-20261001/. Existing local browser evidence reused; no hosted-browser or physical-device claim. Post-publication documentation remains uncommitted.
 
 ## October 1, 2026 — publication of accumulated profile/content changes in progress
 

@@ -2,7 +2,7 @@ import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useMemo, useState } from 'react';
-import { MoreHorizontalIcon } from 'lucide-react';
+import { ChevronDownIcon, ChevronUpIcon, MoreHorizontalIcon } from 'lucide-react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
@@ -57,7 +57,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             </div>
           </div>
         </div>
-        <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={optionsOpen} aria-controls="profile-navigation-tools" onClick={() => setOptionsOpen(value => !value)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>
+        <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={optionsOpen} aria-controls="profile-navigation-tools" onClick={() => setOptionsOpen(value => !value)}><InterfaceIcon icon={isMobile ? (optionsOpen ? ChevronUpIcon : ChevronDownIcon) : MoreHorizontalIcon} /></button>
       </header>
       {optionsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
