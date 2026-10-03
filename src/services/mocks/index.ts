@@ -862,6 +862,12 @@ export const mockDiscoveryService: DiscoveryService = {
   async listAccountsToExplore() {
     const creators = accountsToExploreIds.map((profileId) => profiles.find((profile) => profile.id === profileId)).filter((profile): profile is PrototypeProfile => profile !== undefined && !profile.isPrivate).map(creatorFromProfile);
     return resolve(creators);
+  },
+  async searchAccounts(query, offset = 0) {
+    const term = query.trim().replace(/^@/, '').toLocaleLowerCase();
+    return resolve(profiles.filter(profile => !profile.isPrivate && term && `${profile.name} ${profile.handle}`.toLocaleLowerCase().includes(term))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)).slice(offset, offset + 30)
+      .map(profile => ({ ...creatorFromProfile(profile), kind: `@${profile.handle}` })));
   }
 };
 /** Standalone fixture helper; not registered in a product runtime. */

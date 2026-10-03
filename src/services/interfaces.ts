@@ -326,6 +326,8 @@ export interface DiscoveryService {
    */
   listLocationProjects(locationId: Id): Promise<ProjectView[]>;
   listAccountsToExplore(): Promise<FeedCreator[]>;
+  /** Public account identities only, searched on the server before pagination. */
+  searchAccounts?(query: string, offset?: number): Promise<FeedCreator[]>;
 }
 /**
  * The follow graph.

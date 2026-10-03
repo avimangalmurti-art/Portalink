@@ -54,6 +54,11 @@ async function hasScopedActivity(): Promise<boolean> {
   return activityCapability;
 }
 
+function identitySearchVariants(value: string): string[] {
+  const term = value.trim().replace(/^@(?=.)/, '');
+  return [...new Set([term, term.replace(/[’‘]/g, "'"), term.replace(/['‘]/g, '’')])];
+}
+
 async function viewerProfileId(): Promise<string> {
   const { data: authData, error: authError } = await requireSupabase().auth.getSession();
   if (authError || !authData.session?.user) throw new Error('Sign in to use messages.');
@@ -274,44 +279,81 @@ export const supabaseMessagingService: MessagingService = {
 
   async searchConversations(search, options = {}) {
     const viewerId = await viewerProfileId();
-    const term = search.trim().replace(/[^\p{L}\p{N}\s_.-]/gu, ' ').replace(/\s+/g, ' ').slice(0, 80);
+    const term = search.trim().slice(0, 80);
     const limit = Math.min(50, Math.max(1, options.limit ?? 30));
     if (!term) return (await readConversationSummaries({ limit })).conversations;
     const client = requireSupabase();
-    const [profilesResult, messagesResult] = await Promise.all([
-      client.rpc('search_message_identities', { p_query: term, p_limit: limit * 2, p_offset: 0, p_conversations_only: true }),
-      client.from('direct_messages').select('conversation_id').ilike('body', `%${term}%`).order('created_at', { ascending: false }).limit(limit * 3),
-    ]);
-    if (profilesResult.error) throw publicMessageError(profilesResult.error, 'Conversations could not be searched.');
-    if (messagesResult.error) throw publicMessageError(messagesResult.error, 'Conversations could not be searched.');
-    const matchingProfileIds = ((profilesResult.data ?? []) as Array<{ id: string }>).map((row) => row.id).filter((id) => id !== viewerId);
-    const conversationIds = new Set(((messagesResult.data ?? []) as Array<{ conversation_id: string }>).map((row) => row.conversation_id));
-    if (matchingProfileIds.length > 0) {
-      const profileConversations = await client.from('direct_conversations').select('id')
-        .or(`participant_one_profile_id.in.(${matchingProfileIds.join(',')}),participant_two_profile_id.in.(${matchingProfileIds.join(',')})`)
-        .limit(limit * 2);
-      if (profileConversations.error) throw publicMessageError(profileConversations.error, 'Conversations could not be searched.');
-      for (const row of (profileConversations.data ?? []) as Array<{ id: string }>) conversationIds.add(row.id);
+    const conversationIds = new Set<string>();
+    const matchingProfileIds = new Set<string>();
+    // Identity RPC arguments are literal text. Preserve punctuation in names;
+    // try both apostrophe spellings without turning them into word separators.
+    for (const variant of identitySearchVariants(term)) {
+      for (let offset = 0; ; offset += 100) {
+        const result = await client.rpc('search_message_identities', { p_query: variant, p_limit: 100, p_offset: offset, p_conversations_only: true });
+        if (result.error) throw publicMessageError(result.error, 'Conversations could not be searched.');
+        const rows = (result.data ?? []) as Array<{ id: string }>;
+        for (const row of rows) if (row.id !== viewerId) matchingProfileIds.add(row.id);
+        if (rows.length < 100) break;
+      }
     }
-    if (conversationIds.size === 0) return [];
-    return (await readConversationSummaries({ conversationIds: [...conversationIds], limit })).conversations;
+    const profileIds = [...matchingProfileIds];
+    for (let start = 0; start < profileIds.length; start += 50) {
+      const ids = profileIds.slice(start, start + 50).join(',');
+      for (let offset = 0; ; offset += 100) {
+        const result = await client.from('direct_conversations').select('id')
+          .or(`participant_one_profile_id.in.(${ids}),participant_two_profile_id.in.(${ids})`)
+          .order('id').range(offset, offset + 99);
+        if (result.error) throw publicMessageError(result.error, 'Conversations could not be searched.');
+        const rows = (result.data ?? []) as Array<{ id: string }>;
+        for (const row of rows) conversationIds.add(row.id);
+        if (rows.length < 100) break;
+      }
+    }
+    // Page matching message rows until enough DISTINCT conversations are found.
+    // A prolific thread must not consume the entire result budget.
+    const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;
+    const messageConversations = new Set<string>();
+    for (let offset = 0; ; offset += 150) {
+      const result = await client.from('direct_messages').select('conversation_id')
+        .ilike('body', pattern).order('created_at', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 149);
+      if (result.error) throw publicMessageError(result.error, 'Conversations could not be searched.');
+      const rows = (result.data ?? []) as Array<{ conversation_id: string }>;
+      for (const row of rows) messageConversations.add(row.conversation_id);
+      if (messageConversations.size >= limit || rows.length < 150) break;
+    }
+    for (const id of messageConversations) conversationIds.add(id);
+    const ids = [...conversationIds];
+    const conversations = [];
+    for (let start = 0; start < ids.length; start += 50) {
+      conversations.push(...(await readConversationSummaries({ conversationIds: ids.slice(start, start + 50), limit: 50 })).conversations);
+    }
+    return conversations.sort((a, b) => (b.lastMessageAt ?? '').localeCompare(a.lastMessageAt ?? '') || a.id.localeCompare(b.id)).slice(0, limit);
   },
 
   async searchRecipients(search, options = {}) {
     await viewerProfileId();
-    const term = search.trim().replace(/[^\p{L}\p{N}\s_.-]/gu, ' ').replace(/\s+/g, ' ').slice(0, 80).trim();
-    if (search.trim() && !term) return [];
     const offset = Math.max(0, options.offset ?? 0);
     const limit = Math.min(50, Math.max(1, options.limit ?? 30));
-    // Empty search remains accepted followings only; the RPC scopes identities
-    // before pagination without granting access to private portfolio content.
-    const { data, error } = await requireSupabase().rpc('search_message_identities', {
-      p_query: term, p_limit: limit, p_offset: offset, p_conversations_only: false,
-    });
-    if (error) throw publicMessageError(error, 'Creators could not be searched.');
-    return ((data ?? []) as Array<{ id: string; name: string; handle: string; avatar_url: string }>).map((profile) => ({
-      id: profile.id, name: profile.name, handle: `@${profile.handle}`, avatar: profile.avatar_url,
-    }));
+    const term = search.trim().replace(/^@(?=.)/, '').slice(0, 80);
+    // Merge apostrophe aliases BEFORE slicing, retaining stable pagination.
+    // Single-spelling queries keep the ordinary server-paginated path.
+    const variants = identitySearchVariants(term);
+    const profiles = new Map<string, { id: string; name: string; handle: string; avatar_url: string }>();
+    for (const variant of variants) {
+      for (let from = variants.length > 1 ? 0 : offset; ; from += 100) {
+        const pageSize = variants.length > 1 ? 100 : limit;
+        const { data, error } = await requireSupabase().rpc('search_message_identities', {
+          p_query: variant, p_limit: pageSize, p_offset: from, p_conversations_only: false,
+        });
+        if (error) throw publicMessageError(error, 'Creators could not be searched.');
+        const rows = (data ?? []) as Array<{ id: string; name: string; handle: string; avatar_url: string }>;
+        for (const row of rows) profiles.set(row.id, row);
+        if (variants.length === 1 || rows.length < pageSize) break;
+      }
+    }
+    const rows = [...profiles.values()];
+    const selected = variants.length > 1 ? rows.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)).slice(offset, offset + limit) : rows;
+    return selected.map(profile => ({ id: profile.id, name: profile.name, handle: `@${profile.handle}`, avatar: profile.avatar_url }));
   },
 
   async sendMessage(conversationId, body, attachments = []) {

@@ -25,6 +25,18 @@ const plain = value => JSON.parse(JSON.stringify(value));
 const asset = url => JSON.parse(readFileSync(new URL(`../public${url}`, import.meta.url), 'utf8'));
 const manifest = asset(LOCATION_DIRECTORY_MANIFEST);
 
+test('country qualifiers accept aliases and never match inside another country name', async () => {
+  const h = harness();
+  for (const query of ['London, UK', 'London, GB', 'London, GBR', 'London, United Kingdom']) {
+    assert.ok((await h.client.search(query)).some(place => place.id === 'gn-2643743'), query);
+  }
+  const york = await h.client.search('York, US');
+  assert.ok(york.length > 0);
+  assert.ok(york.every(place => place.countryCode === 'US'));
+  assert.ok(!(await h.client.search('York, Austria')).some(place => place.countryCode === 'AU'));
+  assert.ok((await h.client.search('San Francisco, USA')).some(place => place.id === 'gn-5391959'));
+});
+
 function harness(intercept) {
   const calls = [];
   const fetcher = async (url, options) => {

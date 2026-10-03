@@ -115,13 +115,16 @@ test('directory destinations preserve their stable IDs and failed resolution can
   }
 });
 
-test('WEB legacy Search offers World while MOBILE retains its existing placeholder', () => {
+test('both presentations open account search with query and identity navigation intact', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
     const { SearchBrowsePage } = h.load('src/components/SearchBrowsePage.tsx');
-    const empty = nodes(SearchBrowsePage({ ...h.browseProps, view: 'atlas', locationId: null })).find(node => node.type === 'EmptyState');
-    if (presentation === 'mobile') assert.equal(empty.props.action, undefined);
-    else { empty.props.action.onClick(); assert.deepEqual(h.visits, ['/portalink']); }
+    const onQueryChange = () => {}, onOpenCreator = () => {};
+    const search = SearchBrowsePage({ ...h.browseProps, query: 'portalite', onQueryChange, onOpenCreator, view: 'atlas', locationId: null });
+    assert.equal(search.type, 'SearchAccountsPage');
+    assert.equal(search.props.query, 'portalite');
+    assert.equal(search.props.onQueryChange, onQueryChange);
+    assert.equal(search.props.onOpenCreator, onOpenCreator);
   }
 });
 

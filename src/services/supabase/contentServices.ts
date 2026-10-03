@@ -900,15 +900,18 @@ export const supabaseDiscoveryService: DiscoveryService = {
   async listLocationProjects(locationId) {
     const city = await locationDirectory.resolve(locationId);
     if (!city) return [];
-    const { data, error } = await requireSupabase()
-      .from('profiles')
-      .select('id,location')
-      .eq('is_private', false)
-      .limit(500);
-    if (error) throw new Error(error.message);
-    const profileIds = ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'location'>>)
-      .filter((row) => city.legacy ? creatorLocationMatches(row.location, city.name) : profileMatchesPlace(row.location, city))
-      .map((row) => row.id);
+    const profileIds: string[] = [];
+    let after: string | null = null;
+    for (;;) {
+      let query = requireSupabase().from('profiles').select('id,location').eq('is_private', false).order('id').limit(500);
+      if (after) query = query.gt('id', after);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'location'>>;
+      profileIds.push(...rows.filter(row => city.legacy ? creatorLocationMatches(row.location, city.name) : profileMatchesPlace(row.location, city)).map(row => row.id));
+      if (rows.length < 500) break;
+      after = rows[rows.length - 1].id;
+    }
     const projectIds = await projectIdsForProfiles(profileIds);
     return projectViewsForIds(projectIds);
   },
@@ -922,5 +925,18 @@ export const supabaseDiscoveryService: DiscoveryService = {
     if (error) throwProfileError(error, 'Creators could not be loaded.');
     return ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url' | 'location'>>)
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
+  },
+  async searchAccounts(query, offset = 0): Promise<FeedCreator[]> {
+    const term = query.trim().replace(/^@/, '').slice(0, 80);
+    if (!term) return [];
+    const pattern = `%${term.replace(/[\\%_]/g, char => `\\${char}`)}%`;
+    const quoted = `"${pattern.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    const { data, error } = await requireSupabase().from('profiles')
+      .select('id,name,handle,headline,avatar_url,location').eq('is_private', false)
+      .or(`name.ilike.${quoted},handle.ilike.${quoted}`).order('name').order('id')
+      .range(Math.max(0, offset), Math.max(0, offset) + 29);
+    if (error) throwProfileError(error, 'Accounts could not be searched.');
+    return ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'handle' | 'headline' | 'avatar_url' | 'location'>>)
+      .map(row => ({ id: row.id, name: row.name, kind: `@${row.handle}`, avatar: row.avatar_url, location: row.location, isPrivate: false }));
   },
 };

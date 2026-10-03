@@ -30,6 +30,7 @@ type NavItem = {
 type SidebarProps = {
   isHomeActive: boolean;
   isSearchActive: boolean;
+  onSearchOpen?: () => void;
   isPortalinkActive: boolean;
   accentColor: string;
   /**
@@ -388,6 +389,7 @@ function getPortalsHeading(profile: Profile, isOwner: boolean): string {
 export function Sidebar({
   isHomeActive,
   isSearchActive,
+  onSearchOpen,
   isPortalinkActive,
   accentColor,
   onControlCenterOpen,
@@ -679,7 +681,7 @@ export function Sidebar({
                 <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={WarehouseIcon} weight="medium" />
                 </button>
-                <button type="button" disabled aria-label="Search unavailable" title="Search is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={SearchIcon} weight="medium" />
                 </button>
                 <button type="button" onClick={() => onMessagesOpen()} aria-label="Open messages" aria-current={activeTarget === 'messages' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none" data-profile-tile="">
@@ -703,7 +705,7 @@ export function Sidebar({
                 </div>
                 <div role="group" aria-label="Main navigation row two" className="contents">
                   <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
-                  <NavTile label="Search" icon={SearchIcon} isActive={false} activeClassName="" ariaLabel="Search unavailable" title="Search is not available yet" disabled />
+                  <NavTile label="Search" icon={SearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
                   <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
                 </div>

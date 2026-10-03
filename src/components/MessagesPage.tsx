@@ -80,6 +80,8 @@ export function MessagesPage({
   const [searchResults, setSearchResults] = useState<Awaited<ReturnType<ReturnType<typeof useMessaging>['searchConversations']>>>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [resultQuery, setResultQuery] = useState<string | null>(null);
+  const [searchAttempt, setSearchAttempt] = useState(0);
   const [hasNewBelow, setHasNewBelow] = useState(false);
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
   const [isConversationMenuOpen, setIsConversationMenuOpen] = useState(false);
@@ -188,17 +190,18 @@ export function MessagesPage({
     }
     setIsSearching(true);
     setSearchError(null);
+    setSearchResults([]);
     const timer = window.setTimeout(() => {
       void searchConversations(term).then((results) => {
-        if (searchRequestRef.current === version) setSearchResults(results);
+        if (searchRequestRef.current === version) { setSearchResults(results); setResultQuery(term); }
       }).catch(() => {
-        if (searchRequestRef.current === version) setSearchError('Conversations could not be searched. Try again.');
+        if (searchRequestRef.current === version) { setSearchResults([]); setResultQuery(term); setSearchError('Conversations could not be searched. Try again.'); }
       }).finally(() => {
         if (searchRequestRef.current === version) setIsSearching(false);
       });
     }, 220);
-    return () => window.clearTimeout(timer);
-  }, [query, searchConversations]);
+    return () => { window.clearTimeout(timer); searchRequestRef.current++; };
+  }, [query, searchConversations, searchAttempt]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -213,7 +216,7 @@ export function MessagesPage({
   }, [confirmation, isNewChatOpen, isPrivacyOpen, isReportOpen]);
 
   const visibleConversations = useMemo(() => {
-    const source = query.trim() ? searchResults : messaging.conversations;
+    const source = query.trim() ? resultQuery === query.trim() ? searchResults : [] : messaging.conversations;
     return source.filter((conversation) => {
       if (conversation.isDraft) return false;
       const isIncomingRequest = conversation.status === 'request' && !conversation.requestedByViewer;
@@ -222,7 +225,7 @@ export function MessagesPage({
       if (conversationFilter === 'requests' && !isIncomingRequest) return false;
       return true;
     });
-  }, [conversationFilter, messaging.conversations, query, searchResults]);
+  }, [conversationFilter, messaging.conversations, query, searchResults, resultQuery]);
 
   function updateDraft(value: string) {
     if (!activeId) return;
@@ -357,10 +360,10 @@ export function MessagesPage({
 
               <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
-                {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}</div> : null}
+                {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}<button type="button" className="ml-2 min-h-11 underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div> : null}
                 {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
                 {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
-                {messaging.status === 'success' && visibleConversations.length === 0 && !isSearching ? <div className="side-panel-content-inset py-5"><EmptyState title={query.trim() ? 'No matching conversations' : conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : 'No conversations yet'} description={query.trim() ? 'Try another name or message.' : conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : 'Start a conversation with another creator.'} action={(query.trim() || conversationFilter !== 'all') ? { label: query.trim() ? 'Clear search' : 'Clear filter', onClick: () => { if (query.trim()) setQuery(''); else setConversationFilter('all'); } } : conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
+                {messaging.status === 'success' && visibleConversations.length === 0 && !isSearching && !searchError ? <div className="side-panel-content-inset py-5"><EmptyState title={query.trim() ? 'No matching conversations' : conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : 'No conversations yet'} description={query.trim() ? 'Try another name or message.' : conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : 'Start a conversation with another creator.'} action={(query.trim() || conversationFilter !== 'all') ? { label: query.trim() ? 'Clear search' : 'Clear filter', onClick: () => { if (query.trim()) setQuery(''); else setConversationFilter('all'); } } : conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul className="side-panel-content-inset side-panel-navigation-list pb-2">
                   {visibleConversations.map((conversation) => <li key={conversation.id}>
                       <div data-selected={activeId === conversation.id ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">

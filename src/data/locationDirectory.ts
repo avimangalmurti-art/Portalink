@@ -47,6 +47,14 @@ export function profilePlaceLabel(place: DirectoryPlace): string | null {
 }
 
 const matchesName = (name: string | undefined, query: string) => Boolean(name && normalizeLocation(name).startsWith(query));
+const countryAliases = (code: string) => code === 'GB' ? ['uk', 'united kingdom'] : code === 'US' ? ['usa', 'united states of america'] : [];
+/** Codes are exact; longer names may be prefixes, never arbitrary substrings. */
+function matchesQualifier(place: DirectoryPlace, part: string): boolean {
+  const codes = [place.countryCode, place.countryIso3, ...countryAliases(place.countryCode)].map(normalizeLocation);
+  if (codes.includes(part)) return true;
+  if (part.length <= 3) return false;
+  return [place.regionName, place.regionAsciiName, place.countryName].some(name => matchesName(name, part));
+}
 const exactAdministrativeRank = (place: DirectoryPlace, query: string) => normalizeLocation(place.name) !== query ? 0 : place.kind === 'country' ? 2 : place.kind === 'region' ? 1 : 0;
 
 /** Own-origin, immutable assets only. Rejected fetches can be retried. */
@@ -113,7 +121,7 @@ export function createLocationDirectory(fetcher: typeof fetch = (...args) => fet
       } else {
         places.push(...data.shortNames.filter(row => [row[1], row[2]].some(name => normalizeLocation(name) === query)).map(row => cityPlace(data, row)));
       }
-      return places.filter(place => qualifiers.every(part => normalizeLocation([place.regionName, place.regionAsciiName, place.countryName, place.countryCode, place.countryIso3].filter(Boolean).join(' ')).includes(part)))
+      return places.filter(place => qualifiers.every(part => matchesQualifier(place, part)))
         .sort((a, b) => Number(normalizeLocation(b.name) === query) - Number(normalizeLocation(a.name) === query)
           || exactAdministrativeRank(b, query) - exactAdministrativeRank(a, query)
           || (b.population ?? 0) - (a.population ?? 0) || placeLabel(a).localeCompare(placeLabel(b)))

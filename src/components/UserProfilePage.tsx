@@ -491,6 +491,8 @@ export function UserProfilePage({
   }, [cardProjects, projectOrder.order, isMobile]);
   const navigate = useNavigate();
   const connectionOrigin = searchParams.get('fromConnections');
+  const searchOrigin = searchParams.get('fromSearch');
+  const searchReturn = searchOrigin && /^\/search(?:\?|$)/.test(searchOrigin) ? searchOrigin : null;
   const connectionList = searchParams.get('connectionList');
   const showConnectionBack = isMobile && Boolean(connectionOrigin) && (connectionList === 'followers' || connectionList === 'following');
   const backToConnections = () => {
@@ -682,6 +684,7 @@ export function UserProfilePage({
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
+      {searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />Back</button></ScreenBack>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       {showConnectionBack && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />Back</button></ScreenBack>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>

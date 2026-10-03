@@ -6,7 +6,7 @@ import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PortalinkPage } from './PortalinkPage';
 import { CityContentPage } from './CityContentPage';
 import { EmptyState, LoadingState } from './ui/StateViews';
-import { usePresentation } from '../presentation/usePresentation';
+import { SearchAccountsPage } from './SearchAccountsPage';
 
 type SearchBrowsePageProps = {
   query: string;
@@ -20,10 +20,13 @@ type SearchBrowsePageProps = {
   onOpenAtlas: () => void;
   onOpenWorld: () => void;
   onReturnHome?: () => void;
+  onBack?: () => void;
   onOpenLocation: (locationId: Id) => void;
 };
 
 export function SearchBrowsePage({
+  query,
+  onQueryChange,
   onOpenProject,
   onOpenCreator,
   onWarmCreator,
@@ -33,9 +36,9 @@ export function SearchBrowsePage({
   onOpenAtlas,
   onOpenWorld,
   onReturnHome,
+  onBack,
   onOpenLocation
 }: SearchBrowsePageProps) {
-  const isMobile = usePresentation() === 'mobile';
   const [resolved, setResolved] = useState<{ id: string; place: DirectoryPlace | null; failed?: boolean } | null>(null);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -83,9 +86,5 @@ export function SearchBrowsePage({
     );
   }
 
-  return (
-    <div className="flex h-full w-full items-center justify-center px-6 py-10">
-      <EmptyState title="Search" description="Portalink Search is being designed." action={!isMobile ? { label: 'Explore the world', onClick: onOpenWorld } : undefined} />
-    </div>
-  );
+  return <SearchAccountsPage query={query} onQueryChange={onQueryChange} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator} onBack={onBack ?? onReturnHome} />;
 }
