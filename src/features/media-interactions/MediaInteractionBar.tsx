@@ -1,12 +1,11 @@
 import { readSharedReturnPath } from '../auth/registration';
-import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
 import { Button } from '../../components/ui/Button';
 import { useContext } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MobilePageContext } from './MobilePageContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
-import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
@@ -16,6 +15,7 @@ import { useMediaPageSize } from './useMediaPageSize';
 import { MediaCommentsPopover } from './MediaCommentsPopover';
 import { publicMediaUrl } from '../media/publicMediaUrl';
 
+const ProjectFormDialog = lazy(() => import('../../components/publishing/ProjectFormDialog').then(module => ({ default: module.ProjectFormDialog })));
 const countFormatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const displayCount = (count: number) => count > 0 ? countFormatter.format(count) : '';
 
@@ -88,15 +88,21 @@ export function MediaInteractionBar({
   }, [commentBody, commentsOpen, isMobile]);
 
   const auth = useAuth(), currentPage = useContext(MobilePageContext);
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (auth.isAuthenticated && isOwner && query.get('comments') === '1' && query.get('media') === target.attachmentId && Number(query.get('page')) === target.pageIndex + 1) setCommentsOpen(true);
+  }, [auth.isAuthenticated, isOwner, target.projectId, target.attachmentId, target.pageIndex]);
+  const sharedPath = isMobile && !auth.isAuthenticated ? readSharedReturnPath(window.location.pathname + window.location.search) : undefined;
+  const sharedGuest = isMobile && !auth.isAuthenticated && Boolean(currentPage?.shared || sharedPath);
   const requireAccount = () => {
-    const path = isMobile && !auth.isAuthenticated ? readSharedReturnPath(window.location.pathname + window.location.search) : null;
-    if (!path) return false;
+    if (!sharedGuest) return false;
+    const path = sharedPath || window.location.pathname + window.location.search;
     auth.requestAuthenticatedDestination({ kind: 'route', path, label: 'engage with this page' }, 'signUp');
     return true;
   };
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
-    savePage: !activity.isResolvingEngagement && activity.pendingKind !== 'save' ? () => savePage() : undefined,
+    savePage: sharedGuest || (!activity.isResolvingEngagement && activity.pendingKind !== 'save') ? () => savePage() : undefined,
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
   }, labels: { savePage: activity.record.engaged.save ? 'Unsave this page' : 'Save this page' } }) : null, 15);
   const [saveChoice,setSaveChoice]=useState(false);
@@ -116,7 +122,7 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    {saveChoice && <ProjectFormDialog title="Save this page" titleId="page-save-choice" onClose={()=>setSaveChoice(false)}><div className="p-5 grid gap-3"><p>Keep this bookmark private, or let the creator know you saved this page. Sharing shows your profile name to this creator.</p><Button disabled={activity.pendingKind==='save'} onClick={async()=>{if(await activity.savePrivately())setSaveChoice(false);}}>Save privately</Button><Button disabled={activity.pendingKind==='save'} variant="secondary" onClick={async()=>{if(await activity.saveWithCreator())setSaveChoice(false);}}>Save and let the creator know</Button>{activity.failure&&<p role="alert">{activity.failure}</p>}</div></ProjectFormDialog>}
+    {saveChoice && <Suspense fallback={null}><ProjectFormDialog title="Save this page" titleId="page-save-choice" onClose={()=>setSaveChoice(false)}><div className="p-5 grid gap-3"><p>Keep this bookmark private, or let the creator know you saved this page. Sharing shows your profile name to this creator.</p><Button disabled={activity.pendingKind==='save'} onClick={async()=>{if(await activity.savePrivately())setSaveChoice(false);}}>Save privately</Button><Button disabled={activity.pendingKind==='save'} variant="secondary" onClick={async()=>{if(await activity.saveWithCreator())setSaveChoice(false);}}>Save and let the creator know</Button>{activity.failure&&<p role="alert">{activity.failure}</p>}</div></ProjectFormDialog></Suspense>}
     <div hidden={contextOnly} data-media-controls-row="" className="flex max-w-full items-center gap-2">
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
@@ -132,7 +138,7 @@ export function MediaInteractionBar({
           aria-pressed={engaged}
           aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}${count > 0 ? ` (${count})` : ''}`}
           title={`${label}: ${count}`}
-          disabled={activity.pendingKind === kind || activity.isResolvingEngagement}
+          disabled={!sharedGuest && (activity.pendingKind === kind || activity.isResolvingEngagement)}
           data-keep-color=""
           style={{ color }}
           onClick={() => { if (!requireAccount()) { if (kind === 'save') savePage(); else activity.toggle(kind); } }}

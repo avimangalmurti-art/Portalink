@@ -1,5 +1,5 @@
 import { composeProjectDescription, EMPTY_CREATION } from './firstProject';
-import { readFirstProjectDraft, saveFirstProjectDraft, clearFirstProjectDraft, type FirstProjectStage } from './firstProjectDraft';
+import { readFirstProjectDraft, saveFirstProjectDraft, clearFirstProjectDraft, clearDraftWorkspace, draftWorkspaceFingerprint, type FirstProjectStage } from './firstProjectDraft';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -31,7 +31,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '') {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { persist: boolean; resume?: ProjectDraft }) {
   const {
     projects: projectService, profiles: profileService
   } = useServices();
@@ -83,6 +83,9 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const [saveDraftError, setSaveDraftError] = useState<string | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
+  const persistWorkspace = Boolean(workspace?.persist);
+  const resumeId = workspace?.resume?.id;
+  const checkpointSignature = useRef<string | null>(null);
   const isOwner = Boolean(profileId) && auth.viewerProfileId === profileId;
   // Exactly one draft per opening. Without this, any re-render that re-runs the
   // effect would strand the previous draft on the service.
@@ -107,8 +110,9 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     setRestoringDraft(firstProject);
     void (async () => {
       let saved = null;
-      if (firstProject && auth.user?.id) {
-        try { saved = await readFirstProjectDraft(auth.user.id, profileId); }
+      if ((firstProject || resumeId) && auth.user?.id) {
+        try { saved = await readFirstProjectDraft(auth.user.id, profileId, resumeId) ?? (resumeId ? await readFirstProjectDraft(auth.user.id, profileId) : null);
+          if (resumeId && saved?.draft.id !== resumeId) saved = null; }
         catch (error) { if (isCurrent) setLocalDraftError(error instanceof Error ? error.message : 'Local draft storage is unavailable.'); }
       }
       if (!isCurrent) return;
@@ -116,6 +120,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         const existing = saved.committed ? saved.draft : await projectService.getDraft(saved.draft.id);
         if (existing && existing.profileId === profileId && (saved.committed || existing.categoryId === categoryId)) {
           if (!isCurrent) return;
+          checkpointSignature.current = draftWorkspaceFingerprint({metadata:saved.metadata,location:saved.location,stage:saved.stage,media:saved.media,persisted:saved.persisted,attachments:saved.attachments,committed:saved.committed});
           setDraft(existing); setMetadata(saved.metadata); updateLocation(saved.location);
           setHasChosenLocation(true); restoreMedia(saved.media); restoreUpload(saved, saved.media);
           setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
@@ -129,6 +134,12 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
       } else if (firstProject) setMetadata({ ...EMPTY_METADATA, creationDetails: { ...structuredClone(EMPTY_CREATION), madeIn: presetMadeIn } });
       setRestoringDraft(false);
+      if (resumeId) {
+        const existing = await projectService.getDraft(resumeId);
+        if (!existing || existing.profileId !== profileId || existing.categoryId !== categoryId) throw new Error('This draft is no longer available.');
+        if (isCurrent) { setDraft(existing); setMetadata(existing.metadata); }
+        return;
+      }
       const created = await projectService.createDraft(profileId, categoryId);
       if (isCurrent) setDraft(created);
     })().catch((caught) => {
@@ -141,13 +152,14 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload]);
+  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId]);
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);
+      checkpointSignature.current = null;
       setDraftError(null);
       setMetadata(EMPTY_METADATA);
-      if (firstProject && !committedPublish.current?.sessionOnly) media.clear();
+      if ((firstProject || persistWorkspace) && !committedPublish.current?.sessionOnly) media.clear();
       setHasCommittedProject(false);
       setFirstProjectStage('files');
       setRestoringDraft(firstProject);
@@ -184,22 +196,25 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const setCreationDetails = useCallback((details: NonNullable<DraftMetadata['creationDetails']>) => {
     setMetadata(current => ({ ...current, creationDetails: details, summary: JSON.stringify(current.creationDetails?.answers) === JSON.stringify(details.answers) ? current.summary : composeProjectDescription(details.answers) }));
   }, []);
-  const saveLocalDraft = useCallback(async () => {
-    if (!firstProject || !auth.user?.id || !profileId || restoringDraft || draftCompleted.current) return;
+  const saveLocalDraft = useCallback(async (flushMetadata = false) => {
+    if ((!firstProject && !persistWorkspace) || !auth.user?.id || !profileId || restoringDraft || draftCompleted.current) return;
     if (!draft) {
       if (media.items.length) { setLocalDraftError('Your draft is still starting. Wait a moment before leaving.'); throw new Error('Draft is still starting.'); }
       return;
     }
     try {
-      await saveFirstProjectDraft({ version: 1, accountId: auth.user.id, profileId, draft, metadata,
-        location, stage: step === 'preview' ? 'review' : firstProjectStage, media: media.items,
-        persisted: upload.persisted, attachments: upload.attachments, committed: committedPublish.current });
+      const contents = {metadata,location,stage:step === 'preview' ? 'review' as const : firstProjectStage,media:media.items,persisted:upload.persisted,attachments:upload.attachments,committed:committedPublish.current};
+      const signature = draftWorkspaceFingerprint(contents);
+      if (flushMetadata && !committedPublish.current && (draft.metadata.title !== metadata.title || draft.metadata.summary !== metadata.summary)) await projectService.updateDraft(draft.id, metadata);
+      if (checkpointSignature.current === signature) { setLocalDraftError(null); return; }
+      await saveFirstProjectDraft({updatedAt:new Date().toISOString(),version:1,accountId:auth.user.id,profileId,draft,...contents},firstProject && !resumeId ? undefined : draft.id);
+      checkpointSignature.current = signature;
       setLocalDraftError(null);
     } catch (error) {
       setLocalDraftError(error instanceof Error ? error.message : 'Your draft could not be saved on this device.');
       throw error;
     }
-  }, [firstProject, auth.user?.id, profileId, draft, metadata, location, step, firstProjectStage, media.items, upload.persisted, upload.attachments, restoringDraft]);
+  }, [firstProject, persistWorkspace, resumeId, auth.user?.id, profileId, draft, metadata, location, step, firstProjectStage, media.items, upload.persisted, upload.attachments, restoringDraft, projectService]);
   useEffect(() => {
     if (isOpen) void saveLocalDraft().catch(() => undefined);
   }, [isOpen, saveLocalDraft]);
@@ -318,7 +333,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         cacheProfile(refreshed);
       }
       draftCompleted.current = true;
-      if (firstProject && auth.user?.id && profileId) await clearFirstProjectDraft(auth.user.id, profileId).catch(() => undefined);
+      if ((firstProject || persistWorkspace) && auth.user?.id && profileId) await (draft?.id ? clearDraftWorkspace(auth.user.id, profileId, draft.id) : clearFirstProjectDraft(auth.user.id, profileId)).catch(() => undefined);
       if (attachments.length === 0) {
         // Session-only publishing: the previews now belong to the published
         // record for the rest of the session, so this hook stops revoking them.
@@ -359,7 +374,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     setIsSavingDraft(true);
     setSaveDraftError(null);
     try {
-      if (!committedPublish.current) await projectService.updateDraft(draft.id, metadata);
+      if (!committedPublish.current) setDraft(await projectService.updateDraft(draft.id, metadata));
       setStep('preview');
     } catch (caught) {
       setSaveDraftError(caught instanceof Error && caught.message ? caught.message : 'These details could not be saved to your draft.');
@@ -409,7 +424,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     try {
       await projectService.discardDraft(draft.id);
       draftCompleted.current = true;
-      if (firstProject && auth.user?.id && profileId) await clearFirstProjectDraft(auth.user.id, profileId);
+      if ((firstProject || persistWorkspace) && auth.user?.id && profileId) await (draft?.id ? clearDraftWorkspace(auth.user.id, profileId, draft.id) : clearFirstProjectDraft(auth.user.id, profileId));
       media.clear();
       upload.reset();
       return true;
@@ -419,7 +434,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     } finally {
       setIsDiscarding(false);
     }
-  }, [draft, media, projectService, upload, firstProject, auth.user?.id, profileId]);
+  }, [draft, media, projectService, upload, firstProject, persistWorkspace, resumeId, auth.user?.id, profileId]);
   const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && (firstProject || metadata.summary.trim()) ? 'ready' : 'editing';
   /**
    * Retrying after a PUBLISH failure must not re-upload. The persisted

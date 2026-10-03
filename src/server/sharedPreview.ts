@@ -274,7 +274,8 @@ function rewriteHead(html: string, preview: Preview, image: string, canonical: s
  * signing. Unavailable/private/coverless records retain the generic SPA shell. */
 export async function withSharedPreview(response: Response, request: Request, config: PreviewConfiguration, resolvedProfileId?: string): Promise<Response> {
   const url = new URL(request.url);
-  const match = url.pathname.match(sharedRoute) ?? (resolvedProfileId ? ['', resolvedProfileId] : null);
+  const handleProject = /^\/[^/]+\/c\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\/?$/i.exec(url.pathname);
+  const match = url.pathname.match(sharedRoute) ?? (resolvedProfileId ? ['', resolvedProfileId, handleProject?.[1], handleProject?.[2]] : null);
   if (!match || !prefersHtml(request.headers.get('accept')) || (request.method !== 'GET' && request.method !== 'HEAD')
     || !response.ok || !response.headers.get('content-type')?.includes('text/html')) return response;
   const headers = new Headers(response.headers);

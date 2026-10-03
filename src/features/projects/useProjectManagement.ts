@@ -1,4 +1,4 @@
-import { EMPTY_CREATION } from '../publishing/firstProject';
+import { composeProjectDescription, EMPTY_CREATION } from '../publishing/firstProject';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -33,7 +33,7 @@ import type { DeleteProjectResult, DraftMetadata, PersistedAttachment, ProjectAt
 export type EditorPhase = 'idle' | 'loading' | 'editing' | 'saving' | 'saved' | 'load-failed';
 export type DeletePhase = 'idle' | 'confirming' | 'deleting' | 'deleted' | 'failed';
 export type MetadataFieldKey = 'title' | 'summary';
-export type ProjectEditorMode = 'details' | 'description' | 'cover' | 'files' | 'journey';
+export type ProjectEditorMode = 'details' | 'description' | 'cover' | 'files' | 'journey' | 'story' | 'cover-choice';
 export type ProjectMutationFailure = {
   code: ProjectMutationErrorCode;
   message: string;
@@ -208,14 +208,15 @@ export function useProjectManagement(profileId: Id | null) {
     }));
     setSaveResult(null);
   }, []);
-  const setJourneyField = useCallback((key: 'madeIn' | 'learned' | 'caption', value: string) => {
+  const setJourneyField = useCallback((key: 'madeIn' | 'what' | 'did' | 'learned' | 'caption', value: string) => {
     setMetadata(current => {
       if (key === 'caption') return { ...current, thenNowCaption: value };
       const details = current.creationDetails ?? EMPTY_CREATION;
-      return { ...current, creationDetails: { ...details, ...(key === 'madeIn' ? { madeIn: value } : { answers: { ...details.answers, learned: value } }) } };
+      const next = { ...details, ...(key === 'madeIn' ? { madeIn: value } : { answers: { ...details.answers, [key]: value } }) };
+      return { ...current, creationDetails: next, ...(editorMode === 'story' ? { summary: composeProjectDescription(next.answers) } : {}) };
     });
     setSaveResult(null); setSaveFailure(null); setEditorPhase('editing');
-  }, []);
+  }, [editorMode]);
   const setAttachmentTitle = useCallback((attachmentId: Id, displayName: string) => {
     setAttachmentEdits((current) => current.map((edit) => edit.id === attachmentId ? {
       ...edit,
@@ -386,7 +387,7 @@ export function useProjectManagement(profileId: Id | null) {
           profileId,
           metadata: {
             title: metadata.title.trim(),
-            creationDetails: metadata.creationDetails,
+            creationDetails: editorMode === 'cover-choice' ? metadata.creationDetails ?? EMPTY_CREATION : metadata.creationDetails,
             summary: metadata.summary.trim()
           },
           attachments: editsForSave,
@@ -395,6 +396,10 @@ export function useProjectManagement(profileId: Id | null) {
         });
         if (!isMountedRef.current) {
           return true;
+        }
+        if (editorMode === 'story' && metadata.creationDetails) {
+          await projectService.updateProjectCreationDetails(editingProjectId, metadata.creationDetails);
+          result.project = { ...result.project, creationDetails: metadata.creationDetails };
         }
         setSaveResult(result);
         // The record moved, so every surface reading it re-reads.

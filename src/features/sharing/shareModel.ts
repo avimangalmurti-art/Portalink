@@ -3,7 +3,7 @@ export const RESERVED_HANDLES = new Set('share p studio messages settings search
 export function normalizePublicHandle(value: string): string { return value.trim().replace(/^@/, '').toLowerCase(); }
 export function validHandle(value: string): boolean { return /^[a-z0-9][a-z0-9.]{2,29}$/.test(value) && !RESERVED_HANDLES.has(value); }
 export function handleFromPath(path: string): string | null {
-  const match = /^\/([^/]+)\/?$/.exec(path);
+  const match = /^\/([^/]+)(?:\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?|\/collaboration)?\/?$/i.exec(path);
   return match && validHandle(match[1].toLowerCase()) ? match[1].toLowerCase() : null;
 }
 export function isPublicSharePath(path: string): boolean { return /^\/share(?:\/|$)/i.test(path) || Boolean(handleFromPath(path)); }
@@ -20,6 +20,9 @@ export function parseResolution(value: unknown): HandleResolution | null {
     ? { profileId: row.profileId, handle: row.handle, alias: row.alias } : null;
 }
 export function portfolioPath(id: string, handle?: string | null): string { return handle && validHandle(handle) ? `/${handle}` : `/share/${encodeURIComponent(id)}`; }
+export function portfolioProjectPath(id: string, categoryId: string, projectId: string, handle?: string | null): string {
+  return `${portfolioPath(id, handle)}/c/${encodeURIComponent(categoryId)}/${encodeURIComponent(projectId)}`;
+}
 export function shareCardText(name: string, headline: string | undefined, count: number, school?: string) {
   return { title: `${name.trim()} — Portfolio`, description: [headline?.trim(), school?.trim(), `${count} ${count === 1 ? 'project' : 'projects'}`].filter(Boolean).join(' · ').slice(0, 160) };
 }

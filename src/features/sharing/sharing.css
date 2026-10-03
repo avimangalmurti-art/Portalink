@@ -7,3 +7,20 @@
 .link-preview-card{overflow:hidden;border:1px solid var(--hairline-strong);border-radius:16px}.link-preview-card img{width:100%;aspect-ratio:1200/630;object-fit:contain;background:white;display:block}.link-preview-card>div{padding:14px}.link-preview-card strong{display:block;font-size:16px}.link-preview-card p{font-size:13px;margin-top:5px;color:var(--text-secondary)}.link-preview-card small{display:block;margin-top:8px;font-size:11px;color:var(--text-secondary);overflow-wrap:anywhere}
 .share-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.share-actions button{min-height:48px;gap:8px;font-size:13px;padding-inline:10px}.share-text-button{color:var(--accent-text);min-height:44px;font-size:14px}.share-qr{display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--hairline);padding-top:16px}.share-qr canvas{width:116px;height:116px;image-rendering:pixelated}.share-suggestions{display:flex;gap:8px;flex-wrap:wrap}.share-suggestions button{min-height:44px;padding:8px 12px;border:1px solid var(--hairline-strong);border-radius:999px;font-size:13px}.share-suggestions button[aria-pressed=true]{background:var(--surface-hover);color:var(--accent-text)}.handle-field{display:flex;flex-direction:column;gap:8px}.handle-field span,.share-fine-print{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere}
 [data-presentation=mobile].portfolio-share-scrim{align-items:flex-end;padding:12px 8px max(8px,env(safe-area-inset-bottom))}.portfolio-share-scrim[data-presentation=mobile] .portfolio-share-dialog{width:100%;max-height:100%;border-radius:24px}.portfolio-share-scrim[data-presentation=mobile] .portfolio-share-body{padding:16px}
+
+/* Personal notes own the mobile writing screen; the link preview stays in Share. */
+[data-presentation='mobile'] .portfolio-share-dialog[data-personal-note] .portfolio-share-body {
+  flex: 1 1 0;
+  min-height: 0;
+  gap: 12px;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-personal-note] .portfolio-share-body > textarea {
+  flex: 1 0 160px;
+  min-height: 160px;
+  resize: none;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-personal-note] .portfolio-share-body > :not(textarea) { flex-shrink: 0; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-personal-note] .portfolio-share-body :is(input, textarea) { scroll-margin-block: 16px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-personal-note] .portfolio-share-body > button { min-height: 48px; }

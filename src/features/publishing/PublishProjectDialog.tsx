@@ -10,7 +10,7 @@ import { usePublishProject } from './usePublishProject';
 import { TITLE_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
 import { MobilePublishFlow, type MobilePublishStep } from './MobilePublishFlow';
-import type { PublishResult } from '../../types/publishing';
+import type { ProjectDraft, PublishResult } from '../../types/publishing';
 
 /**
  * Creating a project inside a category the signed-in account owns.
@@ -20,6 +20,7 @@ import type { PublishResult } from '../../types/publishing';
  * re-checked by the service — hiding this dialog is UX, not authorization.
  */
 type PublishProjectDialogProps = {
+  resumeDraft?: ProjectDraft;
   firstProject?: { madeIn?: string; name: string; categories: string[] };
   isOpen: boolean;
   profileId: string | null;
@@ -31,6 +32,7 @@ type PublishProjectDialogProps = {
 export function PublishProjectDialog({
   isOpen,
   firstProject,
+  resumeDraft,
   profileId,
   categoryId,
   categoryLabel,
@@ -38,7 +40,7 @@ export function PublishProjectDialog({
   onPublished
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, Boolean(firstProject), firstProject?.madeIn);
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, Boolean(firstProject), firstProject?.madeIn, { persist: isMobile, resume: resumeDraft });
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -120,8 +122,8 @@ export function PublishProjectDialog({
       uploadErrorRef.current?.focus();
       return;
     }
-    if (firstProject) {
-      try { await publishFlow.saveLocalDraft(); onClose(); } catch { /* Keep files visible when local persistence fails. */ }
+    if (firstProject || isMobile) {
+      try { await publishFlow.saveLocalDraft(true); onClose(); } catch { /* Keep files visible when local persistence fails. */ }
       return;
     }
     if (isDirty && step !== 'done') {
@@ -182,7 +184,7 @@ export function PublishProjectDialog({
               <ErrorState description={publishFlow.draftError} />
             </div> : (!publishFlow.draft && !firstProject) || publishFlow.restoringDraft ? <div className="project-form-content scrollbar-slim">
               <LoadingState label="Starting a draft" />
-            </div> : isMobile || firstProject ? <MobilePublishFlow flow={publishFlow} editingStep={firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
+            </div> : isMobile || firstProject ? <MobilePublishFlow flow={publishFlow} editingStep={isMobile || firstProject ? publishFlow.firstProjectStage === 'details' ? 'details' : 'files' : mobileEditingStep} onEditingStepChange={isMobile || firstProject ? publishFlow.setFirstProjectStage : setMobileEditingStep} firstProject={firstProject ? { ...firstProject, onSkip: () => void requestClose() } : undefined} categoryLabel={categoryLabel} notices={notices} /> : <form onSubmit={(event) => {
           event.preventDefault();
           if (publishFlow.canPublish && !publishFlow.isSavingDraft) {
             void publishFlow.publish.run();

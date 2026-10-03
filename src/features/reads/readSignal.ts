@@ -1,6 +1,23 @@
 import type { ProjectAttachment } from '../../types/domain';
 export const REACH_BUCKETS = ['<400', '400-639', '640-1023', '1024-1439', '1440+'] as const;
 export const REF_CLASSES = ['own-link', 'messages', 'linkedin', 'other'] as const;
+export const READ_PERIODS = [
+    { key: 'today', label: 'Today' }, { key: '7d', label: '7 days' },
+    { key: '30d', label: '30 days' }, { key: '12m', label: '12 months' },
+    { key: 'all', label: 'All time' },
+] as const;
+export type ReadPeriod = typeof READ_PERIODS[number]['key'];
+export function readPeriodSince(period: ReadPeriod, now: number): string {
+    const date = new Date(now);
+    if (period === 'all') return '0000-01-01';
+    if (period === '12m') {
+        const day = date.getUTCDate();
+        date.setUTCDate(1); date.setUTCFullYear(date.getUTCFullYear() - 1);
+        const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+        date.setUTCDate(Math.min(day, end));
+    } else date.setUTCDate(date.getUTCDate() - (period === '30d' ? 29 : period === '7d' ? 6 : 0));
+    return date.toISOString().slice(0, 10);
+}
 export type ReachPayload = {
     project_id: string;
     session_token: string;
@@ -51,9 +68,9 @@ export type ReadDetail = {
     actors: ReadActor[];
 };
 export interface ReadSignalService {
-    list(): Promise<ReachSummary[]>;
-    summary(projectId: string): Promise<ReachSummary>;
-    detail(projectId: string, page: number): Promise<ReadDetail>;
+    list(period?: ReadPeriod): Promise<ReachSummary[]>;
+    summary(projectId: string, period?: ReadPeriod): Promise<ReachSummary>;
+    detail(projectId: string, page: number, period?: ReadPeriod): Promise<ReadDetail>;
     weekly(week: string): Promise<void>;
 }
 export const viewportBucket = (width: number): ReachPayload['vw_bucket'] => width < 400 ? '<400' : width < 640 ? '400-639' : width < 1024 ? '640-1023' : width < 1440 ? '1024-1439' : '1440+';

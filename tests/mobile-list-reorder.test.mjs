@@ -100,7 +100,7 @@ const ReorderGroup = () => null;
 const MobileReorderList = () => null;
 function projectHarness() {
   const slots = []; let cursor = 0;
-  const react = { ...React,
+  const react = { ...React, lazy: () => MobileReorderList,
     useState(initial) { const i=cursor++; if(!(i in slots)) slots[i]=typeof initial==='function'?initial():initial;return [slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}]; },
     useRef(initial) { const i=cursor++; return slots[i]??={current:initial}; },
     useCallback: fn => fn, useLayoutEffect() {},
@@ -137,7 +137,8 @@ test('mobile project groups emit complete membership without changing pinned or 
   assert.deepEqual(h.props.pinnedIds, ['p1', 'p2']);
   assert.deepEqual(h.props.hiddenIds, ['h1', 'h2']);
   h.props.mobileReorderDisabled = true;
-  assert.ok(all(h.render()).filter(node => node.type === MobileReorderList).every(node => node.props.disabled));
+  assert.equal(all(h.render()).filter(node => node.type === MobileReorderList).length, 0);
+  assert.equal(all(h.render()).filter(node => node.type === 'ul').length, 3);
 });
 
 test('visitor index has no reordering and WEB keeps its original drag group', () => {

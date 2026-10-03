@@ -1,7 +1,6 @@
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type City } from '../data/cities';
-import { BroadcastTicker } from './BroadcastTicker';
 import { buildLandPaths, buildPolarCaps, GLOBE_ATMOSPHERE, GLOBE_CENTER, GLOBE_COLORS, GLOBE_RADIUS, isNightAt, LAND_TONES_DAY, LAND_TONES_NIGHT } from './CityGlobe';
 import { GeographicLayer } from './portalink/GeographicLayer';
 import { WorldViewToggle } from './portalink/WorldViewToggle';
@@ -10,7 +9,7 @@ import { useServices } from '../contexts/ServicesContext';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../app/splashLifecycle';
 import { LocationSearch } from './profile/LocationSearch';
-import type { DirectoryPlace } from '../data/locationDirectory';
+import { placeLabel, type DirectoryPlace } from '../data/locationDirectory';
 import { usePresentation } from '../presentation/usePresentation';
 import { useDialogViewport } from '../hooks/useDialogViewport';
 type PortalinkPageProps = {
@@ -29,7 +28,7 @@ const MAX_SCALE = 8;
 export function PortalinkPage({
   onBack,
   onSelectCity,
-  live
+  live: _live
 }: PortalinkPageProps) {
   const isMobile = usePresentation() === 'mobile';
   const searchViewportRef = useDialogViewport(isMobile);
@@ -318,13 +317,13 @@ export function PortalinkPage({
 
       <div ref={searchViewportRef} className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
         <LocationSearch label="Find a place" value={query} onChange={setQuery} above
-          onSelect={place => { focusCity(place); onSelectCity(place); }} />
+          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); onSelectCity(place); }} />
         {isMobile && <button type="button" className="portalink-search-done" onClick={event => event.currentTarget.blur()}>Done</button>}
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}
       <div data-mobile-scroll-end="" className="relative z-10 shrink-0">
-        <BroadcastTicker live={live} />
+
       </div>
     </div>;
 }

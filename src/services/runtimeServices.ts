@@ -1,5 +1,5 @@
 import { services as connected } from './productionServices';
-import { mockAnalyticsService, mockCommentService, mockCommerceService, mockDiscoveryService, mockEngagementService, mockLiveService, mockMediaService, mockMessagingService, mockNotificationService, mockProfileService, mockProjectService, mockSearchService, mockSocialService } from './mocks';
+import { mockCommentService, mockDiscoveryService, mockEngagementService, mockLiveService, mockMediaService, mockMessagingService, mockNotificationService, mockProfileService, mockProjectService, mockSocialService } from './mocks';
 import { prototypeAuthService } from './prototype/authService';
 import { isProductionRuntime, isSupabaseConfigured } from './supabase/client';
 import { unavailableCreatorSaveService } from './supabase/creatorSaveService';
@@ -15,7 +15,6 @@ export const services: Services = {
     projects: mockProjectService,
     media: mockMediaService,
     discovery: mockDiscoveryService,
-    search: mockSearchService,
     social: mockSocialService,
     engagement: mockEngagementService,
     creatorSaves: unavailableCreatorSaveService,
@@ -25,7 +24,5 @@ export const services: Services = {
   } : {}),
   ...(!isProductionRuntime ? {
     live: mockLiveService,
-    analytics: mockAnalyticsService,
-    commerce: mockCommerceService,
   } : {}),
 };

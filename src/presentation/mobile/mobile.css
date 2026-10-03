@@ -3590,7 +3590,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-insights-content { padding: 12px 18px calc(32px + env(safe-area-inset-bottom, 0px)); }
 [data-presentation='mobile'] .mobile-insights-content button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 [data-presentation='mobile'] .mobile-insights-period { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-[data-presentation='mobile'] .mobile-insights-period > span { padding: 12px 16px; border-radius: 4px; background: var(--surface-inset); font-size: 15px; font-weight: 600; }
+[data-presentation='mobile'] .mobile-insights-period > select { min-height: 44px; padding: 12px 16px; border-radius: 4px; background: var(--surface-inset); color: var(--text-primary); font-size: 15px; font-weight: 600; }
 [data-presentation='mobile'] .mobile-insights-period button, [data-presentation='mobile'] .mobile-insights-section header button { min-height: 44px; padding: 8px 0 8px 12px; color: var(--text-secondary); font-size: 13px; }
 [data-presentation='mobile'] .mobile-insights-period button:disabled { opacity: .5; }
 [data-presentation='mobile'] .mobile-insights-headline { margin: 28px 0 24px; font-size: clamp(30px, 8.3vw, 36px); line-height: 1.08; letter-spacing: -.045em; font-weight: 700; overflow-wrap: anywhere; }
@@ -3616,6 +3616,9 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-insights-list li > button { display: flex; align-items: center; width: 100%; gap: 16px; text-align: start; }
 [data-presentation='mobile'] .mobile-insights-project-art { width: 68px; height: 68px; flex-shrink: 0; border-radius: 6px; background: var(--surface-inset); display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--text-secondary); }
 [data-presentation='mobile'] .mobile-insights-project-art small { font-size: 12px; }
+[data-presentation='mobile'] .mobile-insights-project-art { position: relative; overflow: hidden; }
+[data-presentation='mobile'] .mobile-insights-project-art > :first-child:not(small) { width: 100%; height: 100%; }
+[data-presentation='mobile'] .mobile-insights-project-art small { position: absolute; bottom: 2px; right: 2px; padding: 1px 4px; border-radius: 3px; background: var(--surface-canvas); color: var(--text-primary); }
 [data-presentation='mobile'] .mobile-insights-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 [data-presentation='mobile'] .mobile-insights-row-text strong { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 [data-presentation='mobile'] .mobile-insights-row-text > span { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-secondary); }
@@ -3681,9 +3684,129 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .profile-collection-name:has([data-preview-creator-name]) { display: block; width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; }
 [data-presentation='mobile'] .profile-collection-name [data-preview-creator-name] { display: block; width: 100%; font-size: inherit; font-weight: inherit; text-align: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [data-presentation='mobile'] .profile-collection-name [data-preview-creator-name] > span { white-space: nowrap; }
+[data-presentation='mobile'] .profile-collection-name [data-preview-creator-name][data-name-overflow] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 20px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 20px), transparent);
+  text-overflow: clip;
+}
 
 /* The headerless inbox still needs status-bar clearance for Search. */
 #root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
 
 /* Give active city search the screen without the app dock. */
 #root .codex-shell[data-presentation='mobile']:has(.portalink-world-search:focus-within) [data-mobile-navigation-layer] { display: none; }
+/* Bio authoring uses the entire visual viewport, including above the keyboard. */
+[data-presentation='mobile'] .mobile-project-description-sheet[data-writing-screen],
+#root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet[data-writing-screen] {
+  height: 100%;
+  max-height: 100%;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding-top: env(safe-area-inset-top);
+  box-shadow: none;
+  animation: none;
+  transition: none;
+}
+[data-presentation='mobile'] [data-writing-screen] .project-description-heading { padding-top: 8px; }
+[data-presentation='mobile'] [data-writing-screen] .project-description-editor { overflow: hidden; }
+[data-presentation='mobile'] [data-writing-screen] .project-description-editor textarea {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Mobile conversation: floating identities and controls above a calm transcript. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > header {
+  position: absolute;
+  inset: var(--mobile-content-safe-top, 0px) 0 auto;
+  z-index: 30;
+  height: 126px;
+  border: 0 !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] {
+  position: relative;
+  display: block;
+  padding: 12px 16px;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > :is(button, a) { pointer-events: auto; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button {
+  position: absolute;
+  top: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px !important;
+  border: 1px solid var(--hairline-strong) !important;
+  background: color-mix(in srgb, var(--surface-raised) 76%, transparent) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button:first-child { left: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button:last-child { right: 16px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] {
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border: 0 !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > a {
+  position: absolute;
+  top: 78px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 55%;
+  height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-raised) 76%, transparent);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > [role='status'] {
+  position: absolute;
+  top: 114px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] #messages-thread-panel:not(.hidden) {
+  height: var(--mobile-viewport-height, 100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-scroll] {
+  padding: calc(var(--mobile-content-safe-top, 0px) + 140px) 16px 20px;
+  scroll-padding-top: 140px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] {
+  max-width: 90%;
+  border-radius: 24px;
+  padding: 16px 18px;
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p {
+  font-size: 18px;
+  line-height: 1.4;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] {
+  width: 100%;
+  border: 1px solid var(--hairline-strong) !important;
+  background: color-mix(in srgb, var(--surface-raised) 78%, transparent) !important;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
+}
+#root .codex-shell[data-presentation='mobile'].reduce-translucency [data-mobile-chat] :is([data-message-composer], [data-conversation-header] > button, [data-conversation-header] > a) {
+  background: var(--surface-raised) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > header::after { content: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] :is(.squircle, .shape-squircle-compact, img) { border-radius: 999px !important; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'],
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] .squircle { corner-shape: round !important; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] :is([role='menu'], [role='dialog']) { pointer-events: auto; }

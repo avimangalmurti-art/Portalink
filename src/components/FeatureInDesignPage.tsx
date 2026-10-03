@@ -1,15 +1,14 @@
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React from 'react';
-import { ArrowLeftIcon, BarChart3Icon, WarehouseIcon } from 'lucide-react';
+import { ArrowLeftIcon, WarehouseIcon } from 'lucide-react';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { PortalRingIcon } from './PortalRingIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
 
-export type InDesignFeature = 'Portals' | 'Insights' | 'Studio';
+export type InDesignFeature = 'Portals' | 'Studio';
 
 const FEATURE_ICONS: Record<InDesignFeature, InterfaceIconSource> = {
   Portals: PortalRingIcon,
-  Insights: BarChart3Icon,
   Studio: WarehouseIcon,
 };
 

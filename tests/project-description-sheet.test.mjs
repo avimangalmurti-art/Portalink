@@ -26,6 +26,7 @@ function harness(owner = false, props = {}, fullscreen = false) {
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: (element, host) => { portalHost = host; return element; } };
     if (name.endsWith('/DiscardConfirmationLayer')) return { DiscardConfirmationLayer: 'discard-layer' };
+    if (name.endsWith('/TextFormattingToolbar')) return { TextFormattingToolbar: 'text-format-toolbar' };
     if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => viewport };
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close, preventScroll) => {
       assert.equal(preventScroll, true, 'Sliding sheets must not scroll their overlay to the translated focus target');
@@ -172,4 +173,34 @@ test('failed discard keeps its confirmation and draft until Keep editing or a su
   h.click('Close description'); await h.click('Discard changes');
   assert.equal(h.closes, 1);
   assert.equal(attempts, 2);
+});
+test('mobile Bio writing uses its full screen and returns to reading after save or cancel', async () => {
+  const editor = { isEditing: false, phase: 'idle', value: 'Original', isDirty: false, isSaving: false,
+    open() { this.isEditing = true; this.phase = 'editing'; },
+    onChange(value) { this.value = value; this.isDirty = true; },
+    save() { this.phase = 'saved'; this.savedValue = this.value; this.isDirty = false; },
+    async close() { this.isEditing = false; this.phase = 'idle'; this.isDirty = false; return true; },
+  };
+  const h = harness(false, { contentLabel: 'Bio', fullScreenEditor: true, textEditor: editor });
+  const section = () => nodes(h.render()).find(n => n.type === 'section');
+  h.click('Bio options'); h.click('Edit bio');
+  assert.equal(section().props['data-writing-screen'], true);
+  const formatting = nodes(h.render()).find(n => n.type === 'text-format-toolbar');
+  assert.equal(formatting.props.variant, 'dropdown');
+  assert.equal(nodes(nodes(h.render()).find(n => n.type === 'header')).filter(n => n.type === 'text-format-toolbar').length, 1);
+  assert.equal(nodes(nodes(h.render()).find(n => n.type === 'form')).filter(n => n.type === 'text-format-toolbar').length, 0);
+  assert.equal(h.button('Reduce bio sheet'), undefined);
+  h.click('Cancel');
+  assert.equal(section().props['data-writing-screen'], undefined);
+  h.click('Bio options'); h.click('Edit bio');
+  nodes(h.render()).find(n => n.type === 'textarea').props.onChange({ target: { value: 'Updated' } });
+  h.escape(); assert.ok(h.button('Keep editing'));
+  h.click('Keep editing');
+  assert.equal(section().props['data-writing-screen'], true);
+  nodes(h.render()).find(n => n.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(section().props['data-writing-screen'], undefined);
+  assert.ok(h.button('Done'));
+  const web = harness(false, { contentLabel: 'Bio', textEditor: { ...editor, phase: 'editing' } });
+  assert.equal(nodes(web.render()).find(n => n.type === 'section').props['data-writing-screen'], undefined);
+  assert.ok(web.button('Expand bio sheet'));
 });

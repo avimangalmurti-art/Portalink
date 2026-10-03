@@ -13,7 +13,7 @@ function nodes(node) {
 }
 function harness({ presentation = 'mobile', isOwner = false, mobileLayout, sharedReadOnly, publishedAt = '2026-09-14T12:00:00Z' } = {}) {
   const exports = {};
-  const react = { ...React, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
+  const react = { ...React, lazy: () => MobileReorderList, useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}],
     useRef: current => ({ current }), useCallback: fn => fn, useLayoutEffect() {} };
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/ProjectIndexList.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },

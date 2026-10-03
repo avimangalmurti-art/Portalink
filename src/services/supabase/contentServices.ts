@@ -9,7 +9,6 @@ import type {
   DiscoveryService,
   ProfileService,
   ProjectService,
-  SearchService,
 } from '../interfaces';
 import type {
   CategoryFormat,
@@ -20,7 +19,6 @@ import type {
 import type {
   CreateProfileInput,
   CreateProfileResult,
-  HandleAvailability,
 } from '../../types/profile';
 import {
   CategoryMutationError,
@@ -38,15 +36,11 @@ import { ProjectMutationError, PublishServiceError } from '../../types/publishin
 import { removeStoredMedia } from './multipartMedia';
 import { typefaces } from '../../data/typefaces';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
-import { cities } from '../../data/cities';
-import { getCountryCode } from '../../data/countryCodes';
-import { toLocationId } from '../../utils/location';
 import { locationDirectory, profileMatchesPlace } from '../../data/locationDirectory';
 import type { DiscoverySignal, ExplorationMode, HomeFeedMode, ProjectFeedCursor } from '../../types/discovery';
 import {
   buildUserContentSphere,
   deriveProjectRelevance,
-  parseExplicitLocationIntent,
   projectRelevanceForPersistence,
   rankDiscoverProjects,
   rankHomeProjects,
@@ -68,6 +62,7 @@ type DraftRow = {
   title: string;
   summary: string;
   created_at: string;
+  updated_at?: string;
 };
 
 function normalizeHandle(handle: string): string {
@@ -111,20 +106,6 @@ export const supabaseProfileService: ProfileService = {
       .eq('id', profileId).eq('account_id', authData.session.user.id).select('id,project_grid_columns').single();
     if (error) throwProfileError(error, 'Your project layout could not be saved.');
     return { id: data.id, projectGridColumns: normalizeProjectGridColumns(data.project_grid_columns) };
-  },
-
-  async checkHandleAvailability(handle): Promise<HandleAvailability> {
-    const normalized = normalizeHandle(handle);
-    const { count, error } = await requireSupabase()
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('handle', normalized);
-    if (error) throwProfileError(error, 'Handle availability could not be checked.');
-    return {
-      handle: normalized,
-      isAvailable: count === 0,
-      reason: count === 0 ? undefined : 'That handle is already taken.',
-    };
   },
 
   async createProfile(accountId, input): Promise<CreateProfileResult> {
@@ -363,6 +344,7 @@ function draftFromRow(row: DraftRow): ProjectDraft {
     categoryId: row.category_id,
     metadata: { title: row.title, summary: row.summary },
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -493,12 +475,18 @@ export const supabaseProjectService: ProjectService = {
     if (failed?.error) throw new Error(failed.error.message);
   },
 
-  async uploadProjectMedia() {
-    throw new ProjectMutationError('invalid_media', 'Use the publishing flow to upload and publish work.');
-  },
-
   updateProjectCreationDetails: saveProjectCreationDetails,
   updateProjectJourneyDetails: saveProjectJourneyDetails,
+  async listDrafts(profileId) {
+    const client = requireSupabase();
+    const { data: identity } = await client.auth.getUser();
+    if (!identity.user) throw new PublishServiceError('not_owner', 'Sign in to see your drafts.');
+    const { data: owner, error: ownerError } = await client.from('profiles').select('account_id').eq('id', profileId).single();
+    if (ownerError || owner?.account_id !== identity.user.id) throw new PublishServiceError('not_owner', 'Only the creator can see these drafts.');
+    const { data, error } = await client.from('project_drafts').select('*').eq('profile_id', profileId).order('updated_at', { ascending: false });
+    if (error) throw new PublishServiceError('network', error.message);
+    return (data ?? []).map(row => draftFromRow(row as unknown as DraftRow));
+  },
   async getDraft(draftId) {
     const { data, error } = await requireSupabase().from('project_drafts').select('*').eq('id', draftId).maybeSingle();
     if (error) throw new PublishServiceError('network', error.message);
@@ -585,7 +573,12 @@ export const supabaseProjectService: ProjectService = {
     // to publish a duplicate project. Surface a recoverable cover-only warning.
     let coverMessage: string | undefined;
     try { coverMessage = await refreshProjectCoverThumbnail(projectId, () => this.getProject(projectId)); }
-    catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
+    catch {
+      // A transient decode/upload failure can recover without publishing again.
+      // Immutable paths and the manifest revision check keep this retry safe.
+      try { coverMessage = await refreshProjectCoverThumbnail(projectId, () => this.getProject(projectId)); }
+      catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
+    }
     return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage, creationDetailsPending };
   },
 
@@ -904,12 +897,6 @@ export const supabaseDiscoveryService: DiscoveryService = {
     });
     if (error) throw new Error(isMissingDiscoveryTable(error) ? 'Discovery preferences are not available yet.' : error.message);
   },
-  async getFeaturedProject() {
-    return (await this.getHomeDiscovery()).featured;
-  },
-  async listFeedProjects() {
-    return (await this.getHomeDiscovery()).projects;
-  },
   async listLocationProjects(locationId) {
     const city = await locationDirectory.resolve(locationId);
     if (!city) return [];
@@ -935,69 +922,5 @@ export const supabaseDiscoveryService: DiscoveryService = {
     if (error) throwProfileError(error, 'Creators could not be loaded.');
     return ((data ?? []) as unknown as Array<Pick<ProfileRow, 'id' | 'name' | 'headline' | 'avatar_url' | 'location'>>)
       .map((row) => ({ id: row.id, name: row.name, kind: row.headline, avatar: row.avatar_url, location: row.location, isPrivate: false }));
-  },
-};
-
-export const supabaseSearchService: SearchService = {
-  async search(query) {
-    const term = query.trim().replace(/[^\p{L}\p{N}\s_-]/gu, ' ').replace(/\s+/g, ' ');
-    if (!term) return [];
-    const client = requireSupabase();
-    const explicitLocation = parseExplicitLocationIntent(term);
-    const normalized = (value: string) => value.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-    const locationWords = new Set(normalized(explicitLocation?.label ?? '').split(/\s+/).filter(Boolean));
-    const semanticTokens = normalized(term).split(/\s+/).filter((token) => token.length > 1 && token !== 'in' && token !== 'near' && !locationWords.has(token));
-    const normalizedTerm = normalized(term);
-    const locationRows = cities.filter((city) => {
-      const cityName = normalized(city.name);
-      if (explicitLocation) return cityName === normalized(explicitLocation.label);
-      const words = cityName.split(' ');
-      return cityName === normalizedTerm || words.some((word) => word === normalizedTerm || (normalizedTerm.length >= 4 && word.startsWith(normalizedTerm)));
-    }).slice(0, 20);
-    const locationResults = locationRows.map((city) => ({ id: toLocationId(city.name), kind: 'location' as const, title: city.name, subtitle: getCountryCode(city.name) }));
-    const search = await client.rpc('search_public_content', { p_terms: semanticTokens, p_location: explicitLocation?.label ?? null });
-    if (!search.error) {
-      const rows = (search.data ?? []) as unknown as Array<{ id: string; kind: 'profile' | 'project'; title: string; subtitle: string; avatar: string | null }>;
-      return [...rows.map((row) => ({ ...row, avatar: row.avatar ?? undefined })), ...locationResults];
-    }
-    if (search.error.code !== 'PGRST202' && search.error.code !== '42883') throw new Error(search.error.message);
-    // Compatibility until the separately approved search migration is applied.
-    const [profiles, projects, categories] = await Promise.all([
-      client.from('profiles').select('id,name,handle,headline,location,avatar_url').eq('is_private', false).limit(100),
-      client.from('projects').select('id,profile_id,category_id,title,summary,topic_keys').eq('is_hidden', false).order('published_at', { ascending: false }).limit(120),
-      client.from('portfolio_categories').select('id, label').eq('is_hidden', false).limit(240),
-    ]);
-    if (profiles.error) throw new Error(profiles.error.message);
-    if (projects.error) throw new Error(projects.error.message);
-    if (categories.error) throw new Error(categories.error.message);
-    const profileRows = (profiles.data ?? []) as unknown as ProfileRow[];
-    const projectRows = (projects.data ?? []) as unknown as ProjectRow[];
-    const categoryRows = (categories.data ?? []) as unknown as Array<Pick<CategoryRow, 'id' | 'label'>>;
-    const publicProfileIds = new Set(profileRows.map((row) => row.id));
-    const categoryLabels = new Map(categoryRows.map((row) => [row.id, row.label]));
-    const profilesById = new Map(profileRows.map((row) => [row.id, row]));
-    const matchesSemantic = (value: string) => {
-      const words = normalized(value).split(/\s+/).filter(Boolean);
-      return semanticTokens.length === 0 || semanticTokens.every((token) => words.some((word) => word === token || (token.length >= 4 && word.startsWith(token))));
-    };
-    const matchingProfiles = profileRows.filter((row) => {
-      const text = `${row.name} ${row.handle} ${row.headline} ${row.location}`;
-      if (explicitLocation && !creatorLocationMatches(row.location, explicitLocation.label)) return false;
-      return matchesSemantic(text);
-    }).slice(0, 20);
-    const matchingProjects = projectRows.filter((row) => {
-      if (!publicProfileIds.has(row.profile_id)) return false;
-      if (!categoryLabels.has(row.category_id)) return false;
-      const categoryLabel = categoryLabels.get(row.category_id) ?? '';
-      const topicLabels = (row.topic_keys ?? []).map((topic) => topic.replace(/[-_]+/g, ' ')).join(' ');
-      const creator = profilesById.get(row.profile_id);
-      const placeMatches = !explicitLocation || Boolean(creator && creatorLocationMatches(creator.location, explicitLocation.label));
-      return placeMatches && matchesSemantic(`${row.title} ${row.summary} ${categoryLabel} ${topicLabels}`);
-    }).slice(0, 30);
-    return [
-      ...matchingProfiles.map((row) => ({ id: row.id, kind: 'profile' as const, title: row.name, subtitle: `@${row.handle}`, avatar: row.avatar_url })),
-      ...matchingProjects.map((row) => ({ id: row.id, kind: 'project' as const, title: row.title, subtitle: row.summary || categoryLabels.get(row.category_id) })),
-      ...locationResults,
-    ];
   },
 };

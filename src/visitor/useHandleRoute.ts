@@ -23,18 +23,25 @@ export function useHandleRoute(original: AppRoute): { route: AppRoute; pending: 
     void profiles.resolvePublicHandle?.(handle).then(value => {
       if (!active) return;
       setState({ handle, value, done: true });
-      if (value?.alias) navigate(portfolioPath(value.profileId, value.handle) + location.search, { replace: true });
+      if (value?.alias) navigate(portfolioPath(value.profileId, value.handle) + location.pathname.slice(handle.length + 1).replace(/\/$/, '') + location.search, { replace: true });
     }).catch(() => { if (active) { setState({ handle, value: null, done: true }); setError({ handle, message: 'This portfolio could not load. Please try again.' }); } });
     if (!profiles.resolvePublicHandle) setState({ handle, value: null, done: true });
     return () => { active = false; };
-  }, [handle, state.handle, state.done, profiles, navigate, location.search, attempt]);
-  const uuidProfileId = original.kind === 'sharedProfile' ? original.profileId : null;
+  }, [handle, state.handle, state.done, profiles, navigate, location.pathname, location.search, attempt]);
+  const uuidProfileId = original.kind === 'sharedProfile' || original.kind === 'sharedCategory' || original.kind === 'sharedProject' || original.kind === 'sharedCollaboration' ? original.profileId : null;
   // SPA visits to old UUID roots use the same canonical address as HTTP redirects.
   useEffect(() => {
     if (handle || !uuidProfileId) return;
     let active = true;
-    void profiles.getShareAddress?.(uuidProfileId).then(address => { if (active && address.handle) navigate(portfolioPath(uuidProfileId, address.handle) + location.search, { replace: true }); }).catch(() => undefined);
+    const suffix = location.pathname.slice(`/share/${uuidProfileId}`.length).replace(/\/$/, '');
+    void profiles.getShareAddress?.(uuidProfileId).then(address => { if (active && address.handle) navigate(portfolioPath(uuidProfileId, address.handle) + suffix + location.search, { replace: true }); }).catch(() => undefined);
     return () => { active = false; };
-  }, [handle, uuidProfileId, profiles, navigate, location.search]);
-  return { error: handle && error?.handle === handle ? error.message : '', retry: () => { setState(current => ({...current,done:false})); setAttempt(n=>n+1); }, route: handle && state.handle === handle && state.value ? { kind: 'sharedProfile', profileId: state.value.profileId } : original, pending: Boolean(handle && (state.handle !== handle || !state.done)) };
+  }, [handle, uuidProfileId, profiles, navigate, location.pathname, location.search]);
+  const suffix = /^\/[^/]+\/c\/([a-z0-9_-]+)(?:\/([a-z0-9_-]+))?\/?$/i.exec(location.pathname);
+  const resolved: AppRoute = handle && state.handle === handle && state.value ? suffix?.[2]
+    ? { kind: 'sharedProject', profileId: state.value.profileId, categoryId: suffix[1], projectId: suffix[2] }
+    : suffix?.[1] ? { kind: 'sharedCategory', profileId: state.value.profileId, categoryId: suffix[1] }
+    : location.pathname.endsWith('/collaboration') ? { kind: 'sharedCollaboration', profileId: state.value.profileId }
+    : { kind: 'sharedProfile', profileId: state.value.profileId } : original;
+  return { error: handle && error?.handle === handle ? error.message : '', retry: () => { setState(current => ({...current,done:false})); setAttempt(n=>n+1); }, route: resolved, pending: Boolean(handle && (state.handle !== handle || !state.done)) };
 }

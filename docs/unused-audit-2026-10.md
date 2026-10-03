@@ -1,3 +1,19 @@
+## October 2 — Phase 2 integrated with mobile polish
+
+The user's “do all” request authorizes completing the ranked public-entry issues and combining the approved low-risk cleanup. One owning chat continues in `logs/mobile-writing-portal-fix`, branch `codex/mobile-writing-portal-fix`, starting release `04f9ea1` (Sites 290). The cleanup snapshot comes from `codex/unused-code-audit-20261001` at `db39bfc`, the common ancestor; the original checkout and its uncommitted work remain untouched.
+
+The 40 unreachable files, inert BroadcastTicker and erased imports were removed; registry/export/retired feed wiring and the unused @emotion/react package were reconciled with later mobile fixes. Five changed files were reconciled manually. ASK candidates, CSS cleanup, data-bearing resources, deletion safety, workers, credentials and pending SQL remain protected. This document's historical Phase 1 text below records the original evidence, not the current approval state.
+
+The same branch removes the public appearance welcome, defers publishing/reordering chunks, suppresses public owner-job polling, supports handle/category/project URLs and preserves old-link targets, and retries thumbnail preparation after a single publish. These are scoped performance improvements, not completion of an unlocated scaling blueprint.
+
+Comparable connected local production builds at starting HEAD versus this combined branch: main initial raw JS 1,058,453 → 1,054,861 bytes, CSS 361,264 → 357,410; visitor JS 881,863 → 835,059, CSS 310,963 → 304,219. Static import closure only; this does not measure live latency, transfer compression or scalability. Deleting previously unreachable files alone cannot explain this reduction. Public project static dependencies exclude publishing UI, welcome media and @dnd-kit.
+
+Typecheck, lint and connected client/worker build pass. Entry/account/retry and reorder tests pass; 32 older test failures were reproduced from an untouched starting-commit archive. Combined final-suite results are in the handoff. Actual 420×912 browser verification confirms immediate Portfolio, all eleven covers loaded, portal row visibility, handle project navigation and guest signup entry. WEB 1280×900 retains sidebar/category navigation. Chromium emulation does not prove iPhone Safari/PWA behavior.
+
+Live follow-ups: claim `/portalite` through the existing authenticated owner RPC (currently an alias of `/portalite.work`), regenerate the one missing stickerbomb thumbnail through the owner cover pipeline, and configure SMTP after provider/sender/access are supplied. No new SQL is required for the handle claim. No live data/configuration change or publication has been made. No separate scaling prompt was found in the inspected handoffs; its scope must be supplied before a broader architecture change.
+
+---
+
 # Portalink unused-code audit — October 2026
 
 **Phase 1: report only. No item below is approved for removal.** Source, tests, packages, schemas, Storage, runtime configuration and deployment were not changed. Only this report, the handoff and ignored local audit evidence were written.

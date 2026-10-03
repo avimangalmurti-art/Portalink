@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import React from 'react';
+import { ProjectCover } from '../media/ProjectCover';
 import { FileIcon, MoveIcon, RotateCcwIcon } from 'lucide-react';
 import type { PreparedMedia } from '../../types/publishing';
 import type { ProjectCoverFrame } from '../../types/domain';
@@ -181,4 +183,9 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
     </div>
     </div>}
   </section>;
+}
+
+/** Cover selection from canonical published files, without fabricated uploads. */
+export function PublishedCoverFilmstrip({attachments,selectedId,disabled,onSelect,onAddFiles}:{attachments:import('../../types/domain').ProjectAttachment[];selectedId?:string;disabled:boolean;onSelect:(id:string)=>void;onAddFiles?:()=>void}) {
+ return <section aria-label="Choose a project cover"><h3>Set a cover</h3>{!attachments.some(item=>['image','document','video'].includes(item.kind))?<p>Add an image, video or PDF to choose a cover.</p>:null}{onAddFiles?<button type="button" className="studio-workbench-link" disabled={disabled} onClick={onAddFiles}>Add a cover file</button>:null}<div className="flex gap-3 overflow-x-auto py-3">{attachments.filter(item=>['image','document','video'].includes(item.kind)).map(item=><button key={item.id} type="button" data-project-cover-choice="" aria-pressed={item.id===selectedId} disabled={disabled} onClick={()=>onSelect(item.id)} className="shrink-0 rounded-xl border border-[var(--hairline-strong)] p-2"><span className="block h-24 w-24 overflow-hidden rounded-lg"><ProjectCover source={item.sourceUrl} alt={item.fileName} kind={item.kind==='document'?'document':item.kind==='video'?'video':undefined} pageNumber={item.metadata?.coverPageNumber}/></span><span className="block max-w-24 truncate">{item.fileName}</span>{item.id===selectedId?'Selected':'Set cover'}</button>)}</div></section>;
 }

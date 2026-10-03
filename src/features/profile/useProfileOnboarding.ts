@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { normalizeHandle } from './validation';
-import type { CreateProfileInput, HandleCheckStatus, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
+import type { CreateProfileInput, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
 import type { Profile } from '../../types/domain';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registration';
@@ -136,103 +135,6 @@ export function useAvatarSelection(): AvatarSelection {
     clear
   };
 }
-export type HandleCheck = {
-  status: HandleCheckStatus;
-  /** The normalized handle the current answer applies to. */
-  checkedHandle: string | null;
-  message: string | null;
-  check: (handle: string) => void;
-  reset: () => void;
-  retry: () => void;
-};
-
-/**
- * Availability, as its own lifecycle: idle → checking → available / unavailable
- * / error, with retry. Debounced so typing does not flood the service.
- */
-export function useHandleAvailability(): HandleCheck {
-  const {
-    profiles
-  } = useServices();
-  const [status, setStatus] = useState<HandleCheckStatus>('idle');
-  const [checkedHandle, setCheckedHandle] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const lastRequestedRef = useRef<string | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const run = useCallback(async (handle: string) => {
-    lastRequestedRef.current = handle;
-    setStatus('checking');
-    setMessage(null);
-    try {
-      const result = await profiles.checkHandleAvailability(handle);
-      // Ignore answers to a handle the user has already moved on from.
-      if (lastRequestedRef.current !== handle) {
-        return;
-      }
-      setCheckedHandle(result.handle);
-      setStatus(result.isAvailable ? 'available' : 'unavailable');
-      setMessage(result.isAvailable ? `${result.handle} is available.` : result.reason ?? 'That handle is not available.');
-    } catch (caught) {
-      if (lastRequestedRef.current !== handle) {
-        return;
-      }
-      setStatus('error');
-      setMessage(caught instanceof Error ? caught.message : 'Could not check that handle.');
-    }
-  }, [profiles]);
-  const check = useCallback((handle: string) => {
-    const normalized = normalizeHandle(handle);
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-    }
-    if (!normalized) {
-      lastRequestedRef.current = null;
-      setStatus('idle');
-      setCheckedHandle(null);
-      setMessage(null);
-      return;
-    }
-    // Invalidate an older in-flight answer immediately, rather than leaving it
-    // current during this new value's debounce window.
-    lastRequestedRef.current = normalized;
-    setStatus('checking');
-    setMessage(null);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      void run(normalized);
-    }, 350);
-  }, [run]);
-  useEffect(() => () => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-    }
-    lastRequestedRef.current = null;
-  }, []);
-  const reset = useCallback(() => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    lastRequestedRef.current = null;
-    setStatus('idle');
-    setCheckedHandle(null);
-    setMessage(null);
-  }, []);
-  const retry = useCallback(() => {
-    if (lastRequestedRef.current) {
-      void run(lastRequestedRef.current);
-    }
-  }, [run]);
-  return {
-    status,
-    checkedHandle,
-    message,
-    check,
-    reset,
-    retry
-  };
-}
-
 /** Creating the profile, and linking it to the account for this session. */
 export function useCreateProfile() {
   const services = useServices();

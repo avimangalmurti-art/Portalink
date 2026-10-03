@@ -22,9 +22,6 @@ export type AppRoute = {
 } | {
   kind: 'profileEditor';
 } | {
-  kind: 'destination';
-  destination: NavigationDestination;
-} | {
   kind: 'portalink';
   locationId?: Id;
 } | {
@@ -193,14 +190,6 @@ function parse(pathname: string, search: string): AppRoute {
     return {
       kind: 'portalink',
       locationId: location.params.locationId
-    };
-  }
-  const destination = matchPath(routes.destination.path, pathname);
-  if (destination?.params.destinationSlug) {
-    // Legacy editorial feeds contained prototype-only content. Keep their old
-    // URLs from exposing sample work in production; Home is now the only feed.
-    return {
-      kind: 'unknown'
     };
   }
   if (matchPath(routes.controlCenter.path, pathname) || matchPath('/appearance', pathname)) {

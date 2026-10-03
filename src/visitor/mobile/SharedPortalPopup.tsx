@@ -16,7 +16,7 @@ export function SharedPortalPopup({ profile, categoryId, onClose, onSelect }: { 
     <ScreenBack action={onClose}>{null}</ScreenBack>
     <section ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
       <MobilePortalProjectToolbar category={category} onBack={onClose} sharedReadOnly layout="list" onLayout={()=>undefined} sort="saved" onSort={()=>undefined}/>
-      <nav className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}><ProjectIndexList profileId={profile.id} projects={projects} typefaceStacks={Object.fromEntries(projects.map(item=>[item.id,getTypefaceStack(item.design?.typefaceId??'default')]))} typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item=>item.isPinned).map(item=>item.id)} activeProjectId={null} isOwner={false} sharedReadOnly onReorder={()=>undefined} onToggleHidden={()=>undefined} onTogglePinned={()=>undefined} onSelect={id=>{onClose();onSelect(categoryId,id);}}/></nav>
+      <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}><ProjectIndexList profileId={profile.id} projects={projects} typefaceStacks={Object.fromEntries(projects.map(item=>[item.id,getTypefaceStack(item.design?.typefaceId??'default')]))} typefaceIds={{}} hiddenIds={[]} pinnedIds={projects.filter(item=>item.isPinned).map(item=>item.id)} activeProjectId={null} isOwner={false} sharedReadOnly onReorder={()=>undefined} onToggleHidden={()=>undefined} onTogglePinned={()=>undefined} onSelect={id=>{onClose();onSelect(categoryId,id);}}/></nav>
     </section>
   </div></ModalPortal>;
 }

@@ -171,6 +171,7 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     const { PortalinkPage } = load('src/components/PortalinkPage.tsx', name => {
       if (name === 'react') return react;
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+      if (name.endsWith('/locationDirectory')) return { placeLabel: place => `${place.name}, ${place.regionName}, ${place.countryCode}` };
       if (name.endsWith('/useDialogViewport')) return { useDialogViewport: enabled => { viewportEnabled.push(enabled); return { current: null }; } };
       if (name.endsWith('/ServicesContext')) return { useServices: () => ({ geography: { readLocalGeography: () => ({ cities: [] }) } }) };
       if (name.endsWith('/CityGlobe')) return { buildLandPaths: () => [], buildPolarCaps: () => [], isNightAt: () => false, GLOBE_ATMOSPHERE: {}, GLOBE_COLORS: {}, LAND_TONES_DAY: [], LAND_TONES_NIGHT: [], GLOBE_CENTER: 52, GLOBE_RADIUS: 50 };
@@ -181,6 +182,7 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     assert.equal(search().props.label, 'Find a place'); assert.equal(search().props.above, true);
     search().props.onChange('Oak'); assert.equal(search().props.value, 'Oak');
     search().props.onSelect(sample[0]); assert.deepEqual(visits, [sample[0]]);
+    assert.equal(search().props.value, 'Oakland, California, US');
     const globe = nodes(render()).find(node => node.props.role === 'group');
     assert.match(globe.props.className, presentation === 'mobile' ? /w-full max-w-\[min\(72vh,720px\)\]/ : /100cqw,100cqh,720px/);
     assert.equal(nodes(render()).some(node => node.props.style?.containerType === 'size'), presentation === 'web');

@@ -1,4 +1,4 @@
-import { projectPageMap, REACH_BUCKETS, REF_CLASSES, pageActionCopy, type ReachPayload, type ReachSummary, type ReadPage, type ReadDetail } from '../features/reads/readSignal';
+import { projectPageMap, REACH_BUCKETS, REF_CLASSES, READ_PERIODS, readPeriodSince, pageActionCopy, type ReadPeriod, type ReachPayload, type ReachSummary, type ReadPage, type ReadDetail } from '../features/reads/readSignal';
 import type { Notification, ProjectAttachment } from '../types/domain';
 export interface ReachStatement {
     bind(...values: unknown[]): ReachStatement;
@@ -252,11 +252,11 @@ export function summarizeRollups(rows: Rollup[], pageCount: number, sevenDay: st
     for(let page=pageCount-1;page>=0;page--){cumulative+=maxima[page];reach[page]=cumulative;}
     return { opened, finished, reach, refs, weekly };
 }
-export async function readProjectSummary(db: ReachDatabase, project: ProjectRow, now = Date.now()): Promise<ReachSummary> {
+export async function readProjectSummary(db: ReachDatabase, project: ProjectRow, now = Date.now(), period: ReadPeriod = '30d'): Promise<ReachSummary> {
     const reported = pageMap(project).length ? null : await db.prepare('SELECT max(page_count) count FROM project_reach_events WHERE project_id=?').bind(project.id).first<{
         count: number;
     }>();
-    const pages = pageMap(project, reported?.count), since = new Date(now - 29 * DAY).toISOString().slice(0, 10), seven = new Date(now - 6 * DAY).toISOString().slice(0, 10);
+    const pages = pageMap(project, reported?.count), since = readPeriodSince(period, now), seven = new Date(now - 6 * DAY).toISOString().slice(0, 10);
     const [rollups, saves, comments] = await Promise.all([
         db.prepare('SELECT day,opened,finished,max_page_hist,ref_counts FROM project_reach_daily WHERE project_id=? AND day>=? AND day<=?').bind(project.id, since, new Date(now).toISOString().slice(0, 10)).all<Rollup>(),
         db.prepare("SELECT attachment_id,page_index,count(*) count FROM media_engagements WHERE project_id=? AND kind='save' GROUP BY attachment_id,page_index").bind(project.id).all<{
@@ -302,22 +302,25 @@ function groupPageActions(actions: Action[]): Action[][] {
 export function coalescePageActions(actions: Action[]): Notification[] {
     return groupPageActions(actions).map(group => { const first = group[0], last = group[group.length - 1]; return { id: `d1:page:${first.id}`, body: pageActionCopy(first.actor_name, first.kind, first.page_index, first.project_title, first.heading ?? undefined, new Set(group.map(a => a.actor_profile_id)).size), timestamp: last.at, isUnread: true, kind: 'system', targetPath: first.target_path, actorProfileId: group.length === 1 ? first.actor_profile_id : null }; });
 }
-async function summaries(db: ReachDatabase, projects: ProjectRow[], now = Date.now()): Promise<ReachSummary[]> {
+async function summaries(db: ReachDatabase, projects: ProjectRow[], now = Date.now(), period: ReadPeriod = '30d'): Promise<ReachSummary[]> {
     const result: ReachSummary[] = [];
     for (let offset = 0; offset < projects.length; offset += 6)
-        result.push(...await Promise.all(projects.slice(offset, offset + 6).map(p => readProjectSummary(db, p, now))));
+        result.push(...await Promise.all(projects.slice(offset, offset + 6).map(p => readProjectSummary(db, p, now, period))));
     return result;
 }
 export async function handleReachRead(request: Request, db: ReachDatabase | undefined, config: Config): Promise<Response> {
     try {
         const url = new URL(request.url), id = url.searchParams.get('project_id') ?? undefined;
         const { user, projects } = await ownedProjects(request, config, id);
+        const periodText = url.searchParams.get('period') ?? '30d';
+        if (!READ_PERIODS.some(item => item.key === periodText)) return reachJson({ error: 'Invalid period.' }, 400);
+        const period = periodText as ReadPeriod;
         if (!db)
             return unavailable();
         if (url.pathname === '/api/reach/summary' && request.method === 'GET') {
             if (!id)
                 return reachJson({ error: 'Choose a project.' }, 400);
-            const summary = await readProjectSummary(db, projects[0]);
+            const summary = await readProjectSummary(db, projects[0], Date.now(), period);
             const pageText = url.searchParams.get('page');
             if (pageText === null)
                 return reachJson(summary);
@@ -345,7 +348,7 @@ export async function handleReachRead(request: Request, db: ReachDatabase | unde
             return reachJson(detail);
         }
         if (url.pathname === '/api/reach/projects' && request.method === 'GET')
-            return reachJson(await summaries(db, projects).then(rows => rows.sort((a, b) => b.opened - a.opened)));
+            return reachJson(await summaries(db, projects, Date.now(), period).then(rows => rows.sort((a, b) => b.opened - a.opened)));
         if (url.pathname === '/api/reach/notifications' && request.method === 'GET') {
             const allowed = new Map(projects.map(p => [p.id, p])), since = new Date(Date.now() - 30 * DAY).toISOString();
             const [actions, weekly, read] = await Promise.all([
@@ -452,4 +455,33 @@ export async function preparePageAction(request: Request, db: ReachDatabase, con
     const eventId = kind === 'save' ? `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20, 32)}` : id;
     const path = `/p/${project.profile_id}/c/${project.category_id}/${project.id}?${new URLSearchParams({ media: target.attachmentId, page: String(target.pageIndex + 1) })}`;
     return db.prepare(`INSERT OR IGNORE INTO project_page_actions(id,owner_account_id,actor_account_id,actor_profile_id,actor_name,project_id,attachment_id,page_index,kind,at,project_title,heading,target_path,comment_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).bind(eventId, project.profile.account_id, user.id, actor.id, actor.name.slice(0, 120), project.id, target.attachmentId, target.pageIndex, kind, new Date().toISOString(), project.title, typeof heading === 'string' ? heading.replace(/\s+/g, ' ').trim().slice(0, 120) : null, path, commentId ?? null);
+}
+
+/** One owner-only D1 read composition; no private saver identities leave this endpoint. */
+export async function handleStudioAttention(request: Request, db: ReachDatabase | undefined, config: Config): Promise<Response> {
+ try {
+  if (request.method !== 'GET') return reachJson({error:'Method not allowed.'},405);
+  const {user,projects}=await ownedProjects(request,config);
+  if(!db)return unavailable();
+  const ids=JSON.stringify(projects.map(p=>p.id)),since=new Date(Date.now()-7*DAY).toISOString();
+  const [comments,saves,counts]=await Promise.all([
+   db.prepare(`SELECT c.project_id,c.attachment_id,c.page_index,c.created_at,
+     NOT EXISTS(SELECT 1 FROM media_comments r WHERE r.project_id=c.project_id AND r.attachment_id=c.attachment_id AND r.page_index=c.page_index AND r.account_id=? AND julianday(r.created_at)>julianday(c.created_at)) AS unanswered
+     FROM media_comments c WHERE c.project_id IN (SELECT value FROM json_each(?)) AND c.account_id<>?
+     AND (julianday(c.created_at)>=julianday(?) OR NOT EXISTS(SELECT 1 FROM media_comments r WHERE r.project_id=c.project_id AND r.attachment_id=c.attachment_id AND r.page_index=c.page_index AND r.account_id=? AND julianday(r.created_at)>julianday(c.created_at))) ORDER BY c.created_at DESC`).bind(user.id,ids,user.id,since,user.id).all<{project_id:string;attachment_id:string;page_index:number;created_at:string;unanswered:number}>(),
+   db.prepare("SELECT project_id,attachment_id,page_index,at FROM project_page_actions WHERE owner_account_id=? AND actor_account_id<>? AND kind='save' AND at>=? AND project_id IN (SELECT value FROM json_each(?)) ORDER BY at DESC").bind(user.id,user.id,since,ids).all<{project_id:string;attachment_id:string;page_index:number;at:string}>().catch(error=>{if(/no such table.*project_page_actions/i.test(String(error)))return {results:[]};throw error;}),
+   db.prepare("SELECT count(*) AS total FROM media_engagements WHERE kind='save' AND account_id<>? AND julianday(created_at)>=julianday(?) AND project_id IN (SELECT value FROM json_each(?))").bind(user.id,since,ids).all<{total:number}>(),
+  ]);
+  const activity: Array<{projectId:string;attachmentId:string;pageIndex:number;page:number;kind:'reply'|'read';at:string}>=[];
+  const maps=new Map(projects.map(p=>[p.id,pageMap(p)]));
+  const add=(row:{project_id:string;attachment_id:string;page_index:number},kind:'reply'|'read',at:string)=>{
+   const page=maps.get(row.project_id)?.find(p=>p.attachmentId===row.attachment_id&&p.pageIndex===row.page_index)?.page;
+   if(page!==undefined)activity.push({projectId:row.project_id,attachmentId:row.attachment_id,pageIndex:row.page_index,page,kind,at});
+  };
+  for(const c of comments.results??[]){const at=new Date(c.created_at.includes('T')?c.created_at:c.created_at.replace(' ','T')+'Z').toISOString();if(c.unanswered)add(c,'reply',at);if(at>=since)add(c,'read',at);}
+  for(const a of saves.results??[])add(a,'read',a.at);
+  const weeklySaved=counts.results?.[0]?.total;
+  if(typeof weeklySaved!=='number'||!Number.isFinite(weeklySaved)||weeklySaved<0)throw unavailable();
+  return reachJson({activity,weeklySaved});
+ }catch(error){return error instanceof Response?error:reachJson({error:'Studio attention could not load.'},503);}
 }

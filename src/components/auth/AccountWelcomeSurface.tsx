@@ -80,6 +80,38 @@ export function AccountWelcomeSurface({ title, theme = 'dark', accentColor, onAc
     if (!mobileRef.current) headingRef.current?.focus({ preventScroll: true });
   }, [title]);
   useEffect(() => {
+    if (!isMobile) return;
+    const content = contentRef.current;
+    if (!content) return;
+    let frame = 0;
+    const revealField = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const field = document.activeElement;
+        if (!(field instanceof HTMLElement) || !content.contains(field) || !field.matches('input:not([type="file"]), textarea, select')) return;
+        const bounds = content.getBoundingClientRect();
+        const rect = field.getBoundingClientRect();
+        // iOS can resize/pan the visual viewport after its initial focus scroll.
+        // Recheck after layout so the active field stays inside our own scroller.
+        if (rect.top < bounds.top + 16 || rect.bottom > bounds.bottom - 16) {
+          field.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+        }
+      });
+    };
+    content.addEventListener('focusin', revealField);
+    const observer = new ResizeObserver(revealField);
+    observer.observe(content);
+    window.visualViewport?.addEventListener('resize', revealField);
+    window.visualViewport?.addEventListener('scroll', revealField);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      content.removeEventListener('focusin', revealField);
+      window.visualViewport?.removeEventListener('resize', revealField);
+      window.visualViewport?.removeEventListener('scroll', revealField);
+    };
+  }, [isMobile]);
+  useEffect(() => {
     if (!pendingLeave || isMobile) return;
     confirmationRef.current?.scrollIntoView({ block: 'nearest' });
     confirmationRef.current?.querySelector('button')?.focus();

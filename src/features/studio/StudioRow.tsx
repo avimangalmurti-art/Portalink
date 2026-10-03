@@ -16,6 +16,7 @@ export type StudioRowProps = {
   id: string;
   title: string;
   secondary?: string;
+  actionLabel?: string;
   date?: string;
   leading?: React.ReactNode;
   unread?: boolean;
@@ -30,7 +31,7 @@ export type StudioRowProps = {
 };
 
 /** Every swipe action also has a visible menu entry and a full-sized touch target. */
-export function StudioRow({ id, title, secondary, date, leading, unread, selecting, selected, pending = false, onSelect, onOpen, actions, primaryAction, onMenu }: StudioRowProps) {
+export function StudioRow({ id, title, secondary, actionLabel, date, leading, unread, selecting, selected, pending = false, onSelect, onOpen, actions, primaryAction, onMenu }: StudioRowProps) {
   const menuRef = useRef<HTMLButtonElement>(null);
   const secondaryId = useId();
   const visibleActions = actions.slice(0, 3);
@@ -63,6 +64,7 @@ export function StudioRow({ id, title, secondary, date, leading, unread, selecti
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1.5">{unread ? <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-[var(--accent-text)]" /> : null}<span className={`block truncate text-[15px] ${unread ? 'font-semibold' : 'font-medium'}`}>{title}</span></span>
           {secondary ? <span id={secondaryId} className="mt-1 block truncate text-[13px] text-[var(--text-secondary)]">{secondary}</span> : null}
+          {actionLabel ? <span className="studio-workbench-action">{actionLabel}</span> : null}
         </span>
         {!selecting ? <span className="flex shrink-0 flex-col items-end gap-1 text-[var(--text-tertiary)]">{date ? <span className="max-w-[68px] truncate text-[11px]">{date}</span> : null}<InterfaceIcon icon={ChevronRightIcon} size="xs" mirroredInRtl /></span> : null}
       </button>

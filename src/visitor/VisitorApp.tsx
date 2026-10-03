@@ -1,5 +1,5 @@
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
-import { isPublicSharePath } from '../features/sharing/shareModel';
+import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -19,7 +19,6 @@ import { resolveMacTokens } from '../utils/macTokens';
 import { resolveNavButtonTokens } from '../data/navButtonTokens';
 import { VisitorProfileGrid } from './VisitorProfileGrid';
 import { PublicActionSheet } from './mobile/PublicActionSheet';
-import { shouldWelcomePublicVisitor } from './mobile/publicWelcome';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
@@ -30,7 +29,6 @@ const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module 
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
 const ProfileOnboardingDialog = lazy(() => import('../features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
-const PublicPortfolioWelcome = lazy(() => import('./mobile/PublicPortfolioWelcome').then(module => ({ default: module.PublicPortfolioWelcome })));
 type SharedRoute = Extract<AppRoute, { kind: 'sharedProfile' | 'sharedCategory' | 'sharedProject' }>
   | { kind: 'sharedCollaboration'; profileId: string };
 const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -69,13 +67,9 @@ export function VisitorApp() {
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
   const profile = query.profile, project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
-  const [welcomedProfileId, setWelcomedProfileId] = useState<string | null>(null);
-  const showWelcome = shouldWelcomePublicVisitor(presentation, route.kind, Boolean(profile), welcomedProfileId === profileId,
-    Boolean(auth.pendingView || onboardingOpen || auth.session?.isPasswordRecovery));
-  const finishWelcome = useCallback(() => { setWelcomedProfileId(profileId); }, [profileId]);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
-    if (profileId) navigate(buildPath(projectId && presentation !== 'mobile' ? 'sharedProfileCategory' : 'sharedProfile', { profileId, categoryId: categoryId ?? '' }));
+    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : ''));
   };
   useEffect(() => {
     if (presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
@@ -144,12 +138,12 @@ export function VisitorApp() {
   const style = useMemo(() => ({ '--accent-color': accentColor, ...resolveAccentTokens(accentColor, theme),
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
-  const openProject = (category: string, id: string) => { if (profileId) navigate(buildPath('sharedProject', { profileId, categoryId: category, projectId: id })); };
+  const openProject = (category: string, id: string) => { if (profileId) navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname))); };
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
   return <AppPresentation actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={appearance.chooseMode}
-        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(buildPath('sharedProfileCategory', { profileId: profile.id, categoryId: id })); }}
+        onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
         <SharedSignInBar name={profile?.name} />
@@ -168,7 +162,7 @@ export function VisitorApp() {
                       : handleError ? <div className="p-5"><p role="alert">{handleError}</p><button type="button" onClick={retryHandle}>Try again</button></div> : handlePending ? pending : invalidShared ? <p role="alert" className="p-5">This shared page could not be found.</p>
                       : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <div className="p-5"><p role="alert">{query.error || 'This portfolio could not be found.'}</p>{query.status === 'error' && <button type="button" onClick={query.retry}>Try again</button>}</div>
                       : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
-                        onBackToProfile={() => navigate(buildPath('sharedProfile', { profileId: profile.id }))} onSelect={id => openProject(project.categoryId, id)} /> : <p className="p-5">This project could not be found.</p>
+                        onBackToProfile={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <p className="p-5">This project could not be found.</p>
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
                       : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <p className="p-5">This portal could not be found.</p>
                       : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={presentation === 'mobile' ? null : categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
@@ -181,9 +175,6 @@ export function VisitorApp() {
         </div>
       </div>
       {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopupId(null)} onSelect={openProject} />}
-      {showWelcome && <DeferredSurface active onClose={finishWelcome}>
-        <PublicPortfolioWelcome appearance={appearance} onComplete={finishWelcome} />
-      </DeferredSurface>}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}

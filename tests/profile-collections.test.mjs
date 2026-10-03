@@ -158,7 +158,7 @@ test('collection tiles navigate to real portals/profiles and keep labels outside
   for (const kind of ['portals', 'followers', 'following']) {
     const tree = ProfileCollectionGrid({ profileId: 'owner', kind, portals: [{ id: 'photos', label: 'Photography', iconName: 'camera' }], people: [{ profileId: 'person', name: 'Person Name', avatar: '' }], loading: false, error: null, hasMore: false });
     const link = nodes(tree).find((node) => node.type === 'Link');
-    assert.equal(link.props.to, kind === 'portals' ? '/p/owner/c/photos' : '/p/person');
+    assert.equal(link.props.to, kind === 'portals' ? '/p/owner/c/photos' : `/p/person?fromConnections=owner&connectionList=${kind}`);
     const children = React.Children.toArray(link.props.children);
     assert.match(children[0].props.className, /squircle/);
     assert.equal(children[1].props.className, 'profile-collection-name');
@@ -196,7 +196,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
-    if (name === 'react-router-dom') return { useNavigate: () => () => {}, useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
+    if (name === 'react-router-dom') return { useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
@@ -1010,4 +1010,20 @@ test('mobile nested profile headers retain Portfolio/Journey and return to the s
       assert.deepEqual(selected,['projects']);
     }
   }
+});
+
+test('mobile connection profiles show Back and return through history to the selected list; WEB stays unchanged', () => {
+  for (const kind of ['followers', 'following']) {
+    const h = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:2}}}});
+    const back = nodes(h.render()).find(node => node.props['data-connections-back'] !== undefined);
+    assert.equal(back.props['aria-label'], `Back to ${kind}`);
+    back.props.onClick();
+    assert.equal(h.navigation.at(-1).target, -1);
+    const direct = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:0}}}});
+    nodes(direct.render()).find(node => node.props['data-connections-back'] !== undefined).props.onClick();
+    assert.equal(direct.navigation.at(-1).target, `/p/source?view=${kind}`);
+    assert.equal(direct.navigation.at(-1).options.replace, true);
+    assert.equal(nodes(profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'web'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
+  }
+  assert.equal(nodes(profileHarness('', {presentation:'mobile'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
 });

@@ -1,6 +1,6 @@
 import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'framer-motion';
@@ -10,9 +10,10 @@ import type { Project as ProjectEntry } from '../../types/domain';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { TypographyInspector } from './TypographyInspector';
 import { usePresentation } from '../../presentation/usePresentation';
-import { MobileReorderList, type MobileReorderActivator, type MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
+import type { MobileReorderList as MobileReorderListType, MobileReorderActivator, MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
+const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
   profileId?: string;
   arrangementWriteDisabled?: boolean;
@@ -178,10 +179,10 @@ export function ProjectIndexList({
   });
   if (isMobile) {
     const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
-      <MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
+      mobileReorderDisabled ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
         className="side-panel-navigation-list m-0 list-none p-0"
         onReorder={reordered => onReorder(combine(reordered))}
-        renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={mobileReorderFromMenu ? undefined : activator} />} />;
+        renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={mobileReorderFromMenu ? undefined : activator} />} /></Suspense>;
     return <div data-mobile-project-layout={mobileLayout}>
       {pinned.length > 0 && <><SectionHeading label="Pinned" icon={PinIcon} />{group(pinned, 'Pinned projects', reordered => [...reordered, ...rest, ...hidden])}</>}
       {rest.length > 0 && <>

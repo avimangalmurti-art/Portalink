@@ -45,7 +45,6 @@ test('layout controls remain desktop-only while shared galleries retain local ca
       '../../hooks/useContentZoom': { useContentZoom: (_columns, enabled, _resetKey, onChange) => { gesturesEnabled = enabled; zoomCallback = onChange; return { columns: 5, chooseColumns }; } },
       '../../presentation/usePresentation': { usePresentation: () => presentation },
       '../../presentation/web/WebGalleryControls': { WebGalleryControls: 'web-controls' },
-      '../../presentation/mobile/MobileGalleryControls': { MobileGalleryControls: 'mobile-controls' },
       '../ui/ZoomReadout': { ZoomReadout: 'zoom' },
       './ImageWallLayout': { ImageWallRows: 'rows', WALL_GAP: 4 },
     });

@@ -86,9 +86,9 @@ test('the production startup graph excludes mock identities, seed imagery and un
 });
 
 test('runtime registry retains durable configured APIs and truthful prototype capability selection', () => {
-  const keys = ['auth', 'profiles', 'projects', 'media', 'discovery', 'search', 'social', 'engagement', 'creatorSaves', 'comments', 'notifications', 'messaging', 'live', 'analytics', 'commerce', 'geography', 'preferences'];
+  const keys = ['auth', 'profiles', 'projects', 'media', 'discovery', 'social', 'engagement', 'creatorSaves', 'comments', 'notifications', 'messaging', 'live', 'geography'];
   const connected = Object.fromEntries(keys.map(key => [key, { source: `connected-${key}` }]));
-  const mockNames = { profiles: 'Profile', projects: 'Project', media: 'Media', discovery: 'Discovery', search: 'Search', social: 'Social', engagement: 'Engagement', comments: 'Comment', notifications: 'Notification', messaging: 'Messaging', live: 'Live', analytics: 'Analytics', commerce: 'Commerce' };
+  const mockNames = { profiles: 'Profile', projects: 'Project', media: 'Media', discovery: 'Discovery', social: 'Social', engagement: 'Engagement', comments: 'Comment', notifications: 'Notification', messaging: 'Messaging', live: 'Live' };
   const mocks = Object.fromEntries(Object.entries(mockNames).map(([key, name]) => [`mock${name}Service`, { source: `mock-${key}` }]));
   const prototypeAuthService = {}, unavailableCreatorSaveService = {};
   for (const configured of [false, true]) for (const production of [false, true]) {
@@ -100,12 +100,11 @@ test('runtime registry retains durable configured APIs and truthful prototype ca
     });
     assert.equal(services.auth, configured ? connected.auth : prototypeAuthService);
     for (const [key, name] of Object.entries(mockNames)) {
-      const durable = ['live', 'analytics', 'commerce'].includes(key) ? production : configured;
+      const durable = key === 'live' ? production : configured;
       assert.equal(services[key], durable ? connected[key] : mocks[`mock${name}Service`]);
     }
     assert.equal(services.creatorSaves, configured ? connected.creatorSaves : unavailableCreatorSaveService);
     assert.equal(services.geography, connected.geography);
-    assert.equal(services.preferences, connected.preferences);
   }
 });
 

@@ -15,7 +15,7 @@ function harness({ retryResult = [{ id: 'stored', storagePath: 'confirmed/path' 
   const calls = [];
   let complete;
   const context = vm.createContext({
-    committedPublish: { current: undefined }, setHasCommittedProject: () => {}, saveLocalDraft: async () => {}, draftCompleted: { current: false }, firstProject: false, auth: {},
+    committedPublish: { current: undefined }, setHasCommittedProject: () => {}, saveLocalDraft: async () => {}, draftCompleted: { current: false }, firstProject: false, persistWorkspace: false, resumeId: undefined, auth: {},
     draft: { id: 'draft', categoryId: 'portal' }, profileId: 'owner', categoryId: 'portal', isPublishingRef: { current: false }, validate: () => true,
     metadata: { title: 'Project', summary: 'Description' }, manualLocation: true, hasChosenLocation: true, location: 'London',
     ignoreInferredLocation: false, inferredRelevance: {},
@@ -74,7 +74,7 @@ test('a committed publication retries only pending details and never re-uploads 
 test('first publication keeps its real preview until the canonical profile contains the committed tile',async()=>{
  const h=harness();h.context.firstProject=true;h.context.auth={user:{id:'account'}};
  h.context.committedPublish.current={projectId:'already-published'};
- h.context.clearFirstProjectDraft=async()=>{};let ready=false;
+ h.context.clearDraftWorkspace=async()=>{};let ready=false;
  h.context.profileService={getProfile:async()=>({id:'owner',projects:ready?[{id:'already-published'}]:[]})};
  h.context.cacheProfile=profile=>h.calls.push(['cache',profile.projects[0].id]);
  await assert.rejects(h.context.publish.run(),/updated portfolio/);

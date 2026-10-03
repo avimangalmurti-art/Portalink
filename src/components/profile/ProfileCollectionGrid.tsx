@@ -38,7 +38,7 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
           <span className="profile-collection-name">{portal.label}</span>
         </Link>
       </li>) : people.map((person) => <MobileProfileContext key={person.profileId} profileId={person.profileId} name={person.name}><li>
-        <Link data-preview-open="" to={buildPath(shared ? 'sharedProfile' : 'profile', { profileId: person.profileId })} className="profile-collection-link" title={person.name}>
+        <Link data-preview-open="" to={buildPath(shared ? 'sharedProfile' : 'profile', { profileId: person.profileId }) + (isMobile ? `?fromConnections=${encodeURIComponent(profileId)}&connectionList=${kind}` : '')} className="profile-collection-link" title={person.name}>
           <span className="profile-collection-tile squircle"><CreatorAvatar name={person.name} avatar={person.avatar} shape="squircle" className="h-full w-full text-[28px]" fallbackClassName="bg-transparent text-[var(--text-secondary)] ring-transparent" /></span>
           <span className="profile-collection-name">{isMobile ? <PreviewCreatorName name={person.name} active /> : person.name}</span>
         </Link>

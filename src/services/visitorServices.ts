@@ -2,7 +2,6 @@ import { profileSharing } from './supabase/profileSharing';
 import type { Services } from './interfaces';
 import { supabaseAuthService } from './supabase/authService';
 import { supabaseProfileReadService } from './supabase/contentReaders';
-import { localPreferencesService } from './localPreferences';
 import { deferredService, unavailableVisitorService } from './deferredService';
 
 const projectReads = deferredService(() => import('./supabase/projectReaders').then(module => module.supabaseProjectReadService));
@@ -37,13 +36,9 @@ export const visitorServices: Services = {
   engagement: deferredService(() => import('./supabase/communityServices').then(module => module.supabaseEngagementService)),
   comments: deferredService(() => import('./supabase/communityServices').then(module => module.supabaseCommentService)),
   creatorSaves: deferredService(() => import('./supabase/creatorSaveService').then(module => module.supabaseCreatorSaveService)),
-  preferences: localPreferencesService,
   discovery: unavailableVisitorService('Home'),
-  search: unavailableVisitorService('Search'),
   notifications: unavailableVisitorService('Notifications'),
   messaging: unavailableVisitorService('Messages'),
   live: unavailableVisitorService('Live'),
-  analytics: unavailableVisitorService('Studio'),
-  commerce: unavailableVisitorService('Portalink'),
   geography: unavailableVisitorService('Discover'),
 };

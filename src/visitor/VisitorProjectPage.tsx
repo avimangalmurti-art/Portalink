@@ -30,7 +30,8 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
   const categoryProjects = profile.projects.filter(item => item.categoryId === project.categoryId);
   const visibleProjects = isMobile || !indexQuery.trim() ? categoryProjects
     : categoryProjects.filter(item => item.title.toLocaleLowerCase().includes(indexQuery.trim().toLocaleLowerCase()));
-  const processing = useAssetProcessing(attachments);
+  // Public readers use published metadata, without querying owner job tables.
+  const processing = useAssetProcessing([]);
   const rail = useResizablePanelWidth({ id: 'shared-project-details-standard', defaultWidth: panelLayoutDefaults.sharedDetails, minWidth: 240, maxWidth: 440, viewportReserve: 420 });
   const pageCount = useMemo(() => {
     if (project.pageCount && project.pageCount > 0) return project.pageCount;

@@ -64,7 +64,7 @@ function PdfImagePage({
   document,
   pageNumber,
   label,
-  enabled,
+  enabled: requestedEnabled,
   isFocused, readingMode = false,
   retainCanvasWhileLoading,
   zoom,
@@ -86,6 +86,15 @@ function PdfImagePage({
   const [status, setStatus] = useState<'waiting' | 'loading' | 'ready' | 'failed'>('waiting');
   const [baseCanvasSize, setBaseCanvasSize] = useState<{ width: number; height: number } | null>(null);
   const [paintedPageNumber, setPaintedPageNumber] = useState<number | null>(null);
+  const [nearViewport, setNearViewport] = useState(false);
+  const enabled = requestedEnabled && (!retainCanvasWhileLoading || isFocused || nearViewport);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!retainCanvasWhileLoading || isFocused || !host) return;
+    const observer = new IntersectionObserver(([entry]) => setNearViewport(entry.isIntersecting), { rootMargin: '600px 0px' });
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [isFocused, retainCanvasWhileLoading]);
   useLayoutEffect(() => {
     if (!isFocused || !focusMemoryKey) return;
     const remembered = readViewerMemory(focusMemoryKey);
@@ -99,6 +108,9 @@ function PdfImagePage({
 
   useEffect(() => {
     if (!enabled) {
+      setPage(null);
+      setPaintedPageNumber(null);
+      setStatus('waiting');
       return undefined;
     }
 
@@ -158,7 +170,8 @@ function PdfImagePage({
   useEffect(() => {
     const host = hostRef.current;
     const canvas = canvasRef.current;
-    if (!page || page.pageNumber !== pageNumber || !host || !canvas) {
+    if (!enabled || !page || page.pageNumber !== pageNumber || !host || !canvas) {
+      if (canvas && !enabled) { canvas.width = 0; canvas.height = 0; }
       return undefined;
     }
 
@@ -229,6 +242,7 @@ function PdfImagePage({
           canvas.width = renderCanvas.width;
           canvas.height = renderCanvas.height;
           context.drawImage(renderCanvas, 0, 0);
+          renderCanvas.width = 0; renderCanvas.height = 0;
           setBaseCanvasSize(nextCanvasSize);
         }
         settled = true;
@@ -254,8 +268,11 @@ function PdfImagePage({
       cancelled = true;
       window.clearTimeout(renderTimeout);
       renderTask.cancel();
+      if (renderCanvas !== canvas) void renderTask.promise.catch(() => undefined).then(() => {
+        renderCanvas.width = 0; renderCanvas.height = 0;
+      });
     };
-  }, [attachmentId, isFocused, readingMode, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
+  }, [attachmentId, enabled, isFocused, readingMode, layoutRevision, page, pageNumber, retainCanvasWhileLoading]);
 
   return <div
     ref={hostRef}
@@ -534,7 +551,7 @@ export function PdfImageDocument({ projectId, attachmentId, source, label, colum
           document={document}
           pageNumber={pageNumber}
           label={label}
-          enabled={focusedPageNumber === pageNumber || pageNumber <= renderThrough}
+          enabled={isMobile || focusedPageNumber === pageNumber || pageNumber <= renderThrough}
           isFocused={focusedPageNumber === pageNumber} readingMode={readingMode || verticalReading}
           retainCanvasWhileLoading={isMobile}
           zoom={focusedPageNumber === pageNumber ? zoom : 1}

@@ -15,6 +15,10 @@ function welcomeHarness(mode = 'mobile') {
     blur() { this.blurs++; document.activeElement = null; }
     focus(options) { document.activeElement = this; this.focusOptions = options; }
     scrollIntoView(options) { this.scrolls.push(options); }
+    addEventListener() {}
+    removeEventListener() {}
+    contains(element) { return this.children.includes(element); }
+    getBoundingClientRect() { return { top: 0, bottom: 800 }; }
     querySelector(selector) {
       if (selector === '.mobile-onboarding-fields') return stepFields;
       return this.children.find(child => child.type === selector) ?? this.children.map(child => child.querySelector(selector)).find(Boolean) ?? null;
@@ -52,7 +56,7 @@ function welcomeHarness(mode = 'mobile') {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/auth/AccountWelcomeSurface.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, document, HTMLElement: Element, window: {
+  }).outputText, { exports, document, HTMLElement: Element, requestAnimationFrame: () => 1, cancelAnimationFrame() {}, ResizeObserver: class { observe() {} disconnect() {} }, window: {
     addEventListener: (name, fn) => listeners.set(name, fn),
     removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); },
   }, require(name) { assert.ok(name in imports, name); return imports[name]; } });

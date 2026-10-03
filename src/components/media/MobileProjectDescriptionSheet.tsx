@@ -26,11 +26,12 @@ type Props = {
   textEditor?: SheetTextEditor;
   contentLabel?: string;
   emptyMessage?: string;
+  fullScreenEditor?: boolean;
   onClose: () => void;
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, description, typeface, details, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, description, typeface, details, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -89,6 +90,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
   };
   const error = editing ? activeEditor.error : null;
   const saved = editing && phase === 'saved';
+  const writingScreen = fullScreenEditor && editing && !saved;
   const host = document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
   return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay=""
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
@@ -96,8 +98,8 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
     onPointerUp={stop} onClick={event => { stop(event); if (menuOpen) setMenuOpen(false); }}
     onDoubleClick={stop} onTouchMove={stop} onWheel={stop} onKeyDown={stop}>
     <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby="project-description-title"
-      tabIndex={-1} data-media-interaction="" data-expanded={expanded || undefined} className="mobile-project-description-sheet">
-      <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
+      tabIndex={-1} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
+      {!writingScreen && <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
         onClick={() => { if (!moved.current) setExpanded(value => !value); moved.current = false; }}
         onPointerDown={event => {
           if (!event.isPrimary || event.button !== 0 || busy) return;
@@ -127,9 +129,10 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
             else setExpanded(Math.abs(delta) > 35 ? delta > 0 : gesture.next > gesture.max * 0.71);
           }
           resetDrag();
-        }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>
+        }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
       <header className="project-description-heading">
         <h2 id="project-description-title">{contentLabel}</h2>
+        {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}
         {canEdit && !editing && <div className="project-description-menu">
           <button ref={optionsRef} type="button" aria-label={`${contentLabel} options`} aria-expanded={menuOpen} aria-controls="project-description-actions"
             onClick={event => { stop(event); setMenuOpen(value => !value); }}><MoreHorizontalIcon aria-hidden="true" /></button>
@@ -142,7 +145,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
       {discard ? null : editing && !saved ? <form className="project-description-editor" onSubmit={event => { event.preventDefault(); if (!busy) void activeEditor.save(); }}>
         {phase === 'loading' ? <p role="status">Loading {label}…</p> : phase !== 'load-failed' && <><textarea ref={textareaRef}
           aria-label={contentLabel === 'Description' ? 'Project description' : contentLabel} aria-invalid={Boolean(error)} aria-describedby={error ? 'project-description-error' : undefined}
-          maxLength={activeEditor.maxLength} value={activeEditor.value} disabled={busy} onChange={event => activeEditor.onChange(event.target.value)} /><TextFormattingToolbar inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy} maxLength={activeEditor.maxLength} /></>}
+          maxLength={activeEditor.maxLength} value={activeEditor.value} disabled={busy} onChange={event => activeEditor.onChange(event.target.value)} />{!writingScreen && <TextFormattingToolbar inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy} maxLength={activeEditor.maxLength} />}</>}
         {error && <p role="alert" id="project-description-error">{error}</p>}
         <footer>
           <button type="button" disabled={busy} onClick={() => dismiss('edit')}>Cancel</button>

@@ -15,6 +15,10 @@ test('handle grammar, suggestions, all product roots and URL fallbacks',()=>{
  const routes=readFileSync(new URL('../src/app/routes.ts',import.meta.url),'utf8');for(const path of [...routes.matchAll(/path: '([^']+)'/g)].map(m=>m[1]))for(const segment of path.split('/').filter(s=>s&&!s.startsWith(':')))assert.ok(model.RESERVED_HANDLES.has(segment),segment);
  assert.equal(model.handleFromPath('/avi'), 'avi');assert.equal(model.handleFromPath('/messages'),null);assert.equal(model.handleFromPath('/avi/no'),null);
  assert.equal(model.portfolioPath(id,'legacy_name'),'/share/'+id);assert.equal(model.portfolioPath(id,'avi'),'/avi');
+ assert.equal(model.handleFromPath('/avi/c/portal/project'),'avi');
+ assert.equal(model.handleFromPath('/avi/c/portal/project/extra'),null);
+ assert.equal(model.isPublicSharePath('/avi/c/portal/project'),true);
+ assert.equal(model.portfolioProjectPath(id,'portal','project','avi'),'/avi/c/portal/project');
  for(const name of ['Avi Mangal Murti','A','Portalink','!!!']) {const values=model.handleSuggestions(name);assert.equal(values.length,3);assert.ok(values.every(model.validHandle));}
 });
 test('shared card text, mailto and optional referral contain exactly authored values',()=>{
@@ -28,6 +32,8 @@ test('address resolver handles permanent UUID and expiring alias redirects witho
  const config={supabaseUrl:'https://test.supabase.co',publishableKey:'public'};
  let result=await server.resolveShareRequest(new Request('https://site.test/old.avi?via=abc',{headers:{Authorization:'secret'}}),config);
  assert.equal(result.redirect.status,301);assert.equal(result.redirect.headers.get('location'),'https://site.test/avi?via=abc');assert.equal(new Headers(calls[0].headers).has('authorization'),false);
+ result=await server.resolveShareRequest(new Request('https://site.test/old.avi/c/portal/project?page=2'),config);
+ assert.equal(result.redirect.headers.get('location'),'https://site.test/avi/c/portal/project?page=2');
  data={handle:'avi',confirmed:true};result=await server.resolveShareRequest(new Request('https://site.test/share/'+id),config);assert.equal(result.redirect.status,301);
  data=null;result=await server.resolveShareRequest(new Request('https://site.test/expired.avi'),config);assert.equal(result.missing,true);
  result=await server.resolveShareRequest(new Request('https://site.test/share/'+id),config);assert.equal(result.redirect,undefined);
@@ -115,3 +121,11 @@ test('clipboard fallback selects inside the modal focus boundary', async () => {
  assert.equal(copied, 'https://example.test/avi');
 });
 
+
+
+test('old UUID project URLs redirect to the handle without losing the project or query', async () => {
+ const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async()=>Response.json({handle:'avi'})});
+ const result=await server.resolveShareRequest(new Request(`https://site.test/share/${id}/c/portal/work?from=resume`),{supabaseUrl:'https://test.supabase.co',publishableKey:'public'});
+ assert.equal(result.redirect.status,301);
+ assert.equal(result.redirect.headers.get('location'),'https://site.test/avi/c/portal/work?from=resume');
+});

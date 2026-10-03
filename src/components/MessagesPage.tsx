@@ -5,7 +5,7 @@ import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArchiveIcon, ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
+import { ArchiveIcon, ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
@@ -291,7 +291,7 @@ export function MessagesPage({
   const showList = !activeId;
   const isMobileNewChat = isMobile && isNewChatOpen;
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
-  return <section data-messages-page="" data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>
@@ -311,7 +311,7 @@ export function MessagesPage({
           </button>
         </div> : null}
         </div>
-        {messaging.activeConversation ? <div className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
+        {messaging.activeConversation ? <div data-conversation-header="" className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
           <ScreenBack><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
             <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
           </button></ScreenBack>
@@ -392,7 +392,7 @@ export function MessagesPage({
 
         <main id="messages-thread-panel" tabIndex={-1} role="region" aria-label={messaging.activeConversation ? `Conversation with ${messaging.activeConversation.participant.name}` : 'Conversation'} className={`${showList ? 'hidden' : 'flex'} min-h-0 min-w-0 flex-1 flex-col bg-[var(--surface-canvas)] lg:flex`}>
           {messaging.activeConversation ? <>
-              <div ref={messageScrollerRef} onScroll={(event) => {
+              <div data-message-scroll="" ref={messageScrollerRef} onScroll={(event) => {
                 const node = event.currentTarget;
                 const atBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
                 isAtBottomRef.current = atBottom;
@@ -420,7 +420,7 @@ export function MessagesPage({
                   </ul> : null}
                 <div data-message-composer="" className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
                   {!isMessageRequest ? <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
-                    <span className="sr-only">Attach files</span><InterfaceIcon icon={PaperclipIcon} />
+                    <span className="sr-only">Attach files</span><InterfaceIcon icon={isMobile ? PlusIcon : PaperclipIcon} />
                     <input type="file" multiple className="sr-only" onChange={(event) => {
                       const selected = [...(event.target.files ?? [])];
                       const oversized = selected.filter((file) => file.size > 25 * 1024 * 1024);
@@ -538,7 +538,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
         return <React.Fragment key={message.id}>
             {showDay ? <li className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
             <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
+              <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
                     <textarea ref={editTextareaRef} autoFocus aria-label="Edit message" value={editBody} onChange={(event) => setEditBody(event.target.value)} onKeyDown={!isMobile ? (event) => {

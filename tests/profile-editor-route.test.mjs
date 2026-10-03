@@ -16,7 +16,8 @@ function load(path, imports, globals = {}) {
   } });
   return exports;
 }
-const routes = load('src/app/routes.ts', { '../components/navigation': { navigationDestinations: [] } });
+const navigation = load('src/components/navigation.ts', {});
+const routes = load('src/app/routes.ts', { '../components/navigation': navigation });
 const plain = value => JSON.parse(JSON.stringify(value));
 function harness(path = '/p/owner', initialState = null, index = 0) {
   const calls = [];
@@ -96,6 +97,41 @@ test('the added helpers leave ordinary profile, public profile and browser Back 
   const nav = h.nav();
   nav.profile('creator'); nav.sharedProfile('public-creator'); nav.back();
   assert.deepEqual(h.calls, [['/p/creator', undefined], ['/share/public-creator', undefined], [-1, undefined]]);
+});
+
+test('retired editorial feed URLs remain not-found without changing Home or current content routes', () => {
+  for (const path of ['/feed', '/feed/today', '/feed/apps', '/feed/following', '/feed/graphic-design?source=old-link', '/feed/unknown']) {
+    assert.deepEqual(plain(harness(path).routing.useAppRoute()), { kind: 'unknown' }, path);
+  }
+  assert.deepEqual(plain(harness('/').routing.useAppRoute()), { kind: 'home' });
+  assert.deepEqual(plain(harness('/portalink/gn-5391959').routing.useAppRoute()), { kind: 'portalink', locationId: 'gn-5391959' });
+});
+
+test('existing mp_screen links still translate their stored presets without reviving retired feeds', () => {
+  const manifest = load('src/canvas.manifest.js', {});
+  const routing = harness().routing;
+  for (const [screen, expectedPath, expectedKind] of [
+    ['scr_aedyru', '/', 'home'],
+    ['scr_kt0q8b', '/search', 'search'],
+    ['scr_us7bd2', '/studio', 'studio'],
+    ['scr_cbdbey', '/p/avi/c/graphic-design', 'category'],
+    ['scr_rs9ks3', '/p/avi/c/graphic-design/cool-calm-and-collected', 'project'],
+  ]) {
+    const { useScreenInit } = load('src/useScreenInit.js', {
+      react: { useMemo: create => create() }, './canvas.manifest.js': manifest,
+    }, { window: { location: { search: `?mp_screen=${screen}` } } });
+    const path = routing.screenPresetPath(useScreenInit());
+    assert.equal(path, expectedPath, screen);
+    assert.equal(harness(path).routing.useAppRoute().kind, expectedKind);
+  }
+  const retired = routing.screenPresetPath({ activeDestination: 'Games' });
+  assert.equal(retired, '/feed/games');
+  assert.equal(harness(retired).routing.useAppRoute().kind, 'unknown');
+  assert.equal(routing.screenPresetPath({ activeDestination: 'not-a-destination' }), null);
+  const { useScreenInit } = load('src/useScreenInit.js', {
+    react: { useMemo: create => create() }, './canvas.manifest.js': manifest,
+  }, { window: { location: { search: '?mp_screen=not-a-screen' } } });
+  assert.equal(routing.screenPresetPath(useScreenInit()), null);
 });
 
 test('collaboration has dedicated creator URLs and stays readable without an account', () => {

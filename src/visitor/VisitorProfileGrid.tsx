@@ -29,7 +29,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const [optionsOpen, setOptionsOpen] = useState(false), [bioOpen, setBioOpen] = useState(false);
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
-  const journey = useJourneySelection(profile.id, auth.viewerProfileId);
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
   const [search, setSearch] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
   const category = profile.categories.find(item => item.id === categoryId);

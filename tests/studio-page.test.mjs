@@ -57,7 +57,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     './StudioRow': { StudioRow: 'studio-row' }, './StudioActionSheet': { StudioActionSheet: 'sheet' }, './studioModel': model, './studioView': view,
     './useStudioData': { useStudioData: (category, tab) => { const sections = model.studioSections(currentRows, category, tab); return { ...data, sections, rows: sections.flatMap(section => section.rows) }; } },
   };
-  const { StudioPage } = load('../src/features/studio/StudioPage.tsx', name => { assert.ok(name in deps, name); return deps[name]; }, { requestAnimationFrame: callback => frames.push(callback), window: { location: { origin: 'https://portalink.test' } }, navigator: {}, document: { querySelector: () => null, activeElement: null }, HTMLElement: class {} });
+  const { StudioPage } = load('../src/features/studio/StudioBookmarksList.tsx', name => { assert.ok(name in deps, name); return deps[name]; }, { requestAnimationFrame: callback => frames.push(callback), window: { location: { origin: 'https://portalink.test' } }, navigator: {}, document: { querySelector: () => null, activeElement: null }, HTMLElement: class {} });
   function render() { let renders = 0; while (dirty) { assert.ok(++renders < 20, 'render settles'); cursor = 0; dirty = false; effects = []; tree = StudioPage({ savedRoute, onBack: () => calls.push(['back']), onOpenProject: id => calls.push(['open', id]) }); effects.forEach(effect => effect()); } return tree; }
   return { get nodes() { return nodes(render()); }, history, calls, frames, data,
     button(label) { return this.nodes.find(node => node.type === 'button' && node.props['aria-label'] === label); },
@@ -65,33 +65,6 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     rerender() { dirty = true; return render(); },
   };
 }
-
-test('category pills replace URL selection and only the active label expands', () => {
-  const page = pageHarness();
-  const pills = page.nodes.filter(node => node.props.className === 'studio-category');
-  assert.deepEqual(pills.map(node => node.props['aria-label']), ['Drafts', 'Published', 'Bookmarks', 'Activity', 'All']);
-  assert.equal(pills.filter(node => node.props['aria-pressed']).length, 1);
-  page.button('Published').props.onClick();
-  assert.deepEqual(page.history[0], { params: 'category=published', options: { replace: true } });
-  assert.equal(page.button('Published').props['aria-pressed'], true);
-  assert.equal(page.nodes.filter(node => node.type === 'studio-row').length, 1);
-});
-
-test('/saved preserves creator-tab deep links and category changes replace into Studio', () => {
-  const page = pageHarness({ savedRoute: true, initialSearch: 'tab=creators', preference: 'list' });
-  assert.equal(page.button('Bookmarks').props['aria-pressed'], true);
-  const segment = page.nodes.find(node => node.type === 'button' && node.props.children === 'Creators');
-  assert.equal(segment.props['aria-pressed'], true);
-  page.button('Activity').props.onClick();
-  assert.deepEqual(page.history[0], { path: '/studio?category=activity', options: { replace: true } });
-});
-
-test('a later explicit category URL overrides List View without a remount', () => {
-  const page = pageHarness({ initialSearch: 'category=all', preference: 'list' });
-  assert.equal(page.nodes.some(node => node.props['aria-label'] === 'Studio categories'), false);
-  page.setSearch('category=published');
-  assert.equal(page.button('Published').props['aria-pressed'], true);
-});
 
 test('selection shows its toolbar, unsaves only bookmarks, then exits', async () => {
   const page = pageHarness({ initialSearch: 'category=bookmarks' });
@@ -110,35 +83,13 @@ test('selection shows its toolbar, unsaves only bookmarks, then exits', async ()
   assert.equal(page.nodes.some(node => node.props.className === 'studio-selection-toolbar'), false);
 });
 
-test('swipe mapping exposes only existing actions and uses Open as full-swipe primary', () => {
-  const page = pageHarness({ initialSearch: 'category=all' });
-  const entries = page.nodes.filter(node => node.type === 'studio-row');
-  const published = entries.find(node => node.props.id.startsWith('published:'));
-  const bookmark = entries.find(node => node.props.id.startsWith('saved-project:'));
-  const activity = entries.find(node => node.props.id.startsWith('activity:'));
-  assert.deepEqual(Array.from(published.props.actions, action => action.id), ['share', 'edit']);
-  assert.deepEqual(Array.from(bookmark.props.actions, action => action.id), ['open', 'unsave']);
-  assert.deepEqual(Array.from(activity.props.actions, action => action.id), ['open', 'mark-read']);
-  assert.ok(entries.every(node => node.props.primaryAction.id === 'open'));
-  published.props.actions.find(action => action.id === 'edit').onAction();
-  assert.deepEqual(page.calls, [['edit', 'p1']]);
+test('retained bookmark list exposes Open and Unsave without inventory categories', () => {
+ const page=pageHarness(); const entries=page.nodes.filter(node=>node.type==='studio-row');
+ assert.deepEqual(entries.map(node=>node.props.id),['saved-project:p1']);
+ assert.deepEqual(Array.from(entries[0].props.actions,action=>action.id),['open','unsave']);
+ assert.equal(entries[0].props.primaryAction.id,'open');
+ assert.equal(page.nodes.some(node=>node.props.className==='studio-category'),false);
 });
-
-test('Studio entry and reselection land on Bookmarks even with a saved List View preference', () => {
-  for (const preference of ['categories', 'list']) {
-    const page = pageHarness({ preference });
-    assert.equal(page.button('Bookmarks').props['aria-pressed'], true);
-    assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['saved-project:p1']);
-    page.button('Studio view options').props.onClick();
-    page.nodes.find(node => node.type === 'sheet').props.actions.find(action => action.id === 'list').onAction();
-    assert.equal(page.nodes.some(node => node.props['aria-label'] === 'Studio categories'), false);
-    assert.deepEqual(page.calls, [['preference', 'list']]);
-    page.setSearch('');
-    assert.equal(page.button('Bookmarks').props['aria-pressed'], true);
-    assert.equal(page.nodes.some(node => node.props.className === 'studio-compose'), false);
-  }
-});
-
 test('share links use public canonical destinations and retain exact saved-page target', () => {
   assert.equal(view.studioSharePath(rows[0]), '/share/me/c/c1/p1');
   assert.equal(view.studioSharePath(rows[2]), null);

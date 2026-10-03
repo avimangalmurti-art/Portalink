@@ -10,19 +10,18 @@ import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
  * Replace these one at a time with `Api*` implementations in `services/index.ts`.
  */
 
-import { accountsToExploreIds, featuredCuration, feedCuration } from '../../data/feed';
+import { accountsToExploreIds } from '../../data/feed';
 import { applyPrototypeProfileUpdate, countPrototypeCategoryProjects, findProfileById, getProfileById, profiles, registerPrototypeCategory, registerPrototypeProfile, registerPrototypeProject, removePrototypeCategory, removePrototypeProject, renamePrototypeCategory, reorderPrototypeCategories, reorderPrototypeProjects, setPrototypeCategoryIcon, updatePrototypeProject } from '../../data/profiles';
 import type { Profile as PrototypeProfile } from '../../data/profiles';
 import { cities } from '../../data/cities';
 import { liveSessionSeeds } from '../../data/liveSessions';
 import { getCountryCode } from '../../data/countryCodes';
-import { getCityAccentToken } from '../../data/cityAccents';
 import { toLocationId } from '../../utils/location';
 import { defaultReportingPeriodId, gazeCapital, getReportingPeriod, kpisForPeriod } from '../../data/studioAnalytics';
 import { getSeededProjectTypefaceId } from '../../data/projectTypefaces';
 import { typefaces } from '../../data/typefaces';
 import { attachmentsFromPreparedMedia } from '../../features/media/projectAttachments';
-import type { AnalyticsService, CommentService, CommerceService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SearchService, SocialService } from '../interfaces';
+import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService } from '../interfaces';
 import { EngagementServiceError } from '../../types/engagement';
 import { SocialServiceError } from '../../types/social';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
@@ -31,11 +30,11 @@ import type { Comment, CommentAuthor, ProjectComments } from '../../types/commen
 // rather than trusting the caller. A real implementation verifies a token instead.
 import { readPrototypeSession } from '../prototype/authService';
 import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
-import type { FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Location, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
+import type { FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
 import { CategoryMutationError, ProfileServiceError } from '../../types/profile';
 import { ProcessingServiceError, ProjectMutationError, PublishServiceError, UploadServiceError } from '../../types/publishing';
 import type { DeleteProjectResult, ProjectDraft, PublishProjectInput, PublishResult, UpdateProjectInput, UpdateProjectResult } from '../../types/publishing';
-import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../../types/profile';
+import type { CreateProfileInput, CreateProfileResult } from '../../types/profile';
 import { createProfileHandle } from '../../utils/profileHandle';
 import { deriveInitials, normalizeHandle } from '../../features/profile/validation';
 import { buildUserContentSphere, rankDiscoverProjects, rankHomeProjects } from '../../domain/discovery/ranking';
@@ -144,17 +143,6 @@ export const mockProfileService: ProfileService = {
   async listProfiles() {
     const ownProfileId = readPrototypeSession()?.user.profileId ?? null;
     return resolve(profiles.filter((profile) => !profile.isPrivate || profile.id === ownProfileId).map(profileForCurrentViewer));
-  },
-  async checkHandleAvailability(handle): Promise<HandleAvailability> {
-    const normalized = normalizeHandle(handle);
-    // Evaluated against local fixtures only. Real uniqueness is a Postgres
-    // constraint; this can never be authoritative.
-    const taken = isHandleTaken(normalized);
-    return resolve({
-      handle: normalized,
-      isAvailable: !taken,
-      reason: taken ? 'That handle is already taken.' : undefined
-    }, 480);
   },
   async createProfile(accountId, input: CreateProfileInput): Promise<CreateProfileResult> {
     await resolve(undefined, 620);
@@ -524,12 +512,6 @@ export const mockProjectService: ProjectService = {
     });
     return undefined;
   },
-  async uploadProjectMedia() {
-    // NOT IMPLEMENTED: no media storage. Always rejects so the UI shows a
-    // truthful error path rather than pretending the upload succeeded.
-    await resolve(undefined);
-    throw new Error('Uploads are not connected yet.');
-  },
   async getDraft(draftId) { return drafts.get(draftId) ?? null; },
   async updateProjectJourneyDetails(projectId, details, caption) {
     const project = await this.getProject(projectId);
@@ -861,23 +843,6 @@ export const mockDiscoveryService: DiscoveryService = {
   async recordProjectSignal() {
     return resolve(undefined);
   },
-  // Curation decides WHICH work and in what order; the work itself always
-  // resolves canonically, so discovery cannot contradict a profile.
-  async getFeaturedProject() {
-    const entry = prototypeViews().find(({ view }) => view.project.id === featuredCuration.projectId);
-    return resolve(entry && decideProjectPlacement({ view: entry.view, surface: 'discover', ...entry.flags }).eligible ? entry.view : null);
-  },
-  async listFeedProjects() {
-    const eligible = prototypeViews().filter(({ view, flags }) => decideProjectPlacement({ view, surface: 'discover', ...flags }).eligible);
-    const eligibleById = new Map(eligible.map(({ view }) => [view.project.id, view]));
-    const curated = feedCuration.map((entry) => eligibleById.get(entry.projectId)).filter((view): view is ProjectView => Boolean(view));
-    // Work published through the product is eligible for discovery the moment it
-    // exists, and leads the run as the newest thing on the platform. It is the
-    // same canonical record the profile and category show.
-    const curatedIds = new Set(curated.map((view) => view.project.id));
-    const published = eligible.map(({ view }) => view).filter((view) => view.project.sessionOnly && !curatedIds.has(view.project.id));
-    return resolve([...published, ...curated]);
-  },
   async listLocationProjects(locationId) {
     const { locationDirectory, profileMatchesPlace } = await import('../../data/locationDirectory');
     const city = await locationDirectory.resolve(locationId);
@@ -899,8 +864,9 @@ export const mockDiscoveryService: DiscoveryService = {
     return resolve(creators);
   }
 };
-export const mockSearchService: SearchService = {
-  async search(query) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockSearchService = {
+  async search(query: string) {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
       return resolve([] as SearchResult[]);
@@ -1575,22 +1541,6 @@ export const mockMessagingService: MessagingService = {
 /** Joined sessions are in-memory for the session only, like follows. */
 const joinedSessionIds = new Set<Id>();
 export const mockLiveService: LiveService = {
-  async listLocations() {
-    return resolve(cities.map((city) => {
-      const id = toLocationId(city.name);
-      return {
-        id,
-        name: city.name,
-        countryCode: getCountryCode(city.name),
-        // NOT IMPLEMENTED: no timezone database. Local time is derived from
-        // longitude by `getLocalTimeAt` / `formatSolarUtcOffset` instead.
-        timeZone: '',
-        latitude: city.latitude,
-        longitude: city.longitude,
-        accentToken: getCityAccentToken(id)
-      };
-    }) satisfies Location[], 0);
-  },
   async listSessions(locationId) {
     // Deterministic prototype seeds. Real sessions would come from the broadcast
     // backend; these describe sessions rather than carrying any audio.
@@ -1621,8 +1571,9 @@ export const mockLiveService: LiveService = {
     return resolve(undefined);
   }
 };
-export const mockAnalyticsService: AnalyticsService = {
-  async getCreatorAnalytics(profileId, periodId = defaultReportingPeriodId) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockAnalyticsService = {
+  async getCreatorAnalytics(profileId: Id, periodId = defaultReportingPeriodId) {
     return resolve({
       profileId,
       periodLabel: getReportingPeriod(periodId).label,
@@ -1642,7 +1593,7 @@ export const mockAnalyticsService: AnalyticsService = {
    * produced. Each now reports plainly that nothing was generated and nothing was
    * changed. A real implementation dispatches the job and returns its outcome.
    */
-  async requestLayoutRevision(projectId) {
+  async requestLayoutRevision(projectId: Id) {
     void projectId;
     return resolve({
       didGenerate: false,
@@ -1650,7 +1601,7 @@ export const mockAnalyticsService: AnalyticsService = {
       message: 'No layout revision was generated. This action is a prototype: your project and its files are unchanged.'
     } satisfies GenerationOutcome, 700);
   },
-  async simulateDraft(files) {
+  async simulateDraft(files: File[]) {
     // The files are never read, uploaded, or stored.
     void files;
     return resolve({
@@ -1659,7 +1610,7 @@ export const mockAnalyticsService: AnalyticsService = {
       message: 'No performance simulation was run. Your draft files were not uploaded or analysed, and nothing was saved.'
     } satisfies GenerationOutcome, 700);
   },
-  async synthesizeCrossMedia(projectIds) {
+  async synthesizeCrossMedia(projectIds: Id[]) {
     void projectIds;
     return resolve({
       didGenerate: false,
@@ -1668,8 +1619,9 @@ export const mockAnalyticsService: AnalyticsService = {
     } satisfies GenerationOutcome, 700);
   }
 };
-export const mockCommerceService: CommerceService = {
-  async getProduct(productId) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockCommerceService = {
+  async getProduct(productId: Id) {
     // NOT IMPLEMENTED: commerce data is presentational in the prototype.
     return resolve({
       id: productId,
@@ -1683,4 +1635,4 @@ export const mockCommerceService: CommerceService = {
   }
 };
 
-export { localGeographyService, localPreferencesService } from '../local';
+export { localGeographyService } from '../local';

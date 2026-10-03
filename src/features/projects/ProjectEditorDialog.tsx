@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, Loader2Icon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
+import { PublishedCoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
 import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ProjectPreviewFrame } from '../../components/publishing/ProjectPreviewFrame';
 import { ProfileField } from '../../components/profile/ProfileField';
@@ -70,11 +71,15 @@ export function ProjectEditorDialog({
           document.getElementById('project-replacement-files')?.focus();
           return;
         }
+        if (editor.mode === 'story') {
+          document.getElementById('project-story-what')?.focus();
+          return;
+        }
         if (editor.mode === 'description') {
           document.getElementById('project-summary')?.focus();
           return;
         }
-        if (editor.mode === 'cover') {
+        if (editor.mode === 'cover' || editor.mode === 'cover-choice') {
           dialogRef.current?.querySelector<HTMLButtonElement>('[data-project-cover-choice]')?.focus();
           return;
         }
@@ -113,12 +118,14 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  return <ProjectFormDialog title="Edit project" titleId="project-editor-title" description={editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <ProjectFormDialog mobileFlow={isMobile && ['story', 'cover-choice', 'journey'].includes(editor.mode)} title={editor.mode === 'cover-choice' ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
-              {editor.mode === 'journey' ? <div className="project-form-details">
+              {editor.mode === 'cover-choice' ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={()=>editor.projectId&&editor.open(editor.projectId,'files')} /> : editor.mode === 'story' ? <div className="project-form-details">
+                {(['what', 'did', 'learned'] as const).map((key, index) => <ProfileField key={key} id={`project-story-${key}`} label={['What is this?', 'What did you do?', 'What did you learn?'][index]} multiline value={editor.metadata.creationDetails?.answers[key] ?? ''} disabled={isLocked} onChange={value => editor.setJourneyField(key, value)} />)}
+              </div> : editor.mode === 'journey' ? <div className="project-form-details">
                 <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-in">Made in<input id="project-made-in" type="month" className="text-control p-3" disabled={isLocked} value={editor.metadata.creationDetails?.madeIn ?? ''} onChange={e => editor.setJourneyField('madeIn', e.target.value)} /><span className="text-xs text-[var(--text-secondary)]">Uses the publication date when left blank.</span></label>
                 <ProfileField id="project-learned" label="What did you learn?" multiline value={editor.metadata.creationDetails?.answers.learned ?? ''} placeholder="Uses the first description line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('learned', value)} />
                 <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Uses your learned line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
@@ -256,7 +263,7 @@ export function ProjectEditorDialog({
             </p>}
           <div className="flex items-center justify-end gap-2">
             <Button variant="secondary" size="lg" onClick={requestClose} disabled={isLocked || upload.isCleaningUp}>{editor.isDirty ? 'Cancel' : 'Close'}</Button>
-            <Button type="submit" variant="primary" size="lg" isLoading={isLocked} disabled={!editor.isDirty || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed'}>
+            <Button type="submit" variant="primary" size="lg" isLoading={isLocked} disabled={(!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed'}>
               {editor.isTransferring ? 'Uploading…' : editor.isSaving ? 'Saving…' : 'Save changes'}
             </Button>
           </div>

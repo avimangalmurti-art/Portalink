@@ -83,42 +83,6 @@ test('minimal design and signal reads retain the readable category boundary', as
   assert.equal(h.signals.length, 0);
 });
 
-test('search uses bounded database results plus local city suggestions and falls back only for an unapplied RPC', async () => {
-  const calls = [], tableReads = [];
-  let failure = null;
-  const client = {
-    rpc: async (name, input) => {
-      calls.push(plain({ name, input }));
-      return { data: [{ id: 'older-project', kind: 'project', title: 'Typography', subtitle: 'Design', avatar: null }], error: failure };
-    },
-    from: table => {
-      tableReads.push(table);
-      const builder = {
-        select() { return builder; }, eq() { return builder; }, order() { return builder; },
-        limit: async () => ({ data: [], error: null }),
-      };
-      return builder;
-    },
-  };
-  const exports = {};
-  vm.runInNewContext(ts.transpileModule(`const service={${methods('supabaseSearchService', ['search'])}};exports.service=service;`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, {
-    exports, requireSupabase: () => client, cities: [{ name: 'New York' }], toLocationId: () => 'new-york', getCountryCode: () => 'US',
-    parseExplicitLocationIntent: value => value.includes('New York') ? { label: 'New York' } : null,
-    creatorLocationMatches: () => true,
-  });
-  const result = await exports.service.search('Typography in New York');
-  assert.deepEqual(calls[0], { name: 'search_public_content', input: { p_terms: ['typography'], p_location: 'New York' } });
-  assert.deepEqual(plain(result), [{ id: 'older-project', kind: 'project', title: 'Typography', subtitle: 'Design' }, { id: 'new-york', kind: 'location', title: 'New York', subtitle: 'US' }]);
-  assert.deepEqual(tableReads, []);
-  failure = { code: 'PGRST202', message: 'not installed' };
-  await exports.service.search('Design');
-  assert.deepEqual(tableReads, ['profiles', 'projects', 'portfolio_categories']);
-  tableReads.length = 0;
-  failure = { code: '42501', message: 'Permission denied' };
-  await assert.rejects(exports.service.search('Design'), /Permission denied/);
-  assert.deepEqual(tableReads, []);
-});
-
 function mediaFixture() {
   let accountId = 'account-a', now = 0, callback, failure = false, deferred;
   const calls = [];

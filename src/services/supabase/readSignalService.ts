@@ -11,9 +11,9 @@ async function accountRequest<T>(path: string, init?: RequestInit): Promise<T> {
     return mediaInteractionRequest<T>(path, init, true, account);
 }
 export const readSignalService: ReadSignalService = {
-    list: () => accountRequest<ReachSummary[]>('/api/reach/projects'),
-    summary: projectId => accountRequest<ReachSummary>(`/api/reach/summary?project_id=${encodeURIComponent(projectId)}`),
-    detail: (projectId, page) => accountRequest<ReadDetail>(`/api/reach/summary?project_id=${encodeURIComponent(projectId)}&page=${page}`),
+    list: period => accountRequest<ReachSummary[]>(`/api/reach/projects${period ? `?period=${period}` : ''}`),
+    summary: (projectId, period) => accountRequest<ReachSummary>(`/api/reach/summary?project_id=${encodeURIComponent(projectId)}${period ? `&period=${period}` : ''}`),
+    detail: (projectId, page, period) => accountRequest<ReadDetail>(`/api/reach/summary?project_id=${encodeURIComponent(projectId)}&page=${page}${period ? `&period=${period}` : ''}`),
     weekly: async (week) => { await accountRequest('/api/reach/weekly', { method: 'POST', body: JSON.stringify({ week }) }); },
 };
 export function withPageNotifications(existing: NotificationService): NotificationService {

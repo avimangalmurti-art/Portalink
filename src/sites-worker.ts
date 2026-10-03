@@ -5,7 +5,7 @@ import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
 import { handleRumIngest, readRumSummary } from './server/rum';
 import { authorizeRumOwner } from './server/rumOwner';
-import { ingestReach, handleReachRead, preparePageAction, savePagePrivately } from './server/projectReach';
+import { ingestReach, handleReachRead, handleStudioAttention, preparePageAction, savePagePrivately } from './server/projectReach';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -371,6 +371,7 @@ const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
+    if (url.pathname === '/api/studio/attention') return handleStudioAttention(request,environment.DB,reachConfig)
     if (url.pathname === '/api/reach') return ingestReach(request,environment.DB,reachConfig)
     if (url.pathname.startsWith('/api/reach/')) return handleReachRead(request,environment.DB,reachConfig)
     if (isPublicMediaRoute(url.pathname)) return handlePublicMedia(request, {

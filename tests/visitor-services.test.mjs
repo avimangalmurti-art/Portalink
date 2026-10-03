@@ -17,7 +17,6 @@ const deferred = execute(read('deferredService'));
 function registry() {
   const imports = [], calls = [];
   const auth = { getSession: async () => null, onAuthStateChange: () => () => {} };
-  const preferences = { readAppearance: () => ({ mode: 'system' }), writeAppearance: value => { calls.push(['appearance', value]); } };
   const projectReads = {
     async getProjectView(id) { calls.push(['viewer', id]); return { project: { id }, creator: { id: 'creator' } }; },
     async getProject(id) { return (await this.getProjectView(id)).project; },
@@ -41,7 +40,6 @@ function registry() {
       case './deferredService': return deferred;
       case './supabase/profileSharing': return { profileSharing: {} };
       case './supabase/authService': return { supabaseAuthService: auth };
-      case './localPreferences': return { localPreferencesService: preferences };
       case './supabase/contentReaders': return { supabaseProfileReadService: {
         async getSharedProfile(id) { calls.push(['shared', id]); return { id, isPrivate: false, projects: [] }; },
         async getProjectGridLayout(id) { return { id, projectGridColumns: 2 }; },
@@ -60,18 +58,17 @@ function registry() {
       default: throw new Error(`Unexpected visitor import ${name}`);
     }
   });
-  return { services: visitorServices, imports, calls, auth, preferences };
+  return { services: visitorServices, imports, calls, auth };
 }
 
 test('public landing reads use the canonical public reader without loading account writes or viewer services', async () => {
   const h = registry();
   assert.equal(h.services.auth, h.auth);
-  assert.equal(h.services.preferences, h.preferences);
   await h.services.auth.getSession();
   await h.services.profiles.getSharedProfile('creator');
   await h.services.profiles.getProfile('creator');
   assert.deepEqual(h.calls, [['shared', 'creator'], ['shared', 'creator']]);
-  assert.deepEqual(h.imports, ['./supabase/profileSharing', './supabase/authService', './supabase/contentReaders', './localPreferences', './deferredService']);
+  assert.deepEqual(h.imports, ['./supabase/profileSharing', './supabase/authService', './supabase/contentReaders', './deferredService']);
 });
 
 test('opening a full project loads only canonical project reads and preserves method this binding', async () => {

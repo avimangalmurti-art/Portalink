@@ -36,21 +36,3 @@ export function readEmployerFields(row: Record<string, unknown>) {
     allowPdfDownload: row.allow_pdf_download !== false,
   };
 }
-export const PORTFOLIO_PAGE_LIMIT = 120;
-export function exportProjectPageCount(project: Project): number {
-  if (!project.attachments?.length) return Math.max(1, project.pageCount ?? 1);
-  return project.attachments.reduce((sum, attachment) => sum + (attachment.kind === 'document' ? Math.max(1, attachment.metadata?.pageCount ?? 1) : 1), 0);
-}
-export function exportCoverSource(project: Project): string | undefined {
-  return project.coverThumbnail?.variants.find(variant => variant.size === 400)?.sourceUrl
-    || project.coverThumbnail?.variants.find(variant => variant.sourceUrl)?.sourceUrl
-    || (project.coverKind !== 'document' && project.coverKind !== 'video' && !project.attachments?.some(attachment => attachment.sourceUrl === project.cover && attachment.kind !== 'image') ? project.cover : undefined) || undefined;
-}
-export function defaultExportIds(profile: Profile): string[] {
-  const projects = publicProjects(profile).slice().sort((a,b) => (b.publishedAt ?? '').localeCompare(a.publishedAt ?? '') || a.id.localeCompare(b.id));
-  const first = startHereProject(profile);
-  return [...(first ? [first.id] : []), ...projects.filter(p => p.id !== first?.id).slice(0, 3).map(p => p.id)];
-}
-export function exportPageTotal(projects: Project[]): number {
-  return 1 + projects.reduce((sum, project) => sum + exportProjectPageCount(project), 0);
-}

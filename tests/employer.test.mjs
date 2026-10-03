@@ -34,19 +34,9 @@ test('contact never falls back to authentication email and requires explicit opt
 test('read time uses rounded 20-second pages, with no invented zero-page duration',()=>{
  assert.equal(e.readMinutes(0),null);assert.equal(e.readMinutes(1),'Read in 1 min');assert.equal(e.readMinutes(18),'Read in 6 min');assert.equal(e.readMinutes(20),'Read in 7 min');
 });
-test('composer defaults pin first plus three recent public works, cap includes its cover',()=>{
- const value=profile({startHereProjectId:'old',projects:[p('b',{publishedAt:'2025-01-01'}),p('old',{publishedAt:'2020-01-01'}),p('new',{publishedAt:'2026-02-01'}),p('private',{isPubliclyVisible:false,publishedAt:'2027'}),p('c'),p('d')]});
- assert.deepEqual(plain(e.defaultExportIds(value)),['old','new','c','d']);
- assert.equal(e.exportPageTotal([p('a',{pageCount:119})]),120);assert.ok(e.exportPageTotal([p('a',{pageCount:120})])>e.PORTFOLIO_PAGE_LIMIT);
-});
 test('missing columns use conservative contact/pin defaults and preserve deliberate headline clearing',()=>{
  const legacy=e.readEmployerFields({headline:'Bio',email:'private@example.com'});assert.equal(legacy.portfolioHeadline,null);assert.equal(legacy.contactEmailPublic,false);assert.equal(legacy.contactEmail,'');assert.equal(legacy.startHereProjectId,null);assert.equal(legacy.allowPdfDownload,true);
  assert.equal(e.readEmployerFields({portfolio_headline:''}).portfolioHeadline,'');assert.equal(e.readEmployerFields({allow_pdf_download:false}).allowPdfDownload,false);
-});
-test('export counts every attachment and never treats an original PDF as cover artwork',()=>{
- const project=p('mixed',{cover:'original.pdf',attachments:[{kind:'document',sourceUrl:'original.pdf',metadata:{pageCount:5}},{kind:'image'},{kind:'document',metadata:{pageCount:2}}]});
- assert.equal(e.exportProjectPageCount(project),8);assert.equal(e.exportPageTotal([project]),9);assert.equal(e.exportCoverSource(project),undefined);
- project.coverThumbnail={variants:[{size:400,sourceUrl:'/media/covers/thumb.webp'}]};assert.equal(e.exportCoverSource(project),'/media/covers/thumb.webp');
 });
 test('actual profile writer rejects absent employer columns without fallback writes or silently saving',async()=>{
  const source=ts.createSourceFile('content.ts',read('src/services/supabase/contentServices.ts'),ts.ScriptTarget.Latest,true);
@@ -61,17 +51,6 @@ test('actual profile writer rejects absent employer columns without fallback wri
  error=null;await exports.service.updateProfile('owner',{name:'Name'});assert.deepEqual(plain(calls[1]),{name:'Name'});
  await exports.service.updateProfile('owner',{contactEmailPublic:false,contactEmail:'old@example.com'});assert.deepEqual(plain(calls[2]),{contact_email_public:false,contact_email:null});
  await assert.rejects(exports.service.updateProfile('owner',{portfolioHeadline:'a'.repeat(81)}),/80/);assert.equal(calls.length,3);
-});
-test('JPEG assembler writes exact binary stream lengths, object offsets, page count and stable live link',async()=>{
- const {assembleJpegPdf}=load('src/features/employer/jpegPdf.ts');
- const bytes=new Uint8Array([255,216,255,0,10,0,255,217]);
- const page={jpeg:new Blob([bytes],{type:'image/jpeg'}),pixelWidth:4,pixelHeight:4,width:612,height:792};
- const blob=assembleJpegPdf([page,page],'https://portalink.example/share/creator');
- const data=Buffer.from(await blob.arrayBuffer()),text=data.toString('latin1');
- assert.match(text,/\/Count 2/);assert.match(text,/\/Length 8 >>\nstream\n/);assert.match(text,/\/URI \(https:\/\/portalink.example\/share\/creator\)/);
- const xref=Number(/startxref\n(\d+)/.exec(text)[1]);assert.equal(text.slice(xref,xref+4),'xref');
- const entries=text.slice(xref).split('\n').slice(3,12);entries.forEach((entry,index)=>assert.ok(text.slice(Number(entry.slice(0,10))).startsWith(`${index+1} 0 obj`)));
- assert.throws(()=>assembleJpegPdf(Array(121).fill(page),'https://example.com'),/120/);
 });
 test('pending schema gates contact at rest, pins only own visible work, and atomically replaces the public bundle',()=>{
  const sql=read('supabase/pending/profile_employer.sql');

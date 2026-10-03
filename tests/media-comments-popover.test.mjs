@@ -198,9 +198,9 @@ test('scrolling tracks the anchor and unmount removes viewport and document list
   assert.equal(env.observers[0].observed.length, 0);
 });
 
-function interactionBarHarness(mode) {
+function interactionBarHarness(mode, guest = false) {
   const states = [];
-  let cursor = 0, retries = 0, dismissals = 0;
+  let cursor = 0, retries = 0, dismissals = 0; const gates = [];
   const activity = {
     record: { engaged: { like: false, save: false, repost: false }, counts: { like: 0, save: 0, repost: 0 }, comments: [] },
     pendingKind: null, isResolvingEngagement: true, isLoading: false, isPostingComment: false,
@@ -214,7 +214,7 @@ function interactionBarHarness(mode) {
       if (!(index in states)) states[index] = initial;
       return [states[index], next => { states[index] = typeof next === 'function' ? next(states[index]) : next; }];
     },
-    useContext: () => null, useRef: initial => ({ current: initial }), useId: () => 'comments-id',
+    useContext: () => guest ? {shared:true,projectId:'project',attachmentId:'attachment',pageIndex:0} : null, useRef: initial => ({ current: initial }), useId: () => 'comments-id',
     useEffect() {}, useLayoutEffect() {}, useMemo: fn => fn(), useCallback: fn => fn,
   };
   const popover = () => null;
@@ -225,7 +225,7 @@ function interactionBarHarness(mode) {
     '../../components/ui/InterfaceIcon': { InterfaceIcon: icon },
     '../../components/publishing/ProjectFormDialog': { ProjectFormDialog: 'project-form' },
     '../../components/ui/Button': { Button: 'button' },
-    '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true }) },
+    '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: !guest, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}) }) },
     '../auth/registration': { readSharedReturnPath: () => null },
     './MobilePageContext': { MobilePageContext: {} },
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
@@ -239,18 +239,30 @@ function interactionBarHarness(mode) {
     '../../presentation/usePresentation': { usePresentation: () => mode },
     './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth: 390, hostWidth: 390, isVisible: true }) },
     './MediaCommentsPopover': { MediaCommentsPopover: popover },
-  });
+  }, {window:{location:{pathname:'/share/creator/c/portal/project',search:'?page=2'}}});
   const render = () => {
     cursor = 0;
     return MediaInteractionBar({ target: { projectId: 'project', attachmentId: 'attachment', pageIndex: 0, label: 'Original source' } });
   };
-  return { activity, render, popover, get retries() { return retries; }, get dismissals() { return dismissals; } };
+  return { gates, activity, render, popover, get retries() { return retries; }, get dismissals() { return dismissals; } };
 }
 
 function descendants(node) {
   if (!React.isValidElement(node)) return [];
   return [node, ...React.Children.toArray(node.props.children).flatMap(descendants)];
 }
+
+test('shared mobile guest page actions stay tappable while resolving and prompt Create account', () => {
+  const env = interactionBarHarness('mobile', true);
+  const nodes = descendants(env.render());
+  const actions = nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):|^Show comments for|^Share Page/.test(node.props['aria-label'] ?? ''));
+  assert.equal(actions.length, 5);
+  env.activity.toggle = env.activity.share = () => assert.fail('Guest action must not write or share');
+  for (const action of actions) { assert.ok(!action.props.disabled); action.props.onClick(); }
+  assert.equal(env.gates.length, 5);
+  assert.ok(env.gates.every(call => call.view === 'signUp' && call.intent.path === '/share/creator/c/portal/project?page=2'));
+  assert.equal(descendants(env.render()).some(node => node.type === env.popover), false);
+});
 
 for (const mode of ['mobile', 'web']) {
   test(`${mode} exposes first-read retry outside closed Comments and keeps recovery reachable inside`, () => {

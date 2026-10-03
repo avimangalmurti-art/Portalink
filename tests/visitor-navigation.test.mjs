@@ -57,6 +57,32 @@ const one = (tree, type) => nodes(tree).find(node => node.type === type);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label));
 const json = value => JSON.parse(JSON.stringify(value));
 
+test('shared portal popup gives its published rows the mobile list sizing and keeps selection and dismissal', () => {
+  let closed = 0;
+  const selected = [];
+  const { SharedPortalPopup } = load('visitor/mobile/SharedPortalPopup.tsx', name => {
+    if (name === 'react') return { ...React, useRef: () => ({ current: null }) };
+    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
+    if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'system-ui' };
+    const component = name.split('/').pop();
+    if (component === 'MobileBackNavigation') return named('ScreenBack');
+    return named(component);
+  });
+  const profile = { id: 'owner', categories: [{ id: 'design', label: 'Product Design' }], projects: [{ id: 'paper', categoryId: 'design' }, { id: 'other', categoryId: 'other' }] };
+  const tree = SharedPortalPopup({ profile, categoryId: 'design', onClose: () => closed++, onSelect: (...args) => selected.push(args) });
+  const nav = one(tree, 'nav');
+  assert.equal(nav.props['data-project-index-list'], '');
+  assert.equal(nav.props['aria-label'], 'Product Design projects');
+  const list = one(tree, 'ProjectIndexList');
+  assert.deepEqual(list.props.projects.map(project => project.id), ['paper']);
+  assert.equal(list.props.isOwner, false);
+  list.props.onSelect('paper');
+  assert.equal(closed, 1);
+  assert.deepEqual(selected, [['design', 'paper']]);
+  one(tree, 'MobilePortalProjectToolbar').props.onBack();
+  assert.equal(closed, 2);
+});
+
 // Executes the actual components with a deterministic hook lifecycle. Descendant
 // components remain boundaries: no browser, Auth, network or Storage writes.
 function hooks() {
@@ -141,7 +167,7 @@ function appHarness({ firstVisit = false } = {}) {
   };
 }
 
-test('first public mobile visit previews the mounted portfolio, then keeps the exact shared URL', () => {
+test('cold public mobile visit shows the portfolio immediately and keeps the exact shared URL', () => {
   const h = appHarness({ firstVisit: true });
   h.state.location.search = '?via=friend'; h.state.location.hash = '#work';
   let tree = h.render();
@@ -150,19 +176,16 @@ test('first public mobile visit previews the mounted portfolio, then keeps the e
   const shellChildren = React.Children.toArray(one(tree, 'MobileBackProvider').props.children);
   assert.ok(shellChildren.some(node => node.type === 'SharedProfileSidebar'));
   assert.ok(shellChildren.some(node => node.props.className?.includes('codex-workspace')));
-  const intro = one(tree, 'lazy:./mobile/PublicPortfolioWelcome');
-  assert.equal(intro.props.appearance, appearance);
   assert.ok(h.queryCalls.length > 0);
-  intro.props.onComplete(); tree = h.render();
+  tree = h.render();
   assert.equal(nodes(tree).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
   assert.equal(h.state.location.search + h.state.location.hash, '?via=friend#work');
   assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
 });
 
-test('returning share-link visitors see appearance again; WEB, document links and recovery bypass it', () => {
+test('shared visitors on both presentations never receive the appearance welcome', () => {
   const returning = appHarness();
-  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), true);
-  one(returning.render(), 'lazy:./mobile/PublicPortfolioWelcome').props.onComplete();
+  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
   assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
   for (const configure of [h => { h.state.presentation = 'web'; }, h => { h.state.route = {kind:'sharedProject',profileId,categoryId:'portal',projectId:'work'}; }, h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
     const h = appHarness({ firstVisit: true }); configure(h);
@@ -315,6 +338,28 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
   assert.equal(one(h.render(), 'ProjectMediaViewer').props.pageCount, 12);
 });
 
+test('shared links start on Portfolio despite a saved Journey choice and still allow switching', () => {
+  const saved = new Map([['viewer:creator', 'journey']]);
+  const create = () => {
+    const h = hooks();
+    const { useJourneySelection } = load('features/journey/useJourneySelection.ts', name => {
+      if (name === 'react') return h.react;
+      return { journeyPreferenceKey: (viewer, profile) => `${viewer}:${profile}`,
+        readJourneyPreference: key => saved.get(key) || 'portfolio',
+        rememberJourneyPreference: (key, view) => saved.set(key, view) };
+    });
+    return (profile = 'creator', remember = false) => h.render(() => useJourneySelection(profile, 'viewer', remember));
+  };
+  const render = create();
+  assert.equal(render().view, 'portfolio');
+  render().select('journey'); assert.equal(render().view, 'journey');
+  render().select('portfolio'); assert.equal(render().view, 'portfolio');
+  assert.equal(saved.get('viewer:creator'), 'journey');
+  assert.equal(create()().view, 'portfolio');
+  assert.equal(render('another').view, 'portfolio');
+  assert.equal(create()('creator', true).view, 'journey');
+});
+
 function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
   const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
@@ -328,7 +373,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
     if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
     if (name === '../features/follows/useFollows') return { useFollows: id => { followed.push(id); return { resolveError: state.resolveError, retryResolve: () => { state.resolveError = null; } }; } };
     if (name === '../features/auth/interactionIntent') return intents;
-    if (name === '../features/journey/useJourneySelection') return { useJourneySelection: () => ({ view: state.view, select(view) { state.view = view; } }) };
+    if (name === '../features/journey/useJourneySelection') return { useJourneySelection: (_profile, _viewer, remember) => { assert.equal(remember, false); return { view: state.view, select(view) { state.view = view; } }; } };
     if (name === '../features/employer/employer') return employer;
     if (name === '../features/profile/useProjectGridDensity') return { useProjectGridDensity: () => ({ columns: 3 }) };
     if (name === '../features/profile/profileLinks') return { resolveProfileLinks: (links, socialLinks) => { assert.equal(links, profile.links); assert.equal(socialLinks, profile.socialLinks); return links; } };
@@ -454,4 +499,27 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   h.state.presentation='web';
   one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
   assert.ok(h.navigations.length>0);
+});
+
+
+test('handle project navigation resolves the complete target and preserves it through alias redirects', async () => {
+  for (const alias of [false, true]) {
+    const h = hooks(), navigations = [];
+    const location = { pathname: '/creator/c/portal/work', search: '?from=portfolio' };
+    const profiles = { resolvePublicHandle: async () => ({profileId, handle: alias ? 'new.creator' : 'creator', alias}) };
+    const navigate = (...args) => navigations.push(args);
+    const { useHandleRoute } = load('visitor/useHandleRoute.ts', name => {
+      if (name === 'react') return h.react;
+      if (name === 'react-router-dom') return {useLocation: () => location, useNavigate: () => navigate};
+      if (name === '../contexts/ServicesContext') return {useServices: () => ({profiles})};
+      if (name === '../features/sharing/shareModel') return shareModel;
+      throw new Error(name);
+    }, {window: {}});
+    h.render(() => useHandleRoute({kind: 'unknown'}));
+    await Promise.resolve(); await Promise.resolve();
+    const result = h.render(() => useHandleRoute({kind: 'unknown'}));
+    assert.equal(result.pending, false);
+    assert.deepEqual(json(result.route), {kind: 'sharedProject', profileId, categoryId: 'portal', projectId: 'work'});
+    assert.deepEqual(json(navigations), alias ? [['/new.creator/c/portal/work?from=portfolio', {replace: true}]] : []);
+  }
 });

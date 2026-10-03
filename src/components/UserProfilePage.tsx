@@ -1,3 +1,4 @@
+import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
@@ -18,10 +19,9 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
-import { SectionHeader } from './SectionHeader';
 import { EmptyState } from './ui/StateViews';
 import type { EngagementKind } from '../types/engagement';
 import { CreatorSaveButton } from '../features/library/CreatorSaveButton';
@@ -490,6 +490,13 @@ export function UserProfilePage({
       .filter((project): project is Project => Boolean(project));
   }, [cardProjects, projectOrder.order, isMobile]);
   const navigate = useNavigate();
+  const connectionOrigin = searchParams.get('fromConnections');
+  const connectionList = searchParams.get('connectionList');
+  const showConnectionBack = isMobile && Boolean(connectionOrigin) && (connectionList === 'followers' || connectionList === 'following');
+  const backToConnections = () => {
+    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+    else if (connectionOrigin) navigate(`${buildPath(isSharedView ? 'sharedProfile' : 'profile', { profileId: connectionOrigin })}?view=${connectionList}`, { replace: true });
+  };
   const showsMobileReorder = !isJourney && showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
   const canReorderProjects = orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
   const startReordering = () => {
@@ -676,6 +683,7 @@ export function UserProfilePage({
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
+      {showConnectionBack && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />Back</button></ScreenBack>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
           profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}

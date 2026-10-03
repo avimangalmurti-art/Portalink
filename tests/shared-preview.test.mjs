@@ -630,3 +630,17 @@ test('portfolio card and pasted-link metadata use the profile avatar rather than
  const projectHtml=await(await h.request(projectPath)).text();
  assertImage(projectHtml);
 });
+
+
+test('nested handle project crawler metadata keeps its project rather than showing a profile card', async () => {
+ const h=setup(), path=`/creator/c/${id(2)}/${id(3)}`;
+ const response=await h.preview.withSharedPreview(new Response(h.html(),{headers:{'content-type':'text/html'}}),new Request('https://portalink.example'+path,{headers:{accept:'text/html','user-agent':'Twitterbot'}}),config,id(1));
+ const html=await response.text();
+ assert.match(html, /Courtyard — Test creator/);
+ assert.equal(value(html,'og:url'),'https://portalink.example'+path);
+ assert.equal(value(html,'og:type'),'article');
+ assertImage(html);
+ const query=h.reads().find(call=>call.url.pathname.endsWith('/projects')).url.searchParams;
+ assert.equal(query.get('id'),'eq.'+id(3));
+ assert.equal(query.get('category_id'),'eq.'+id(2));
+});

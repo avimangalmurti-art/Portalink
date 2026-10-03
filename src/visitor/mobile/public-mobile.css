@@ -2112,7 +2112,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   height: 100%;
   overflow: hidden;
   border-radius: 0 24px 24px 0;
-  background: var(--codex-sidebar-bg);
+  background: var(--navigation-surface);
   box-shadow: 6px 0 24px rgb(0 0 0 / 0.2);
   outline: none;
   pointer-events: none;
@@ -2126,7 +2126,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   width: 100%;
   padding-top: 0;
   border: 0;
-  background: var(--codex-sidebar-bg) !important;
+  background: var(--navigation-surface) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   transition: none;
@@ -2182,7 +2182,7 @@ html:has([data-public-portfolio][data-presentation='mobile'] .mobile-shared-draw
 /* This is an edge drawer, even though its focus semantics are modal. */
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
   border-radius: 0 24px 24px 0 !important;
-  background: var(--codex-sidebar-bg) !important;
+  background: var(--navigation-surface) !important;
   box-shadow: 6px 0 24px rgb(0 0 0 / 20%) !important;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-panel .shared-profile-sidebar { min-width: 0; }
@@ -2309,4 +2309,45 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   font-size: 12px;
   line-height: 16px;
   flex: 0 0 auto;
+}
+
+/* Center the shared reader's sidebar toggle and content controls together. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) {
+  --public-reader-toggle-size: calc(44px + 2 * var(--mobile-control-inset));
+  --public-reader-bar-width: calc(4 * 44px + 3 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
+  --public-reader-toggle-offset: calc((var(--public-reader-toggle-size) + var(--mobile-control-group-gap)) / 2);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
+  left: calc(50% + var(--public-reader-toggle-offset));
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) [data-mobile-engagement-content] {
+  left: calc(50% - var(--public-reader-toggle-offset));
+  right: auto;
+  transform: translateX(-50%);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) :is(.mobile-shared-drawer-opener, .mobile-shared-drawer-panel [data-sidebar-toggle]) {
+  position: absolute;
+  left: calc(50vw - (var(--public-reader-bar-width) + var(--mobile-control-group-gap) + var(--public-reader-toggle-size)) / 2);
+  bottom: calc(var(--mobile-fixed-offset, 0px) + var(--mobile-project-actions-bottom));
+  width: var(--public-reader-toggle-size);
+  height: var(--public-reader-toggle-size);
+  min-width: var(--public-reader-toggle-size);
+  min-height: var(--public-reader-toggle-size);
+  padding: var(--mobile-control-inset);
+  border: 1px solid var(--navigation-border);
+  border-radius: 999px !important;
+  background: var(--navigation-surface) !important;
+  color: var(--navigation-foreground) !important;
+  box-shadow: var(--navigation-shadow);
+  -webkit-backdrop-filter: var(--navigation-blur);
+  backdrop-filter: var(--navigation-blur);
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-panel [data-sidebar-toggle] {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-panel [data-sidebar-toggle] [data-interface-icon-frame] {
+  --interface-icon-size: 22px;
 }

@@ -17,13 +17,15 @@ export async function resolveShareRequest(request: Request, config: ShareConfigu
     if (handle) {
       const resolution = parseResolution(await publicShareRpc(config, 'resolve_profile_handle', { p_handle: handle }));
       if (!resolution) return { missing: true };
-      if (resolution.alias || url.pathname !== `/${resolution.handle}`) return { redirect: permanent(portfolioPath(resolution.profileId, resolution.handle) + url.search, url), resolution };
+      const suffix = url.pathname.slice(handle.length + 1).replace(/\/$/, '');
+      const canonical = portfolioPath(resolution.profileId, resolution.handle) + suffix;
+      if (resolution.alias || url.pathname !== canonical) return { redirect: permanent(canonical + url.search, url), resolution };
       return { resolution };
     }
-    const uuid = /^\/share\/([a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\/?$/i.exec(url.pathname);
+    const uuid = /^\/share\/([a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})(\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?|\/collaboration)?\/?$/i.exec(url.pathname);
     if (uuid) {
       const data = await publicShareRpc(config, 'profile_share_address', { p_profile_id: uuid[1] });
-      if (typeof data?.handle === 'string' && validHandle(data.handle)) return { redirect: permanent(portfolioPath(uuid[1], data.handle) + url.search, url) };
+      if (typeof data?.handle === 'string' && validHandle(data.handle)) return { redirect: permanent(portfolioPath(uuid[1], data.handle) + (uuid[2] ?? '') + url.search, url) };
     }
   } catch { return handle ? { unavailable: true } : {}; }
   return {};

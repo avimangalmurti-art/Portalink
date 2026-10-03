@@ -383,6 +383,13 @@ export const supabaseEngagementService: EngagementService = {
     if (!record) throw new EngagementServiceError('permission_denied', 'This project is not available.');
     return record;
   },
+  async listSavedProjectEntries() {
+    const accountId = await currentAccountId(false);
+    if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in to see bookmarks.');
+    const { data, error } = await requireSupabase().from('project_engagement').select('project_id,created_at').eq('account_id', accountId).eq('kind','save').order('created_at',{ascending:false});
+    if (error) throw new EngagementServiceError('network',error.message);
+    return (data ?? []).map(row=>({projectId: String(row.project_id),savedAt:String(row.created_at)}));
+  },
   async listEngagedProjectIds(kind) {
     const accountId = await currentAccountId(false);
     if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in to see your activity.');

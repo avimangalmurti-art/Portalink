@@ -10,15 +10,10 @@ const load = (file, dependencies = {}, globals = {}) => {
     { exports, require: name => dependencies[name] ?? new Proxy({}, {get:(_,key)=>key}), ...globals });
   return exports;
 };
-test('share-link appearance completion is scoped to the current portfolio visit', () => {
+test('visitor entry does not import or mount an appearance welcome', () => {
   const source = readFileSync(new URL('../src/visitor/VisitorApp.tsx', import.meta.url),'utf8');
-  assert.match(source, /welcomedProfileId, setWelcomedProfileId.*useState<string \| null>\(null\)/);
-  assert.match(source, /welcomedProfileId === profileId/);
-  const {shouldWelcomePublicVisitor} = load('src/visitor/mobile/publicWelcome.ts');
-  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,false,false),true);
-  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,true,false),false);
-  assert.equal(shouldWelcomePublicVisitor('web','sharedProfile',true,false,false),false);
-  assert.equal(shouldWelcomePublicVisitor('mobile','sharedProfile',true,false,true),false);
+  assert.doesNotMatch(source, /PublicPortfolioWelcome|shouldWelcomePublicVisitor|welcomedProfileId/);
+  assert.match(source, /ControlCenterPage/);
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 test('timed splash advances to live controls; completion requires View portfolio or Escape', () => {

@@ -18,7 +18,6 @@ import { MobileProfileWorkspace } from './presentation/mobile/MobileProfileWorks
 import { CollaborationPage } from './components/profile/CollaborationPage';
 import { ActivityCollectionPage } from './components/profile/ActivityCollectionPage';
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
-import { portfolioCategories } from './components/navigation';
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
 import { useLocation } from 'react-router-dom';
@@ -180,7 +179,7 @@ function AppContent() {
     && 'settingsReturn' in navigationState && typeof navigationState.settingsReturn === 'string'
     ? readSharedReturnPath(navigationState.settingsReturn) : undefined;
   const screenInit = useScreenInit();
-  const activeDestination: NavigationDestination = route.kind === 'destination' ? route.destination : 'Today';
+  const activeDestination: NavigationDestination = 'Today';
   const [language, setLanguage] = useState<StoredLanguage>(() => readLanguage('auto'));
   // Every route uses the viewer's active WEB/MOBILE Settings appearance.
   // Creator branding remains stored on the profile; opening a public link must
@@ -1212,7 +1211,7 @@ function AppContent() {
    * joins the views that manage their own scrolling. The condition mirrors the
    * branch that actually renders the feed, so no other view is constrained by it.
   */
-  const isFeedView = !isCollaborationOpen && !isProfileEditorRoute && !personalScreen && !routeStateView && !isControlCenterOpen && !iconPickerCategoryId && !inDesignFeature && !isMessagesOpen && !isSearchOpen && !(routeActivityKind && isProfileRouteReady && viewedProfile) && !(activeCategory && viewedProfile) && !((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile) && (activeDestination === 'Today' || isEditorialDestination(activeDestination));
+  const isFeedView = !isCollaborationOpen && !isProfileEditorRoute && !personalScreen && !routeStateView && !isControlCenterOpen && !iconPickerCategoryId && !inDesignFeature && !isMessagesOpen && !isSearchOpen && !(routeActivityKind && isProfileRouteReady && viewedProfile) && !(activeCategory && viewedProfile) && !((route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && viewedProfile);
   /**
    * One stable identity per workspace. Project selection remains inside its
    * category workspace, so its canvases and local viewer state are not remounted
@@ -1319,6 +1318,7 @@ function AppContent() {
    */
   return <AppPresentation data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
       {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
+        bookmarks: () => nav.to('/saved'),
         explore: openPortalink, newProject: requestMobilePublish,
         settings: nav.controlCenter, insights: () => nav.to(buildPath('insights')),
         ...(liveShow ? { leaveLive: live.leave } : {}),
@@ -1420,7 +1420,4 @@ function AppContent() {
 
       </MobileBackProvider>
     </AppPresentation>;
-}
-function isEditorialDestination(destination: NavigationDestination) {
-  return destination === 'Today' || destination === 'Games' || destination === 'Apps' || destination === 'Arcade' || (portfolioCategories as readonly string[]).includes(destination);
 }

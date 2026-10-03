@@ -1,14 +1,14 @@
 import type { DraftMetadata, PersistedAttachment, PersistedMedia, PreparedMedia, ProjectDraft, PublishResult } from '../../types/publishing';
 export type FirstProjectStage = 'files' | 'details' | 'review';
 export type FirstProjectDraft = {
-  version: 1; accountId: string; profileId: string; draft: ProjectDraft;
+  updatedAt?: string; version: 1; accountId: string; profileId: string; draft: ProjectDraft;
   metadata: DraftMetadata; location: string; stage: FirstProjectStage;
   media: PreparedMedia[]; persisted: PersistedMedia[]; attachments: PersistedAttachment[];
   committed?: PublishResult;
 };
 type Stored = Omit<FirstProjectDraft, 'media'> & { key: string; media: Array<Omit<PreparedMedia, 'file' | 'previewUrl'> & { lastModified: number }> };
 const queues = new Map<string, Promise<unknown>>();
-const keyFor = (accountId: string, profileId: string) => `${accountId}:${profileId}`;
+const keyFor = (accountId: string, profileId: string, draftId?: string) => `${accountId}:${profileId}${draftId ? `:${draftId}` : ''}`;
 function serial<T>(key: string, run: () => Promise<T>): Promise<T> {
   const next = (queues.get(key) ?? Promise.resolve()).catch(() => undefined).then(run);
   queues.set(key, next);
@@ -35,8 +35,8 @@ async function transaction<T>(mode: IDBTransactionMode, run: (tx: IDBTransaction
     });
   } finally { db.close(); }
 }
-export function saveFirstProjectDraft(input: FirstProjectDraft): Promise<void> {
-  const key = keyFor(input.accountId, input.profileId);
+export function saveFirstProjectDraft(input: FirstProjectDraft, draftId?: string): Promise<void> {
+  const key = keyFor(input.accountId, input.profileId, draftId);
   return serial(key, () => transaction<void>('readwrite', tx => {
     const drafts = tx.objectStore('drafts'), files = tx.objectStore('files');
     const get = drafts.get(key);
@@ -50,8 +50,8 @@ export function saveFirstProjectDraft(input: FirstProjectDraft): Promise<void> {
     };
   }));
 }
-export function readFirstProjectDraft(accountId: string, profileId: string): Promise<FirstProjectDraft | null> {
-  const key = keyFor(accountId, profileId);
+export function readFirstProjectDraft(accountId: string, profileId: string, draftId?: string): Promise<FirstProjectDraft | null> {
+  const key = keyFor(accountId, profileId, draftId);
   return serial(key, () => transaction<FirstProjectDraft | null>('readonly', (tx, done) => {
     const request = tx.objectStore('drafts').get(key);
     request.onsuccess = () => {
@@ -74,8 +74,8 @@ export function readFirstProjectDraft(accountId: string, profileId: string): Pro
     };
   }));
 }
-export function clearFirstProjectDraft(accountId: string, profileId: string): Promise<void> {
-  const key = keyFor(accountId, profileId);
+export function clearFirstProjectDraft(accountId: string, profileId: string, draftId?: string): Promise<void> {
+  const key = keyFor(accountId, profileId, draftId);
   return serial(key, () => transaction<void>('readwrite', tx => {
     const drafts = tx.objectStore('drafts');
     const get = drafts.get(key);
@@ -85,4 +85,24 @@ export function clearFirstProjectDraft(accountId: string, profileId: string): Pr
       drafts.delete(key);
     };
   }));
+}
+
+/** Metadata only: listing drafts never reads their files or creates object URLs. */
+export async function listDeviceDrafts(accountId: string, profileId: string) {
+ return transaction<Array<{draft: ProjectDraft; metadata: DraftMetadata; updatedAt?: string; stage: FirstProjectStage; cover?: string}>>('readonly',(tx,done)=>{
+  const request=tx.objectStore('drafts').getAll();
+  request.onsuccess=()=>done((request.result as Stored[]).filter(r=>r.version===1&&r.accountId===accountId&&r.profileId===profileId&&r.draft.profileId===profileId&&!r.committed).map(r=>({draft:r.draft,metadata:r.metadata,stage:r.stage,updatedAt:r.updatedAt})));
+ });
+}
+
+/** Clear the legacy first-project alias only when it belongs to this draft. */
+export async function clearDraftWorkspace(accountId:string,profileId:string,draftId:string) {
+ await clearFirstProjectDraft(accountId,profileId,draftId);
+ const legacy=await readFirstProjectDraft(accountId,profileId);
+ if(legacy?.draft.id===draftId)await clearFirstProjectDraft(accountId,profileId);
+}
+
+/** File bytes and temporary URLs are not edits; authored content and reached step are. */
+export function draftWorkspaceFingerprint(value: Pick<FirstProjectDraft,'metadata'|'location'|'stage'|'media'|'persisted'|'attachments'|'committed'>) {
+ return JSON.stringify({...value,media:value.media.map(({file,previewUrl,...item})=>{void previewUrl;return {...item,lastModified:file.lastModified};})});
 }

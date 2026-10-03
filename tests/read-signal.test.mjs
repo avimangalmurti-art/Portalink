@@ -6,6 +6,20 @@ const plain=value=>JSON.parse(JSON.stringify(value));
 const day='2026-10-04', now=Date.parse(`${day}T19:00:00Z`);
 const ingest=(f,changes={},time=now)=>api.ingestReach(request('/api/reach',payload(changes)),f.db,f.config,{now:()=>time,random:()=>.5});
 
+test('period summaries filter real daily rollups and referrers, retaining the legacy 30-day default', async () => {
+  const f=fixture();
+  const dates=['2026-10-04','2026-09-28','2026-09-27','2026-09-05','2026-09-04','2025-10-04','2025-10-03'];
+  for (const date of dates) assert.equal((await ingest(f,{ref_class:'linkedin',furthest_page:2},Date.parse(`${date}T12:00:00Z`))).status,204);
+  for (const [period,count] of [['today',1],['7d',2],['30d',4],['12m',6],['all',7]]) {
+    const row=await api.readProjectSummary(f.db,f.project,now,period);
+    assert.equal(row.opened,count,period);assert.equal(row.finished,count,period);
+    assert.equal(row.refs.linkedin,count,period);assert.equal(row.reach[1],count,period);
+  }
+  assert.equal((await api.readProjectSummary(f.db,f.project,now)).opened,4);
+  assert.equal(model.readPeriodSince('12m',Date.parse('2024-02-29T10:00:00Z')),'2023-02-28');
+  assert.equal((await api.handleReachRead(request('/api/reach/projects?period=invalid',undefined,ids.owner),f.db,f.config)).status,400);
+});
+
 test('reach schema rejects identifiers, raw referrers, extra fields and invalid ranges',()=>{
   assert.deepEqual(plain(api.validateReachPayload(payload())),payload());
   for(const field of ['account_id','ip','user_agent','referrer','extra'])assert.equal(api.validateReachPayload({...payload(),[field]:'secret'}),null);

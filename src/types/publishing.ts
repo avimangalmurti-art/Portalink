@@ -314,6 +314,7 @@ export type ProjectDraft = {
   categoryId: Id;
   metadata: DraftMetadata;
   createdAt: string;
+  updatedAt?: string;
 };
 
 /**

@@ -19,10 +19,10 @@ function nodes(node) {
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
+function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
   const slots = []; let cursor = 0, panel = null;
-  const serviceIds = [];
+  const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
   const swipeCalls = [], navigationCalls = [], outsideCalls = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
@@ -44,7 +44,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
     if (name === 'react-router-dom') return { useNavigate: () => path => navigationCalls.push(path) };
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
-    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
     if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions() {} };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
@@ -78,7 +78,7 @@ function harness({ mobile = true, readOnlyShare = false, empty = false, engageme
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { attachments, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
+  return { gates, attachments, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -416,6 +416,19 @@ test('shared mobile projects retain public details and permission-gated visitor 
   assert.ok(comments); assert.equal(comments.props.isOwner, false);
 });
 
+test('shared mobile guest comments and engagement open Create account without revealing comment UI', () => {
+  const h = harness({ signedIn: false, readOnlyShare: true });
+  let tree = h.render();
+  button(tree, 'Show comments').props.onClick();
+  button(tree, 'Show project engagement').props.onClick();
+  nodes(tree).find(node => node.type === EngagementBar).props.onRequireAccount();
+  tree = h.render();
+  assert.equal(h.gates.length, 3);
+  assert.ok(h.gates.every(call => call.view === 'signUp' && call.intent.kind === 'route'));
+  assert.equal(nodes(tree).some(node => node.type === CommentThreadView), false);
+  assert.equal(button(tree, 'Show project engagement').props['aria-expanded'], false);
+});
+
 test('shared WEB exposes visitor engagement and comments while keeping its project-information entry', () => {
   const h = harness({ mobile: false, readOnlyShare: true });
   let tree = h.render({ isRailOpen: true, isOwner: true });
@@ -610,7 +623,7 @@ test('project workspace combines only resolved mobile projects and uses the exis
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
-    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/useAppRoute')) return { useAppRoute: () => currentRoute };
     if (name.endsWith('/projectPanelLayout')) return geometry;
