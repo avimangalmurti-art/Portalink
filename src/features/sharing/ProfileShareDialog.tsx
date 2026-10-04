@@ -17,18 +17,20 @@ import { audienceNote, handleSuggestions, normalizePublicHandle, portfolioMailto
 import { dismissLivePortfolio } from '../publishing/firstProject';
 import { usePortfolioAddressValidation } from './usePortfolioAddressValidation';
 import { PortfolioNoteComposer } from './PortfolioNoteComposer';
+import { PortfolioQrScreen } from './PortfolioQrScreen';
+import { createPortfolioQrImage } from './portfolioQr';
 import './sharing.css';
 export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, automatic = false, counts }: { counts?: { followers: string | null; following: string | null }; profile: Profile; owner: boolean; automatic?: boolean; onClose: () => void; onBeforeShare?: () => Promise<void> }) {
   const { profiles } = useServices(), presentation = usePresentation(), dialog = useRef<HTMLDivElement>(null), viewport = useDialogViewport(), heading = useId(), qr = useRef<HTMLCanvasElement>(null);
 
-  const [address, setAddress] = useState<ShareAddress | null>(null), [screen, setScreen] = useState<'share'|'handle'|'send'>('share');
+  const [address, setAddress] = useState<ShareAddress | null>(null), [screen, setScreen] = useState<'share'|'handle'|'send'|'qr'>('share');
   const [handle, setHandle] = useState(handleSuggestions(profile.name)[0]), [availability, setAvailability] = useState('');
   const [card, setCard] = useState<PortfolioCard | null>(null), [previewError, setPreviewError] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const [audience, setAudience] = useState<Audience>('friend'), [to, setTo] = useState(''), [note, setNote] = useState(audienceNote('friend',profile.name));
   const { invalidateProfiles } = useProfileData();
   useModalFocus(presentation === 'web', dialog, () => { if(!busy)close(); }, true);
   const [nativeReady, setNativeReady] = useState(false);
-  const [qrVisible, setQrVisible] = useState(false), [personalNote, setPersonalNote] = useState(true);
+  const [personalNote, setPersonalNote] = useState(true);
   const [via] = useState(() => crypto.randomUUID().replace(/-/g,'').slice(0,8));
   const url = new URL(portfolioPath(profile.id, address?.handle), window.location.origin).href;
   const addressValidation = usePortfolioAddressValidation(presentation === 'mobile' && screen === 'handle', handle, address, profiles.checkPublicHandle);
@@ -56,7 +58,8 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     const timer=setTimeout(()=>{void profiles.checkPublicHandle?.(normalized).then(value=>{if(active)setAvailability(value==='available'?'Available':value==='unavailable'?'Short addresses are not enabled yet.':'That address is taken.');}).catch(e=>{if(active)setAvailability(e.message);});},350);
     return()=>{active=false;clearTimeout(timer);};
   },[handle,screen,address?.available,address?.handle,profile.handle,profiles,presentation]);
-  useEffect(()=>{if(screen==='share'&&qr.current&&address)generate(url).toCanvas(qr.current,{pad:4,off:[255,255,255,255]});},[url,screen,address,qrVisible]);
+  useEffect(()=>{if(screen==='share'&&qr.current&&address)generate(url).toCanvas(qr.current,{pad:4,off:[255,255,255,255]});},[url,screen,address]);
+  useEffect(()=>{if(presentation === 'web' && screen === 'qr')setScreen('share');},[presentation,screen]);
   useEffect(()=>{if(profile.isPrivate)closeRef.current();},[profile.isPrivate]);
   const prepare = async () => { if(profile.isPrivate)throw new Error('Make your portfolio public before sharing.'); await onBeforeShare?.(); if(owner&&address?.handle)await profiles.markHandleShared?.(profile.id,address.handle); };
   const complete = () => { if(owner){dismissLivePortfolio(profile.id);window.dispatchEvent(new CustomEvent('portalink:portfolio-shared',{detail:{profileId:profile.id}}));} };
@@ -72,10 +75,8 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     void run(async()=>{try{await result;complete();setNotice('Share sheet closed');}catch(e){if(e instanceof DOMException&&e.name==='AbortError')return;setScreen('send');setNotice('Write a note and open it in your email app.');}});
   };
   const saveQr = () => run(async()=>{
-    await prepare();const code=generate(url), raw=document.createElement('canvas');code.toCanvas(raw,{pad:4,off:[255,255,255,255]});
-    const output=document.createElement('canvas');output.width=1024;output.height=1024;const ctx=output.getContext('2d');if(!ctx)throw new Error('QR image could not be created.');
-    ctx.fillStyle='#fff';ctx.fillRect(0,0,1024,1024);ctx.imageSmoothingEnabled=false;const size=Math.floor(1024/raw.width)*raw.width;ctx.drawImage(raw,(1024-size)/2,(1024-size)/2,size,size);
-    const blob=await new Promise<Blob|null>(resolve=>output.toBlob(resolve,'image/png'));if(!blob)throw new Error('QR image could not be saved.');const object=URL.createObjectURL(blob),a=document.createElement('a');a.href=object;a.download=`${address?.handle||'portfolio'}-qr.png`;a.click();setTimeout(()=>URL.revokeObjectURL(object),1000);complete();setNotice('QR image ready');
+    await prepare();const output=createPortfolioQrImage(url);
+    const blob=await new Promise<Blob|null>(resolve=>output.toBlob(resolve,'image/png'));if(!blob)throw new Error('QR image could not be saved.');const object=URL.createObjectURL(blob),a=document.createElement('a');a.href=object;a.download=`${address?.handle||'portfolio'}-qr.png`;a.click();setTimeout(()=>URL.revokeObjectURL(object),1000);complete();setNotice(presentation === 'mobile' ? 'QR image download requested' : 'QR image ready');
   });
   const claim = () => run(async()=>{if(!profiles.claimPublicHandle)throw new Error('Short addresses are not enabled yet.');const value=await profiles.claimPublicHandle(profile.id,handle);setAddress(value);setNativeReady(false);invalidateProfiles();if (presentation === 'mobile') { setHandle(value.handle ?? ''); setScreen('share'); setNotice('Address saved'); } else finishIntro();});
   useEffect(() => {
@@ -98,10 +99,10 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     return () => { cancelAnimationFrame(frame); observer.disconnect(); body.removeEventListener('focusin', reveal); };
   }, [presentation, screen]);
   const content = <div ref={viewport} data-presentation={presentation} className={presentation === 'mobile' ? 'portfolio-share-page' : 'portfolio-share-scrim modal-scrim'} style={{top:'var(--dialog-viewport-top, 0px)',height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(presentation === 'web' && e.target===e.currentTarget&&!busy)close();}}>
-    <div ref={dialog} data-note-composer={presentation === 'mobile' && screen === 'send' && personalNote || undefined} data-address-editor={presentation === 'mobile' && screen === 'handle' || undefined} data-share-main={presentation === 'mobile' && screen === 'share' || undefined} data-personal-note={presentation === 'mobile' && screen === 'send' || undefined} className="portfolio-share-dialog" role={presentation === 'mobile' ? 'region' : 'dialog'} aria-modal={presentation === 'web' ? true : undefined} aria-labelledby={heading} tabIndex={-1}>
+    <div ref={dialog} data-qr-screen={presentation === 'mobile' && screen === 'qr' || undefined} data-note-composer={presentation === 'mobile' && screen === 'send' && personalNote || undefined} data-address-editor={presentation === 'mobile' && screen === 'handle' || undefined} data-share-main={presentation === 'mobile' && screen === 'share' || undefined} data-personal-note={presentation === 'mobile' && screen === 'send' || undefined} className="portfolio-share-dialog" role={presentation === 'mobile' ? 'region' : 'dialog'} aria-modal={presentation === 'web' ? true : undefined} aria-labelledby={heading} tabIndex={-1}>
       <header>{presentation === 'mobile' && <ScreenBack visibleOnMobile action={() => { if (!busy) { if (screen === 'share') close(); else finishIntro(); } }}><button type="button" disabled={busy} onClick={() => { if (screen === 'share') close(); else finishIntro(); }} aria-label="Back"><ArrowLeftIcon size={20}/></button></ScreenBack>}{presentation === 'web' && screen!=='share'&&<button type="button" onClick={finishIntro} aria-label="Back to sharing"><ArrowLeftIcon size={20}/></button>}<h2 hidden={presentation === 'mobile' && (screen !== 'send' || personalNote)} id={presentation === 'mobile' && (screen !== 'send' || personalNote) ? undefined : heading}>{screen==='handle'?'Your address.':screen==='send'?(presentation === 'mobile' && personalNote ? 'Personal note' : 'Send to someone'):'Share your portfolio'}</h2>{presentation === 'web' && <button type="button" onClick={close} disabled={busy} aria-label="Close share"><XIcon size={20}/></button>}</header>
       <div className="portfolio-share-body">
-        {presentation === 'mobile' && screen === 'send' && personalNote ? <PortfolioNoteComposer profile={profile} counts={counts} note={note} url={url} heading={heading} disabled={busy || !address} onChange={setNote} onContinue={()=>setPersonalNote(false)} /> : screen==='handle' ? (presentation === 'mobile' ? <>
+        {presentation === 'mobile' && screen === 'qr' ? <PortfolioQrScreen profile={profile} counts={counts} url={url} heading={heading} busy={busy || !address} onSave={()=>void saveQr()} onCopy={()=>void copy()} onSend={send} /> : presentation === 'mobile' && screen === 'send' && personalNote ? <PortfolioNoteComposer profile={profile} counts={counts} note={note} url={url} heading={heading} disabled={busy || !address} onChange={setNote} onContinue={()=>setPersonalNote(false)} /> : screen==='handle' ? (presentation === 'mobile' ? <>
           <div className="share-introduction"><h2 id={heading}>Your portfolio address</h2><p>Choose a short address for your public portfolio.</p></div>
           <section className="share-profile-preview" aria-label="Public portfolio preview">
             <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />
@@ -137,9 +138,9 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
             <Button variant="primary" disabled={busy||!address} onClick={()=>void copy()}><CopyIcon size={22}/>Copy link</Button>
             <Button variant="secondary" disabled={busy||!address} onClick={send}><SendIcon size={22}/>Send to someone</Button>
             <Button variant="secondary" disabled={busy||!address} onClick={()=>{setPersonalNote(true);setScreen('send');}}><PencilIcon size={22}/>Write a personal note</Button>
-            <Button variant="secondary" disabled={busy||!address} aria-expanded={qrVisible} onClick={()=>setQrVisible(value=>!value)}><QrCodeIcon size={22}/>View QR code</Button>
+            <Button variant="secondary" disabled={busy||!address} onClick={()=>setScreen('qr')}><QrCodeIcon size={22}/>View QR code</Button>
           </div>
-          {qrVisible && <div className="share-qr"><canvas ref={qr} aria-label="QR code for this portfolio"/><Button variant="secondary" disabled={busy||!address} onClick={()=>void saveQr()}><DownloadIcon size={18}/>Save QR</Button></div>}
+
           <aside className="share-explanation"><GlobeIcon size={24}/><div><p>This is how your link previews when you paste it.</p><p>You can edit your handle anytime.</p></div></aside>
         </> : <>{screen==='share'?<><div className="share-address"><span>{url.replace(/^https?:\/\//,'')}</span>{owner&&<button type="button" onClick={()=>setScreen('handle')}>Edit handle</button>}</div><p className="share-fine-print">This is how your link previews when you paste it.</p></>:<><div className="share-suggestions" aria-label="Who is it for?">{(['professor','employer','friend'] as const).map(value=><button type="button" key={value} aria-pressed={audience===value} onClick={()=>{setAudience(value);setNote(audienceNote(value,profile.name));}}>{value==='employer'?'An employer':value==='professor'?'A professor':'A friend'}</button>)}</div><label htmlFor={`${heading}-to`}>To</label><input id={`${heading}-to`} type="email" value={to} autoComplete="off" placeholder="Email address" onChange={e=>setTo(e.target.value)}/><label htmlFor={`${heading}-note`}>Note</label><textarea id={`${heading}-note`} value={note} maxLength={3000} rows={4} onChange={e=>setNote(e.target.value)}/></>}
         {!(presentation === 'mobile' && screen === 'send') && (card?<PortfolioPreview card={card} url={url}/>:<p role="status">{previewError||'Loading your public preview…'}</p>)}
