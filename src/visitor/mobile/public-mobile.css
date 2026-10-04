@@ -1442,8 +1442,8 @@
   flex: 0 0 auto;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
-  background: var(--accent-primary) !important;
-  color: var(--accent-foreground) !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
 }
 #root .codex-shell[data-presentation='mobile'] #profile-navigation-tools:has([data-profile-visitor-actions]) [data-mobile-profile-links] {
   width: auto;
@@ -2277,7 +2277,7 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 [data-presentation='mobile'] .shared-portal-popup { display: flex; flex-direction: column; width: 100%; max-height: min(70dvh, 640px); min-height: 160px; border-radius: 24px; background: var(--navigation-surface, var(--surface-raised)); color: var(--text-primary); border: 1px solid var(--hairline-strong); overflow: hidden; box-shadow: var(--navigation-shadow); }
 
 /* Keep the shared identity header identical to the in-platform mobile header. */
-/* Name, location and the compact pill share the avatar's 76px footprint.
+/* Name, location and the text tabs share the avatar's 76px footprint.
    Expanded identity text keeps its existing wrapping and type scale. */
 #root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy:has(.profile-identity-view) > h1 {
   font-size: 16px;
@@ -2293,22 +2293,50 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   text-overflow: ellipsis;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
-  border-radius: 10px;
   width: fit-content;
   justify-content: flex-start;
   align-self: flex-start;
   max-width: 100%;
   margin: 0;
-  padding: 2px;
+  padding: 0;
+  gap: 12px;
+  border-radius: 0;
+  background: transparent;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
-  border-radius: 8px;
+  position: relative;
+  border-radius: 0;
   min-width: 0;
-  min-height: 28px;
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 6px 4px 8px;
   font-size: 12px;
   line-height: 16px;
+  font-weight: 400;
   flex: 0 0 auto;
+  background: transparent !important;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+/* A transparent hit area keeps the compact text tabs comfortable to tap. */
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button::before {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  inset-inline: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent-primary);
 }
 
 /* Center the shared reader's sidebar toggle and content controls together. */

@@ -2142,7 +2142,7 @@
   margin-inline-end: 0;
   min-width: 0;
 }
-/* Name, location and the compact pill share the avatar's 76px footprint.
+/* Name, location and the text tabs share the avatar's 76px footprint.
    Expanded identity text keeps its existing wrapping and type scale. */
 #root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy:has(.profile-identity-view) > h1 {
   font-size: 16px;
@@ -2158,27 +2158,50 @@
   text-overflow: ellipsis;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle {
-  border-radius: 10px;
   width: fit-content;
   justify-content: flex-start;
   align-self: flex-start;
   max-width: 100%;
   margin: 0;
-  padding: 2px;
+  padding: 0;
+  gap: 12px;
+  border-radius: 0;
+  background: transparent;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button {
-  border-radius: 8px;
+  position: relative;
+  border-radius: 0;
   min-width: 0;
-  min-height: 28px;
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 6px 4px 8px;
   font-size: 12px;
   line-height: 16px;
+  font-weight: 400;
   flex: 0 0 auto;
+  background: transparent !important;
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+/* A transparent hit area keeps the compact text tabs comfortable to tap. */
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button::before {
+  content: '';
+  position: absolute;
+  inset: -7px 0;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true'] {
-  /* Override the shared neutral selected-button paint for this accent pill. */
-  background: var(--accent-primary) !important;
-  color: var(--accent-foreground) !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-weight: 600;
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  inset-inline: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent-primary);
 }
 
 /* Pair setup is a neutral outline action, not an accent link or filled pill. */
