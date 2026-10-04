@@ -4003,3 +4003,17 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-qr-info p + p { color: var(--text-secondary); margin-top: 4px; }
 
 [data-presentation='mobile'] .portfolio-share-dialog[data-qr-screen] .portfolio-share-body { gap: 14px; }
+
+[data-presentation='mobile'] .share-profile-preview[data-loading] { position: relative; }
+[data-presentation='mobile'] .share-profile-preview[data-loading] > * { visibility: hidden; }
+[data-presentation='mobile'] .share-profile-preview[data-loading]::after { content: ''; position: absolute; inset: 24px 16px; border-radius: 12px; background: var(--surface-hover); }
+[data-presentation='mobile'] .share-preview-recovery { position: relative; }
+[data-presentation='mobile'] .share-preview-recovery > div { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px; text-align: center; font-size: 13px; line-height: 1.5; }
+[data-presentation='mobile'] .share-preview-recovery button, [data-presentation='mobile'] .share-flow-feedback button, [data-presentation='mobile'] .share-handle-validation button { min-height: 44px; color: var(--accent-text); text-decoration: underline; padding-inline: 8px; }
+[data-presentation='mobile'] .share-flow-feedback { min-height: 28px; color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
+[data-presentation='mobile'] .share-handle-validation { min-height: 64px; }
+[data-presentation='mobile'] .share-handle-validation span { flex: 1; }
+[data-presentation='mobile'] .share-qr-skeleton { width: 82%; height: 82%; background: #ededed; border-radius: 8px; }
+[data-presentation='mobile'] .share-note-field textarea { resize: none; }
+[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
+@media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }

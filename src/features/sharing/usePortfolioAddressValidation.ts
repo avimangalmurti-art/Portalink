@@ -8,7 +8,7 @@ export function immediateAddressValidation(handle: string, address: ShareAddress
   if (!address.available) return { handle, status: 'unavailable', message: 'Address editing is unavailable. Your existing portfolio link still works.' };
   return null;
 }
-export function usePortfolioAddressValidation(enabled: boolean, value: string, address: ShareAddress | null, check?: (handle: string) => Promise<'available' | 'taken' | 'unavailable'>) {
+export function usePortfolioAddressValidation(enabled: boolean, value: string, address: ShareAddress | null, check?: (handle: string) => Promise<'available' | 'taken' | 'unavailable'>, retryKey = 0) {
   const handle = normalizePublicHandle(value);
   const [result, setResult] = useState<AddressValidation | null>(null);
   useEffect(() => {
@@ -21,6 +21,6 @@ export function usePortfolioAddressValidation(enabled: boolean, value: string, a
       }).catch(error => { if (active) setResult({ handle, status: 'error', message: error instanceof Error ? error.message : 'Could not check this address. Try editing it again.' }); });
     }, 350);
     return () => { active = false; clearTimeout(timer); };
-  }, [enabled, handle, address, check]);
+  }, [enabled, handle, address, check, retryKey]);
   return immediateAddressValidation(handle, address) ?? (result?.handle === handle ? result : { handle, status: 'checking' as const, message: 'Checking availability…' });
 }

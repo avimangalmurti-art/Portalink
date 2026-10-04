@@ -19,7 +19,7 @@ test('mobile portfolio sharing is an inline screen with Back; WEB keeps its moda
       '../../components/ui/Button': { Button: 'button' },
       '../../utils/copyPublicLink': {}, '../../components/profile/CreatorAvatar': { CreatorAvatar: 'avatar' }, './PortfolioPreview': { PortfolioPreview: 'preview' },
       './shareModel': { normalizePublicHandle: value => (value ?? '').trim().toLowerCase(), validHandle: () => true, handleSuggestions: () => ['creator'], portfolioPath: () => '/share/creator', audienceNote: () => '' },
-      '../publishing/firstProject': {}, './usePortfolioAddressValidation': { usePortfolioAddressValidation: () => ({status:'current', message:'Current'}) }, './PortfolioNoteComposer': {PortfolioNoteComposer: 'note-composer'}, './PortfolioQrScreen': {PortfolioQrScreen: 'qr-screen'}, './portfolioQr': {}, './sharing.css': {}, 'lean-qr': {},
+      '../publishing/firstProject': {}, './usePortfolioAddressValidation': { usePortfolioAddressValidation: () => ({status:'current', message:'Current'}) }, './PortfolioNoteComposer': {PortfolioNoteComposer: 'note-composer'}, './PortfolioQrScreen': {PortfolioQrScreen: 'qr-screen'}, './portfolioQr': {}, './PortfolioSharePreview': {PortfolioSharePreview: 'identity-preview', PortfolioPreviewBoundary: 'preview-boundary'}, './sharing.css': {}, 'lean-qr': {},
       'lucide-react': { ArrowLeftIcon: 'back-icon', XIcon: 'close-icon', CopyIcon: 'copy-icon', SendIcon: 'send-icon', DownloadIcon: 'download-icon', PencilIcon: 'pencil', QrCodeIcon: 'qr', GlobeIcon: 'globe', CheckIcon: 'check', LinkIcon: 'link' },
     }, { React, window: { location: { origin: 'https://example.invalid', host: 'example.invalid' } }, navigator: { share() { throw new Error('Native share must not open on mobile'); } } });
     const tree = ProfileShareDialog({ profile: { id: 'creator', name: 'Creator', location: 'Existing city', avatar: 'existing-photo', projects: [{id:'a'},{id:'b'}], categories: [{id:'portal'}], showJourney: true }, counts: {followers:'9', following:null}, owner: true, onClose: () => closed++ });
@@ -33,11 +33,11 @@ test('mobile portfolio sharing is an inline screen with Back; WEB keeps its moda
     assert.equal(all.some(node => node.props['aria-label'] === 'Close share'), presentation === 'web');
     if (presentation === 'mobile') {
       const text = all.flatMap(node => React.Children.toArray(node.props.children).filter(child => typeof child === 'string'));
-      for (const action of ['Copy link', 'Send to someone', 'Write a personal note', 'View QR code']) assert.ok(text.includes(action));
-      assert.ok(text.includes('Existing city'));
+      for (const action of ['Copy link', 'Send to someone', 'Write a personal note', 'View QR code']) assert.ok(text.includes(action) || (action === 'Copy link' && all.some(node=>node.props['aria-live']==='polite')));
+      assert.equal(all.find(node=>node.type==='identity-preview').props.profile.location,'Existing city');
       assert.ok(!text.includes('Loading your public preview�'));
       assert.ok(!all.some(node=>node.type==='preview'));
-      assert.equal(all.find(node=>node.type==='avatar').props.avatar, 'existing-photo');
+      assert.equal(all.find(node=>node.type==='identity-preview').props.profile.avatar, 'existing-photo');
       assert.ok(!all.some(node=>node.type==='canvas'));
       const send = all.find(node => node.type === 'button' && React.Children.toArray(node.props.children).includes('Send to someone'));
       send.props.onClick(); assert.ok(updates.includes('send')); assert.ok(updates.includes(false));

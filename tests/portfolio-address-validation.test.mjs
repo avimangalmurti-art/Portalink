@@ -33,3 +33,9 @@ test('a changed handle and disposed request cannot reuse stale availability',asy
 test('disabled WEB hook never calls the availability service',async()=>{
  const h=harness();let called=false;h.render('newname',current,async()=>{called=true;return 'available';},false);h.effect();await h.tick();assert.equal(called,false);
 });
+
+test('retry repeats a failed check for the same handle without clearing it',async()=>{
+ const h=harness();let calls=0;const check=async()=>{if(++calls===1)throw new Error('offline');return 'available';};
+ h.render('samehandle',current,check);h.effect();await h.tick();assert.equal(h.render('samehandle',current,check).status,'error');
+ h.effect();await h.tick();assert.equal(h.render('samehandle',current,check).status,'available');assert.equal(calls,2);h.dispose();
+});
