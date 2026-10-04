@@ -14,6 +14,7 @@ import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
 import { MessageControlsDialog } from './messages/MessageControlsDialog';
 import { MobileMessageActions } from './messages/MobileMessageActions';
+import { useConversationKeyboard } from './messages/useConversationKeyboard';
 import { useDialogViewport } from '../hooks/useDialogViewport';
 import { CreatorAvatar } from './profile/CreatorAvatar';
 import { ProfileAvatar } from './profile/ProfileAvatar';
@@ -295,25 +296,7 @@ export function MessagesPage({
   } : { newMessage: openNewMessage, search: !isNewChatOpen ? () => searchInput.current?.focus() : undefined, blocked: () => setIsPrivacyOpen(true) }, labels: { mute: conversation?.isMuted ? 'Unmute' : 'Mute' } }));
   const showList = !activeId;
   const conversationViewport = useDialogViewport<HTMLElement>(isMobile && !showList && Boolean(conversation));
-  useEffect(() => {
-    const frame = conversationViewport.current;
-    if (!isMobile || showList || !frame) return;
-    const viewport = window.visualViewport;
-    const update = () => {
-      const keyboard = Boolean(viewport && window.innerHeight - viewport.height > 120 && frame.contains(document.activeElement) && document.activeElement?.matches('textarea, input'));
-      frame.toggleAttribute('data-conversation-keyboard', keyboard);
-    };
-    update();
-    viewport?.addEventListener('resize', update);
-    document.addEventListener('focusin', update);
-    document.addEventListener('focusout', update);
-    return () => {
-      viewport?.removeEventListener('resize', update);
-      document.removeEventListener('focusin', update);
-      document.removeEventListener('focusout', update);
-      frame.removeAttribute('data-conversation-keyboard');
-    };
-  }, [isMobile, showList, conversationViewport]);
+  useConversationKeyboard(isMobile && !showList && Boolean(conversation), activeId, conversationViewport, messageScrollerRef, textareaRef);
   const isMobileNewChat = isMobile && isNewChatOpen;
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
   return <section ref={conversationViewport} data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
