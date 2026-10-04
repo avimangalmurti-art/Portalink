@@ -1,7 +1,7 @@
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useEffect, useId, useRef, useState } from 'react';
-import { XIcon, CopyIcon, SendIcon, DownloadIcon, ArrowLeftIcon, PencilIcon, QrCodeIcon, GlobeIcon } from 'lucide-react';
+import { XIcon, CopyIcon, SendIcon, DownloadIcon, ArrowLeftIcon, PencilIcon, QrCodeIcon, GlobeIcon, CheckIcon, LinkIcon } from 'lucide-react';
 import { generate } from 'lean-qr';
 import type { Profile } from '../../types/domain';
 import { useServices } from '../../contexts/ServicesContext';
@@ -15,6 +15,7 @@ import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
 import { PortfolioPreview } from './PortfolioPreview';
 import { audienceNote, handleSuggestions, normalizePublicHandle, portfolioMailto, portfolioPath, validHandle, withReferral, type Audience, type PortfolioCard, type ShareAddress } from './shareModel';
 import { dismissLivePortfolio } from '../publishing/firstProject';
+import { usePortfolioAddressValidation } from './usePortfolioAddressValidation';
 import './sharing.css';
 export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, automatic = false, counts }: { counts?: { followers: string | null; following: string | null }; profile: Profile; owner: boolean; automatic?: boolean; onClose: () => void; onBeforeShare?: () => Promise<void> }) {
   const { profiles } = useServices(), presentation = usePresentation(), dialog = useRef<HTMLDivElement>(null), viewport = useDialogViewport(), heading = useId(), qr = useRef<HTMLCanvasElement>(null);
@@ -29,9 +30,11 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
   const [qrVisible, setQrVisible] = useState(false), [personalNote, setPersonalNote] = useState(true);
   const [via] = useState(() => crypto.randomUUID().replace(/-/g,'').slice(0,8));
   const url = new URL(portfolioPath(profile.id, address?.handle), window.location.origin).href;
+  const addressValidation = usePortfolioAddressValidation(presentation === 'mobile' && screen === 'handle', handle, address, profiles.checkPublicHandle);
+  const draftUrl = new URL(portfolioPath(profile.id, normalizePublicHandle(handle)), window.location.origin).href;
   const seenKey = `portalink.handle-intro:${profile.id}`;
   const closeRef = useRef(onClose); closeRef.current = onClose;
-  const finishIntro = () => { try { localStorage.setItem(seenKey,'1'); } catch { /* Convenience only; confirmed handles persist server-side. */ } setScreen('share'); };
+  const finishIntro = () => { try { localStorage.setItem(seenKey,'1'); } catch { /* Convenience only; confirmed handles persist server-side. */ } if (presentation === 'mobile') { setHandle(address?.handle ?? normalizePublicHandle(profile.handle)); setError(''); } setScreen('share'); };
   const close = () => { if(screen==='handle')finishIntro(); onClose(); };
   useEffect(() => {
     let active=true;
@@ -44,14 +47,14 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     return()=>{active=false;};
   }, [profile.id, profiles, automatic, owner, seenKey, presentation]);
   useEffect(() => {
-    if(screen!=='handle')return; const normalized=normalizePublicHandle(handle);
+    if(screen!=='handle' || presentation === 'mobile')return; const normalized=normalizePublicHandle(handle);
     if(!validHandle(normalized)){setAvailability('Use 3–30 lowercase letters, numbers or dots. Reserved addresses cannot be used.');return;}
     if(!address?.available){setAvailability('Short addresses are not enabled yet. Continue with your existing link.');return;}
     if(normalized===address.handle||normalized===normalizePublicHandle(profile.handle)){setAvailability('Your current address');return;}
     let active=true;setAvailability('Checking…');
     const timer=setTimeout(()=>{void profiles.checkPublicHandle?.(normalized).then(value=>{if(active)setAvailability(value==='available'?'Available':value==='unavailable'?'Short addresses are not enabled yet.':'That address is taken.');}).catch(e=>{if(active)setAvailability(e.message);});},350);
     return()=>{active=false;clearTimeout(timer);};
-  },[handle,screen,address?.available,address?.handle,profile.handle,profiles]);
+  },[handle,screen,address?.available,address?.handle,profile.handle,profiles,presentation]);
   useEffect(()=>{if(screen==='share'&&qr.current&&address)generate(url).toCanvas(qr.current,{pad:4,off:[255,255,255,255]});},[url,screen,address,qrVisible]);
   useEffect(()=>{if(profile.isPrivate)closeRef.current();},[profile.isPrivate]);
   const prepare = async () => { if(profile.isPrivate)throw new Error('Make your portfolio public before sharing.'); await onBeforeShare?.(); if(owner&&address?.handle)await profiles.markHandleShared?.(profile.id,address.handle); };
@@ -73,9 +76,9 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     ctx.fillStyle='#fff';ctx.fillRect(0,0,1024,1024);ctx.imageSmoothingEnabled=false;const size=Math.floor(1024/raw.width)*raw.width;ctx.drawImage(raw,(1024-size)/2,(1024-size)/2,size,size);
     const blob=await new Promise<Blob|null>(resolve=>output.toBlob(resolve,'image/png'));if(!blob)throw new Error('QR image could not be saved.');const object=URL.createObjectURL(blob),a=document.createElement('a');a.href=object;a.download=`${address?.handle||'portfolio'}-qr.png`;a.click();setTimeout(()=>URL.revokeObjectURL(object),1000);complete();setNotice('QR image ready');
   });
-  const claim = () => run(async()=>{if(!profiles.claimPublicHandle)throw new Error('Short addresses are not enabled yet.');const value=await profiles.claimPublicHandle(profile.id,handle);setAddress(value);setNativeReady(false);invalidateProfiles();finishIntro();});
+  const claim = () => run(async()=>{if(!profiles.claimPublicHandle)throw new Error('Short addresses are not enabled yet.');const value=await profiles.claimPublicHandle(profile.id,handle);setAddress(value);setNativeReady(false);invalidateProfiles();if (presentation === 'mobile') { setHandle(value.handle ?? ''); setScreen('share'); setNotice('Address saved'); } else finishIntro();});
   useEffect(() => {
-    if (presentation !== 'mobile' || screen !== 'send') return;
+    if (presentation !== 'mobile' || (screen !== 'send' && screen !== 'handle')) return;
     const body = dialog.current?.querySelector<HTMLElement>('.portfolio-share-body');
     if (!body) return;
     let frame = 0;
@@ -85,7 +88,8 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
         const field = document.activeElement;
         if (!(field instanceof HTMLElement) || !body.contains(field) || !field.matches('input, textarea')) return;
         const rect = field.getBoundingClientRect(), bounds = body.getBoundingClientRect();
-        if (rect.top < bounds.top || rect.bottom > bounds.bottom) field.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        const feedback = screen === 'handle' ? body.querySelector('.share-handle-validation')?.getBoundingClientRect() : null;
+        if (rect.top < bounds.top || rect.bottom > bounds.bottom || (feedback && feedback.bottom > bounds.bottom)) field.scrollIntoView({ block: screen === 'handle' ? 'center' : 'nearest', behavior: 'instant' });
       });
     };
     body.addEventListener('focusin', reveal);
@@ -93,10 +97,28 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
     return () => { cancelAnimationFrame(frame); observer.disconnect(); body.removeEventListener('focusin', reveal); };
   }, [presentation, screen]);
   const content = <div ref={viewport} data-presentation={presentation} className={presentation === 'mobile' ? 'portfolio-share-page' : 'portfolio-share-scrim modal-scrim'} style={{top:'var(--dialog-viewport-top, 0px)',height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(presentation === 'web' && e.target===e.currentTarget&&!busy)close();}}>
-    <div ref={dialog} data-share-main={presentation === 'mobile' && screen === 'share' || undefined} data-personal-note={presentation === 'mobile' && screen === 'send' || undefined} className="portfolio-share-dialog" role={presentation === 'mobile' ? 'region' : 'dialog'} aria-modal={presentation === 'web' ? true : undefined} aria-labelledby={heading} tabIndex={-1}>
-      <header>{presentation === 'mobile' && <ScreenBack visibleOnMobile action={() => { if (!busy) { if (screen === 'share') close(); else finishIntro(); } }}><button type="button" disabled={busy} onClick={() => { if (screen === 'share') close(); else finishIntro(); }} aria-label="Back"><ArrowLeftIcon size={20}/></button></ScreenBack>}{presentation === 'web' && screen!=='share'&&<button type="button" onClick={finishIntro} aria-label="Back to sharing"><ArrowLeftIcon size={20}/></button>}<h2 hidden={presentation === 'mobile' && screen === 'share'} id={screen === 'share' && presentation === 'mobile' ? undefined : heading}>{screen==='handle'?'Your address.':screen==='send'?(presentation === 'mobile' && personalNote ? 'Personal note' : 'Send to someone'):'Share your portfolio'}</h2>{presentation === 'web' && <button type="button" onClick={close} disabled={busy} aria-label="Close share"><XIcon size={20}/></button>}</header>
+    <div ref={dialog} data-address-editor={presentation === 'mobile' && screen === 'handle' || undefined} data-share-main={presentation === 'mobile' && screen === 'share' || undefined} data-personal-note={presentation === 'mobile' && screen === 'send' || undefined} className="portfolio-share-dialog" role={presentation === 'mobile' ? 'region' : 'dialog'} aria-modal={presentation === 'web' ? true : undefined} aria-labelledby={heading} tabIndex={-1}>
+      <header>{presentation === 'mobile' && <ScreenBack visibleOnMobile action={() => { if (!busy) { if (screen === 'share') close(); else finishIntro(); } }}><button type="button" disabled={busy} onClick={() => { if (screen === 'share') close(); else finishIntro(); }} aria-label="Back"><ArrowLeftIcon size={20}/></button></ScreenBack>}{presentation === 'web' && screen!=='share'&&<button type="button" onClick={finishIntro} aria-label="Back to sharing"><ArrowLeftIcon size={20}/></button>}<h2 hidden={presentation === 'mobile' && screen !== 'send'} id={screen !== 'send' && presentation === 'mobile' ? undefined : heading}>{screen==='handle'?'Your address.':screen==='send'?(presentation === 'mobile' && personalNote ? 'Personal note' : 'Send to someone'):'Share your portfolio'}</h2>{presentation === 'web' && <button type="button" onClick={close} disabled={busy} aria-label="Close share"><XIcon size={20}/></button>}</header>
       <div className="portfolio-share-body">
-        {screen==='handle'?<><p>A short link that feels like your own website.</p><label htmlFor={`${heading}-handle`}>Your address</label><div className="handle-field"><span>{window.location.host}/</span><input id={`${heading}-handle`} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={30} value={handle} onChange={e=>setHandle(normalizePublicHandle(e.target.value))}/></div><p role="status">{availability}</p><div className="share-suggestions">{handleSuggestions(profile.name).map(value=><button type="button" key={value} onClick={()=>setHandle(value)}>{value}</button>)}</div><p className="share-fine-print">After you share, an old address keeps working for 90 days if you change it. Your original portfolio link always works.</p><Button variant="primary" disabled={busy||!address?.available||!['Available','Your current address'].includes(availability)} onClick={()=>void claim()}>Use this address</Button><button type="button" className="share-text-button" onClick={finishIntro}>Continue with existing link</button></>:
+        {screen==='handle' ? (presentation === 'mobile' ? <>
+          <div className="share-introduction"><h2 id={heading}>Your portfolio address</h2><p>Choose a short address for your public portfolio.</p></div>
+          <section className="share-profile-preview" aria-label="Public portfolio preview">
+            <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />
+            <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
+            <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Journey</span>}</div>
+            <div className="share-preview-stats">
+              <span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span>
+              {counts?.followers !== null && counts?.followers !== undefined && <span><b>{counts.followers}</b> followers</span>}
+              {counts?.following !== null && counts?.following !== undefined && <span><b>{counts.following}</b> following</span>}
+            </div>
+          </section>
+          <label htmlFor={`${heading}-handle`}>Your public address</label>
+          <div className="share-handle-editor"><span title={window.location.host}>{window.location.host}/</span><input id={`${heading}-handle`} value={handle} onChange={e=>{setHandle(normalizePublicHandle(e.target.value));setError('');}} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={30} autoComplete="off" aria-describedby={`${heading}-validation ${heading}-url`} aria-invalid={addressValidation.status === 'invalid' || addressValidation.status === 'unavailable'} /></div>
+          <p id={`${heading}-url`} className="share-handle-url"><LinkIcon size={18}/><span>{validHandle(normalizePublicHandle(handle)) ? draftUrl : 'Enter a valid handle to preview your address.'}</span></p>
+          <p id={`${heading}-validation`} role="status" className="share-handle-validation" data-state={addressValidation.status}>{addressValidation.status === 'available' && <CheckIcon size={18}/>}<span>{addressValidation.message}</span></p>
+          <Button variant="primary" className="share-save-address" disabled={busy || addressValidation.status !== 'available'} onClick={()=>void claim()}>Save address</Button>
+          <aside className="share-address-info"><GlobeIcon size={24}/><div><p>This will be your public portfolio address.</p><p>Anyone with this link can view your portfolio.</p><p>After sharing, an old address keeps working for 90 days when changed.</p></div></aside>
+        </> : <><p>A short link that feels like your own website.</p><label htmlFor={`${heading}-handle`}>Your address</label><div className="handle-field"><span>{window.location.host}/</span><input id={`${heading}-handle`} autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={30} value={handle} onChange={e=>setHandle(normalizePublicHandle(e.target.value))}/></div><p role="status">{availability}</p><div className="share-suggestions">{handleSuggestions(profile.name).map(value=><button type="button" key={value} onClick={()=>setHandle(value)}>{value}</button>)}</div><p className="share-fine-print">After you share, an old address keeps working for 90 days if you change it. Your original portfolio link always works.</p><Button variant="primary" disabled={busy||!address?.available||!['Available','Your current address'].includes(availability)} onClick={()=>void claim()}>Use this address</Button><button type="button" className="share-text-button" onClick={finishIntro}>Continue with existing link</button></>):
         <>{presentation === 'mobile' && screen === 'share' ? <>
           <div className="share-introduction"><h2 id={heading}>Share your portfolio</h2><p>Anyone with the link can view your public portfolio.</p></div>
           <section className="share-profile-preview" aria-label="Public portfolio preview">

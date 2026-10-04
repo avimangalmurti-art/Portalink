@@ -3919,3 +3919,31 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-explanation p + p { color: var(--text-secondary); margin-top: 3px; }
 
 #root .codex-shell[data-presentation='mobile'] .share-main-actions button[data-control-variant='secondary'] { --ui-control-rest-surface: var(--surface-sunken); --ui-control-rest-text: var(--text-primary); --ui-control-border: transparent; }
+
+/* Portfolio address editor: one handle, existing share viewport and theme. */
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] > header { border: 0; padding: 12px 18px 4px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .portfolio-share-body { gap: 16px; padding: 16px 18px 24px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .portfolio-share-body > * { flex-shrink: 0; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-profile-preview { display: grid; grid-template-columns: 76px minmax(0,1fr); column-gap: 16px; padding: 18px 16px; text-align: left; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-profile-avatar { grid-column: 1; grid-row: 1 / 4; width: 76px; height: 76px; font-size: 32px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-profile-preview > strong { grid-column: 2; margin-top: 0; font-size: 20px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-profile-preview > p { grid-column: 2; margin-top: 2px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-preview-tabs { grid-column: 2; margin-top: 8px; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] .share-preview-stats { grid-column: 1 / -1; }
+[data-presentation='mobile'] .portfolio-share-dialog[data-address-editor] label { font-size: 14px; font-weight: 400; color: var(--text-secondary); margin: 4px 0 -8px; }
+[data-presentation='mobile'] .share-handle-editor { display: flex; align-items: center; gap: 10px; min-height: 54px; border: 1px solid var(--hairline-strong); border-radius: 14px; padding: 6px 12px; }
+[data-presentation='mobile'] .share-handle-editor > span { min-width: 0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 14px; }
+[data-presentation='mobile'] .share-handle-editor > input { min-width: 0; flex: 1; width: 0; border: 0; padding: 8px 0; border-radius: 0; color: var(--text-primary); scroll-margin-block: 18px; }
+[data-presentation='mobile'] .share-handle-editor:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+[data-presentation='mobile'] .share-handle-url { display: flex; gap: 10px; align-items: center; background: var(--surface-sunken); border-radius: 12px; padding: 12px; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+[data-presentation='mobile'] .share-handle-url span { overflow-wrap: anywhere; min-width: 0; }
+[data-presentation='mobile'] .share-handle-url svg, [data-presentation='mobile'] .share-address-info > svg { flex-shrink: 0; }
+[data-presentation='mobile'] .share-handle-validation { border-top: 1px solid var(--hairline); padding-top: 16px; display: flex; gap: 8px; align-items: flex-start; min-height: 48px; font-size: 13px; line-height: 1.45; }
+[data-presentation='mobile'] .share-handle-validation[data-state='available'] { color: var(--status-success); }
+[data-presentation='mobile'] .share-handle-validation[data-state='error'], [data-presentation='mobile'] .share-handle-validation[data-state='invalid'], [data-presentation='mobile'] .share-handle-validation[data-state='unavailable'] { color: var(--text-secondary); }
+[data-presentation='mobile'] .share-save-address { width: 100%; min-height: 52px; border-radius: 13px; }
+[data-presentation='mobile'] .share-address-info { display: flex; gap: 14px; align-items: center; background: var(--surface-sunken); padding: 16px; border-radius: 14px; margin-top: 4px; font-size: 12px; line-height: 1.5; }
+[data-presentation='mobile'] .share-address-info p + p { margin-top: 4px; color: var(--text-secondary); }
+
+[data-presentation='mobile'] .share-handle-editor > input:focus { outline: none; box-shadow: none; }
+[data-presentation='mobile'] .share-save-address { font-size: 16px; font-weight: 500; }

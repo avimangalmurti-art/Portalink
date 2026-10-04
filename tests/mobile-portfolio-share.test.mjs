@@ -18,9 +18,9 @@ test('mobile portfolio sharing is an inline screen with Back; WEB keeps its moda
       '../../components/ui/ModalPortal': { ModalPortal: 'modal-portal' },
       '../../components/ui/Button': { Button: 'button' },
       '../../utils/copyPublicLink': {}, '../../components/profile/CreatorAvatar': { CreatorAvatar: 'avatar' }, './PortfolioPreview': { PortfolioPreview: 'preview' },
-      './shareModel': { handleSuggestions: () => ['creator'], portfolioPath: () => '/share/creator', audienceNote: () => '' },
-      '../publishing/firstProject': {}, './sharing.css': {}, 'lean-qr': {},
-      'lucide-react': { ArrowLeftIcon: 'back-icon', XIcon: 'close-icon', CopyIcon: 'copy-icon', SendIcon: 'send-icon', DownloadIcon: 'download-icon', PencilIcon: 'pencil', QrCodeIcon: 'qr', GlobeIcon: 'globe' },
+      './shareModel': { normalizePublicHandle: value => (value ?? '').trim().toLowerCase(), validHandle: () => true, handleSuggestions: () => ['creator'], portfolioPath: () => '/share/creator', audienceNote: () => '' },
+      '../publishing/firstProject': {}, './usePortfolioAddressValidation': { usePortfolioAddressValidation: () => ({status:'current', message:'Current'}) }, './sharing.css': {}, 'lean-qr': {},
+      'lucide-react': { ArrowLeftIcon: 'back-icon', XIcon: 'close-icon', CopyIcon: 'copy-icon', SendIcon: 'send-icon', DownloadIcon: 'download-icon', PencilIcon: 'pencil', QrCodeIcon: 'qr', GlobeIcon: 'globe', CheckIcon: 'check', LinkIcon: 'link' },
     }, { React, window: { location: { origin: 'https://example.invalid', host: 'example.invalid' } }, navigator: { share() { throw new Error('Native share must not open on mobile'); } } });
     const tree = ProfileShareDialog({ profile: { id: 'creator', name: 'Creator', location: 'Existing city', avatar: 'existing-photo', projects: [{id:'a'},{id:'b'}], categories: [{id:'portal'}], showJourney: true }, counts: {followers:'9', following:null}, owner: true, onClose: () => closed++ });
     const all = nodes(tree);
