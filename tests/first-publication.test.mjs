@@ -44,6 +44,7 @@ function harness() {
     openPortalink: () => calls.push(['world']), openProfile: id => calls.push(['profile', id]),
     setGlobalCreateAccountId: value => { context.globalCreateAccountId = value; context.isGlobalCreatePending = evaluate(initializer('isGlobalCreatePending'), context); },
     setPublishAccountId: value => { context.publishAccountId = value; },
+    setPortalChoice: value => { context.portalChoice = value; },
     setPublishConfirmation: value => { context.publishConfirmation = value; },
     setIsPublishOpen: value => { context.isPublishOpen = value; },
     setPublishTargetCategoryId: value => { context.publishTargetCategoryId = value; },

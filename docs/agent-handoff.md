@@ -1,3 +1,9 @@
+## 2026-10-04 — MOBILE Choose a portal cancellation
+
+Owned codex/mobile-writing-portal-fix, start b09b38f / Sites301. Close now clears the complete pending create/publisher state and restores the initiating control without navigating away. Existing portal selection/create handlers and busy protection retained; no layout/WEB/backend changes. Added real App cancellation handler regression; updated the existing first-publication fixture's missing portal setter.15 focused tests pass; typecheck/lint/client+worker build/diff check pass. Physical iPhone/live authenticated reproduction remains unverified. Sites publication follows; no SQL or GitHub push/merge.
+## 2026-10-04 — Sites301 published: ALL shared confirmation system
+
+Succeeded2026-10-04T23:42:32.679664+00:00; source `b09b38f6a11a1175369d3ba2d2646a93148fe47d`; version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_69438f51fbe0819189e7c0ecddb5be0c`; deployment `appgdep_6ac2e45ee67481919418757f6d1340e7`. Existing public URL/audience/env revision2 preserved. Archive538entries528files, local SHA256 `cd4c14abc35864aa3d6ff4864360fd16a17809b731982c04712788e946f6b709`; no env/logs/fixtures/node_modules/pending SQL.106 focused tests/typecheck/lint/build pass. Broader publishing composition baseline failure reproduced on unchanged starting source and recorded below. Nested editor Cancel and failure→same-action retry→success verified in controlled browser; no real deletes. Physical iOS/accessibility limits remain. Audit docs/confirmation-dialog-audit.md. No SQL/backend changes/GitHub push or merge. QA tab closed/viewport reset/server stopped; receipt docs local/uncommitted.
 ## 2026-10-04 — ALL shared confirmation system, publication in progress
 
 Owned logs/mobile-writing-portal-fix / codex/mobile-writing-portal-fix, startingc0e6d923 / Sites300. Full behavior/functionality audit docs/confirmation-dialog-audit.md; raw findings ignored logs. New ConfirmationDialog/confirmation-dialog.css is the single generic decision UI: standard/destructive variants, theme danger distinct from accent, 4px backdrop blur, centered visible-viewport/safe-area scroll bounds, compact22px radius, semantic title/body/actions,48px targets, no icon/x, safe Cancel focus, nested modal trap/Escape/mobileBack, opener return (portal trigger ref), sync duplicate lock, external/local pending, false/rejection inline retry and optional fullscreen host. useModalFocus now recognizes nested alertdialogs too. ProjectDiscardConfirmation remains only an API adapter; DiscardConfirmationLayer deleted.
@@ -2491,3 +2497,4 @@ References: [checkpoint controls and recovery](checkpoints.md),
 [current architecture](current-architecture.md),
 [native direction](native-platform-direction.md),
 [migration register](migration-status.md), and [Sites deployment](sites-deployment.md).
+

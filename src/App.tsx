@@ -944,6 +944,22 @@ function AppContent() {
       if (opener?.isConnected && document.activeElement === document.body && !document.querySelector('[aria-modal="true"]')) opener.focus({ preventScroll: true });
     });
   }
+  function closePortalChoice() {
+    // Cancel the create intent as well as its surface; later profile updates
+    // must not reopen the chooser after the user has dismissed it.
+    setGlobalCreateAccountId(null);
+    setPortalChoice(null);
+    setIsPublishOpen(false);
+    setPublishTargetCategoryId(null);
+    setPublishAccountId(null);
+    setFirstProjectPublisher(false);
+    setJourneyMadeIn(null);
+    const opener = mobilePublishOpener.current;
+    mobilePublishOpener.current = null;
+    requestAnimationFrame(() => {
+      if (opener?.isConnected && !document.querySelector('[aria-modal="true"]')) opener.focus({ preventScroll: true });
+    });
+  }
   function requestGlobalPublish() {
     setGlobalCreateError(null);
     if (!auth.isAuthenticated) {
@@ -1371,7 +1387,7 @@ function AppContent() {
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      {presentation === 'mobile' && portalChoice && portalChoice.accountId === auth.user?.id && isOwnerMode && viewedProfile && <ProjectPortalChoice key={portalChoice.accountId} categories={viewedProfile.categories} preferredId={portalChoice.preferredId} onCreate={name => management.createCategory(name, 'Grid2X2Icon')} onClose={() => { setPortalChoice(null); setFirstProjectPublisher(false); setJourneyMadeIn(null); }} onChoose={id => {
+      {presentation === 'mobile' && portalChoice && portalChoice.accountId === auth.user?.id && isOwnerMode && viewedProfile && <ProjectPortalChoice key={portalChoice.accountId} categories={viewedProfile.categories} preferredId={portalChoice.preferredId} onCreate={name => management.createCategory(name, 'Grid2X2Icon')} onClose={closePortalChoice} onChoose={id => {
         setPublishTargetCategoryId(id);
         setPublishAccountId(portalChoice.accountId);
         setPortalChoice(null);

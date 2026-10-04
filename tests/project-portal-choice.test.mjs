@@ -4,6 +4,14 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+test('closing the portal chooser cancels the create intent and restores the opener without navigation',()=>{
+ const source=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ let handler;const visit=n=>{if(ts.isFunctionDeclaration(n)&&n.name?.text==='closePortalChoice')handler=n;ts.forEachChild(n,visit);};visit(source);assert.ok(handler);
+ const state={};let focused=false;const context={mobilePublishOpener:{current:{isConnected:true,focus(){focused=true;}}},requestAnimationFrame:fn=>fn(),document:{querySelector:()=>null}};
+ for(const key of ['GlobalCreateAccountId','PortalChoice','IsPublishOpen','PublishTargetCategoryId','PublishAccountId','FirstProjectPublisher','JourneyMadeIn'])context[`set${key}`]=value=>state[key]=value;
+ vm.runInNewContext(ts.transpileModule(handler.getText(source)+';closePortalChoice();',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
+ assert.equal(state.GlobalCreateAccountId,null);assert.equal(state.PortalChoice,null);assert.equal(state.IsPublishOpen,false);assert.equal(state.PublishAccountId,null);assert.equal(state.JourneyMadeIn,null);assert.equal(focused,true);assert.equal(context.mobilePublishOpener.current,null);
+});
 function nodes(n){return React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];}
 function harness(categories=[{id:'one',label:'Design'},{id:'two',label:'Music'}],create=async()=>({id:'new',label:'New'})){
  let cursor=0;const slots=[],chosen=[],created=[];
