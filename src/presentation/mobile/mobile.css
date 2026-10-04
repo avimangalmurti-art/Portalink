@@ -3738,98 +3738,152 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   overscroll-behavior: contain;
 }
 
-/* Mobile conversation: floating identities and controls above a calm transcript. */
+/* The conversation owns its header, visible viewport and bottom composer. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .mobile-navigation-layer { display: none; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .codex-workspace {
+  --mobile-dock-clearance: 0px;
+  --mobile-content-safe-bottom: var(--safe-area-bottom);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] {
+  position: absolute;
+  top: var(--dialog-viewport-top, 0px);
+  inset-inline: 0;
+  height: var(--dialog-viewport-height, 100dvh) !important;
+  overflow: hidden !important;
+}
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > header {
-  position: absolute;
-  inset: var(--mobile-content-safe-top, 0px) 0 auto;
-  z-index: 30;
-  height: 126px;
-  border: 0 !important;
-  background: transparent !important;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] {
-  position: relative;
-  display: block;
-  padding: 12px 16px;
-  pointer-events: none;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > :is(button, a) { pointer-events: auto; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button {
-  position: absolute;
-  top: 16px;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px !important;
-  border: 1px solid var(--hairline-strong) !important;
-  background: color-mix(in srgb, var(--surface-raised) 76%, transparent) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button:first-child { left: 16px; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button:last-child { right: 16px; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] {
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 72px;
-  height: 72px;
-  overflow: hidden;
-  border: 0 !important;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > a {
-  position: absolute;
-  top: 78px;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 55%;
-  height: 34px;
-  padding: 6px 14px;
-  border: 1px solid var(--hairline-strong);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-raised) 76%, transparent);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > [role='status'] {
-  position: absolute;
-  top: 114px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] #messages-thread-panel:not(.hidden) {
-  height: var(--mobile-viewport-height, 100dvh);
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-scroll] {
-  padding: calc(var(--mobile-content-safe-top, 0px) + 140px) 16px 20px;
-  scroll-padding-top: 140px;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] {
-  max-width: 90%;
-  border-radius: 24px;
-  padding: 16px 18px;
-  box-shadow: none;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p {
-  font-size: 18px;
-  line-height: 1.4;
-}
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] {
-  width: 100%;
-  border: 1px solid var(--hairline-strong) !important;
-  background: color-mix(in srgb, var(--surface-raised) 78%, transparent) !important;
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  box-shadow: 0 4px 20px rgb(0 0 0 / 12%);
-}
-#root .codex-shell[data-presentation='mobile'].reduce-translucency [data-mobile-chat] :is([data-message-composer], [data-conversation-header] > button, [data-conversation-header] > a) {
-  background: var(--surface-raised) !important;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  padding: var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) 0 0;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface-canvas) !important;
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > header::after { content: none; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] :is(.squircle, .shape-squircle-compact, img) { border-radius: 999px !important; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'],
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='dialog'] .squircle { corner-shape: round !important; }
-#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] :is([role='menu'], [role='dialog']) { pointer-events: auto; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] {
+  height: auto;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 10px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none;
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-identity] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > [role='status'] {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
+  margin: 0;
+  max-width: 100%;
+  font-size: 11px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > [role='status']:empty { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-haspopup='menu'] { grid-column: 3; grid-row: 1; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] #messages-thread-panel:not(.hidden) { height: auto; padding-bottom: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > div { min-height: 0; overflow: hidden; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-scroll] {
+  padding: 12px 20px 24px;
+  scroll-padding: 12px 0 24px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] ol[aria-label='Messages'] { gap: 0; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-date] { padding: 16px 0 12px; font-size: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row] { position: relative; margin-top: 14px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-message-grouped] { margin-top: 4px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-has-reactions] { margin-bottom: 18px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-has-receipt] { margin-bottom: 24px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] {
+  position: relative;
+  width: fit-content;
+  max-width: 82%;
+  border-radius: 22px;
+  padding: 10px 14px;
+  box-shadow: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble='incoming'] { background: var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-bubble] > p { font-size: 16px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-meta] {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 4px;
+  margin: 0;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-meta]:not(:has(> :not([hidden]))) { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-reactions] {
+  position: absolute;
+  bottom: -14px;
+  left: 8px;
+  margin: 0;
+  gap: 4px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-reactions] > button:not([aria-label='Message options']) {
+  position: relative;
+  min-height: 24px;
+  min-width: 0;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  box-shadow: none;
+  font-size: 12px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-reactions] > button:not([aria-label='Message options'])::before { content: ''; position: absolute; inset: -10px 0; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] form:has(> [data-message-composer]) {
+  margin: 0;
+  padding: 8px 16px max(8px, env(safe-area-inset-bottom, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] {
+  position: relative;
+  width: 100%;
+  min-height: 48px;
+  padding: 2px;
+  gap: 10px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 54px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: 24px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] > :is(label, textarea, button) { position: relative; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] > label { background: var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer] > textarea { padding-inline: 12px 0; }
+
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat][data-conversation-keyboard] form:has(> [data-message-composer]) { padding-bottom: 8px; }
+
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-has-reactions][data-has-receipt] { margin-bottom: 42px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-has-reactions][data-has-receipt] [data-message-meta] { top: calc(100% + 22px); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-row][data-message-failed] { margin-bottom: 52px; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-composer]:not(:has(> label))::before { left: 0; }

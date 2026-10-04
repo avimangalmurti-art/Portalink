@@ -1,3 +1,7 @@
+## 2026-10-04 — Sites293 published: quiet mobile profile tabs
+
+Sites293 succeeded at `2026-10-04T22:22:14.984861+00:00`, source `a45fdb2217db53ef58840ec9ec4a924d3dec8f8e`, version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_13b7d000054c8191b4d3e4fa6915f672`, deployment `appgdep_6ac2d18cb1188191aef4799413a9ea9f`. Public audience/URL and runtime revision2 preserved; Sites mirror only, no GitHub push/merge or SQL. Final client/worker build,20 focused tests and diff check pass. Archive validated537 entries/527files, SHA256 `ab94002519a53d7c74f7a76f685cf97c37ebb015494ef66f7a6263f1b3c50eaf`. Browser evidence and verification limits in the following task note apply; deployment success is native confirmation, not physical-device proof. Temporary preview/tab closed and viewport reset. Publication receipt remains local/uncommitted.
+
 ## 2026-10-03 — Sites292 published: all eight search fixes
 
 Sites292 succeeded at `2026-10-03T08:41:43.745476+00:00` (October3,01:41 Pacific), source `24e8ad4146b0290c173398e17035b945ba2cd932`, saved version `appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_bc1c75dc3bb081919421140d4812e09e`, deployment `appgdep_6ac0bfbefba481919832d0b5597fd891`. Existing public URL/audience and runtime revision2 preserved. Source is pushed to Sites mirror only, no GitHub push/merge. All eight audited search gaps now have source fixes; the preceding audit and publication-in-progress notes are superseded by this receipt.

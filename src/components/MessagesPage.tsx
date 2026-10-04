@@ -1,4 +1,4 @@
-import { useMobileScreenActions, useMobileHold, useMobileActions } from '../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
@@ -14,6 +14,8 @@ import type { DirectMessage, MessageAttachment } from '../types/messages';
 import { NewChatPanel } from './messages/NewChatPanel';
 import { MessageControlsDialog } from './messages/MessageControlsDialog';
 import { MobileMessageActions } from './messages/MobileMessageActions';
+import { useDialogViewport } from '../hooks/useDialogViewport';
+import { CreatorAvatar } from './profile/CreatorAvatar';
 import { ProfileAvatar } from './profile/ProfileAvatar';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
@@ -292,9 +294,29 @@ export function MessagesPage({
     report: () => { setIsReportOpen(true); setReportSent(false); },
   } : { newMessage: openNewMessage, search: !isNewChatOpen ? () => searchInput.current?.focus() : undefined, blocked: () => setIsPrivacyOpen(true) }, labels: { mute: conversation?.isMuted ? 'Unmute' : 'Mute' } }));
   const showList = !activeId;
+  const conversationViewport = useDialogViewport<HTMLElement>(isMobile && !showList && Boolean(conversation));
+  useEffect(() => {
+    const frame = conversationViewport.current;
+    if (!isMobile || showList || !frame) return;
+    const viewport = window.visualViewport;
+    const update = () => {
+      const keyboard = Boolean(viewport && window.innerHeight - viewport.height > 120 && frame.contains(document.activeElement) && document.activeElement?.matches('textarea, input'));
+      frame.toggleAttribute('data-conversation-keyboard', keyboard);
+    };
+    update();
+    viewport?.addEventListener('resize', update);
+    document.addEventListener('focusin', update);
+    document.addEventListener('focusout', update);
+    return () => {
+      viewport?.removeEventListener('resize', update);
+      document.removeEventListener('focusin', update);
+      document.removeEventListener('focusout', update);
+      frame.removeAttribute('data-conversation-keyboard');
+    };
+  }, [isMobile, showList, conversationViewport]);
   const isMobileNewChat = isMobile && isNewChatOpen;
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
-  return <section data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section ref={conversationViewport} data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>
@@ -315,13 +337,16 @@ export function MessagesPage({
         </div> : null}
         </div>
         {messaging.activeConversation ? <div data-conversation-header="" className="side-panel-content-inset relative flex h-full min-w-0 flex-1 items-center gap-3">
-          <ScreenBack><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
+          <ScreenBack visibleOnMobile><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={() => messaging.closeConversation()} aria-label="Back to conversations" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
             <InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl />
           </button></ScreenBack>
-          <ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
+          {isMobile ? <Link data-conversation-identity="" to={messaging.activeConversation.participant.id ? buildPath('profile', { profileId: messaging.activeConversation.participant.id }) : '#'} aria-label={`View ${messaging.activeConversation.participant.name}'s profile`} aria-disabled={!messaging.activeConversation.participant.id} onClick={event => { if (!messaging.activeConversation?.participant.id) event.preventDefault(); }}>
+            <CreatorAvatar name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} className="h-12 w-12" />
+            <RecipientIdentity conversation={messaging.activeConversation} />
+          </Link> : <><ProfileAvatar key={messaging.activeConversation.participant.id} name={messaging.activeConversation.participant.name} avatar={messaging.activeConversation.participant.avatar} />
           {messaging.activeConversation.participant.id ? <Link to={buildPath('profile', { profileId: messaging.activeConversation.participant.id })} className="shape-compact inline-flex h-10 min-w-0 flex-initial items-center text-left hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               <RecipientIdentity conversation={messaging.activeConversation} />
-          </Link> : <RecipientIdentity conversation={messaging.activeConversation} />}
+          </Link> : <RecipientIdentity conversation={messaging.activeConversation} />}</>}
           <span className="ml-auto min-w-0 max-w-[35%] truncate text-[12px] text-[var(--text-tertiary)]" role="status">{messaging.isParticipantTyping ? 'Typing…' : messaging.isRealtimeConnected ? '' : 'Reconnecting…'}</span>
           <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
           {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
@@ -443,7 +468,7 @@ export function MessagesPage({
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();
                     }
-                  }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+                  }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : isMobile ? "Message..." : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
                   <button type="submit" disabled={!draft.trim() && (isMessageRequest || attachments.length === 0)} aria-label="Send message" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
                   </button>
@@ -490,9 +515,8 @@ function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnT
 }
 
 function MessageHold({ enabled, onHold, children }: { enabled: boolean; onHold: (trigger: HTMLButtonElement | null) => void; children: React.ReactNode }) {
-  const context = useMobileActions();
   const rowRef = useRef<HTMLLIElement>(null);
-  const hold = useMobileHold(enabled ? () => { context?.button.current?.focus({ preventScroll: true }); onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null); } : null);
+  const hold = useMobileHold(enabled ? () => { onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null); } : null);
   return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef });
 }
 
@@ -533,14 +557,18 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   let previousDay = '';
   const latestOutgoingId = [...messages].reverse().find((message) => message.senderProfileId === viewerProfileId && message.deliveryState !== 'failed' && message.deliveryState !== 'sending')?.id ?? null;
   return <><ol className="mx-auto flex w-full max-w-[760px] flex-col gap-2" aria-label="Messages">
-      {messages.map((message) => {
+      {messages.map((message, index) => {
         const isMine = message.senderProfileId !== null && message.senderProfileId === viewerProfileId;
         const day = dayLabel(message.createdAt);
         const showDay = day !== previousDay;
         previousDay = day;
+        const previous = messages[index - 1];
+        const grouped = !showDay && previous?.senderProfileId === message.senderProfileId && new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() < 5 * 60 * 1000;
+        const hasReactions = Boolean(message.reactions?.length);
+        const hasReceipt = isMine && (message.id === latestOutgoingId || message.deliveryState === 'sending' || message.deliveryState === 'failed');
         return <React.Fragment key={message.id}>
-            {showDay ? <li className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
-            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+            {showDay ? <li data-message-date="" className="py-3 text-center text-[11px] font-medium text-[var(--text-tertiary)]">{day}</li> : null}
+            <MessageHold enabled={isMobile && canInteract && !message.isRemoved && !message.id.startsWith('local-') && pendingMessageId !== message.id && !editingId && !deleteId} onHold={trigger => { actionTriggerRef.current = trigger; setActionsId(message.id); }}><li data-message-row="" data-message-grouped={grouped || undefined} data-has-reactions={hasReactions || undefined} data-has-receipt={hasReceipt || undefined} data-message-failed={message.deliveryState === 'failed' || undefined} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div data-message-bubble={isMine ? 'outgoing' : 'incoming'} className={`group/message max-w-[78%] rounded-[18px] px-3.5 py-2.5 ${isMine ? 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]' : 'bg-[var(--surface-raised)] text-[var(--text-primary)] ring-1 ring-[var(--hairline)]'} ${message.deliveryState === 'failed' ? 'ring-2 ring-[var(--status-danger)]' : ''}`}>
                 {message.isRemoved ? <p className="text-[12px] text-[var(--text-tertiary)]">Deleted User</p> : null}
                 {editingId === message.id ? <form onSubmit={(event) => { event.preventDefault(); void onEdit(message.id, editBody).then((saved) => { if (saved) setEditingId(null); }); }}>
@@ -558,16 +586,16 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
                   </ul> : null}
-                <span className="mt-1 flex items-center justify-end gap-2 text-[11px]">
-                  <time dateTime={message.createdAt} className={isMine ? 'opacity-75' : 'text-[var(--text-tertiary)]'}>{messageTime(message.createdAt)}</time>
-                  {message.editedAt ? <span className="opacity-70">Edited</span> : null}
+                <span data-message-meta="" className="mt-1 flex items-center justify-end gap-2 text-[11px]">
+                  <time hidden={isMobile} dateTime={message.createdAt} className={isMine ? 'opacity-75' : 'text-[var(--text-tertiary)]'}>{messageTime(message.createdAt)}</time>
+                  {message.editedAt && !isMobile ? <span className="opacity-70">Edited</span> : null}
                   {message.deliveryState === 'sending' ? <span className="opacity-75">Sending…</span> : null}
                   {message.deliveryState === 'failed' ? <button type="button" onClick={() => void onRetry(message.id)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2' : ''} font-semibold underline`}>Retry</button> : null}
                   {message.id === latestOutgoingId && message.deliveryState !== 'failed' ? <span className="opacity-75">{participantReadAt && participantReadAt >= message.createdAt ? 'Seen' : 'Sent'}</span> : null}
                 </span>
-                {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div className="mt-2 flex flex-wrap items-center gap-1">
+                {!message.id.startsWith('local-') && !message.isRemoved && canInteract ? <div data-message-reactions="" className="mt-2 flex flex-wrap items-center gap-1">
                     {(canInteract ? message.reactions ?? [] : []).map((reaction) => <button key={reaction.emoji} type="button" aria-pressed={reaction.isMine} disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, reaction.emoji)} className={`rounded-full px-2 py-0.5 text-[12px] ring-1 ${isMobile ? 'min-h-[44px] min-w-[44px]' : ''} ${reaction.isMine ? 'bg-white/20 ring-current' : 'bg-black/10 ring-black/10'}`}>{reaction.emoji} {reaction.count}</button>)}
-                    {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} onClick={(event) => { actionTriggerRef.current = event.currentTarget; setActionsId(message.id); }} className="shape-compact ml-auto flex h-11 w-11 shrink-0 items-center justify-center hover:bg-black/10 focus-visible:ring-2 focus-visible:ring-current disabled:opacity-50"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
+                    {isMobile ? <button type="button" aria-label="Message options" aria-haspopup="dialog" aria-expanded={actionsId === message.id} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} onClick={(event) => { actionTriggerRef.current = event.currentTarget; setActionsId(message.id); }} className="sr-only focus:not-sr-only focus:absolute focus:right-0 focus:bottom-0 focus:h-11 focus:w-11 focus:rounded-full focus:bg-[var(--surface-raised)] focus:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-current"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : <>
                       {(canInteract ? ['❤', '👏', '✨'] as const : []).filter((emoji) => !(message.reactions ?? []).some((reaction) => reaction.emoji === emoji)).map((emoji) => <button key={emoji} type="button" disabled={pendingMessageId === message.id} onClick={() => void onReact(message.id, emoji)} aria-label={`React ${emoji}`} className="rounded-full px-1.5 py-0.5 text-[12px] opacity-0 hover:bg-black/10 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70">{emoji}</button>)}
                       {isMine ? <><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
                     </>}

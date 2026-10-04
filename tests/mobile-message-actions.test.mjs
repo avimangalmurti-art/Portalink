@@ -82,10 +82,11 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
   };
 }
 
-test('MOBILE opens visible message options and uses existing reaction, edit and confirmed unsend handlers', async () => {
+test('MOBILE opens contextual message options and uses existing reaction, edit and confirmed unsend handlers', async () => {
   const h = listHarness();
   const trigger = h.button('Message options');
-  assert.match(trigger.props.className, /h-11 w-11/);
+  assert.match(trigger.props.className, /sr-only/);
+  assert.match(trigger.props.className, /focus:not-sr-only/);
   assert.doesNotMatch(trigger.props.className, /opacity-0/);
   assert.equal(trigger.props['aria-haspopup'], 'dialog');
   assert.equal(h.button('Edit message'), undefined);
@@ -333,4 +334,23 @@ test('MOBILE inbox removes the redundant header while WEB and new-message header
   assert.ok(nodes(web.render()).find(node => node.type === 'header'));
   assert.ok(nodes(web.render()).find(node => node.props['aria-label'] === 'Message settings'));
   assert.ok(nodes(web.render()).find(node => node.props['aria-label'] === 'New message'));
+});
+
+
+test('MOBILE hides individual times, groups only nearby same-sender messages and keeps one receipt', () => {
+  const messages = [
+    {...ownMessage, id:'first', reactions:[], createdAt:'2026-09-29T10:00:00Z'},
+    {...ownMessage, id:'second', createdAt:'2026-09-29T10:01:00Z'},
+    {...ownMessage, id:'third', reactions:[], createdAt:'2026-09-29T10:12:00Z'},
+    {...ownMessage, id:'incoming', senderProfileId:'other', reactions:[], createdAt:'2026-09-29T10:13:00Z'},
+    {...ownMessage, id:'tomorrow', senderProfileId:'other', reactions:[], createdAt:'2026-09-30T10:13:00Z'},
+  ];
+  const tree=nodes(listHarness('mobile', {messages, participantReadAt:'2026-09-29T10:20:00Z'}).render());
+  assert.equal(tree.filter(n=>n.type==='time').every(n=>n.props.hidden),true);
+  assert.equal(tree.filter(n=>n.props['data-message-date']!==undefined).length,2);
+  const rows=tree.filter(n=>n.props['data-message-row']!==undefined);
+  assert.deepEqual(rows.map(n=>Boolean(n.props['data-message-grouped'])),[false,true,false,false,false]);
+  assert.equal(tree.filter(n=>n.type==='span' && n.props.children==='Seen').length,1);
+  const desktop=nodes(listHarness('web',{messages}).render());
+  assert.equal(desktop.filter(n=>n.type==='time').every(n=>!n.props.hidden),true);
 });

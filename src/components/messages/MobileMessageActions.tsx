@@ -1,6 +1,5 @@
 import React from 'react';
 import { flushSync } from 'react-dom';
-import { focusMobileContextButton } from '../../presentation/mobile/contextFocus';
 import type { DirectMessage } from '../../types/messages';
 import { MobileActionSheet } from './MobileActionSheet';
 import { contextActions } from '../../presentation/mobile/contextActions';
@@ -21,8 +20,9 @@ export function MobileMessageActions({ message, isMine, pending, onClose, onReac
     editMessage: isMine && !pending ? onEdit : undefined,
     unsend: isMine && !pending ? onRequestUnsend : undefined,
   } });
-  const close = () => { flushSync(onClose); focusMobileContextButton(); };
+  const close = () => { flushSync(onClose); };
   return <MobileActionSheet model={model} onClose={close} onAction={action => { close(); action.run(); }}>
+    <time dateTime={message.createdAt} className="mb-2 block text-xs text-[var(--text-tertiary)]">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(message.createdAt))}{message.editedAt ? ' · Edited' : ''}</time>
     <p className="mb-3 line-clamp-3 break-words text-sm text-[var(--text-secondary)]">{message.body || 'Attachment'}</p>
     {!pending && <div role="group" aria-label="Message reactions" className="mb-3 flex flex-wrap gap-2">{emojis.map(emoji => {
       const reaction = message.reactions?.find(item => item.emoji === emoji);
