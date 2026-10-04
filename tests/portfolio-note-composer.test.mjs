@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import {sourceModule} from './helpers/source-module.mjs';
+const {PortfolioNoteComposer}=sourceModule('src/features/sharing/PortfolioNoteComposer.tsx', {'lucide-react':{SendIcon:'send-icon'},'../../components/profile/CreatorAvatar':{CreatorAvatar:'avatar'},'../../components/ui/Button':{Button:'button'}},{React});
+const nodes=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(nodes)]:[];
+const profile={name:'Actual Creator',location:'Actual City',avatar:'existing-photo',projects:[{}],categories:[{},{}],showJourney:true};
+for(const note of ['', 'A typed note\nwith another line']) test(`live preview reflects ${note?'typed':'empty'} message and existing profile`,()=>{
+ let changed,continued=false;
+ const tree=PortfolioNoteComposer({profile,counts:{followers:'12',following:null},note,url:'https://example.test/currenthandle',heading:'note',disabled:false,onChange:value=>{changed=value;},onContinue:()=>{continued=true;}});
+ const all=nodes(tree), text=all.flatMap(node=>React.Children.toArray(node.props.children).filter(child=>typeof child==='string'));
+ assert.ok(text.includes('https://example.test/currenthandle'));
+ assert.equal(all.some(node=>node.props.className==='share-note-text'),Boolean(note));
+ if(note) assert.ok(text.includes(note));
+ assert.ok(!all.some(node=>node.type==='input'));
+ assert.ok(!text.includes('A professor'));
+ const field=all.find(node=>node.type==='textarea');assert.equal(field.props.maxLength,3000);assert.equal(field.props.value,note);
+ field.props.onChange({target:{value:'new draft'}});assert.equal(changed,'new draft');
+ all.find(node=>node.type==='button').props.onClick();assert.equal(continued,true);
+ assert.ok(all.filter(node=>node.type==='avatar').every(node=>node.props.avatar==='existing-photo'));
+});
