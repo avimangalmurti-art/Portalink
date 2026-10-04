@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React from 'react';
 import { AlertCircleIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
 import { COMMENT_MAX_LENGTH } from '../../types/comments';
@@ -100,24 +101,7 @@ function CommentRow({
 
         {/* Destructive, so it is confirmed before anything is sent — and the
            comment stays on screen until the service confirms its removal. */}
-        {isConfirmingDelete && <div role="alertdialog" aria-label="Delete this comment" className="mt-1.5 rounded-[8px] bg-[var(--surface-sunken)] px-2.5 py-2">
-            <p className="text-[12px] text-[var(--text-primary)]">
-              Delete this {isReply ? 'reply' : 'comment'}?{!isReply ? ' Its replies go with it.' : ''}
-            </p>
-            <div className="mt-1.5 flex items-center gap-2.5">
-              <button type="button" data-keep-color="" onClick={comments.confirmDelete} disabled={deletion?.isDeleting} className="text-[11px] font-semibold text-[var(--status-danger)] underline focus:outline-none disabled:opacity-60">
-                {deletion?.isDeleting ? 'Deleting…' : 'Delete'}
-              </button>
-              <button type="button" onClick={comments.cancelDelete} disabled={deletion?.isDeleting} className="text-[11px] font-semibold text-[var(--text-secondary)] underline focus:outline-none disabled:opacity-60">Keep</button>
-            </div>
-            {deletion?.error && <p role="alert" className="mt-1.5 flex items-center gap-1.5 text-[11px] leading-relaxed text-[var(--text-primary)]">
-                <AlertCircleIcon className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span className="min-w-0">
-                  {deletion.error}
-                  {deletion.retry && <button type="button" onClick={deletion.retry} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>}
-                </span>
-              </p>}
-          </div>}
+        {isConfirmingDelete && <ConfirmationDialog title={`Delete this ${isReply ? 'reply' : 'comment'}?`} description={isReply ? 'This reply will be permanently removed.' : 'This comment and its replies will be permanently removed.'} confirmLabel={isReply ? 'Delete reply' : 'Delete comment'} variant="destructive" pending={deletion?.isDeleting} pendingLabel="Deleting…" error={deletion?.error} onCancel={comments.cancelDelete} onConfirm={comments.confirmDelete}/>}
       </div>
     </article>;
 }

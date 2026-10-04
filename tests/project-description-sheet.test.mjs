@@ -25,7 +25,7 @@ function harness(owner = false, props = {}, fullscreen = false) {
   }).outputText, { exports, document: { querySelector: () => appHost, fullscreenElement: fullscreen ? fullscreenHost : null }, require(name) {
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: (element, host) => { portalHost = host; return element; } };
-    if (name.endsWith('/DiscardConfirmationLayer')) return { DiscardConfirmationLayer: 'discard-layer' };
+    if (name.endsWith('/ConfirmationDialog')) return { ConfirmationDialog: 'discard-layer' };
     if (name.endsWith('/TextFormattingToolbar')) return { TextFormattingToolbar: 'text-format-toolbar' };
     if (name.endsWith('/useDialogViewport')) return { useDialogViewport: () => viewport };
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, close, preventScroll) => {
@@ -40,7 +40,7 @@ function harness(owner = false, props = {}, fullscreen = false) {
     nodes(tree).find(n => n.type === 'section').ref.current = panel;
     return tree;
   };
-  const button = (label) => nodes(render()).find(n => n.type === 'button' && (n.props['aria-label'] === label || n.props.children === label));
+  const button = (label) => { const layer=nodes(render()).find(n=>n.type==='discard-layer');if(layer && (label===layer.props.cancelLabel||label===layer.props.confirmLabel))return {props:{onClick:label===layer.props.cancelLabel?layer.props.onCancel:layer.props.onConfirm}};return nodes(render()).find(n => n.type === 'button' && (n.props['aria-label'] === label || n.props.children === label));};
   const click = label => button(label).props.onClick({ stopPropagation() {} });
   return { render, button, click, editor, calls, panel, escape: () => escape(), get closes() { return closes; },
     get portalHost() { return portalHost; }, appHost, fullscreenHost };
@@ -136,21 +136,21 @@ test('dirty description confirmation is outside the resized sheet inside its vis
     assert.equal(React.Children.toArray(viewport.props.children).some(node => node.props === layer.props), true);
     assert.equal(nodes(sheet).some(node => node.type === 'discard-layer'), false, 'The resized/transformed sheet cannot bound the confirmation');
     assert.equal(sheet.props['data-expanded'], undefined);
-    assert.equal(layer.props.label, 'Discard your description changes?');
-    assert.equal(layer.props.className, 'project-description-discard');
+    assert.equal(layer.props.title, 'Discard your description changes?');
+    assert.equal(layer.props.host, fullscreen ? h.fullscreenHost : h.appHost);
     assert.match(viewport.props.style.top, /dialog-viewport-top/);
     assert.match(viewport.props.style.height, /dialog-viewport-height/);
     assert.equal(h.portalHost, fullscreen ? h.fullscreenHost : h.appHost);
     assert.equal(h.closes, 0);
     assert.equal(nodes(tree).some(node => node.type === 'form'), false);
-    layer.props.onKeep(); tree = h.render();
+    layer.props.onCancel(); tree = h.render();
     assert.equal(nodes(tree).some(node => node.type === 'discard-layer'), false);
     assert.equal(nodes(tree).find(node => node.type === 'textarea').props.value, 'Keep this draft');
     assert.equal(h.panel.style.height, '320px', 'Keeping edits does not reset the sheet snap/drag size');
     assert.equal(h.closes, 0);
     h.click('Close description'); tree = h.render();
     layer = nodes(tree).find(node => node.type === 'discard-layer');
-    await nodes(layer).find(node => node.type === 'button' && node.props.children === 'Discard changes').props.onClick();
+    await layer.props.onConfirm();
     assert.equal(h.closes, 1);
     assert.deepEqual(h.calls.at(-1), ['close']);
     assert.equal(nodes(h.render()).some(node => node.type === 'discard-layer'), false);

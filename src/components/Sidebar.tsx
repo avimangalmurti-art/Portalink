@@ -239,7 +239,7 @@ function CategoryRowContent({
 
 
 
-}: {category: ProfileCategory;isActive: boolean;accentColor: string;theme: 'light' | 'dark';isDraggable: boolean;isHidden?: boolean;isRenaming?: boolean; /** An operation on THIS row is in flight, so its controls stand down. */isBusy?: boolean;showOptions?: boolean; /** Asked when the confirmation opens, so the answer comes from the store. */readDeletionCapability?: () => Promise<CategoryDeletionCapability>;onSelect: () => void;onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;onDragHandlePointerDown?: (event: React.PointerEvent) => void;onHideToggle?: () => void;onRenameStart?: () => void;onRenameCommit?: (label: string) => void;onRenameCancel?: () => void;onChangeIcon?: () => void; /** Removes the category from the portfolio. Owner-only, destructive. */onDelete?: () => void;}) {
+}: {category: ProfileCategory;isActive: boolean;accentColor: string;theme: 'light' | 'dark';isDraggable: boolean;isHidden?: boolean;isRenaming?: boolean; /** An operation on THIS row is in flight, so its controls stand down. */isBusy?: boolean;showOptions?: boolean; /** Asked when the confirmation opens, so the answer comes from the store. */readDeletionCapability?: () => Promise<CategoryDeletionCapability>;onSelect: () => void;onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;onDragHandlePointerDown?: (event: React.PointerEvent) => void;onHideToggle?: () => void;onRenameStart?: () => void;onRenameCommit?: (label: string) => void;onRenameCancel?: () => void;onChangeIcon?: () => void; /** Removes the category from the portfolio. Owner-only, destructive. */onDelete?: () => void | boolean | Promise<void | boolean>;}) {
   const Icon = getCategoryIcon(category.iconName);
   const [draftLabel, setDraftLabel] = useState(category.label);
   useEffect(() => {
@@ -500,7 +500,7 @@ export function Sidebar({
   async function deleteCategory(categoryId: string) {
     const deleted = await management.deleteCategory(categoryId);
     if (!deleted) {
-      return;
+      return false;
     }
     // Deleting the category you are viewing moves you to the next one, so the
     // workspace is never left pointing at something that no longer exists.
@@ -512,6 +512,7 @@ export function Sidebar({
       }
     }
     setRenamingCategoryId((current) => current === categoryId ? null : current);
+    return true;
   }
   // The owner adds categories from their profile page; that request lands here.
   useEffect(() => {
@@ -775,7 +776,7 @@ export function Sidebar({
                         // The category page titles itself from the record, so the
                         // rename goes to the record rather than to a local label map.
                         void commitRename(category.id, label);
-                      }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => void deleteCategory(category.id)} />)}
+                      }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => deleteCategory(category.id)} />)}
                     </Reorder.Group> : <ul className="m-0 list-none p-0">
                       {arrangedCategories.map((category) => <li key={category.id} className="relative list-none">
                           <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />

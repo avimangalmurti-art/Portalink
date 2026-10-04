@@ -2,8 +2,7 @@ import React, { useRef, useState } from 'react';
 import type { Profile, Project } from '../../types/domain';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
-import { ProjectFormDialog } from '../../components/publishing/ProjectFormDialog';
-import { Button } from '../../components/ui/Button';
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 export function StartHereDialog({profile, project, onClose}: {profile: Profile; project: Project; onClose: () => void}) {
   const {profiles} = useServices(), {invalidateProfiles} = useProfileData();
   const [busy,setBusy] = useState(false), [error,setError] = useState(''), saving = useRef(false);
@@ -14,10 +13,5 @@ export function StartHereDialog({profile, project, onClose}: {profile: Profile; 
     catch(e){setError(e instanceof Error ? e.message : 'The project could not be pinned.');}
     finally{saving.current=false;setBusy(false);}
   };
-  return <ProjectFormDialog title="Start here" titleId="start-here-title" onClose={onClose} closeDisabled={busy}>
-    <div className="project-form-content"><p>{pinned ? 'Remove this introduction from your portfolio?' : `Make “${project.title}” the first project visitors see? This replaces your current Start-here selection.`}</p>
-      <Button disabled={busy || (!pinned && (project.isPubliclyVisible === false || project.sessionOnly))} onClick={() => void save()}>{busy ? 'Saving…' : pinned ? 'Remove Start here' : 'Use as Start here'}</Button>
-      {error && <p role="alert">{error}</p>}
-    </div>
-  </ProjectFormDialog>;
+  return <ConfirmationDialog title={pinned ? 'Remove Start here?' : 'Use this project as Start here?'} description={pinned ? 'This removes the introduction from your portfolio. The project stays published.' : `“${project.title}” will be the first project visitors see. This replaces your current Start-here selection.`} confirmLabel={pinned ? 'Remove Start here' : 'Use as Start here'} variant="standard" pending={busy} pendingLabel="Saving…" error={error} confirmDisabled={!pinned && (project.isPubliclyVisible === false || Boolean(project.sessionOnly))} onCancel={onClose} onConfirm={save}/>;
 }

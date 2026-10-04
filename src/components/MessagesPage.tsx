@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
@@ -91,7 +92,7 @@ export function MessagesPage({
   const conversationMenuRef = useRef<HTMLDivElement>(null);
   const conversationTriggerRef = useRef<HTMLButtonElement>(null);
   const conversationMenuFocus = useMenuFocus({ open: isConversationMenuOpen, menuRef: conversationMenuRef, triggerRef: conversationTriggerRef, onOpen: () => setIsConversationMenuOpen(true), onClose: () => setIsConversationMenuOpen(false) });
-  const [confirmation, setConfirmation] = useState<'archive' | 'block' | null>(null);
+  const [confirmation, setConfirmation] = useState<'delete-request' | 'block' | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
@@ -334,7 +335,7 @@ export function MessagesPage({
           <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
           {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
               <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
-              <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('archive'); }} />
+              <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); void messaging.archiveConversation(); }} />
               <ConversationMenuButton icon={FlagIcon} label="Report conversation" onClick={() => { setIsConversationMenuOpen(false); setIsReportOpen(true); setReportSent(false); }} />
               {messaging.activeConversation.participant.id ? <ConversationMenuButton danger icon={BanIcon} label={`Block ${messaging.activeConversation.participant.name}`} onClick={() => { setIsConversationMenuOpen(false); setConfirmation('block'); }} /> : null}
             </div> : null}
@@ -423,7 +424,7 @@ export function MessagesPage({
               {messaging.activeConversation.participant.isDeleted ? <p role="status" className="shrink-0 p-4 text-center text-[13px] text-[var(--text-secondary)]">This account was deleted. Your messages and attachments remain here.</p> : messaging.activeConversation.status === 'request' && !messaging.activeConversation.requestedByViewer ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4">
                   <div className="mx-auto flex max-w-[760px] flex-wrap items-center justify-between gap-4">
                     <p className="text-[13px] text-[var(--text-secondary)]">Accept this message request? They won’t see that you’ve read it until you accept.</p>
-                    <div className="flex flex-wrap gap-2"><button type="button" data-keep-color="" disabled={messaging.pendingAction !== null} onClick={() => setConfirmation('block')} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--status-danger)] hover:bg-[var(--surface-hover)] disabled:opacity-50">Block</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => void messaging.deleteRequest()} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-50">{messaging.pendingAction === 'delete-request' ? 'Deleting…' : 'Delete'}</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => { const requestId = activeId; void messaging.acceptRequest().then((accepted) => { if (accepted && activeIdRef.current === requestId) setConversationFilter('all'); }); }} className="shape-compact flex items-center gap-2 bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50"><InterfaceIcon icon={CheckIcon} />{messaging.pendingAction === 'accept' ? 'Accepting…' : 'Accept'}</button></div>
+                    <div className="flex flex-wrap gap-2"><button type="button" data-keep-color="" disabled={messaging.pendingAction !== null} onClick={() => setConfirmation('block')} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--status-danger)] hover:bg-[var(--surface-hover)] disabled:opacity-50">Block</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => setConfirmation('delete-request')} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-50">{messaging.pendingAction === 'delete-request' ? 'Deleting…' : 'Delete'}</button><button type="button" disabled={messaging.pendingAction !== null} onClick={() => { const requestId = activeId; void messaging.acceptRequest().then((accepted) => { if (accepted && activeIdRef.current === requestId) setConversationFilter('all'); }); }} className="shape-compact flex items-center gap-2 bg-[var(--accent-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--accent-foreground)] disabled:opacity-50"><InterfaceIcon icon={CheckIcon} />{messaging.pendingAction === 'accept' ? 'Accepting…' : 'Accept'}</button></div>
                   </div>
                 </div> : messaging.activeConversation.status === 'request' && messaging.activeConversation.requestedByViewer && (messaging.activeConversation.hasSentRequest || messaging.messages.some((message) => message.deliveryState !== 'failed')) ? <div className="shrink-0 border-t border-[var(--hairline)] bg-[var(--surface-canvas)] p-4 text-center text-[13px] text-[var(--text-secondary)]">Invitation sent. You can send more messages after {messaging.activeConversation.participant.name} accepts.</div> : <form onSubmit={submitMessage} className="shrink-0 bg-transparent p-3 sm:p-4">
                 {!isMessageRequest && attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
@@ -468,10 +469,7 @@ export function MessagesPage({
         </main>
       </div>
 
-      {confirmation ? <ConfirmationDialog kind={confirmation} creatorName={messaging.activeConversation?.participant.name ?? 'this creator'} pending={messaging.pendingAction !== null} onCancel={() => setConfirmation(null)} onConfirm={() => {
-        if (confirmation === 'archive') void messaging.archiveConversation().then((done) => { if (done) setConfirmation(null); });
-        else void messaging.blockParticipant().then((done) => { if (done) setConfirmation(null); });
-      }} /> : null}
+      {confirmation && <ConfirmationDialog title={confirmation==='block' ? `Block ${messaging.activeConversation?.participant.name ?? 'this creator'}?` : 'Delete this message request?'} description={confirmation==='block' ? 'They will not be able to start or continue conversations with you. The conversation will leave your list.' : 'This message request will be removed from your list.'} confirmLabel={confirmation==='block' ? 'Block' : 'Delete request'} variant="destructive" pending={messaging.pendingAction!==null} error={messaging.error} onCancel={()=>setConfirmation(null)} onConfirm={async()=>{const done=await (confirmation==='block' ? messaging.blockParticipant() : messaging.deleteRequest());if(done)setConfirmation(null);return done;}}/>}
 
       {isReportOpen ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsReportOpen(false); }}>
           <form role="dialog" aria-modal="true" aria-labelledby="report-conversation-title" onSubmit={(event) => {
@@ -520,7 +518,6 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
   const [deleteId, setDeleteId] = useState<Id | null>(null);
   const [actionsId, setActionsId] = useState<Id | null>(null);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const unsendCancelRef = useRef<HTMLButtonElement>(null);
   const actionTriggerRef = useRef<HTMLButtonElement | null>(null);
   const hadInlineActionRef = useRef(false);
   const actionMessage = isMobile && canInteract ? messages.find((message) => message.id === actionsId && !message.id.startsWith('local-') && !message.isRemoved) : undefined;
@@ -532,7 +529,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
     // opener is disabled during inline editing/confirmation.
     const frame = requestAnimationFrame(() => {
       if (editingId) editTextareaRef.current?.focus();
-      else if (deleteId) unsendCancelRef.current?.focus();
+      else if (deleteId) return;
       else if (actionTriggerRef.current?.isConnected && !actionTriggerRef.current.disabled) actionTriggerRef.current.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
@@ -583,7 +580,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                       {isMine ? <><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setEditingId(message.id); setEditBody(message.body); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Edit message" title="Edit message" className="shape-compact ml-auto flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={PencilIcon} size="xs" /></button><button type="button" onClick={(event) => { actionTriggerRef.current = event.currentTarget; setDeleteId(message.id); }} disabled={pendingMessageId === message.id || editingId === message.id || deleteId === message.id} aria-label="Unsend message" title="Unsend message" className="shape-compact flex h-7 w-7 items-center justify-center opacity-0 focus:opacity-100 group-hover/message:opacity-70 group-focus-within/message:opacity-70"><InterfaceIcon icon={Trash2Icon} size="xs" /></button></> : null}
                     </>}
                   </div> : null}
-                {deleteId === message.id ? <div className="mt-2 rounded-[9px] bg-black/10 p-2 text-[12px]"><p>Unsend this message for both people?</p><div className="mt-2 flex justify-end gap-2"><button ref={unsendCancelRef} type="button" onClick={() => setDeleteId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : ''} font-semibold underline`}>Cancel</button><button type="button" disabled={pendingMessageId === message.id} onClick={() => void onDelete(message.id).then((removed) => { if (removed) setDeleteId(null); })} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : ''} font-semibold underline`}>Unsend</button></div></div> : null}
+                {deleteId===message.id && <ConfirmationDialog title="Unsend this message?" description="This message will be removed for both people." confirmLabel="Unsend message" variant="destructive" pending={pendingMessageId===message.id} pendingLabel="Unsending…" onCancel={()=>setDeleteId(null)} onConfirm={async()=>{const removed=await onDelete(message.id);if(removed)setDeleteId(null);return removed;}}/>}
               </div>
             </li></MessageHold>
           </React.Fragment>;
@@ -607,15 +604,4 @@ function MessageAttachmentView({ attachment }: { attachment: MessageAttachment }
   if (attachment.mimeType.startsWith('audio/')) return <div><p className="mb-1 truncate text-[12px] font-medium">{attachment.fileName}</p><audio controls preload="metadata" src={attachment.url} className="max-w-full" /></div>;
   if (attachment.mimeType.startsWith('video/')) return <video controls loop={isMobile || undefined} muted playsInline={isMobile || undefined} preload="metadata" src={attachment.url} className="max-h-72 w-full rounded-[12px]" aria-label={attachment.fileName} />;
   return <a href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[10px] bg-black/10 px-3 py-2 text-[13px] font-semibold underline focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={FileTextIcon} /><span className="min-w-0 truncate">{attachment.fileName}</span></a>;
-}
-
-function ConfirmationDialog({ kind, creatorName, pending, onCancel, onConfirm }: { kind: 'archive' | 'block'; creatorName: string; pending: boolean; onCancel: () => void; onConfirm: () => void }) {
-  const isBlock = kind === 'block';
-  return <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) onCancel(); }}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="conversation-confirm-title" aria-describedby="conversation-confirm-description" className="shape-container w-full max-w-[400px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-5 shadow-2xl">
-        <h2 id="conversation-confirm-title" className="text-[17px] font-semibold">{isBlock ? `Block ${creatorName}?` : 'Archive this conversation?'}</h2>
-        <p id="conversation-confirm-description" className="mt-2 text-[14px] leading-relaxed text-[var(--text-secondary)]">{isBlock ? 'They will not be able to start or continue conversations with you. The conversation will leave your list.' : 'This removes the conversation from your list. Starting a new message with this creator will restore it.'}</p>
-        <div className="mt-5 flex justify-end gap-2"><button autoFocus type="button" disabled={pending} onClick={onCancel} className="shape-compact px-4 py-2 text-[13px] font-semibold hover:bg-[var(--surface-hover)] disabled:opacity-50">Cancel</button><button type="button" disabled={pending} onClick={onConfirm} className={`shape-compact px-4 py-2 text-[13px] font-semibold disabled:opacity-50 ${isBlock ? 'bg-[var(--status-danger)] text-white' : 'bg-[var(--accent-primary)] text-[var(--accent-foreground)]'}`}>{pending ? 'Working…' : isBlock ? 'Block' : 'Archive'}</button></div>
-      </div>
-    </div>;
 }

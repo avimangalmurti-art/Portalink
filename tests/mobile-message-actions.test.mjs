@@ -54,6 +54,7 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
     react: state.react,
     '../presentation/usePresentation': { usePresentation: () => presentation },
     './messages/MobileMessageActions': { MobileMessageActions },
+    './ui/ConfirmationDialog': { ConfirmationDialog: 'confirmation-dialog' },
   }, '\nexport { MessageList };', {
     requestAnimationFrame(callback) { frames.set(++frameId, callback); return frameId; },
     cancelAnimationFrame(id) { frames.delete(id); },
@@ -71,6 +72,8 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
     return tree;
   };
   const button = label => {
+    const confirmation=nodes(render()).find(n=>n.type==='confirmation-dialog');
+    if(confirmation && (label==='Cancel'||label==='Unsend'))return {props:{onClick:label==='Cancel'?confirmation.props.onCancel:confirmation.props.onConfirm}};
     const node = nodes(render()).find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label));
     return node ? { ...node, props: { ...node.props, onClick: (event = { currentTarget: element(`button:${label}`) }) => node.props.onClick(event) } } : undefined;
   };
@@ -110,11 +113,11 @@ test('MOBILE opens contextual message options and uses existing reaction, edit a
   h.button('Message options').props.onClick(); h.sheet().props.onRequestUnsend();
   assert.equal(h.sheet(), undefined);
   assert.equal(h.calls.some(([action]) => action === 'delete'), false, 'Opening confirmation must not delete');
-  assert.match(h.button('Unsend').props.className, /min-h-\[44px\]/);
+  assert.equal(nodes(h.render()).find(n=>n.type==='confirmation-dialog').props.variant,'destructive');
   h.button('Cancel').props.onClick();
   assert.equal(h.button('Unsend'), undefined);
   h.button('Message options').props.onClick(); h.sheet().props.onRequestUnsend();
-  h.button('Unsend').props.onClick(); await Promise.resolve();
+  await h.button('Unsend').props.onClick();
   assert.deepEqual(h.calls.at(-1), ['delete', 'message-1']);
   assert.equal(h.button('Unsend'), undefined);
 });
@@ -188,7 +191,7 @@ test('WEB edit shortcuts preserve multiline input and composition, and return fo
 test('WEB unsend focuses its Cancel and cancellation restores its enabled trigger', () => {
   const h = listHarness('web', {}, true);
   h.button('Unsend message').props.onClick(); h.render(); h.flushFrames();
-  assert.equal(h.focused, 'Cancel');
+  assert.ok(nodes(h.render()).find(n=>n.type==='confirmation-dialog'), 'Shared modal owns safe Cancel focus');
   assert.equal(h.button('Unsend message').props.disabled, true);
   assert.equal(h.calls.length, 0);
   h.button('Cancel').props.onClick(); h.render(); h.flushFrames();
@@ -202,7 +205,7 @@ test('MOBILE hands focus from the sheet to Unsend Cancel and restores its enable
   h.sheet().props.onRequestUnsend();
   assert.equal(h.button('Message options').props.disabled, true);
   h.sheetCleanup(); assert.equal(h.focused, null, 'The disabled opener cannot accept sheet cleanup focus');
-  h.flushFrames(); assert.equal(h.focused, 'Cancel');
+  h.flushFrames(); assert.ok(nodes(h.render()).find(n=>n.type==='confirmation-dialog'), 'Shared modal owns safe Cancel focus');
   h.button('Cancel').props.onClick();
   assert.equal(h.button('Message options').props.disabled, false);
   h.flushFrames(); assert.equal(h.focused, 'Message options');

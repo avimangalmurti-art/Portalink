@@ -30,12 +30,9 @@ function ReorderableProfileLinkRow({
   compact,
   isExpanded,
   onToggleExpanded,
-  isConfirmingRemoval,
   onChange,
   onChooseIcon,
   onRequestRemove,
-  onCancelRemove,
-  onConfirmRemove,
 }: {
   link: EditableProfileLink;
   index: number;
@@ -45,12 +42,9 @@ function ReorderableProfileLinkRow({
   compact: boolean;
   isExpanded: boolean;
   onToggleExpanded: () => void;
-  isConfirmingRemoval: boolean;
   onChange: (patch: Partial<Pick<EditableProfileLink, 'label' | 'href' | 'iconName'>>) => void;
   onChooseIcon: () => void;
   onRequestRemove: () => void;
-  onCancelRemove: () => void;
-  onConfirmRemove: () => void;
 }) {
   const dragControls = useDragControls();
   const shouldReduceMotion = useReducedMotion();
@@ -64,7 +58,7 @@ function ReorderableProfileLinkRow({
         <button type="button" disabled={disabled} onPointerDown={disabled ? undefined : event => dragControls.start(event)} aria-label={`Drag ${link.label} to reorder`} className="flex h-11 w-11 touch-none items-center justify-center"><GripVerticalIcon aria-hidden="true" className="h-5 w-5" /></button>
         <button type="button" disabled={disabled} onClick={onRequestRemove} aria-label={`Remove ${link.label}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><Trash2Icon aria-hidden="true" className="h-5 w-5" /></button>
       </div>
-      {isConfirmingRemoval && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-2 py-1"><span className="mr-auto text-[13px]">Remove this link?</span><button type="button" disabled={disabled} onClick={onCancelRemove} data-ui-control="button" data-control-size="sm" data-control-variant="secondary">Cancel</button><button type="button" disabled={disabled} onClick={onConfirmRemove} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)]">Remove</button></div>}
+
     </Reorder.Item>;
   }
   function updateDestination(patch: Pick<Partial<EditableProfileLink>, 'label' | 'href'>) {
@@ -124,11 +118,7 @@ function ReorderableProfileLinkRow({
           }} disabled={disabled} aria-label={`Done editing ${link.label || 'link'}`} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="profile-link-done ml-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Done</button>
         </div>
       </div>
-      {isConfirmingRemoval ? <div className="profile-link-removal flex flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] pt-2">
-        <span className="mr-auto text-[12px] text-[var(--text-secondary)]">Remove this link?</span>
-        <button type="button" onClick={onCancelRemove} disabled={disabled} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
-        <button type="button" onClick={onConfirmRemove} disabled={disabled} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
-      </div> : null}
+
     </Reorder.Item>;
   }
 
@@ -160,11 +150,7 @@ function ReorderableProfileLinkRow({
         <button type="button" onClick={onRequestRemove} disabled={disabled} aria-label={`Remove ${link.label || 'link'}`} data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="col-start-4 row-start-1 mt-[22px] sm:col-start-auto sm:row-start-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
         </button>
-        {isConfirmingRemoval ? <div className="col-span-full flex items-center justify-end gap-2 border-t border-[var(--hairline)] pt-2">
-            <span className="mr-auto text-[11px] text-[var(--text-secondary)]">Remove this link?</span>
-            <button type="button" onClick={onCancelRemove} data-ui-control="button" data-control-size="sm" data-control-variant="secondary" className="focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Cancel</button>
-            <button type="button" onClick={onConfirmRemove} data-ui-control="button" data-control-size="sm" data-control-variant="danger" className="bg-[var(--status-danger)] text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Remove</button>
-          </div> : null}
+
       </div>
     </Reorder.Item>;
 }
@@ -187,7 +173,6 @@ export function ProfileLinksEditor({
   const [isChoosingIcon, setIsChoosingIcon] = useState(false);
   const [iconQuery, setIconQuery] = useState('');
   const [draftIconName, setDraftIconName] = useState('globe');
-  const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -250,7 +235,6 @@ export function ProfileLinksEditor({
     if (id) {
       setSelectedId(id);
       if (compact) setExpandedIds((current) => [...current, id]);
-      setPendingRemovalId(null);
       setIsChoosingIcon(false);
       setIconQuery('');
     }
@@ -270,9 +254,8 @@ export function ProfileLinksEditor({
       </div>
 
       {visibleLinks.length > 0 ? <Reorder.Group axis="y" values={visibleLinks.map((link) => link.id)} onReorder={disabled ? () => undefined : onReorder} className={compact ? 'profile-links-editor-list m-0 flex list-none flex-col p-0' : 'scrollbar-overlay m-0 flex max-h-[328px] list-none flex-col gap-2 overflow-y-auto p-0 pr-1'} role="list" aria-label="Profile links">
-          {visibleLinks.map((link, index) => <ReorderableProfileLinkRow key={link.id} link={link} index={index} total={visibleLinks.length} errors={errors[link.id] ?? {}} disabled={disabled} compact={compact} isExpanded={expandedIds.includes(link.id)} onToggleExpanded={() => setExpandedIds((current) => current.includes(link.id) ? current.filter((id) => id !== link.id) : [...current, link.id])} isConfirmingRemoval={pendingRemovalId === link.id} onChange={(patch) => onChange(link.id, patch)} onChooseIcon={() => openIconPicker(link.id)} onRequestRemove={() => setPendingRemovalId(link.id)} onCancelRemove={() => setPendingRemovalId(null)} onConfirmRemove={() => {
+          {visibleLinks.map((link, index) => <ReorderableProfileLinkRow key={link.id} link={link} index={index} total={visibleLinks.length} errors={errors[link.id] ?? {}} disabled={disabled} compact={compact} isExpanded={expandedIds.includes(link.id)} onToggleExpanded={() => setExpandedIds((current) => current.includes(link.id) ? current.filter((id) => id !== link.id) : [...current, link.id])} onChange={(patch) => onChange(link.id, patch)} onChooseIcon={() => openIconPicker(link.id)} onRequestRemove={() => {
             onRemove(link.id);
-            setPendingRemovalId(null);
             if (compact) setExpandedIds((current) => current.filter((id) => id !== link.id));
           }} />)}
         </Reorder.Group> : <button type="button" onClick={addLink} disabled={disabled} data-ui-control="button" data-control-size="md" data-control-variant="secondary" className="profile-links-editor-empty self-start gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">

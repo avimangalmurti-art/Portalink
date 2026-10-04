@@ -1,11 +1,10 @@
 import { useRef, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { AlertCircleIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ModalPortal } from '../ui/ModalPortal';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
-import { Button } from '../ui/Button';
-import { DiscardConfirmationLayer } from '../ui/DiscardConfirmationLayer';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import './project-dialog.css';
 
@@ -53,13 +52,5 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
   onKeep: () => void;
   onDiscard: () => void | Promise<void>;
 }) {
-  return <DiscardConfirmationLayer label={title} onKeep={() => { if (!busy) onKeep(); }}>
-      <h3 className="text-[16px] font-semibold leading-tight">{title}</h3>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p>
-      {error ? <p role="alert" className="mt-3 flex items-start gap-2 rounded-[10px] border border-[var(--status-danger)] px-3 py-2.5 text-[13px] leading-relaxed"><AlertCircleIcon className="mt-[2px] h-4 w-4 shrink-0" aria-hidden="true" /><span>{error}</span></p> : null}
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <Button variant="secondary" disabled={busy} onClick={onKeep}>Keep editing</Button>
-        <Button variant="danger" isLoading={busy} disabled={busy} onClick={() => void onDiscard()}>{error ? 'Try again' : 'Discard changes'}</Button>
-      </div>
-  </DiscardConfirmationLayer>;
+  return <ConfirmationDialog title={title} description={description} confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" error={error} pending={busy} pendingLabel="Discarding…" onCancel={onKeep} onConfirm={onDiscard}/>;
 }

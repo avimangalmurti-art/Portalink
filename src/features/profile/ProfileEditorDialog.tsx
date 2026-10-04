@@ -1,3 +1,5 @@
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronDownIcon, LockKeyholeIcon } from 'lucide-react';
 import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
@@ -35,6 +37,7 @@ export function ProfileEditorPage({
 }: ProfileEditorPageProps) {
   const editor = useProfileEditor(profileId, true);
   const isMobile = usePresentation() === 'mobile';
+  const [discard, setDiscard] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -61,10 +64,11 @@ export function ProfileEditorPage({
     linkErrors
   } = editor;
   const isBusy = editor.phase === 'saving';
+  const requestClose = () => { if(isBusy || avatarBusy)return;if(editor.isDirty)setDiscard(true);else onClose(); };
   const canSubmit = editor.canSave && !hasSaved && !avatarBusy && !editor.avatar.error;
   return <section data-presentation={isMobile ? 'mobile' : 'web'} aria-labelledby="profile-editor-title" className="profile-editor-page flex h-full min-h-0 w-full flex-col text-[var(--text-primary)]">
           <header className="profile-editor-header">
-            <button type="button" onClick={onClose} aria-label="Back" disabled={isBusy || avatarBusy} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button>
+            <ScreenBack visibleOnMobile action={requestClose}><button type="button" onClick={requestClose} aria-label="Back" disabled={isBusy || avatarBusy} data-ui-control="icon" data-control-size="md" data-control-variant="ghost" className="profile-editor-back"><InterfaceIcon icon={ChevronLeftIcon} /></button></ScreenBack>
             <h1 ref={headingRef} tabIndex={-1} id="profile-editor-title">Edit profile</h1>
             <button type="submit" form="profile-editor-form" data-ui-control="button" data-control-size="md" data-control-variant="primary" className="profile-editor-save bg-[var(--accent-primary)] text-[var(--accent-foreground)]" disabled={!canSubmit}>{isBusy ? 'Saving…' : 'Save'}</button>
           </header>
@@ -129,5 +133,6 @@ export function ProfileEditorPage({
             </div>
 
             </form>}
+          {discard && <ConfirmationDialog title="Discard changes?" description="Your unsaved profile changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" onCancel={()=>setDiscard(false)} onConfirm={onClose}/>}
         </section>;
 }

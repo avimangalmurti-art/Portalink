@@ -19,6 +19,7 @@ function harness(mobile = true, capability = { isAvailable: true, removes: ['Emp
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, document: { body, querySelector: selector => { assert.equal(selector, '.app-shell'); return appShell; }, addEventListener() {}, removeEventListener() {} }, window: { innerHeight: 800 }, require(name) {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/ConfirmationDialog')) return { ConfirmationDialog: 'confirmation-dialog' };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: (child, target) => { portalTargets.push(target); return child; } };
@@ -70,11 +71,11 @@ test('Delete requires a fresh capability check and a separate confirmation; occu
   for (const allowed of [true, false]) {
     const h = harness(true, { isAvailable: allowed, removes: [], reason: 'Move projects first.', blockingProjectCount: allowed ? 0 : 2 });
     button(open(h), 'Delete').props.onClick();
-    assert.equal(button(h.render(), 'Delete').props.disabled, true);
+    assert.equal(all(h.render()).find(n=>n.type==='confirmation-dialog').props.confirmDisabled, true);
     assert.deepEqual(h.calls, ['check']);
     await Promise.resolve(); await Promise.resolve();
-    const confirmation = button(h.render(), 'Delete');
-    if (allowed) { assert.equal(confirmation.props.disabled, false); confirmation.props.onClick(); assert.deepEqual(h.calls, ['check', 'delete']); }
-    else { assert.equal(confirmation, undefined); assert.deepEqual(h.calls, ['check']); }
+    const confirmation = all(h.render()).find(n=>n.type==='confirmation-dialog');
+    if (allowed) { assert.equal(confirmation.props.confirmDisabled, false); await confirmation.props.onConfirm(); assert.deepEqual(h.calls, ['check', 'delete']); }
+    else { assert.equal(confirmation.props.confirmDisabled, true); assert.deepEqual(h.calls, ['check']); }
   }
 });

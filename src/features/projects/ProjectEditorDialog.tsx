@@ -1,5 +1,6 @@
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, Loader2Icon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
+import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { PublishedCoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
@@ -9,9 +10,7 @@ import { ProfileField } from '../../components/profile/ProfileField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { ResponsiveImage } from '../../components/ui/ResponsiveImage';
-import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ErrorState, LoadingState } from '../../components/ui/StateViews';
-import { useModalFocus } from '../../hooks/useModalFocus';
 import { TITLE_MAX_LENGTH } from '../publishing/validation';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { ProjectManagement } from './useProjectManagement';
@@ -289,52 +288,6 @@ export function DeleteProjectDialog({
   const {
     deletion
   } = management;
-  const deleteDialogRef = useRef<HTMLDivElement>(null);
-  const isOpen = deletion.projectId !== null && deletion.phase !== 'idle';
-  useModalFocus(isOpen, deleteDialogRef, () => {
-    if (!deletion.isDeleting) deletion.cancel();
-  });
-  if (deletion.projectId === null || deletion.phase === 'idle') {
-    return null;
-  }
-  return <ModalPortal><div role="presentation" className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
-      <div ref={deleteDialogRef} tabIndex={-1} role="alertdialog" aria-modal="true" aria-busy={deletion.isDeleting} aria-labelledby="delete-project-title" aria-describedby="delete-project-body" className="w-full max-w-[440px] rounded-[14px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-5 shadow-[0_24px_60px_rgba(0,0,0,0.35)] outline-none">
-        <h2 id="delete-project-title" className="text-[17px] font-semibold text-[var(--text-primary)]">Delete this project?</h2>
-        <p id="delete-project-body" className="mt-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-          {`“${projectTitle}” and its files will be removed from your portfolio. This cannot be undone.`}
-        </p>
-
-        {deletion.phase === 'deleted' && deletion.result ? <>
-            <p role="status" className="mt-3 flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-              <InterfaceIcon icon={CheckIcon} size="sm" weight="medium" className="mt-[2px]" />
-              <span className="min-w-0">{deletion.result.message}</span>
-            </p>
-            <div className="mt-4 flex justify-end">
-              <Button variant="secondary" onClick={onDeleted}>Done</Button>
-            </div>
-          </> : <>
-            {deletion.failure && <p role="alert" className="mt-3 flex items-start gap-1.5 text-[13px] leading-relaxed text-[var(--text-primary)]">
-                <AlertCircleIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                <span className="min-w-0">
-                  {deletion.failure.message}
-                  {deletion.failure.retry && <button type="button" onClick={deletion.failure.retry} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>}
-                </span>
-              </p>}
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <Button variant="secondary" onClick={deletion.cancel} disabled={deletion.isDeleting}>Cancel</Button>
-              <button type="button" onClick={async () => {
-            const deleted = await deletion.confirm();
-            if (deleted) {
-              // Only now: the record is genuinely gone, so the deleted
-              // project's URL is left behind rather than showing stale work.
-              onDeleted();
-            }
-          }} disabled={deletion.isDeleting} aria-busy={deletion.isDeleting || undefined} className="shape-compact inline-flex h-9 items-center gap-2 border border-[var(--status-danger)] px-3.5 text-[13px] font-semibold text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--status-danger)] hover:text-[var(--status-danger-foreground)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
-                {deletion.isDeleting && <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-                {deletion.isDeleting ? 'Deleting…' : 'Delete project'}
-              </button>
-            </div>
-          </>}
-      </div>
-    </div></ModalPortal>;
+  if (deletion.projectId === null || deletion.phase === 'idle') return null;
+  return <ConfirmationDialog title="Delete this project?" description={`“${projectTitle}” and its files will be removed from your portfolio. This cannot be undone.`} confirmLabel="Delete project" variant="destructive" pending={deletion.isDeleting} pendingLabel="Deleting…" error={deletion.failure?.message} onCancel={deletion.cancel} onConfirm={async()=>{const deleted=await deletion.confirm();if(deleted)onDeleted();return deleted;}}/>;
 }

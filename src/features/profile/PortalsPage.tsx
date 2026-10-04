@@ -95,7 +95,7 @@ export function PortalsPage({ profileQuery, profileContext = false, onboardingSt
           isHidden={management.arrangement?.hiddenCategoryIds.includes(category.id)} isBusy={management.pending?.categoryId === category.id}
           readDeletionCapability={() => management.readDeletionCapability(category.id)} onHideToggle={() => void management.toggleCategoryHidden(category.id)}
           onRenameStart={() => { management.dismissFailure(); setRenaming({ id: category.id, label: category.label }); }}
-          onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => void management.deleteCategory(category.id)} />}
+          onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => management.deleteCategory(category.id)} />}
         </>}
       </>} />;
   }

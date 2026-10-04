@@ -1,0 +1,25 @@
+.portalink-confirmation-overlay.modal-scrim {
+  position: fixed; inset-inline: 0; top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh); min-height: 0; z-index: 10020;
+  display: flex; align-items: center; justify-content: center;
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  background: rgb(0 0 0 / 48%); backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important;
+}
+.portalink-confirmation {
+  width: 100%; max-width: 400px; max-height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  border: 1px solid var(--hairline); border-radius: 22px; padding: 26px 18px 18px;
+  background: var(--surface-raised); color: var(--text-primary); text-align: center; outline: none;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 24%);
+}
+.portalink-confirmation h2 { margin: 0; font-size: 20px; font-weight: 650; line-height: 1.25; }
+.portalink-confirmation-description { margin-top: 14px; color: var(--text-secondary); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
+.portalink-confirmation-description p { margin: 0; }
+.portalink-confirmation-error { margin: 14px 0 0; color: var(--status-danger); font-size: 14px; line-height: 1.4; }
+.portalink-confirmation-actions { display: flex; gap: 10px; margin-top: 24px; }
+.portalink-confirmation-actions button { flex: 1; min-width: 0; min-height: 48px; padding: 12px 8px; border: 0; border-radius: 12px; font: inherit; font-size: 15px; font-weight: 550; background: var(--surface-sunken); color: var(--text-primary); cursor: pointer; }
+.portalink-confirmation-actions button[data-variant='standard'] { background: var(--accent-primary); color: var(--accent-foreground); }
+.portalink-confirmation-actions button[data-variant='destructive'] { background: var(--status-danger) !important; color: var(--status-danger-foreground) !important; }
+.portalink-confirmation-actions button[data-variant='destructive']:hover { background: var(--status-danger-hover) !important; }
+.portalink-confirmation-actions button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.portalink-confirmation-actions button:disabled { opacity: .6; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .portalink-confirmation, .portalink-confirmation * { animation: none !important; transition: none !important; } }

@@ -148,7 +148,7 @@ function accountSurface(presentation) {
     '../../data/navButtonTokens': { findNavAccent: () => ({ id: 'blue' }), isLightSurface: () => true, navAccents: [] },
     '../../utils/accentTokens': { resolveAccentTokens: () => ({}) },
     '../ui/Button': { Button: 'button' }, '../ui/AppearanceSwitch': { AppearanceSwitch: 'button' },
-    '../ui/DiscardConfirmationLayer': { DiscardConfirmationLayer: 'discard-confirmation' },
+    '../ui/ConfirmationDialog': { ConfirmationDialog: 'discard-confirmation' },
     '../../presentation/usePresentation': { usePresentation: () => presentation },
     '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {},
   }).AccountWelcomeSurface;

@@ -24,7 +24,7 @@ export function containModalFocus(dialog: HTMLElement, onEscape: () => void, pre
     if (dialog.contains(event.target)) {
       lastFocus = event.target;
     } else {
-      const otherDialog = event.target.closest<HTMLElement>('[role="dialog"][aria-modal="true"]');
+      const otherDialog = event.target.closest<HTMLElement>('[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]');
       // A new child may autofocus during commit, before its effect registers.
       // Registered parent dialogs must remain outside the active child's focus.
       if (!otherDialog || layers.includes(otherDialog)) focusInside();

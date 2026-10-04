@@ -6,7 +6,7 @@ import { MoreHorizontalIcon, XIcon } from 'lucide-react';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useDescriptionSheetScrollBoundary } from '../../hooks/useDescriptionSheetScrollBoundary';
 import { useModalFocus } from '../../hooks/useModalFocus';
-import { DiscardConfirmationLayer } from '../ui/DiscardConfirmationLayer';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 
 /** The sheet handles reading and dismissal; the feature owns persistence. */
@@ -36,7 +36,6 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const keepRef = useRef<HTMLButtonElement>(null);
   const optionsRef = useRef<HTMLButtonElement>(null);
   const editRef = useRef<HTMLButtonElement>(null);
   const doneRef = useRef<HTMLButtonElement>(null);
@@ -73,7 +72,8 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
     else dismiss();
   }, true);
   useEffect(() => {
-    const target = discard ? keepRef : menuOpen ? editRef : editing ? phase === 'editing' ? textareaRef : phase === 'saved' ? doneRef : panelRef : canEdit ? optionsRef : panelRef;
+    if(discard)return;
+    const target = menuOpen ? editRef : editing ? phase === 'editing' ? textareaRef : phase === 'saved' ? doneRef : panelRef : canEdit ? optionsRef : panelRef;
     const frame = requestAnimationFrame(() => target.current?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(frame);
   }, [editing, phase, discard, menuOpen, canEdit]);
@@ -160,10 +160,6 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
         {saved && <footer className="project-description-saved"><span role="status">{contentLabel} saved</span><button ref={doneRef} type="button" onClick={() => { void activeEditor.close(); }}>Done</button></footer>}
       </>}
     </section>
-    {discard && <DiscardConfirmationLayer label={`Discard your ${label} changes?`} onKeep={() => setDiscard(null)} className="project-description-discard">
-      <p>Discard your {label} changes?</p>
-      <button ref={keepRef} type="button" onClick={() => setDiscard(null)}>Keep editing</button>
-      <button type="button" onClick={async () => { if (await activeEditor?.close()) { const close = discard === 'close'; setDiscard(null); if (close) onClose(); } }}>Discard changes</button>
-    </DiscardConfirmationLayer>}
+    {discard && <ConfirmationDialog host={host} title={`Discard your ${label} changes?`} description="Your unsaved changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" onCancel={()=>setDiscard(null)} onConfirm={async()=>{const removed=await activeEditor?.close();if(removed){const close=discard==='close';setDiscard(null);if(close)onClose();}return removed ?? false;}}/>}
   </div></div>, host);
 }

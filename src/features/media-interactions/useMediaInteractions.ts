@@ -220,10 +220,12 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
       if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);
       setHasLoaded(true);
+      return true;
     } catch (error) {
       if (activeScopeRef.current !== actionScope) return false;
       setRecord(before);
       setFailure(error instanceof Error ? error.message : 'That comment could not be removed.');
+      return false;
     } finally {
       if (activeScopeRef.current === actionScope) setIsLoading(false);
     }

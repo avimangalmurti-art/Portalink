@@ -49,7 +49,7 @@ function welcomeHarness(mode = 'mobile') {
     '../../data/navButtonTokens': { findNavAccent: () => ({ id: 'pink' }), navAccents: [], isLightSurface: () => false },
     '../../utils/accentTokens': { resolveAccentTokens: () => ({}) },
     '../ui/Button': { Button: 'button' }, '../ui/AppearanceSwitch': { AppearanceSwitch: 'button' },
-    '../ui/DiscardConfirmationLayer': { DiscardConfirmationLayer: 'discard-layer' },
+    '../ui/ConfirmationDialog': { ConfirmationDialog: 'discard-layer' },
     '../ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'welcome-media' }, './helloWorldSignIn.css': {},
     '../../presentation/usePresentation': { usePresentation: () => mode },
   };
@@ -245,20 +245,8 @@ test('dirty account navigation keeps its draft and confirms the exact leave acti
     const inline = nodes(tree).find(node => node.props.role === 'alertdialog');
     assert.deepEqual(actions, [], 'Opening confirmation cannot navigate or discard');
     assert.equal(nodes(tree).find(node => node.props.hidden === true).props.children, draft, 'The draft stays mounted but hidden');
-    if (mode === 'mobile') {
-      assert.equal(React.Children.toArray(tree.props.children).some(node => node.props === layer.props), true, 'Confirmation is a sibling of the account card inside its viewport overlay');
-      assert.equal(nodes(sheet).some(node => node.type === 'discard-layer'), false, 'It must not inherit the form scroller position');
-      assert.equal(inline, undefined);
-      assert.equal(layer.props.label, 'Discard account details');
-      assert.match(tree.props.style.top, /dialog-viewport-top/);
-      assert.match(tree.props.style.height, /dialog-viewport-height/);
-    } else {
-      assert.equal(layer, undefined, 'WEB retains the existing inline confirmation');
-      assert.equal(nodes(content).some(node => node.props === inline.props), true);
-      assert.equal(inline.ref.current.scrolls.length, 1);
-      assert.equal(h.document.activeElement.type, 'button');
-    }
-    nodes(tree).find(node => node.type === 'button' && node.props.children === 'Keep editing').props.onClick();
+    assert.ok(layer);assert.equal(inline,undefined);assert.equal(layer.props.title,'Discard your changes?');
+    layer.props.onCancel();
     tree = render();
     assert.equal(nodes(tree).some(node => node.type === 'discard-layer' || node.props.role === 'alertdialog'), false);
     assert.equal(nodes(tree).find(node => node.props.hidden === false).props.children, draft);
@@ -267,7 +255,7 @@ test('dirty account navigation keeps its draft and confirms the exact leave acti
     assert.deepEqual(actions, []);
     requestLeave(() => actions.push('switch-account-flow'));
     tree = render();
-    nodes(tree).find(node => node.type === 'button' && node.props.children === 'Discard').props.onClick();
+    nodes(tree).find(node=>node.type==='discard-layer').props.onConfirm();
     tree = render();
     assert.deepEqual(actions, ['switch-account-flow'], 'Discard runs the pending callback, not an unrelated dismiss');
     assert.equal(nodes(tree).some(node => node.type === 'discard-layer' || node.props.role === 'alertdialog'), false);
@@ -291,15 +279,15 @@ test('mobile dirty Back, confirmation Escape and busy state never bypass discard
   assert.deepEqual(actions, []);
   tree = render(); button(tree, 'Back').props.onClick(); render();
   props.busy = true; tree = render();
-  assert.equal(button(tree, 'Discard').props.disabled, true);
-  button(tree, 'Discard').props.onClick();
+  assert.equal(nodes(tree).find(n=>n.type==='discard-layer').props.pending,true);
+  nodes(tree).find(n=>n.type==='discard-layer').props.onConfirm();
   assert.deepEqual(actions, []);
   assert.ok(nodes(render()).find(node => node.type === 'discard-layer'));
   props.busy = false; tree = render();
-  nodes(tree).find(node => node.type === 'discard-layer').props.onKeep();
+  nodes(tree).find(node => node.type === 'discard-layer').props.onCancel();
   assert.equal(nodes(render()).some(node => node.type === 'discard-layer'), false);
   tree = render(); button(tree, 'Back').props.onClick(); tree = render();
-  button(tree, 'Discard').props.onClick();
+  nodes(tree).find(n=>n.type==='discard-layer').props.onConfirm();
   assert.deepEqual(actions, ['dismiss']);
   h.unmount();
 });

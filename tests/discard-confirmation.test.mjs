@@ -1,88 +1,31 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import vm from 'node:vm';
 import React from 'react';
-import ts from 'typescript';
-
-function compile(path, imports) {
-  const exports = {};
-  vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, React, require(name) { assert.ok(name in imports, name); return imports[name]; } });
-  return exports;
+import {sourceModule} from './helpers/source-module.mjs';
+const nodes=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(nodes)]:[];
+function harness(overrides={}){
+ let cursor=0,trap;const slots=[],effects=[],calls=[];
+ const react={...React,useId:()=> 'confirmation',useRef(value){return slots[cursor++]??={current:value};},useState(value){const i=cursor++;if(!(i in slots))slots[i]=value;return[slots[i],next=>{slots[i]=next;}];},useEffect(fn){effects.push(fn);}};
+ const api=sourceModule('src/components/ui/ConfirmationDialog.tsx',{react,'react-dom':{createPortal:child=>child},'../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},'../../hooks/useModalFocus':{useModalFocus(open,ref,cancel){trap={open,ref,cancel};}},'../../presentation/usePresentation':{usePresentation:()=> 'mobile'},'./ModalPortal':{ModalPortal:'portal'},'../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},'./confirmation-dialog.css':{}},{document:{fullscreenElement:null},Error});
+ const props={title:'Delete this work?',description:'This cannot be undone.',confirmLabel:'Delete work',variant:'destructive',onConfirm:()=>{calls.push('confirm');},onCancel:()=>calls.push('cancel'),...overrides};
+ const render=()=>{cursor=0;effects.length=0;return api.ConfirmationDialog(props);};
+ const button=(tree,index)=>nodes(tree).filter(n=>n.type==='button')[index];
+ return {render,props,calls,button,effects,get trap(){return trap;}};
 }
-function nodes(node) {
-  return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : [];
-}
-
-test('discard layer focuses the safe enabled action after registering its nested trap and consumes backdrop presses', () => {
-  const effects = [], calls = [];
-  let trap, kept = 0;
-  const { DiscardConfirmationLayer } = compile('../src/components/ui/DiscardConfirmationLayer.tsx', {
-    react: { ...React, useRef: initial => ({ current: initial }), useEffect: effect => effects.push(effect) },
-    '../../hooks/useModalFocus': { useModalFocus(open, ref, onEscape, preventScroll) {
-      trap = { open, ref, onEscape, preventScroll };
-      effects.push(() => calls.push('register trap'));
-    } },
-  });
-  const tree = DiscardConfirmationLayer({ label: 'Discard edits?', onKeep: () => { kept++; },
-    children: React.createElement('button', { type: 'button' }, 'Keep editing') });
-  const dialog = nodes(tree).find(node => node.props.role === 'alertdialog');
-  assert.equal(trap.ref, dialog.ref);
-  assert.equal(trap.open, true);
-  assert.equal(trap.preventScroll, true);
-  assert.equal(dialog.props['aria-modal'], 'true');
-  assert.equal(dialog.props['aria-label'], 'Discard edits?');
-  assert.match(tree.props.className, /\babsolute\b.*\binset-0\b/, 'Uses the parent visible-viewport overlay, not a separate layout viewport');
-  assert.match(dialog.props.className, /max-h-full/);
-  assert.match(dialog.props.className, /overflow-y-auto/);
-  dialog.ref.current = { querySelector(selector) {
-    assert.equal(selector, 'button:not(:disabled)');
-    return { focus(options) { assert.equal(options.preventScroll, true); calls.push('focus safe action'); } };
-  } };
-  effects.forEach(effect => effect());
-  assert.deepEqual(calls, ['register trap', 'focus safe action']);
-  let stopped = 0;
-  tree.props.onPointerDown({ stopPropagation() { stopped++; } });
-  assert.equal(stopped, 1);
-  assert.equal(kept, 0, 'Backdrop presses do not discard or dismiss');
-  trap.onEscape(); assert.equal(kept, 1);
+test('shared confirmation has safe focus, accessible context, and backdrop never accepts or dismisses',()=>{
+ const h=harness(),tree=h.render(),safe=h.button(tree,0),dialog=nodes(tree).find(n=>n.props.role==='alertdialog');
+ assert.equal(dialog.props['aria-modal'],'true');assert.equal(dialog.props['aria-labelledby'],'confirmation-title');assert.equal(dialog.props['aria-describedby'],'confirmation-description');
+ let focus=0;safe.ref.current={focus(){focus++;}};h.effects.forEach(fn=>fn());assert.equal(focus,1);
+ nodes(tree).find(n=>n.props.role==='presentation').props.onPointerDown({stopPropagation(){}});assert.deepEqual(h.calls,[]);h.trap.cancel();assert.deepEqual(h.calls,['cancel']);
 });
-
-test('project discard confirmation stays beside the form inside its viewport and preserves busy/error actions', () => {
-  const viewport = { current: null }, actions = [];
-  const { ProjectFormDialog, ProjectDiscardConfirmation } = compile('../src/components/publishing/ProjectFormDialog.tsx', {
-    react: { ...React, useRef: initial => ({ current: initial }) },
-    'framer-motion': { motion: { div: 'motion-div', section: 'motion-section' }, useReducedMotion: () => true },
-    'lucide-react': { AlertCircleIcon: 'svg', XIcon: 'svg' },
-    '../../hooks/useModalFocus': { useModalFocus() {} },
-    '../ui/ModalPortal': { ModalPortal: 'modal-portal' },
-    '../ui/InterfaceIcon': { InterfaceIcon: 'svg' },
-    '../ui/Button': { Button: 'button' },
-    '../ui/DiscardConfirmationLayer': { DiscardConfirmationLayer: 'discard-layer' },
-    '../../hooks/useDialogViewport': { useDialogViewport: () => viewport },
-    './project-dialog.css': {},
-  });
-  const props = { title: 'Discard this draft?', description: 'Your files and details will be removed.',
-    onKeep: () => actions.push('keep'), onDiscard: () => actions.push('discard') };
-  for (const mobileFlow of [false, true]) {
-    const confirmation = ProjectDiscardConfirmation(props);
-    const tree = ProjectFormDialog({ title: 'New project', titleId: 'project-title', mobileFlow,
-      onClose: () => actions.push('close'), confirmation, children: React.createElement('form') });
-    const overlay = nodes(tree).find(node => node.type === 'motion-div');
-    const form = nodes(tree).find(node => node.type === 'motion-section');
-    assert.equal(overlay.ref, viewport);
-    assert.equal(React.Children.toArray(overlay.props.children).some(node => node.props === confirmation.props), true);
-    assert.equal(nodes(form).some(node => node.type === 'discard-layer'), false, 'Neither platform nests the confirmation in the animated form');
-  }
-  let confirmation = ProjectDiscardConfirmation({ ...props, busy: true });
-  assert.equal(nodes(confirmation).filter(node => node.type === 'button').every(node => node.props.disabled), true);
-  confirmation.props.onKeep(); assert.deepEqual(actions, [], 'Escape cannot interrupt cleanup');
-  confirmation = ProjectDiscardConfirmation({ ...props, error: 'Cleanup failed; retry.' });
-  assert.ok(nodes(confirmation).find(node => node.props.role === 'alert'));
-  nodes(confirmation).find(node => node.type === 'button' && node.props.children === 'Try again').props.onClick();
-  assert.deepEqual(actions, ['discard']);
-  confirmation.props.onKeep();
-  assert.deepEqual(actions, ['discard', 'keep']);
+test('pending synchronous lock prevents duplicate writes and cancel; completion re-enables retry',async()=>{
+ let resolve,writes=0;const h=harness({onConfirm:()=>{writes++;return new Promise(done=>{resolve=done;});}});const tree=h.render();h.button(tree,1).props.onClick();h.button(tree,1).props.onClick();h.button(tree,0).props.onClick();assert.equal(writes,1);assert.deepEqual(h.calls,[]);
+ assert.equal(h.button(h.render(),1).props.disabled,true);resolve(false);await new Promise(done=>setImmediate(done));const failed=h.render();assert.ok(nodes(failed).find(n=>n.props.role==='alert'));assert.equal(h.button(failed,1).props.disabled,false);h.button(failed,0).props.onClick();assert.deepEqual(h.calls,['cancel']);
+});
+test('externally pending and unavailable operations cannot run',()=>{
+ for(const overrides of [{pending:true},{confirmDisabled:true}]){const h=harness(overrides),tree=h.render();h.button(tree,1).props.onClick();assert.deepEqual(h.calls,[]);}
+});
+test('project discard adapter preserves existing error and async cleanup contract',()=>{
+ const api=sourceModule('src/components/publishing/ProjectFormDialog.tsx',{react:React,'framer-motion':{},'lucide-react':{},'../../hooks/useModalFocus':{},'../ui/ModalPortal':{},'../ui/InterfaceIcon':{},'../ui/ConfirmationDialog':{ConfirmationDialog:'confirmation'},'../../hooks/useDialogViewport':{},'./project-dialog.css':{}},{React});
+ const cleanup=async()=>{};const tree=api.ProjectDiscardConfirmation({title:'Discard draft?',description:'Draft files will be lost.',error:'Cleanup failed.',busy:true,onKeep:()=>{},onDiscard:cleanup});assert.equal(tree.type,'confirmation');assert.equal(tree.props.pending,true);assert.equal(tree.props.error,'Cleanup failed.');assert.equal(tree.props.onConfirm,cleanup);assert.equal(tree.props.cancelLabel,'Keep editing');
 });

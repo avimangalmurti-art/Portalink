@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { readSharedReturnPath } from '../auth/registration';
 import { Button } from '../../components/ui/Button';
 import { useContext } from 'react';
@@ -45,6 +46,8 @@ export function MediaInteractionBar({
   /** Derived from authenticated profile ownership, never navigation history. */
   isOwner?: boolean;
 }) {
+  const [deleteCommentId,setDeleteCommentId]=useState<string|null>(null);
+  const [deletingComment,setDeletingComment]=useState(false);
   const isMobile = usePresentation() === 'mobile';
   const isMobileFocused = isMobile && placement === 'focused';
   // Uploaded source names can contain machine-generated or extraction text.
@@ -216,7 +219,7 @@ export function MediaInteractionBar({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span data-comment-author="" className="min-w-0 flex-1 truncate text-[10px] font-semibold text-white/80">{comment.authorName}</span>
-                  {comment.canDelete ? <button type="button" onClick={() => void activity.deleteComment(comment.id)} aria-label="Delete comment" data-comment-delete="" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+                  {comment.canDelete ? <button type="button" onClick={() => { activity.dismissFailure();setDeleteCommentId(comment.id); }} aria-label="Delete comment" data-comment-delete="" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
                     <InterfaceIcon icon={Trash2Icon} size="sm" weight="regular" />
                   </button> : null}
                 </div>
@@ -252,5 +255,6 @@ export function MediaInteractionBar({
         </p> : null}
       </form>
     </MediaCommentsPopover> : null}
+    {deleteCommentId && <ConfirmationDialog title="Delete this comment?" description="This page comment will be permanently removed." confirmLabel="Delete comment" variant="destructive" pending={deletingComment} pendingLabel="Deleting…" error={activity.failure} onCancel={()=>setDeleteCommentId(null)} onConfirm={async()=>{setDeletingComment(true);try{const removed=await activity.deleteComment(deleteCommentId);if(removed)setDeleteCommentId(null);return removed;}finally{setDeletingComment(false);}}}/>}
   </div>;
 }

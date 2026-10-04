@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -76,7 +77,6 @@ export function MediaPicker({
   const [showsFormats, setShowsFormats] = useState(false);
   const fileOptionsRef = useRef<HTMLButtonElement>(null);
   const requirementsRef = useRef<HTMLDivElement>(null);
-  const removeConfirmationRef = useRef<HTMLDivElement>(null);
   const {
     items,
     error,
@@ -89,11 +89,6 @@ export function MediaPicker({
     const frame = requestAnimationFrame(() => requirementsRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [showsFormats]);
-  useEffect(() => {
-    if (!isRemovingAll) return;
-    const frame = requestAnimationFrame(() => removeConfirmationRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [isRemovingAll]);
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -138,10 +133,7 @@ export function MediaPicker({
           <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} />
         </div>
       </div>
-      {isRemovingAll && <div ref={removeConfirmationRef} tabIndex={-1} role="group" aria-label="Confirm removing all files" className="rounded-[10px] border border-[var(--hairline-strong)] p-2.5 outline-none">
-        <p className="text-[13px] text-[var(--text-primary)]">Remove all files from this draft?</p>
-        <div className="mt-2 flex justify-end gap-2"><Button size="sm" disabled={isLocked} onClick={() => { setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Keep files</Button><Button size="sm" variant="danger" disabled={isLocked} onClick={() => { media.clear(); setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Remove all</Button></div>
-      </div>}
+      {isRemovingAll && <ConfirmationDialog title="Remove all files?" description="All selected files will be removed from this draft. Your published projects will stay unchanged." confirmLabel="Remove all files" cancelLabel="Keep files" variant="destructive" confirmDisabled={isLocked} onCancel={()=>setIsRemovingAll(false)} onConfirm={()=>{media.clear();setIsRemovingAll(false);}}/>}
 
       {/* One hidden input for adding, one for replacing a specific row. */}
       <input ref={addRef} type="file" multiple className="sr-only" aria-labelledby="publish-files-label" disabled={disabled} onChange={(event) => {
