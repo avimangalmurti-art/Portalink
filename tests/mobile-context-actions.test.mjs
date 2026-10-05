@@ -252,3 +252,14 @@ test('project holds resolve engagement only on demand, use shared capabilities a
 });
 
 test('workbench has Drafts, Bookmarks and Reads; Select is only supplied by collection lists',()=>{const handlers={newProject(){},drafts(){},bookmarks(){},reads(){}};assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers}))),['drafts','bookmarks','reads']);assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers:{...handlers,select(){}}}))),['drafts','bookmarks','reads','select']);});
+
+ test('Journey pair action uses the owner profile menu and remains unavailable to visitors', () => {
+ const calls=[];
+ const target={handlers:{thenNow:()=>calls.push('picker')},labels:{thenNow:'Choose a Then/Now pair'}};
+ const owner=contextActions('profile',{signedIn:true,owner:true},target);
+ const action=owner.groups.flat().find(item=>item.id==='thenNow');
+ assert.equal(action.label,'Choose a Then/Now pair'); action.run();
+ assert.deepEqual(calls,['picker']);
+ assert.equal(ids(contextActions('profile',{signedIn:true,owner:false},target)).length,0);
+ assert.equal(ids(contextActions('profile',{signedIn:true,owner:true},{handlers:{}})).length,0);
+ });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { usePresentation } from '../../presentation/usePresentation';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { journeyGroups, learnedLine, projectMonth, visiblePair } from './journey';
@@ -13,6 +14,7 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
   profile: Profile; owner: boolean; onOpen: (project: Project) => void;
   onEdit?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 }) {
+  const isMobile = usePresentation() === 'mobile';
   const groups = journeyGroups(profile.projects, owner), pair = visiblePair(profile, owner);
   if (!groups.length && !owner) return null;
   if (!groups.length) return <div className="journey-view"><button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
@@ -25,9 +27,9 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
         </button><p className="journey-caption">{project.thenNowCaption?.trim() || learnedLine(project)}</p>
-      </div>)}</div>{owner && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
+      </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
     </section>}
-    {owner && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
+    {owner && !isMobile && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{group.year ?? 'Date not set'}</h2>
       <ol className="journey-rail">{group.gap ? <li className="journey-entry journey-gap">

@@ -4204,7 +4204,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   top: var(--mobile-screen-action-top);
   right: calc(var(--mobile-screen-action-right) + 56px);
 }
-#root .codex-shell[data-presentation='mobile']:has(.mobile-context-floating) [data-conversation-header] { padding-inline-end: calc(var(--mobile-screen-action-right) + 56px); }
+#root .codex-shell[data-presentation='mobile']:has(.mobile-context-floating) [data-messages-page]:not([data-mobile-chat]) [data-conversation-header] { padding-inline-end: calc(var(--mobile-screen-action-right) + 56px); }
 
 #root .codex-shell[data-presentation='mobile'] .studio-drafts-title { margin-top: 16px; }
 
@@ -4295,4 +4295,29 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   flex:0 0 auto;
   margin-inline-start:auto;
   text-align:right;
+}
+/* Conversation groups sit inside the page gutters, rather than edge to edge. */
+#root .codex-shell[data-presentation='mobile'] [data-messages-page] ul.inset-row-group:has(.message-contact-row) {
+  box-sizing:border-box;
+  width:calc(100% - 32px);
+  margin-inline:16px;
+  padding-inline:0;
+}
+
+/* Account search keeps its back control below the system status area. */
+#root .codex-shell[data-presentation='mobile'] [data-account-search] {
+  padding-top: var(--mobile-screen-action-top);
+}
+#root .codex-shell[data-presentation='mobile'] [data-account-search] > h1 {
+  padding-inline-end: 56px;
+}
+
+/* Chat already reserves equal columns for back and conversation actions. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-identity] {
+  grid-column: 2;
+  grid-row: 1;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Back to conversations'] {
+  grid-column: 1;
+  grid-row: 1;
 }

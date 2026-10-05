@@ -14,7 +14,7 @@ export type WorkbenchViewProps = {
  onContinue:()=>void;onDrafts:()=>void;onBookmarks:()=>void;onReads:()=>void;onMaterial:(item:Material)=>void;onAttention:(row:Attention)=>void;onDismiss:(id:string)=>void;
 };
 export function StudioWorkbenchHeader({onBookmarks,onReads,workspace}:{onBookmarks:()=>void;onReads:()=>void;workspace?:WorkbenchViewProps}) {
- return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1><div data-inline-screen-actions=""><MobileContextButton /></div></div><p>Your workspace, saved work and insights.</p>
+ return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1><div data-inline-screen-actions=""><MobileContextButton /></div></div>
    <nav className="studio-hub-navigation" aria-label="Studio sections">
     {workspace && <>
       <button type="button" onClick={workspace.onContinue} disabled={!workspace.draft || workspace.draftsUnavailable}><strong>Continue</strong></button>

@@ -541,13 +541,14 @@ export function UserProfilePage({
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
     editProfile: onEditProfile, newProject: onPublishProject,
+    thenNow: showsOwnerTools && isJourney ? () => setPairSelection('') : undefined,
     share: !profile.isPrivate ? openShare : undefined,
     copy: !profile.isPrivate ? async () => copyPublicLink(await prepareProfileLink()) : undefined,
     reorder: showsMobileReorder && canReorderProjects ? startReordering : undefined,
     insights: () => navigate(buildPath('insights')), settings: () => navigate(buildPath('controlCenter')),
     follow: follow && !follow.isResolving && !follow.isPending && !follow.resolveError ? follow.onToggle : undefined,
     message: isMobile && !showsOwnerTools ? undefined : onMessage,
-  }, labels: { share: showsOwnerTools ? 'Share link' : 'Share', follow: follow?.isFollowing ? 'Unfollow' : follow?.isRequested ? 'Cancel request' : 'Follow' } });
+  }, labels: { thenNow: 'Choose a Then/Now pair', share: showsOwnerTools ? 'Share link' : 'Share', follow: follow?.isFollowing ? 'Unfollow' : follow?.isRequested ? 'Cancel request' : 'Follow' } });
   useMobileScreenActions(!isSharedView && !mobileProjectSelected ? profileActions : null);
   const profilePress = useMobileContextPress(!isSharedView ? profileActions : null, true);
   const finishReordering = async () => {

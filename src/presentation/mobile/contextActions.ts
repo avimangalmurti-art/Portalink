@@ -23,7 +23,7 @@ type Layout = { title: string; primary: ContextActionId[]; groups: ContextAction
 export function contextActions(kind: ContextKind, viewer: ContextViewer, target: ContextTarget): ContextActions {
   const map: Record<ContextKind, Layout> = {
     home:{title:'Home',primary:['search','explore'],groups:[['refresh','settings'],['leaveLive']]},
-    profile:viewer.owner ? {title:'Your profile',primary:['editProfile','share'],groups:[['reorder','insights','bookmarks','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
+    profile:viewer.owner ? {title:'Your profile',primary:['editProfile','share'],groups:[['thenNow','reorder','insights','bookmarks','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
     project:viewer.owner ? {title:'Your project',primary:['edit','cover','share'],groups:[['startHere','thenNow',...(target.handlers.reads ? ['reads'] as ContextActionId[] : ['pageIndex'] as ContextActionId[]),...(target.handlers.reads || target.handlers.startHere && target.handlers.thenNow ? [] : ['copy'] as ContextActionId[]),'visibility'],['delete']]} : {title:'Project',primary:['saveProject','savePage','share'],groups:[['comment','pageIndex','copy'],['report']]},
     studio:{title:'Studio',primary:['drafts','bookmarks'],groups:[['reads','select']]},
     messages:{title:'Messages',primary:['newMessage','search'],groups:[['blocked']]},
