@@ -2,7 +2,7 @@ import { useMobileScreenActions } from '../../presentation/mobile/MobileContextA
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
@@ -204,6 +204,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
     <ScreenBack action={back}>{null}</ScreenBack>
     <header className="studio-header">
+      <button type="button" className="studio-bookmarks-back" aria-label="Back from Bookmarks" disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
       <div className="studio-header-actions">
         <div className="studio-heading">
           <h1 ref={heading} tabIndex={-1} className="studio-title">Bookmarks</h1>

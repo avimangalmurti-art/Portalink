@@ -4110,3 +4110,5 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile']:has([data-inline-screen-actions]) > .mobile-context-floating { display: none; }
 #root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions] .mobile-context-button { width: 44px; height: 44px; background: transparent !important; color: var(--text-primary) !important; }
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, .studio-drafts-heading, .studio-header-actions) { padding-right: 60px; }
+
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 4px; color: var(--text-primary); }

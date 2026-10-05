@@ -1,3 +1,7 @@
+## MOBILE Bookmarks back button
+
+Visible labelled arrow Back in Bookmarks header invokes existing back handler; pending bulk mutations disable it, selection cancels first preserving existing behavior.44px mobile target. Typecheck/build check; no new routing or backend logic. Browser/physical verification outstanding.
+
 ## MOBILE integrated screen actions
 
 Remove added56px main-viewport padding. App UserProfilePage mobile always expanded; existing WEB options state preserved. Inline shared context button replaces mobile collapse control; global duplicate hidden when inline trigger mounted. Shorten Home search/header and Studio right-side content to reserve60px for floating menu. Separate visitor composition unchanged (it has a separate public navigation implementation, no registered context actions).60 navigation/context tests/typecheck/lint(0errors) pass; rebuild after visitor preservation. Physical/browser layout unverified.
