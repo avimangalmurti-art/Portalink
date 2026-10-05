@@ -1,3 +1,7 @@
+## 2026-10-05 — Sites303 published: MOBILE first-run activation
+
+Source58e1b888b3a452bd42a33033edbdada68ab34972; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3c126ad0271c8191bd99d8abe21948a6; deployment appgdep_6ac2eb07a56081919fde5e7d661fb156 succeeded2026-10-05T00:10:57.496008+00:00. Existing public URL/runtime revision2 preserved. Archive543entries533files, no env/logs/fixtures/node_modules/pending SQL.73 focused tests/typecheck/lint/client+worker build/diff check pass. QA tab closed/viewport reset/owned preview stopped. Real new-account/iPhone acceptance unverified; visibility remains existing profile privacy (no independent project visibility backend). No SQL or GitHub push/merge. Receipt docs local/uncommitted.
+
 ## 2026-10-04 — Sites302 published: MOBILE portal chooser close
 
 Source1fcffe158b06d043b940ec03dae2f6fcb7cbabc9; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_9163d1f123148191aa6ff3da439f7fa3; deployment appgdep_6ac2e588a1ac81918baa6960202b9352 succeeded2026-10-04T23:47:29.560856+00:00. Existing public URL/runtime revision2 preserved.15 focused tests/typecheck/lint/build pass. Physical iPhone verification remains; no backend/SQL/GitHub push or merge.

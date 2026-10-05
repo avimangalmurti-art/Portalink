@@ -4,6 +4,8 @@ These rules persist the user's product, operating, architecture, mobile UX, micr
 
 ## Shared agent and repository agreement
 
+- Every worktree used for publishing must have the ignored `.env.local` available with the production `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before building. Never copy, print, commit, or package credential values. Use an existing local environment file/link; do not overwrite it. Builds must fail on missing configuration, and both main and visitor bundle graphs must be verified to contain the configured Supabase host/key before packaging.
+
 - This is the canonical project instruction file for Codex and Claude Code. `CLAUDE.md` imports it; keep shared rules here rather than maintaining competing copies.
 - GitHub `main` in `avimangalmurti-art/Portalink` is the source of truth for reviewed source. The current local remote is named `github`. A source commit, live Sites version, and applied database migration are separate states.
 - Continue this one product. Retain the existing Supabase project, accounts, Auth configuration, database, Storage, identifiers, and user data for web and future iOS/Android clients. Do not provision an agent-specific backend or silently replace connected services with mocks.

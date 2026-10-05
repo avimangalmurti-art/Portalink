@@ -1,3 +1,4 @@
+import { requireBuildEnvironment } from './scripts/build-environment.mjs'
 import { readPortfolioCard } from './src/server/sharedPreview'
 import { resolveShareRequest, injectShareResolution } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
@@ -14,6 +15,7 @@ import { publicMediaPreviewPlugin } from './scripts/public-media-preview.mjs'
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
+  if (command === 'build') requireBuildEnvironment(env)
   return {
   define: { __APP_VERSION__: JSON.stringify(appVersionHash()) },
   plugins: [react(), sites(), publicMediaPreviewPlugin({ supabaseUrl: env.VITE_SUPABASE_URL }), sharedProfilePreloadPlugin({ supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY }), {
