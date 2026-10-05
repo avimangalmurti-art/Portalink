@@ -19,10 +19,10 @@ export function StudioWorkbenchView(p:WorkbenchViewProps){
   <header className="studio-workbench-header"><div className="studio-drafts-heading"><h1>Studio</h1><button type="button" className="studio-drafts-control" onClick={p.onBookmarks}>Bookmarks</button></div><p>Your next move.</p></header>
   <div className="studio-workbench-scroll">
    <section aria-labelledby="studio-continue"><h2 id="studio-continue">Continue</h2>
-    <button className="studio-continue-card" type="button" disabled={p.draftsUnavailable} onClick={p.onContinue}>
+    {p.draft || p.draftsUnavailable ? <button className="studio-continue-card" type="button" disabled={p.draftsUnavailable} onClick={p.onContinue}>
      {p.cover&&p.draft?<span className="studio-continue-cover"><ProjectCover source={p.cover.source} kind={p.cover.kind} alt="Draft cover" pageNumber={p.cover.pageNumber} frame={p.cover.frame} sizes="72px" /></span>:!p.draft?<PlusIcon aria-hidden="true"/>:null}
      <span><strong>{p.draftsUnavailable?'Drafts could not load':p.draft?p.draft.metadata.title.trim()||'Untitled':'New project'}</strong>{p.draft?<><span>{({files:'Files',details:'Details',review:'Review'})[p.draft.stage]}</span><time dateTime={p.draft.updatedAt??p.draft.createdAt}>Edited {new Date(p.draft.updatedAt??p.draft.createdAt).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</time></>:<span>{p.draftsUnavailable?'Try again to continue.':'Start with your files.'}</span>}</span><span aria-hidden="true">→</span>
-    </button>
+    </button> : <p className="studio-workbench-note">No drafts to continue. Create a portal or project from the Portal popup on your profile.</p>}
     {p.draftCount>1?<button className="studio-other-drafts" onClick={p.onDrafts}>Other drafts ({p.draftCount-1}) <span aria-hidden="true">→</span></button>:null}
     {p.draftsUnavailable?<p role="status">Drafts could not load. Try again before starting another.</p>:null}
    </section>

@@ -1,3 +1,7 @@
+## MOBILE creation entry restriction
+
+Studio no longer receives global new-project callback; no-draft Continue card replaced by Profile Portal-popup guidance. Remove New project from Studio/Home/Profile shared action layouts; existing drafts remain resumable. Profile Portal popup creation retained; WEB preserved.50 focused context/workbench tests and typecheck/lint/build passing. Broader studio-page selection test has existing unsave-toolbar failure unrelated to changed files. Physical/browser verification outstanding. No backend changes.
+
 ## MOBILE top screen actions
 
 Move shared screen-action trigger from dock/reader rail to one provider-owned safe-area top-right Ellipsis button. Existing route/account/action registrations, permissions, sheet and focus return retained. Four-destination dock; main viewport reserves56px for top control; focused globe keyboard search hides trigger. WEB provider renders no trigger.60 focused navigation/context isolation checks, typecheck/lint(0errors)/build/config guard pass. Browser/physical iPhone layout verification remains unperformed. No backend changes. Publishing owned release branch.

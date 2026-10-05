@@ -40,7 +40,7 @@ test('Continue chooses latest edit and retains the exact saved step',()=>{
 const View=sourceModule('src/features/studio/StudioWorkbenchView.tsx',{'react':React,'lucide-react':{PlusIcon:()=>null,PauseIcon:()=>null},'../../components/media/ProjectCover':{ProjectCover:()=>null},'./StudioRow':{StudioRow:()=>null},'./StudioActionSheet':{StudioActionSheet:()=>null},'./workbenchModel':model,'./studio-workbench.css':{}}).StudioWorkbenchView;
 const props={draft:null,draftCount:0,attention:[],week:null,publishedCount:0,material:[],partial:false,onContinue(){},onDrafts(){},onBookmarks(){},onReads(){},onMaterial(){},onAttention(){},onDismiss(){}};
 test('all-done line, no invented sections and Reads hidden without published work',()=>{
- const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.match(empty,/New project/);assert.doesNotMatch(empty,/Needs attention|Reads this week|Material/);
+ const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.match(empty,/Portal popup on your profile/);assert.doesNotMatch(empty,/Needs attention|Reads this week|Material/);
  const active=renderToStaticMarkup(React.createElement(View,{...props,attention:rows(project('p',{summary:''}))}));assert.doesNotMatch(active,/Reads this week/);
  const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.match(reads,/Reads this week/);assert.match(reads,/Top project/);
 });
