@@ -36,8 +36,8 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
         <span className="journey-gap-cover" aria-hidden="true">+</span><div><h3>What were you making in {group.year}?</h3>
           <button type="button" className="journey-text-action" onClick={() => onAdd?.(group.year ?? undefined)}>Add something from {group.year}</button></div>
       </li> : group.projects.map(project => <li className="journey-entry" key={project.id}>
-        <button type="button" className="journey-entry-cover" onClick={() => onOpen(project)} aria-label={`Open ${project.title}`}><JourneyCover project={project} /></button>
-        <div className="journey-entry-copy"><span className="journey-month">{projectMonth(project) ? new Date(`${projectMonth(project)}-01T12:00:00Z`).toLocaleString(undefined, { month: 'short', timeZone: 'UTC' }) : 'Date not set'}</span>
+        <button type="button" className="journey-entry-cover" style={{ aspectRatio: project.coverAspectRatio && project.coverAspectRatio > 0 ? project.coverAspectRatio : 1 }} onClick={() => onOpen(project)} aria-label={`Open ${project.title}`}><JourneyCover project={project} /></button>
+        <div className="journey-entry-copy"><span className="journey-month">{project.publishedAt && Number.isFinite(Date.parse(project.publishedAt)) ? new Date(project.publishedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Posting date unavailable'}</span>
           <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
           <p className="journey-learned">{learnedLine(project)}</p>
           {owner && onEdit && <button type="button" className="journey-text-action" onClick={() => onEdit(project)} aria-label={`Edit Journey details for ${project.title}`}>Edit details</button>}

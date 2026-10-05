@@ -12,7 +12,7 @@ export function useProfileConnections(profileId: string, kind: ProfileConnection
   const ownerKey = `${auth.user?.id ?? 'guest'}:${profileId}`;
   const key = `${ownerKey}:${kind ?? 'none'}:${refreshVersion}`;
   const [state, setState] = useState<Collection>(() => empty(key));
-  const [counts, setCounts] = useState<{ key: string; followers?: number; following?: number }>({ key: ownerKey });
+  const [counts, setCounts] = useState<{ key: string; followers?: number; following?: number; canViewConnections?: boolean }>({ key: ownerKey });
   const request = useRef(0);
   const busy = useRef(false);
   const currentKey = useRef(key);

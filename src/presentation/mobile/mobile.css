@@ -4321,3 +4321,20 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   grid-column: 1;
   grid-row: 1;
 }
+
+/* Published-project editing uses one scroll surface and the phone safe area. */
+[data-presentation='mobile'] .project-form-dialog:has(#project-editor-form) {
+  padding-top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 16px);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+[data-presentation='mobile'] #project-editor-form .project-form-media--edit > .project-media-list {
+  max-height: none;
+  overflow: visible;
+}
+[data-presentation='mobile'] .project-form-dialog:has(#project-editor-form) .project-form-heading p {
+  white-space: normal;
+}
+
+[data-presentation='mobile'] textarea:is(#project-summary, #publish-summary) { min-height: 200px; }
+#root .codex-shell[data-presentation='mobile'] [data-profile-back] { margin-top: var(--mobile-screen-action-top); margin-inline-start: 16px; }
+[data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }

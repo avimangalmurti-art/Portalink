@@ -199,3 +199,5 @@ select version from supabase_migrations.schema_migrations order by version;
 ```
 
 Record future verification results here without storing secrets or user data. Until that inspection occurs, the unknown and historically recorded statuses above remain deliberately unresolved.
+
+2026-10-05: Prepared 202610050001_mutual_profile_connections.sql for owner/accepted-mutual list access. UNAPPLIED; requires explicit database deployment authorization and real permission validation before claiming live support.

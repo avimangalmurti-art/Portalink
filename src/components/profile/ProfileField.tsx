@@ -77,6 +77,7 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
         {optional && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">Optional</span>}
         {required && <span className="text-[12px] font-medium text-[var(--text-tertiary)]">{requiredIndicator === 'asterisk' ? <><span aria-hidden="true" className="text-[var(--accent-text)]">*</span><span className="sr-only">Required</span></> : 'Required'}</span>}
       </label>
+      {multiline && formatting && <TextFormattingToolbar inputRef={textareaRef} value={value} onChange={onChange} disabled={disabled} maxLength={maxLength} />}
       {multiline ? <textarea ref={textareaRef} id={id} value={value} rows={3} placeholder={placeholder} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={`${shellClass} min-h-[76px] resize-none py-2.5 disabled:opacity-60 ${fieldClass}`} /> : <div className={`${shellClass} h-10`}>
           {prefix && <span aria-hidden="true" className="shrink-0 text-[14px] text-[var(--text-tertiary)]">{prefix}</span>}
           <input id={id} ref={ref} type="text" value={value} placeholder={placeholder} inputMode={inputMode} autoComplete={autoComplete} maxLength={maxLength} disabled={disabled} required={required || undefined} aria-required={required || undefined} aria-invalid={error ? true : undefined} aria-describedby={describedBy || undefined} onChange={(event) => onChange(event.target.value)} onBlur={onBlur} className={fieldClass} />
@@ -87,7 +88,6 @@ export const ProfileField = forwardRef<HTMLInputElement, ProfileFieldProps>(func
           {status.icon}
           {status.message}
         </p>}
-      {multiline && formatting && <TextFormattingToolbar inputRef={textareaRef} value={value} onChange={onChange} disabled={disabled} maxLength={maxLength} />}
       {error && <p id={errorId} className="flex items-start gap-1.5 text-[12px] font-medium leading-relaxed text-[var(--text-primary)]">
           <AlertCircleIcon className="mt-[1px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {error}

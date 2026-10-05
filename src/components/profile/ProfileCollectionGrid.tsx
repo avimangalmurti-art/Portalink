@@ -30,7 +30,7 @@ export function ProfileCollectionGrid({ shared = false, profileId, kind, portals
   const title = isPortals ? 'Portals' : kind === 'followers' ? 'Followers' : 'Following';
   const count = isPortals ? portals.length : people.length;
   return <section className="profile-collection" aria-label={title} aria-busy={loading}>
-    <h2 className="mb-5 text-[14px] font-medium text-[var(--text-secondary)]">{title}</h2>
+    {isPortals && <h2 className="mb-5 text-[14px] font-medium text-[var(--text-secondary)]">{title}</h2>}
     {count > 0 && <ul className="profile-collection-grid">
       {isPortals ? portals.map((portal) => <li key={portal.id}>
         <Link to={buildPath(shared ? 'sharedProfileCategory' : 'profileCategory', { profileId, categoryId: portal.id })} className="profile-collection-link" title={portal.label}>

@@ -1,4 +1,4 @@
-import { composeProjectDescription, EMPTY_CREATION } from '../publishing/firstProject';
+import { EMPTY_CREATION } from '../publishing/firstProject';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
@@ -213,7 +213,7 @@ export function useProjectManagement(profileId: Id | null) {
       if (key === 'caption') return { ...current, thenNowCaption: value };
       const details = current.creationDetails ?? EMPTY_CREATION;
       const next = { ...details, ...(key === 'madeIn' ? { madeIn: value } : { answers: { ...details.answers, [key]: value } }) };
-      return { ...current, creationDetails: next, ...(editorMode === 'story' ? { summary: composeProjectDescription(next.answers) } : {}) };
+      return { ...current, creationDetails: next };
     });
     setSaveResult(null); setSaveFailure(null); setEditorPhase('editing');
   }, [editorMode]);

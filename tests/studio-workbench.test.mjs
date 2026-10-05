@@ -9,7 +9,7 @@ const project=(id='p',patch={})=>({id,title:'Study',summary:'A study',coverThumb
 const rows=(p,activity=[],reach=[{projectId:'p',opened:1}],dismissed={})=>model.attentionRows({projects:Array.isArray(p)?p:[p]},reach,activity,dismissed,now);
 test('cover, description, story and date gaps fire and clear from canonical data',()=>{
  assert.deepEqual(Array.from(rows(project(),[],[]),r=>r.action),[]);
- for(const [patch,action] of [[{coverThumbnail:undefined},'cover'],[{summary:''},'description'],[{creationDetails:{madeIn:'2026-08',answers:{what:'',did:'',learned:''}}},'description'],[{creationDetails:{madeIn:'',answers:{what:'A',did:'B',learned:'C'}}},'date']])assert.equal(rows(project('p',patch),[],[])[0].action,action);
+ for(const [patch,action] of [[{coverThumbnail:undefined},'cover'],[{summary:''},'description'],[{creationDetails:{madeIn:'',answers:{what:'A',did:'B',learned:'C'}}},'date']])assert.equal(rows(project('p',patch),[],[])[0].action,action);
 });
 const event=(kind,patch={})=>({projectId:'p',attachmentId:'a',pageIndex:2,page:2,kind,at:new Date(now-day).toISOString(),...patch});
 test('reply and recent member activity are separate, deduplicated and clear when removed',()=>{
@@ -73,3 +73,5 @@ test('Continue and weekly Reads use the same navigation group as Bookmarks and I
 });
 
 
+
+test('an existing description needs no story answers',()=>{ assert.equal(rows(project('p',{creationDetails:{madeIn:'2026-08',answers:{what:'',did:'',learned:''}}}),[],[]).length,0); });

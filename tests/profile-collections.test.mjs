@@ -25,10 +25,11 @@ function nodes(tree) {
   return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
 
-function serviceHarness(owner = 'owner', failure = null) {
+function serviceHarness(owner = 'owner', failure = null, mutual = false) {
   const calls = [];
   const client = {
     async rpc(name, args) {
+      if (name === 'can_view_profile_connections') return { data: mutual, error: null };
       assert.equal(name, 'profile_identities');
       assert.deepEqual(Array.from(args.p_profile_ids), ['person']);
       calls.push({ rpc: name, args });
@@ -1026,4 +1027,11 @@ test('mobile connection profiles show Back and return through history to the sel
     assert.equal(nodes(profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'web'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
   }
   assert.equal(nodes(profileHarness('', {presentation:'mobile'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
+});
+
+test('confirmed mutuals can list both connection directions',async()=>{
+ for(const kind of ['followers','following']){
+ const h=serviceHarness('mutual',null,true); const page=await h.service.listProfileConnections('owner',kind);
+ assert.equal(page.items[0].profileId,'person');
+ }
 });
