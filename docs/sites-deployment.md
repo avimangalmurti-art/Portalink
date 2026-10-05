@@ -199,3 +199,6 @@ See [current architecture](current-architecture.md) for the client, Supabase, Si
 
 ## 2026-10-04 — Sites306 MOBILE chooser tap layer
 Source30c0aecf2c315f7c5eea372d29e69e0c1f99bc0a; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_be44b3d28fb48191bebc9eb0379df4c1; deployment appgdep_6ac2fa44a1e48191a002184780c861cc succeeded2026-10-05T01:15:57.727183+00:00. Same production URL/public audience/runtime revision2. Native top layer scoped to Choose a portal.8focused tests/typecheck/lint/build/config graph verification pass. Phone retest required. No backend/SQL/GitHub push or merge.
+
+## 2026-10-04 — Sites307 chooser touch activation
+Source5f5879ededfd6065ab176ace559ef14b2ccd893c; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_e342aed28e308191b456cd3e723f8fe6; deployment appgdep_6ac2ff9cf2108191878456a1bee6e735 succeeded2026-10-05T01:38:46.154707+00:00. Direct touchend path for chooser cancellation and radio choices, excluding scroll/cancel/disabled gestures.11focused tests/type/lint/build/config verification pass. Physical device result not verified. Existing audience/runtime unchanged; no SQL/GitHub push/merge.

@@ -4017,3 +4017,61 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-note-field textarea { resize: none; }
 [data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
 @media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }
+
+/* Compact relationship controls match the mobile profile reference. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] {
+  --profile-relationship-surface: var(--surface-sunken);
+  gap: 7px;
+}
+#root .codex-shell.theme-dark[data-presentation='mobile'] [data-profile-visitor-actions] {
+  --profile-relationship-surface: #191919;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] :is([data-profile-follow], [data-profile-bookmark] > button) {
+  position: relative;
+  height: 38px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 14px !important;
+  background: var(--profile-relationship-surface) !important;
+  color: var(--text-primary) !important;
+  padding: 0;
+}
+/* Extend the hit area without enlarging the reference's visible controls. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] :is([data-profile-follow], [data-profile-bookmark] > button)::after {
+  content: '';
+  position: absolute;
+  inset: -3px 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-follow] {
+  width: 98px;
+  font-size: 14px;
+  font-weight: 600;
+  justify-content: center;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] {
+  position: relative;
+  padding-left: 7px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  height: 36px;
+  width: 1px;
+  background: var(--hairline-strong);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] > button {
+  width: 58px;
+  min-width: 58px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] [data-interface-icon-frame] {
+  width: 24px;
+  height: 24px;
+}
