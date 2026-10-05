@@ -220,3 +220,8 @@ test('zero-project mobile Home is one first-project action even before its empty
   action.props.onClick();assert.equal(clicks,1);
   assert.equal(nodes(mobile.tree).filter(node=>node.props?.onClick).length,1);
 });
+
+test('public Home work stays visible for a mobile owner who has not published yet',()=>{
+ const h=homeHarness('mobile',{status:'ready',featured:null,projects:[{project:{id:'public-work'},creator:{id:'unfollowed'}}],isEmpty:false},{firstProjectAction:()=>{}});
+ const wall=nodes(h.tree).find(node=>node.type==='JustifiedImageWall');assert.ok(wall);assert.equal(wall.props.items[0].key,'public-work');
+});

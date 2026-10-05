@@ -28,7 +28,7 @@ function query(result, onRead = () => {}) {
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('Home ranking uses existing identity/location without reloading the full portfolio', async () => {
-  let profileReads = 0, authReads = 0, requested, ranked;
+  let profileReads = 0, authReads = 0, requested, ranked, feedRequest;
   const rows = {
     profiles: { id: 'owner', location: 'San Francisco' },
     profile_follows: [{ target_profile_id: 'followed' }],
@@ -39,16 +39,17 @@ test('Home ranking uses existing identity/location without reloading the full po
     requireSupabase: () => ({ auth: { getSession: async () => { authReads++; return { data: { session: { user: { id: 'account' } } } }; } },
       from: table => query({ data: rows[table], error: null }),
     }),
-    projectIdsForProfiles: async ids => { requested = ids; return ['real-project']; },
+    allPublicProjectIds: async () => { requested = 'all-public'; return ['real-project']; },
     projectViewsForIds: async () => projects,
-    readFeedPage: async () => null,
+    readFeedPage: async (scope, cursor, limit) => { feedRequest={scope,limit}; return null; },
     supabaseProfileService: { getProfile: () => { profileReads++; throw new Error('Duplicate portfolio request'); } },
     buildUserContentSphere: input => { ranked = input; return 'sphere'; },
     asHomeFeedMode: mode => mode,
   });
   const result = await run('home');
   assert.equal(profileReads, 0); assert.equal(authReads, 1);
-  assert.deepEqual(plain(requested), ['owner', 'followed']);
+  assert.equal(requested, 'all-public');
+  assert.deepEqual(plain(feedRequest), {scope:'global',limit:30});
   assert.deepEqual(plain(ranked.viewerProfile), rows.profiles);
   assert.equal(result.availableProjects, projects); assert.equal(result.homeMode, 'latest');
 });

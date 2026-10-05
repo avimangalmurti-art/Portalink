@@ -680,6 +680,19 @@ async function latestProjectIds(limit = 60): Promise<string[]> {
   return (await projectIdsForProfiles(publicProfileIds)).slice(0, limit);
 }
 
+async function allPublicProjectIds(): Promise<string[]> {
+  const profileIds: string[] = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await requireSupabase().from('profiles').select('id').eq('is_private', false).order('id').range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []) as unknown as Array<{ id: string }>;
+    profileIds.push(...rows.map(row => row.id));
+    if (rows.length < pageSize) break;
+  }
+  return projectIdsForProfiles(profileIds);
+}
+
 async function projectIdsForProfiles(profileIds: string[]): Promise<string[]> {
   const uniqueProfileIds = [...new Set(profileIds.filter(Boolean))];
   if (uniqueProfileIds.length === 0) return [];
@@ -802,7 +815,7 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
     client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId),
     client.from('discovery_signals').select('topic_key,interest_weight,curiosity_weight,last_interest_at,last_curiosity_at').eq('account_id', accountId),
     client.from('discovery_preferences').select('home_mode').eq('account_id', accountId).maybeSingle(),
-    readFeedPage(scope, cursor, scope === 'home' ? 30 : 120),
+    readFeedPage('global', cursor, scope === 'home' ? 30 : 120),
   ]);
   if (viewerRow.error) throw new Error(viewerRow.error.message);
   if (followResult.error) throw new Error(followResult.error.message);
@@ -810,13 +823,11 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
   if (signalResult.error && !isMissingDiscoveryTable(signalResult.error)) throw new Error(signalResult.error.message);
   if (preferenceResult.error && !isMissingDiscoveryTable(preferenceResult.error)) throw new Error(preferenceResult.error.message);
   const viewerProfile = viewerRow.data as unknown as Pick<Profile, 'id' | 'location'> | null;
-  const viewerId = viewerProfile?.id;
   const followedCreatorIds = ((followResult.data ?? []) as unknown as Array<{ target_profile_id: string }>).map((row) => row.target_profile_id);
-  // Search can stay bounded to the recent global discovery pool. Home instead
-  // asks the indexed project table for the viewer and every followed creator,
-  // so older work and multiple projects from one creator are not silently lost.
+  // Home uses the existing public RPC scope, including unfollowed creators.
+  // The legacy fallback also reads all public profiles/projects, without a cap.
   const projectIds = page ? [] : scope === 'home'
-    ? await projectIdsForProfiles([...(viewerId ? [viewerId] : []), ...followedCreatorIds])
+    ? await allPublicProjectIds()
     : await latestProjectIds(120);
   const availableProjects = page ? await feedViews(page.rows, scope === 'home') : await projectViewsForIds(projectIds);
   // Ranking only needs identity and location. Reloading the complete portfolio

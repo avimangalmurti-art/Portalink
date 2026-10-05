@@ -78,7 +78,7 @@ export function HomeFeed({
   emptyAction,
   emptySecondaryAction,
   emptyTitle = 'Your Home feed is ready',
-  emptyDescription = 'Your published work and new work from creators you follow will appear here.',
+  emptyDescription = 'Public work from creators across Portalink will appear here.',
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
@@ -183,7 +183,7 @@ export function HomeFeed({
   useMobileScreenActions(showSearchPlaceholder ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
     refresh: !feed.isRefreshing && feed.status !== 'loading' ? () => { setHasReloaded(true); feed.retry(); } : undefined,
   } }) : null, 5);
-  if (isMobile && firstProjectAction) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
+  if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
         ref={autoScrollRef}
