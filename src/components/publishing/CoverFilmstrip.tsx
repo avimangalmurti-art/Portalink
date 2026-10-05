@@ -125,7 +125,7 @@ function FileThumbnails({ item, media, render }: { item: PreparedMedia; media: M
 }
 
 /** One selected page and crop shared by profile cards and discovery. */
-export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean }) {
+export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false, freeShape = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean; freeShape?: boolean }) {
   const [editing, setEditing] = useState(false);
   const collapsed = readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
@@ -159,7 +159,7 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
       {eligible.filter((item) => !collapsed || item.id === cover?.id).map((item) => <FileThumbnails key={item.id} item={item} media={media} render={(number, pdf) => {
         const selected = item.id === cover?.id && number === page;
         if (collapsed && !selected) return null;
-        return <CoverThumbnail key={number} compact={compact} readOnly={readOnly} previewOnly={collapsed} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled || readOnly} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => readOnly ? undefined : collapsed ? setEditing(true) : select(item, number)} onChange={change}
+        return <CoverThumbnail key={number} compact={compact || freeShape} readOnly={readOnly} previewOnly={collapsed} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled || readOnly} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => readOnly ? undefined : collapsed ? setEditing(true) : select(item, number)} onChange={change}
           onReady={(dimensions) => {
             if (!selected) return;
             setLoaded({ key, size: dimensions });
@@ -169,10 +169,10 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
     </div>
     {!readOnly && <p id="cover-crop-help" className="sr-only">Drag or use arrow keys to reposition the selected cover. Scroll to zoom.</p>}
     {!collapsed && <div className="cover-panel-controls border-t border-[var(--hairline)] pt-2">
-    <label className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">Cover shape
-      <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 w-full min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
+    <label className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">{freeShape ? 'Custom proportions' : 'Cover shape'}
+      {freeShape ? <input aria-label="Custom cover proportions" type="range" min="0.25" max="4" step="0.01" value={frame.aspectRatio} disabled={disabled || !editable} onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }} /> : <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 w-full min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
         {[{ value: 1, label: 'Square · 1:1' }, { value: 4 / 3, label: 'Landscape · 4:3' }, { value: 16 / 9, label: 'Wide · 16:9' }, { value: 3 / 4, label: 'Portrait · 3:4' }, { value: frame.aspectRatio, label: 'Current shape' }].filter((item, index, all) => all.findIndex((other) => Math.abs(other.value - item.value) < .00001) === index).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-      </select>
+      </select>}
     </label>
     <div className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">
       <div className="flex items-center justify-between gap-2"><label htmlFor="cover-zoom">Zoom</label><output htmlFor="cover-zoom" className="tabular-nums">{Math.round(frame.zoom * 100)}%</output></div>

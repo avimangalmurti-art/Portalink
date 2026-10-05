@@ -462,6 +462,11 @@ export const mockProjectService: ProjectService = {
     projectDesigns.set(projectId, next);
     return next;
   },
+  async updateProjectTags(projectId, tags) {
+    const owner = findProjectOwner(projectId);
+    if (!owner) throw new Error('That project no longer exists.');
+    owner.project.tags = [...tags];
+  },
   async saveProfileProjectOrder(profileId, projectIds) {
     const live = getProfileById(profileId).projects.map((project) => project.id);
     const unique = [...new Set(projectIds)];

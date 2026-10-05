@@ -31,7 +31,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { persist: boolean; resume?: ProjectDraft }) {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
   const {
     projects: projectService, profiles: profileService
   } = useServices();
@@ -84,6 +84,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [discardError, setDiscardError] = useState<string | null>(null);
   const persistWorkspace = Boolean(workspace?.persist);
+  const activation = Boolean(workspace?.activation);
   const resumeId = workspace?.resume?.id;
   const checkpointSignature = useRef<string | null>(null);
   const isOwner = Boolean(profileId) && auth.viewerProfileId === profileId;
@@ -132,7 +133,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         // The server draft was removed; retain the selected files and authored details.
         setMetadata(saved.metadata); restoreMedia(saved.media); updateLocation(saved.location);
         setFirstProjectStage(saved.stage); setStep(saved.stage === 'review' ? 'preview' : 'metadata');
-      } else if (firstProject) setMetadata({ ...EMPTY_METADATA, creationDetails: { ...structuredClone(EMPTY_CREATION), madeIn: presetMadeIn } });
+      } else if (firstProject) setMetadata(activation ? { ...EMPTY_METADATA, tags: '' } : { ...EMPTY_METADATA, creationDetails: { ...structuredClone(EMPTY_CREATION), madeIn: presetMadeIn } });
       setRestoringDraft(false);
       if (resumeId) {
         const existing = await projectService.getDraft(resumeId);
@@ -152,7 +153,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId]);
+  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId, activation]);
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);
@@ -182,7 +183,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only on close.
   }, [isOpen]);
-  const setField = useCallback((key: 'title' | 'summary', value: string) => {
+  const setField = useCallback((key: 'title' | 'summary' | 'tags', value: string) => {
     setMetadata((current) => ({
       ...current,
       [key]: value
@@ -318,6 +319,11 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       committedPublish.current = published;
       setHasCommittedProject(true);
       await saveLocalDraft().catch(() => undefined);
+      if (metadata.tags !== undefined) {
+        const tags = [...new Set(metadata.tags.split(',').map(tag => tag.trim()).filter(Boolean))];
+        try { await projectService.updateProjectTags(published.projectId, tags); }
+        catch { throw new Error('Your project is published. Try again to finish saving its tags.'); }
+      }
       if (published.creationDetailsPending && metadata.creationDetails) {
         try { await projectService.updateProjectCreationDetails(published.projectId, metadata.creationDetails); published.creationDetailsPending = false; }
         catch { throw new Error('Your project is published. Its date, field and answers still need saving. Retry to save only these details.'); }

@@ -326,6 +326,8 @@ async function hydrateProjects(
       categoryId: row.category_id,
       title: row.title,
       summary: row.summary,
+      tags: row.design && typeof row.design === 'object' && Array.isArray((row.design as { tags?: unknown }).tags)
+        ? ((row.design as { tags: unknown[] }).tags).filter((tag): tag is string => typeof tag === 'string') : undefined,
       creationDetails: readCreationDetails(row),
       thenNowCaption: readJourneyCaption(row),
       isPubliclyVisible: !row.is_hidden && categoryRows.some(category => category.id === row.category_id && !category.is_hidden),

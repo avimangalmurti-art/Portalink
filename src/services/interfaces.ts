@@ -194,6 +194,8 @@ export interface ProjectService {
    * never be written to a project and silently fall back at render time.
    */
   updateProjectDesign(projectId: Id, design: ProjectDesign): Promise<ProjectDesign>;
+  /** Owner-only authored tags, preserving unrelated project presentation JSON. */
+  updateProjectTags(projectId: Id, tags: string[]): Promise<void>;
   /** Owner-only order for the project cards on the profile overview. */
   saveProfileProjectOrder(profileId: Id, projectIds: Id[]): Promise<void>;
   getProjectArrangement(profileId: Id, categoryId: Id): Promise<ProjectArrangement>;

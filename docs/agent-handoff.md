@@ -1,3 +1,14 @@
+## 2026-10-04 — MOBILE first-run activation, publication in progress
+
+Owned logs/mobile-writing-portal-fix / codex/mobile-writing-portal-fix, starting1fcffe158 / Sites302. Account completion enters six-screen activation: start → real named/icon portal → File → Details → Review/publish → live → normal viewer or creator. Existing WEB completion/advanced editor retained. New FirstRunActivation/scoped CSS reuse existing draft/upload/crop/publish hook, icon library, cache, focus and visualViewport helpers; no navbar/extra onboarding. Exact supplied yellow artwork copied unchanged (matching SHA256); existing globe figure for payoff. Portal name/file/title required; description/tags optional; default Square/icon. Account marker + existing IndexedDB quietly recover progress. Back preserves portal/draft/files/cover/details. Tags stored via revision-guarded existing design JSON; title-only publish matches existing RPC. Committed tags failure retries metadata only. Opt-in free proportions/pan/zoom reuse crop geometry; normal controls unchanged. Session-only outcomes cannot claim live.
+
+LIMIT: existing backend supports profile privacy, not independent project Public/Private. Visibility truthfully reflects current profile; no fake toggle or silent profile change. Optional clarification unanswered. No new SQL/schema; unrestricted description retained instead of inventing500limit. Normal features outside activation preserved.
+
+73 focused Node tests/typecheck/lint/client+worker build pass. Browser actual UI/hooks, simulated services:420Light,390Dark/430,420x540 focused description visible/no overflow; title-only Details→Review, Back preserves fields/portal/file, custom crop, portal failure and publish failure→retry→live, persisted live reload, View callback verified. WEB1280 signed-out entry preserved. HMR temporarily revoked fixture blobs; fresh selection restored cover. No real account content written. Full authenticated new-account acceptance, physical iOS/PWA keyboard and camera unverified. Prior normal MobilePublishFlow review-description baseline failure remains documented. Evidence ignored logs/first-run-activation. No Supabase/D1/runtime replacement, SQL/GitHub push/merge. Default authorized Sites publish follows.
+
+## 2026-10-04 — Sites302 published: MOBILE portal chooser close
+
+Source1fcffe158b06d043b940ec03dae2f6fcb7cbabc9; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_9163d1f123148191aa6ff3da439f7fa3; deployment appgdep_6ac2e588a1ac81918baa6960202b9352 succeeded2026-10-04T23:47:29.560856+00:00. Existing public URL/runtime revision2 preserved.15 focused tests/typecheck/lint/build pass. Physical iPhone verification remains; no backend/SQL/GitHub push or merge.
 ## 2026-10-04 — MOBILE Choose a portal cancellation
 
 Owned codex/mobile-writing-portal-fix, start b09b38f / Sites301. Close now clears the complete pending create/publisher state and restores the initiating control without navigating away. Existing portal selection/create handlers and busy protection retained; no layout/WEB/backend changes. Added real App cancellation handler regression; updated the existing first-publication fixture's missing portal setter.15 focused tests pass; typecheck/lint/client+worker build/diff check pass. Physical iPhone/live authenticated reproduction remains unverified. Sites publication follows; no SQL or GitHub push/merge.
@@ -2497,4 +2508,3 @@ References: [checkpoint controls and recovery](checkpoints.md),
 [current architecture](current-architecture.md),
 [native direction](native-platform-direction.md),
 [migration register](migration-status.md), and [Sites deployment](sites-deployment.md).
-

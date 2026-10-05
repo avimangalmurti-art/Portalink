@@ -84,3 +84,10 @@ test('first publication keeps its real preview until the canonical profile conta
  assert.ok(h.calls.some(value=>Array.isArray(value)&&value[0]==='cache'&&value[1]==='already-published'));
  assert.equal(h.calls.includes('unexpected-upload'),false);
 });
+
+test('activation tags retry only the committed metadata write and retain publication identity',async()=>{
+ const h=harness();h.context.committedPublish.current={projectId:'already-published'};h.context.metadata.tags='Design, Study, Design';let attempts=0;
+ h.context.projectService.updateProjectTags=async(id,tags)=>{assert.equal(id,'already-published');assert.deepEqual(Array.from(tags),['Design','Study']);if(++attempts===1)throw Error('network');};
+ await assert.rejects(h.context.publish.run(),/finish saving its tags/);assert.equal(h.calls.some(value=>Array.isArray(value)&&value[0]==='result'),false);
+ await h.context.publish.run();assert.equal(attempts,2);assert.equal(h.calls.includes('unexpected-upload'),false);assert.equal(h.calls.includes('save'),false);assert.equal(h.calls.some(value=>Array.isArray(value)&&value[0]==='publish'),false);assert.ok(h.calls.some(value=>Array.isArray(value)&&value[0]==='result'&&value[1]==='already-published'));
+});

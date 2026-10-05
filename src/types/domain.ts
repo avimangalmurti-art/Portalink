@@ -287,6 +287,7 @@ export type ProjectCreationDetails = {
   answers: { what: string; did: string; learned: string };
 };
 export type Project = {
+  tags?: string[];
   thenNowCaption?: string;
   /** Known from the stored project and portal visibility; absent on legacy fixtures. */
   isPubliclyVisible?: boolean;

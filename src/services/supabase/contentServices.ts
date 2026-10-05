@@ -519,8 +519,8 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async publishProject(input: PublishProjectInput): Promise<PublishResult> {
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new PublishServiceError('invalid_metadata', 'A title and description are required.');
+    if (!input.metadata.title.trim()) {
+      throw new PublishServiceError('invalid_metadata', 'A project title is required.');
     }
     if (!input.attachments?.length || input.media?.length) {
       throw new PublishServiceError('invalid_media', 'Upload at least one file before publishing.');
@@ -580,6 +580,10 @@ export const supabaseProjectService: ProjectService = {
       catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
     }
     return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage, creationDetailsPending };
+  },
+
+  async updateProjectTags(projectId, tags) {
+    await mergeProjectDesign(projectId, { tags });
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {

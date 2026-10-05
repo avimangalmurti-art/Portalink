@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
-import { MobileOnboardingAction, MobileOnboardingWelcome } from '../../components/auth/MobileOnboarding';
+import { MobileOnboardingAction } from '../../components/auth/MobileOnboarding';
 import { readRegistrationAvatar, removeRegistrationDraft } from '../auth/registration';
 import { DEFAULT_PUBLIC_APPEARANCE } from '../../utils/publicAppearance';
 import type { PreparedAvatar } from '../../types/profile';
@@ -66,6 +66,12 @@ export function ProfileOnboardingDialog({
   const isSubmittingRef = useRef(false);
   const createRef = useRef(create.run);
   createRef.current = create.run;
+  useEffect(() => {
+    if (isMobile && create.status === 'success' && create.createdProfile && !completed.current) {
+      completed.current = true;
+      onComplete(create.createdProfile.id);
+    }
+  }, [isMobile, create.status, create.createdProfile, onComplete]);
   useEffect(() => {
     if (missingSavedAvatar && avatar.avatar && !avatar.error) {
       setMissingSavedAvatar(false);
@@ -172,17 +178,12 @@ export function ProfileOnboardingDialog({
       isSubmittingRef.current = false;
     }
   }
-  const complete = () => {
-    if (!create.createdProfile || completed.current) return;
-    completed.current = true;
-    onComplete(create.createdProfile.id);
-  };
-  return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isMobile ? (isComplete ? 'Welcome to Portalink' : 'Create your profile') : isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
+  return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isMobile ? (isComplete ? 'Finishing setup' : 'Create your profile') : isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>
           {(draftLoading || (registration && create.isLoading)) && <p role="status" className="py-4 text-center text-sm text-[var(--text-secondary)]">Finishing your account…</p>}
           {draftNotice && <div className="mb-4 text-sm text-[var(--text-secondary)]"><p role="status">{draftNotice}</p><button type="button" className="min-h-11 text-[var(--accent-text)]" disabled={draftLoading} onClick={() => { autoStarted.current = false; touched.current.avatar = false; setDraftLoading(true); setRestoreAttempt(value => value + 1); }}>Restore saved picture</button></div>}
-          {isComplete && create.createdProfile && isMobile ? <MobileOnboardingWelcome isPrototype={auth.session?.isPrototype} onComplete={complete} notice={avatar.avatar && !create.avatarPersisted ? <p role="status" className="text-sm text-[var(--text-secondary)]">Your chosen picture was not uploaded. {avatar.storageNotice}</p> : undefined} /> : isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
+          {isComplete && create.createdProfile && isMobile ? <p role="status">Preparing your first project…</p> : isComplete && create.createdProfile ? <div className="mt-5 flex flex-col gap-4">
               <div role="status" className="flex items-start gap-2 rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-sunken)] px-3 py-3 text-[13px] leading-relaxed">
                 <CheckCircle2Icon className="mt-[2px] h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
                 <span className="min-w-0 flex-1">

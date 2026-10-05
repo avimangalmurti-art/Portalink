@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+const source=readFileSync(new URL('../src/features/publishing/activationState.ts',import.meta.url),'utf8');
+function setup(){const values=new Map();const module={exports:{}};vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:module.exports,localStorage:{getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)}});return {...module.exports,values};}
+test('activation is isolated by account and resumes the created portal without restarting',()=>{const h=setup();const state=h.beginActivation('one','profile');assert.equal(state.stage,'start');assert.equal(state.icon,'lucide:briefcase-business');assert.equal(h.readActivation('two'),null);h.writeActivation('one',{...state,stage:'project',name:'My studies',portal:{id:'real-portal',label:'My studies',iconName:state.icon}});assert.equal(h.readActivation('one').portal.id,'real-portal');h.finishActivation('one');assert.equal(h.readActivation('one'),null);});
+test('corrupt or incomplete recovery cannot open a project or live screen',()=>{const h=setup();h.values.set('portalink:activation:v1:one','{broken');assert.equal(h.readActivation('one'),null);for(const stage of ['project','live']){h.values.set('portalink:activation:v1:one',JSON.stringify({profileId:'profile',name:'',icon:'lucide:camera',stage}));assert.equal(h.readActivation('one'),null);}});
+test('backward activation progress retains portal identity and live result survives re-entry',()=>{const h=setup();const state=h.beginActivation('one','profile');const portal={id:'portal',label:'Work of mine',iconName:state.icon};h.writeActivation('one',{...state,portal,name:portal.label,stage:'portal'});assert.equal(h.readActivation('one').portal.id,'portal');h.writeActivation('one',{...state,portal,stage:'live',result:{projectId:'published',mediaPersisted:true,sessionOnly:false}});assert.equal(h.readActivation('one').result.projectId,'published');});

@@ -1,4 +1,5 @@
 import { ProjectPortalChoice } from './features/publishing/ProjectPortalChoice';
+import { beginActivation, readActivation, finishActivation } from './features/publishing/activationState';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
@@ -70,6 +71,7 @@ const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').th
 const ProfileEditorPage = React.lazy(() => import('./features/profile/ProfileEditorDialog').then(module => ({ default: module.ProfileEditorPage })));
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const FirstRunActivation = React.lazy(() => import('./features/publishing/FirstRunActivation').then(module => ({ default: module.FirstRunActivation })));
 const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
@@ -482,6 +484,16 @@ function AppContent() {
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [activationAccountId, setActivationAccountId] = useState<string | null>(() => auth.user?.id && readActivation(auth.user.id) ? auth.user.id : null);
+  useEffect(() => {
+    if (!auth.user?.id) { setActivationAccountId(null); return; }
+    const pending = readActivation(auth.user.id);
+    if (pending) {
+      setActivationAccountId(auth.user.id);
+      if (presentation === 'mobile' && viewedProfileId !== pending.profileId) nav.profile(pending.profileId);
+    }
+  }, [auth.user?.id, presentation, viewedProfileId, nav]);
+  const activationActive = presentation === 'mobile' && Boolean(activationAccountId && activationAccountId === auth.user?.id);
   const resumedRegistration = useRef<string | null>(null);
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -992,6 +1004,12 @@ function AppContent() {
       if (!current) return;
       const target = viewedProfile.categories.find(category => category.id === saved?.draft.categoryId) ?? activeCategory ?? viewedProfile.categories[0] ?? null;
       if (presentation === 'mobile' && createAccountId) {
+        if (!viewedProfile.projects.length && !viewedProfile.categories.length) {
+          beginActivation(createAccountId, viewedProfile.id);
+          setActivationAccountId(createAccountId);
+          setGlobalCreateAccountId(null);
+          return;
+        }
         setIsFirstProjectPublish(viewedProfile.projects.length === 0);
         setFirstProjectPublisher(journeyMadeIn !== null || Boolean(saved) || viewedProfile.projects.length === 0);
         setPortalChoice({ accountId: createAccountId, preferredId: target?.id ?? null });
@@ -1428,8 +1446,10 @@ function AppContent() {
         // only creating a profile lands on the profile they just made.
         const deferred = deferredIntentRef.current;
         deferredIntentRef.current = null;
-        if (presentation === 'mobile' && (!deferred || ['my-profile', 'create-project', 'interaction'].includes(deferred.kind))) {
-          nav.to(`${buildPath('profile', { profileId })}?firstUpload=1`, true);
+        if (presentation === 'mobile' && auth.user?.id) {
+          beginActivation(auth.user.id, profileId);
+          setActivationAccountId(auth.user.id);
+          nav.to(buildPath('profile', { profileId }), true);
           return;
         }
         if (deferred && deferred.kind !== 'my-profile' && deferred.kind !== 'interaction') {
@@ -1438,6 +1458,16 @@ function AppContent() {
         }
         openProfile(profileId);
       }} /></DeferredSurface>}
+
+      {activationActive && <DeferredSurface active onClose={() => undefined}>
+        {viewedProfile?.id === auth.viewerProfileId ? <FirstRunActivation key={activationAccountId} accountId={activationAccountId!} profile={viewedProfile} onViewProject={result => {
+          finishActivation(activationAccountId!); setActivationAccountId(null);
+          void openProjectById(result.projectId);
+        }} onAnotherProject={() => {
+          finishActivation(activationAccountId!); setActivationAccountId(null);
+          requestMobilePublish();
+        }}/ > : <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--surface-canvas)]"><LoadingState label="Preparing your first project…"/>{viewedProfileQuery.status === 'error' && <button type="button" onClick={viewedProfileQuery.retry}>Try again</button>}</div>}
+      </DeferredSurface>}
 
       </MobileBackProvider>
     </AppPresentation>;
