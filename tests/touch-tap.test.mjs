@@ -4,13 +4,14 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 function setup(enabled=true){
- const exports={};let count=0,prevented=0;const target={},owner={contains:hit=>hit===target};
- vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/hooks/useTouchTap.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:()=>({useRef:v=>({current:v})}),document:{elementFromPoint:()=>target}});
+ const exports={};let count=0,prevented=0,stopped=0;
+ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/hooks/useTouchTap.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:()=>({useRef:v=>({current:v})})});
  const handlers=exports.useTouchTap(()=>count++,enabled);
- const touch=(x=10,y=20)=>({identifier:1,clientX:x,clientY:y});
- const event=(touches,changedTouches=[])=>({touches,changedTouches,currentTarget:owner,cancelable:true,preventDefault(){prevented++;},stopPropagation(){}});
- return {handlers,touch,event,result:()=>({count,prevented})};
+ const event=(patch={})=>({pointerId:1,pointerType:'touch',isPrimary:true,button:0,clientX:10,clientY:20,detail:1,preventDefault(){prevented++;},stopPropagation(){stopped++;},...patch});
+ return {handlers,event,result:()=>({count,prevented,stopped})};
 }
-test('finger tap activates without a compatibility click and suppresses duplicate click',()=>{const h=setup();h.handlers.onTouchStart(h.event([h.touch()]));h.handlers.onTouchEnd(h.event([],[h.touch()]));h.handlers.onTouchEnd(h.event([],[h.touch()]));assert.deepEqual(h.result(),{count:1,prevented:1});});
-test('scroll and cancelled touches do not activate or prevent native scrolling',()=>{for(const cancelled of [false,true]){const h=setup();h.handlers.onTouchStart(h.event([h.touch()]));if(cancelled)h.handlers.onTouchCancel();else h.handlers.onTouchMove(h.event([h.touch(40,20)]));h.handlers.onTouchEnd(h.event([],[h.touch(40,20)]));assert.deepEqual(h.result(),{count:0,prevented:0});}});
-test('disabled and multi-touch controls do not activate',()=>{for(const enabled of [false,true]){const h=setup(enabled);h.handlers.onTouchStart(h.event(enabled?[h.touch(),h.touch()]:[h.touch()]));h.handlers.onTouchEnd(h.event([],[h.touch()]));assert.deepEqual(h.result(),{count:0,prevented:0});}});
+test('finger release activates once and independently consumes compatibility click',()=>{const h=setup();h.handlers.onPointerDown(h.event());h.handlers.onPointerUp(h.event());h.handlers.onPointerUp(h.event());h.handlers.onClickCapture(h.event());assert.deepEqual(h.result(),{count:1,prevented:1,stopped:2});});
+test('tap works without cancelling passive touch events or viewport hit testing',()=>{const h=setup();h.handlers.onPointerDown(h.event());h.handlers.onPointerUp(h.event({cancelable:false}));assert.equal(h.result().count,1);assert.equal(h.result().prevented,0);});
+test('scroll, pointer cancel and leaving the control never activate',()=>{for(const cancel of ['onPointerMove','onPointerCancel','onPointerLeave']){const h=setup();h.handlers.onPointerDown(h.event());h.handlers[cancel](h.event({clientX:40}));h.handlers.onPointerUp(h.event());assert.equal(h.result().count,0);}});
+test('disabled, secondary touch, mismatched pointer and mouse retain native behavior',()=>{for(const patch of [{isPrimary:false},{pointerType:'mouse'},{button:1}]){const h=setup();h.handlers.onPointerDown(h.event(patch));h.handlers.onPointerUp(h.event(patch));assert.equal(h.result().count,0);}const h=setup(false);h.handlers.onPointerDown(h.event());h.handlers.onPointerUp(h.event());assert.equal(h.result().count,0);const m=setup();m.handlers.onPointerDown(m.event());m.handlers.onPointerUp(m.event({pointerId:2}));assert.equal(m.result().count,0);});
+test('keyboard click remains usable after a touch; next genuine touch resets suppression',()=>{const h=setup();h.handlers.onPointerDown(h.event());h.handlers.onPointerUp(h.event());h.handlers.onClickCapture(h.event({detail:0}));assert.equal(h.result().prevented,0);h.handlers.onPointerDown(h.event());h.handlers.onPointerUp(h.event());assert.equal(h.result().count,2);});

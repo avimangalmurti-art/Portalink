@@ -1,33 +1,35 @@
-import { useRef, type TouchEvent } from 'react';
+import { useRef, type PointerEvent, type MouseEvent } from 'react';
 
-/** Activate a completed finger tap without waiting for a compatibility click.
- * Moving/cancelled touches remain native scrolling gestures. */
+/** Touch taps activate from pointer events without cancelable/hit-test gates. Keep a
+ * separate click guard: preventDefault on pointerup alone does not suppress
+ * the browser's compatibility click on every mobile browser. */
 export function useTouchTap(activate: () => void, enabled = true) {
   const start = useRef<{ id: number; x: number; y: number } | null>(null);
+  const consumed = useRef(false);
   return {
-    onTouchStart(event: TouchEvent<HTMLElement>) {
-      const touch = event.touches[0];
-      start.current = enabled && event.touches.length === 1
-        ? { id: touch.identifier, x: touch.clientX, y: touch.clientY } : null;
+    onPointerDown(event: PointerEvent<HTMLElement>) {
+      consumed.current = false;
+      start.current = enabled && event.pointerType === 'touch' && event.isPrimary && event.button === 0
+        ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null;
     },
-    onTouchMove(event: TouchEvent<HTMLElement>) {
-      const touch = event.touches[0];
-      if (!touch || event.touches.length !== 1 || !start.current || touch.identifier !== start.current.id ||
-        Math.hypot(touch.clientX - start.current.x, touch.clientY - start.current.y) > 8) start.current = null;
+    onPointerMove(event: PointerEvent<HTMLElement>) {
+      if (start.current && (event.pointerId !== start.current.id || Math.hypot(event.clientX - start.current.x, event.clientY - start.current.y) > 8)) start.current = null;
     },
-    onTouchCancel() { start.current = null; },
-    onTouchEnd(event: TouchEvent<HTMLElement>) {
+    onPointerCancel() { start.current = null; },
+    onPointerLeave() { start.current = null; },
+    onPointerUp(event: PointerEvent<HTMLElement>) {
       const began = start.current;
       start.current = null;
-      const touch = event.changedTouches[0];
-      if (!enabled || !began || event.touches.length || !touch || touch.identifier !== began.id ||
-        Math.hypot(touch.clientX - began.x, touch.clientY - began.y) > 8 || !event.cancelable) return;
-      const hit = document.elementFromPoint(touch.clientX, touch.clientY);
-      if (!hit || !event.currentTarget.contains(hit)) return;
-      // Suppress the synthetic click so closing/selection happens exactly once.
-      event.preventDefault();
+      if (!enabled || !began || event.pointerId !== began.id || !event.isPrimary ||
+        Math.hypot(event.clientX - began.x, event.clientY - began.y) > 8) return;
+      consumed.current = true;
       event.stopPropagation();
       activate();
+    },
+    onClickCapture(event: MouseEvent<HTMLElement>) {
+      const duplicate = consumed.current && event.detail !== 0;
+      consumed.current = false;
+      if (duplicate) { event.preventDefault(); event.stopPropagation(); }
     },
   };
 }

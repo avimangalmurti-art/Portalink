@@ -54,7 +54,7 @@ test('Files → Details → Review preserves the same draft, files, cover and me
   assert.ok(button(tree, 'Publish project'));
   assert.deepEqual(h.calls, ['save']);
   assert.equal(h.flow.media, media); assert.equal(h.flow.draft, draft);
-  assert.ok(text(tree).includes(h.flow.metadata.summary.trim()));
+  assert.equal(component(tree, 'FormattedText').props.text, h.flow.metadata.summary.trim());
   assert.ok(text(tree).includes('London')); assert.ok(text(tree).includes('Interiors'));
   assert.equal(component(tree, 'CoverFilmstrip').props.readOnly, true);
 });
