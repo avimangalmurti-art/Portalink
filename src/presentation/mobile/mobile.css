@@ -4104,5 +4104,9 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 /* Screen actions live at the top; the dock contains navigation only. */
 #root .codex-shell[data-presentation='mobile'] .mobile-context-floating { left: auto; right: var(--mobile-navigation-inset-end); top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px); bottom: auto !important; z-index: 55; }
 #root .codex-shell[data-presentation='mobile'] .mobile-context-floating .mobile-context-button { width: 44px; height: 44px; background: var(--surface-sunken) !important; color: var(--text-primary) !important; }
-#root .codex-shell[data-presentation='mobile']:has(.mobile-context-floating) #app-viewport { padding-top: 56px; }
+
 #root .codex-shell[data-presentation='mobile']:has(.portalink-world-search:focus-within) .mobile-context-floating { display: none; }
+
+#root .codex-shell[data-presentation='mobile']:has([data-inline-screen-actions]) > .mobile-context-floating { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions] .mobile-context-button { width: 44px; height: 44px; background: transparent !important; color: var(--text-primary) !important; }
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, .studio-drafts-heading, .studio-header-actions) { padding-right: 60px; }

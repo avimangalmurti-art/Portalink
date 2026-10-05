@@ -8,7 +8,7 @@ import { journeyAllowed } from '../features/journey/journey';
 import { readLivePortfolio, livePortfolioDismissed } from '../features/publishing/firstProject';
 import { Suspense, lazy } from 'react';
 import { PortfolioLiveCard } from '../features/publishing/PortfolioLiveCard';
-import { useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
+import { MobileContextButton, useMobileScreenActions, useMobileContextPress } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useServices } from '../contexts/ServicesContext';
 import { portfolioPath } from '../features/sharing/shareModel';
@@ -20,7 +20,7 @@ import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
-import { ArrowLeftIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
+import { ArrowLeftIcon, CheckIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
 import { EmptyState } from './ui/StateViews';
@@ -459,7 +459,8 @@ export function UserProfilePage({
   const followRequests = useFollowRequests();
   const connections = useProfileConnections(profile.id, activeView === 'followers' || activeView === 'following' ? activeView : null, followRequests.count + (follow?.isFollowing ? 1 : 0));
   const [isRequestsOpen, setIsRequestsOpen] = useState(false);
-  const [isMobileToolsOpen, setIsMobileToolsOpen] = useState(false);
+  const [webToolsOpen, setIsMobileToolsOpen] = useState(false);
+  const isMobileToolsOpen = isMobile || webToolsOpen;
   const [isBioOpen, setIsBioOpen] = useState(false);
   useEffect(() => { setIsMobileToolsOpen(false); setIsBioOpen(false); }, [profile.id]);
   // A creator does not follow themselves, and a guest is told an account is
@@ -695,7 +696,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={isMobile ? (isMobileToolsOpen ? ChevronUpIcon : ChevronDownIcon) : MoreHorizontalIcon} /></button>}
+        </div> : isMobile ? <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}

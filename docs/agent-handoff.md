@@ -1,3 +1,7 @@
+## MOBILE integrated screen actions
+
+Remove added56px main-viewport padding. App UserProfilePage mobile always expanded; existing WEB options state preserved. Inline shared context button replaces mobile collapse control; global duplicate hidden when inline trigger mounted. Shorten Home search/header and Studio right-side content to reserve60px for floating menu. Separate visitor composition unchanged (it has a separate public navigation implementation, no registered context actions).60 navigation/context tests/typecheck/lint(0errors) pass; rebuild after visitor preservation. Physical/browser layout unverified.
+
 ## MOBILE creation entry restriction
 
 Studio no longer receives global new-project callback; no-draft Continue card replaced by Profile Portal-popup guidance. Remove New project from Studio/Home/Profile shared action layouts; existing drafts remain resumable. Profile Portal popup creation retained; WEB preserved.50 focused context/workbench tests and typecheck/lint/build passing. Broader studio-page selection test has existing unsave-toolbar failure unrelated to changed files. Physical/browser verification outstanding. No backend changes.
