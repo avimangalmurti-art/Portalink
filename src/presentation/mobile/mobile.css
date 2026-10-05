@@ -4155,3 +4155,58 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions]:where(body:has([aria-modal='true']) *) {
   visibility: hidden;
 }
+
+/* Screen headers share the action row's geometry, not independent offsets. */
+#root .codex-shell[data-presentation='mobile'] [data-feed-scroll-content]:has(> .mobile-home-search-header) { padding-top: 0; }
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header {
+  padding: var(--mobile-screen-action-top) var(--mobile-screen-action-right) 12px var(--mobile-navigation-inset-start);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-screen-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 12px;
+  height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-screen-action-row > :first-child {
+  width: 100% !important;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  margin: 0;
+  box-sizing: border-box;
+}
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: var(--mobile-screen-action-top); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] .side-panel-control-stack {
+  padding-top: 0;
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-workbench-header, .studio-header) {
+  padding-top: var(--mobile-screen-action-top);
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 44px;
+  gap: 12px;
+  min-height: 44px;
+  align-items: center;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-heading > .studio-drafts-control { margin: 0; padding-inline: 12px; }
+#root .codex-shell[data-presentation='mobile'] .profile-header-region { padding-top: var(--mobile-screen-action-top); }
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header {
+  padding-top: 0;
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+}
+#root .codex-shell[data-presentation='mobile'] .profile-compact-header .profile-identity-copy { padding-inline-end: 56px; }
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] {
+  top: var(--mobile-screen-action-top);
+  right: calc(var(--mobile-screen-action-right) + 56px);
+}
+#root .codex-shell[data-presentation='mobile']:has(.mobile-context-floating) [data-conversation-header] { padding-inline-end: calc(var(--mobile-screen-action-right) + 56px); }
+
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-title { margin-top: 16px; }
+
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-controls { gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-messages-page]:not([data-mobile-inbox]):not([data-mobile-chat]) [data-mobile-safe-header] { padding-inline-end: calc(var(--mobile-screen-action-right) + 56px); }

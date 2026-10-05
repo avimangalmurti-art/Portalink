@@ -12,8 +12,8 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
  const toggle=(id:string)=>setSelected(v=>{const next=new Set(v);if(next.has(id))next.delete(id);else next.add(id);return next;});
  return <section className="mobile-studio studio-workbench" data-studio-selecting={selecting?'true':'false'} aria-label="Drafts">
   <header className="studio-workbench-header">
-   <button type="button" className="studio-drafts-back" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>← {selecting?'Done':'Studio'}</button>
-   <div className="studio-drafts-heading"><h1>Drafts</h1><button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div>
+   <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>← {selecting?'Done':'Studio'}</button>
+   <button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div><h1 className="studio-drafts-title">Drafts</h1>
    <p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
    {selecting&&<div className="studio-selection-summary"><span role="status">{selectedDrafts.length} selected</span><button type="button" disabled={busy} onClick={()=>setSelected(selectedDrafts.length===drafts.length?new Set():new Set(drafts.map(d=>d.id)))}>{selectedDrafts.length===drafts.length?'Deselect all':'Select all'}</button></div>}
   </header>
