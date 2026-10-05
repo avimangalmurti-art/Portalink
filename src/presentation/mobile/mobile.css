@@ -225,7 +225,7 @@
   pointer-events: none;
 }
 [data-presentation='mobile'] .portalink-world-search .location-search { pointer-events: auto; }
-[data-presentation='mobile'] .portalink-search-done { display: none; }
+
 /* Bound only the focused search to the visible screen. The globe and shared
    mobile document keep their existing scrolling and keyboard behavior. */
 #root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within {
@@ -244,8 +244,23 @@
   gap: 8px;
   background: var(--background-primary);
 }
+[data-presentation='mobile'] .portalink-world-search:focus-within .location-search {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+[data-presentation='mobile'] .portalink-world-search:focus-within .location-search > :is(label, input) { flex-shrink: 0; }
 [data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results.is-above {
-  max-height: max(0px, calc(var(--dialog-viewport-height, 100dvh) - max(12px, env(safe-area-inset-top, 0px)) - 180px));
+  position: static;
+  order: -1;
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+  margin: 0 0 12px;
   display: flex;
   flex-direction: column;
 }
@@ -256,16 +271,6 @@
   overflow-y: auto;
 }
 [data-presentation='mobile'] .portalink-world-search:focus-within :is(.location-search-status, .location-attribution) { flex-shrink: 0; }
-[data-presentation='mobile'] .portalink-world-search:focus-within .portalink-search-done {
-  display: block;
-  pointer-events: auto;
-  align-self: flex-end;
-  min-height: 44px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  color: var(--text-primary);
-  background: var(--surface-inset);
-}
 [data-presentation='mobile'] .portalink-world > [data-mobile-scroll-end] {
   grid-area: 1 / 1;
   align-self: end;
@@ -4068,7 +4073,6 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] svg {
   width: 24px;
   height: 24px;
-  fill: none;
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-visitor-actions] [data-profile-bookmark] [data-interface-icon-frame] {

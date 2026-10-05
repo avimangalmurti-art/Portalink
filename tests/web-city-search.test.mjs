@@ -188,7 +188,8 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     assert.equal(nodes(render()).some(node => node.props.style?.containerType === 'size'), presentation === 'web');
     assert.ok(viewportEnabled.every(enabled => enabled === (presentation === 'mobile')));
     const done = nodes(render()).find(node => node.props.className === 'portalink-search-done');
-    assert.equal(Boolean(done), presentation === 'mobile');
+    assert.equal(Boolean(done), false);
+    assert.equal(search().props.blurOnSelect, presentation === 'mobile');
     if (done) { let blurred = false; done.props.onClick({ currentTarget: { blur() { blurred = true; } } }); assert.equal(blurred, true); }
   }
 });

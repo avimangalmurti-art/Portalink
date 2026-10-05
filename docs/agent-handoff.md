@@ -1,3 +1,9 @@
+## 2026-10-04 — MOBILE city search and bookmark correction
+
+Remove Done. Focused city results now use remaining visible viewport in flex flow rather than absolute popup/fixed180px deduction; mobile city selection blurs input before navigation. WEB preserved through opt-in blurOnSelect. Saved creator yellow fill restored by removing mobile fill:none override.11 focused tests/typecheck/lint(0errors)/build/config guard pass. Physical iOS keyboard/pan unverified. No backend changes.
+## 2026-10-04 — Sites313 published
+
+Continue activation correction source95b41845cf050811d97de3cfc987eab7309a0f49; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_809e6b22d194819186d3789199a86da8; deployment appgdep_6ac32ea566988191bbb275231bfdcfaa succeeded2026-10-05T04:59:26.602811+00:00. Public audience/runtime revision2 retained. Archive533files. No SQL, account deletion enablement, or GitHub push/merge. Physical device verification outstanding.
 ## 2026-10-04 — Continue activation correction
 
 MOBILE chooser Continue now invokes its submit handler through a semantic button click, removing early pointer-up activation and native form-default submission from the transition. Keyboard form submission remains supported. Existing/new portal validation and backend unchanged; WEB unchanged.34 focused chooser/touch/publishing tests pass (33 grouped plus added App transition regression); typecheck/lint/build pass, existing warnings; main+visitor Supabase bundle guard passes. Physical iPhone Safari/PWA reproduction remains unverified; no claim of confirmed device root cause. Publishing from owned codex/portal-choice-root-cause release. No SQL/account deletion activation/GitHub merge.
@@ -2581,4 +2587,3 @@ Source cc1e8c57c87224260e968d7d44ff51c60709aaa4; version appgprj_6a9273ef43f8819
 ## 2026-10-04 — MOBILE Studio direct Bookmarks access
 
 From cc1e8c57/Sites309, added an always-visible Bookmarks button beside Studio title, using existing button styling and onBookmarks navigation. Reachable with empty material/all-done too. Existing Material and context links retained. WEB placeholder untouched. Six focused workbench tests/build/bundle configuration verification pass. No data/SQL changes. Publishing follows.
-

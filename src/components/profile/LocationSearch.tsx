@@ -13,8 +13,9 @@ type Props = {
   error?: string | null;
   canSelect?: (place: DirectoryPlace) => boolean;
   above?: boolean;
+  blurOnSelect?: boolean;
 };
-export function LocationSearch({ id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above }: Props) {
+export function LocationSearch({ id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above, blurOnSelect }: Props) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [open, setOpen] = useState(false);
@@ -45,7 +46,9 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
   }, [active, results]);
   const select = (place: DirectoryPlace) => {
     if (canSelect && !canSelect(place)) return;
-    setOpen(false); onSelect(place);
+    setOpen(false);
+    if (blurOnSelect) input.current?.blur();
+    onSelect(place);
   };
   return <div className="location-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label htmlFor={inputId}>{label}</label>
