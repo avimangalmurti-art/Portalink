@@ -2670,3 +2670,8 @@ Public-mobile CSS gives SharedPortalPopup explicit viewport-based height min70dv
 
 ## MOBILE portal popup material parity — unpublished
 Shared index.css targets actual public SharedPortalPopup, platform portal chooser and portal project-index popup with existing navigation-surface/navigation-blur tokens. Transparent direct toolbar/list surfaces let popup material show through. High contrast, reduce-translucency and system reduced-transparency force solid surface/no blur. MOBILE scoped, desktop unaffected. Nine focused portal/drawer tests and diff check pass; visual translucency not browser/phone verified. Pending alongside prior shared popup sizing/controls. No publication/backend changes.
+
+## Sites 326 published
+User authorized popup fixes publication. Source 9b5921e1bba181b5ae02482b5480179116923320; deployment appgdep_6ac367e0fcdc81919b290f07a081d3e0 succeeded. Includes public popup fixed sizing/reader toggle resets and shared portal translucency parity. Production build and main/visitor Supabase verification pass. Runtime2 unchanged; no SQL. Physical visual verification still outstanding. Release metadata local only.
+
+Studio grouping: Continue and Reads moved into same top two-column nav as Bookmarks/Insights. Draft title/stage/edit date and weekly totals/top title retained. No-draft Continue disabled; no-work Reads honest empty copy; other drafts remains below. Existing callbacks preserved. Typecheck pass; focused Studio checks verified. Unpublished, phone appearance unverified.
