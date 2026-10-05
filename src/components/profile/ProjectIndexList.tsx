@@ -136,7 +136,7 @@ export function ProjectIndexList({
     return <div data-mobile-project-layout={isMobile ? mobileLayout : undefined}>
         {pinned.length > 0 && <>
             <SectionHeading label="Pinned" icon={PinIcon} />
-            <ul className="side-panel-navigation-list m-0 list-none p-0">
+            <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {pinned.map((project) => <li key={project.id}>
                   <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
                 </li>)}
@@ -144,7 +144,7 @@ export function ProjectIndexList({
           </>}
         {rest.length > 0 && <>
             {pinned.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-            <ul className="side-panel-navigation-list m-0 list-none p-0">
+            <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
               {rest.map((project) => <li key={project.id}>
                   <ProjectLink profileId={profileId} project={project} typefaceStack={typefaceStacks[project.id]} isActive={project.id === activeProjectId} sharedReadOnly={sharedReadOnly} onSelect={() => onSelect(project.id)} />
                 </li>)}
@@ -179,8 +179,8 @@ export function ProjectIndexList({
   });
   if (isMobile) {
     const group = (items: ProjectEntry[], label: string, combine: (reordered: ProjectEntry[]) => ProjectEntry[]) =>
-      mobileReorderDisabled ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
-        className="side-panel-navigation-list m-0 list-none p-0"
+      mobileReorderDisabled ? <ul aria-label={label} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">{items.map(project => <li key={project.id}><ProjectRow {...rowProps(project)} isDraggable={false} /></li>)}</ul> : <Suspense fallback={null}><MobileReorderList items={items} label={label} disabled={mobileReorderDisabled}
+        className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons"
         onReorder={reordered => onReorder(combine(reordered))}
         renderItem={(project, activator, actions) => <ProjectRow reorderActions={actions} {...rowProps(project)} isDraggable={false} reorderActivator={mobileReorderFromMenu ? undefined : activator} />} /></Suspense>;
     return <div data-mobile-project-layout={mobileLayout}>
@@ -195,7 +195,7 @@ export function ProjectIndexList({
   return <div>
       {pinned.length > 0 && <>
           <SectionHeading label="Pinned" icon={PinIcon} />
-          <ul className="side-panel-navigation-list m-0 list-none p-0">
+          <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
             {pinned.map((project) => <li key={project.id}>
                 <ProjectRow {...rowProps(project)} isDraggable={false} />
               </li>)}
@@ -203,7 +203,7 @@ export function ProjectIndexList({
         </>}
 
       {(pinned.length > 0 || hidden.length > 0) && rest.length > 0 && <SectionHeading label="Projects" icon={FolderIcon} />}
-      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={stageDesktopDrag} className="side-panel-navigation-list m-0 list-none p-0">
+      {rest.length > 0 && <Reorder.Group as="ul" axis="y" values={rest} onReorder={stageDesktopDrag} className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
           {rest.map((project) => <ProjectRow key={project.id} {...rowProps(project)} isDraggable dragDisabled={mobileReorderDisabled} onReorderStart={startDesktopDrag} onReorderEnd={finishDesktopDrag} />)}
         </Reorder.Group>}
 
@@ -211,7 +211,7 @@ export function ProjectIndexList({
          what is withheld without it reading as part of the published index. */}
       {hidden.length > 0 && <>
           <SectionHeading label="Hidden" icon={EyeOffIcon} />
-          <ul className="side-panel-navigation-list m-0 list-none p-0">
+          <ul className="side-panel-navigation-list m-0 list-none p-0 inset-row-group inset-row-group-icons">
             {hidden.map((project) => <li key={project.id}>
                 <ProjectRow {...rowProps(project)} isDraggable={false} />
               </li>)}

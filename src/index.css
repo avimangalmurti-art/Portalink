@@ -5590,3 +5590,79 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
     backdrop-filter:none !important;
   }
 }
+/* Related rows share one inset group; separators never reach its outer edges. */
+#root .codex-shell[data-presentation='mobile'] .inset-row-group:not(:empty) {
+  --row-divider-start:16px;
+  list-style:none;
+  margin:0 0 20px;
+  padding:0;
+  gap:0;
+  border:0;
+  border-radius:20px;
+  background:var(--surface-sunken);
+  isolation:isolate;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group-icons { --row-divider-start:68px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > * {
+  position:relative;
+  border-bottom:0;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :not(:last-child)::after {
+  content:'';
+  position:absolute;
+  inset-inline:var(--row-divider-start) 16px;
+  bottom:0;
+  height:1px;
+  background:var(--hairline);
+  pointer-events:none;
+  z-index:2;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :first-child { border-start-start-radius:20px; border-start-end-radius:20px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :last-child { border-end-start-radius:20px; border-end-end-radius:20px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group [data-studio-row-surface],
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-list.inset-row-group > li:not([data-selected='true']) > button {
+  background:transparent;
+  border-radius:0;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group .message-contact-row { padding:14px 16px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > li > button { padding-inline:16px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group .reads-actors > li { padding:16px; }
+#root .codex-shell[data-presentation='mobile'] .settings-section,
+#root .codex-shell[data-presentation='mobile'] .activation-review {
+  background:var(--surface-sunken);
+  border:0;
+  border-radius:20px;
+}
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > :not(:last-child) {
+  border-bottom:1px solid var(--hairline);
+  padding-bottom:16px;
+  margin-bottom:16px;
+}
+#root .codex-shell[data-presentation='mobile'] .activation-review-row {
+  position:relative;
+  border-top:0;
+}
+#root .codex-shell[data-presentation='mobile'] .activation-review-row:not(:last-child)::after {
+  content:''; position:absolute; inset-inline:40px 12px; bottom:0;
+  height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-header] {
+  border-bottom:0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-navigation-header::after {
+  content:''; position:absolute; inset-inline:16px; bottom:0;
+  height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group [data-studio-row]:not([data-selected]) [data-studio-row-surface] { background:transparent !important; }
+#root .codex-shell[data-presentation='mobile'] .reads-actors.inset-row-group > li,
+#root .codex-shell[data-presentation='mobile'] .reads-referrers.inset-row-group > div { padding:16px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry:not(.journey-gap):not(:last-child) .journey-entry-copy {
+  padding-bottom:16px;
+  border-bottom:1px solid var(--hairline);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-scroll {
+  border-top:1px solid var(--hairline);
+  margin-inline:20px;
+  padding-inline:0;
+  padding-top:16px;
+}

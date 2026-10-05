@@ -17,7 +17,7 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
    <p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
    {selecting&&<div className="studio-selection-summary"><span role="status">{selectedDrafts.length} selected</span><button type="button" disabled={busy} onClick={()=>setSelected(selectedDrafts.length===drafts.length?new Set():new Set(drafts.map(d=>d.id)))}>{selectedDrafts.length===drafts.length?'Deselect all':'Select all'}</button></div>}
   </header>
-  <div className="studio-workbench-scroll"><ul className="studio-drafts-list">{drafts.map(d=><li key={d.id} data-selected={selecting&&selected.has(d.id)}>
+  <div className="studio-workbench-scroll"><ul className="studio-drafts-list inset-row-group">{drafts.map(d=><li key={d.id} data-selected={selecting&&selected.has(d.id)}>
    <button type="button" disabled={busy} aria-pressed={selecting?selected.has(d.id):undefined} onClick={()=>selecting?toggle(d.id):onResume(d)}>
     {selecting&&<span className="studio-draft-check" aria-hidden="true">{selected.has(d.id)?'✓':''}</span>}
     <span className="studio-draft-copy"><strong>{d.metadata.title.trim()||'Untitled'}</strong><span>{({files:'Files',details:'Details',review:'Review'})[d.stage]} · {new Date(d.updatedAt??d.createdAt).toLocaleDateString()}</span></span>

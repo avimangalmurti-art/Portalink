@@ -50,7 +50,7 @@ export function CommentThreadView({
             {comments.loadError}
             <button type="button" onClick={comments.reload} className="ml-1.5 font-semibold text-[var(--accent-text)] underline focus:outline-none">Try again</button>
           </span>
-        </p> : <ul role="list" className="m-0 flex list-none flex-col gap-2.5 p-0">
+        </p> : <ul role="list" className="m-0 flex list-none flex-col gap-2.5 p-0 inset-row-group inset-row-group-icons">
           {comments.isEmpty && !isOwner && <li className="text-[12px] text-[var(--text-secondary)]">No comments yet. Be the first to say something.</li>}
           {comments.threads.map((thread) => <li key={thread.comment.id} className="flex flex-col gap-2.5">
               <CommentRow comment={thread.comment} comments={comments} />
