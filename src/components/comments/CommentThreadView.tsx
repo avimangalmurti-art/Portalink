@@ -82,7 +82,7 @@ function CommentRow({
   const isConfirmingDelete = comments.deletionRequestId === comment.id;
   const deletion = comments.deletion?.commentId === comment.id ? comments.deletion : null;
   return <article className="flex min-w-0 gap-2.5">
-      {comment.author.avatarUrl ? <ResponsiveImage src={comment.author.avatarUrl} decorative width={28} height={28} sizes="28px" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--surface-sunken)] text-[10px] font-semibold text-[var(--text-secondary)]">{comment.author.initials}</span>}
+      {comment.author.avatarUrl ? <ResponsiveImage src={comment.author.avatarUrl} decorative width={28} height={28} sizes="28px" className="h-7 w-7 shrink-0 squircle object-cover" /> : <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center squircle bg-[var(--surface-sunken)] text-[10px] font-semibold text-[var(--text-secondary)]">{comment.author.initials}</span>}
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline gap-2 text-[12px]">
           <span className="font-semibold text-[var(--text-primary)]">{comment.author.name}</span>

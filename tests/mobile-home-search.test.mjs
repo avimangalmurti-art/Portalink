@@ -18,6 +18,7 @@ function harness(presentation = 'mobile', props = {}) {
   const feedArguments = [];
   let reloads = 0;
   let worldVisits = 0;
+  let userSearchVisits = 0;
   const density = { columns: 5, setColumns(value) { density.columns = value; }, saveError: null };
   const ownerProfile = { profile: { id: 'owner', projectGridColumns: 5 }, status: 'ready' };
   const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' } }, { project: { id: 'second' } }], isEmpty: false,
@@ -52,9 +53,9 @@ function harness(presentation = 'mobile', props = {}) {
   } });
   const render = () => {
     cursor = 0; layoutEffects = [];
-    return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onOpenProject() {}, onOpenCreator() {}, ...props });
+    return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() {}, ...props });
   };
-  return { feedArguments, feed, density, ownerProfile, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, render,
+  return { feedArguments, feed, density, ownerProfile, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     measureLocation(width) {
       const scroller = nodes(render()).find(node => typeof node.props.onScroll === 'function');
       scroller.ref.current = { querySelector: () => ({ clientWidth: width }) };
@@ -115,11 +116,15 @@ test('city feeds preserve their responsive mobile baseline and local pinch witho
   assert.equal(webCity.props.onColumnsChange, undefined);
 });
 
-test('Home discovery opens World once and preserves the feed’s content and order', () => {
+test('Home search and globe are independent actions and preserve feed content', () => {
   const h = harness();
   const tree = h.render();
   nodes(tree).find(node => node.type === 'button' && !node.props['aria-label']).props.onClick();
+  assert.equal(h.userSearchVisits, 1);
+  assert.equal(h.worldVisits, 0);
+  nodes(tree).find(node => node.props['aria-label'] === 'Open globe search').props.onClick();
   assert.equal(h.worldVisits, 1);
+  assert.equal(h.userSearchVisits, 1);
   assert.equal(h.reloads, 0);
   const wall = nodes(tree).find(node => node.type === 'JustifiedImageWall');
   assert.deepEqual(Array.from(wall.props.items, item => item.key), ['first', 'second']);
@@ -127,19 +132,20 @@ test('Home discovery opens World once and preserves the feed’s content and ord
 });
 
 test('a feed without a discovery callback never renders an inert discovery action', () => {
-  const tree = harness('mobile', { onExploreWorld: undefined }).render();
+  const tree = harness('mobile', { onExploreWorld: undefined, onSearchUsers: undefined }).render();
   assert.equal(nodes(tree).some(node => node.type === 'button' && !node.props['aria-label']), false);
   assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Reload Home content'), true);
 });
 
-test('empty Home leaves discovery to its existing empty state and retains header refresh', () => {
+test('empty Home keeps user search, globe and refresh available', () => {
   const browse = { label: 'Explore the world', onClick() {} };
   const h = harness('mobile', { emptySecondaryAction: browse });
   h.feed.isEmpty = true;
   h.feed.projects = [];
   const tree = h.render();
   const header = nodes(tree).find(node => node.type === 'header');
-  assert.equal(nodes(header).some(node => node.type === 'button' && !node.props['aria-label']), false);
+  assert.equal(nodes(header).some(node => node.type === 'button' && !node.props['aria-label']), true);
+  assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Open globe search'));
   assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Reload Home content'));
   assert.equal(nodes(tree).find(node => node.type === 'EmptyState').props.secondaryAction, browse);
 });

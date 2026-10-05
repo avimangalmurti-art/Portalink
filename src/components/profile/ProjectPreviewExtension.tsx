@@ -26,7 +26,7 @@ export function ProjectPreviewExtension({ expanded, creator, projectId, creatorH
   const extensionRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => { if (extensionRef.current) extensionRef.current.inert = !expanded; }, [expanded]);
   const creatorContent = <>
-    <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="compact" className="h-7 w-7 shrink-0 text-[11px]" fallbackClassName="bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-0" />
+    <CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-7 w-7 shrink-0 text-[11px]" fallbackClassName="bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-0" />
     <PreviewCreatorName name={creator.name} active={expanded && showCreator} />
   </>;
   const creatorProps = {

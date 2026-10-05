@@ -7,7 +7,7 @@ type CreatorAvatarProps = {
   priority?: ImagePriority;
   className?: string;
   fallbackClassName?: string;
-  shape?: 'circle' | 'compact' | 'squircle';
+  shape?: 'squircle';
 };
 
 /**
@@ -22,14 +22,13 @@ export function CreatorAvatar({
   avatar,
   priority = false,
   className = 'h-9 w-9',
-  fallbackClassName = 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-[var(--hairline)]',
-  shape = 'circle'
+  fallbackClassName = 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] ring-[var(--hairline)]'
 }: CreatorAvatarProps) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [avatar]);
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase() ?? '').join('') || '?';
   const showsImage = Boolean(avatar) && !imageFailed;
-  const shapeClassName = shape === 'squircle' ? 'squircle' : shape === 'compact' ? 'shape-compact' : 'rounded-full';
+  const shapeClassName = 'squircle';
 
   return <span aria-hidden="true" className={`relative flex shrink-0 overflow-hidden ${shapeClassName} ${className}`}>
       {showsImage ? <ResponsiveImage src={avatar ?? ''} decorative priority={priority} measureWidth width={128} height={128} onError={() => setImageFailed(true)} className="h-full w-full object-cover" /> : <span className={`flex h-full w-full items-center justify-center ${shapeClassName} text-[0.7em] font-semibold ring-1 ring-inset ${fallbackClassName}`}>{initials}</span>}

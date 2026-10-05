@@ -32,6 +32,7 @@ type HomeFeedProps = {
   /** Shows the mobile Home discovery and refresh entry. */
   showSearchPlaceholder?: boolean;
   onExploreWorld?: () => void;
+  onSearchUsers?: () => void;
   firstProjectAction?: () => void;
   emptyAction?: { label: string; onClick: () => void };
   emptySecondaryAction?: { label: string; onClick: () => void };
@@ -74,6 +75,7 @@ export function HomeFeed({
   locationId,
   showSearchPlaceholder = false,
   onExploreWorld,
+  onSearchUsers,
   firstProjectAction,
   emptyAction,
   emptySecondaryAction,
@@ -192,11 +194,14 @@ export function HomeFeed({
       >
         <div data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
-              <div className={feed.isEmpty ? 'flex min-h-11 w-full items-center' : 'field-shell text-control-shell flex min-h-11 w-full items-center rounded-[8px]'}>
-                {onExploreWorld && !feed.isEmpty && <button type="button" onClick={onExploreWorld}
-                  className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-3 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <InterfaceIcon icon={Globe2Icon} size="sm" weight="medium" className="shrink-0 text-[var(--text-secondary)]" />
-                  <span>Explore the world</span>
+              <div className="field-shell text-control-shell flex min-h-11 w-full items-center rounded-[8px]">
+                {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  <InterfaceIcon icon={Globe2Icon} size="sm" weight="medium" />
+                </button>}
+                {onSearchUsers && <button type="button" onClick={onSearchUsers}
+                  className="flex min-h-11 min-w-0 flex-1 items-center rounded-[8px] px-1 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
+                  <span className="truncate">Explore the world</span>
                 </button>}
                 <button type="button" aria-label="Reload Home content" title="Reload Home content" disabled={feed.isRefreshing || feed.status === 'loading'}
                   aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}

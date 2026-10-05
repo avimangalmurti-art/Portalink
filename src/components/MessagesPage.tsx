@@ -239,7 +239,7 @@ export function MessagesPage({
 
   function submitMessage(event: React.FormEvent) {
     event.preventDefault();
-    if (!activeId || (!draft.trim() && attachments.length === 0)) return;
+    if (messaging.isSending || !activeId || (!draft.trim() && attachments.length === 0)) return;
     const body = draft;
     const files = isMessageRequest ? [] : attachments;
     setDrafts((current) => ({ ...current, [activeId]: '' }));
@@ -415,7 +415,7 @@ export function MessagesPage({
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
+                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
                 <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
@@ -431,7 +431,7 @@ export function MessagesPage({
                 {!isMessageRequest && attachments.length > 0 ? <ul className="mx-auto mb-2 flex max-w-[760px] flex-wrap gap-2" aria-label="Selected attachments">
                     {attachments.map((file, index) => <li key={`${file.name}:${file.size}:${index}`} className="flex max-w-full items-center gap-2 rounded-full bg-[var(--surface-sunken)] px-3 py-1.5 text-[12px]"><InterfaceIcon icon={FileTextIcon} /><span className="max-w-48 truncate">{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="shape-compact flex h-6 w-6 items-center justify-center"><InterfaceIcon icon={XIcon} size="xs" /></button></li>)}
                   </ul> : null}
-                <div data-message-composer="" className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
+                <div data-message-composer="" data-invitation-composer={isMessageRequest || undefined} className="text-control-shell mx-auto flex max-w-[760px] items-end gap-2 rounded-[22px] p-1.5 pl-2">
                   {!isMessageRequest ? <label className="shape-compact flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)]" title="Attach files">
                     <span className="sr-only">Attach files</span><InterfaceIcon icon={isMobile ? PlusIcon : PaperclipIcon} />
                     <input type="file" multiple className="sr-only" onChange={(event) => {
@@ -454,8 +454,9 @@ export function MessagesPage({
                       event.currentTarget.form?.requestSubmit();
                     }
                   }} rows={1} maxLength={4000} placeholder={isMessageRequest ? "Send an invitation" : isMobile ? "Message..." : "Message"} aria-label={`Message ${messaging.activeConversation.participant.name}`} className="max-h-32 min-h-[38px] min-w-0 flex-1 resize-none overflow-y-auto border-0 bg-transparent py-2 text-[16px] leading-[22px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
-                  <button type="submit" disabled={!draft.trim() && (isMessageRequest || attachments.length === 0)} aria-label="Send message" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
+                  <button type="submit" disabled={messaging.isSending || (!draft.trim() && (isMessageRequest || attachments.length === 0))} aria-busy={messaging.isSending} aria-label={isMessageRequest ? "Send invitation" : "Send message"} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-40">
                     <InterfaceIcon icon={SendIcon} weight="medium" />
+                    {isMessageRequest && isMobile ? <span>{messaging.isSending ? "Sending…" : "Send"}</span> : null}
                   </button>
                 </div>
                 <p className="sr-only" aria-live="polite">{messaging.isSending ? 'Sending message' : ''}</p>

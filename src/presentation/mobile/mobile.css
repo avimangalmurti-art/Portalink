@@ -4232,3 +4232,56 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 /* Public profiles keep their full identity without reserving an action slot. */
 #root .codex-shell[data-presentation='mobile'] [data-public-portfolio-grid] .profile-compact-header .profile-identity-copy { padding-inline-end: 0; }
+/* Studio summaries share the shortcut cards' surface and typography. */
+#root .codex-shell[data-presentation='mobile'] :is(.studio-continue-card, .studio-reads-card) {
+  min-height:88px;
+  padding:16px;
+  border:0;
+  border-radius:16px;
+  background:var(--surface-sunken);
+  color:var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-continue-card, .studio-reads-card) strong {
+  font-size:16px;
+  font-weight:650;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-continue-card span span, .studio-continue-card time, .studio-reads-card, .studio-reads-card small) {
+  font-size:12px;
+  line-height:1.4;
+  color:var(--text-secondary);
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-continue-card, .studio-reads-card):focus-visible {
+  outline:2px solid var(--focus-ring);
+  outline-offset:2px;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.studio-continue-card, .studio-reads-card):active {
+  background:var(--surface-hover);
+}
+/* Invitation requests use the same quiet surfaces and clear touch controls. */
+#root .codex-shell[data-presentation='mobile'] [data-message-introduction='invitation'] {
+  margin-top:24px;
+  padding:20px;
+  border-radius:16px;
+  background:var(--surface-sunken);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-invitation-composer]::before {
+  background:var(--surface-sunken);
+  border-color:var(--hairline);
+  border-radius:16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-invitation-composer] > textarea {
+  padding-inline:14px 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-invitation-composer] > button {
+  width:auto;
+  min-width:80px;
+  min-height:44px;
+  padding:0 12px;
+  gap:6px;
+  border-radius:14px;
+  font-size:14px;
+  font-weight:600;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within::before {
+  border-color:var(--focus-ring);
+}
