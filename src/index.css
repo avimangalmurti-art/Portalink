@@ -5666,3 +5666,20 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
   padding-inline:0;
   padding-top:16px;
 }
+
+/* One surface owns each mobile portal-list pill; children do not paint layers. */
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row {
+  border-radius: 16px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row.active { background: var(--surface-selected); }
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button,
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row [data-project-row-actions],
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row [data-row-menu] {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button { border-radius: 0; }

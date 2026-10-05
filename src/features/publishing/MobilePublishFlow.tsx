@@ -1,8 +1,12 @@
+import { ModalPortal } from '../../components/ui/ModalPortal';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { useModalFocus } from '../../hooks/useModalFocus';
+import '../../components/ui/confirmation-dialog.css';
 import { FormattedText } from '../../components/text/FormattedText';
 import { FirstProjectFiles } from './FirstProjectFiles';
 import { EMPTY_CREATION } from './firstProject';
 import React, { useEffect, useRef } from 'react';
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from 'lucide-react';
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, LoaderCircleIcon } from 'lucide-react';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
 import { CoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
 import { ProfileField } from '../../components/profile/ProfileField';
@@ -75,10 +79,11 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
         <span aria-hidden="true">{stepIndex < index ? <CheckIcon size={14} /> : stepIndex + 1}</span>{label}
       </li>)}
     </ol>}
+    {flow.state === 'publishing' && <PublishingProgress flow={flow} />}
     <div ref={bodyRef} className="mobile-publish-body scrollbar-slim">
       {!firstProject || stage !== 'files' ? <header className="mobile-publish-step-heading">
         <h3 id="mobile-publish-step-title" ref={headingRef} tabIndex={-1}>{firstProject && stage === 'details' ? 'Tell it in your own words' : titles[stage]}</h3>
-        <p>{stage === 'files' ? 'Add your work, arrange the files and choose a cover.' : stage === 'details' ? firstProject ? 'A few words are enough. Every answer is optional.' : 'Give your project a title and describe the work.' : 'Check your cover and details before sharing your work.'}</p>
+        {stage !== 'review' && <p>{stage === 'files' ? 'Add your work, arrange the files and choose a cover.' : stage === 'details' ? firstProject ? 'A few words are enough. Every answer is optional.' : 'Give your project a title and describe the work.' : ''}</p>}
       </header> : null}
       {notices}
       {flow.saveDraftError && <p role="alert" className="mobile-publish-error">{flow.saveDraftError} Your details and files are still here. Try again.</p>}
@@ -100,14 +105,14 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
       </section> : <div className="mobile-publish-review">
         <CoverFilmstrip naturalShape={Boolean(firstProject)} compact readOnly media={flow.media} disabled />
         <div className="mobile-publish-review-details">
-          <h4>{flow.metadata.title.trim()}</h4>
-          <FormattedText text={flow.metadata.summary.trim()} />
+          <button type="button" className="mobile-review-editable mobile-review-title" aria-label="Edit project title" disabled={busy || flow.hasCommittedProject} onClick={() => edit('details')}>{flow.metadata.title.trim()}</button>
+          <button type="button" className="mobile-review-editable mobile-review-description" aria-label="Edit project description" disabled={busy || flow.hasCommittedProject} onClick={() => edit('details')}><FormattedText text={flow.metadata.summary.trim()} /></button>
           {firstProject && <p>{[flow.metadata.creationDetails?.madeIn, flow.metadata.creationDetails?.field].filter(Boolean).join(' · ')}</p>}
           <dl><div><dt>Portal</dt><dd>{categoryLabel}</dd></div>{flow.location.trim() && <div><dt>Location</dt><dd>{flow.location.trim()}</dd></div>}</dl>
-          <button type="button" className="mobile-publish-edit" disabled={busy || flow.hasCommittedProject} onClick={() => edit('details')}>Edit details</button>
+
         </div>
         {/* This preserves the real progress, cancellation and cleanup controls. */}
-        <MediaPicker compact media={flow.media} upload={flow.upload} disabled />
+        <MediaPicker compact media={flow.media} upload={flow.state === 'publishing' ? undefined : flow.upload} disabled />
         <button type="button" className="mobile-publish-edit" disabled={busy || flow.hasCommittedProject || flow.upload.phase === 'uploaded'} onClick={() => edit('files')}>Edit files and cover</button>
       </div>}
     </div>
@@ -123,4 +128,21 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
       </div>
     </footer>}
   </form>;
+}
+
+function PublishingProgress({flow}: {flow: Flow}) {
+  const viewport = useDialogViewport();
+  const dialog = useRef<HTMLElement>(null);
+  useModalFocus(true, dialog, () => {}, true);
+  const uploading = flow.upload.isBusy;
+  const cancelling = flow.upload.phase === 'cancelling';
+  const fraction = uploading ? flow.upload.fraction : null;
+  const percentage = fraction === null ? null : Math.round(fraction * 100);
+  return <ModalPortal><div ref={viewport} className="portalink-confirmation-overlay modal-scrim"><section ref={dialog} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="publish-progress-title" className="portalink-confirmation">
+    <LoaderCircleIcon aria-hidden="true" className="mx-auto mb-4 animate-spin" size={28} />
+    <h2 id="publish-progress-title">{cancelling ? 'Cancelling upload…' : uploading ? 'Uploading your files' : 'Publishing your project'}</h2>
+    <p className="portalink-confirmation-description" role="status">{percentage !== null ? `${percentage}% uploaded` : 'Please wait. Keep this screen open.'}</p>
+    {uploading && <progress aria-label="Upload progress" value={fraction === null ? undefined : fraction} max={1} className="mt-4 w-full" />}
+    {uploading && <div className="portalink-confirmation-actions"><button type="button" disabled={cancelling} onClick={() => void flow.upload.cancel()}>{cancelling ? 'Cancelling…' : 'Cancel upload'}</button></div>}
+  </section></div></ModalPortal>;
 }

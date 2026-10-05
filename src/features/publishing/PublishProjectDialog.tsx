@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, InfoIcon } from 'lucide-react';
-import { ProjectFormDialog, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
+import { ProjectFormDialog, ProjectFormScreen, ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { MediaPicker } from '../../components/publishing/MediaPicker';
 import { CoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
@@ -40,6 +40,7 @@ export function PublishProjectDialog({
   onPublished
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
+  const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
   const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, Boolean(firstProject), firstProject?.madeIn, { persist: isMobile, resume: resumeDraft });
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -170,7 +171,7 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <ProjectFormDialog mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : firstProject ? "Your first project" : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : firstProject ? "Your first project" : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
@@ -229,5 +230,5 @@ export function PublishProjectDialog({
               <InfoIcon className="mt-[2px] h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               Prototype publishing. {publishFlow.media.capability.reason} Published work is cleared on reload.
             </p>}
-    </ProjectFormDialog>;
+    </PublishFrame>;
 }

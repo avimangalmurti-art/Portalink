@@ -138,6 +138,19 @@ test('deferred page activity starts on visibility and an account change invalida
 });
 
 
+test('save toggle always shares with the creator and unsave does not create a save event', async () => {
+  const s=setup();try {
+    await s.hook.flush();s.reads[0].resolve(record());await s.hook.flush();
+    s.hook.value.toggle('save');await s.hook.flush();
+    assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,true);
+    s.writes[0].resolve(record({engaged:{like:false,save:true,repost:false}}));await s.hook.flush();
+    s.hook.value.toggle('save');await s.hook.flush();
+    const body=JSON.parse(s.writes[1].init.body);
+    assert.equal(body.engaged,false);assert.equal(body.shareWithCreator,undefined);
+    s.writes[1].resolve(record());await s.hook.flush();
+  } finally {s.hook.dispose();}
+});
+
 test('named save stays with the initiating account and a late result cannot overwrite a switched account', async () => {
   const s=setup();try {
     await s.hook.flush();s.reads[0].resolve(record());await s.hook.flush();

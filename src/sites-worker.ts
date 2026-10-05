@@ -5,7 +5,7 @@ import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
 import { handleRumIngest, readRumSummary } from './server/rum';
 import { authorizeRumOwner } from './server/rumOwner';
-import { ingestReach, handleReachRead, handleStudioAttention, preparePageAction, savePagePrivately } from './server/projectReach';
+import { ingestReach, handleReachRead, handleStudioAttention, preparePageAction } from './server/projectReach';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -314,10 +314,10 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
       const save = db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
         .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind)
-      if (kind === 'save' && body.shareWithCreator === true) {
+      if (kind === 'save') {
         const event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'save',body.pageHeading)
-        try { await db.batch(event ? [save,event] : [save]) } catch { throw json({error:'Sharing a save is not available yet. You can save privately.'},503) }
-      } else if (kind === 'save') await savePagePrivately(db, save, user.id, target)
+        try { await db.batch(event ? [save,event] : [save]) } catch { throw json({error:'Your save could not be shared with the creator. Please try again.'},503) }
+      }
       else await save.run()
     } else {
       await db.prepare(`DELETE FROM media_engagements

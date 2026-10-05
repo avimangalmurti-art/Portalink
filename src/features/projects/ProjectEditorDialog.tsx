@@ -1,6 +1,9 @@
+import { ModalPortal } from '../../components/ui/ModalPortal';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
+import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import React, { useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, AlertCircleIcon, CheckIcon, ChevronDownIcon, ChevronUpIcon, FileIcon, InfoIcon, PlusIcon, StarIcon, XIcon } from 'lucide-react';
 import { ProjectCoverRepositionDialog } from '../../components/media/ProjectCoverRepositionDialog';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { PublishedCoverFilmstrip } from '../../components/publishing/CoverFilmstrip';
@@ -34,6 +37,9 @@ export function ProjectEditorDialog({
   } = management;
   const isMobile = usePresentation() === 'mobile';
   const isOpen = editor.projectId !== null;
+  const [section, setSection] = useState<'details' | 'files' | 'cover'>('details');
+  useEffect(() => { setSection(editor.mode === 'files' ? 'files' : editor.mode === 'cover-choice' ? 'cover' : 'details'); }, [editor.projectId, editor.mode]);
+  const EditorFrame = isMobile ? MobileProjectEditorScreen : ProjectFormDialog;
   const [repositionId, setRepositionId] = useState<string | null>(null);
   const coverEdit = editor.attachmentEdits.find((item) => item.isCover);
   const coverSource = editor.originalAttachments.find((item) => item.id === coverEdit?.id);
@@ -114,30 +120,30 @@ export function ProjectEditorDialog({
     // references, and only then updates the published project.
     const outcome = await editor.save();
     if (outcome && outcome !== 'failed') {
+      if (isMobile) setSection('details');
       focusField(outcome);
     }
   }
-  return <ProjectFormDialog mobileFlow={isMobile} title={editor.mode === 'cover-choice' ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={editor.mode === 'story' ? 'Describe your project. Story prompts are optional.' : editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
+          {isMobile && !['journey', 'story'].includes(editor.mode) && <nav className="project-editor-sections" aria-label="Edit project sections">{(['details', 'files', 'cover'] as const).map(item => <button type="button" key={item} aria-pressed={section === item} onClick={() => setSection(item)}>{item === 'details' ? 'Details' : item === 'files' ? 'Files' : 'Cover'}</button>)}</nav>}
           {editor.phase === 'loading' ? <LoadingState label="Loading this project…" /> : editor.phase === 'load-failed' ? <ErrorState title="This project could not be opened" description={editor.loadError ?? undefined} onRetry={editor.retryLoad} /> : <>
-              {editor.mode === 'cover-choice' ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={()=>editor.projectId&&editor.open(editor.projectId,'files')} /> : editor.mode === 'story' ? <div className="project-form-details">
+              {(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? <PublishedCoverFilmstrip attachments={editor.originalAttachments} selectedId={coverEdit?.id} disabled={isLocked} onSelect={editor.setCover} onAddFiles={() => { if (isMobile) setSection('files'); else if (editor.projectId) editor.open(editor.projectId, 'files'); }} /> : editor.mode === 'story' ? <div className="project-form-details">
                 <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={value => editor.setField('summary', value)} />
-                <details className="project-story-prompts"><summary className="min-h-11 cursor-pointer py-3 font-semibold">Optional story prompts</summary><p className="text-sm text-[var(--text-secondary)]">Add context about your role and what you learned. These answers do not replace your description.</p><div className="project-form-details">
-                {(['what', 'did', 'learned'] as const).map((key, index) => <ProfileField key={key} id={`project-story-${key}`} label={['What is this?', 'What did you do?', 'What did you learn?'][index]} multiline value={editor.metadata.creationDetails?.answers[key] ?? ''} disabled={isLocked} onChange={value => editor.setJourneyField(key, value)} />)}
-                </div></details>
+
               </div> : editor.mode === 'journey' ? <div className="project-form-details">
                 <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-in">Made in<input id="project-made-in" type="month" className="text-control p-3" disabled={isLocked} value={editor.metadata.creationDetails?.madeIn ?? ''} onChange={e => editor.setJourneyField('madeIn', e.target.value)} /><span className="text-xs text-[var(--text-secondary)]">Uses the publication date when left blank.</span></label>
                 <ProfileField id="project-learned" label="What did you learn?" multiline value={editor.metadata.creationDetails?.answers.learned ?? ''} placeholder="Uses the first description line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('learned', value)} />
                 <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Uses your learned line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
               </div> : <>
-              <section aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
+              <section hidden={isMobile && section !== 'files'} aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
                 <div className="flex items-center justify-between gap-3">
                   <h3 id="project-files-title" className="text-[13px] font-semibold text-[var(--text-primary)]">Project files</h3>
                   <Button id="project-replacement-files" variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isLocked || added.isFull}><InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />Add</Button>
                 </div>
-                <p className="text-[12px] leading-relaxed text-[var(--text-secondary)]">To replace a file, add the new version and remove the old one.</p>
+                <details><summary className="min-h-11 cursor-pointer py-3 text-sm">How to replace a file</summary><p className="text-sm text-[var(--text-secondary)]">Add the new version and remove the old one. Changes apply when you save.</p></details>
                 {coverSource?.sourceUrl && ['image', 'video', 'document'].includes(coverSource.kind) ? <div className="project-media-selection">
                   <div className="flex justify-end"><Button variant="secondary" size="sm" disabled={isLocked} onClick={() => setRepositionId(coverSource.id)}>Reposition preview</Button></div>
                   <ProjectPreviewFrame aspectRatio={coverPreviewRatio}><ProjectCover source={coverSource.sourceUrl} alt="Project cover preview" kind={coverSource.kind === 'document' ? 'document' : coverSource.kind === 'video' ? 'video' : undefined} pageNumber={coverSource.metadata?.coverPageNumber} frame={coverEdit?.coverFrame} /></ProjectPreviewFrame>
@@ -242,7 +248,7 @@ export function ProjectEditorDialog({
                     </p>}
                 </div>
               </section>
-              <div className="project-form-details">
+              <div hidden={isMobile && section !== 'details'} className="project-form-details">
               <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
               <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
@@ -264,14 +270,23 @@ export function ProjectEditorDialog({
               <span className="min-w-0">{editor.result.message ?? 'Your changes are saved.'}</span>
             </p>}
           <div className="flex items-center justify-end gap-2">
-            <Button variant="secondary" size="lg" onClick={requestClose} disabled={isLocked || upload.isCleaningUp}>{editor.isDirty ? 'Cancel' : 'Close'}</Button>
+            <Button className={isMobile ? 'project-editor-cancel' : undefined} variant="secondary" size="lg" onClick={requestClose} disabled={isLocked || upload.isCleaningUp}>{editor.isDirty ? 'Cancel' : 'Close'}</Button>
             <Button type="submit" variant="primary" size="lg" isLoading={isLocked} disabled={(!editor.isDirty && editor.mode !== 'cover-choice') || isLocked || editor.phase === 'loading' || editor.phase === 'load-failed'}>
               {editor.isTransferring ? 'Uploading…' : editor.isSaving ? 'Saving…' : 'Save changes'}
             </Button>
           </div>
         </footer>
         </form>
-    </ProjectFormDialog>;
+    </EditorFrame>;
+}
+
+/** A mobile screen; the shared desktop editor remains a dialog. */
+function MobileProjectEditorScreen({ title, titleId, onClose, closeDisabled, confirmation, children }: React.ComponentProps<typeof ProjectFormDialog>) {
+  const viewport = useDialogViewport<HTMLElement>();
+  return <ModalPortal><section ref={viewport} className="mobile-project-editor-screen" aria-labelledby={titleId}>
+    <ScreenBack visibleOnMobile action={onClose}><header><button type="button" aria-label="Back" onClick={onClose} disabled={closeDisabled}><ArrowLeftIcon aria-hidden="true" size={24} /></button><h1 id={titleId}>{title}</h1></header></ScreenBack>
+    {children}{confirmation}
+  </section></ModalPortal>;
 }
 
 /**

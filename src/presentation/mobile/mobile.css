@@ -4337,4 +4337,63 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 [data-presentation='mobile'] textarea:is(#project-summary, #publish-summary) { min-height: 200px; }
 #root .codex-shell[data-presentation='mobile'] [data-profile-back] { margin-top: var(--mobile-screen-action-top); margin-inline-start: 16px; }
-[data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }
+
+[data-presentation='mobile'] .mobile-project-editor-screen { position: fixed; z-index: 80; inset-inline: 0; top: var(--dialog-viewport-top, 0px); height: var(--dialog-viewport-height, 100dvh); background: var(--surface-canvas); color: var(--text-primary); display: flex; flex-direction: column; padding: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px) 20px max(12px, env(safe-area-inset-bottom, 0px)); --dialog-gap: 16px; }
+[data-presentation='mobile'] .mobile-project-editor-screen > header { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; padding-bottom: 16px; }
+[data-presentation='mobile'] .mobile-project-editor-screen > header button { width: 44px; height: 44px; display: grid; place-items: center; }
+[data-presentation='mobile'] .mobile-project-editor-screen h1 { text-align: center; font-size: 20px; font-weight: 600; }
+[data-presentation='mobile'] .project-editor-sections { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 4px; }
+[data-presentation='mobile'] .project-editor-sections button { min-height: 44px; border-radius: 14px; background: var(--surface-sunken); font-weight: 600; }
+[data-presentation='mobile'] .project-editor-sections button[aria-pressed='true'] { background: var(--control-rest-surface); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+[data-presentation='mobile'] .mobile-project-editor-screen [hidden] { display: none !important; }
+[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions { position: sticky; bottom: 0; background: var(--surface-canvas); padding-top: 12px; }
+[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions > div > button[type='submit'] { width: 100%; }
+[data-presentation='mobile'] .mobile-project-editor-screen .project-editor-cancel { display: none; }
+[data-presentation='mobile'] .mobile-project-editor-screen #project-summary { min-height: 240px; }
+
+[data-presentation='mobile'] .mobile-project-editor-screen { box-sizing: border-box; }
+[data-presentation='mobile'] .mobile-project-editor-screen #project-editor-form { padding-bottom: 100px; }
+[data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions { position: absolute; inset-inline: 20px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); margin: 0; }
+
+/* Leave clear space between account search and the fixed action control. */
+#root .codex-shell[data-presentation='mobile'] [data-account-search] > label { margin-top: 12px; }
+
+/* Profile return actions share the fixed system-control row. */
+#root .codex-shell[data-presentation='mobile'] :is([data-profile-back], [data-search-back], [data-connections-back]) {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  inset-inline-start: var(--mobile-navigation-inset-start);
+  z-index: 55;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+  box-shadow: var(--navigation-shadow, none);
+  backdrop-filter: var(--navigation-blur, none);
+  -webkit-backdrop-filter: var(--navigation-blur, none);
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-search-back], [data-connections-back]) > span { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> :is([data-profile-back], [data-search-back], [data-connections-back])) > [data-profile-header] { padding-top: calc(var(--mobile-screen-action-top) + 56px); }
+
+[data-presentation='mobile'] .text-format-tools--inline .text-format-panel { padding: 8px; margin: 0; border-radius: 14px; }
+[data-presentation='mobile'] .text-format-tools--inline .text-format-buttons { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 4px; }
+[data-presentation='mobile'] .text-format-tools--inline .text-format-buttons button { min-width: 0; min-height: 44px; padding: 4px; }
+[data-presentation='mobile'] .text-format-tools--inline .text-format-headings { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 2px; }
+[data-presentation='mobile'] .text-format-tools--inline .text-format-headings button { min-width: 0; min-height: 44px; padding: 4px 2px; font-size: 12px; }
+
+[data-presentation='mobile'] .project-form-screen { position: fixed; z-index: 80; inset-inline: 0; top: var(--dialog-viewport-top,0px); height: var(--dialog-viewport-height,100dvh); box-sizing: border-box; display: flex; flex-direction: column; padding: calc(var(--safe-area-top,env(safe-area-inset-top,0px)) + 8px) 20px max(12px,env(safe-area-inset-bottom,0px)); background: var(--surface-canvas); color: var(--text-primary); --dialog-gap:16px; }
+[data-presentation='mobile'] .project-form-screen > header { display:flex; gap:12px; align-items:center; padding-bottom:16px; }
+[data-presentation='mobile'] .project-form-screen > header > button { width:44px; height:44px; flex-shrink:0; display:grid; place-items:center; border-radius:14px; background:var(--navigation-surface); }
+[data-presentation='mobile'] .project-form-screen h1 { font-size:20px; font-weight:600; }
+[data-presentation='mobile'] .project-form-screen > header p { font-size:13px; color:var(--text-secondary); }
+[data-presentation='mobile'] .mobile-publish-review-details .mobile-review-editable { display:block; width:100%; padding:14px; border:1px solid var(--hairline-strong); border-radius:14px; background:var(--surface-sunken); text-align:start; }
+[data-presentation='mobile'] .mobile-publish-review-details .mobile-review-title { font-size:20px; font-weight:600; color:var(--text-primary); }
+[data-presentation='mobile'] .mobile-publish-review-details .mobile-review-description { font-size:16px; font-weight:400; color:var(--text-primary); }
+[data-presentation='mobile'] .mobile-publish-review-details dt { font-size:12px; font-weight:500; color:var(--text-tertiary); }
+[data-presentation='mobile'] .mobile-publish-review-details dd { font-size:14px; font-weight:500; color:var(--text-secondary); }

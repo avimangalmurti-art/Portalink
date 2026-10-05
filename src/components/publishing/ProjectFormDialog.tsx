@@ -1,6 +1,6 @@
-import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type RefObject, type ComponentProps } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { XIcon } from 'lucide-react';
+import { ArrowLeftIcon, XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { ModalPortal } from '../ui/ModalPortal';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -62,4 +62,13 @@ export function ProjectDiscardConfirmation({ title, description, error, busy = f
   onDiscard: () => void | Promise<void>;
 }) {
   return <ConfirmationDialog title={title} description={description} confirmLabel="Discard changes" cancelLabel="Keep editing" variant="destructive" error={error} pending={busy} pendingLabel="Discarding…" onCancel={onKeep} onConfirm={onDiscard}/>;
+}
+
+/** Mobile publishing occupies its own screen rather than a modal surface. */
+export function ProjectFormScreen({title,titleId,description,onClose,closeDisabled,confirmation,children}: ComponentProps<typeof ProjectFormDialog>) {
+  const viewport = useDialogViewport<HTMLElement>();
+  return <ModalPortal><section ref={viewport} className="project-form-screen" aria-labelledby={titleId}>
+    <header><button type="button" aria-label="Back" disabled={closeDisabled} onClick={onClose}><ArrowLeftIcon size={24} aria-hidden="true" /></button><div><h1 id={titleId}>{title}</h1>{description && <p>{description}</p>}</div></header>
+    {children}{confirmation}
+  </section></ModalPortal>;
 }

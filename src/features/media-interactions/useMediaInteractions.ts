@@ -129,7 +129,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     });
   }, [auth, key, target]);
 
-  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false, shareWithCreator = false) => {
+  const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false) => {
     if (!auth.isAuthenticated && !replayed) {
       gateGuest(kind);
       return;
@@ -148,7 +148,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     try {
       const next = await apiRequest<MediaInteractionRecord>('/api/media-interactions/engagement', {
         method: 'POST',
-        body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged && shareWithCreator ? {shareWithCreator:true} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
+        body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged ? {shareWithCreator:true} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
       }, true, auth.user?.id ?? null);
       if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);
@@ -259,8 +259,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     failure,
     retry: load,
     dismissFailure: () => setFailure(null),
-    saveWithCreator: () => setEngagement('save',true,false,true),
-    savePrivately: () => setEngagement('save',true),
+    saveWithCreator: () => setEngagement('save',true),
     toggle: (kind: MediaEngagementKind) => void setEngagement(kind, !record.engaged[kind]),
     postComment,
     deleteComment,

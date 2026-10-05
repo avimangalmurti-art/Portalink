@@ -1,12 +1,11 @@
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { readSharedReturnPath } from '../auth/registration';
-import { Button } from '../../components/ui/Button';
 import { useContext } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { MobilePageContext } from './MobilePageContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
-import React, { lazy, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
@@ -16,7 +15,6 @@ import { useMediaPageSize } from './useMediaPageSize';
 import { MediaCommentsPopover } from './MediaCommentsPopover';
 import { publicMediaUrl } from '../media/publicMediaUrl';
 
-const ProjectFormDialog = lazy(() => import('../../components/publishing/ProjectFormDialog').then(module => ({ default: module.ProjectFormDialog })));
 const countFormatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const displayCount = (count: number) => count > 0 ? countFormatter.format(count) : '';
 
@@ -125,7 +123,7 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    {saveChoice && <Suspense fallback={null}><ProjectFormDialog title="Save this page" titleId="page-save-choice" onClose={()=>setSaveChoice(false)}><div className="p-5 grid gap-3"><p>Keep this bookmark private, or let the creator know you saved this page. Sharing shows your profile name to this creator.</p><Button disabled={activity.pendingKind==='save'} onClick={async()=>{if(await activity.savePrivately())setSaveChoice(false);}}>Save privately</Button><Button disabled={activity.pendingKind==='save'} variant="secondary" onClick={async()=>{if(await activity.saveWithCreator())setSaveChoice(false);}}>Save and let the creator know</Button>{activity.failure&&<p role="alert">{activity.failure}</p>}</div></ProjectFormDialog></Suspense>}
+    {saveChoice && <ConfirmationDialog title="Save this page?" description="The creator will know you saved their work and see your profile name." confirmLabel="Save" pendingLabel="Saving…" pending={activity.pendingKind==='save'} error={activity.failure} onCancel={()=>setSaveChoice(false)} onConfirm={async()=>{const saved=await activity.saveWithCreator();if(saved)setSaveChoice(false);return saved;}}/>}
     <div hidden={contextOnly} data-media-controls-row="" className="flex max-w-full items-center gap-2">
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,

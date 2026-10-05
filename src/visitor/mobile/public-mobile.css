@@ -2398,3 +2398,31 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   margin:0;
   z-index:2;
 }
+
+/* Reader progress matches the platform, inset from both screen edges. */
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-reader-progress {
+  position: absolute;
+  left: calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap));
+  top: -12px;
+  width: calc(100vw - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end));
+  height: 6px;
+  display: flex;
+  gap: min(4px, calc(25% / var(--reader-page-count)));
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-reader-progress > span {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 999px;
+  background: var(--hairline-strong);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-reader-progress > [data-reached] {
+  background: var(--accent-primary);
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > progress {
+  left: calc(0px - var(--mobile-control-size) - var(--mobile-control-group-gap));
+  top: -12px;
+  width: calc(100vw - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end));
+  height: 6px;
+}
