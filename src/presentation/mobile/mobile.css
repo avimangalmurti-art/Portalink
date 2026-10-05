@@ -743,7 +743,7 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
-  min-width: calc(5 * var(--mobile-control-target) + 4 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
+  min-width: calc(4 * var(--mobile-control-target) + 3 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
   max-width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -753,7 +753,7 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-dock {
   display: grid;
-  grid-template-columns: repeat(5, minmax(var(--mobile-control-target), 1fr));
+  grid-template-columns: repeat(4, minmax(var(--mobile-control-target), 1fr));
   min-width: 0;
   height: var(--mobile-dock-size);
   padding: var(--mobile-control-inset);
@@ -4100,3 +4100,9 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 #root .app-shell[data-presentation='mobile']:has(.portalink-world) { background: var(--portalink-bg-primary); }
 [data-presentation='mobile'] .portalink-world-search:focus-within .location-search > label { color: var(--portalink-text-primary, #fff); }
+
+/* Screen actions live at the top; the dock contains navigation only. */
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating { left: auto; right: var(--mobile-navigation-inset-end); top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px); bottom: auto !important; z-index: 55; }
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating .mobile-context-button { width: 44px; height: 44px; background: var(--surface-sunken) !important; color: var(--text-primary) !important; }
+#root .codex-shell[data-presentation='mobile']:has(.mobile-context-floating) #app-viewport { padding-top: 56px; }
+#root .codex-shell[data-presentation='mobile']:has(.portalink-world-search:focus-within) .mobile-context-floating { display: none; }

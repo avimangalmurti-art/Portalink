@@ -3,7 +3,7 @@ import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
-import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import { shareContextLink } from '../../presentation/mobile/SharedContextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
@@ -692,7 +692,7 @@ export function ProjectMediaViewer({
         </div>
         <nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
-          <MobileContextButton />
+
           <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobileEngagementOpen(open => !open); }}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>

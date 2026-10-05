@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const nodes=tree=>React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];
-test('dock orders Messages, Studio, Actions, Home and Profile, with no rail or separate compose',()=>{
+test('dock orders Messages, Studio, Home and Profile, with no rail or separate compose',()=>{
  const exports={}; const calls=[];
  vm.runInNewContext(ts.transpileModule(read('../src/presentation/mobile/MobileNavigation.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
   if(name==='react')return {...React,useRef:()=>({current:null})};
@@ -19,7 +19,7 @@ test('dock orders Messages, Studio, Actions, Home and Profile, with no rail or s
  const destinations=[];
  const tree=exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onProfile(...args){destinations.push(['profile',args]);},isProfileActive:false});
  const dock=nodes(tree).find(n=>n.props.className==='mobile-navigation-dock');
- assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Messages','Studio','Actions','Home','Profile']);
+ assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Messages','Studio','Home','Profile']);
  assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(calls[0][0],true);
  for(const label of ['Messages','Profile']){
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
@@ -28,10 +28,10 @@ test('dock orders Messages, Studio, Actions, Home and Profile, with no rail or s
  assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
-test('dock width reserves five touch targets and public mobile navigation stays separate',()=>{
+test('dock width reserves four touch targets and public mobile navigation stays separate',()=>{
  const css=read('../src/presentation/mobile/mobile.css');
- assert.match(css,/repeat\(5, minmax\(var\(--mobile-control-target\), 1fr\)\)/);
- assert.match(css,/min-width: calc\(5 \* var\(--mobile-control-target\)/);
+ assert.match(css,/repeat\(4, minmax\(var\(--mobile-control-target\), 1fr\)\)/);
+ assert.match(css,/min-width: calc\(4 \* var\(--mobile-control-target\)/);
  assert.doesNotMatch(css,/\.mobile-navigation-scroll|\.mobile-navigation\s*\{|\.mobile-shared-drawer/);
  assert.match(read('../src/components/profile/SharedProfileSidebar.tsx'),/isMobile \? <PublicProfileDrawer/);
  assert.equal(fs.existsSync(new URL('../src/presentation/mobile/MobileSharedProfileDrawer.tsx',import.meta.url)),false);

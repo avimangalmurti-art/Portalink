@@ -1,3 +1,7 @@
+## MOBILE top screen actions
+
+Move shared screen-action trigger from dock/reader rail to one provider-owned safe-area top-right Ellipsis button. Existing route/account/action registrations, permissions, sheet and focus return retained. Four-destination dock; main viewport reserves56px for top control; focused globe keyboard search hides trigger. WEB provider renders no trigger.60 focused navigation/context isolation checks, typecheck/lint(0errors)/build/config guard pass. Browser/physical iPhone layout verification remains unperformed. No backend changes. Publishing owned release branch.
+
 ## MOBILE globe top strip
 
 Globe shell safe-area background and focused search canvas now use existing black network sky token; search label uses network foreground. Removes white strip without moving controls into status area. WEB unchanged. Production build/config guard passing; physical iPhone unverified.
