@@ -1,3 +1,7 @@
+## MOBILE screen-actions system gray
+
+Remove dock-destination class from shared context trigger. Top/inline trigger uses existing navigation surface/foreground/shadow/blur and pressed tokens,44px target14px radius; no accent or transparent dock override. Existing route/actions unchanged; WEB unchanged.46 focused navigation/context checks and production build/config guard pass. Physical/browser appearance verification outstanding. Publish exact owned release source.
+
 ## MOBILE Bookmarks back button
 
 Visible labelled arrow Back in Bookmarks header invokes existing back handler; pending bulk mutations disable it, selection cancels first preserving existing behavior.44px mobile target. Typecheck/build check; no new routing or backend logic. Browser/physical verification outstanding.

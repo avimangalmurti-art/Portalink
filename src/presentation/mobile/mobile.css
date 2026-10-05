@@ -4112,3 +4112,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, .studio-drafts-heading, .studio-header-actions) { padding-right: 60px; }
 
 #root .codex-shell[data-presentation='mobile'] .studio-bookmarks-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 4px; color: var(--text-primary); }
+
+/* Screen action controls share the user's system-gray navigation material. */
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions]) button.mobile-context-button { display: grid; place-items: center; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 14px; background: var(--navigation-surface, var(--nav-button-background)) !important; color: var(--navigation-foreground, var(--nav-button-text)) !important; box-shadow: var(--navigation-shadow, none) !important; -webkit-backdrop-filter: var(--navigation-blur, none); backdrop-filter: var(--navigation-blur, none); }
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions]) button.mobile-context-button:active { background: var(--navigation-pressed-surface, var(--nav-button-background-pressed)) !important; }
