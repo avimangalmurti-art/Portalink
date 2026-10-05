@@ -1,4 +1,15 @@
-# Account deletion: review candidate, disabled
+# Account deletion: immediate-deletion candidate, disabled
+
+## October 4 immediate-deletion revision
+
+The user explicitly requested no 48-hour waiting period and immediate reuse of the email after confirmed deletion. This supersedes the old grace-period product decision described in the historical review below. The pending schema now makes a request due immediately. The candidate handler can run a bounded deletion tick for only the verified caller and returns completed/isDeleted only after Auth absence and Storage reconciliation are confirmed. Large or failed jobs return processing and require a durable retry worker; they do not promise that the email is free yet. Cancellation remains possible only before a worker claims the job, with no guaranteed cancellation window.
+
+Project-covers is now included in the file manifest and upload/move/delete fences, using the existing profile-owned path namespace. Synthetic tests cover departing/surviving cover ownership and late uploads. Shared conversation/message/comment preservation remains mandatory. Production endpoint and frontend flag remain OFF; no SQL, Auth deletion, runtime deployment, or scheduler was performed.
+
+Release still requires: current production schema compatibility (including published cover/privacy functions), a concrete Sites/D1 removal/retention implementation preserving other members’ data, durable retry scheduling, provider Storage/TUS/PDF concurrency tests, deleted-user rendering, actual Auth deletion followed by a new signup with the same email, and review of the resulting release. No disposable Supabase integration project is currently connected in this task. Do not enable from synthetic test results alone.
+
+Local revision verification:17 Node tests and13 in-memory database checks pass, plus typecheck and focused lint. Historical grace-period wording below documents the older proposal, not the currently requested behavior.
+
 
 The production `delete-account` endpoint returns HTTP 503 before creating a client or accessing any account, database row or file. The frontend release flag is also hardcoded off. No permanent deletion worker or scheduler is deployed.
 

@@ -22,20 +22,20 @@ create table deletion_private.jobs (
   status text not null default 'pending' check(status in ('pending','processing','cancelled','completed')),
   phase text not null default 'storage' check(phase in ('storage','anonymize','auth','complete')),
   requested_at timestamptz not null default now(),
-  delete_after timestamptz not null default now() + interval '48 hours',
+  delete_after timestamptz not null default now(),
   irreversible_started_at timestamptz,
   completed_at timestamptz,
   lease_token uuid,
   lease_until timestamptz,
   attempts integer not null default 0,
   last_error text,
-  check(delete_after >= requested_at + interval '48 hours')
+  check(delete_after >= requested_at)
 );
 create unique index one_account_deletion on deletion_private.jobs(account_id) where status <> 'cancelled';
 create index due_account_deletions on deletion_private.jobs(delete_after) where status in ('pending','processing');
 create table deletion_private.files (
   job_id uuid not null references deletion_private.jobs(id) on delete restrict,
-  bucket text not null check(bucket in ('avatars','project-media','message-media')),
+  bucket text not null check(bucket in ('avatars','project-media','message-media','project-covers')),
   path text not null,
   removed_at timestamptz,
   primary key(job_id,bucket,path)
@@ -101,6 +101,7 @@ create function deletion_private.owns_path(j deletion_private.jobs, bucket text,
 language sql immutable as $$
   select case bucket
     when 'avatars' then split_part(path,'/',1)=j.account_id::text
+    when 'project-covers' then split_part(path,'/',1)=j.profile_id::text
     when 'message-media' then split_part(path,'/',1)=j.profile_id::text
     when 'project-media' then split_part(path,'/',1)=j.profile_id::text
       or (split_part(path,'/',1)='posts' and split_part(path,'/',2)=any(select unnest(j.project_ids)::text))
@@ -113,7 +114,7 @@ create function deletion_private.path_account(bucket text,path text) returns uui
 language sql stable security definer set search_path=public,pg_temp as $$
   select coalesce(
     (select u.id from auth.users u where bucket='avatars' and u.id::text=split_part(path,'/',1)),
-    (select p.account_id from public.profiles p where bucket in ('project-media','message-media') and (
+    (select p.account_id from public.profiles p where bucket in ('project-media','message-media','project-covers') and (
       p.id::text=split_part(path,'/',1) or (bucket='project-media' and split_part(path,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(path,'/',2))))),
     (select j.account_id from deletion_private.jobs j where j.status<>'cancelled' and deletion_private.owns_path(j,bucket,path) limit 1)
@@ -144,7 +145,7 @@ begin
   end if;
   if new.bucket_id='avatars' then
     begin owner_account:=split_part(new.name,'/',1)::uuid; exception when invalid_text_representation then owner_account:=null; end;
-  elsif new.bucket_id in ('project-media','message-media') then
+  elsif new.bucket_id in ('project-media','message-media','project-covers') then
     select p.account_id into owner_account from public.profiles p where
       p.id::text=split_part(new.name,'/',1) or (new.bucket_id='project-media' and split_part(new.name,'/',1)='posts'
         and exists(select 1 from public.projects pr where pr.profile_id=p.id and pr.id::text=split_part(new.name,'/',2)));
@@ -247,12 +248,12 @@ language sql stable security definer set search_path=public,pg_temp as $$
     from deletion_private.jobs where account_id=p_account_id and status<>'cancelled'),'{}'::jsonb);
 $$;
 
-create function public.claim_account_deletion() returns jsonb
+create function public.claim_account_deletion(p_account_id uuid default null) returns jsonb
 language plpgsql security definer set search_path=public,pg_temp as $$
 declare j deletion_private.jobs;
 begin
   if not (select worker_enabled from deletion_private.release_gate) then raise exception 'account deletion worker disabled'; end if;
-  select * into j from deletion_private.jobs where delete_after<=now() and status in ('pending','processing')
+  select * into j from deletion_private.jobs where delete_after<=now() and status in ('pending','processing') and (p_account_id is null or account_id=p_account_id)
     and (lease_until is null or lease_until<now()) order by delete_after for update skip locked limit 1;
   if j.id is null then return null; end if;
   update deletion_private.jobs set status='processing',irreversible_started_at=coalesce(irreversible_started_at,now()),

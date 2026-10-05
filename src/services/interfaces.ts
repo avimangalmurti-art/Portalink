@@ -60,8 +60,8 @@ export interface AuthService {
    */
   getAccountDeletionCapability(): Promise<AccountDeletionCapability>;
   /**
-   * Requests reversible deletion with a 48-hour grace period. Never signs out
-   * or reports an immediate deletion. Permanent cleanup is a separate worker.
+   * Requests immediate deletion. Reports completion only after confirmed cleanup.
+   * Incomplete cleanup is returned as processing and resumed by the worker.
    *
    * Throws `AuthServiceError` with `confirmation_mismatch` when the typed
    * confirmation does not match, or `deletion_unavailable` when no backend can

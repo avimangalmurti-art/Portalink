@@ -57,6 +57,8 @@ try {
    const category=await scalar('select id from portfolio_categories where profile_id=$1 limit 1',[profile]);
    await db.query('insert into projects(id,profile_id,category_id,title,summary) values($1,$2,$3,$4,$5)',[project,profile,category,'Synthetic project','Synthetic description']);
  }
+ const ownCover=`${id(11)}/${ownProject}/digest/400.webp`, survivorCover=`${id(12)}/${survivorProject}/digest/400.webp`;
+ await db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1),('project-covers',$2)",[ownCover,survivorCover]);
  await db.query("insert into storage.objects(bucket_id,name,metadata) values('project-media',$1,'{\"size\":100,\"mimetype\":\"application/pdf\"}')",[pdfPath]);
  await db.query("insert into project_attachments(id,project_id,kind,file_name,display_name,extension,mime_type,size_bytes,type_label,storage_path,status) values($1,$2,'document','source.pdf','source.pdf','pdf','application/pdf',100,'PDF',$1,'ready')",[pdfPath,ownProject]);
  await db.query('insert into project_comments(id,project_id,author_profile_id,body) values($1,$2,$3,$4)',[id(210),survivorProject,id(11),'Departing comment']);
@@ -77,15 +79,16 @@ try {
    job=await scalar('select request_account_deletion($1)',[id(1)]);
    assert.equal((await scalar('select request_account_deletion($1)',[id(1)])).id,job.id);
    assert.equal(await scalar('select body from direct_messages where id=$1',[a]),'Departing original');
-   assert.equal(await scalar('select count(*)::int from storage.objects'),4);
+   assert.equal(await scalar('select count(*)::int from storage.objects'),6);
    assert.equal(await scalar('select count(*)::int from direct_messages where pending_deletion_at is not null'),1);
    assert.equal(await scalar('select count(*)::int from direct_message_attachments where pending_deletion_at is not null'),1);
-   assert.equal(await scalar('select claim_account_deletion()'),null);
+   assert.equal(await scalar('select claim_account_deletion($1)',[id(2)]),null);
  });
  await check('grace blocks edits, uploads, removal, moves and premature Auth deletion',async()=>{
    await assert.rejects(db.query('update direct_messages set body=$1 where id=$2',['changed',a]),/pending deletion/);
    await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('message-media',$1)",[`${id(11)}/${c}/late.png`]),/pending deletion/);
    await assert.rejects(db.query('delete from storage.objects where name=$1',[aFile]),/removal disabled/);
+   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[`${id(11)}/${ownProject}/late.webp`]),/pending deletion/);
    await assert.rejects(db.query('update storage.objects set name=$1 where name=$2',[`${id(12)}/moved.png`,aFile]),/move disabled/);
    await assert.rejects(db.query('delete from auth.users where id=$1',[id(1)]),/pending deletion|lifecycle/);
    assert.equal((await db.query("select * from claim_pdf_processing_job('synthetic-worker')")).rows.length,0);
@@ -97,15 +100,14 @@ try {
    assert.equal((await scalar('select cancel_account_deletion($1)',[id(1)])).status,'cancelled');
    assert.equal(await scalar('select count(*)::int from direct_messages where pending_deletion_at is not null'),0);
    assert.equal(await scalar('select body from direct_messages where id=$1',[a]),'Departing original');
-   assert.equal(await scalar('select count(*)::int from storage.objects'),4);
+   assert.equal(await scalar('select count(*)::int from storage.objects'),6);
    assert.equal(await scalar('select status from pdf_processing_jobs where post_id=$1',[ownProject]),'queued');
    await db.exec('update deletion_private.release_gate set requests_enabled=true');
    job=await scalar('select request_account_deletion($1)',[id(1)]);
  });
  let claim, keys;
- await check('hard deletion cannot start early; expired leases can resume and stale checkpoints fail',async()=>{
-   // Advance only the synthetic clock through timestamps, preserving 48h check.
-   await db.query("update deletion_private.jobs set requested_at=now()-interval '49 hours',delete_after=now()-interval '1 hour' where id=$1",[job.id]);
+ await check('immediate deletion is due without waiting; expired leases resume and stale checkpoints fail',async()=>{
+
    claim=await scalar('select claim_account_deletion()');
    assert.ok(claim.lease_token); assert.equal(await scalar('select claim_account_deletion()'),null);
    await assert.rejects(db.query('select cancel_account_deletion($1)',[id(1)]),/permanent deletion has started/);
@@ -121,15 +123,17 @@ try {
      await db.exec("select set_config('portalink.deletion_internal','off',true)");
      await assert.rejects(db.query('select account_deletion_batch($1,$2)',keys),/manual review required/);
      await db.exec('rollback');
-     assert.equal(await scalar('select count(*)::int from storage.objects'),4);
+     assert.equal(await scalar('select count(*)::int from storage.objects'),6);
    }
  });
  await check('manifest contains only owned objects; counterpart messages and objects survive cleanup',async()=>{
    const batch=await scalar('select account_deletion_batch($1,$2)',keys);
-   assert.equal(batch.phase,'storage'); assert.equal(batch.files.length,3);
-   assert.ok(batch.files.every(f=>f.path!==bFile));
+   assert.equal(batch.phase,'storage'); assert.equal(batch.files.length,4);
+   assert.ok(batch.files.every(f=>f.path!==bFile&&f.path!==survivorCover));
+   assert.ok(batch.files.some(f=>f.bucket==='project-covers'&&f.path===ownCover));
    await user(1);
    await assert.rejects(db.query('delete from storage.objects where name=$1',[aFile]),/removal disabled/);
+   await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values('project-covers',$1)",[`${id(11)}/${ownProject}/late.webp`]),/pending deletion/);
    await system();
    await assert.rejects(db.query('select checkpoint_account_deletion_files($1,$2,$3)',[...keys,JSON.stringify(batch.files)]),/not confirmed/);
    // Simulate Storage API deleting metadata ONLY in this in-memory fixture.

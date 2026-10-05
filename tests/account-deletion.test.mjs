@@ -148,3 +148,14 @@ test('Appearance starts fully collapsed, opens manually and resets on a fresh vi
   assert.ok(accordions().every((node) => node.props.isOpen === false));
   assert.ok(nodes(visit()()).filter((node) => node.props?.onToggle && 'isOpen' in node.props).every((node) => node.props.isOpen === false));
 });
+
+
+test('client accepts completed deletion only with explicit server confirmation',async()=>{
+ const client={auth:{getUser:async()=>({data:{user:{id:'a',email:'owner@example.test'}}})},functions:{invoke:async()=>({data:{status:'completed',isDeleted:true}})}};
+ const result=await authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'});
+ assert.equal(result.isDeleted,true);assert.equal(result.status,'completed');
+ client.functions.invoke=async()=>({data:{status:'completed',isDeleted:false}});
+ await assert.rejects(authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'}));
+ client.functions.invoke=async()=>({data:{status:'processing'}});
+ assert.equal((await authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'})).isDeleted,false);
+});

@@ -1,5 +1,6 @@
+import { runDeletionTick } from './deletion-worker.mjs';
 // Candidate request handler. The deployed index.ts remains a hard-disabled 503.
-export function createDeletionHandler(admin, { enabled = false } = {}) {
+export function createDeletionHandler(admin, { enabled = false, processImmediately = false } = {}) {
   return async request => {
     const response = (status, body) => Response.json({ isDeleted: false, ...body }, { status });
     if (request.method !== 'POST') return response(405, { message: 'Method not allowed.' });
@@ -23,6 +24,11 @@ export function createDeletionHandler(admin, { enabled = false } = {}) {
         ? 'Cancellation is unavailable because permanent deletion has started.'
         : 'The request could not be confirmed. Check your deletion status before trying again.' });
     }
-    return response(200, { ...result.data, message: body.action === 'request' ? 'Deletion is scheduled in 48 hours. You can cancel before permanent deletion starts.' : body.action === 'cancel' ? 'Deletion cancelled. Your account and content are restored.' : '' });
+    if (body.action === 'request' && processImmediately) {
+      const outcome = await runDeletionTick(admin, { enabled: true, accountId: data.user.id });
+      if (outcome.status === 'completed') return response(200, { isDeleted: true, status: 'completed', message: 'Your account has been deleted. You can register again with the same email address.' });
+      return response(202, { status: 'processing', message: 'Deletion is processing. Your email becomes available when account deletion is confirmed.' });
+    }
+    return response(200, { ...result.data, message: body.action === 'request' ? 'Deletion has been requested and can start immediately.' : body.action === 'cancel' ? 'Deletion cancelled. Your account and content are restored.' : '' });
   };
 }

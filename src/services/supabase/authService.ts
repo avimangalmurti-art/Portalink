@@ -385,7 +385,9 @@ export const supabaseAuthService: AuthService = {
       const code = response?.status === 400 ? 'confirmation_mismatch' : response?.status === 401 ? 'reauthentication_required' : 'network';
       throw new AuthServiceError(code, details?.message ?? 'The deletion request could not be confirmed. Check its status before trying again.');
     }
-    const result = data as { status?: string; deleteAfter?: string; message?: string } | null;
+    const result = data as { isDeleted?: boolean; status?: string; deleteAfter?: string; message?: string } | null;
+    if (result?.status === 'completed' && result.isDeleted === true) return { isDeleted: true, status: 'completed', message: result.message ?? 'Your account has been deleted. You can register again with the same email address.' };
+    if (result?.status === 'processing') return { isDeleted: false, status: 'processing', message: result.message ?? 'Deletion is processing. Your email becomes available after completion.' };
     if (result?.status !== 'pending' || !result.deleteAfter) throw new AuthServiceError('network', 'Check your deletion status before trying again.');
     return { isDeleted: false, status: 'pending', deleteAfter: result.deleteAfter, message: result.message ?? 'Deletion scheduled. You can cancel before permanent deletion starts.' };
   },

@@ -88,3 +88,23 @@ test('an uncertain request or cancel response never falsely reports that nothing
   assert.match((await response.json()).message,/Check your deletion status/);
  }
 });
+
+
+test('immediate request cleans only the verified caller and reports success only after Auth removal',async()=>{
+ const f=fixture();const calls=[];const original=f.admin.rpc;
+ f.admin.auth.getUser=async()=>({data:{user:{id:'owner',email:'owner@example.test'}}});
+ f.admin.rpc=async(name,args)=>{calls.push([name,args]);if(name==='request_account_deletion')return {data:{status:'pending'}};return original(name,args);};
+ const handler=createDeletionHandler(f.admin,{enabled:true,processImmediately:true});
+ const result=await handler(new Request('https://example.test',{method:'POST',headers:{authorization:'Bearer test'},body:JSON.stringify({action:'request',confirmation:'owner@example.test',accountId:'victim'})}));
+ assert.equal(result.status,200);assert.equal((await result.json()).isDeleted,true);
+ assert.deepEqual(calls.find(([name])=>name==='claim_account_deletion')[1],{p_account_id:'owner'});
+ assert.ok(f.events.indexOf('finish_account_deletion')>f.events.findIndex(e=>Array.isArray(e)&&e[0]==='delete'));
+});
+test('immediate cleanup failure never promises the email is free',async()=>{
+ const f=fixture({storageError:true});const original=f.admin.rpc;
+ f.admin.auth.getUser=async()=>({data:{user:{id:'owner',email:'owner@example.test'}}});
+ f.admin.rpc=async(name,args)=>name==='request_account_deletion'?{data:{status:'pending'}}:original(name,args);
+ const result=await createDeletionHandler(f.admin,{enabled:true,processImmediately:true})(new Request('https://example.test',{method:'POST',headers:{authorization:'Bearer test'},body:JSON.stringify({action:'request',confirmation:'owner@example.test'})}));
+ assert.equal(result.status,202);const body=await result.json();assert.equal(body.isDeleted,false);assert.equal(body.status,'processing');
+ assert.ok(!f.events.some(e=>Array.isArray(e)&&e[0]==='delete'));
+});

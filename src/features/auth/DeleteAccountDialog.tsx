@@ -52,7 +52,7 @@ export function DeleteAccountDialog({ isOpen, onClose }: { isOpen: boolean; onCl
         </div> : <>
           <p id="delete-account-description" className="mt-4 text-[13px] leading-relaxed text-[var(--text-secondary)]">
             {deletion.capability?.isAvailable && !deletion.isCheckingCapability && !deletion.capabilityError
-              ? 'You have 48 hours to cancel. After that, your profile, projects, and your own uploaded files are removed. Shared conversations and other participants’ messages and attachments stay available to them. Your messages are marked as removed and attributed to Deleted User.'
+              ? 'Deletion starts immediately after confirmation and cannot be undone once processing begins. Your profile, projects, and your own uploaded files are removed. Shared conversations and other participants’ messages and attachments stay available to them. Your messages are marked as removed and attributed to Deleted User.'
               : 'Account deletion is currently unavailable. Your account and content remain in place.'}
           </p>
           {deletion.isCheckingCapability ? <p role="status" className="mt-4 flex items-center gap-2 text-[13px] text-[var(--text-secondary)]"><Loader2Icon className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />Checking availability…</p>
