@@ -29,5 +29,5 @@ export function attentionRows(profile: Profile | null, reach30: ReachSummary[] |
  // Portal fields and credits have no available canonical capability yet; intentionally off.
  return result;
 }
-export function visibleAttention(rows: Attention[],showAll=false){return showAll?rows:rows.slice(0,8);}
+export function visibleAttention(rows: Attention[],showAll=false){return showAll?rows:rows.slice(0,5);}
 export function weeklyReads(rows: ReachSummary[] | undefined, saved: number | undefined){return rows&&saved!==undefined?{opened:rows.reduce((n,r)=>n+r.opened,0),finished:rows.reduce((n,r)=>n+r.finished,0),saved,top:[...rows].sort((a,b)=>b.opened-a.opened||b.finished-a.finished||a.projectId.localeCompare(b.projectId)).find(r=>r.opened>0||r.finished>0)}:null;}

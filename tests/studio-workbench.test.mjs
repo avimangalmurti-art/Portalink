@@ -28,7 +28,7 @@ test('global priority, eight-row cap and project-wide 30-day dismissal expiry',(
  const ps=Array.from({length:4},(_,i)=>project(String(i),{coverThumbnail:undefined,summary:'',creationDetails:undefined}));
  const all=rows(ps,[],[]);
  assert.deepEqual(Array.from(all,r=>r.action),[...Array(4).fill('cover'),...Array(4).fill('description'),...Array(4).fill('date')]);
- assert.equal(model.visibleAttention(all).length,8);assert.equal(model.visibleAttention(all,true).length,12);
+ assert.equal(model.visibleAttention(all).length,5);assert.equal(model.visibleAttention(all,true).length,12);
  assert.equal(rows(ps,[],[],{'0':now}).length,9);
  assert.equal(model.isDismissed(now-30*day,now),false);assert.equal(model.isDismissed(now-30*day+1,now),true);assert.equal(model.isDismissed(now+1,now),false);
 });

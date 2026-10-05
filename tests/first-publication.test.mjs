@@ -225,3 +225,12 @@ test('public Home work stays visible for a mobile owner who has not published ye
  const h=homeHarness('mobile',{status:'ready',featured:null,projects:[{project:{id:'public-work'},creator:{id:'unfollowed'}}],isEmpty:false},{firstProjectAction:()=>{}});
  const wall=nodes(h.tree).find(node=>node.type==='JustifiedImageWall');assert.ok(wall);assert.equal(wall.props.items[0].key,'public-work');
 });
+
+ test('mobile creation goes directly to the selected portal without a chooser', async () => {
+  const h = harness(); h.authenticate(); h.ownerProfile([{ id: 'first' }, { id: 'chosen' }]);
+  h.context.presentation = 'mobile'; h.context.activeCategory = { id: 'chosen' };
+  h.homeAction().onClick(); await h.progress();
+  assert.equal(h.context.publishTargetCategoryId, 'chosen');
+  assert.equal(h.context.isPublishOpen, true);
+  assert.doesNotMatch(read('src/App.tsx'), /ProjectPortalChoice|setPortalChoice/);
+});

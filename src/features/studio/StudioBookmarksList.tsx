@@ -204,16 +204,16 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
     <ScreenBack action={back}>{null}</ScreenBack>
     <header className="studio-header">
-      <button type="button" className="studio-bookmarks-back" aria-label="Back from Bookmarks" disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
-      <div className="studio-header-actions">
-        <div className="studio-heading">
-          <h1 ref={heading} tabIndex={-1} className="studio-title">Bookmarks</h1>
-          <p className="studio-status">{statusLine}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+      <div className="studio-bookmarks-navigation">
+        <button type="button" className="studio-bookmarks-back" aria-label="Back from Bookmarks" disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
+        <div className="studio-bookmarks-controls">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label="Bookmark options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
         </div>
+      </div>
+      <div className="studio-heading">
+        <h1 ref={heading} tabIndex={-1} className="studio-title">Bookmarks</h1>
+        <p className="studio-status">{statusLine}</p>
       </div>
       <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder="Search bookmarks" value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {category === 'bookmarks' && <div className="studio-bookmark-tabs" role="group" aria-label="Saved collection">{STUDIO_BOOKMARK_TABS.map(kind => <button key={kind} type="button" aria-pressed={tab === kind} disabled={bulkPending} onClick={() => chooseTab(kind)}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}</div>}

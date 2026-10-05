@@ -4107,7 +4107,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 #root .codex-shell[data-presentation='mobile']:has(.portalink-world-search:focus-within) .mobile-context-floating { display: none; }
 
-#root .codex-shell[data-presentation='mobile']:has([data-inline-screen-actions]) > .mobile-context-floating { display: none; }
+#root .codex-shell[data-presentation='mobile']:has([data-inline-screen-actions]) .mobile-context-floating { display: none; }
 #root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions] .mobile-context-button { width: 44px; height: 44px; background: transparent !important; color: var(--text-primary) !important; }
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-home-search-header, .studio-drafts-heading, .studio-header-actions) { padding-right: 60px; }
 
@@ -4122,3 +4122,36 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] .mobile-screen-action-row > :first-child { flex: 1 1 0; min-width: 0; width: auto; }
 #root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions] { flex: 0 0 44px; }
 #root .codex-shell[data-presentation='mobile'] .studio-drafts-heading > .studio-drafts-control { margin-left: auto; }
+
+/* Bookmarks: navigation and controls precede the full-width heading. */
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-navigation { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-controls { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-navigation .studio-text-control { min-height:44px; padding:0 16px; font-size:14px; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-navigation .studio-bookmarks-back { margin:0; }
+#root .codex-shell[data-presentation='mobile'] .studio-bookmarks-navigation + .studio-heading .studio-title { white-space:nowrap; }
+
+/* One viewport anchor for screen actions; inline slots reserve header space. */
+#root .codex-shell[data-presentation='mobile'] {
+  --mobile-screen-action-top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 8px);
+  --mobile-screen-action-right: max(var(--mobile-navigation-inset-end), env(safe-area-inset-right, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions]) button.mobile-context-button {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  bottom: auto;
+  left: auto;
+  z-index: 55;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions] {
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-context-floating {
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+}
+#root .codex-shell[data-presentation='mobile'] [data-inline-screen-actions]:where(body:has([aria-modal='true']) *) {
+  visibility: hidden;
+}

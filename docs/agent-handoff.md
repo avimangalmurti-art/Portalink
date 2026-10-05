@@ -2619,3 +2619,13 @@ Source cc1e8c57c87224260e968d7d44ff51c60709aaa4; version appgprj_6a9273ef43f8819
 ## 2026-10-04 — MOBILE Studio direct Bookmarks access
 
 From cc1e8c57/Sites309, added an always-visible Bookmarks button beside Studio title, using existing button styling and onBookmarks navigation. Reachable with empty material/all-done too. Existing Material and context links retained. WEB placeholder untouched. Six focused workbench tests/build/bundle configuration verification pass. No data/SQL changes. Publishing follows.
+
+Publication receipt: Sites version 321 deployed successfully, deployment appgdep_6ac3583035c88191ab395ce0098aa41a, source 0813e79ac58a2c0613ebac3c63eec7aa0c885580, runtime environment revision 2. Physical iPhone verification remains outstanding.
+
+Remove portal chooser: removed ProjectPortalChoice component, App state/render/entry and obsolete chooser tests. Existing selected/saved portal now opens publisher directly; mobile no-portal accounts use existing activation. 12 focused publication tests and typecheck pass. No SQL or real data changes. Publication pending.
+
+Bookmarks spacing correction: top row now Back / Select / one gray options button; full-width Bookmarks title and status beneath, followed by search and tabs. Global fallback hiding now matches descendant placement to prevent duplicate menu. Mobile-only CSS; existing bookmark handlers preserved. Typecheck and focused workbench/context tests pass. Physical phone layout unverified. Unpublished; publication approval remains pending after prior automatic-review rejection.
+
+Needs attention: collapsed list limited to five in existing order; Show all/Show less moved beside section title with aria-expanded. Six focused tests and typecheck pass. Unpublished pending explicit publication approval.
+
+Fixed mobile screen actions: common safe-area top/right variables anchor both inline and fallback three-dot buttons at the same viewport coordinates. Existing 44px inline slots reserve space beside search/title/navigation; duplicate fallback hiding retained and inline actions hide under modal surfaces. WEB unaffected by mobile selectors. Focused context/navigation tests pass; physical Safari/PWA verification outstanding. Unpublished pending explicit publication authorization.

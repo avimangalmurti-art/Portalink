@@ -1,4 +1,3 @@
-import { ProjectPortalChoice } from './features/publishing/ProjectPortalChoice';
 import { beginActivation, readActivation, finishActivation } from './features/publishing/activationState';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
@@ -522,7 +521,6 @@ function AppContent() {
     return () => window.clearTimeout(timer);
   }, [publishConfirmation]);
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
-  const [portalChoice, setPortalChoice] = useState<{ accountId: string; preferredId: string | null } | null>(null);
   const [publishAccountId, setPublishAccountId] = useState<string | null>(null);
   const [globalCreateAccountId, setGlobalCreateAccountId] = useState<string | null>(null);
   const isGlobalCreatePending = globalCreateAccountId !== null && globalCreateAccountId === auth.user?.id;
@@ -537,7 +535,6 @@ function AppContent() {
     if (publishingAccountRef.current === accountId) return;
     const previousAccountId = publishingAccountRef.current;
     publishingAccountRef.current = accountId;
-    setPortalChoice(null);
     defaultCategoryRequest.current = null;
     setGlobalCreateAccountId(null);
     setPublishAccountId(null);
@@ -956,22 +953,6 @@ function AppContent() {
       if (opener?.isConnected && document.activeElement === document.body && !document.querySelector('[aria-modal="true"]')) opener.focus({ preventScroll: true });
     });
   }
-  function closePortalChoice() {
-    // Cancel the create intent as well as its surface; later profile updates
-    // must not reopen the chooser after the user has dismissed it.
-    setGlobalCreateAccountId(null);
-    setPortalChoice(null);
-    setIsPublishOpen(false);
-    setPublishTargetCategoryId(null);
-    setPublishAccountId(null);
-    setFirstProjectPublisher(false);
-    setJourneyMadeIn(null);
-    const opener = mobilePublishOpener.current;
-    mobilePublishOpener.current = null;
-    requestAnimationFrame(() => {
-      if (opener?.isConnected && !document.querySelector('[aria-modal="true"]')) opener.focus({ preventScroll: true });
-    });
-  }
   function requestGlobalPublish() {
     setGlobalCreateError(null);
     if (!auth.isAuthenticated) {
@@ -1003,16 +984,9 @@ function AppContent() {
         ? await import('./features/publishing/firstProjectDraft').then(module => module.readFirstProjectDraft(createAccountId, viewedProfile.id)).catch(() => null) : null;
       if (!current) return;
       const target = viewedProfile.categories.find(category => category.id === saved?.draft.categoryId) ?? activeCategory ?? viewedProfile.categories[0] ?? null;
-      if (presentation === 'mobile' && createAccountId) {
-        if (!viewedProfile.projects.length && !viewedProfile.categories.length) {
-          beginActivation(createAccountId, viewedProfile.id);
-          setActivationAccountId(createAccountId);
-          setGlobalCreateAccountId(null);
-          return;
-        }
-        setIsFirstProjectPublish(viewedProfile.projects.length === 0);
-        setFirstProjectPublisher(journeyMadeIn !== null || Boolean(saved) || viewedProfile.projects.length === 0);
-        setPortalChoice({ accountId: createAccountId, preferredId: target?.id ?? null });
+      if (presentation === 'mobile' && createAccountId && !target) {
+        beginActivation(createAccountId, viewedProfile.id);
+        setActivationAccountId(createAccountId);
         setGlobalCreateAccountId(null);
         return;
       }
@@ -1405,12 +1379,6 @@ function AppContent() {
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      {presentation === 'mobile' && portalChoice && portalChoice.accountId === auth.user?.id && isOwnerMode && viewedProfile && <ProjectPortalChoice key={portalChoice.accountId} categories={viewedProfile.categories} preferredId={portalChoice.preferredId} onCreate={name => management.createCategory(name, 'Grid2X2Icon')} onClose={closePortalChoice} onChoose={id => {
-        setPublishTargetCategoryId(id);
-        setPublishAccountId(portalChoice.accountId);
-        setPortalChoice(null);
-        setIsPublishOpen(true);
-      }} />}
       <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
         setIsPublishOpen(false);
