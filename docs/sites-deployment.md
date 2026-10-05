@@ -196,3 +196,6 @@ This process keeps the current hosting arrangement. It does not introduce automa
 - **Credentials and bindings:** keep browser publishable configuration distinct from server secrets. Never copy service-role credentials into `VITE_*` variables, repository files, or handoff notes. Keep the existing project and database connections intact.
 
 See [current architecture](current-architecture.md) for the client, Supabase, Sites worker/D1, and media-worker boundaries.
+
+## 2026-10-04 — Sites306 MOBILE chooser tap layer
+Source30c0aecf2c315f7c5eea372d29e69e0c1f99bc0a; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_be44b3d28fb48191bebc9eb0379df4c1; deployment appgdep_6ac2fa44a1e48191a002184780c861cc succeeded2026-10-05T01:15:57.727183+00:00. Same production URL/public audience/runtime revision2. Native top layer scoped to Choose a portal.8focused tests/typecheck/lint/build/config graph verification pass. Phone retest required. No backend/SQL/GitHub push or merge.

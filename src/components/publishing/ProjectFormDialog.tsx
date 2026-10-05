@@ -7,6 +7,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import './project-dialog.css';
+import { useTouchTap } from '../../hooks/useTouchTap';
 
 /** The existing New project presentation, shared with editing published work. */
 export function ProjectFormDialog({ title, titleId, description, onClose, closeDisabled = false, dialogRef, confirmation, children, mobileFlow = false, topLayer = false }: {
@@ -34,6 +35,7 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
   const reduceMotion = useReducedMotion();
   const requestClose = () => { if (!closeDisabled) onClose(); };
   useModalFocus(true, ref, requestClose);
+  const closeTap = useTouchTap(requestClose, topLayer && !closeDisabled);
   const transition = { duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] as const };
   const content = <motion.div ref={overlayRef} data-mobile-publish-flow={mobileFlow || undefined} className="project-form-overlay modal-scrim z-[80] bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition} onPointerDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
       <motion.section ref={ref} tabIndex={-1} role={topLayer ? undefined : "dialog"} aria-modal={topLayer ? undefined : true} aria-labelledby={titleId} className="project-form-dialog flex flex-col rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={transition}>
@@ -42,7 +44,7 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
             <h2 id={titleId} className="text-[20px] font-semibold leading-tight">{title}</h2>
             {description ? <p className="mt-1 text-[13px] leading-relaxed text-[var(--text-secondary)]">{description}</p> : null}
           </div>
-          <button type="button" onClick={requestClose} disabled={closeDisabled} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} weight="medium" /></button>
+          <button {...closeTap} type="button" onClick={requestClose} disabled={closeDisabled} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={XIcon} weight="medium" /></button>
         </div>
         {children}
       </motion.section>
