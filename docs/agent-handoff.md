@@ -2556,3 +2556,11 @@ Source1fbf18e55ed255530afb87bde14b14b6e14a20c6; version appgprj_6a9273ef43f88191
 ## 2026-10-04 — MOBILE Studio selection and safe-area correction
 
 Owned codex/mobile-writing-portal-fix from1fbf18e/Sites308. Studio workbench and Bookmarks headers now own safe-area top plus16px spacing. Workbench scroll content has dock/bottom safe-area clearance. Drafts have44px Select/Done/back controls, explanatory copy, Select all/deselect, whole-row checked selection preserving stage/date, selected count and fixed danger Discard action replacing dock. Existing shared confirmation remains mandatory; cancellation preserves selections, pending prevents repeated operations, failures retain retry context. Bookmark actions say Remove bookmark(s), Done is explicit. WEB selectors unchanged. Typecheck/lint/build and focused Studio tests pass; main/visitor Supabase graphs verified. Actual Drafts component fixture420x912 with59px simulated safe area verifies selection/confirmation/cancel/focus and visible toolbar; screenshot logs/studio-selection/selected.png. Physical iPhone and real account deletion not tested; no real data deleted. No SQL/GitHub push/merge. Publishing follows.
+
+## 2026-10-04 — Sites309 live: Studio selection and safe area
+
+Source cc1e8c57c87224260e968d7d44ff51c60709aaa4; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_ddf3e8c0cb3c8191b2437d81e7bd449e; deployment appgdep_6ac30e30e86c8191b932875bdbfd0778 succeeded2026-10-05T02:40:58.329845+00:00. Existing public audience/environmentrevision2 preserved.533files packaged, fixtures/env excluded. Browser fixture verified selection/confirmation cancellation; phone verification outstanding. Owned preview stopped and temporary browser closed. No SQL/GitHub push/merge.
+
+## 2026-10-04 — MOBILE Studio direct Bookmarks access
+
+From cc1e8c57/Sites309, added an always-visible Bookmarks button beside Studio title, using existing button styling and onBookmarks navigation. Reachable with empty material/all-done too. Existing Material and context links retained. WEB placeholder untouched. Six focused workbench tests/build/bundle configuration verification pass. No data/SQL changes. Publishing follows.
