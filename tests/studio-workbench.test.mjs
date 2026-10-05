@@ -40,10 +40,10 @@ test('Continue chooses latest edit and retains the exact saved step',()=>{
 const viewModule=sourceModule('src/features/studio/StudioWorkbenchView.tsx',{'../../presentation/mobile/MobileContextActions':{MobileContextButton:()=>null},'react':React,'lucide-react':{PlusIcon:()=>null,PauseIcon:()=>null},'../../components/media/ProjectCover':{ProjectCover:()=>null},'./StudioRow':{StudioRow:()=>null},'./StudioActionSheet':{StudioActionSheet:()=>null},'./workbenchModel':model,'./studio-workbench.css':{}});
 const View=viewModule.StudioWorkbenchView;
 const props={draft:null,draftCount:0,attention:[],week:null,publishedCount:0,material:[],partial:false,onContinue(){},onDrafts(){},onBookmarks(){},onReads(){},onMaterial(){},onAttention(){},onDismiss(){}};
-test('all four Studio cards stay grouped with honest empty states',()=>{
- const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.match(empty,/No drafts to continue/);assert.match(empty,/No published work yet/);assert.match(empty,/Reads this week/);assert.doesNotMatch(empty,/Needs attention|Material/);
+test('Studio buttons remain label-only with no preview data',()=>{
+ const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.doesNotMatch(empty,/No drafts to continue|No published work yet/);assert.match(empty,/Reads this week/);assert.doesNotMatch(empty,/Needs attention|Material/);
  const active=renderToStaticMarkup(React.createElement(View,{...props,attention:rows(project('p',{summary:''}))}));assert.match(active,/Reads this week/);
- const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.match(reads,/Reads this week/);assert.match(reads,/Top project/);
+ const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.match(reads,/Reads this week/);assert.doesNotMatch(reads,/Top project|4 opened|2 finished|3 saved/);
 });
 
 test('Studio visibly offers labeled Bookmarks and Insights shortcuts before workspace content',()=>{
@@ -57,7 +57,7 @@ test('Studio visibly offers labeled Bookmarks and Insights shortcuts before work
  assert.deepEqual(calls,['bookmarks','insights']);
  const html=renderToStaticMarkup(header);
  assert.match(html,/Bookmarks/);assert.match(html,/Insights/);
- assert.match(html,/Saved projects, pages and creators/);
+ assert.doesNotMatch(html,/Saved projects, pages and creators|See how people engage/);
  assert.doesNotMatch(html,/Create portal|New project/);
 });
 
@@ -67,6 +67,7 @@ test('Continue and weekly Reads use the same navigation group as Bookmarks and I
  const header=viewModule.StudioWorkbenchHeader({workspace,onBookmarks:()=>calls.push('bookmarks'),onReads:()=>calls.push('reads')});
  const nodes=e=>React.isValidElement(e)?[e,...React.Children.toArray(e.props.children).flatMap(nodes)]:[];
  const buttons=nodes(nodes(header).find(e=>e.type==='nav')).filter(e=>e.type==='button');
+ assert.ok(buttons.every(b=>nodes(b).filter(e=>e.type==='span').length===0));
  assert.deepEqual(buttons.map(b=>nodes(b).find(e=>e.type==='strong').props.children),['Continue','Reads this week','Bookmarks','Insights']);
  buttons.forEach(b=>b.props.onClick());assert.deepEqual(calls,['continue','reads','bookmarks','reads']);
 });

@@ -17,11 +17,11 @@ export function StudioWorkbenchHeader({onBookmarks,onReads,workspace}:{onBookmar
  return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1><div data-inline-screen-actions=""><MobileContextButton /></div></div><p>Your workspace, saved work and insights.</p>
    <nav className="studio-hub-navigation" aria-label="Studio sections">
     {workspace && <>
-      <button type="button" onClick={workspace.onContinue} disabled={!workspace.draft || workspace.draftsUnavailable}><strong>Continue</strong><span>{workspace.draftsUnavailable?'Drafts could not load':workspace.draft?workspace.draft.metadata.title.trim()||'Untitled':'No drafts to continue'}</span>{workspace.draft && <span>{({files:'Files',details:'Details',review:'Review'})[workspace.draft.stage]} · Edited {new Date(workspace.draft.updatedAt??workspace.draft.createdAt).toLocaleDateString()}</span>}</button>
-      <button type="button" onClick={onReads}><strong>Reads this week</strong><span>{workspace.week?`${workspace.week.opened} opened · ${workspace.week.finished} finished · ${workspace.week.saved} saved`:workspace.publishedCount?'Reads could not load':'No published work yet'}</span>{workspace.week?.top && <span>Top project · {workspace.week.top.title}</span>}</button>
+      <button type="button" onClick={workspace.onContinue} disabled={!workspace.draft || workspace.draftsUnavailable}><strong>Continue</strong></button>
+      <button type="button" onClick={onReads}><strong>Reads this week</strong></button>
     </>}
-    <button type="button" onClick={onBookmarks}><strong>Bookmarks</strong><span>Saved projects, pages and creators</span></button>
-    <button type="button" onClick={onReads}><strong>Insights</strong><span>See how people engage with your work</span></button>
+    <button type="button" onClick={onBookmarks}><strong>Bookmarks</strong></button>
+    <button type="button" onClick={onReads}><strong>Insights</strong></button>
    </nav>
   </header>;
 }

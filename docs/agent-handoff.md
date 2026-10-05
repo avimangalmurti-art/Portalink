@@ -2675,3 +2675,9 @@ Shared index.css targets actual public SharedPortalPopup, platform portal choose
 User authorized popup fixes publication. Source 9b5921e1bba181b5ae02482b5480179116923320; deployment appgdep_6ac367e0fcdc81919b290f07a081d3e0 succeeded. Includes public popup fixed sizing/reader toggle resets and shared portal translucency parity. Production build and main/visitor Supabase verification pass. Runtime2 unchanged; no SQL. Physical visual verification still outstanding. Release metadata local only.
 
 Studio grouping: Continue and Reads moved into same top two-column nav as Bookmarks/Insights. Draft title/stage/edit date and weekly totals/top title retained. No-draft Continue disabled; no-work Reads honest empty copy; other drafts remains below. Existing callbacks preserved. Typecheck pass; focused Studio checks verified. Unpublished, phone appearance unverified.
+
+Sites327 published: source 7a6c362060c7462fef75dd72b305d68f2af8ad6a, deployment appgdep_6ac36a5f1dd08191b972a0735c5397ae succeeded. Studio four-card grouping live; connected build/config verification pass, runtime2 unchanged. Physical appearance verification outstanding. Post-publication metadata local only.
+
+Studio label-only micro-edit: top four controls now contain only Continue, Reads this week, Bookmarks and Insights. Removed preview descriptions/draft metadata/counts from buttons; existing callbacks and Continue disabled state retained. Mobile button height reduced to56px, vertically centered. Focused Studio tests/diff check pass. Unpublished; browser/phone appearance unverified.
+
+Studio Show all micro-edit: attention heading row full width/centered; trailing action auto width, no flex growth and auto leading margin/right text alignment. MOBILE scoped; WEB unchanged. Diff check pass; visual phone verification outstanding. Unpublished alongside label-only controls.
