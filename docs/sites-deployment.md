@@ -202,3 +202,6 @@ Source30c0aecf2c315f7c5eea372d29e69e0c1f99bc0a; version appgprj_6a9273ef43f88191
 
 ## 2026-10-04 — Sites307 chooser touch activation
 Source5f5879ededfd6065ab176ace559ef14b2ccd893c; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_e342aed28e308191b456cd3e723f8fe6; deployment appgdep_6ac2ff9cf2108191878456a1bee6e735 succeeded2026-10-05T01:38:46.154707+00:00. Direct touchend path for chooser cancellation and radio choices, excluding scroll/cancel/disabled gestures.11focused tests/type/lint/build/config verification pass. Physical device result not verified. Existing audience/runtime unchanged; no SQL/GitHub push/merge.
+
+## 2026-10-04 — Sites308 mobile relationship styling
+Source1fbf18e55ed255530afb87bde14b14b6e14a20c6; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_53de14ba7e28819181938c269f04745b; deployment appgdep_6ac30ba82354819186548fce35088912 succeeded2026-10-05T02:30:10.942252+00:00. Following/bookmark reference treatment MOBILE only. Type/lint/build/main+visitorconfig checks pass. Physical mobile unverified. Existingpublicaudience/runtime revision2 preserved.

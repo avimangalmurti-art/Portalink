@@ -180,7 +180,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       edit: { id: 'edit', label: 'Edit', icon: PencilIcon, onAction: () => { if (row.kind === 'published') management.editor.open(row.project.id); } },
       share: { id: 'share', label: 'Share', icon: Share2Icon, onAction: () => { void shareRows([row]); } },
       'copy-link': { id: 'copy-link', label: 'Copy link', icon: CopyIcon, onAction: () => { void shareRows([row], true); } },
-      unsave: { id: 'unsave', label: 'Unsave', icon: BookmarkIcon, onAction: () => { void mutateRow(row, 'unsave'); } },
+      unsave: { id: 'unsave', label: 'Remove bookmark', icon: BookmarkIcon, onAction: () => { void mutateRow(row, 'unsave'); } },
       'mark-read': { id: 'mark-read', label: 'Mark read', icon: MailOpenIcon, onAction: () => { void mutateRow(row, 'markRead'); } },
     };
     return available.map(id => ({ ...definitions[id], disabled: data.pendingIds.has(row.id) || bulkPending || isRefreshing }));
@@ -210,13 +210,13 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
           <p className="studio-status">{statusLine}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? <InterfaceIcon icon={XIcon} /> : 'Select'}</button>
+          <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
           <button type="button" className="studio-round-control" aria-label="Bookmark options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button>
         </div>
       </div>
       <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder="Search bookmarks" value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {category === 'bookmarks' && <div className="studio-bookmark-tabs" role="group" aria-label="Saved collection">{STUDIO_BOOKMARK_TABS.map(kind => <button key={kind} type="button" aria-pressed={tab === kind} disabled={bulkPending} onClick={() => chooseTab(kind)}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}</div>}
-      {selecting && <div className="studio-selection-summary"><span role="status">{selectedRows.length} selected</span><button type="button" disabled={!canSelect} onClick={() => setSelected(selectedRows.length === visibleRows.length ? new Set() : new Set(visibleRows.map(row => row.id)))}>{selectedRows.length === visibleRows.length ? 'Deselect all' : 'Select visible'}</button></div>}
+      {selecting && <div className="studio-selection-summary"><span role="status">{selectedRows.length} selected</span><button type="button" disabled={!canSelect} onClick={() => setSelected(selectedRows.length === visibleRows.length ? new Set() : new Set(visibleRows.map(row => row.id)))}>{selectedRows.length === visibleRows.length ? 'Deselect all' : 'Select all shown'}</button></div>}
     </header>
     <div ref={scroller} className="studio-content" data-studio-scroll="" aria-busy={data.status === 'loading'}>
       {notice && <p role="status" className="studio-feedback">{notice}</p>}
@@ -230,10 +230,10 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     {selecting && <div className="studio-selection-toolbar" role="toolbar" aria-label="Selected item actions">
       <button type="button" className="studio-round-control" aria-label="Exit selection" disabled={bulkPending} onClick={closeSelection}><InterfaceIcon icon={XIcon} /></button>
       <div className="studio-bulk-actions scrollbar-hidden">
-        {bulk.unsave.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('unsave'); }}><InterfaceIcon icon={BookmarkIcon} /><span>Unsave ({bulk.unsave.length})</span></button>}
+        {bulk.unsave.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('unsave'); }}><InterfaceIcon icon={BookmarkIcon} /><span>Remove bookmarks ({bulk.unsave.length})</span></button>}
         {bulk.markRead.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void runBulk('markRead'); }}><InterfaceIcon icon={MailOpenIcon} /><span>Mark read ({bulk.markRead.length})</span></button>}
         {bulk.share.length > 0 && <button type="button" disabled={bulkPending || isRefreshing} onClick={() => { void shareRows(bulk.share); }}><InterfaceIcon icon={Share2Icon} /><span>Share ({bulk.share.length})</span></button>}
-        {!selectedRows.length && <span className="studio-selection-hint">Select items to see actions</span>}
+        {!selectedRows.length && <span className="studio-selection-hint">Tap items to select them</span>}
         {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
       </div>
     </div>}
@@ -241,3 +241,4 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     <ProjectEditorDialog management={management} />
   </section>;
 }
+

@@ -4075,3 +4075,21 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   width: 24px;
   height: 24px;
 }
+
+/* Studio owns its safe-area inset, including the standalone iOS status bar. */
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-header,
+#root .codex-shell[data-presentation='mobile'] .studio-header { padding-top: calc(var(--safe-area-top, env(safe-area-inset-top, 0px)) + 16px); }
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-scroll { overflow: visible; padding-bottom: calc(var(--mobile-content-safe-bottom, 104px) + 24px); }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-back { min-height:44px; color:var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-control { min-height:44px; padding:0 20px; border-radius:14px; background:var(--surface-sunken); font-weight:600; }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-list li>button { flex-direction:row; align-items:center; gap:14px; border:1px solid var(--hairline); min-height:88px; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-copy { flex:1; min-width:0; display:grid; gap:6px; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-copy strong { font-size:16px; color:var(--text-primary); overflow-wrap:anywhere; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-check { flex:0 0 24px; width:24px; height:24px; border:2px solid var(--text-secondary); border-radius:7px; display:grid; place-items:center; }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-list [data-selected='true']>button { border-color:var(--accent-text); background:var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-list [data-selected='true'] .studio-draft-check { background:var(--accent-text); border-color:var(--accent-text); color:var(--surface-canvas); }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar { border-radius:20px; padding:12px 16px; justify-content:space-between; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>span { font-size:14px; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>button { border-radius:12px; padding:0 16px; background:var(--status-danger); color:white; font-weight:600; }
+#root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>button:disabled { opacity:.45; }
