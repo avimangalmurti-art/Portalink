@@ -29,6 +29,7 @@ const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module 
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
 const ProfileOnboardingDialog = lazy(() => import('../features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const PublicPortfolioWelcome = lazy(() => import('./mobile/PublicPortfolioWelcome').then(module => ({ default: module.PublicPortfolioWelcome })));
 type SharedRoute = Extract<AppRoute, { kind: 'sharedProfile' | 'sharedCategory' | 'sharedProject' }>
   | { kind: 'sharedCollaboration'; profileId: string };
 const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -60,6 +61,7 @@ export function VisitorApp() {
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
+  const [appearanceConfirmed, setAppearanceConfirmed] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const deferredIntent = useRef<AuthIntent | null>(null);
@@ -174,6 +176,7 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
+      {profile && shared && !settings && !appearanceConfirmed && !auth.pendingView && !onboardingOpen && <Suspense fallback={null}><PublicPortfolioWelcome appearance={appearance} onComplete={() => setAppearanceConfirmed(true)} /></Suspense>}
       {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopupId(null)} onSelect={openProject} />}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}

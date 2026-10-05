@@ -4210,3 +4210,25 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 
 #root .codex-shell[data-presentation='mobile'] .studio-bookmarks-controls { gap: 12px; }
 #root .codex-shell[data-presentation='mobile'] [data-messages-page]:not([data-mobile-inbox]):not([data-mobile-chat]) [data-mobile-safe-header] { padding-inline-end: calc(var(--mobile-screen-action-right) + 56px); }
+
+/* Studio is the entry point for productivity, saved work and insights. */
+#root .codex-shell[data-presentation='mobile'] .studio-hub-heading { grid-template-columns: minmax(0, 1fr) 44px; }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:20px; }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation > button { display:flex; flex-direction:column; gap:6px; min-height:88px; padding:16px; border-radius:16px; background:var(--surface-sunken); text-align:left; color:var(--text-primary); }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation strong { font-size:16px; font-weight:650; }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation span { font-size:12px; line-height:1.4; color:var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation > button:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+#root .codex-shell[data-presentation='mobile'] .studio-hub-navigation > button:active { background:var(--surface-hover); }
+
+/* Center the expanded engagement capsule over its centered reader controls. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-engagement-content] {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+/* Journey previews keep the project cover and title concise on mobile. */
+#root .codex-shell[data-presentation='mobile'] .journey-view :is(.journey-learned, .journey-caption) { display: none; }
+
+/* Public profiles keep their full identity without reserving an action slot. */
+#root .codex-shell[data-presentation='mobile'] [data-public-portfolio-grid] .profile-compact-header .profile-identity-copy { padding-inline-end: 0; }

@@ -41,7 +41,7 @@ function renderRoute(presentation, kind, overrides = {}) {
   return { context, calls, screen: evaluate(studioBranch, context) };
 }
 
-test('mobile Studio and saved alias share one account-scoped workspace with existing navigation and creation', () => {
+test('mobile Studio and saved alias share one account-scoped workspace with existing navigation and profile-only creation', () => {
   const studio = renderRoute('mobile', 'studio');
   const saved = renderRoute('mobile', 'saved');
   for (const result of [studio, saved]) {
@@ -51,9 +51,9 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.context.isProtectedRoute, true);
     assert.match(result.context.screenMainClassName, /overflow-hidden/);
     result.screen.props.onBack();
-    result.screen.props.onNewProject();
+    assert.equal(result.screen.props.onNewProject, undefined);
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
-    assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
+    assert.deepEqual(result.calls, ['back', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
   }
   assert.equal(studio.screen.props.savedRoute, false);
   assert.equal(saved.screen.props.savedRoute, true);
@@ -91,8 +91,8 @@ test('mobile Studio requires the existing auth gate and cannot mount private con
 });
 
 
-test('ready mobile Studio supplies creation through the screen, with no extra dock compose button', () => {
-  for (const route of ['studio', 'saved']) assert.equal(typeof renderRoute('mobile', route).screen.props.onNewProject, 'function');
+test('mobile Studio keeps creation in the profile rather than adding a productivity shortcut', () => {
+  for (const route of ['studio', 'saved']) assert.equal(renderRoute('mobile', route).screen.props.onNewProject, undefined);
   for (const route of ['studio', 'saved']) assert.equal(renderRoute('web', route).screen.props.onNewProject, undefined);
   assert.equal(renderRoute('mobile', 'studio', { auth: { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null } }).screen.props.onNewProject, undefined);
   assert.ok(!source.text.includes('onMobileCreateProject'));

@@ -2,13 +2,11 @@ import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
 import React, { lazy, Suspense, useMemo, useState } from 'react';
-import { ChevronDownIcon, ChevronUpIcon, MoreHorizontalIcon } from 'lucide-react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
 import { JustifiedImageWall } from '../components/profile/JustifiedImageWall';
 import { ProjectPreviewCard } from '../components/profile/ProjectPreviewCard';
-import { InterfaceIcon } from '../components/ui/InterfaceIcon';
 import { getProjectAspectRatio } from '../utils/projectPresentation';
 import { resolveProfileLinks } from '../features/profile/profileLinks';
 import { useProjectGridDensity } from '../features/profile/useProjectGridDensity';
@@ -26,7 +24,7 @@ const ProfileCollectionGrid = lazy(() => import('../components/profile/ProfileCo
 export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboration, onMessage, onBack }: {
   profile: Profile; categoryId: string | null; onOpen: (categoryId: string, projectId: string) => void; onCollaboration: () => void; onMessage: () => void; onBack?: () => void;
 }) {
-  const [optionsOpen, setOptionsOpen] = useState(false), [bioOpen, setBioOpen] = useState(false);
+  const [bioOpen, setBioOpen] = useState(false);
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
@@ -42,7 +40,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       priority="viewport" allowPdfFallback={false} allowVideoFallback={false} sharedCoverFallback /> }));
   return <div data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
-      <header className="profile-compact-header" data-expanded={optionsOpen || undefined}>
+      <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
           <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
             <ProfileAvatar name={profile.name} avatar={profile.avatar} size="profile" priority="viewport" />
@@ -57,14 +55,14 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             </div>
           </div>
         </div>
-        <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={optionsOpen} aria-controls="profile-navigation-tools" onClick={() => setOptionsOpen(value => !value)}><InterfaceIcon icon={isMobile ? (optionsOpen ? ChevronUpIcon : ChevronDownIcon) : MoreHorizontalIcon} /></button>
+
       </header>
-      {optionsOpen && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
+      <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
         </div>
-      </header>}
+      </header>
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}

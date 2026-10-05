@@ -178,18 +178,23 @@ test('cold public mobile visit shows the portfolio immediately and keeps the exa
   assert.ok(shellChildren.some(node => node.props.className?.includes('codex-workspace')));
   assert.ok(h.queryCalls.length > 0);
   tree = h.render();
-  assert.equal(nodes(tree).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
+  assert.ok(one(tree, 'lazy:./mobile/PublicPortfolioWelcome'));
   assert.equal(h.state.location.search + h.state.location.hash, '?via=friend#work');
   assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
 });
 
-test('shared visitors on both presentations never receive the appearance welcome', () => {
-  const returning = appHarness();
-  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
-  assert.equal(nodes(returning.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
-  for (const configure of [h => { h.state.presentation = 'web'; }, h => { h.state.route = {kind:'sharedProject',profileId,categoryId:'portal',projectId:'work'}; }, h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
-    const h = appHarness({ firstVisit: true }); configure(h);
-    assert.equal(nodes(h.render()).some(n => n.type === 'lazy:./mobile/PublicPortfolioWelcome'), false);
+test('shared visitors receive appearance on every fresh entry and dismiss it once', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness(); h.state.presentation = presentation;
+    const welcome = one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome');
+    assert.ok(welcome);
+    welcome.props.onComplete();
+    assert.equal(one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome'), undefined);
+    assert.ok(one(appHarness().render(), 'lazy:./mobile/PublicPortfolioWelcome'));
+  }
+  for (const configure of [h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
+    const h = appHarness(); configure(h);
+    assert.equal(one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome'), undefined);
   }
 });
 
@@ -384,12 +389,13 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
   return { render, state, followed, bioProfile };
 }
 
-test('public profile options preserve Bio and the existing portals/category views', () => {
+test('public profile is always expanded without an action button and preserves Bio and portal views', () => {
   const { render, state, followed, bioProfile } = visitorProfileHarness();
+  assert.equal(nodes(render()).find(node => node.props?.className?.includes('profile-compact-header')).props['data-expanded'], true);
   const identity = nodes(render()).find(node => node.props?.className?.includes('profile-identity-copy'));
   assert.deepEqual(React.Children.toArray(identity.props.children).map(node => node.props.children), ['Creator', 'London']);
   assert.equal(one(render(), 'lazy:../features/profile/ProfileBioSheet'), undefined);
-  button(render(), 'Profile options').props.onClick();
+  assert.equal(button(render(), 'Profile options'), undefined);
   assert.equal(one(render(), 'PlatformGrid').props.isSharedView, true);
   one(render(), 'PlatformGrid').props.onOpenBio();
   const bio = one(render(), 'lazy:../features/profile/ProfileBioSheet');
@@ -411,12 +417,12 @@ test('public profile options preserve Bio and the existing portals/category view
 test('shared mobile Journey switch stays in every profile header and exits portal views', () => {
   const {render,state}=visitorProfileHarness({presentation:'mobile',showJourney:true});
   assert.ok(one(render(),'JourneyToggle'));
-  button(render(),'Profile options').props.onClick();
+  assert.equal(button(render(), 'Profile options'), undefined);
   const tools=nodes(render()).find(node=>node.props?.id==='profile-navigation-tools');
   assert.equal(one(tools,'JourneyToggle'),undefined);
   one(render(),'JourneyToggle').props.onChange('journey');
   assert.ok(one(render(),'lazy:../features/journey/JourneyView'));
-  button(render(),'Profile options').props.onClick();
+  assert.equal(button(render(), 'Profile options'), undefined);
   assert.equal(one(render(),'JourneyToggle').props.view,'journey');
   for (const view of ['category','portals']) {
     if (view==='category') state.categoryId='portal'; else state.search.set('view','portals');
@@ -432,14 +438,13 @@ test('shared Journey permission and WEB switch placement are unchanged', () => {
     denied.state.view = 'journey';
     for (const own of [true, false]) {
       denied.state.own = own;
-      if (!button(denied.render(), 'Profile options').props['aria-expanded']) button(denied.render(), 'Profile options').props.onClick();
       assert.equal(one(denied.render(), 'JourneyToggle'), undefined);
       assert.equal(one(denied.render(), 'lazy:../features/journey/JourneyView'), undefined);
     }
   }
   const web = visitorProfileHarness({ presentation: 'web', showJourney: true });
-  for (const expanded of [false, true]) {
-    if (expanded) button(web.render(), 'Profile options').props.onClick();
+  for (const expanded of [true]) {
+    assert.equal(expanded, true);
     const tree = web.render(), direct = React.Children.toArray(tree.props.children);
     assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
     const tools = nodes(tree).find(node => node.props?.id === 'profile-navigation-tools');
@@ -454,8 +459,8 @@ test('public portfolio has no follow action or follow lookup for guests, members
     for (const [signedIn, own] of [[false, false], [true, false], [true, true]]) {
       const h = visitorProfileHarness({ presentation });
       Object.assign(h.state, { signedIn, own, resolveError: 'Follow unavailable' });
-      for (const expanded of [false, true]) {
-        if (expanded) button(h.render(), 'Profile options').props.onClick();
+      for (const expanded of [true]) {
+        assert.equal(expanded, true);
         const tree = h.render();
         for (const label of ['Follow', 'Following', 'Requested', 'Sign in to follow', 'Try again']) assert.equal(button(tree, label), undefined);
         assert.equal(nodes(tree).some(node => node.props?.role === 'alert'), false);

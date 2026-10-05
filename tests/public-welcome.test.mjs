@@ -10,9 +10,11 @@ const load = (file, dependencies = {}, globals = {}) => {
     { exports, require: name => dependencies[name] ?? new Proxy({}, {get:(_,key)=>key}), ...globals });
   return exports;
 };
-test('visitor entry does not import or mount an appearance welcome', () => {
+test('visitor entry mounts appearance once per fresh load', () => {
   const source = readFileSync(new URL('../src/visitor/VisitorApp.tsx', import.meta.url),'utf8');
-  assert.doesNotMatch(source, /PublicPortfolioWelcome|shouldWelcomePublicVisitor|welcomedProfileId/);
+  assert.match(source, /!appearanceConfirmed/);
+  assert.match(source, /PublicPortfolioWelcome appearance=\{appearance\}/);
+  assert.doesNotMatch(source, /shouldWelcomePublicVisitor|welcomedProfileId/);
   assert.match(source, /ControlCenterPage/);
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
