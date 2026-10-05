@@ -1,4 +1,4 @@
-import { useRef, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { XIcon } from 'lucide-react';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -9,7 +9,7 @@ import { useDialogViewport } from '../../hooks/useDialogViewport';
 import './project-dialog.css';
 
 /** The existing New project presentation, shared with editing published work. */
-export function ProjectFormDialog({ title, titleId, description, onClose, closeDisabled = false, dialogRef, confirmation, children, mobileFlow = false }: {
+export function ProjectFormDialog({ title, titleId, description, onClose, closeDisabled = false, dialogRef, confirmation, children, mobileFlow = false, topLayer = false }: {
   title: string;
   titleId: string;
   description?: ReactNode;
@@ -19,7 +19,15 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
   confirmation?: ReactNode;
   children: ReactNode;
   mobileFlow?: boolean;
+  topLayer?: boolean;
 }) {
+  const nativeRef = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    const dialog = nativeRef.current;
+    if (!topLayer || !dialog) return;
+    dialog.showModal();
+    return () => { if (dialog.open) dialog.close(); };
+  }, [topLayer]);
   const localRef = useRef<HTMLElement>(null);
   const overlayRef = useDialogViewport();
   const ref = dialogRef ?? localRef;
@@ -27,9 +35,8 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
   const requestClose = () => { if (!closeDisabled) onClose(); };
   useModalFocus(true, ref, requestClose);
   const transition = { duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] as const };
-  return <ModalPortal>
-    <motion.div ref={overlayRef} data-mobile-publish-flow={mobileFlow || undefined} className="project-form-overlay modal-scrim z-[80] bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition} onPointerDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
-      <motion.section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={titleId} className="project-form-dialog flex flex-col rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={transition}>
+  const content = <motion.div ref={overlayRef} data-mobile-publish-flow={mobileFlow || undefined} className="project-form-overlay modal-scrim z-[80] bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition} onPointerDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
+      <motion.section ref={ref} tabIndex={-1} role={topLayer ? undefined : "dialog"} aria-modal={topLayer ? undefined : true} aria-labelledby={titleId} className="project-form-dialog flex flex-col rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={transition}>
         <div className="project-form-heading flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 id={titleId} className="text-[20px] font-semibold leading-tight">{title}</h2>
@@ -40,8 +47,8 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
         {children}
       </motion.section>
       {confirmation}
-    </motion.div>
-  </ModalPortal>;
+    </motion.div>;
+  return <ModalPortal>{topLayer ? <dialog ref={nativeRef} className="project-choice-modal" aria-modal="true" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); requestClose(); }}>{content}</dialog> : content}</ModalPortal>;
 }
 
 export function ProjectDiscardConfirmation({ title, description, error, busy = false, onKeep, onDiscard }: {

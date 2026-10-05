@@ -35,7 +35,7 @@ export function ProjectPortalChoice({ categories, preferredId, onChoose, onCreat
     } catch { setError('Could not create your portal. Please try again.'); }
     finally { pending.current = false; setBusy(false); }
   }
-  return <ProjectFormDialog mobileFlow title="Choose a portal" titleId="project-portal-title" description="Where would you like to add your new project?" onClose={onClose} closeDisabled={busy}>
+  return <ProjectFormDialog mobileFlow topLayer title="Choose a portal" titleId="project-portal-title" description="Where would you like to add your new project?" onClose={onClose} closeDisabled={busy}>
     <form className="project-form-content mobile-publish-flow" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <div className="mobile-publish-body project-form-fields">
         <fieldset disabled={busy} className="space-y-3"><legend className="sr-only">Portal destination</legend>
