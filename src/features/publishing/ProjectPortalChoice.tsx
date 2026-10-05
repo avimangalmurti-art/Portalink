@@ -40,7 +40,6 @@ export function ProjectPortalChoice({ categories, preferredId, onChoose, onCreat
     } catch { setError('Could not create your portal. Please try again.'); }
     finally { pending.current = false; setBusy(false); }
   }
-  const submitTap = useTouchTap(() => { void submit(); }, !busy && (mode === 'existing' ? Boolean(selectedId) : Boolean(name.trim())));
   return <ProjectFormDialog mobileFlow topLayer title="Choose a portal" titleId="project-portal-title" description="Where would you like to add your new project?" onClose={onClose} closeDisabled={busy}>
     <form className="project-form-content mobile-publish-flow" onSubmit={event => { event.preventDefault(); void submit(); }}>
       <div className="mobile-publish-body project-form-fields">
@@ -55,7 +54,7 @@ export function ProjectPortalChoice({ categories, preferredId, onChoose, onCreat
           : <ProfileField id="new-project-portal-name" label="Portal name" required value={name} maxLength={MAX_CATEGORY_LABEL} disabled={busy} placeholder="Name your portal" onChange={value => { setName(value); setError(''); }} />}
         {error && <p role="alert">{error}</p>}
       </div>
-      <footer className="mobile-publish-actions"><Button {...submitTap} type="submit" variant="primary" size="lg" fullWidth isLoading={busy} disabled={busy || (mode === 'existing' ? !selectedId : !name.trim())}>{mode === 'new' ? 'Create portal and continue' : 'Continue'}</Button></footer>
+      <footer className="mobile-publish-actions"><Button type="button" onClick={() => { void submit(); }} variant="primary" size="lg" fullWidth isLoading={busy} disabled={busy || (mode === 'existing' ? !selectedId : !name.trim())}>{mode === 'new' ? 'Create portal and continue' : 'Continue'}</Button></footer>
     </form>
   </ProjectFormDialog>;
 }

@@ -30,3 +30,19 @@ test('duplicate names and failed creation keep choice open and do not start a pr
 
 test('a removed saved destination falls back to a valid portal rather than a dead Continue action',async()=>{const h=harness(undefined,undefined,'deleted');assert.equal(nodes(h.render()).find(n=>n.type==='select').props.value,'one');await h.submit();assert.deepEqual(h.chosen,['one']);});
 test('creation pending prevents duplicate requests and failure preserves the typed name',async()=>{let reject;const wait=new Promise((_,no)=>reject=no);const h=harness(undefined,()=>wait);h.newMode();h.name('Keep this name');const first=h.submit();await h.submit();assert.equal(h.created.length,1);assert.equal(nodes(h.render()).find(n=>n.type==='fieldset').props.disabled,true);reject(Error('network'));await first;await new Promise(r=>setTimeout(r,0));assert.equal(nodes(h.render()).find(n=>n.type==='ProfileField').props.value,'Keep this name');assert.ok(nodes(h.render()).some(n=>n.props.role==='alert'));});
+
+test('Continue invokes the transition explicitly without native form submission or early pointer activation',async()=>{
+ const h=harness();const action=nodes(h.render()).find(n=>n.type==='Button');
+ assert.equal(action.props.type,'button');assert.equal(action.props.onPointerUp,undefined);
+ action.props.onClick();await new Promise(r=>setTimeout(r,0));
+ assert.deepEqual(h.chosen,['two']);
+});
+
+test('choosing a portal opens the publisher with the same account and canonical portal',()=>{
+ const source=ts.createSourceFile('App.tsx',readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+ let callback;const visit=n=>{if(ts.isJsxAttribute(n)&&n.name.text==='onChoose'&&ts.isJsxSelfClosingElement(n.parent.parent)&&n.parent.parent.tagName.getText(source)==='ProjectPortalChoice')callback=n.initializer.expression;ts.forEachChild(n,visit);};visit(source);assert.ok(callback);
+ const state={};const context={portalChoice:{accountId:'owner'}};
+ for(const key of ['PublishTargetCategoryId','PublishAccountId','PortalChoice','IsPublishOpen'])context[`set${key}`]=value=>state[key]=value;
+ vm.runInNewContext(ts.transpileModule('const choose='+callback.getText(source)+';choose("design");',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,context);
+ assert.equal(state.PublishTargetCategoryId,'design');assert.equal(state.PublishAccountId,'owner');assert.equal(state.PortalChoice,null);assert.equal(state.IsPublishOpen,true);
+});
