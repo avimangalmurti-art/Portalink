@@ -1,3 +1,11 @@
+## MOBILE globe top strip
+
+Globe shell safe-area background and focused search canvas now use existing black network sky token; search label uses network foreground. Removes white strip without moving controls into status area. WEB unchanged. Production build/config guard passing; physical iPhone unverified.
+
+## Sites314 receipt
+
+Source78457f28a6280a1082ec98e2348f0f80ad8c2066; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_300b73ebb37c8191b4456db3f0b56ae8; deployment appgdep_6ac3302eb788819187d939afc8179dd1 succeeded2026-10-05T05:06:03.833448+00:00. Public audience/runtime2 retained. No SQL/deletion activation/GitHub push. Physical Safari verification outstanding.
+
 ## 2026-10-04 — MOBILE city search and bookmark correction
 
 Remove Done. Focused city results now use remaining visible viewport in flex flow rather than absolute popup/fixed180px deduction; mobile city selection blurs input before navigation. WEB preserved through opt-in blurOnSelect. Saved creator yellow fill restored by removing mobile fill:none override.11 focused tests/typecheck/lint(0errors)/build/config guard pass. Physical iOS keyboard/pan unverified. No backend changes.

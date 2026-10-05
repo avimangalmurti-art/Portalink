@@ -242,7 +242,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 8px;
-  background: var(--background-primary);
+  background: var(--portalink-bg-primary);
 }
 [data-presentation='mobile'] .portalink-world-search:focus-within .location-search {
   display: flex;
@@ -4097,3 +4097,6 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>span { font-size:14px; }
 #root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>button { border-radius:12px; padding:0 16px; background:var(--status-danger); color:white; font-weight:600; }
 #root .codex-shell[data-presentation='mobile'] .studio-draft-toolbar>button:disabled { opacity:.45; }
+
+#root .app-shell[data-presentation='mobile']:has(.portalink-world) { background: var(--portalink-bg-primary); }
+[data-presentation='mobile'] .portalink-world-search:focus-within .location-search > label { color: var(--portalink-text-primary, #fff); }
