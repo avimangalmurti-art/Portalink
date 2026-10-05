@@ -2379,3 +2379,22 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-panel [data-sidebar-toggle] [data-interface-icon-frame] {
   --interface-icon-size: 22px;
 }
+/* Public portal lists keep one viewport-based size regardless of entry point. */
+#root .codex-shell[data-presentation='mobile'] .shared-portal-popup-layer {
+  box-sizing:border-box;
+}
+#root .codex-shell[data-presentation='mobile'] .shared-portal-popup {
+  width:min(100%, 420px);
+  max-width:420px;
+  height:min(70dvh, 640px);
+  max-height:100%;
+  min-height:0;
+  flex:none;
+}
+/* Reader navigation controls share the bottom toolbar position. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) :is(.mobile-shared-drawer-opener, .mobile-shared-drawer-panel [data-sidebar-toggle]) {
+  top:auto;
+  right:auto;
+  margin:0;
+  z-index:2;
+}

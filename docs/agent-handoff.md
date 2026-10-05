@@ -2661,3 +2661,12 @@ MessagesPage adds invitation-specific introduction/composer markers. Mobile uses
 
 ## All user avatars squircle — unpublished
 Shared CreatorAvatar now always uses existing squircle mask for image/initial fallback; compact callers updated. CommentThreadView and MediaInteractionBar author avatars also use squircle. Both presentations intentionally updated per all-avatars request; non-avatar circular controls untouched. Seven avatar tests pass; typecheck checked. No browser/physical visual verification or deployment. Pending with preceding UI changes.
+
+## Sites 325 published
+User authorized publication. Source f0ca49559f36a91dee11d149ae249745d32296cc; deployment appgdep_6ac3666ad05c8191b76a2529e40bd3d9 succeeded, runtime revision2 preserved. Includes Home account-search/globe split, Studio summary card styling, invitation styling/pending-send guard and squircle avatars. Fresh production build/config verification passes. No database or account deletion enablement. Physical phone verification remains outstanding. Post-release metadata local only.
+
+## Shared MOBILE portal popup sizing/reader controls — unpublished
+Public-mobile CSS gives SharedPortalPopup explicit viewport-based height min70dvh/640px and max420px width, clamped to layer; list already flex-scrolls. Same root-scoped rule independent of open source/list count. Reader opener/close reset top/right/margin so existing shared bottom-toolbar coordinates control position consistently. WEB untouched. Twenty-eight drawer/visitor tests and diff check pass. Actual browser/physical layout not verified; no deployment or backend changes.
+
+## MOBILE portal popup material parity — unpublished
+Shared index.css targets actual public SharedPortalPopup, platform portal chooser and portal project-index popup with existing navigation-surface/navigation-blur tokens. Transparent direct toolbar/list surfaces let popup material show through. High contrast, reduce-translucency and system reduced-transparency force solid surface/no blur. MOBILE scoped, desktop unaffected. Nine focused portal/drawer tests and diff check pass; visual translucency not browser/phone verified. Pending alongside prior shared popup sizing/controls. No publication/backend changes.

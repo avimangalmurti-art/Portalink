@@ -5569,3 +5569,24 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
   [data-themed-portal].theme-light { --label-secondary: #292929; --label-tertiary: #484848; --hairline-strong: rgba(0,0,0,.62); }
 }
 .account-welcome-card .appearance-switch-track { border-radius: 999px; }
+/* Portal popups share navigation material in both private and public shells. */
+#root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+  background:var(--navigation-surface, var(--surface-raised)) !important;
+  -webkit-backdrop-filter:var(--navigation-blur, none) !important;
+  backdrop-filter:var(--navigation-blur, none) !important;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) > :is(header, nav, .global-control-header, [data-mobile-portal-project-header]) {
+  background:transparent;
+}
+#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+  background:var(--surface-raised) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+    background:var(--surface-raised) !important;
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+}
