@@ -1,7 +1,7 @@
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
 import React, { useState } from 'react';
-import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import type { DraftResume } from './workbenchModel';
 export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookmarks,onReads}:{drafts:DraftResume[];onBack:()=>void;onResume:(draft:DraftResume)=>void;onDiscard:(ids:string[])=>Promise<void>;onNew?:()=>void;onBookmarks:()=>void;onReads:()=>void}) {
@@ -13,7 +13,7 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
  return <section className="mobile-studio studio-workbench" data-studio-selecting={selecting?'true':'false'} aria-label="Drafts">
   <header className="studio-workbench-header">
    <button type="button" className="studio-drafts-back" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>← {selecting?'Done':'Studio'}</button>
-   <div className="studio-drafts-heading"><h1>Drafts</h1><button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button></div>
+   <div className="studio-drafts-heading"><h1>Drafts</h1><button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div>
    <p>{selecting?'Tap drafts to select them for removal.':'Tap a draft to continue editing.'}</p>
    {selecting&&<div className="studio-selection-summary"><span role="status">{selectedDrafts.length} selected</span><button type="button" disabled={busy} onClick={()=>setSelected(selectedDrafts.length===drafts.length?new Set():new Set(drafts.map(d=>d.id)))}>{selectedDrafts.length===drafts.length?'Deselect all':'Select all'}</button></div>}
   </header>

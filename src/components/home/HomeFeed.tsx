@@ -1,5 +1,5 @@
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
-import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
@@ -191,7 +191,7 @@ export function HomeFeed({
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div data-feed-scroll-content="" className="relative pt-3">
-          {showMobileSearch && <header className="mobile-home-search-header">
+          {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
               <div className={feed.isEmpty ? 'flex min-h-11 w-full items-center' : 'field-shell text-control-shell flex min-h-11 w-full items-center rounded-[8px]'}>
                 {onExploreWorld && !feed.isEmpty && <button type="button" onClick={onExploreWorld}
                   className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[8px] px-3 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
@@ -204,6 +204,7 @@ export function HomeFeed({
                   <InterfaceIcon icon={RotateCwIcon} size="sm" weight="medium" effect="rotate" effectActive={feed.isRefreshing} />
                 </button>
               </div>
+              <div data-inline-screen-actions=""><MobileContextButton /></div></div>
             <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>

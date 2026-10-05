@@ -1,5 +1,5 @@
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
-import { useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
+import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
 import { useMenuFocus } from '../hooks/useMenuFocus';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
@@ -355,11 +355,12 @@ export function MessagesPage({
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
               <div className="side-panel-control-stack side-panel-content-inset shrink-0">
-                <label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+                <div className={isMobile ? "mobile-screen-action-row" : undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>
                   <input ref={searchInput} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
                 </label>
+                {isMobile && <div data-inline-screen-actions=""><MobileContextButton /></div>}</div>
                 <div className="side-panel-filter-grid" role="group" aria-label="Conversation filter">
                   <FilterChip label="Chats" isActive={conversationFilter === 'all'} onSelect={() => setConversationFilter('all')} />
                   <FilterChip label="Unread" isActive={conversationFilter === 'unread'} onSelect={() => setConversationFilter('unread')} />

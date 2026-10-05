@@ -1,3 +1,7 @@
+## MOBILE per-screen action layout
+
+Inline shared context trigger in Home search row, Messages search row, Studio workbench and Drafts headings; global fallback hidden via existing inline marker. Bookmarks existing options trigger keeps original functionality and shares same system-gray class. Remove manual60px header padding; true flex siblings reserve44px+8px for actions. Profile previous inline position retained. WEB Messages preserves nonmobile structure/behavior.52 focused context/navigation/workbench tests,typecheck,lint/build/config guard pass. Tests updated mock for new shared header control. Browser/physical verification unperformed; user screenshots are issue evidence. No backend changes.
+
 ## MOBILE screen-actions system gray
 
 Remove dock-destination class from shared context trigger. Top/inline trigger uses existing navigation surface/foreground/shadow/blur and pressed tokens,44px target14px radius; no accent or transparent dock override. Existing route/actions unchanged; WEB unchanged.46 focused navigation/context checks and production build/config guard pass. Physical/browser appearance verification outstanding. Publish exact owned release source.

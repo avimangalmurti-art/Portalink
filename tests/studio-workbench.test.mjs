@@ -37,7 +37,7 @@ test('Continue chooses latest edit and retains the exact saved step',()=>{
  for(const step of ['files','details','review'])assert.equal(model.newestDraft([draft('old','files','2026-09-01'),draft('new',step,'2026-10-01')]).stage,step);
  assert.equal(model.newestDraft([]),null);
 });
-const View=sourceModule('src/features/studio/StudioWorkbenchView.tsx',{'react':React,'lucide-react':{PlusIcon:()=>null,PauseIcon:()=>null},'../../components/media/ProjectCover':{ProjectCover:()=>null},'./StudioRow':{StudioRow:()=>null},'./StudioActionSheet':{StudioActionSheet:()=>null},'./workbenchModel':model,'./studio-workbench.css':{}}).StudioWorkbenchView;
+const View=sourceModule('src/features/studio/StudioWorkbenchView.tsx',{'../../presentation/mobile/MobileContextActions':{MobileContextButton:()=>null},'react':React,'lucide-react':{PlusIcon:()=>null,PauseIcon:()=>null},'../../components/media/ProjectCover':{ProjectCover:()=>null},'./StudioRow':{StudioRow:()=>null},'./StudioActionSheet':{StudioActionSheet:()=>null},'./workbenchModel':model,'./studio-workbench.css':{}}).StudioWorkbenchView;
 const props={draft:null,draftCount:0,attention:[],week:null,publishedCount:0,material:[],partial:false,onContinue(){},onDrafts(){},onBookmarks(){},onReads(){},onMaterial(){},onAttention(){},onDismiss(){}};
 test('all-done line, no invented sections and Reads hidden without published work',()=>{
  const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.match(empty,/Portal popup on your profile/);assert.doesNotMatch(empty,/Needs attention|Reads this week|Material/);

@@ -1,3 +1,4 @@
+import { MobileContextButton } from '../../presentation/mobile/MobileContextActions';
 import React, { useState } from 'react';
 import { PlusIcon, PauseIcon } from 'lucide-react';
 import { ProjectCover } from '../../components/media/ProjectCover';
@@ -16,7 +17,7 @@ export function StudioWorkbenchView(p:WorkbenchViewProps){
  const [all,setAll]=useState(false),[menu,setMenu]=useState<Attention|null>(null);
  const allDone=!p.partial&&!p.attention.length&&!p.material.length&&!(p.week?.opened||p.week?.finished||p.week?.saved)&&p.draftCount<=1;
  return <section className="mobile-studio studio-workbench" data-mobile-studio="" aria-label="Studio">
-  <header className="studio-workbench-header"><div className="studio-drafts-heading"><h1>Studio</h1><button type="button" className="studio-drafts-control" onClick={p.onBookmarks}>Bookmarks</button></div><p>Your next move.</p></header>
+  <header className="studio-workbench-header"><div className="studio-drafts-heading"><h1>Studio</h1><button type="button" className="studio-drafts-control" onClick={p.onBookmarks}>Bookmarks</button><div data-inline-screen-actions=""><MobileContextButton /></div></div><p>Your next move.</p></header>
   <div className="studio-workbench-scroll">
    <section aria-labelledby="studio-continue"><h2 id="studio-continue">Continue</h2>
     {p.draft || p.draftsUnavailable ? <button className="studio-continue-card" type="button" disabled={p.draftsUnavailable} onClick={p.onContinue}>
