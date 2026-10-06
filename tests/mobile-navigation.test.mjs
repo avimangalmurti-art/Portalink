@@ -26,6 +26,11 @@ test('dock orders Messages, Studio, Home and Profile, with no rail or separate c
   destination.type(destination.props).props.onClick({type:'click',target:{}});
  }
  assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
+ const linkedTree=exports.MobileNavigation({onMessages(){},onProfile(){},profileHref:'/p/me',isProfileActive:true});
+ const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
+ assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');
+ const linkedHome=nodes(linkedTree).find(n=>n.props.item?.label==='Home');
+ assert.equal(linkedHome.type(linkedHome.props).props.state,undefined);
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });
 test('dock width reserves four touch targets and public mobile navigation stays separate',()=>{

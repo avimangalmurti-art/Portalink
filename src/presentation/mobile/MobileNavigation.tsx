@@ -11,7 +11,7 @@ type Props = { onMessages: () => void; onProfile: () => void; profileHref?: stri
 function Destination({ item }: { item: Item }) {
   const props = { className: 'mobile-nav-destination nav-button mobile-dock-destination', 'aria-label': item.label, 'aria-current': item.active ? 'page' as const : undefined, title: item.label };
   const icon = <InterfaceIcon icon={item.icon} weight="medium" />;
-  return item.href ? <Link {...props} to={item.href}>{icon}</Link> : <button {...props} type="button" onClick={() => item.action?.()}>{icon}</button>;
+  return item.href ? <Link {...props} to={item.href} state={item.label === 'Profile' ? { profileFromDock: true } : undefined}>{icon}</Link> : <button {...props} type="button" onClick={() => item.action?.()}>{icon}</button>;
 }
 /** Four stable destinations share one viewport-fixed capsule. */
 export function MobileNavigation({ onMessages, onProfile, profileHref, isProfileActive }: Props) {

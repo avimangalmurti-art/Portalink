@@ -19,7 +19,7 @@ import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePresentation } from '../presentation/usePresentation';
 import { useMobilePortalPopupSize } from '../presentation/mobile/useMobilePortalPopupSize';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { buildPath } from '../app/routes';
 import { ArrowLeftIcon, CheckIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
@@ -494,6 +494,7 @@ export function UserProfilePage({
       .filter((project): project is Project => Boolean(project));
   }, [cardProjects, projectOrder.order, isMobile]);
   const navigate = useNavigate();
+  const profileLocation = useLocation();
   const connectionOrigin = searchParams.get('fromConnections');
   const searchOrigin = searchParams.get('fromSearch');
   const searchReturn = searchOrigin && /^\/search(?:\?|$)/.test(searchOrigin) ? searchOrigin : null;
@@ -503,7 +504,7 @@ export function UserProfilePage({
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
     else if (connectionOrigin) navigate(`${buildPath(isSharedView ? 'sharedProfile' : 'profile', { profileId: connectionOrigin })}?view=${connectionList}`, { replace: true });
   };
-  const canDismissProfile = isMobile && !isSharedView && !mobileContent && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools || (window.history.state?.idx ?? 0) > 0);
+  const canDismissProfile = isMobile && !isSharedView && !mobileContent && !(showsOwnerTools && profileLocation.state?.profileFromDock === true) && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools || (window.history.state?.idx ?? 0) > 0);
   const dismissProfile = () => {
     if (showConnectionBack) backToConnections();
     else if (searchReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }

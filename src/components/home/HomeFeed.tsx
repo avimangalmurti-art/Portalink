@@ -202,7 +202,7 @@ export function HomeFeed({
                 </button>}
                 {onSearchUsers && <button type="button" onClick={onSearchUsers}
                   className="flex min-h-11 min-w-0 flex-1 items-center rounded-[8px] px-1 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <span className="truncate">Explore the world</span>
+                  <span className="truncate">Search</span>
                 </button>}
                 <button type="button" aria-label="Reload Home content" title="Reload Home content" disabled={feed.isRefreshing || feed.status === 'loading'}
                   aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}
