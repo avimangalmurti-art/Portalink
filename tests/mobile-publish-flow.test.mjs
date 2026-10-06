@@ -14,7 +14,7 @@ const button = (tree, label) => nodes(tree).find(node => (node.type === 'Button'
 const component = (tree, name) => nodes(tree).find(node => node.type === name);
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function harness(overrides = {}) {
+function harness(overrides = {}, props = {}) {
   const calls = [], focus = [], slots = []; let cursor = 0, effects = [], editingStep = 'files';
   const flow = { step: 'metadata', state: 'editing', isSavingDraft: false, isDiscarding: false,
     draft: { id: 'draft-a' }, metadata: { title: 'Quiet Rooms', summary: 'A study of space.' }, location: 'London', fieldErrors: {},
@@ -31,7 +31,7 @@ function harness(overrides = {}) {
     return new Proxy({}, { get: (_, key) => key });
   } });
   const render = (step = editingStep) => { editingStep = step; cursor = 0; effects = [];
-    const tree = exports.MobilePublishFlow({ flow, editingStep, onEditingStepChange: value => { editingStep = value; }, categoryLabel: 'Interiors', notices: React.createElement('aside', null, 'Service notices') });
+    const tree = exports.MobilePublishFlow({ flow, editingStep, onEditingStepChange: value => { editingStep = value; }, categoryLabel: 'Interiors', notices: React.createElement('aside', null, 'Service notices'), ...props });
     effects.forEach(fn => fn()); return tree;
   };
   const submit = async tree => { tree.props.onSubmit({ preventDefault() {} }); await tick(); };
@@ -111,3 +111,24 @@ test('saving, publishing, cleanup and discard block navigation and final submiss
     await h.submit(tree); assert.deepEqual(h.calls, []);
   }
 });
+
+test('legacy first-project drafts use one editable description instead of story questions', () => {
+ const h=harness({metadata:{title:'Saved title',summary:'Saved description',creationDetails:{answers:{what:'Old answer',did:'Old role',learned:'Old lesson'}}}}, {firstProject:{name:'Creator',categories:['Work']}});
+ const tree=h.render('details');
+ const fields=nodes(tree).filter(node=>node.type==='ProfileField');
+ assert.deepEqual(fields.map(node=>node.props.id),['publish-title','publish-summary','publish-location']);
+ assert.equal(fields[1].props.value,'Saved description');
+ fields[1].props.onChange('Updated description');assert.equal(h.flow.metadata.summary,'Updated description');
+ assert.doesNotMatch(text(tree),/What is it|What did you|Every answer|Tell it in your own words/);
+ assert.equal(component(h.render('files'),'MediaPicker').props.expanded,true);
+});
+
+ test('legacy drafts can add files and continue without a title on the Files step', async () => {
+ const h=harness({metadata:{title:'',summary:'Description',creationDetails:{madeIn:'2026-07',field:'Old field'}}},{firstProject:{name:'Creator',categories:['Work']}});
+ let tree=h.render('files');
+ assert.ok(button(tree,'Continue'));
+ await h.submit(tree);
+ assert.ok(button(h.render(),'Review project'));
+ h.flow.step='preview';tree=h.render();
+ assert.doesNotMatch(text(tree),/2026-07|Old field/);
+ });

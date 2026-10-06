@@ -77,7 +77,7 @@ export function ProjectEditorDialog({
           return;
         }
         if (editor.mode === 'story') {
-          document.getElementById('project-story-what')?.focus();
+          document.getElementById('project-summary')?.focus();
           return;
         }
         if (editor.mode === 'description') {
@@ -124,7 +124,7 @@ export function ProjectEditorDialog({
       focusField(outcome);
     }
   }
-  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work and what you learned.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
+  return <EditorFrame mobileFlow={isMobile} title={(isMobile ? section === 'cover' && editor.mode !== 'story' && editor.mode !== 'journey' : editor.mode === 'cover-choice') ? 'Set a cover' : editor.mode === 'story' ? 'Add a description' : 'Edit project'} titleId="project-editor-title" description={isMobile ? undefined : editor.mode === 'story' ? 'Describe your project.' : editor.mode === 'journey' ? 'Update when you made this work.' : 'Update your project’s files and details.'} dialogRef={dialogRef} onClose={requestClose} closeDisabled={isLocked || upload.isCleaningUp} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard these changes?" description="Your project will stay as it was before this edit." error={upload.cleanupError} busy={upload.isCleaningUp} onKeep={() => setIsConfirmingDiscard(false)} onDiscard={async () => {
     if (await editor.close()) setIsConfirmingDiscard(false);
   }} /> : null}>
         <form id="project-editor-form" noValidate onSubmit={(event) => { event.preventDefault(); void saveChanges(); }} className="project-form-content scrollbar-slim">
@@ -135,8 +135,7 @@ export function ProjectEditorDialog({
 
               </div> : editor.mode === 'journey' ? <div className="project-form-details">
                 <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-in">Made in<input id="project-made-in" type="month" className="text-control p-3" disabled={isLocked} value={editor.metadata.creationDetails?.madeIn ?? ''} onChange={e => editor.setJourneyField('madeIn', e.target.value)} /><span className="text-xs text-[var(--text-secondary)]">Uses the publication date when left blank.</span></label>
-                <ProfileField id="project-learned" label="What did you learn?" multiline value={editor.metadata.creationDetails?.answers.learned ?? ''} placeholder="Uses the first description line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('learned', value)} />
-                <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Uses your learned line when blank" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
+                <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Add a short comparison caption" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
               </div> : <>
               <section hidden={isMobile && section !== 'files'} aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
                 <div className="flex items-center justify-between gap-3">

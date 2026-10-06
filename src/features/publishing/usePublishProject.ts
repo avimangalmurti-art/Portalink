@@ -229,7 +229,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     const nextErrors = {
       title: validateTitle(metadata.title),
       // Descriptions are prose, not captions: do not impose a character cap.
-      summary: firstProject || metadata.summary.trim() ? null : 'Add a description before publishing.'
+      summary: metadata.summary.trim() ? null : 'Add a description before publishing.'
     };
     setFieldErrors(nextErrors);
     const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]) ?? null;
@@ -441,7 +441,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       setIsDiscarding(false);
     }
   }, [draft, media, projectService, upload, firstProject, persistWorkspace, resumeId, auth.user?.id, profileId]);
-  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && (firstProject || metadata.summary.trim()) ? 'ready' : 'editing';
+  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && metadata.summary.trim() ? 'ready' : 'editing';
   /**
    * Retrying after a PUBLISH failure must not re-upload. The persisted
    * attachments are still held by the transport hook, so this repeats only the
@@ -465,7 +465,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       await publish.run(uploaded);
     }
   }, [draft, profileId, upload, publish]);
-  const isMetadataComplete = !validateTitle(metadata.title) && (firstProject || metadata.summary.trim() !== '');
+  const isMetadataComplete = !validateTitle(metadata.title) && (metadata.summary.trim() !== '');
   // Stated plainly rather than leaving a disabled control unexplained.
   const blockingReason = !media.isComplete ? 'Add at least one file to continue.' : validateTitle(metadata.title) ?? (!firstProject && !metadata.summary.trim() ? 'Add a description before continuing.' : null);
   /**

@@ -139,7 +139,7 @@ export function PublishProjectDialog({
     setField
   } = publishFlow;
   const publishHint = !metadata.title.trim() ? 'Add a title to publish.'
-    : !firstProject && !metadata.summary.trim() ? 'Add a description to publish.'
+    : !metadata.summary.trim() ? 'Add a description to publish.'
     : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
@@ -171,7 +171,7 @@ export function PublishProjectDialog({
                 </div>}
 
   </>;
-  return <PublishFrame mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : firstProject ? "Your first project" : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
+  return <PublishFrame mobileFlow={isMobile} title={firstProject?.madeIn ? `Add work from ${(metadata.creationDetails?.madeIn || firstProject.madeIn).slice(0, 4)}` : "New project"} titleId="publish-dialog-title" description={isMobile && firstProject ? undefined : <>Adding to {categoryLabel}</>} onClose={requestClose} closeDisabled={isRecovering || publishFlow.hasUploadInFlight} confirmation={isConfirmingDiscard ? <ProjectDiscardConfirmation title="Discard this draft?" description="Your details and selected files will be lost." error={publishFlow.discardError} busy={publishFlow.isDiscarding} onKeep={() => {
     publishFlow.dismissDiscardError();
     setIsConfirmingDiscard(false);
   }} onDiscard={async () => {
@@ -206,7 +206,7 @@ export function PublishProjectDialog({
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} required={!firstProject} multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
+                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
                     {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>
                         <button type="button" disabled={publishFlow.hasCommittedProject} onClick={() => publishFlow.setIgnoreInferredLocation(!publishFlow.ignoreInferredLocation)} className="mt-1 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
