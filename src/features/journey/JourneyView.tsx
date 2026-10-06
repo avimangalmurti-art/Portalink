@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { MoreHorizontalIcon } from 'lucide-react';
+import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
@@ -15,6 +18,7 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
   onEdit?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 }) {
   const isMobile = usePresentation() === 'mobile';
+  const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const groups = journeyGroups(profile.projects, owner), pair = visiblePair(profile, owner);
   if (!groups.length && !owner) return null;
   if (!groups.length) return <div className="journey-view"><button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
@@ -39,10 +43,12 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
         <button type="button" className="journey-entry-cover" style={{ aspectRatio: project.coverAspectRatio && project.coverAspectRatio > 0 ? project.coverAspectRatio : 1 }} onClick={() => onOpen(project)} aria-label={`Open ${project.title}`}><JourneyCover project={project} /></button>
         <div className="journey-entry-copy"><span className="journey-month">{project.publishedAt && Number.isFinite(Date.parse(project.publishedAt)) ? new Date(project.publishedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'Posting date unavailable'}</span>
           <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
+          <span className="journey-portal">{profile.categories.find(portal => portal.id === project.categoryId)?.label}</span>
           <p className="journey-learned">{learnedLine(project)}</p>
-          {owner && onEdit && <button type="button" className="journey-text-action" onClick={() => onEdit(project)} aria-label={`Edit Journey details for ${project.title}`}>Edit details</button>}
+          {(isMobile || (owner && onEdit)) && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
         </div>
       </li>)}</ol>
     </section>)}
+    {isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />}
   </section>;
 }

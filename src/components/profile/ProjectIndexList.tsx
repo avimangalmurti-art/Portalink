@@ -1,3 +1,4 @@
+import { MobileProjectPopup } from '../media/MobileProjectPopup';
 import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
 import React, { lazy, Suspense, useCallback, useLayoutEffect, useRef, useState } from 'react';
@@ -303,6 +304,7 @@ function ProjectRow({
   const dragControls = useDragControls();
   const press = useMobileProjectContext(project, profileId, { edit: onEdit, cover: onChangeCover, delete: onDelete, visibility: contextDisabled ? undefined : onToggleHidden }, Boolean(reorderActivator));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [popupOpen, setPopupOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -341,12 +343,13 @@ function ProjectRow({
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
         <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
-          <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+          <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => isMobile ? setPopupOpen(true) : setIsMenuOpen((open) => !open)} aria-haspopup={isMobile ? "dialog" : "menu"} aria-expanded={isMobile ? popupOpen : isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
         </div>
       </div>
 
+      {isMobile && popupOpen && <MobileProjectPopup project={project} creatorId={profileId} onClose={() => setPopupOpen(false)} onOptions={() => setIsMenuOpen(true)} />}
       {createPortal(<AnimatePresence>
         {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
         opacity: 0,

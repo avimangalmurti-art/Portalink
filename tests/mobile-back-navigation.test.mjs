@@ -219,3 +219,38 @@ test('thread selection replaces mobile history while WEB retains push/replace be
     assert.deepEqual(h.routeChanges, [['thread', presentation === 'mobile'], ['thread', true]]);
   }
 });
+
+
+test('profile handle dismisses a downward pull once and keeps short/horizontal/cancelled drags on screen', () => {
+  let calls = 0;
+  const api = compile('../src/presentation/mobile/MobileProfileDismiss.tsx', () => ({ ...React, useRef: value => ({ current: value }) }));
+  const button = api.MobileProfileDismiss({ onDismiss: () => calls++ });
+  const style = { transform: '', removeProperty() { this.transform = ''; } };
+  const target = { closest: () => ({ style }), setPointerCapture() {}, hasPointerCapture: () => true, releasePointerCapture() {} };
+  const event = (x, y) => ({ isPrimary: true, button: 0, pointerId: 1, clientX: x, clientY: y, currentTarget: target });
+  button.props.onPointerDown(event(10, 10));
+  button.props.onPointerMove(event(10, 110));
+  assert.equal(style.transform, 'translateY(100px)');
+  button.props.onPointerUp(event(10, 110));
+  button.props.onClick();
+  assert.equal(calls, 1, 'Synthetic click after drag must not dismiss twice');
+  assert.equal(style.transform, '');
+  button.props.onPointerDown(event(10, 10));
+  button.props.onPointerMove(event(10, 35));
+  button.props.onPointerUp(event(10, 35));
+  button.props.onClick();
+  assert.equal(calls, 1);
+  button.props.onPointerDown(event(10, 10));
+  button.props.onPointerMove(event(100, 130));
+  button.props.onPointerUp(event(100, 130));
+  button.props.onClick();
+  assert.equal(calls, 1);
+  button.props.onPointerDown(event(10, 10));
+  button.props.onPointerMove(event(10, 130));
+  button.props.onPointerCancel();
+  button.props.onClick();
+  assert.equal(calls, 1);
+  assert.equal(style.transform, '');
+  button.props.onClick();
+  assert.equal(calls, 2, 'Tapping/keyboard activation remains available');
+});

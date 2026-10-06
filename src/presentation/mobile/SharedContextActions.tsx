@@ -1,3 +1,4 @@
+import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
@@ -14,6 +15,7 @@ export async function shareContextLink(url: string, title?: string) {
 }
 
 export function SharedContextActions({ title }: { title?: string }) {
+  const sendContent = useInternalContentShare();
   const auth = useAuth(), { pathname, search } = useLocation(), navigate = useNavigate();
   const path = readSharedReturnPath(pathname + search);
   if (!path) return null;
@@ -22,7 +24,7 @@ export function SharedContextActions({ title }: { title?: string }) {
   const portfolio = pathname.startsWith('/share/') ? pathname.split('/').slice(0, 3).join('/') : pathname;
   return <MobileScreenActions model={contextActions('shared', { signedIn: auth.isAuthenticated }, { title, labels: { categories: 'Portals' }, handlers: {
     signIn: () => account('signIn'), createAccount: () => account('signUp'),
-    share: () => shareContextLink(url, title), copy: () => copyPublicLink(url),
+    share: () => /^\/share\/[^/]+\/c\/[^/]+\/[^/]+/.test(pathname) ? sendContent({url,title:title ?? 'Project'}) : shareContextLink(url, title), copy: () => copyPublicLink(url),
     categories: () => navigate(`${portfolio}?view=portals`),
     settings: () => navigate('/settings', { state: { settingsReturn: path } }),
   } })} priority={100} />;

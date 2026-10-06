@@ -36,23 +36,23 @@ test('mobile viewer presents neutral like/save and native-style share with exist
   const h = render('viewer');
   assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Share: Work']);
   const glyphs = h.buttons.map(button => nodes(button).find(node => node.type === InterfaceIcon));
-  assert.ok(glyphs.every(icon => icon.props.stroke === 'var(--project-control-foreground, currentColor)'));
+  assert.ok(glyphs.every(icon => icon.props.stroke === 'currentColor'));
   assert.equal(glyphs[2].props.icon, icons.ShareIcon);
   h.buttons.forEach(button => button.props.onClick());
   assert.deepEqual(h.actions, ['like', 'save', 'share']);
 });
 
-test('selected and pending mobile actions retain semantic feedback and protection', () => {
+test('selected and pending mobile actions retain monochrome feedback and protection', () => {
   const h = render('viewer', true, true);
   assert.equal(h.buttons[0].props['aria-pressed'], true);
   assert.equal(h.buttons[0].props.disabled, true);
-  assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.fill, 'var(--engagement-like-selected)');
+  assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.fill, 'currentColor');
 });
 
-test('existing desktop rail retains repost, semantic outlines and its original share icon', () => {
+test('desktop rail uses system monochrome icons while retaining repost and share actions', () => {
   const h = render('rail');
   assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Repost: Work', 'Share: Work']);
-  assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.stroke, 'var(--engagement-like-selected)');
+  assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.stroke, 'currentColor');
   assert.equal(nodes(h.buttons[3]).find(node => node.type === InterfaceIcon).props.icon, icons.SendIcon);
 });
 
@@ -64,4 +64,16 @@ test('shared guest engagement buttons all gate before mutations or sharing even 
   assert.equal(buttons.length,3);
   for(const button of buttons){assert.ok(!button.props.disabled);button.props.onClick();}
   assert.deepEqual(calls,['createAccount','createAccount','createAccount']);
+});
+
+test('all project engagement presentations inherit system colours and retain accessible state',()=>{
+ for(const variant of ['inline','panel','rail','viewer']) {
+  const h=render(variant,true,false);
+  for(const button of h.buttons) {
+   assert.equal(button.props.style?.color,undefined);
+   const glyph=nodes(button).find(n=>n.type===InterfaceIcon);
+   assert.equal(glyph.props.stroke,'currentColor');
+  }
+  assert.equal(h.buttons[0].props['aria-pressed'],true);
+ }
 });

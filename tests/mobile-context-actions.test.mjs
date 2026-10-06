@@ -214,6 +214,11 @@ test('provider re-resolves capabilities and restores context focus before handin
  tree.props.value.refresh(source);tree=render();assert.equal(nodes(tree).find(n=>n.type==='sheet').props.model.primary[0].label,'Unsave project');
  tree=render();tree.props.value.open();account='another';tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
  location={pathname:'/studio',search:''};tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
+ tree.props.value.register('project',{route:'/studio',priority:20,model:object,onOpen:()=>calls.push('project-popup')});
+ tree=render();tree.props.value.open();tree=render();
+ assert.equal(calls.at(-1),'project-popup');assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
+ tree.props.value.open(object);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),true,'Explicit project options remain available');
+
 });
 
 test('held object refresh updates Save labels and leaves WEB scroll listeners untouched', () => {
@@ -237,6 +242,7 @@ test('project holds resolve engagement only on demand, use shared capabilities a
  let requested=false, latest, onOpen, shared=false;
  const record={isSaved:true}; let resolved=false;
  const {useMobileProjectContext}=compile('../src/presentation/mobile/useMobileProjectContext.ts',{
+  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>()=>{}},
   react:{useState:()=>[requested,next=>{requested=next;}]},
   '../../features/sharing/shareModel':{isPublicSharePath:path=>path.startsWith('/share/')},
   'react-router-dom':{useNavigate:()=>()=>{},useLocation:()=>({pathname:shared?'/share/creator':'/p/creator',search:''})},
@@ -262,4 +268,12 @@ test('workbench has Drafts, Bookmarks and Reads; Select is only supplied by coll
  assert.deepEqual(calls,['picker']);
  assert.equal(ids(contextActions('profile',{signedIn:true,owner:false},target)).length,0);
  assert.equal(ids(contextActions('profile',{signedIn:true,owner:true},{handlers:{}})).length,0);
+ });
+
+ test('mobile action sheets anchor to the viewport base while resizing upward', () => {
+ const source = readFileSync(new URL('../src/components/messages/MobileActionSheet.tsx', import.meta.url), 'utf8');
+ const css = readFileSync(new URL('../src/presentation/mobile/mobile.css', import.meta.url), 'utf8');
+ assert.match(source, /style=\{\{bottom:0,height:/);
+ assert.match(css, /mobile-context-scrim \{[^}]*top: auto; bottom: 0; padding: 0;/);
+ assert.match(css, /mobile-context-sheet \{\s*position: absolute; bottom: 0; margin-block: 0;/);
  });

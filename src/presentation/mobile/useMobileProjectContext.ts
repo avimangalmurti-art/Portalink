@@ -8,9 +8,10 @@ import { copyPublicLink } from '../../utils/copyPublicLink';
 import { buildPath } from '../../app/routes';
 import { useMobileContextPress } from './MobileContextActions';
 import { contextActions, type ContextTarget } from './contextActions';
-import { shareContextLink } from './SharedContextActions';
+import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
 
 export function useMobileProjectContext(project: Project, creatorId: string | undefined, contextHandlers?: ContextTarget['handlers'], disabled = false) {
+  const sendContent = useInternalContentShare();
   const auth = useAuth(), location = useLocation(), navigate = useNavigate();
   const [contextRequested, setContextRequested] = useState(false);
   // Resolve engagement only after the hold; grid boot does not gain one read per tile.
@@ -23,7 +24,7 @@ export function useMobileProjectContext(project: Project, creatorId: string | un
     startHere: owner && project.isPubliclyVisible !== false ? () => navigate(`/p/${creatorId}?startHere=${encodeURIComponent(project.id)}`) : undefined,
     thenNow: owner && project.isPubliclyVisible !== false ? () => navigate(`/p/${creatorId}?journeyPair=${encodeURIComponent(project.id)}`) : undefined,
     ...contextHandlers,
-    share: () => shareContextLink(url, project.title), copy: () => copyPublicLink(url),
+    share: () => sendContent({url,title:project.title}), copy: () => copyPublicLink(url),
     saveProject: contextRequested && engagement.record && !engagement.isResolving && !engagement.resolveError && !engagement.isPending('save') ? () => engagement.toggle('save') : undefined,
     signIn: () => auth.requestAuthenticatedDestination({kind:'route',path:location.pathname + location.search,label:'return to this shared view'}, 'signIn'),
     createAccount: () => auth.requestAuthenticatedDestination({kind:'route',path:location.pathname + location.search,label:'return to this shared view'}, 'signUp'),

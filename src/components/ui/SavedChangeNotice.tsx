@@ -16,7 +16,9 @@ export function SavedChangeNotice({ history }: { history: SavedChangeActions }) 
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
   }, [history]);
-  if (!history.undoLabel && !history.redoLabel) return null;
+  // Reordering is visible immediately; it needs no persistent success banner.
+  const latestLabel = history.redoLabel ?? history.undoLabel;
+  if (!latestLabel || /^Reorder (portals|projects)$/.test(latestLabel)) return null;
   return <div ref={ref} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[var(--hairline)] bg-[var(--surface-raised)] px-3 py-1 text-sm">
     <span role="status" className="min-w-0 flex-1 text-[var(--text-secondary)]">{history.isSaving ? 'Saving…' : history.redoLabel ? 'Change undone' : 'Changes saved'}</span>
     <button type="button" disabled={!history.canUndo} aria-label={history.undoLabel ? `Undo ${history.undoLabel.toLowerCase()}` : 'Undo'} aria-keyshortcuts="Control+z Meta+z" onClick={() => void history.undo()} className="min-h-11 rounded-lg px-2 font-semibold text-[var(--accent-text)] disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Undo</button>

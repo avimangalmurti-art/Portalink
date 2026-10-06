@@ -1,3 +1,4 @@
+import { useInternalContentShare } from '../sharing/InternalContentShare';
 import { readPageHeading } from '../reads/pageHeadings';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -231,24 +232,10 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     }
   }, [record, target, auth.user?.id, actionScope]);
 
+  const sendContent = useInternalContentShare();
   const share = useCallback(async () => {
-    const url = mediaDeepLink(target).toString();
-    setShareState('shared');
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: target.label, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        // The pressed state still confirms the requested action.
-      }
-    }
-  }, [target]);
+    sendContent({title:target.label,url:mediaDeepLink(target).toString(),onSent:()=>setShareState('shared')});
+  }, [target,sendContent]);
 
   return {
     record,

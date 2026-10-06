@@ -1,6 +1,7 @@
+import { MobileProjectPopup } from '../media/MobileProjectPopup';
 import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import type { ContextTarget } from '../../presentation/mobile/contextActions';
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MoreHorizontalIcon } from 'lucide-react';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -47,6 +48,7 @@ type Props = {
 export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
+  const [popupOpen, setPopupOpen] = useState(false);
   const isMobile = usePresentation() === 'mobile';
   const press = useMobileProjectContext(project, creator.id, contextHandlers, disabled);
   // On phones artwork opens the work on its first tap. Details have a separate
@@ -71,13 +73,14 @@ export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, 
     onPointerCancel={() => { preview.events.onPointerCancel(); press.onPointerCancel?.(); }} data-project-preview="" data-mobile-project-card={isMobile ? '' : undefined} data-expanded={preview.expanded} data-has-extension={hasExtension} className={`project-preview-card relative min-w-0 ${className}`}>
     <div data-packing-base="" className="project-card-frame individual-content-outline relative w-full" style={{ aspectRatio: aspectRatio ?? getProjectAspectRatio(project), height: 'var(--project-cover-height, auto)' }}>
       {href ? <Link to={href} {...openProps}>{artwork}</Link> : <button type="button" {...openProps}>{artwork}</button>}
-      <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => preview.open(event, href ? () => undefined : onOpen)} className="project-preview-description" />
+      <ProjectHoverDetails summary={project.summary} href={href} onOpen={(event) => { if(isMobile) { event.preventDefault(); event.stopPropagation(); setPopupOpen(true); } else preview.open(event, href ? () => undefined : onOpen); }} className="project-preview-description" />
       {isMobile && !disabled && <button type="button" data-keep-color="" className="mobile-preview-details focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-        aria-label={`${preview.expanded ? 'Hide' : 'Show'} details for ${project.title}`} aria-expanded={preview.expanded}
-        onClick={event => { event.stopPropagation(); preview.toggleDetails(); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
+        aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={popupOpen}
+        onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
       {editor}
     </div>
-    {hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
+    {isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
+    {!isMobile && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
       onOpenComments={onOpenComments} showCreator={showCreator} showEngagementMetrics={showEngagementMetrics}
       metrics={metrics} footerEnd={footerEnd} /></Suspense>}

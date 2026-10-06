@@ -1,4 +1,5 @@
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
+import { MobileProfileDismiss } from '../presentation/mobile/MobileProfileDismiss';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
@@ -502,6 +503,12 @@ export function UserProfilePage({
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
     else if (connectionOrigin) navigate(`${buildPath(isSharedView ? 'sharedProfile' : 'profile', { profileId: connectionOrigin })}?view=${connectionList}`, { replace: true });
   };
+  const canDismissProfile = isMobile && !isSharedView && !mobileContent && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools || (window.history.state?.idx ?? 0) > 0);
+  const dismissProfile = () => {
+    if (showConnectionBack) backToConnections();
+    else if (searchReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }
+    else onBack();
+  };
   const showsMobileReorder = !isJourney && showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
   const canReorderProjects = orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
   const startReordering = () => {
@@ -686,12 +693,12 @@ export function UserProfilePage({
   // the display-contents wrapper preserves the desktop document flow.
   if (mobileShareOpen && !profile.isPrivate) return <Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>;
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+      {canDismissProfile && <ScreenBack visibleOnMobile action={dismissProfile}><MobileProfileDismiss onDismiss={dismissProfile} /></ScreenBack>}
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
-      {isMobile && !isSharedView && !searchReturn && !showConnectionBack && !showsOwnerTools && <ScreenBack visibleOnMobile action={onBack}><button type="button" data-profile-back="" aria-label="Back" onClick={onBack} className="flex h-11 w-11 items-center justify-center"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>}
-      {searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
+      {!isMobile && searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
-      {showConnectionBack && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
+      {showConnectionBack && !canDismissProfile && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
           profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}

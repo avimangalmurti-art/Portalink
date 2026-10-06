@@ -1,3 +1,4 @@
+import './mobile-project-popup.css';
 import { TextFormattingToolbar } from '../text/TextFormattingToolbar';
 import { FormattedText } from '../text/FormattedText';
 import React, { useEffect, useRef, useState } from 'react';
@@ -19,6 +20,7 @@ export type SheetTextEditor = {
 
 type Props = {
   projectId: string;
+  projectTitle?: string;
   description?: string;
   typeface?: string;
   details?: React.ReactNode;
@@ -31,7 +33,7 @@ type Props = {
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, description, typeface, details, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -92,14 +94,14 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
   const saved = editing && phase === 'saved';
   const writingScreen = fullScreenEditor && editing && !saved;
   const host = document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
-  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay=""
+  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-project={contentLabel === 'Description' || undefined}
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
     onPointerDown={event => { stop(event); if (event.target === event.currentTarget) dismiss(); }}
     onPointerUp={stop} onClick={event => { stop(event); if (menuOpen) setMenuOpen(false); }}
     onDoubleClick={stop} onTouchMove={stop} onWheel={stop} onKeyDown={stop}>
-    <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby="project-description-title"
+    <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby={contentLabel !== 'Description' || projectTitle ? 'project-description-title' : undefined} aria-label={contentLabel === 'Description' && !projectTitle ? 'Project information' : undefined}
       tabIndex={-1} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
-      {!writingScreen && <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
+      {contentLabel !== 'Description' && !writingScreen && <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
         onClick={() => { if (!moved.current) setExpanded(value => !value); moved.current = false; }}
         onPointerDown={event => {
           if (!event.isPrimary || event.button !== 0 || busy) return;
@@ -131,7 +133,7 @@ export function MobileProjectDescriptionSheet({ projectId, description, typeface
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
       <header className="project-description-heading">
-        <h2 id="project-description-title">{contentLabel}</h2>
+        {(contentLabel !== 'Description' || projectTitle) && <h2 id="project-description-title" style={{ fontFamily: typeface }}>{contentLabel === 'Description' ? projectTitle : contentLabel}</h2>}
         {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}
         {canEdit && !editing && <div className="project-description-menu">
           <button ref={optionsRef} type="button" aria-label={`${contentLabel} options`} aria-expanded={menuOpen} aria-controls="project-description-actions"

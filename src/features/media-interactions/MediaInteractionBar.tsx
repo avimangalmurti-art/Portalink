@@ -22,11 +22,10 @@ const ACTIONS: Array<{
   kind: MediaEngagementKind;
   label: string;
   icon: typeof HeartIcon;
-  color: string;
 }> = [
-  { kind: 'like', label: 'Like', icon: HeartIcon, color: 'var(--engagement-like-selected)' },
-  { kind: 'save', label: 'Bookmark', icon: BookmarkIcon, color: 'var(--engagement-save-selected)' },
-  { kind: 'repost', label: 'Repost', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' }
+  { kind: 'like', label: 'Like', icon: HeartIcon },
+  { kind: 'save', label: 'Bookmark', icon: BookmarkIcon },
+  { kind: 'repost', label: 'Repost', icon: Repeat2Icon }
 ];
 
 export function MediaInteractionBar({
@@ -130,7 +129,7 @@ export function MediaInteractionBar({
       '--media-action-unit': `${layout.unit}px`,
       gridTemplateColumns: layout.slots.map((slot) => `${slot}fr`).join(' ')
     } as React.CSSProperties}>
-      {ACTIONS.map(({ kind, label, icon: Icon, color }, index) => {
+      {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
         const count = activity.record.counts[kind];
         return <button
@@ -140,14 +139,12 @@ export function MediaInteractionBar({
           aria-label={`${engaged ? `Remove ${label.toLowerCase()}` : label}: ${presentedTarget.label}${count > 0 ? ` (${count})` : ''}`}
           title={`${label}: ${count}`}
           disabled={!sharedGuest && (activity.pendingKind === kind || activity.isResolvingEngagement)}
-          data-keep-color=""
-          style={{ color }}
           onClick={() => { if (!requireAccount()) { if (kind === 'save') savePage(); else activity.toggle(kind); } }}
-          className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-55"
+          className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-55"
         >
           {activity.pendingKind === kind
             ? <Loader2Icon className="media-item-action-loader animate-spin motion-reduce:animate-none" aria-hidden="true" />
-            : <InterfaceIcon icon={Icon} size="sm" weight="regular" keepColor fill={engaged ? color : 'none'} stroke={color} />}
+            : <InterfaceIcon icon={Icon} size="sm" weight="regular" keepColor fill={engaged ? 'currentColor' : 'none'} stroke="currentColor" />}
           {count > 0 ? <span className="media-item-action-count font-semibold tabular-nums">{counts[index]}</span> : null}
         </button>;
       })}
@@ -158,8 +155,6 @@ export function MediaInteractionBar({
         aria-controls={commentsOpen ? commentsId : undefined}
         aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}${counts[3] ? ` (${activity.record.comments.length})` : ''}`}
         title={`Comments: ${activity.record.comments.length}`}
-        data-keep-color=""
-        style={{ color: 'var(--apple-purple)' }}
         onClick={() => { if (!requireAccount()) setCommentsOpen((open) => !open); }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && commentsOpen) {
@@ -168,21 +163,19 @@ export function MediaInteractionBar({
             closeComments();
           }
         }}
-        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
-        <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="var(--apple-purple)" />
+        <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="currentColor" />
         {counts[3] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[3]}</span> : null}
       </button>
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
         aria-label={`${activity.shareState === 'shared' ? 'Shared' : 'Share'} ${presentedTarget.label}`}
-        data-keep-color=""
-        style={{ color: 'var(--engagement-share-selected)' }}
         onClick={() => { if (!requireAccount()) void activity.share(); }}
-        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
-        <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'var(--engagement-share-selected)' : 'none'} stroke="var(--engagement-share-selected)" />
+        <InterfaceIcon icon={SendIcon} size="sm" weight="regular" keepColor fill={activity.shareState === 'shared' ? 'currentColor' : 'none'} stroke="currentColor" />
       </button>
     </div>
 
@@ -217,7 +210,7 @@ export function MediaInteractionBar({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span data-comment-author="" className="min-w-0 flex-1 truncate text-[10px] font-semibold text-white/80">{comment.authorName}</span>
-                  {comment.canDelete ? <button type="button" onClick={() => { activity.dismissFailure();setDeleteCommentId(comment.id); }} aria-label="Delete comment" data-comment-delete="" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80">
+                  {comment.canDelete ? <button type="button" onClick={() => { activity.dismissFailure();setDeleteCommentId(comment.id); }} aria-label="Delete comment" data-comment-delete="" className="flex h-5 w-5 items-center justify-center rounded-full text-white/35 opacity-0 transition-opacity group-hover/comment:opacity-100 focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={Trash2Icon} size="sm" weight="regular" />
                   </button> : null}
                 </div>
@@ -242,7 +235,7 @@ export function MediaInteractionBar({
             aria-label={`Comment on ${presentedTarget.label}`}
             className="min-h-8 min-w-0 flex-1 resize-none bg-transparent text-[11px] leading-relaxed text-white outline-none placeholder:text-white/35"
           />
-          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" data-comment-send="" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 disabled:opacity-35">
+          <button type="submit" data-keep-color="" disabled={activity.isPostingComment || !commentBody.trim()} aria-label="Post comment" data-comment-send="" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-black focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-35">
             {activity.isPostingComment ? <Loader2Icon className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <InterfaceIcon icon={SendIcon} size="sm" weight="medium" />}
           </button>
         </div>

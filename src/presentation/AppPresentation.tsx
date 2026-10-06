@@ -1,3 +1,5 @@
+import { InternalContentShareProvider } from '../features/sharing/InternalContentShare';
+import '../components/media/mobile-project-popup.css';
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { PresentationContext, usePresentation } from './usePresentation';
@@ -25,5 +27,5 @@ export function AppPresentation({ children, actionSheet, ...props }: React.Compo
   const { pathname } = useLocation();
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
-  return <div {...props} ref={frameRef} data-presentation={presentation}><MobileContextProvider sheet={actionSheet}>{children}</MobileContextProvider></div>;
+  return <div {...props} ref={frameRef} data-presentation={presentation}><InternalContentShareProvider><MobileContextProvider sheet={actionSheet}>{children}</MobileContextProvider></InternalContentShareProvider></div>;
 }

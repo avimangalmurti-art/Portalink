@@ -6,3 +6,6 @@
 
 /* Both platform and shared portfolio load this mobile cover treatment. */
 [data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }
+
+.journey-portal{display:block;margin-top:5px;font-size:var(--type-footnote-size);line-height:1.45;color:var(--text-secondary)}
+.journey-project-options{display:grid;place-items:center;width:44px;height:44px;margin-top:4px;border-radius:14px;background:var(--surface-sunken);color:var(--text-primary)}

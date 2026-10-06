@@ -1,3 +1,4 @@
+import { MessageBody } from './messages/MessageBody';
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
 import { contextActions } from '../presentation/mobile/contextActions';
@@ -564,7 +565,7 @@ function MessageList({ messages, viewerProfileId, canInteract, participantReadAt
                     } : undefined} maxLength={4000} className={`min-h-20 w-full resize-y rounded-[9px] bg-[var(--surface-canvas)] p-2 text-[var(--text-primary)] ${isMobile ? 'text-[16px]' : 'text-[15px]'}`} />
                     {!isMobile ? <p className="mt-1 text-[11px] opacity-75">Esc to cancel · Ctrl/Cmd+Enter to save</p> : null}
                     <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setEditingId(null)} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline`}>Cancel</button><button type="submit" disabled={!editBody.trim() || pendingMessageId === message.id} className={`${isMobile ? 'min-h-[44px] min-w-[44px] px-2 text-[14px]' : 'text-[12px]'} font-semibold underline disabled:opacity-50`}>Save</button></div>
-                  </form> : <p className="whitespace-pre-wrap break-words text-[16px] leading-6">{message.body}</p>}
+                  </form> : <p className="whitespace-pre-wrap break-words text-[16px] leading-6"><MessageBody body={message.body} /></p>}
                 {message.attachments?.length ? <ul className="mt-2 grid gap-2">
                     {message.attachments.map((attachment) => <li key={attachment.id}><MessageAttachmentView attachment={attachment} /></li>)}
                   </ul> : null}

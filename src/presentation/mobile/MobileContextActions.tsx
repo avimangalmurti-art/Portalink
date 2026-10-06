@@ -10,7 +10,7 @@ import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileActionSheet } from '../../components/messages/MobileActionSheet';
 import { mergeContextActions, type ContextActions, type ContextAction } from './contextActions';
 
-type Registration = { route: string; priority: number; model: ContextActions };
+type Registration = { route: string; priority: number; model: ContextActions; onOpen?: () => void };
 type ModelSource = ContextActions | (() => ContextActions | null);
 type Context = { register: (id: string, value: Registration | null) => void; open: (model?: ModelSource) => void; refresh: (source: ModelSource) => void; opened: boolean; button: React.RefObject<HTMLButtonElement>; hint: boolean };
 const MobileActions = createContext<Context | null>(null);
@@ -34,6 +34,10 @@ export function MobileContextProvider({ children, sheet: Sheet = MobileActionShe
   const focusContext = () => { button.current = focusMobileContextButton(); };
   const open = (source?: ModelSource) => {
     focusContext();
+    if (!source) {
+      const target = [...entries.current.values()].filter(item => item.route === route).sort((a, b) => b.priority - a.priority).find(item => item.onOpen);
+      if (target?.onOpen) { target.onOpen(); return; }
+    }
     setOpened({ identity, source }); setHint(false); setNotice('');
     try { localStorage.setItem(hintKey, '1'); } catch { /* Convenience only. */ }
   };
@@ -58,10 +62,10 @@ export function MobileContextProvider({ children, sheet: Sheet = MobileActionShe
   void revision;
   return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && currentScreen() && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message">×</button></div>}</MobileActions.Provider>;
 }
-export function useMobileScreenActions(model: ContextActions | null, priority = 10) {
+export function useMobileScreenActions(model: ContextActions | null, priority = 10, onOpen?: () => void) {
   const context = useContext(MobileActions), id = useId(), { pathname, search } = useLocation(), mobile = usePresentation() === 'mobile';
   const register = context?.register, active = useMobileScreenActive();
-  useLayoutEffect(() => { register?.(id, mobile && active && model ? { route: pathname + search, priority, model } : null); });
+  useLayoutEffect(() => { register?.(id, mobile && active && model ? { route: pathname + search, priority, model, onOpen } : null); });
   useLayoutEffect(() => () => register?.(id, null), [register, id]);
 }
 export function MobileScreenActions({ model, priority = 0 }: { model: ContextActions; priority?: number }) { useMobileScreenActions(model, priority); return null; }

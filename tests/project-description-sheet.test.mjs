@@ -46,19 +46,13 @@ function harness(owner = false, props = {}, fullscreen = false) {
     get portalHost() { return portalHost; }, appHost, fullscreenHost };
 }
 
-test('description opens at half height, expands by drag or accessible button, and leaves scrolling to its body', () => {
-  const h = harness(); const section = () => nodes(h.render()).find(n => n.type === 'section');
-  assert.equal(section().props['data-expanded'], undefined);
-  h.click('Expand description sheet'); assert.equal(section().props['data-expanded'], true);
-  h.click('Reduce description sheet');
-  const grabber = h.button('Expand description sheet');
-  const event = { pointerId: 1, isPrimary: true, button: 0, clientY: 400, currentTarget: { setPointerCapture() {} } };
-  grabber.props.onPointerDown(event); grabber.props.onPointerMove({ ...event, clientY: 120 });
-  assert.equal(h.panel.style.height, '680px'); grabber.props.onPointerUp(event);
-  assert.equal(section().props['data-expanded'], true);
-  assert.equal(h.panel.style.height, undefined);
-  assert.equal(h.button('Description options'), undefined, 'Visitors cannot edit');
-  h.escape(); assert.equal(h.closes, 1);
+test('project description uses a centered dialog without movable sheet controls', () => {
+ const h=harness();const tree=h.render();
+ const overlay=nodes(tree).find(n=>n.props['data-project-description-overlay']==='');
+ assert.equal(overlay.props['data-centered-project'],true);
+ assert.equal(h.button('Expand description sheet'),undefined);
+ assert.equal(h.button('Description options'),undefined);
+ h.escape();assert.equal(h.closes,1);
 });
 
 test('profile Bio edits, saves and cancels within the same sheet without project services or navigation', async () => {
@@ -109,15 +103,12 @@ test('owner menu uses the existing editor and dirty close requires an explicit d
   h.editor.isSaving = false; h.click('Close description'); await h.click('Discard changes'); assert.equal(h.closes, 1);
 });
 
-test('cancelled drags restore the snap point and a saved description is shown from the canonical result', () => {
-  const h = harness(true); const grabber = h.button('Expand description sheet');
-  grabber.props.onPointerDown({ pointerId: 2, isPrimary: true, button: 0, clientY: 400, currentTarget: { setPointerCapture() {} } });
-  grabber.props.onPointerMove({ pointerId: 2, clientY: 100 }); grabber.props.onPointerCancel();
-  assert.equal(h.panel.style.height, undefined);
-  h.click('Description options'); h.click('Edit description');
-  h.editor.phase = 'saved'; h.editor.result = { project: { summary: 'Stored description' } };
-  assert.ok(nodes(h.render()).some(n => n.props.text === 'Stored description'));
-  assert.ok(h.button('Done'));
+test('a saved description is shown from the canonical result', () => {
+ const h=harness(true);
+ h.click('Description options');h.click('Edit description');
+ h.editor.phase='saved';h.editor.result={project:{summary:'Stored description'}};
+ assert.ok(nodes(h.render()).some(n=>n.props.text==='Stored description'));
+ assert.ok(h.button('Done'));
 });
 
 test('dirty description confirmation is outside the resized sheet inside its visible viewport and fullscreen portal', async () => {
@@ -125,7 +116,6 @@ test('dirty description confirmation is outside the resized sheet inside its vis
     const h = harness(true, {}, fullscreen);
     h.click('Description options'); h.click('Edit description');
     nodes(h.render()).find(node => node.type === 'textarea').props.onChange({ target: { value: 'Keep this draft' } });
-    h.click('Reduce description sheet');
     h.panel.style.height = '320px';
     h.click('Close description');
     let tree = h.render();
@@ -135,7 +125,7 @@ test('dirty description confirmation is outside the resized sheet inside its vis
     assert.ok(layer);
     assert.equal(React.Children.toArray(viewport.props.children).some(node => node.props === layer.props), true);
     assert.equal(nodes(sheet).some(node => node.type === 'discard-layer'), false, 'The resized/transformed sheet cannot bound the confirmation');
-    assert.equal(sheet.props['data-expanded'], undefined);
+    assert.equal(sheet.props['data-expanded'], true);
     assert.equal(layer.props.title, 'Discard your description changes?');
     assert.equal(layer.props.host, fullscreen ? h.fullscreenHost : h.appHost);
     assert.match(viewport.props.style.top, /dialog-viewport-top/);
@@ -203,4 +193,13 @@ test('mobile Bio writing uses its full screen and returns to reading after save 
   const web = harness(false, { contentLabel: 'Bio', textEditor: { ...editor, phase: 'editing' } });
   assert.equal(nodes(web.render()).find(n => n.type === 'section').props['data-writing-screen'], undefined);
   assert.ok(web.button('Expand bio sheet'));
+});
+
+
+test('project information uses the actual title rather than a Description heading', () => {
+  const h = harness(false, { projectTitle: 'Triple Helvetica' });
+  const tree = h.render();
+  assert.equal(nodes(tree).find(node => node.type === 'h2').props.children, 'Triple Helvetica');
+  assert.equal(nodes(tree).find(node => node.type === 'section').props['aria-labelledby'], 'project-description-title');
+  assert.equal(nodes(tree).filter(node => node.type === 'h2' && node.props.children === 'Description').length, 0);
 });

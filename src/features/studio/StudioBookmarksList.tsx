@@ -1,3 +1,4 @@
+import { useInternalContentShare } from '../sharing/InternalContentShare';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -39,6 +40,7 @@ function RowPreview({ row }: { row: StudioItem }) {
 
 /** A private, mobile presentation of existing collections and service actions. */
 export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false }: Props) {
+  const sendContent = useInternalContentShare();
   const auth = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -117,8 +119,8 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     const links = paths.map(path => new URL(path, window.location.origin).href);
     setLocalError(null);
     try {
-      if (!copy && navigator.share) {
-        await navigator.share(links.length === 1 ? { title: rows[0].title, url: links[0] } : { title: 'Projects from Portalink', text: links.join('\n') });
+      if (!copy) {
+        sendContent({title: links.length === 1 ? rows[0].title : 'Projects from Portalink',url:links.join('\n')});
       } else {
         await copyPublicLink(links.join('\n'));
         if (mounted.current && account.current === identity) setNotice(links.length === 1 ? 'Link copied' : `${links.length} links copied`);

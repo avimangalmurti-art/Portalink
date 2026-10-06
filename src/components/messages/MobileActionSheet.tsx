@@ -15,7 +15,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragHeight(null); };
   useModalFocus(true, dialogRef, onClose, true);
-  return <ModalPortal><div data-presentation="mobile" ref={viewportRef} className="mobile-context-scrim modal-scrim" style={{top:'var(--dialog-viewport-top, 0px)',height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+  return <ModalPortal><div data-presentation="mobile" ref={viewportRef} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
     <div ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} style={dragHeight === null ? undefined : {height:dragHeight}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
         if(!e.isPrimary||e.button!==0||start.current)return;

@@ -1,11 +1,12 @@
+import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
+import { CreatorAvatar } from '../profile/CreatorAvatar';
 import { FormattedText } from '../text/FormattedText';
 import { useProjectReach } from '../../features/reads/useProjectReach';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileActions, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
-import { shareContextLink } from '../../presentation/mobile/SharedContextActions';
 import { copyPublicLink } from '../../utils/copyPublicLink';
 import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
 import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
@@ -251,32 +252,8 @@ export function ProjectMediaViewer({
       requestAnimationFrame(() => descriptionTriggerRef.current?.focus({ preventScroll: true }));
     }
   }, [mobilePopup, engagement.resolveError, engagement.failure]);
-  const shareProject = async () => {
-    const url = window.location.href;
-    // Selection feedback belongs to the click itself. Native share sheets can be
-    // cancelled and clipboard permission can be unavailable, but neither should
-    // make the control appear as though the intentional press never happened.
-    setIsProjectShared(true);
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: projectTitle, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch (caught) {
-      // Cancelling the operating-system sheet keeps the explicit pressed state;
-      // it simply avoids a second clipboard attempt the user did not request.
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        // The visual confirmation still reports the click. Clipboard and native
-        // share permissions are browser capabilities, not engagement state.
-      }
-    }
-  };
+  const sendContent = useInternalContentShare();
+  const shareProject = () => sendContent({title:projectTitle,url:window.location.href,onSent:()=>setIsProjectShared(true)});
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
   useEffect(() => {
     setIsImmersive(false);
@@ -319,13 +296,15 @@ export function ProjectMediaViewer({
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp') : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
-  useMobileScreenActions(contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+  const mobileActions = useMobileActions();
+  const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
     reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
-    share: () => shareContextLink(publicUrl, projectTitle), copy: () => copyPublicLink(publicUrl),
-  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } }), 20);
+    share: shareProject, copy: () => copyPublicLink(publicUrl),
+  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
+  useMobileScreenActions(projectActionModel, 20, () => setMobilePopup('description'));
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
@@ -525,7 +504,6 @@ export function ProjectMediaViewer({
               <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
             </div>
             <div>
-              {!isMobileViewer && <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>}
               {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
             </div>
             {sharedProjectMetadata}
@@ -693,7 +671,7 @@ export function ProjectMediaViewer({
         <nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
 
-          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobileEngagementOpen(open => !open); }}>
+          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('description'); }}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
@@ -733,8 +711,8 @@ export function ProjectMediaViewer({
           </button>
           {/* The semantic colour and spoken label identify the destination of the
              next press without adding a hover tooltip over the compact control. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} data-keep-color="" style={{ color: railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)' }} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" keepColor stroke={railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)'} />
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The
@@ -760,7 +738,7 @@ export function ProjectMediaViewer({
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
             {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /> : <section className="flex flex-col gap-2.5">
-                <h3 className="text-left text-[13px] font-semibold text-[var(--text-primary)]">Description</h3>
+                <h3 style={{ fontFamily: contentTypefaceStack }} className="text-left text-[13px] font-semibold text-[var(--text-primary)]">{projectTitle}</h3>
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
                fields to fill the space. */}
@@ -769,7 +747,7 @@ export function ProjectMediaViewer({
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MobileProjectDescriptionSheet key={projectId} projectId={projectId} description={projectSummary} typeface={contentTypefaceStack} details={readOnlyShare ? <><h3 className="font-semibold">{projectTitle}</h3>{sharedProjectMetadata}</> : undefined} editor={isOwner && !readOnlyShare ? descriptionEditor : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MobileProjectDescriptionSheet key={projectId} projectId={projectId} projectTitle={projectTitle} description={projectSummary} typeface={contentTypefaceStack} details={<><EngagementBar engagement={engagement} projectTitle={projectTitle} showCounts variant="panel" onRequireAccount={requireSharedAccount} isShared={isProjectShared} onShare={() => void shareProject()} /><button type="button" className="project-popup-comments" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }}>Comments</button>{creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" /><span>{creator.name}</span></button>}<button type="button" className="project-popup-comments" onClick={() => { closeMobilePopup(); mobileActions?.open(projectActionModel); }}>Project options</button></>} editor={isOwner && !readOnlyShare ? descriptionEditor : undefined} onClose={closeMobilePopup} />}
       {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
