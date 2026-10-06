@@ -64,11 +64,11 @@ function harness(presentation = 'mobile', props = {}) {
   };
 }
 
-test('Home passes the saved owner density to both presentations and waits for the canonical layout', () => {
+test('Mobile Home starts at three columns, WEB retains saved density, and layout changes stay usable', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = harness(presentation);
     const grid = () => nodes(h.render()).find(node => node.type === (presentation === 'mobile' ? 'JustifiedImageWall' : 'BentoFeedGrid'));
-    assert.equal(grid().props.columns, 5);
+    assert.equal(grid().props.columns, presentation === 'mobile' ? 3 : 5);
     for (const count of [2, 13, 5]) {
       grid().props.onColumnsChange(count);
       assert.equal(grid().props.columns, count);
@@ -110,7 +110,7 @@ test('city feeds preserve their responsive mobile baseline and local pinch witho
   assert.equal(h.density.columns, 5, 'City choices must not change the saved Home/Profile layout');
   const home = harness('mobile');
   home.measureLocation(240);
-  assert.equal(nodes(home.render()).find(node => node.type === 'JustifiedImageWall').props.columns, 5);
+  assert.equal(nodes(home.render()).find(node => node.type === 'JustifiedImageWall').props.columns, 3);
   const webCity = nodes(harness('web', { locationId: 'city' }).render()).find(node => node.type === 'BentoFeedGrid');
   assert.equal(webCity.props.columns, undefined);
   assert.equal(webCity.props.onColumnsChange, undefined);

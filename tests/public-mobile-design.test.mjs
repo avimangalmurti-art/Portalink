@@ -34,5 +34,5 @@ test('public drawer is an overlay, preserves touch targets and locks only its op
   assert.equal(declarations("html:has([data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-layer[data-visible='true'])").overflow,'hidden');
   assert.equal(declarations("html:has([data-public-portfolio][data-presentation='mobile'] .mobile-project-index-overlay:not(.screen-exit *, [inert] *, [aria-hidden='true'] *))").overflow,'hidden');
   assert.equal(declarations("[data-presentation='mobile'] .mobile-context-notice").position,'fixed');
-  assert.match(read('src/visitor/mobile/PublicProfileDrawer.tsx'),/useModalFocus\(visible, panelRef, close, true\)/);
+  assert.match(read('src/visitor/mobile/PublicProfileDrawer.tsx'),/useModalFocus\(visible, layerRef, close, true\)/);
 });

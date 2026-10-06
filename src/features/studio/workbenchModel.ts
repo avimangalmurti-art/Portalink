@@ -16,7 +16,7 @@ export function attentionRows(profile: Profile | null, reach30: ReachSummary[] |
  const projects=profile?.projects ?? [], result: Attention[]=[];
  const add=(project: Project,action: Attention['action'],label: string,gap: string,event?: StudioActivity)=>{if(!isDismissed(dismissed[project.id],now))result.push({id:`${project.id}:${action}${event?`:${event.attachmentId}:${event.pageIndex}`:''}`,projectId:project.id,project,action,label,gap,activity:event});};
  // Global rule priority, with stable project order within a rule. No missing data is inferred as zero.
- for(const p of projects)if(!p.coverThumbnail)add(p,'cover','Set a cover','Cover preview missing');
+ // The first page is the default cover. A missing generated thumbnail is not a creator task.
  for(const p of projects)if(!p.summary.trim())add(p,'description','Add a description','Tell the story behind this work');
  for(const p of projects)if(!p.creationDetails?.madeIn?.trim())add(p,'date','When was this made?','Date missing');
  const unique=new Set<string>();

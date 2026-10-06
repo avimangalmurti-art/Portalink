@@ -2426,3 +2426,19 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   width: calc(100vw - var(--mobile-navigation-inset-start) - var(--mobile-navigation-inset-end));
   height: 6px;
 }
+
+/* One viewport anchor for both open and close; content viewing hides navigation. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-opener {
+  position: absolute;
+  z-index: 3;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-layer[data-visible='true'] .mobile-shared-drawer-opener {
+  pointer-events: auto;
+  opacity: 1;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel [data-sidebar-toggle] {
+  display: none;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-layer {
+  display: none;
+}

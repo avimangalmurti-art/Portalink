@@ -21,6 +21,7 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
   const [indexOpen, setIndexOpen] = useState(false), [railOpen, setRailOpen] = useState(false);
   const [lastPanel, setLastPanel] = useState<ProjectPanel | null>(null);
   const [focused, setFocused] = useState(false);
+  const [pagesPerRow, setPagesPerRow] = useState(project.design?.pagesPerRow ?? 3);
   const [resolvedCounts, setResolvedCounts] = useState<Record<string, number>>({});
   const [indexQuery, setIndexQuery] = useState('');
   const workspace = useElementSize<HTMLDivElement>();
@@ -80,7 +81,7 @@ export function VisitorProjectPage({ profile, project, onBack, onBackToProfile, 
       <section className="flex min-h-0 min-w-0 flex-1" style={{ display: !isMobile && layout.singlePanel === 'index' ? 'none' : undefined }} aria-label={`${project.title} files`}>
       <ProjectMediaViewer key={project.id} creator={profile} projectId={project.id} projectTitle={project.title} projectSummary={project.summary}
         publishedAt={project.publishedAt} credits={project.credits} attachments={attachments} pageCount={pageCount} onDocumentPageCountResolved={resolvePageCount}
-        contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={project.design?.pagesPerRow ?? 3} onPageFocusModeChange={setFocused}
+        contentTypefaceStack={getTypefaceStack(project.design?.typefaceId ?? 'default')} pagesPerRow={pagesPerRow} onPagesPerRowChange={setPagesPerRow} onPageFocusModeChange={setFocused}
         processing={processing} responseRailWidth={{ ...rail, width: isMobile ? rail.width : layout.responseWidth }} singlePanel={isMobile ? null : layout.singlePanel}
         isRailOpen={isMobile ? railOpen : layout.responseOpen} onRailOpenChange={open => { setRailOpen(open); setLastPanel(open ? 'response' : null); }} readOnlyShare onClose={onBack}
         mobileNavigation={isMobile ? { indexOpener, index, isIndexOpen: indexOpen, onOpenIndex: () => changeIndex(true), onCloseIndex: () => changeIndex(false), onBack } : undefined} />

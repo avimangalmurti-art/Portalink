@@ -23,7 +23,7 @@ export function writeActivation(accountId: string, progress: ActivationProgress)
   try { localStorage.setItem(key(accountId), JSON.stringify(progress)); } catch { /* Keep the in-memory flow usable when device storage is unavailable. */ }
 }
 export function beginActivation(accountId: string, profileId: string) {
-  const progress: ActivationProgress = { profileId, stage: 'start', name: '', icon: 'lucide:briefcase-business' };
+  const progress: ActivationProgress = { profileId, stage: 'portal', name: '', icon: 'lucide:briefcase-business' };
   writeActivation(accountId, progress);
   return progress;
 }

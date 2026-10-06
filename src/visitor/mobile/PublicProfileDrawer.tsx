@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
-import { PanelLeftOpenIcon } from 'lucide-react';
+import { PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useModalFocus } from '../../hooks/useModalFocus';
 
@@ -51,7 +51,7 @@ export function PublicProfileDrawer({ name, children }: {
     if (panelRef.current?.contains(document.activeElement)) openerRef.current?.focus({ preventScroll: true });
     settle(false);
   }, [settle]);
-  useModalFocus(visible, panelRef, close, true);
+  useModalFocus(visible, layerRef, close, true);
 
   useEffect(() => {
     drag.current = null;
@@ -113,11 +113,11 @@ export function PublicProfileDrawer({ name, children }: {
     },
   };
 
-  return <div ref={layerRef} className="mobile-shared-drawer-layer" data-visible={visible} {...gestures}>
+  return <div ref={layerRef} tabIndex={-1} className="mobile-shared-drawer-layer" data-visible={visible} {...gestures}>
     <div className="mobile-shared-drawer-edge" aria-hidden="true" />
     <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-compact"
-      tabIndex={visible ? -1 : 0} aria-label="Open profile navigation" aria-expanded={visible} aria-controls="mobile-shared-profile-navigation"
-      onClick={() => settle(true)}><PanelLeftOpenIcon size={22} aria-hidden="true" /></button>
+      aria-label={visible ? 'Close profile navigation' : 'Open profile navigation'} aria-expanded={visible} aria-controls="mobile-shared-profile-navigation"
+      onClick={() => visible ? close() : settle(true)}>{visible ? <PanelLeftCloseIcon size={22} aria-hidden="true" /> : <PanelLeftOpenIcon size={22} aria-hidden="true" />}</button>
     <motion.div aria-hidden="true" className="mobile-shared-drawer-scrim" style={{ opacity }} onClick={close} />
     <motion.div ref={panelRef} id="mobile-shared-profile-navigation" role="dialog" aria-modal={visible || undefined} aria-label={`${name} navigation`}
       aria-hidden={!visible} tabIndex={-1}

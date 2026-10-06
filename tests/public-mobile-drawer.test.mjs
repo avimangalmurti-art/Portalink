@@ -79,7 +79,7 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape }
     require(name) {
     if (name === 'react') return react;
     if (name === 'framer-motion') return motion;
-    if (name === 'lucide-react') return { PanelLeftOpenIcon: 'open-icon' };
+    if (name === 'lucide-react') return { PanelLeftOpenIcon: 'open-icon', PanelLeftCloseIcon: 'close-icon' };
     if (name === 'react-router-dom') return { useLocation: () => location };
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (open, ref, close) => { outsideBinding = { open, ref, close }; } };
     throw new Error(`Unexpected drawer import: ${name}`);
@@ -249,4 +249,16 @@ test('pathname and query changes cancel active dragging and close immediately; u
     assert.deepEqual(h.inertWrites, []);
     assert.equal(h.listeners.size, 0);
   }
+});
+
+test('the same viewport toggle opens and closes profile navigation', () => {
+  const h = harness();
+  assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
+  h.open();
+  const button = opener(h.render());
+  assert.equal(button.props['aria-label'], 'Close profile navigation');
+  assert.notEqual(button.props.tabIndex, -1);
+  button.props.onClick();
+  assert.equal(h.finish().props['data-visible'], false);
+  h.unmount();
 });

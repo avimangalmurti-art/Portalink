@@ -336,7 +336,8 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
   h.state.project.attachments = [{ id: 'one', kind: 'document', metadata: { pageCount: 3 } }, { id: 'two', kind: 'document' }];
   let viewer = one(h.render(), 'ProjectMediaViewer');
   assert.equal(viewer.props.pageCount, null);
-  assert.equal(viewer.props.readOnlyShare, true); assert.equal(viewer.props.onPagesPerRowChange, undefined);
+  assert.equal(viewer.props.readOnlyShare, true); assert.equal(typeof viewer.props.onPagesPerRowChange, 'function'); assert.equal(viewer.props.onPagesPerRowCommit, undefined);
+  viewer.props.onPagesPerRowChange(5); assert.equal(one(h.render(), 'ProjectMediaViewer').props.pagesPerRow, 5);
   viewer.props.onDocumentPageCountResolved('two', 5);
   assert.equal(one(h.render(), 'ProjectMediaViewer').props.pageCount, 8);
   h.state.project = { ...h.state.project, pageCount: 12 };

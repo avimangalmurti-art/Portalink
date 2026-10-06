@@ -88,6 +88,7 @@ export function HomeFeed({
   const { viewerProfileId, isAuthenticated } = useAuth();
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
+  const [homeColumns, setHomeColumns] = useState(3);
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const [hasReloaded, setHasReloaded] = useState(false);
@@ -245,8 +246,8 @@ export function HomeFeed({
               ? <JustifiedImageWall
                   label="Home projects"
                   key={viewerProfileId ?? 'guest'}
-                  columns={locationId ? locationColumns : density.columns}
-                  onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
+                  columns={locationId ? locationColumns : homeColumns}
+                  onColumnsChange={locationId ? setLocationGridChoice : columns => { setHomeColumns(columns); density.setColumns(columns); }}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
                     ratio: getProjectAspectRatio(projects[index].project),

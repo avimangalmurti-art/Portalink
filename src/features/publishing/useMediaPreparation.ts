@@ -41,7 +41,7 @@ function reindex(items: PreparedMedia[]): PreparedMedia[] {
       isCover: item.isCover && canBeCover(item.family, item.capability)
     }));
   }
-  const suggested = ordered.find((item) => canPreviewLocally(item.family, item.capability) && item.family === 'image') ?? ordered.find((item) => canBeCover(item.family, item.capability));
+  const suggested = ordered.find((item) => canBeCover(item.family, item.capability));
   return ordered.map((item) => ({
     ...item,
     isCover: item.id === suggested?.id
