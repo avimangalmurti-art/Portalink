@@ -2442,3 +2442,82 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-layer {
   display: none;
 }
+/* The per-project density setting lives beside Back and the page counter. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
+  --mobile-density-width: clamp(100px, 28vw, 124px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] {
+  right: calc(var(--mobile-navigation-inset-end) + var(--mobile-density-width) + var(--mobile-control-group-gap));
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled] > .mobile-project-page-counter {
+  font-size: 13px;
+  gap: 4px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-page-density-enabled][data-document-reader-header] > .mobile-project-page-counter [data-interface-icon-frame] {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density {
+  position: fixed;
+  z-index: 45;
+  top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
+  right: var(--mobile-navigation-inset-end);
+  width: var(--mobile-density-width);
+  height: var(--mobile-control-size);
+  border: 0;
+  border-radius: 999px;
+  background: var(--project-control-surface);
+  color: var(--project-control-foreground);
+  box-shadow: var(--project-control-shadow);
+  -webkit-backdrop-filter: var(--project-control-blur);
+  backdrop-filter: var(--project-control-blur);
+  pointer-events: auto;
+}
+#root .codex-shell[data-presentation='mobile'] [data-document-reader-header] > .mobile-project-density {
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--mobile-control-group-gap));
+  right: auto;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density input {
+  position: absolute;
+  inset-inline: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(100% - 28px);
+  height: 44px;
+  margin: 0;
+  accent-color: var(--project-control-foreground);
+  background: transparent;
+  cursor: pointer;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density:focus-within {
+  outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
+  outline-offset: 3px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-density:has(input:disabled) { opacity: .4; }
+
+
+/* Keep artwork centered independently of the two floating control pills. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-mobile-page-navigator][data-page-density-enabled] {
+  position: fixed;
+  z-index: 45;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-public-portfolio-grid] #profile-content {
+  padding-top: 28px;
+}
+/* Touch focus adds no coloured ring; keyboard focus stays discoverable. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-project-density:focus-within {
+  outline: none;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-project-density:has(input:focus-visible),
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] :is(.mobile-project-page-counter, .mobile-project-back):focus-visible {
+  outline: 2px solid currentColor;
+}
+/* Resolve the reader's top anchor once, before descendant safe-area overrides. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] {
+  --reader-controls-top: calc(var(--mobile-control-edge) + var(--mobile-content-safe-top));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] > .mobile-project-back,
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] [data-document-reader-header] {
+  top: var(--reader-controls-top);
+}

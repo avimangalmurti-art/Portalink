@@ -1,3 +1,5 @@
+import { useAuth } from '../contexts/AuthContext';
+import { readRecentAccounts, rememberAccount } from '../features/follows/recentAccounts';
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeftIcon } from 'lucide-react';
 import { useServices } from '../contexts/ServicesContext';
@@ -10,6 +12,8 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   query: string; onQueryChange: (value: string) => void; onOpenCreator: (id: string) => void; onWarmCreator?: (id: string) => void; onBack?: () => void;
 }) {
   const { discovery } = useServices();
+  const auth = useAuth();
+  const recent = readRecentAccounts(auth.user?.id);
   const term = query.trim();
   const request = useRef(0);
   const busy = useRef(false);
@@ -49,10 +53,10 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
     <h1 className="mb-4 text-xl font-semibold">Search accounts</h1>
     <label className="mb-4 block"><span className="sr-only">Name or username</span><input type="search" value={query} onChange={event => onQueryChange(event.target.value)} placeholder="Name or username" className="min-h-11 w-full rounded-xl border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 py-2 text-base text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" maxLength={80} /></label>
     <div className="min-h-0 flex-1 overflow-y-auto pb-24">
-      {!term ? <p className="text-sm text-[var(--text-secondary)]">Find someone by name or username.</p> : null}
+
       {loading ? <LoadingState label="Searching accounts…" /> : null}
       {current && result.status === 'error' ? <ErrorState title="Accounts could not be searched" description="Check your connection and try again." onRetry={() => setAttempt(value => value + 1)} /> : null}
-      <ul className="inset-row-group inset-row-group-icons">{people.map(person => <li key={person.id}><button type="button" className="flex min-h-16 w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => onOpenCreator(person.id)} onPointerEnter={() => onWarmCreator?.(person.id)} onFocus={() => onWarmCreator?.(person.id)}>
+      <ul aria-label={term ? "Search results" : "Recent accounts"} className="inset-row-group inset-row-group-icons account-search-list">{(term ? people : recent).map(person => <li key={person.id}><button type="button" className="flex min-h-16 w-full items-center gap-3 rounded-xl px-2 py-3 text-left hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" onClick={() => { rememberAccount(auth.user?.id, person); onOpenCreator(person.id); }} onPointerEnter={() => onWarmCreator?.(person.id)} onFocus={() => onWarmCreator?.(person.id)}>
         <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl"><CreatorAvatar name={person.name} avatar={person.avatar} className="h-full w-full" /></span>
         <span className="min-w-0"><strong className="block truncate">{person.name}</strong><span className="block truncate text-sm text-[var(--text-secondary)]">{person.kind}</span>{person.location ? <span className="block truncate text-sm text-[var(--text-secondary)]">{person.location}</span> : null}</span>
       </button></li>)}</ul>

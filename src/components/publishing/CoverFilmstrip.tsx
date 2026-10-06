@@ -17,10 +17,10 @@ type ThumbnailProps = {
   item: PreparedMedia; page: number; pdf?: PdfDocument; selected: boolean; disabled: boolean;
   frame: ProjectCoverFrame; onSelect: () => void; onChange: (frame: ProjectCoverFrame) => void;
   onReady: (size: ImageSize) => void;
-  compact?: boolean; previewOnly?: boolean; readOnly?: boolean;
+  compact?: boolean; previewOnly?: boolean; readOnly?: boolean; focused?: boolean;
 };
 
-function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, onChange, onReady, compact, previewOnly, readOnly }: ThumbnailProps) {
+function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, onChange, onReady, compact, previewOnly, readOnly, focused }: ThumbnailProps) {
   const host = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [preview, setPreview] = useState<{ url?: string; error?: string; size?: ImageSize }>({});
@@ -86,11 +86,12 @@ function CoverThumbnail({ item, page, pdf, selected, disabled, frame, onSelect, 
         style={{ '--thumbnail-ratio': ratio, aspectRatio: ratio, touchAction: previewOnly ? 'pan-y' : editable ? 'none' : 'pan-x', cursor: editable ? 'grab' : 'pointer' } as React.CSSProperties}>
         {source ? <img key={attempt} src={source} alt="" draggable={false} loading={selected ? 'eager' : 'lazy'} onLoad={(event) => { const image = event.currentTarget; setSize(preview.size ?? { width: image.naturalWidth, height: image.naturalHeight }); }} onError={() => { setSize(null); setPreview({ error: 'Preview unavailable' }); }}
           className={`pointer-events-none h-full w-full select-none ${selected ? 'object-cover' : 'object-contain'}`} style={selected ? imagePositionStyle(frame) : undefined} /> : <span className="flex h-full min-h-12 items-center justify-center text-[var(--text-tertiary)]"><FileIcon className="h-6 w-6" aria-hidden="true" /></span>}
-        {selected && !previewOnly ? <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--surface-media-control)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--media-control-text)]">Cover</span> : null}
-        {editable ? <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-[5px] bg-[var(--surface-media-control)] text-[var(--media-control-text)] opacity-80"><MoveIcon className="h-3.5 w-3.5" /></span> : null}
+        {selected && !previewOnly && !focused ? <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-[5px] bg-[var(--surface-media-control)] px-1.5 py-0.5 text-[12px] font-semibold text-[var(--media-control-text)]">Cover</span> : null}
+        {editable && !focused ? <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-[5px] bg-[var(--surface-media-control)] text-[var(--media-control-text)] opacity-80"><MoveIcon className="h-3.5 w-3.5" /></span> : null}
+        {focused && source && <><span className="cover-crop-grid" aria-hidden="true" />{[0,1,2,3].map(corner => <span key={corner} className={`cover-crop-handle cover-crop-handle-${corner}`} aria-hidden="true" />)}</>}
       </button>
     </div>
-    {!compact || item.family === 'document' && !previewOnly ? <p className="truncate text-center text-[12px] text-[var(--text-secondary)]" title={label}>{item.family === 'document' ? `Page ${page}` : item.displayTitle}</p> : null}
+    {!focused && (!compact || item.family === 'document' && !previewOnly) ? <p className="truncate text-center text-[12px] text-[var(--text-secondary)]" title={label}>{item.family === 'document' ? `Page ${page}` : item.displayTitle}</p> : null}
     {preview.error ? <button type="button" disabled={disabled} onClick={() => setAttempt((value) => value + 1)} className="text-[12px] text-[var(--status-danger)] underline">Retry preview</button> : null}
   </div>;
 }
@@ -125,9 +126,9 @@ function FileThumbnails({ item, media, render }: { item: PreparedMedia; media: M
 }
 
 /** One selected page and crop shared by profile cards and discovery. */
-export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false, freeShape = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean; freeShape?: boolean }) {
+export function CoverFilmstrip({ media, disabled, compact = false, readOnly = false, naturalShape = false, freeShape = false, focused = false }: { media: MediaPreparation; disabled: boolean; compact?: boolean; readOnly?: boolean; naturalShape?: boolean; freeShape?: boolean; focused?: boolean }) {
   const [editing, setEditing] = useState(false);
-  const collapsed = readOnly || (compact && !editing);
+  const collapsed = focused || readOnly || (compact && !editing);
   const drafts = useRef(new Map<string, ProjectCoverFrame>());
   const [loaded, setLoaded] = useState<{ key: string; size: ImageSize } | null>(null);
   const cover = media.items.find((item) => item.isCover);
@@ -150,16 +151,16 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
   const eligible = media.items.filter((item) => canBeCover(item.family, item.capability));
   if (!eligible.length) return null;
   const editable = Boolean(size && cover?.previewUrl && ['image', 'document', 'video'].includes(cover.family));
-  return <section data-compact-cover={compact || undefined} data-cover-collapsed={collapsed || undefined} data-cover-readonly={readOnly || undefined} className="cover-filmstrip rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-2" aria-labelledby="publish-cover-label">
-    <div className="flex items-center justify-between gap-3">
+  return <section data-focused-cover={focused || undefined} data-compact-cover={compact || undefined} data-cover-collapsed={collapsed && !focused || undefined} data-cover-readonly={readOnly || undefined} className="cover-filmstrip rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-2" aria-label={focused ? "Create your cover" : undefined} aria-labelledby={focused ? undefined : "publish-cover-label"}>
+    {!focused && <div className="flex items-center justify-between gap-3">
       <h3 id="publish-cover-label" className="text-[13px] font-semibold text-[var(--text-primary)]">Cover</h3>
       {compact && !readOnly ? <button type="button" aria-expanded={editing} disabled={disabled} onClick={() => setEditing((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{editing ? 'Done' : 'Edit cover'}</button> : null}
-    </div>
+    </div>}
     <div className="cover-filmstrip-track scrollbar-slim" role="group" aria-label={readOnly ? 'Selected project cover' : 'Choose a project cover'}>
       {eligible.filter((item) => !collapsed || item.id === cover?.id).map((item) => <FileThumbnails key={item.id} item={item} media={media} render={(number, pdf) => {
         const selected = item.id === cover?.id && number === page;
         if (collapsed && !selected) return null;
-        return <CoverThumbnail key={number} compact={compact || freeShape} readOnly={readOnly} previewOnly={collapsed} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled || readOnly} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => readOnly ? undefined : collapsed ? setEditing(true) : select(item, number)} onChange={change}
+        return <CoverThumbnail key={number} compact={compact || freeShape} readOnly={readOnly} focused={focused} previewOnly={collapsed && !focused} item={item} page={number} pdf={pdf} selected={selected} disabled={disabled || readOnly} frame={selected ? frame : { x: .5, y: .5, zoom: 1, aspectRatio: 4 / 3 }} onSelect={() => readOnly || focused ? undefined : collapsed ? setEditing(true) : select(item, number)} onChange={change}
           onReady={(dimensions) => {
             if (!selected) return;
             setLoaded({ key, size: dimensions });
@@ -168,7 +169,7 @@ export function CoverFilmstrip({ media, disabled, compact = false, readOnly = fa
       }} />)}
     </div>
     {!readOnly && <p id="cover-crop-help" className="sr-only">Drag or use arrow keys to reposition the selected cover. Scroll to zoom.</p>}
-    {!collapsed && <div className="cover-panel-controls border-t border-[var(--hairline)] pt-2">
+    {(!collapsed || focused) && <div className="cover-panel-controls border-t border-[var(--hairline)] pt-2">
     <label className="flex min-w-0 flex-col gap-1 text-[12px] text-[var(--text-secondary)]">{freeShape ? 'Custom proportions' : 'Cover shape'}
       {freeShape ? <input aria-label="Custom cover proportions" type="range" min="0.25" max="4" step="0.01" value={frame.aspectRatio} disabled={disabled || !editable} onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }} /> : <select aria-label="Cover shape" disabled={disabled || !editable} value={frame.aspectRatio} className="text-control h-8 w-full min-w-0 rounded-[8px] px-2 text-[13px]" onChange={(event) => { if (size) { const ratio = Number(event.target.value); change({ ...frame, aspectRatio: ratio, crop: cropFromPosition(size, ratio, frame) }); } }}>
         {[{ value: 1, label: 'Square · 1:1' }, { value: 4 / 3, label: 'Landscape · 4:3' }, { value: 16 / 9, label: 'Wide · 16:9' }, { value: 3 / 4, label: 'Portrait · 3:4' }, { value: frame.aspectRatio, label: 'Current shape' }].filter((item, index, all) => all.findIndex((other) => Math.abs(other.value - item.value) < .00001) === index).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}

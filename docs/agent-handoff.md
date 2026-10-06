@@ -1,3 +1,68 @@
+## Reader control row alignment (unpublished)
+Back and counter now share a top anchor resolved on the mobile project-view container; nested safe-area overrides no longer move the counter/slider independently from Back. Slider retains top:0 inside counter row. Applied mobile platform/shared CSS only; desktop unchanged. Diff check passed; device/browser verification outstanding. Earlier changes retained, not published.
+
+## Mobile profile link wrapping (unpublished)
+Visitor profile navigation now reserves a max-content right column for Follow/Bookmark, aligned to the top; link icons wrap within the remaining left column rather than pushing actions down. Existing 44px icon targets/order retained; owner layouts and desktop untouched. CSS selector review/diff check passed, browser/physical-phone verification outstanding. Prior pending work retained; no deployment.
+
+## 2026-10-06 — Mobile Review redesign (unpublished)
+- Review heading and compact dark frame match Files/Details. Three summaries in requested order: real CoverFilmstrip read-only crop/aspect/zoom preview + Edit, state-backed Title/Description/optional nonempty Location + Edit, first three ordered file thumbnails with remainder/count + Edit. No default helper text, editing markers or full file cards. Fixed Back/Publish arrow CTA; existing publish duplicate guard/loading/progress modal retained. Existing MediaPicker retry/cleanup controls disclosed only for transport failure.
+- CSS bounds Review viewport, truncates long descriptions without modifying state. Real component fixture at 420x912,390x844,430x740 showed page/body scrollHeight==clientHeight and visible actions; 3000-char description stayed bounded. Cover shape/zoom change reflected on Review with title/description/location retained. Screenshot logs/cover-qa/mobile-review.jpg. Fixture only; no production publish or physical phone test. Desktop flow untouched.
+- Typecheck, focused ESLint, production build and 9 focused flow tests pass (including empty location/ordered thumbnail summary/retry/cleanup/locks and publish guard). Diff check passed. Prior pending work preserved. No commit/deploy/SQL; mutual connections migration still requires explicit authorization.
+## Shared reader focus verification (unpublished)
+Verified local actual counter fixture content edges 0..420; prior 390/430 geometry checks retained. Removed shared mobile slider touch focus-within outline; keyboard focus-visible uses currentColor on slider/counter/back, preserving accessible focus without blue accents. Browser pointer-click confirmed no visible outline on either pill. Screenshot logs/shared-qa/reader-no-blue-ring.jpg. Live shared account and physical phone unverified; pending edits unpublished. Diff check passed.
+
+## Mobile Needs attention heading alignment (unpublished)
+Moved heading bottom margin to its row so Show all and Needs attention align vertically; existing trailing alignment and 44px action retained. Mobile-only CSS; desktop preserved. Diff check passed, browser not verified. Earlier pending changes retained; no deployment.
+
+## 2026-10-06 — Platform mobile profile arrival clearance (unpublished)
+- Extended shared portfolio's 28px content inset (20px existing header fade plus 8px clear gap) to platform mobile profiles. For the nested portfolio wall, padding is inside the scrollable wall, so it scrolls away rather than permanently separating content from the header. Normal profile content gets the same inset; selected project without header is excluded. Desktop untouched; platform reader already has separate counter/density pills.
+- Reviewed selectors against UserProfilePage entry paths and existing scroll containers; diff check passed. No live/physical-phone verification, publication, SQL or commit. Prior pending work preserved.
+## 2026-10-06 — Shared mobile reader pills / arrival spacing (unpublished)
+- Added missing public-mobile reader density styles already used by the platform: reserved slider width, separate rounded counter/slider surfaces with 8px separation, 44px slider input, floating controls outside content flow. This resolves the shared reader's inline slider displacing content. Desktop/platform CSS unchanged.
+- Shared mobile profile content now has 28px top padding: clears existing 20px header fade plus a subtle 8px gap. Sticky header/fade behavior while scrolling retained.
+- Actual counter component in ignored local fixture verified slider changes density, distinct nonoverlapping pills and centered content at 390/420/430 widths. No live data writes or physical-phone test. Production build and diff check passed. Earlier pending edits preserved, no publication/SQL/commit.
+## 2026-10-06 — Mobile Details workspace (unpublished)
+- Same owning branch/checkout; preserved all prior pending changes. Redesigned mobile Details only: Title, flex Description with persistent existing formatting and live count, then Location (Optional), compact fixed actions. Removed helper copy; required labels use pink asterisks; clear controls reuse form state. WEB defaults remain opt-in unchanged.
+- Checked actual component fixture at 420x912, 390x844, 430x740: page/body do not scroll, editor fits with internal text scrolling, Back/Continue/Review work. Preview logs/cover-qa/mobile-details.jpg. Fixture is ignored, no backend writes. Physical keyboard/phone not tested; existing dialog viewport avoidance retained. Existing description has no maximum, so no invented /1000 restriction.
+- Typecheck, build and focused ESLint passed; 11 publishing/cover tests passed. No commit, SQL or publication. Previous mutual-connections migration still awaits explicit database authorization.
+## Studio Material removal (unpublished)
+
+Removed duplicate Material reference strip from StudioWorkbenchView; Bookmarks access/content preserved. Studio empty-state calculation no longer depends on hidden material. Small presentation removal, diff check and typecheck pass. No data/backend deletion; earlier pending changes retained.
+
+## Studio New project / no saved upload workspaces (unpublished)
+
+Studio Continue renamed New project, enabled without existing draft, wired to App requestMobilePublish; never resumes a stored draft. Removed Other drafts entry and draft collection access from Studio. Publishing no longer restores/local-autosaves resumable workspaces; close awaits existing unpublished draft/storage cleanup before exiting and surfaces failure via discard dialog. Internal server staging records remain required by existing publish transaction; not a new backend architecture or deletion of legacy stored records. Existing published work preserved. Typecheck,8 flow tests,new close-cleanup success/failure test,production client/worker build/config guard and diff check pass. Browser/authenticated cleanup/physical phone verification outstanding. No deployment or SQL applied; earlier pending work preserved.
+
+## MOBILE navigation capsule readability (unpublished)
+
+User extends96%/32px glass treatment to background surrounding main navigation buttons. Mobile dock capsule now96% opaque existing gray-tinted surface, blur32px/saturation110%; geometry/icons/actions unchanged. WEB untouched. CSS-only diff check pass; physical/browser appearance not verified. Earlier pending work preserved; not deployed.
+
+## MOBILE project popup readability (unpublished)
+
+User prefers retaining glass if readable. Project/content description/action popup surface increased to96% opaque theme-raised surface and32px blur/110% saturation, decoupled from weaker global translucency setting. Shared component CSS applies to platform and sharable mobile project popups. Text/buttons/layout unchanged; accessibility opaque overrides retained. CSS-only diff check pass; real phone/visual comparison not verified. Earlier pending work preserved, no deployment.
+
+## Search accounts recent visits (unpublished)
+
+Removed blank-search helper copy and populated area with recent visited profiles, newest first, deduplicated30 max, scoped to signed-in account in optional localStorage. Search clicks and loaded non-owner platform profiles record canonical identity; no fabricated historic visits or backend writes. Existing inset-row-group rendering reused and mobile gutters match Messages. Query results/actions remain. Typecheck, focused account isolation/order/dedupe/bounds/storage failure test and diff check pass. Browser/live navigation not verified. Earlier work preserved; no deployment.
+
+## MOBILE Journey options/date alignment (unpublished)
+
+Mobile Journey entry copy uses a two-column top row: exact posting date on left, existing44px three-dot control at right; title/portal/description span below. Applies to mobile platform/shared Journey using the same CSS; WEB retains existing layout and actions. CSS-only micro edit; diff whitespace check pass. Browser/physical visual verification outstanding. Previous pending work preserved.
+
+## MOBILE explicit profile Back (unpublished)
+
+User withdrew swipe-dismiss: removed MobileProfileDismiss and all touch/pointer interception, replaced with44px arrow-only MobileProfileBack in compact row with existing MobileContextButton. Identity/content begin below row; nested return uses existing search/connections/onBack handlers and ScreenBack registration. Own profile opened from bottom navigation retains no return control. WEB/shared visitor preserved. Typecheck and focused explicit-back/no-gesture test pass; prior New-message harness failures remain unrelated. Physical phone/profile navigation not verified. All previous dirty cover-editor work preserved; no deployment/database change.
+
+## Mutual connection lists — live root cause confirmed 2026-10-06
+
+User reports mutuals cannot tap followers/following. Read-only request to existing Supabase returned404/PGRST202: `can_view_profile_connections(p_profile_id)` missing from schema cache. Client intentionally disables counts unless this server permission returns true. Prepared migration202610050001_mutual_profile_connections.sql is still unapplied; reviewed function grants owner or both accepted following edges, not pending requests, with SELECT policy for relevant confirmed edges. Three focused owner/denied/mutual service tests pass (mocked; not live permissions). No new UI workaround or backend mutation performed. Need explicit production database authorization under AGENTS before applying this specific migration, then live authenticated mutual/non-mutual validation. Preserve other pending mobile source changes; Sites338 remains live.
+
+## MOBILE New project Files cover workspace (unpublished)
+
+Owned checkout `logs/portal-choice-root-cause-release`, branch `codex/portal-choice-root-cause`, base/source HEAD `124b1bab30c82d258a6b3f87a3c4e1d8c9887706`; Sites338 remains live. Mobile Files now uses a bounded dark cover editor with crop grid/corner markers, existing pan/zoom/shape/reset, compact selected-file thumbnails and Add/Reorder; full existing file management opens in a separate sheet. Continue stays visible with no default vertical overflow. WEB and Details/Review retain existing presentation; no service/schema changes. Files changed: CoverFilmstrip, MobilePublishFlow, new MobileCoverFiles/mobile-cover-files.css, focused publishing tests. Prior dirty swipe-profile correction preserved.
+
+Checks: typecheck, lint (0 errors,101 existing warnings), client/worker production build/config guard and25 focused file/flow/crop tests pass. Browser fixture renders actual components with synthetic local media (no account/API writes): verified420×912,390×844,430×740 no vertical overflow; crop drag, zoom/reset/shape, Reorder open/close and Continue→Details. Ignored fixture/screenshot at logs/cover-qa. Real phone/safe-area/file picker and authenticated publication not tested. Broader mobile-back-navigation suite retains2 pre-existing New-message harness failures; profile gesture checks pass. No publication requested for this redesign.
+
 ## MOBILE per-screen action layout
 
 Inline shared context trigger in Home search row, Messages search row, Studio workbench and Drafts headings; global fallback hidden via existing inline marker. Bookmarks existing options trigger keeps original functionality and shares same system-gray class. Remove manual60px header padding; true flex siblings reserve44px+8px for actions. Profile previous inline position retained. WEB Messages preserves nonmobile structure/behavior.52 focused context/navigation/workbench tests,typecheck,lint/build/config guard pass. Tests updated mock for new shared header control. Browser/physical verification unperformed; user screenshots are issue evidence. No backend changes.
@@ -2777,3 +2842,7 @@ Sites337 published: source48636cc1228420067cb11c6ca9a2005ddd34f607; version appg
 MOBILE profile dismissal refinement, unpublished after337: bottom dock profile Link marks profileFromDock in router state; own profile opened from dock has no dismissal handle while own/other profiles opened elsewhere retain prior-screen pull/tap return. Handle row reduced44px to28px, duplicate safe-area margin removed and grabber reduced36x4px. WEB/public views unchanged. Typecheck and3 dock tests pass (including dock-state marker); diff check clean. Browser/physical-phone spacing/gesture unverified; no deployment/SQL/main merge.
 
 MOBILE Home search copy, unpublished after337: search bar label now Search. User-search action and separate globe action retained, other Explore the world destinations unchanged. Scoped text diff checked; no deployment.
+
+Sites338 published: source124b1bab30c82d258a6b3f87a3c4e1d8c9887706; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_d057999ac1a881918329c49ca1ddd58d; deployment appgdep_6ac5564265b88191862205d53a321729 succeeded2026-10-06T20:13:04.971128UTC. Dock own-profile handle exclusion, compact28px handle row and Home Search copy live. Fresh client/worker build/config pass, prior typecheck/3 navigation tests pass,557archive files. Public audience/runtime2 retained. No SQL/main merge; browser/phone verification limits retained. Receipt local only.
+
+MOBILE profile pull correction, unpublished after338: prior gesture bound only to28px handle; now active dismissible profile page listens for single-touch downward pulls from scroll top, translates profile and returns at80px. Native scrolling below top, upward/horizontal moves, pinch, form/dialog targets, reorder mode and own-profile dock exception preserved. Cancel/unmount resets transform/listeners; completed pull consumes following project click. Typecheck and5 focused navigation/gesture tests pass; physical-phone/native browser gesture unverified. No deployment/SQL/main merge.

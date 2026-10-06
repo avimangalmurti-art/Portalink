@@ -32,7 +32,6 @@ type PublishProjectDialogProps = {
 export function PublishProjectDialog({
   isOpen,
   firstProject,
-  resumeDraft,
   profileId,
   categoryId,
   categoryLabel,
@@ -41,7 +40,7 @@ export function PublishProjectDialog({
 }: PublishProjectDialogProps) {
   const isMobile = usePresentation() === 'mobile';
   const PublishFrame = isMobile ? ProjectFormScreen : ProjectFormDialog;
-  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, Boolean(firstProject), firstProject?.madeIn, { persist: isMobile, resume: resumeDraft });
+  const publishFlow = usePublishProject(profileId, categoryId, isOpen, categoryLabel, isMobile, false, firstProject?.madeIn, { persist: false });
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const uploadErrorRef = useRef<HTMLDivElement>(null);
@@ -51,7 +50,6 @@ export function PublishProjectDialog({
   const {
     step,
     state,
-    isDirty,
     media
   } = publishFlow;
   const isPublishing = state === 'publishing';
@@ -123,14 +121,7 @@ export function PublishProjectDialog({
       uploadErrorRef.current?.focus();
       return;
     }
-    if (firstProject || isMobile) {
-      try { await publishFlow.saveLocalDraft(true); onClose(); } catch { /* Keep files visible when local persistence fails. */ }
-      return;
-    }
-    if (isDirty && step !== 'done') {
-      setIsConfirmingDiscard(true);
-      return;
-    }
+    if (step !== 'done' && !await publishFlow.discard()) { setIsConfirmingDiscard(true); return; }
     onClose();
   }
   const {

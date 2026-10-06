@@ -11,9 +11,9 @@
   min-height: 0; flex: none; padding-bottom: 0;
   border: 1px solid var(--hairline-strong) !important;
   border-radius: 24px !important;
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
-  backdrop-filter: blur(22px) saturate(125%);
-  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  background: color-mix(in srgb, var(--surface-raised) 96%, transparent) !important;
+  backdrop-filter: blur(32px) saturate(110%);
+  -webkit-backdrop-filter: blur(32px) saturate(110%);
   box-shadow: var(--shadow-pop); animation: none;
 }
 [data-presentation='mobile'] .project-popup-creator {

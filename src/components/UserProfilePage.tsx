@@ -1,5 +1,6 @@
+import { rememberAccount } from '../features/follows/recentAccounts';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
-import { MobileProfileDismiss } from '../presentation/mobile/MobileProfileDismiss';
+import { MobileProfileBack } from '../presentation/mobile/MobileProfileBack';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
@@ -504,7 +505,7 @@ export function UserProfilePage({
     if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
     else if (connectionOrigin) navigate(`${buildPath(isSharedView ? 'sharedProfile' : 'profile', { profileId: connectionOrigin })}?view=${connectionList}`, { replace: true });
   };
-  const canDismissProfile = isMobile && !isSharedView && !mobileContent && !(showsOwnerTools && profileLocation.state?.profileFromDock === true) && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools || (window.history.state?.idx ?? 0) > 0);
+  const canDismissProfile = isMobile && !isSharedView && !mobileContent && !isReorderingProjects && !(showsOwnerTools && profileLocation.state?.profileFromDock === true) && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools || (window.history.state?.idx ?? 0) > 0);
   const dismissProfile = () => {
     if (showConnectionBack) backToConnections();
     else if (searchReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }
@@ -613,6 +614,9 @@ export function UserProfilePage({
           />
         </div>
   })), [orderedCardProjects, profile, onOpenProject, isSharedView, showsOwnerTools, isReorderingProjects, projectManagement.editor, projectManagement.deletion, setSearchParams, readsNavigate]);
+  useEffect(() => {
+    if (!isSharedView && !showsOwnerTools) rememberAccount(auth.user?.id, { id: profile.id, name: profile.name, avatar: profile.avatar, kind: '', location: profile.location });
+  }, [auth.user?.id, isSharedView, showsOwnerTools, profile.id, profile.name, profile.avatar, profile.location]);
   const followers = connections.counts.followers?.toLocaleString() ?? null;
   const following = connections.counts.following?.toLocaleString() ?? null;
   // Every region of the page — toolbar, identity, and wall — now sits on the
@@ -694,7 +698,7 @@ export function UserProfilePage({
   // the display-contents wrapper preserves the desktop document flow.
   if (mobileShareOpen && !profile.isPrivate) return <Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>;
   return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
-      {canDismissProfile && <ScreenBack visibleOnMobile action={dismissProfile}><MobileProfileDismiss onDismiss={dismissProfile} /></ScreenBack>}
+      {canDismissProfile && <ScreenBack visibleOnMobile action={dismissProfile}><div className="mobile-profile-return-row" data-inline-screen-actions=""><MobileProfileBack onBack={dismissProfile} /><MobileContextButton /></div></ScreenBack>}
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
       {!isMobile && searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
@@ -707,7 +711,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : isMobile ? <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div> : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : isMobile ? (!canDismissProfile && <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
