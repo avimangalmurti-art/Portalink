@@ -41,12 +41,13 @@ type CollectorOptions = {
   onMark?: (metric: RumMetric, at: number) => void;
 };
 
-/** All timestamps are milliseconds since this document's navigationStart.
- * A virtual page view's boot is its activation time on that same clock. The
+/** Input timestamps use the document clock; emitted durations use the current
+ * view's origin. The initial view retains navigationStart as its origin. The
  * pathname is retained only in memory for lifecycle matching, never emitted. */
 export function createRumCollector(options: CollectorOptions) {
   let sequence = 0;
-  let view: { token: number; pathname: string; sent: boolean; payload: RumPayload } | null = null;
+  let started = false;
+  let view: { token: number; pathname: string; origin: number; sent: boolean; payload: RumPayload } | null = null;
   const flush = () => {
     if (!view || view.sent) return;
     view.sent = true;
@@ -57,13 +58,15 @@ export function createRumCollector(options: CollectorOptions) {
     begin(pathname: string, at = options.now()) {
       if (view?.pathname === pathname) return view.token;
       flush();
+      const origin = started ? at : 0;
+      started = true;
       const routeKind = rumRouteKind(pathname);
       view = routeKind && /^[a-f0-9]{7,64}$/.test(options.version) ? {
-        token: ++sequence, pathname, sent: false,
-        payload: { route_kind: routeKind, boot_ms: duration(at), data_ms: null, cover_ms: null, pdf_ms: null,
+        token: ++sequence, pathname, origin, sent: false,
+        payload: { route_kind: routeKind, boot_ms: duration(at - origin), data_ms: null, cover_ms: null, pdf_ms: null,
           vw_bucket: rumViewportBucket(options.viewport()), conn: rumConnection(options.connection()), version: options.version },
       } : null;
-      if (view && view.payload.boot_ms !== null) options.onMark?.('boot_ms', view.payload.boot_ms);
+      if (view && view.payload.boot_ms !== null) options.onMark?.('boot_ms', at);
       return view?.token ?? null;
     },
     token: () => view?.token ?? null,
@@ -72,10 +75,10 @@ export function createRumCollector(options: CollectorOptions) {
       if (!view || token !== view.token || view.sent) return;
       if (metric === 'cover_ms' && view.payload.route_kind !== 'share' && view.payload.route_kind !== 'profile') return;
       if (metric === 'pdf_ms' && view.payload.route_kind !== 'project') return;
-      const value = duration(at);
+      const value = duration(at - view.origin);
       if (value === null || (view.payload[metric] !== null && view.payload[metric] <= value)) return;
       view.payload[metric] = value;
-      options.onMark?.(metric, value);
+      options.onMark?.(metric, at);
     },
     flush,
   };

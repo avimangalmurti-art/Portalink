@@ -435,12 +435,16 @@ export async function savePagePrivately(db: ReachDatabase, bookmark: ReachStatem
 }
 
 /** Called only after existing target access checks. No auth email is used. */
+/** Server-resolved metadata from the same request's successful RLS access check. */
+export type PageActionProject = { id: string; profile_id: string; category_id: string; title: string; profile: { account_id: string } };
+
 export async function preparePageAction(request: Request, db: ReachDatabase, config: Config, user: User, target: {
     projectId: string;
     attachmentId: string;
     pageIndex: number;
-}, kind: 'save' | 'comment', heading: unknown, commentId?: string): Promise<ReachStatement | null> {
-    const [project] = await projectRows(config, target.projectId, request.headers.get('authorization'));
+}, kind: 'save' | 'comment', heading: unknown, commentId?: string, verifiedProject?: PageActionProject): Promise<ReachStatement | null> {
+    if (verifiedProject && verifiedProject.id !== target.projectId) throw unavailable();
+    const project = verifiedProject ?? (await projectRows(config, target.projectId, request.headers.get('authorization')))[0];
     if (!project || project.profile.account_id === user.id)
         return null;
     const [actor] = await supabaseRows<{

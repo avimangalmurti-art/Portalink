@@ -6,6 +6,17 @@ const plain=value=>JSON.parse(JSON.stringify(value));
 const day='2026-10-04', now=Date.parse(`${day}T19:00:00Z`);
 const ingest=(f,changes={},time=now)=>api.ingestReach(request('/api/reach',payload(changes)),f.db,f.config,{now:()=>time,random:()=>.5});
 
+test('save event reuses request-authorized metadata without a second project read', async () => {
+  const f=fixture();
+  const stmt=await api.preparePageAction(request('/x',{},ids.other),f.db,f.config,{id:ids.other},
+    {projectId:ids.project,attachmentId:ids.attachment,pageIndex:0},'save',null,undefined,f.project);
+  await stmt.run();
+  assert.equal(f.calls.filter(call=>new URL(call.url).pathname==='/rest/v1/projects').length,0);
+  assert.equal(f.sqlite.prepare('SELECT owner_account_id,actor_account_id FROM project_page_actions').get().actor_account_id,ids.other);
+  await assert.rejects(api.preparePageAction(request('/x',{},ids.other),f.db,f.config,{id:ids.other},
+    {projectId:ids.project,attachmentId:ids.attachment,pageIndex:0},'save',null,undefined,{...f.project,id:ids.other}));
+});
+
 test('period summaries filter real daily rollups and referrers, retaining the legacy 30-day default', async () => {
   const f=fixture();
   const dates=['2026-10-04','2026-09-28','2026-09-27','2026-09-05','2026-09-04','2025-10-04','2025-10-03'];

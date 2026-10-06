@@ -5,7 +5,7 @@ import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
 import { handleRumIngest, readRumSummary } from './server/rum';
 import { authorizeRumOwner } from './server/rumOwner';
-import { ingestReach, handleReachRead, handleStudioAttention, preparePageAction } from './server/projectReach';
+import { ingestReach, handleReachRead, handleStudioAttention, preparePageAction, type PageActionProject } from './server/projectReach';
 
 interface StaticAssets {
   fetch(request: Request): Promise<Response>
@@ -119,7 +119,7 @@ async function authenticatedUser(request: Request, required: boolean): Promise<A
 }
 
 type ReadableAttachment = { id: string; kind: string; position: number; page_count?: unknown }
-type ReadableProject = { id: string; category: { id: string }; attachments: ReadableAttachment[] }
+type ReadableProject = { id: string; category: { id: string }; attachments: ReadableAttachment[] } & Partial<PageActionProject>
 
 /**
  * D1 has no Supabase RLS of its own. Resolve the real project, portal and media
@@ -127,14 +127,14 @@ type ReadableProject = { id: string; category: { id: string }; attachments: Read
  * touching activity. One bounded query covers the whole batch, with no access
  * cache that could survive a revoked follow or a privacy change.
  */
-async function requireReadableTargets(request: Request, targets: Target[], user: AuthenticatedUser | null): Promise<void> {
+async function requireReadableTargets(request: Request, targets: Target[], user: AuthenticatedUser | null, includeActionProject = false): Promise<ReadableProject[]> {
   const unavailable = () => json({ error: 'Page access could not be verified. Please try again.' }, 503)
   if (!SUPABASE_URL || !SUPABASE_KEY) throw unavailable()
   const ids = [...new Set(targets.map(target => target.projectId))]
   const quote = (value: string) => `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
   const endpoint = new URL(`${SUPABASE_URL}/rest/v1/projects`)
   endpoint.search = new URLSearchParams({
-    select: 'id,category:portfolio_categories!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)',
+    select: `${includeActionProject ? 'profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner(account_id),' : ''}id,category:portfolio_categories!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)`,
     id: `in.(${ids.map(quote).join(',')})`,
     limit: String(ids.length),
     // Match the viewer's image sequence (all images in attachment position order).
@@ -166,6 +166,9 @@ async function requireReadableTargets(request: Request, targets: Target[], user:
         || (attachment.page_count != null && (typeof attachment.page_count !== 'number'
           || !Number.isInteger(attachment.page_count) || attachment.page_count < 0))))) throw new Error()
     projects = data as ReadableProject[]
+    if (includeActionProject && projects.some(project => typeof project.profile_id !== 'string'
+      || typeof project.category_id !== 'string' || typeof project.title !== 'string'
+      || !project.profile || typeof project.profile.account_id !== 'string')) throw new Error()
   } catch {
     // Never fall back to D1 or expose upstream error bodies/URLs on failure.
     throw unavailable()
@@ -182,6 +185,7 @@ async function requireReadableTargets(request: Request, targets: Target[], user:
       && (!(typeof attachment.page_count === 'number' && attachment.page_count > 0) || target.pageIndex < attachment.page_count)
     if (!isImagePage && !isDocumentPage) throw json({ error: 'This page is not available.' }, 404)
   }
+  return projects
 }
 
 function authorIdentity(user: AuthenticatedUser): { name: string; avatarUrl: string | null } {
@@ -309,13 +313,13 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const kind = body.kind
     const engaged = body.engaged
     if (!ENGAGEMENT_KINDS.includes(kind as EngagementKind) || typeof engaged !== 'boolean') throw new Error('Invalid engagement action.')
-    await requireReadableTargets(request, [target], user)
+    const [verifiedProject] = await requireReadableTargets(request, [target], user, kind === 'save' && engaged)
     if (engaged) {
       const save = db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
         .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind)
       if (kind === 'save') {
-        const event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'save',body.pageHeading)
+        const event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'save',body.pageHeading,undefined,verifiedProject as PageActionProject)
         try { await db.batch(event ? [save,event] : [save]) } catch { throw json({error:'Your save could not be shared with the creator. Please try again.'},503) }
       }
       else await save.run()

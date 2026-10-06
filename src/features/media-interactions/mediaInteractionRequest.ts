@@ -15,9 +15,23 @@ export async function mediaInteractionRequest<T>(path: string, init?: RequestIni
   headers.set('accept', 'application/json');
   if (init?.body) headers.set('content-type', 'application/json');
   if (token) headers.set('authorization', `Bearer ${token}`);
-  const response = await fetch(path, { ...init, headers, cache: 'no-store' });
+  const controller = new AbortController();
+  const cancel = () => controller.abort(init?.signal?.reason);
+  if (init?.signal?.aborted) cancel();
+  else init?.signal?.addEventListener('abort', cancel, { once: true });
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, 25_000);
+  try {
+  const response = await fetch(path, { ...init, headers, cache: 'no-store', signal: controller.signal });
   const payload = await response.json().catch(() => null) as (T & { error?: string }) | null;
   if (!response.ok) throw new Error(payload?.error || 'This page activity is temporarily unavailable.');
   if (!payload) throw new Error('This page activity is temporarily unavailable.');
   return payload;
+  } catch (error) {
+    if (timedOut) throw new Error('This request took too long. Please try again.');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    init?.signal?.removeEventListener('abort', cancel);
+  }
 }

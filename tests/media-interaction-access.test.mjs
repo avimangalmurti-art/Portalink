@@ -61,7 +61,7 @@ function setup() {
       }
       assert.equal(parsed.pathname, '/rest/v1/projects');
       assert.equal(init.method, undefined);
-      assert.equal(parsed.searchParams.get('select'), 'id,category:portfolio_categories!inner(id),attachments:project_attachments(id,kind,position,page_count:metadata->pageCount)');
+      assert.match(parsed.searchParams.get('select'), /^(?:profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner\(account_id\),)?id,category:portfolio_categories!inner\(id\),attachments:project_attachments\(id,kind,position,page_count:metadata->pageCount\)$/);
       assert.equal(parsed.searchParams.get('attachments.order'), 'position.asc');
       assert.equal(parsed.searchParams.get('attachments.limit'), '106');
       if (accessFailure) return accessFailure();
@@ -73,7 +73,7 @@ function setup() {
       return Response.json(ids.flatMap(id => {
         const project = projects.get(id);
         if (!project || (account !== project.owner && (project.hidden || project.hiddenPortal || (project.private && !project.followers.has(account))))) return [];
-        return [{ id, category: { id: `portal-${id}` }, attachments: [...project.attachments].sort((a, b) => a.position - b.position) }];
+        return [{ id, title: id, profile_id: `profile-${project.owner}`, category_id: `portal-${id}`, profile: {account_id: project.owner}, category: { id: `portal-${id}` }, attachments: [...project.attachments].sort((a, b) => a.position - b.position) }];
       }));
     },
   });

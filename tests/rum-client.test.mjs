@@ -46,7 +46,7 @@ test('one send per view across visibility, pagehide, duplicate router effects an
   assert.equal(sent.length, 1); assert.equal(sent[0].cover_ms, null);
   time(300); const project = collector.begin('/share/a/c/b/c');
   collector.mark('pdf_ms', project, 850); collector.flush();
-  assert.equal(sent.length, 2); assert.equal(sent[1].boot_ms, 300); assert.equal(sent[1].pdf_ms, 850);
+  assert.equal(sent.length, 2); assert.equal(sent[1].boot_ms, 0); assert.equal(sent[1].pdf_ms, 550);
   let sends = 0;
   const failing = core.createRumCollector({ now: () => 1, version, viewport: () => 390, connection: () => null,
     send: () => { sends++; throw new Error('offline'); } });
@@ -60,8 +60,8 @@ test('late old-route events are rejected and unused metrics remain null', () => 
   collector.mark('data_ms', previous, 500); collector.mark('pdf_ms', previous, 600);
   collector.mark('cover_ms', active, 600); collector.mark('pdf_ms', active, 800); collector.mark('pdf_ms', active, 900);
   collector.mark('data_ms', active, -1); collector.mark('data_ms', active, NaN); collector.mark('data_ms', active, Infinity);
-  collector.mark('data_ms', active, 86_400_001); collector.flush();
-  assert.equal(sent[1].data_ms, null); assert.equal(sent[1].cover_ms, null); assert.equal(sent[1].pdf_ms, 800);
+  collector.mark('data_ms', active, 86_400_301); collector.flush();
+  assert.equal(sent[1].data_ms, null); assert.equal(sent[1].cover_ms, null); assert.equal(sent[1].pdf_ms, 500);
   collector.begin('/settings'); collector.flush(); assert.equal(sent.length, 2);
 });
 
@@ -70,6 +70,21 @@ test('viewport and effectiveType are coarse bounded values', () => {
     ['<400', '400-639', '400-639', '400-639', '640-1023', '640-1023', '1024-1439', '1024-1439', '1024-1439', '1440+', '1440+']);
   for (const value of ['slow-2g', '2g', '3g', '4g']) assert.equal(core.rumConnection(value), value);
   for (const value of ['wifi', '5g', undefined, { userAgent: 'do not send' }]) assert.equal(core.rumConnection(value), 'unknown');
+});
+
+test('late-session navigation measures screen work, not the lifetime of the tab', () => {
+  const { collector, sent, marks, time } = fixture();
+  collector.begin('/share/a', 8);
+  time(3_600_000);
+  const token = collector.begin('/p/another');
+  collector.mark('data_ms', token, 3_600_125);
+  collector.mark('cover_ms', token, 3_600_250);
+  collector.mark('data_ms', token, 3_599_999);
+  collector.flush();
+  assert.equal(sent[1].boot_ms, 0);
+  assert.equal(sent[1].data_ms, 125);
+  assert.equal(sent[1].cover_ms, 250);
+  assert.deepEqual(marks.at(-1), ['cover_ms', 3_600_250]);
 });
 
 test('first data excludes auth, storage, unknown RPCs and mutations', () => {

@@ -133,7 +133,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, cate
 function PublishingProgress({flow}: {flow: Flow}) {
   const viewport = useDialogViewport();
   const dialog = useRef<HTMLElement>(null);
-  useModalFocus(true, dialog, () => {}, true);
+  useModalFocus(true, dialog, () => { /* Publishing is dismissed by completion or transport cancellation. */ }, true);
   const uploading = flow.upload.isBusy;
   const cancelling = flow.upload.phase === 'cancelling';
   const fraction = uploading ? flow.upload.fraction : null;
