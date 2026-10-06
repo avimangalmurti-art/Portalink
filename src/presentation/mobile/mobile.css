@@ -4682,3 +4682,23 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-preview-stats {
   grid-column: 1 / -1; justify-content: flex-start;
 }
+
+/* Inbox owns a bounded content scroller beneath its stationary controls. */
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] {
+  height: calc(100dvh - var(--mobile-content-safe-bottom, 104px));
+  min-height: 0; overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] > div,
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] > div > aside {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] [data-mobile-scroll-end] {
+  flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain;
+}
+/* Blur establishes a fixed-position containing block: anchor the action to the search row. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] .mobile-screen-action-row {
+  position: relative;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
+  position: absolute; top: 0; right: 0;
+}

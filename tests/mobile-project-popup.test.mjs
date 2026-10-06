@@ -40,9 +40,9 @@ test('shared project popup gates guest engagement without inventing counts',()=>
 
 test('owner actions invoke the existing editor and confirmation callbacks after dismissing the popup', () => {
  const { OwnerActions } = render();
- for (const label of ['Edit title','Change description','Delete project']) {
+ for (const label of ['Project options','Edit title','Edit description','Delete project']) {
   const calls=[];
-  const tree=OwnerActions({onClose:()=>calls.push('close'),onEditTitle:()=>calls.push('Edit title'),onEditDescription:()=>calls.push('Change description'),onDelete:()=>calls.push('Delete project')});
+  const tree=OwnerActions({onOptions:()=>calls.push('Project options'),onClose:()=>calls.push('close'),onEditTitle:()=>calls.push('Edit title'),onEditDescription:()=>calls.push('Edit description'),onDelete:()=>calls.push('Delete project')});
   nodes(tree).find(n=>n.type==='button'&&n.props.children===label).props.onClick();
   assert.deepEqual(calls,['close',label]);
  }

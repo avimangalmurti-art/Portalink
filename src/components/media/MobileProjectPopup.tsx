@@ -75,7 +75,7 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
  const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
  const options = onOptions ?? (contextHandlers ? () => mobileActions?.open(contextActions(shared ? 'shared' : 'project',{signedIn:auth.isAuthenticated,owner:!shared && auth.viewerProfileId === (creator?.id ?? creatorId)}, {title:project.title,handlers:contextHandlers})) : undefined);
 
- return <MobileProjectDescriptionSheet projectId={project.id} projectTitle={project.title} description={project.summary} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} details={<>
+ return <MobileProjectDescriptionSheet projectId={project.id} projectTitle={project.title} description={project.summary} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} details={<>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 
@@ -83,17 +83,17 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 
 
-  {owner && <ProjectPopupOwnerActions onEditTitle={contextHandlers?.edit ?? onOptions} onEditDescription={onEditDescription ?? contextHandlers?.edit ?? onOptions} onDelete={contextHandlers?.delete} onClose={onClose} />}
+  {owner && <ProjectPopupOwnerActions onOptions={options} onEditTitle={contextHandlers?.edit ?? onOptions} onEditDescription={onEditDescription ?? contextHandlers?.edit ?? onOptions} onDelete={contextHandlers?.delete} onClose={onClose} />}
 
-  {options && <button type="button" className="project-popup-comments" onClick={() => { onClose(); options(); }}>Project options</button>}
+  {!owner && options && <button type="button" className="project-popup-comments" onClick={() => { onClose(); options(); }}>Project options</button>}
 
  </>} />;
 
 }
 
 
-export function ProjectPopupOwnerActions({ onEditTitle, onEditDescription, onDelete, onClose }: { onEditTitle?: () => unknown; onEditDescription?: () => unknown; onDelete?: () => unknown; onClose: () => void }) {
+export function ProjectPopupOwnerActions({ onOptions, onEditTitle, onEditDescription, onDelete, onClose }: { onOptions?: () => unknown; onEditTitle?: () => unknown; onEditDescription?: () => unknown; onDelete?: () => unknown; onClose: () => void }) {
  return <div className="project-popup-owner-actions">
-  {([['Edit title', onEditTitle], ['Change description', onEditDescription], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-comments" onClick={() => { onClose(); void run(); }}>{label}</button>)}
+  {([['Project options', onOptions], ['Edit title', onEditTitle], ['Edit description', onEditDescription], ['Delete project', onDelete]] as const).map(([label, run]) => run && <button key={label} type="button" className="project-popup-owner-button" data-destructive={label === 'Delete project' || undefined} onClick={() => { onClose(); void run(); }}>{label}</button>)}
  </div>;
 }

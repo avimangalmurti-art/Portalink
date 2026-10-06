@@ -21,7 +21,7 @@
   padding: 16px 0; margin-top: 16px; border-top: 1px solid var(--hairline);
   text-align: left; font-weight: 600;
 }
-[data-presentation='mobile'] .project-popup-creator img { width: 48px; height: 48px; object-fit: cover; }
+[data-presentation='mobile'] .project-popup-creator img { width: 100%; height: 100%; object-fit: cover; }
 [data-presentation='mobile'] .project-popup-comments { min-height: 44px; margin-top: 12px; }
 #root .codex-shell[data-presentation='mobile'] :is(.mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
   top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important;
@@ -65,3 +65,14 @@
 [data-presentation='mobile'] .project-popup-engagement[data-has-comments] [role='group'] { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
 
 [data-presentation='mobile'] .project-popup-engagement [data-engagement-action='comments'] { display: flex; align-items: center; justify-content: center; }
+
+[data-presentation='mobile'] .project-popup-owner-button {
+  display: flex; align-items: center; justify-content: flex-start;
+  width: 100%; min-height: 44px; padding: 10px 16px; text-align: left;
+  border: 1px solid var(--hairline-strong); border-radius: 12px;
+  background: var(--surface-sunken); color: var(--text-primary);
+  font-weight: 500;
+}
+[data-presentation='mobile'] .project-popup-owner-button[data-destructive] {
+  background: var(--status-danger); border-color: var(--status-danger); color: #fff;
+}
