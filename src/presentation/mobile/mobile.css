@@ -4397,3 +4397,19 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-publish-review-details .mobile-review-description { font-size:16px; font-weight:400; color:var(--text-primary); }
 [data-presentation='mobile'] .mobile-publish-review-details dt { font-size:12px; font-weight:500; color:var(--text-tertiary); }
 [data-presentation='mobile'] .mobile-publish-review-details dd { font-size:14px; font-weight:500; color:var(--text-secondary); }
+
+/* Studio destinations keep their headers in place while results scroll. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page {
+  height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  flex: none; background: var(--surface-canvas);
+  padding-top: var(--mobile-screen-action-top);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain;
+  padding-bottom: var(--mobile-content-safe-bottom);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-studio > .studio-header {
+  position: sticky; top: 0; z-index: 3; background: var(--surface-canvas);
+}

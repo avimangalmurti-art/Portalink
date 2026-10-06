@@ -42,9 +42,9 @@ const viewModule=sourceModule('src/features/studio/StudioWorkbenchView.tsx',{'..
 const View=viewModule.StudioWorkbenchView;
 const props={draft:null,draftCount:0,attention:[],week:null,publishedCount:0,material:[],partial:false,onContinue(){},onDrafts(){},onBookmarks(){},onReads(){},onMaterial(){},onAttention(){},onDismiss(){}};
 test('Studio buttons remain label-only with no preview data',()=>{
- const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.doesNotMatch(empty,/No drafts to continue|No published work yet/);assert.match(empty,/Reads this week/);assert.doesNotMatch(empty,/Needs attention|Material/);
- const active=renderToStaticMarkup(React.createElement(View,{...props,attention:rows(project('p',{summary:''}))}));assert.match(active,/Reads this week/);
- const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.match(reads,/Reads this week/);assert.doesNotMatch(reads,/Top project|4 opened|2 finished|3 saved/);
+ const empty=renderToStaticMarkup(React.createElement(View,props));assert.match(empty,/Nothing needs your attention/);assert.doesNotMatch(empty,/No drafts to continue|No published work yet/);assert.doesNotMatch(empty,/Reads this week/);assert.doesNotMatch(empty,/Needs attention|Material/);
+ const active=renderToStaticMarkup(React.createElement(View,{...props,attention:rows(project('p',{summary:''}))}));assert.doesNotMatch(active,/Reads this week/);
+ const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.doesNotMatch(reads,/Reads this week/);assert.doesNotMatch(reads,/Top project|4 opened|2 finished|3 saved/);
 });
 
 test('Studio visibly offers labeled Bookmarks and Insights shortcuts before workspace content',()=>{
@@ -62,15 +62,15 @@ test('Studio visibly offers labeled Bookmarks and Insights shortcuts before work
  assert.doesNotMatch(html,/Create portal|New project/);
 });
 
-test('Continue and weekly Reads use the same navigation group as Bookmarks and Insights',()=>{
+test('Continue, Bookmarks and Insights offer distinct Studio destinations',()=>{
  const calls=[];
  const workspace={...props,draft:{id:'draft',stage:'details',createdAt:'2026-10-01',metadata:{title:'Study'}},onContinue:()=>calls.push('continue')};
  const header=viewModule.StudioWorkbenchHeader({workspace,onBookmarks:()=>calls.push('bookmarks'),onReads:()=>calls.push('reads')});
  const nodes=e=>React.isValidElement(e)?[e,...React.Children.toArray(e.props.children).flatMap(nodes)]:[];
  const buttons=nodes(nodes(header).find(e=>e.type==='nav')).filter(e=>e.type==='button');
  assert.ok(buttons.every(b=>nodes(b).filter(e=>e.type==='span').length===0));
- assert.deepEqual(buttons.map(b=>nodes(b).find(e=>e.type==='strong').props.children),['Continue','Reads this week','Bookmarks','Insights']);
- buttons.forEach(b=>b.props.onClick());assert.deepEqual(calls,['continue','reads','bookmarks','reads']);
+ assert.deepEqual(buttons.map(b=>nodes(b).find(e=>e.type==='strong').props.children),['Continue','Bookmarks','Insights']);
+ buttons.forEach(b=>b.props.onClick());assert.deepEqual(calls,['continue','bookmarks','reads']);
 });
 
 

@@ -18,7 +18,6 @@ export function StudioWorkbenchHeader({onBookmarks,onReads,workspace}:{onBookmar
    <nav className="studio-hub-navigation" aria-label="Studio sections">
     {workspace && <>
       <button type="button" onClick={workspace.onContinue} disabled={!workspace.draft || workspace.draftsUnavailable}><strong>Continue</strong></button>
-      <button type="button" onClick={onReads}><strong>Reads this week</strong></button>
     </>}
     <button type="button" onClick={onBookmarks}><strong>Bookmarks</strong></button>
     <button type="button" onClick={onReads}><strong>Insights</strong></button>
