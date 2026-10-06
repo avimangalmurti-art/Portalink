@@ -13,9 +13,9 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
     alt={project.coverAlt || project.title} sizes={sizes} priority="viewport" fit="contain"
     allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={project.attachments} />;
 }
-export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
+export function JourneyView({ profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: {
   profile: Profile; owner: boolean; onOpen: (project: Project) => void;
-  onEdit?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
+  onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 }) {
   const isMobile = usePresentation() === 'mobile';
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
@@ -45,10 +45,10 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onAdd, onPair }: {
           <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
           <span className="journey-portal">{profile.categories.find(portal => portal.id === project.categoryId)?.label}</span>
           <p className="journey-learned">{learnedLine(project)}</p>
-          {(isMobile || (owner && onEdit)) && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
+          {(isMobile || (owner && onEdit)) && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
         </div>
       </li>)}</ol>
     </section>)}
-    {isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />}
+    {isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />}
   </section>;
 }

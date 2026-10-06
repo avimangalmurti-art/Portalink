@@ -9,5 +9,5 @@ export function ProfileBioSheet({ profileId, bio, canEdit, onClose }: {
   const editor = useProfileBioEditor(profileId, canEdit);
   const isMobile = usePresentation() === 'mobile';
   return <MobileProjectDescriptionSheet projectId={profileId} description={editor.savedValue ?? bio} contentLabel="Bio"
-    fullScreenEditor={isMobile} emptyMessage="No bio yet." textEditor={canEdit ? editor : undefined} onClose={onClose} />;
+    fullScreenEditor={isMobile} directEditAction={isMobile} emptyMessage="No bio yet." textEditor={canEdit ? editor : undefined} onClose={onClose} />;
 }

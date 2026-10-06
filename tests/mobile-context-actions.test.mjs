@@ -85,7 +85,7 @@ function sheetHarness() {
  const viewport={getBoundingClientRect:()=>({top:0,bottom:800,height:800})};
  const dialog={getBoundingClientRect:()=>{
   const node=nodes(tree).find(node=>node.props.role==='dialog');
-  const height=node?.props.style?.height??(node?.props['data-expanded']?760:440);
+  const height=node?.props.style?.height??(node?.props['data-expanded']?760:600);
   return {top:800-height,bottom:800,height};
  }};
  const react={...React,useId:()=> 'title',useRef(initial){return slots[cursor++]??={current:initial};},useState(initial){
@@ -150,7 +150,7 @@ test('vertical dragging resizes within the viewport, expands, collapses and supp
  h.pointer('onPointerDown',{target:h.resize});
  assert.equal(h.resize.hasPointerCapture(1),true);
  h.pointer('onPointerMove',{clientY:500});
- assert.equal(h.dialog().props.style.height,540);
+ assert.equal(h.dialog().props.style.height,700);
  assert.equal(h.dialog().props.style.transform,undefined,'Dragging resizes rather than translating the sheet');
  h.pointer('onPointerMove',{clientY:-500});
  assert.ok(h.dialog().props.style.height<=800,'The dragged sheet stays inside its viewport');

@@ -27,7 +27,7 @@ export function SharedSignInBar({ name }: { name?: string }) {
     return () => { observer.disconnect(); shell.style.removeProperty('--shared-sign-in-height'); };
   }, [visible]);
   if (!visible || !returnPath) return null;
-  const requestAccount = (view: 'signIn' | 'signUp') => auth.requestAuthenticatedDestination({ kind: 'route', path: returnPath, label: 'return to this shared view' }, view);
+  const requestAccount = (view: 'signIn' | 'signUp') => auth.requestAuthenticatedDestination(view === 'signIn' ? { kind: 'my-profile' } : { kind: 'route', path: returnPath, label: 'return to this shared view' }, view);
   const dismiss = () => {
     try { window.sessionStorage.setItem(DISMISSED_KEY, '1'); } catch { /* Still dismiss for this mounted visit. */ }
     setDismissed(true);

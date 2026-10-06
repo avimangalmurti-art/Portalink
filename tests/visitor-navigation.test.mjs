@@ -529,3 +529,15 @@ test('handle project navigation resolves the complete target and preserves it th
     assert.deepEqual(json(navigations), alias ? [['/new.creator/c/portal/work?from=portfolio', {replace: true}]] : []);
   }
 });
+
+
+test('shared account sign-in opens the signed-in member profile in the full platform on MOBILE and WEB', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const h = appHarness(); h.state.presentation = presentation;
+    h.state.auth.requestAuthenticatedDestination({ kind: 'my-profile' });
+    h.render();
+    h.signedIn({ viewerProfileId: 'member-profile' }); h.render();
+    assert.equal(h.assigned.at(-1), '/p/member-profile');
+    assert.equal(h.navigations.length, 0, 'Account entry must load the platform rather than keep the public visitor shell');
+  }
+});

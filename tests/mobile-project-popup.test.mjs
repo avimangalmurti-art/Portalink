@@ -13,7 +13,7 @@ function render(shared=false) {
  '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
  '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:!shared,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
- '../../features/engagement/EngagementBar':{EngagementBar:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
+ './ProjectPopupEngagement':{ProjectPopupEngagement:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
  './MobileProjectDescriptionSheet':{MobileProjectDescriptionSheet:'dialog'},
  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>calls.push(['share',target])},
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){}})},
@@ -22,17 +22,29 @@ function render(shared=false) {
  '../../features/sharing/shareModel':{isPublicSharePath:()=>shared}};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>mocks[n]??{},window:{location:{origin:'https://example.com'}},URL});
  const tree=exports.MobileProjectPopup({project:{id:'work',categoryId:'portal',title:'Work',summary:'Description'},creator:{id:'creator',name:'Artist',avatar:'avatar.png'},onClose:()=>calls.push(['close']),onOpenComments:()=>calls.push(['comments'])});
- return {tree,calls,engagement};
+ return {tree,calls,engagement, OwnerActions: exports.ProjectPopupOwnerActions};
 }
 test('project popup preserves description, canonical engagement and creator order and navigation',()=>{
  const {tree,calls,engagement}=render();assert.equal(tree.props.description,'Description');
  const details=nodes(tree.props.details);const bar=details.find(n=>n.type==='engagement');
  const creator=details.find(n=>n.props.className==='project-popup-creator');
- assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.showCounts,true);
+ assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.projectId,'work');
  assert.ok(details.indexOf(bar)<details.indexOf(creator));assert.equal(details.find(n=>n.type==='avatar').props.shape,'squircle');
  creator.props.onClick();assert.deepEqual(calls.slice(-2),[['close'],['navigate','/profile/creator']]);
 });
 test('shared project popup gates guest engagement without inventing counts',()=>{
  const {tree,calls}=render(true);const bar=nodes(tree.props.details).find(n=>n.type==='engagement');
- bar.props.onRequireAccount();assert.equal(calls.at(-1)[0],'account');assert.equal(bar.props.showCounts,true);
+ bar.props.onRequireAccount();assert.equal(calls.at(-1)[0],'account');assert.equal(bar.props.projectId,'work');
+});
+
+test('owner actions invoke the existing editor and confirmation callbacks after dismissing the popup', () => {
+ const { OwnerActions } = render();
+ for (const label of ['Edit title','Change description','Delete project']) {
+  const calls=[];
+  const tree=OwnerActions({onClose:()=>calls.push('close'),onEditTitle:()=>calls.push('Edit title'),onEditDescription:()=>calls.push('Change description'),onDelete:()=>calls.push('Delete project')});
+  nodes(tree).find(n=>n.type==='button'&&n.props.children===label).props.onClick();
+  assert.deepEqual(calls,['close',label]);
+ }
+ const unavailable=OwnerActions({onClose(){}});
+ assert.equal(nodes(unavailable).filter(n=>n.type==='button').length,0);
 });

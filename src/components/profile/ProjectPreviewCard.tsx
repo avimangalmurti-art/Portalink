@@ -17,6 +17,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 const ProjectPreviewExtension = lazy(() => import('./ProjectPreviewExtension').then(module => ({ default: module.ProjectPreviewExtension })));
 
 type Props = {
+  onEditDescription?: () => void;
   contextHandlers?: ContextTarget['handlers'];
   project: Project;
   creator: Pick<FeedCreator, 'id' | 'name' | 'avatar'>;
@@ -45,7 +46,7 @@ type Props = {
 };
 
 /** Artwork stays fixed; each presentation places the extension over the next row. */
-export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
+export function ProjectPreviewCard({ contextHandlers, onEditDescription, project, creator, onOpen, onOpenComments, onOpenCreator, onWarmCreator, creatorHref,
   label = `Open ${project.title}`, href, onCollapse, className = '', sizes, priority = false, disabled = false,
   showEngagementMetrics = true, showCreator = true, metrics, footerEnd, editor, cover, aspectRatio, sharedCoverFallback = false, allowPdfFallback = true, allowVideoFallback = true }: Props) {
   const [popupOpen, setPopupOpen] = useState(false);
@@ -79,7 +80,7 @@ export function ProjectPreviewCard({ contextHandlers, project, creator, onOpen, 
         onClick={event => { event.stopPropagation(); setPopupOpen(true); }}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" keepColor /></button>}
       {editor}
     </div>
-    {isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
+    {isMobile && popupOpen && <MobileProjectPopup project={project} creator={creator} onEditDescription={onEditDescription} contextHandlers={contextHandlers} onClose={() => setPopupOpen(false)} onOpenComments={onOpenComments} />}
     {!isMobile && hasExtension && <Suspense fallback={null}><ProjectPreviewExtension expanded={preview.expanded} creator={creator}
       projectId={project.id} creatorHref={creatorHref} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator}
       onOpenComments={onOpenComments} showCreator={showCreator} showEngagementMetrics={showEngagementMetrics}

@@ -38,3 +38,11 @@
   --text-tertiary: var(--control-text);
 }
 @media (prefers-reduced-motion: reduce) { .settings-chevron { transition: none; } }
+
+/* Center Settings action labels within the full touch target. */
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > [data-ui-control='button'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}

@@ -15,3 +15,6 @@
 [data-presentation='mobile'] .journey-entry-copy > .journey-month { grid-column: 1; grid-row: 1; align-self: center; }
 [data-presentation='mobile'] .journey-entry-copy > .journey-project-options { grid-column: 2; grid-row: 1; margin-top: 0; justify-self: end; }
 [data-presentation='mobile'] .journey-entry-copy > :not(.journey-month):not(.journey-project-options) { grid-column: 1 / -1; }
+
+[data-presentation='mobile'] .journey-project-options { background: transparent; }
+[data-presentation='mobile'] .journey-project-options:is(:active, [aria-expanded='true']) { background: var(--surface-sunken); }

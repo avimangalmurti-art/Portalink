@@ -71,6 +71,12 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
       }
     }
+    await copyInvite(false);
+  }
+
+  async function copyInvite(resetStatus = true) {
+    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, window.location.origin).toString();
+    if (resetStatus) setInviteStatus('idle');
     try { await navigator.clipboard.writeText(inviteUrl); setInviteStatus('copied'); }
     catch { setInviteStatus('failed'); }
   }
@@ -100,10 +106,11 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
           <Button variant="secondary" disabled={signingOut || auth.phase === 'signing-out'} onClick={() => void handleSignOut()}>{signingOut ? 'Logging out…' : 'Log out'}</Button>
           <Button variant="secondary" onClick={() => setDeletingAccount(true)}>Delete account…</Button>
           {signOutError && <p role="alert">Unable to log out. Please try again.</p>}
-        </> : <><Button onClick={() => auth.requestAuth('signIn')}>Sign in</Button><Button variant="secondary" onClick={() => auth.requestAuth('signUp')}>Create account</Button></>}
+        </> : <><Button onClick={() => auth.requestAuthenticatedDestination({ kind: 'my-profile' }, 'signIn')}>Sign in</Button><Button variant="secondary" onClick={() => auth.requestAuth('signUp')}>Create account</Button></>}
       </SettingsSection>
       <SettingsSection id="invite" title="Invite a friend" subtitle="Share Portalink with others">
         <Button variant="secondary" onClick={() => void inviteFriend()}>Share invite link</Button>
+        <Button variant="secondary" onClick={() => void copyInvite()}>Copy invite link</Button>
         {inviteStatus !== 'idle' && <p role="status">{inviteStatus === 'copied' ? 'Invite link copied.' : 'Unable to share the invite link. Please try again.'}</p>}
       </SettingsSection>
       <SettingsSection id="privacy" title="Privacy" subtitle="Data, permissions, visibility">

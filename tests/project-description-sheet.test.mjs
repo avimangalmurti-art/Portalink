@@ -203,3 +203,24 @@ test('project information uses the actual title rather than a Description headin
   assert.equal(nodes(tree).find(node => node.type === 'section').props['aria-labelledby'], 'project-description-title');
   assert.equal(nodes(tree).filter(node => node.type === 'h2' && node.props.children === 'Description').length, 0);
 });
+
+test('mobile bio opens directly with top Save, no footer and protected Close', async () => {
+  let saves = 0;
+  const editor = { isEditing: false, phase: 'idle', value: 'Bio', isDirty: false, isSaving: false,
+    open() { this.isEditing = true; this.phase = 'editing'; },
+    save() { saves++; }, async close() { this.isEditing = false; return true; },
+    onChange(value) { this.value = value; this.isDirty = true; }, retryLoad() {},
+  };
+  const h = harness(false, { contentLabel: 'Bio', textEditor: editor, fullScreenEditor: true, directEditAction: true });
+  h.click('Edit bio');
+  assert.equal(nodes(h.render()).find(n => n.type === 'section').props['data-top-editor-actions'], true);
+  assert.equal(nodes(h.render()).some(n => n.type === 'footer'), false);
+  assert.equal(h.button('Save').props.disabled, true);
+  editor.onChange('Changed');
+  const heading = nodes(h.render()).find(n => n.type === 'header');
+  assert.ok(nodes(heading).some(n => n.type === 'button' && n.props.children === 'Save'));
+  h.click('Save'); assert.equal(saves, 1);
+  h.click('Close bio'); assert.equal(h.closes, 0);
+  assert.ok(h.button('Keep editing'));
+  await h.click('Discard changes'); assert.equal(h.closes, 1);
+});

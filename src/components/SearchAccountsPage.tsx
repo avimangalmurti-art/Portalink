@@ -6,11 +6,13 @@ import { useServices } from '../contexts/ServicesContext';
 import type { FeedCreator } from '../types/domain';
 import { CreatorAvatar } from './profile/CreatorAvatar';
 import { EmptyState, ErrorState, LoadingState } from './ui/StateViews';
+import { usePresentation } from '../presentation/usePresentation';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 
 export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarmCreator, onBack }: {
   query: string; onQueryChange: (value: string) => void; onOpenCreator: (id: string) => void; onWarmCreator?: (id: string) => void; onBack?: () => void;
 }) {
+  const mobile = usePresentation() === 'mobile';
   const { discovery } = useServices();
   const auth = useAuth();
   const recent = readRecentAccounts(auth.user?.id);
@@ -50,7 +52,7 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
   }
   return <section data-account-search className="flex h-full min-h-0 flex-col px-5 py-5" aria-label="Account search">
     {onBack ? <ScreenBack visibleOnMobile action={onBack}><button type="button" aria-label="Back" className="account-search-back mb-3 flex h-11 w-11 shrink-0 items-center justify-center self-start" onClick={onBack}><ArrowLeftIcon aria-hidden="true" size={24} /></button></ScreenBack> : null}
-    <h1 className="mb-4 text-xl font-semibold">Search accounts</h1>
+    <h1 className="mb-4 text-xl font-semibold">{mobile ? 'Account search' : 'Search accounts'}</h1>
     <label className="mb-4 block"><span className="sr-only">Name or username</span><input type="search" value={query} onChange={event => onQueryChange(event.target.value)} placeholder="Name or username" className="min-h-11 w-full rounded-xl border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 py-2 text-base text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" maxLength={80} /></label>
     <div className="min-h-0 flex-1 overflow-y-auto pb-24">
 

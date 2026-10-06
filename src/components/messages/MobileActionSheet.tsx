@@ -23,7 +23,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
         const dialog = dialogRef.current, viewport = viewportRef.current;
         if(!dialog||!viewport)return;
         const available = viewport.getBoundingClientRect().height;
-        start.current={x:e.clientX,y:e.clientY,id:e.pointerId,height:dialog.getBoundingClientRect().height,min:Math.min(440,available*.55),max:available-16};
+        start.current={x:e.clientX,y:e.clientY,id:e.pointerId,height:dialog.getBoundingClientRect().height,min:available*.75,max:available-16};
         dragged.current=false;
         const handle=e.target instanceof Element?e.target.closest('.mobile-context-resize'):null;
         (handle??e.currentTarget).setPointerCapture(e.pointerId);

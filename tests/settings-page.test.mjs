@@ -63,7 +63,7 @@ test('section expansion mounts content and collapse removes its reserved space',
 test('Account reuses sign-in/signup for guests and owner profile navigation for authenticated users', () => {
   const calls=[];
   const react={...React,useState:value=>[value,()=>{}]};
-  let Page=load({isAuthenticated:false,requestAuth:view=>calls.push(view)},{},react);
+  let Page=load({isAuthenticated:false,requestAuth:view=>calls.push(view),requestAuthenticatedDestination:(intent,view)=>{assert.equal(intent.kind,'my-profile');calls.push(view);}},{},react);
   let account=all(Page(props)).find(n=>n.props.id==='account');
   all(account).find(n=>n.props.children==='Sign in').props.onClick();
   all(account).find(n=>n.props.children==='Create account').props.onClick();

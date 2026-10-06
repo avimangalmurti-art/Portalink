@@ -373,6 +373,11 @@ async function engagementSummary(projectId: string): Promise<ProjectEngagement> 
 }
 
 export const supabaseEngagementService: EngagementService = {
+  async listProjectParticipants(projectId, kind, offset = 0) {
+    const { data, error } = await requireSupabase().rpc('project_engagement_participants', { p_project_id: projectId, p_kind: kind, p_offset: offset });
+    if (error) throw new EngagementServiceError('network', 'People who engaged could not be loaded.');
+    return (data ?? []).map((row: { profile_id: string; name: string; avatar_url: string }) => ({ id: row.profile_id, name: row.name, avatar: row.avatar_url }));
+  },
   getProjectEngagement: engagementSummary,
   getProjectEngagements: engagementSummaries,
   async setEngagement(mutation) {

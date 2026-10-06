@@ -85,7 +85,7 @@ test('public sign-in bar offers optional account actions only for a verified gue
   }
 });
 
-test('both explicit shared account actions preserve the safe destination without copying callback tokens', () => {
+test('shared Sign in targets the account and Create account preserves a safe shared destination', () => {
   for (const [label, view] of [['Sign in', 'signIn'], ['Create account', 'signUp']]) {
   const h = signInBar({ search: '?view=portals&page=12&media=image-a&code=secret&access_token=secret&next=https%3A%2F%2Fevil.test' });
   const button = nodes(h.render()).find(node => node.type === 'button' && node.props.children === label);
@@ -93,6 +93,7 @@ test('both explicit shared account actions preserve the safe destination without
   button.props.onClick();
   assert.equal(h.requested.length, 1);
   assert.equal(h.requested[0].view, view);
+  if (view === 'signIn') { assert.equal(h.requested[0].intent.kind, 'my-profile'); continue; }
   assert.equal(h.requested[0].intent.kind, 'route');
   assert.equal(h.requested[0].intent.path, '/share/creator/c/art/project?view=portals&page=12&media=image-a');
   assert.doesNotMatch(h.requested[0].intent.path, /secret|next=|access_token|code=/);
@@ -102,11 +103,12 @@ test('both explicit shared account actions preserve the safe destination without
   }
 });
 
-test('shared profile and category sign-in actions retain their actual reading destination', () => {
+test('shared profile, category and project account actions choose the correct destination', () => {
   for (const [path, search] of [['/share/creator', '?view=portals'], ['/share/creator/c/art', '?view=projects'], ['/share/creator/c/art/project', '?page=5&media=page-a']]) for (const label of ['Sign in', 'Create account']) {
     const h = signInBar({ path, search });
     nodes(h.render()).find(node => node.type === 'button' && node.props.children === label).props.onClick();
-    assert.equal(h.requested[0].intent.path, path + search);
+    if (label === 'Sign in') assert.equal(h.requested[0].intent.kind, 'my-profile');
+    else assert.equal(h.requested[0].intent.path, path + search);
   }
 });
 

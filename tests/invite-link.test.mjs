@@ -15,13 +15,13 @@ function invite({ profileHref, share, clipboardFails = false } = {}) {
   const source = read('../src/components/ControlCenterPage.tsx');
   const handler = source.slice(source.indexOf('  async function inviteFriend()'), source.indexOf('  async function handleSignOut()'));
   const exports = {}, copied = [], statuses = [];
-  vm.runInNewContext(transpile(handler.replace('async function inviteFriend', 'export async function inviteFriend')), {
+  vm.runInNewContext(transpile(handler.replace('async function inviteFriend', 'export async function inviteFriend').replace('async function copyInvite', 'export async function copyInvite')), {
     exports, URL, DOMException, profileHref, buildPath: routes.buildPath,
     window: { location: { origin: 'https://portalink.example' } },
     navigator: { share, clipboard: { async writeText(value) { if (clipboardFails) throw Error('Unavailable'); copied.push(value); } } },
     setInviteStatus(value) { statuses.push(value); },
   });
-  return { run: exports.inviteFriend, copied, statuses };
+  return { run: exports.inviteFriend, copy: exports.copyInvite, copied, statuses };
 }
 
 test('native invitations always share welcome, regardless of the sender or viewed profile', async () => {
@@ -67,4 +67,13 @@ test('the sidebar gear directly opens Settings without a menu in either sidebar 
     assert.equal(opened, 1);
   }
   assert.doesNotMatch(source, /AccountMenuTrigger|account-menu-popover/);
+});
+
+ test('explicit copy invite works even when native sharing exists and reports clipboard failures', async () => {
+  for (const clipboardFails of [false, true]) {
+    const h = invite({ clipboardFails, share: async () => assert.fail('Copy must not open native sharing') });
+    await h.copy();
+    assert.deepEqual(h.copied, clipboardFails ? [] : ['https://portalink.example/?welcome=1']);
+    assert.deepEqual(h.statuses, ['idle', clipboardFails ? 'failed' : 'copied']);
+  }
 });

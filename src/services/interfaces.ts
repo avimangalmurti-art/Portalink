@@ -444,6 +444,7 @@ export interface CommentService {
  * 5. **A count that cannot be reported is `null`, never `0`.**
  */
 export interface EngagementService {
+  listProjectParticipants?(projectId: Id, kind: EngagementKind, offset?: number): Promise<Array<{ id: Id; name: string; avatar: string }>>;
   getProjectEngagement(projectId: Id): Promise<ProjectEngagement>;
   /** One read for many projects, so a feed does not issue one request per card. */
   getProjectEngagements(projectIds: Id[]): Promise<ProjectEngagement[]>;
