@@ -4552,3 +4552,8 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   min-width: 56px;
   padding-inline: 8px;
 }
+
+/* Use the action button's own pressed surface, without Safari's offset tap overlay. */
+[data-presentation='mobile'] .mobile-context-button {
+  -webkit-tap-highlight-color: transparent;
+}
