@@ -27,9 +27,10 @@ function render(shared=false) {
 test('project popup preserves description, canonical engagement and creator order and navigation',()=>{
  const {tree,calls,engagement}=render();assert.equal(tree.props.description,'Description');
  const details=nodes(tree.props.details);const bar=details.find(n=>n.type==='engagement');
- const creator=details.find(n=>n.props.className==='project-popup-creator');
+ const identity=nodes(tree.props.creatorHeader);const creator=identity.find(n=>n.props.className==='project-popup-creator');
  assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.projectId,'work');
- assert.ok(details.indexOf(bar)<details.indexOf(creator));assert.equal(details.find(n=>n.type==='avatar').props.shape,'squircle');
+ assert.ok(creator);assert.equal(identity.find(n=>n.type==='avatar').props.shape,'squircle');assert.equal(tree.props.projectTitle,'Work');
+ bar.props.onOpenComments();assert.deepEqual(calls.slice(-2),[['close'],['comments']]);
  creator.props.onClick();assert.deepEqual(calls.slice(-2),[['close'],['navigate','/profile/creator']]);
 });
 test('shared project popup gates guest engagement without inventing counts',()=>{

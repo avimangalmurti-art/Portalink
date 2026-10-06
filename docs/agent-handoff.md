@@ -1,3 +1,12 @@
+## 2026-10-06 — Project popup identity/order/comments (local, unpublished)
+MOBILE project popups now show creator avatar/name before title, description and engagement. Added optional creatorHeader reading slot shared by card/list/Journey popup and open viewer; existing creator navigation retained. Comments moved from separate text button to first icon control in same five-column engagement row; existing comments/account gate callbacks retained. EngagementBar optional leadingAction leaves other uses/WEB unchanged. Typecheck, 13 focused popup/description tests and diff check pass; browser/physical-phone unverified. Prior text line-spacing fix retained unpublished; Sites 341 live, no deploy/SQL.
+
+## 2026-10-06 — Formatted text line spacing (local, unpublished)
+Removed .5em paragraph bottom margin from shared FormattedText CSS. Every stored newline remains one normal text line; explicit empty lines still render br paragraph, preserving two-Enter blank lines. Applies consistently to Bio/description across MOBILE/WEB/shared rendering, no saved data/editor formatting changes. Four existing formatting tests and diff check pass; source inspection confirms newline handling. Browser/physical phone unverified; Sites 341 remains live, no publish/SQL.
+
+## 2026-10-06 — Tap highlight fix published, Sites 341
+Source 077f8d9b0f2c5c0624bdf5cfa2d28f7b027bf4c3; saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_9575d5e66584819180e6142e424a2d6e; deployment appgdep_6ac5762f65308191a11759c61628d162 succeeded 2026-10-06T22:29:12.536924Z. Publishes only latest mobile-context-button native tap-highlight CSS fix plus receipt docs. Production client/worker build, configuration verification and workflow archive passed. Existing URL/public audience/runtime revision 2 preserved. Physical Safari cause/fix confirmation remains outstanding. No SQL/GitHub main integration. Post-publication handoff local.
+
 ## 2026-10-06 — Mobile action tap overlay (local, unpublished)
 Disabled WebKit native tap-highlight on mobile-context-button only. Screenshot offset gray rectangle is consistent with native Safari tap overlay, not conclusively reproduced on hardware. Existing navigation pressed surface and focus-visible outline retained, WEB unchanged. Selector/source review and diff check passed; physical iPhone confirmation needed. Sites 340 remains live, no deployment/SQL.
 

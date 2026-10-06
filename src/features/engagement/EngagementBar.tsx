@@ -35,7 +35,7 @@ export function EngagementBar({
   variant = 'inline',
   isShared = false,
   onShare,
-  onRequireAccount, onSelectAction
+  onRequireAccount, onSelectAction, leadingAction
 
 
 
@@ -55,8 +55,9 @@ export function EngagementBar({
    * the project rail is collapsed.
    * `viewer` is the mobile reading rail: neutral outlines and the essential
    * like/save/share actions. Other presentations retain the semantic colours.
-   */variant?: 'inline' | 'panel' | 'rail' | 'viewer'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;onRequireAccount?: () => void;onSelectAction?: (kind: EngagementKind) => void;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isViewer = variant === 'viewer';const isRail = variant === 'rail' || isViewer;const shareColor = 'currentColor';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
-      <div className={isPanel ? `grid ${onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'side-panel-navigation-list items-center' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
+   */variant?: 'inline' | 'panel' | 'rail' | 'viewer'; /** Reports successful sharing without conflating it with a social count. */isShared?: boolean;onShare?: () => void;onRequireAccount?: () => void;onSelectAction?: (kind: EngagementKind) => void;leadingAction?: React.ReactNode;}) {const interfaceIconSize = size === 'compact' ? 'sm' : 'md';const isPanel = variant === 'panel';const isViewer = variant === 'viewer';const isRail = variant === 'rail' || isViewer;const shareColor = 'currentColor';return <div className={`flex flex-col gap-1 ${isRail ? 'items-center' : ''}`}>
+      <div className={isPanel ? `grid ${leadingAction ? 'grid-cols-5' : onShare ? 'grid-cols-4' : 'grid-cols-3'} gap-1` : isRail ? 'side-panel-navigation-list items-center' : 'flex items-center gap-0.5'} role="group" aria-label={`Engagement for ${projectTitle}`}>
+        {leadingAction}
         {ENGAGEMENT_KINDS.filter(kind => !isViewer || kind !== 'repost').map((kind) => {const Icon = ICONS[kind];const labels = describeEngagement(kind);
           const isEngaged = engagement.isEngaged(kind);
           const isPending = engagement.isPending(kind);

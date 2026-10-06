@@ -59,3 +59,9 @@
 [data-presentation='mobile'] .project-engagement-person { display: flex; align-items: center; gap: 12px; min-height: 44px; padding-block: 4px; }
 [data-presentation='mobile'] .project-engagement-person > :first-child { width: 32px; height: 32px; }
 [data-presentation='mobile'] .project-engagement-people button { min-height: 44px; }
+
+[data-presentation='mobile'] .project-popup-identity { padding: 0 20px; flex: none; }
+[data-presentation='mobile'] .project-popup-identity .project-popup-creator { margin: 0; border: 0; padding: 12px 0; }
+[data-presentation='mobile'] .project-popup-engagement[data-has-comments] [role='group'] { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+
+[data-presentation='mobile'] .project-popup-engagement [data-engagement-action='comments'] { display: flex; align-items: center; justify-content: center; }

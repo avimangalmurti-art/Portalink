@@ -24,6 +24,7 @@ type Props = {
   description?: string;
   typeface?: string;
   details?: React.ReactNode;
+  creatorHeader?: React.ReactNode;
   editor?: ProjectManagement['editor'];
   textEditor?: SheetTextEditor;
   contentLabel?: string;
@@ -34,7 +35,7 @@ type Props = {
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -134,6 +135,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           }
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
+      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}</div>}
       <header className="project-description-heading">
         {(contentLabel !== 'Description' || projectTitle) && <h2 id="project-description-title" style={{ fontFamily: typeface }}>{contentLabel === 'Description' ? projectTitle : contentLabel}</h2>}
         {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}

@@ -1,3 +1,5 @@
+import { MessageCircleIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import React, { useEffect, useState } from 'react';
 import { EngagementBar } from '../../features/engagement/EngagementBar';
 import type { ProjectEngagementLifecycle } from '../../features/engagement/useProjectEngagement';
@@ -6,7 +8,7 @@ import { useServices } from '../../contexts/ServicesContext';
 import { InternalContentShareDialog } from '../../features/sharing/InternalContentShare';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 
-export function ProjectPopupEngagement({ projectId, projectTitle, url, engagement, onRequireAccount }: { projectId: string; projectTitle: string; url: string; engagement: ProjectEngagementLifecycle; onRequireAccount?: () => void }) {
+export function ProjectPopupEngagement({ projectId, projectTitle, url, engagement, onRequireAccount, onOpenComments }: { projectId: string; projectTitle: string; url: string; engagement: ProjectEngagementLifecycle; onRequireAccount?: () => void; onOpenComments?: () => void }) {
  const { engagement: service } = useServices();
  const [selected, setSelected] = useState<EngagementKind | 'share' | null>(null);
  const [people, setPeople] = useState<Array<{id: string; name: string; avatar: string}>>([]);
@@ -23,8 +25,8 @@ export function ProjectPopupEngagement({ projectId, projectTitle, url, engagemen
   return () => { active = false; };
  }, [service, projectId, kind, offset, pending, retry]);
  const select = (next: EngagementKind) => { setPeople([]); setOffset(0); setSelected(next); setRetry(value => value + 1); };
- return <div className="project-popup-engagement">
-  <EngagementBar engagement={engagement} projectTitle={projectTitle} showCounts variant="panel" onRequireAccount={onRequireAccount} onSelectAction={select} onShare={() => { setSelected('share'); }} />
+ return <div className="project-popup-engagement" data-has-comments={Boolean(onOpenComments) || undefined}>
+  <EngagementBar leadingAction={onOpenComments && <button type="button" data-engagement-action="comments" aria-label={`Comments: ${projectTitle}`} onClick={onOpenComments}><InterfaceIcon icon={MessageCircleIcon} size="lg" /></button>} engagement={engagement} projectTitle={projectTitle} showCounts variant="panel" onRequireAccount={onRequireAccount} onSelectAction={select} onShare={() => { setSelected('share'); }} />
   {selected === 'share' ? <InternalContentShareDialog inline target={{url,title:projectTitle}} onClose={() => setSelected(null)} /> : kind && <section className="project-engagement-people" aria-label={`${kind === 'like' ? 'Likes' : kind === 'save' ? 'Saves' : 'Reposts'}`} aria-busy={loading}>
    <h3>{kind === 'like' ? 'Likes' : kind === 'save' ? 'Saves' : 'Reposts'}{engagement.count(kind) !== null ? ` · ${engagement.count(kind)}` : ''}</h3>
    {error ? <p role="status">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></p> : <>
