@@ -11,7 +11,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
-import { Globe2Icon, RotateCwIcon } from 'lucide-react';
+import { Globe2Icon, HomeIcon, CircleUserRoundIcon, RotateCwIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
@@ -195,21 +195,10 @@ export function HomeFeed({
       >
         <div data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
-              <div className="field-shell text-control-shell flex min-h-11 w-full items-center rounded-[8px]">
-                {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search"
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <InterfaceIcon icon={Globe2Icon} size="sm" weight="medium" />
-                </button>}
-                {onSearchUsers && <button type="button" onClick={onSearchUsers}
-                  className="flex min-h-11 min-w-0 flex-1 items-center rounded-[8px] px-1 text-left text-[16px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <span className="truncate">Search</span>
-                </button>}
-                <button type="button" aria-label="Reload Home content" title="Reload Home content" disabled={feed.isRefreshing || feed.status === 'loading'}
-                  aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}
-                  className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--focus-ring)]">
-                  <InterfaceIcon icon={RotateCwIcon} size="sm" weight="medium" effect="rotate" effectActive={feed.isRefreshing} />
-                </button>
-              </div>
+              {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
+              <button type="button" aria-label="Home" className="mobile-home-header-button" onClick={() => { window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
+              <button type="button" aria-label="Profile" className="mobile-home-header-button" onClick={() => { if (viewerProfileId) onOpenCreator(viewerProfileId); else onSearchUsers?.(); }}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>
+              <button type="button" aria-label="Reload Home content" className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
               <div data-inline-screen-actions=""><MobileContextButton /></div></div>
             <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}

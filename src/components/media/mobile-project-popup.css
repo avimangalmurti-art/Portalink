@@ -76,3 +76,14 @@
 [data-presentation='mobile'] .project-popup-owner-button[data-destructive] {
   background: var(--status-danger); border-color: var(--status-danger); color: #fff;
 }
+
+[data-presentation='mobile'] .project-popup-identity {
+  display: flex; align-items: center; gap: 12px;
+}
+[data-presentation='mobile'] .project-popup-identity > .project-popup-creator {
+  flex: 1; min-width: 0; width: auto;
+}
+[data-presentation='mobile'] .project-popup-close {
+  display: grid; place-items: center; flex: none; width: 44px; height: 44px;
+  border-radius: 14px; background: var(--surface-sunken); color: var(--text-primary);
+}

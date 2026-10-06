@@ -53,7 +53,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
           dragged.current=false;
           setExpanded(value=>!value);
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>
-        <div className="mobile-context-heading"><InterfaceIcon icon={SlidersHorizontalIcon}/><div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={onClose} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
+        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={onClose} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
       </header>
       <div className="mobile-context-body">
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={()=>onAction(action)}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}

@@ -135,7 +135,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           }
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
-      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}</div>}
+      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}<button type="button" className="project-popup-close" aria-label={`Close ${label}`} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button></div>}
       <header className="project-description-heading">
         {(contentLabel !== 'Description' || projectTitle) && <h2 id="project-description-title" style={{ fontFamily: typeface }}>{contentLabel === 'Description' ? projectTitle : contentLabel}</h2>}
         {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}
@@ -149,7 +149,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
             <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); setExpanded(true); activeEditor?.open(); }}>{`Edit ${label}`}</button>
           </div>}
         </div>}
-        <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>
+        {(!creatorHeader || editing) && <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>}
       </header>
       {discard ? null : editing && !saved ? <form className="project-description-editor" onSubmit={event => { event.preventDefault(); if (!busy) void activeEditor.save(); }}>
         {phase === 'loading' ? <p role="status">Loading {label}…</p> : phase !== 'load-failed' && <><textarea ref={textareaRef}

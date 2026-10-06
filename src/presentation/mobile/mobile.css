@@ -4702,3 +4702,17 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
   position: absolute; top: 0; right: 0;
 }
+
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header .mobile-screen-action-row {
+  display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-header-button {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 44px; min-height: 44px; border-radius: 14px;
+  background: var(--surface-sunken); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-header-button:disabled { opacity: .5; }
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] { width: 100%; }
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static; width: 100%;
+}
