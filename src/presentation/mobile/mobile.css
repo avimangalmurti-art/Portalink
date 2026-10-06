@@ -4630,3 +4630,55 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) { transition: none; }
 }
+
+/* Mobile portal creation is a screen; only its icon catalog scrolls. */
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen {
+  padding: 0; z-index: 100; background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen-form {
+  width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
+  border-radius: 0; box-shadow: none; background: var(--surface-canvas);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen [data-portal-icon-scroll] {
+  overscroll-behavior-y: contain;
+}
+#root .codex-shell[data-presentation='mobile'] .new-portal-pinned-controls {
+  display: block; position: sticky; top: 0; z-index: 2;
+  margin-inline: -24px; padding: 0 24px 16px;
+  background: color-mix(in srgb, var(--surface-canvas) 96%, transparent);
+  backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+}
+#root .codex-shell[data-presentation='mobile'].reduce-translucency .new-portal-pinned-controls {
+  background: var(--surface-canvas); backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* A mobile document has no full-height scrollbar; internal scrollers retain theirs. */
+html:has(.codex-shell[data-presentation='mobile']),
+html:has(.codex-shell[data-presentation='mobile']) body {
+  scrollbar-width: none;
+}
+html:has(.codex-shell[data-presentation='mobile'])::-webkit-scrollbar,
+html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sharing previews use the public profile's compact identity header. */
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] > header h2 {
+  margin: 0; padding-right: 44px; font-size: 20px; line-height: 1.2;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-profile-preview {
+  display: grid; grid-template-columns: 76px minmax(0, 1fr);
+  gap: 4px 16px; text-align: left; align-items: start;
+  border: 0; background: transparent; padding: 8px 0 16px;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-profile-avatar {
+  grid-column: 1; grid-row: 1 / 4; width: 76px; height: 76px;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-profile-preview > :is(strong, p, .share-preview-tabs) {
+  grid-column: 2; margin-top: 0;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-preview-stats {
+  grid-column: 1 / -1; justify-content: flex-start;
+}

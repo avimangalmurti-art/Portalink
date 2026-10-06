@@ -86,13 +86,13 @@ export function NewCategoryDialog({
     if (event.target === event.currentTarget) {
       onCancel();
     }
-  }} className="modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+  }} className="new-portal-screen modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onEscape();
       }
-    }} role="dialog" aria-modal="true" aria-labelledby="new-category-heading" className="flex max-h-[min(680px,90vh)] w-full max-w-[440px] flex-col overflow-hidden rounded-[16px] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
+    }} role="dialog" aria-modal="true" aria-labelledby="new-category-heading" className="new-portal-screen-form flex max-h-[min(680px,90vh)] w-full max-w-[440px] flex-col overflow-hidden rounded-[16px] bg-[var(--surface-raised)] shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
         <div className="relative flex shrink-0 items-center justify-center px-4 pb-2 pt-4">
           <button type="button" disabled={isSaving} onClick={onCancel} aria-label="Close" data-ui-control="icon" data-control-size="sm" data-control-variant="ghost" className="absolute left-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={XIcon} size="lg" weight="medium" />
@@ -101,6 +101,7 @@ export function NewCategoryDialog({
         </div>
 
         <div ref={contentRef} data-portal-icon-scroll="" className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+          <div className="new-portal-pinned-controls contents">
           {/* The choice, shown as the thing being made: the selected mark at the
              size it will be recognised at. */}
           <div className="flex justify-center pt-4">
@@ -125,6 +126,7 @@ export function NewCategoryDialog({
           </div>
           {error && <p role="alert" className="mt-2 text-[13px] text-[var(--text-primary)]">{error}</p>}
 
+          </div>
           <PortalIconLibrary selected={iconName} onSelect={name => { setIconName(name); if (isIconSearch) returnToTitle(); }} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
         </div>
 

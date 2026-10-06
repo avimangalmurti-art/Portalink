@@ -1,3 +1,15 @@
+## 2026-10-06 — Mobile share header/public preview (local, unpublished)
+Moved Share your Portfolio to existing mobile Back/header row; removed duplicate content heading and public-link helper. Ready/loading public preview now compact photo/name/location with project/portal counts and no followers/following, including recovery fallback. WEB dialog header preserved. Typecheck, focused lint and sharing tests pass; source/diff reviewed, physical/browser geometry unverified. Prior new portal/scrollbar edits preserved; Sites344 remains live, no deployment or SQL.
+
+## 2026-10-06 — Mobile document scrollbar (local, unpublished)
+Hide html/body scrollbar only while MOBILE presentation is active. Existing content-area scrollbar styles, scrolling, sticky glass controls and WEB behavior remain unchanged. Scoped CSS/diff reviewed; physical Safari scrollbar verification pending. Prior new portal screen changes preserved; Sites344 live, no deployment or SQL.
+
+## 2026-10-06 — Mobile new portal icon screen (local, unpublished)
+NewCategoryDialog mobile creation now fills dynamic viewport with safe-area spacing, header and bottom Cancel/Create controls outside the catalog scroll region. Selected icon/title-or-search controls stay sticky above the scrolling icon library using existing 96% canvas/32px blur and reduced-translucency fallback. WEB dialog geometry and title/search/selection/create state retained. Typecheck, focused ESLint, all 11 icon-library tests and diff check pass. Browser/physical-iPhone geometry unverified. Sites344 still live; no publication, SQL or GitHub integration.
+
+## 2026-10-06 — All pending UI published, Sites344
+Source 07ba4041d07f0837318935fb837fe93f7a510417; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_0d6e56ae2dc88191aae4a7eab99766fe; deployment appgdep_6ac57d7922f08191822ffe68d48cae3b succeeded 2026-10-06T23:00:19.562777Z. Publishes scrolling under Studio/messages/account controls, full viewport portal chooser, owner profile grip exclusion, swipe translation and consistent fixed action anchor. Typecheck/lint(existing warnings)/production client+worker+config verification and26focused tests passed; archive561files. Existing public URL/audience/environmentrevision2 preserved. Browser/physical-iPhone geometry/motion still unverified; previous stale Studio Continue test noted below unchanged. No SQL/GitHub main integration. Post-publication handoff local.
+
 ## 2026-10-06 — Consistent profile action anchor (local, unpublished)
 Confirmed Profile alone overrode shared three-dot fixed anchor with position static. Restored fixed safe-area top/right using identical --mobile-screen-action-top/right as Home/Studio/Messages. Existing44px geometry/material/state retained. MOBILE only; prior swipe/scroll/portal pending edits preserved. Selector/source review and diff check pass; browser/device geometry unverified. Sites343 still live; no deployment/SQL.
 
