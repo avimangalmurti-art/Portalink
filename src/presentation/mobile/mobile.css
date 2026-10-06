@@ -4309,7 +4309,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] [data-account-search] {
   padding-top: var(--mobile-screen-action-top);
 }
-#root .codex-shell[data-presentation='mobile'] [data-account-search] > h1 {
+#root .codex-shell[data-presentation='mobile'] [data-account-search] h1 {
   padding-inline-end: 56px;
 }
 
@@ -4357,7 +4357,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .mobile-project-editor-screen .project-form-actions { position: absolute; inset-inline: 20px; bottom: max(12px, env(safe-area-inset-bottom, 0px)); margin: 0; }
 
 /* Leave clear space between account search and the fixed action control. */
-#root .codex-shell[data-presentation='mobile'] [data-account-search] > label { margin-top: 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-header > label { margin-top: 12px; }
 
 /* Profile return actions share the fixed system-control row. */
 #root .codex-shell[data-presentation='mobile'] :is([data-profile-back], [data-search-back], [data-connections-back]) {
@@ -4517,14 +4517,14 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* Account search title shares the safe-area row with Back and screen actions. */
-#root .codex-shell[data-presentation='mobile'] [data-account-search] > .account-search-back {
+#root .codex-shell[data-presentation='mobile'] [data-account-search] .account-search-back {
   position: fixed;
   top: var(--mobile-screen-action-top);
   inset-inline-start: var(--mobile-navigation-inset-start);
   z-index: 55;
   margin: 0;
 }
-#root .codex-shell[data-presentation='mobile'] [data-account-search] > h1 {
+#root .codex-shell[data-presentation='mobile'] [data-account-search] h1 {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4558,9 +4558,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Profile actions belong to the visible identity header, not viewport-fixed slots. */
+/* Profile actions share Home, Studio and Messages' safe-area screen anchor. */
 #root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
-  position: static;
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  bottom: auto;
+  left: auto;
 }
 #root .codex-shell[data-presentation='mobile'] .profile-return-handle {
   display: grid; place-items: center; width: 100%; height: 44px;
@@ -4568,4 +4572,61 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 #root .codex-shell[data-presentation='mobile'] .profile-return-handle span {
   display: block; width: 36px; height: 4px; border-radius: 999px; background: var(--text-tertiary);
+}
+
+/* The content scrolls behind these controls using the Home/profile glass treatment. */
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-header,
+#root .codex-shell[data-presentation='mobile'] .account-search-header,
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls],
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > header {
+  position: sticky; top: 0; z-index: 30; isolation: isolate;
+  background: color-mix(in srgb, var(--surface-canvas) 96%, transparent) !important;
+  backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-workbench { overflow: visible; }
+#root .codex-shell[data-presentation='mobile'] [data-account-search] { height: auto; overflow: visible; padding-top: 0; }
+#root .codex-shell[data-presentation='mobile'] .account-search-header {
+  display: block; flex: none; padding-top: var(--mobile-screen-action-top);
+}
+#root .codex-shell[data-presentation='mobile'] .account-search-results { overflow: visible; flex: none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-mobile-scroll-end] {
+  margin-top: calc(-1 * var(--scroll-header-height, 0px));
+  padding-top: var(--scroll-header-height, 0px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > [data-messages-body] {
+  margin-top: calc(-1 * var(--scroll-header-height, 0px));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-message-scroll] {
+  padding-top: calc(var(--scroll-header-height, 0px) + 20px);
+}
+
+#root .codex-shell[data-presentation='mobile'].reduce-translucency :is(.studio-workbench-header, .account-search-header, [data-inbox-controls], [data-mobile-chat] > header) {
+  background: var(--surface-canvas) !important; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* Portal chooser is centered over the whole profile, including its sticky header. */
+#root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-overlay {
+  top: 0; bottom: 0; z-index: 80;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page {
+  inset: auto !important;
+  top: 50% !important; left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(calc(100% - 32px), 420px);
+  height: min(70dvh, 640px) !important;
+  min-height: 0;
+  max-height: calc(100% - 32px);
+}
+
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) {
+  transition: transform 180ms ease-out;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-pulling] {
+  transform: translate3d(0, var(--profile-pull-offset, 0px), 0);
+  transition: none;
+  will-change: transform;
+  border-radius: 24px 24px 0 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) { transition: none; }
 }

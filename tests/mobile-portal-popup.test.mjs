@@ -26,7 +26,7 @@ test('portal selection changes the canonical route without marking a new mobile 
   }
 });
 
-test('popup follows the sticky header, retains drill-down size and cleans up all observers', () => {
+test('popup retains drill-down size without anchoring below the header and cleans observers', () => {
   let effect, resized, height = 510, headerHeight = 180, headerBottom = 180, disconnected = false;
   const values = new Map(), positions = new Map(), observed = [];
   const events = () => {
@@ -46,21 +46,21 @@ test('popup follows the sticky header, retains drill-down size and cleans up all
   exports.useMobilePortalPopupSize(profile, overlay, true);
   const cleanup = effect();
   assert.equal(values.get('--mobile-portal-popup-height'), '510px');
-  assert.equal(positions.get('--mobile-portal-popup-top'), '180px');
-  assert.deepEqual(observed, [chooser, header]);
+  assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
+  assert.deepEqual(observed, [chooser]);
   headerBottom = 300; resized();
-  assert.equal(positions.get('--mobile-portal-popup-top'), '300px', 'Expanded header moves chooser below its controls');
+  assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
   headerBottom = 210; window.listeners.get('scroll')();
-  assert.equal(positions.get('--mobile-portal-popup-top'), '210px');
+  assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
   headerBottom = 190; window.listeners.get('resize')();
-  assert.equal(positions.get('--mobile-portal-popup-top'), '190px');
+  assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
   for (const event of ['resize', 'scroll']) {
     headerBottom -= 10; window.visualViewport.listeners.get(event)();
-    assert.equal(positions.get('--mobile-portal-popup-top'), `${headerBottom}px`);
+    assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
   }
   height = 0; headerHeight = 0; headerBottom = 0; resized();
   assert.equal(values.get('--mobile-portal-popup-height'), '510px');
-  assert.equal(positions.get('--mobile-portal-popup-top'), '170px', 'Hidden trees preserve their last visible geometry');
+  assert.equal(positions.get('--mobile-portal-popup-top'), undefined);
   height = 320; resized();
   assert.equal(values.get('--mobile-portal-popup-height'), '320px');
   cleanup();

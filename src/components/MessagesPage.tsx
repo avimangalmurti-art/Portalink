@@ -1,3 +1,4 @@
+import { useUnderHeaderScroll } from '../presentation/mobile/useUnderHeaderScroll';
 import { MessageBody } from './messages/MessageBody';
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
 import { MobileContextButton, useMobileScreenActions, useMobileHold } from '../presentation/mobile/MobileContextActions';
@@ -300,6 +301,7 @@ export function MessagesPage({
   const conversationViewport = useDialogViewport<HTMLElement>(isMobile && !showList && Boolean(conversation));
   useConversationKeyboard(isMobile && !showList && Boolean(conversation), activeId, conversationViewport, messageScrollerRef, textareaRef);
   const isMobileNewChat = isMobile && isNewChatOpen;
+  useUnderHeaderScroll(conversationViewport, isMobile && !isMobileNewChat, showList ? 'inbox' : 'chat');
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
   return <section ref={conversationViewport} data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
@@ -345,7 +347,7 @@ export function MessagesPage({
 
       {isPrivacyOpen ? <MessageControlsDialog permission={messaging.preferences.permission} isSaving={messaging.isSavingPreferences} error={messaging.error} onChange={messaging.updatePermission} onClose={() => setIsPrivacyOpen(false)} /> : null}
 
-      <div className="flex min-h-0 flex-1">
+      <div data-messages-body="" className="flex min-h-0 flex-1">
         <aside data-resizable-panel="" className={`${showList ? 'flex' : 'hidden'} ps-panel relative min-h-0 w-full shrink-0 flex-col border-r border-[var(--hairline)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)]`} aria-label="Conversations">
           {isNewChatOpen ? <NewChatPanel
               showHeader={!isMobile}
@@ -355,7 +357,7 @@ export function MessagesPage({
               onDismissError={messaging.dismissError}
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
-              <div className="side-panel-control-stack side-panel-content-inset shrink-0">
+              <div data-inbox-controls="" className="side-panel-control-stack side-panel-content-inset shrink-0">
                 <div className={isMobile ? "mobile-screen-action-row" : undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>

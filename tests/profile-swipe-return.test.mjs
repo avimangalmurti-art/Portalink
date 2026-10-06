@@ -6,9 +6,9 @@ import ts from 'typescript';
 function harness(enabled=true) {
   const handlers=new Map(); let returns=0, cleanup, modal=false;
   class Target { constructor({header=false,control=false,handle=false,scroll=0}={}) {this.header=header;this.control=control;this.handle=handle;this.scrollTop=scroll;this.parentElement=null;} closest(selector){if(selector==='.profile-header-region')return this.header?this:null;if(selector==='.profile-return-handle')return this.handle?this:null;return this.control?this:null;} }
-  const root={addEventListener:(name,fn)=>handlers.set(name,fn),removeEventListener:name=>handlers.delete(name)};
+  const root={setAttribute(){},removeAttribute(){},style:{setProperty(){},removeProperty(){}},addEventListener:(name,fn)=>handlers.set(name,fn),removeEventListener:name=>handlers.delete(name)};
   const exports={};
-  vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/useProfileSwipeReturn.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:()=>({useRef:current=>({current}),useEffect:fn=>{cleanup=fn();}}),Element:Target,window:{scrollY:0},document:{querySelector:()=>modal?{}:null}});
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../src/presentation/mobile/useProfileSwipeReturn.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:()=>({useRef:current=>({current}),useEffect:fn=>{cleanup=fn();}}),Element:Target,window:{scrollY:0,innerHeight:912},document:{querySelector:()=>modal?{}:null}});
   exports.useProfileSwipeReturn({current:root},enabled,()=>returns++);
   const swipe=(options={},dx=0,dy=90)=>{const target=new Target(options);handlers.get('touchstart')?.({target,touches:[{clientX:0,clientY:0}]});let prevented=false;handlers.get('touchmove')?.({touches:[{clientX:dx,clientY:dy}],cancelable:true,preventDefault(){prevented=true;}});handlers.get('touchend')?.();return prevented;};
   return {handlers,swipe,get returns(){return returns;},setModal:()=>modal=true,cleanup:()=>cleanup?.()};
