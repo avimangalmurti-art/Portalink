@@ -1,3 +1,15 @@
+## 2026-10-06 — Home header selected state (local, unpublished)
+Home icon explicitly navigates canonical home route and returns feed to top; aria-current page/data-selected marks current content destination. MOBILE selected surface/border for Home, Reload while refreshing and action button while expanded, pressed feedback for header controls. Globe/account buttons navigate separate existing screens; five-control header remains Home-only. Seven focused Home tests and diff check pass; browser/device state verification pending. Prior Comments/count and account-search routing edits retained, Sites347 live, no publication/SQL.
+
+## 2026-10-06 — Home account search icon correction (local, unpublished)
+User clarified top Profile glyph means profile search. Renamed accessible label/tooltip Search accounts and routes via existing onSearchUsers callback; no longer navigates viewer profile. Main dock Profile remains unchanged. Seven focused Home tests pass, including callback guard against owner-profile navigation; diff check pass. Prior Comments label/count work retained. Sites347 live, no deployment/SQL; browser/device verification pending.
+
+## 2026-10-06 — Popup Comments label/count (local, unpublished)
+User now requests consistent engagement labels/counts. ProjectPopupEngagement Comments first button matches panel icon/count/label grid, canonical useProjectComments totalCount shown only ready; null project when action absent. Existing share icon/label preserved; no share total service exists, explicitly explained rather than inventing count/backend. Typecheck/focused lint/popup engagement test pass, diff check pass. Browser/device verification pending. Sites347 live; no deployment/SQL.
+
+## 2026-10-06 — Home/header changes published, Sites347
+Source e38ee5103078cbe8bed8bf2389e72f68e1fd0576; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_88454710808881919943c3d4c1750263; deployment appgdep_6ac588d02f788191beef2a6a519dc48d succeeded 2026-10-06T23:48:42.083138Z. Publishes mobile five-control Home header, dock sliders glyph and omission from Home popup, identity-row close button. Typecheck/lint(existing warnings)/production build and22focused tests passed; archive561files. Public audience/environment revision2 retained. Browser/iPhone visual verification pending. No SQL/GitHub main integration. Engagement icon-only scope remains unresolved. Postpublication handoff local.
+
 ## 2026-10-06 — Project information close alignment (local, unpublished)
 Reading popup with creator identity now places single44px close button in avatar/name row. Title/description follow below; editing and identity-less sheets keep existing header close. Flex identity row permits name shrink and retains close target. MOBILE sheet only. Diff reviewed, typecheck/targeted sheet tests run; browser/device alignment pending. Home header redesign remains pending; Sites346 live, no publication/SQL.
 

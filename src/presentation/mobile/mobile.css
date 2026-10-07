@@ -4716,3 +4716,16 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] button.mobile-context-button {
   position: static; width: 100%;
 }
+
+#root .codex-shell[data-presentation='mobile'] .mobile-home-header-button:is([data-selected='true'], [aria-pressed='true']) {
+  background: var(--surface-selected); color: var(--text-primary);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-header-button:active {
+  background: var(--surface-selected);
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header button.mobile-context-button[aria-expanded='true'] {
+  background: var(--surface-selected) !important;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}

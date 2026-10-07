@@ -53,7 +53,7 @@ function harness(presentation = 'mobile', props = {}) {
   } });
   const render = () => {
     cursor = 0; layoutEffects = [];
-    return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { userSearchVisits++; }, ...props });
+    return exports.HomeFeed({ isSidebarCollapsed: true, showSearchPlaceholder: true, onExploreWorld() { worldVisits++; }, onSearchUsers() { userSearchVisits++; }, onOpenProject() {}, onOpenCreator() { throw new Error("Account search must not open the viewer profile"); }, ...props });
   };
   return { feedArguments, feed, density, ownerProfile, get reloads() { return reloads; }, get worldVisits() { return worldVisits; }, get userSearchVisits() { return userSearchVisits; }, render,
     measureLocation(width) {
@@ -90,7 +90,7 @@ test('Home discovery is inside its existing scroller and only appears on the mob
   const header = nodes(scroller).find(node => node.type === 'header');
   assert.equal(header.props.className, 'mobile-home-search-header');
   assert.equal(nodes(header).some(node => node.type === 'input' || node.type === 'form'), false, 'Discovery must not summon a keyboard for unavailable search');
-  assert.deepEqual(nodes(header).filter(node => node.type === 'button').map(node => node.props['aria-label']), ['Open globe search','Home','Profile','Reload Home content']);
+  assert.deepEqual(nodes(header).filter(node => node.type === 'button').map(node => node.props['aria-label']), ['Open globe search','Home','Search accounts','Reload Home content']);
   for (const h of [harness('web'), harness('mobile', { locationId: 'city' }), harness('mobile', { showSearchPlaceholder: false })]) {
     assert.equal(nodes(h.render()).some(node => node.type === 'header'), false);
   }
@@ -118,7 +118,7 @@ test('city feeds preserve their responsive mobile baseline and local pinch witho
 test('Home search and globe are independent actions and preserve feed content', () => {
   const h = harness();
   const tree = h.render();
-  nodes(tree).find(node => node.props['aria-label'] === 'Profile').props.onClick();
+  nodes(tree).find(node => node.props['aria-label'] === 'Search accounts').props.onClick();
   assert.equal(h.userSearchVisits, 1);
   assert.equal(h.worldVisits, 0);
   nodes(tree).find(node => node.props['aria-label'] === 'Open globe search').props.onClick();
@@ -143,7 +143,7 @@ test('empty Home keeps user search, globe and refresh available', () => {
   h.feed.projects = [];
   const tree = h.render();
   const header = nodes(tree).find(node => node.type === 'header');
-  assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Profile'));
+  assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Search accounts'));
   assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Open globe search'));
   assert.ok(nodes(header).some(node => node.props['aria-label'] === 'Reload Home content'));
   assert.equal(nodes(tree).find(node => node.type === 'EmptyState').props.secondaryAction, browse);

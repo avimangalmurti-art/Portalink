@@ -8,7 +8,7 @@ const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.chil
 test('engagement selection stays inline, and Share embeds the existing sender rather than navigating',()=>{
  let cursor=0; const state=[]; const exports={};
  const react={...React,useEffect(){},useState(initial){const i=cursor++;if(!(i in state))state[i]=initial;return[state[i],value=>{state[i]=typeof value==='function'?value(state[i]):value;}];}};
- const mocks={'react':react,'../../features/engagement/EngagementBar':{EngagementBar:'engagement'},'../../contexts/ServicesContext':{useServices:()=>({engagement:{}})},'../../features/sharing/InternalContentShare':{InternalContentShareDialog:'sender'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'}};
+ const mocks={'react':react,'../../features/engagement/EngagementBar':{EngagementBar:'engagement'},'../../features/comments/useProjectComments': {useProjectComments:()=>({phase:'ready',totalCount:3})}, '../../contexts/ServicesContext':{useServices:()=>({engagement:{}})},'../../features/sharing/InternalContentShare':{InternalContentShareDialog:'sender'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'}};
  const source=readFileSync(new URL('../src/components/media/ProjectPopupEngagement.tsx',import.meta.url),'utf8');
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require:name=>mocks[name]??{}});
  const render=()=>{cursor=0;return exports.ProjectPopupEngagement({projectId:'work',projectTitle:'Work',url:'/share/work',engagement:{isPending:()=>false,count:()=>2}});};

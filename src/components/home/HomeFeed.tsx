@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { buildPath } from '../../app/routes';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
 import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
@@ -83,6 +85,7 @@ export function HomeFeed({
   emptyDescription = 'Public work from creators across Portalink will appear here.',
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
+  const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const { viewerProfileId, isAuthenticated } = useAuth();
@@ -196,9 +199,9 @@ export function HomeFeed({
         <div data-feed-scroll-content="" className="relative pt-3">
           {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
-              <button type="button" aria-label="Home" className="mobile-home-header-button" onClick={() => { window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
-              <button type="button" aria-label="Profile" className="mobile-home-header-button" onClick={() => { if (viewerProfileId) onOpenCreator(viewerProfileId); else onSearchUsers?.(); }}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>
-              <button type="button" aria-label="Reload Home content" className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
+              <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
+              {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
+              <button type="button" aria-label="Reload Home content" aria-pressed={feed.isRefreshing} className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
               <div data-inline-screen-actions=""><MobileContextButton /></div></div>
             <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
