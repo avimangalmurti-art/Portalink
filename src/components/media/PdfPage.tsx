@@ -35,6 +35,7 @@ export function pdfSourceOptions(source: string, previewOnly = false) {
 
 type PdfPageProps = {
   source: string;
+  onRenderFailure?: () => void;
   label: string;
   pageNumber?: number;
   onPageCountChange?: (pageCount: number) => void;
@@ -50,7 +51,7 @@ type PdfPageProps = {
  * grid does not download every document just to prepare off-screen covers.
  */
 export function PdfPage({
-  source,
+  source, onRenderFailure,
   label,
   pageNumber = 1,
   onPageCountChange,
@@ -200,6 +201,8 @@ export function PdfPage({
       renderTask.cancel();
     };
   }, [fit, layoutRevision, page]);
+
+  useEffect(() => { if (status === 'failed') onRenderFailure?.(); }, [status, onRenderFailure]);
 
   return <div ref={hostRef} role="img" aria-label={label} aria-busy={status === 'loading'} className={`pdf-page-viewport relative bg-white ${className}`}>
       {status !== 'ready' && <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center bg-[var(--surface-sunken)] text-[var(--text-tertiary)]">

@@ -300,6 +300,8 @@ export class ProcessingServiceError extends Error {
 /* ── Draft ──────────────────────────────────────────────────────────────── */
 
 export type DraftMetadata = {
+  madeOn?: string;
+  accessLevel?: 'private' | 'public' | 'citable';
   /** Optional creator-entered tags; device drafts preserve the editable text. */
   tags?: string;
   thenNowCaption?: string;

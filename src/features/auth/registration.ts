@@ -23,9 +23,10 @@ export type RegistrationProfile = {
 export function readSharedReturnPath(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length > 2048) return;
   const pathname = value.split(/[?#]/, 1)[0];
-  if (!handleFromPath(pathname) && !/^\/share\/[a-z0-9_-]{1,128}(?:\/collaboration|\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
+  if (!/^\/cite\/[^/?#]{1,2048}$/.test(pathname) && !handleFromPath(pathname) && !/^\/share\/[a-z0-9_-]{1,128}(?:\/collaboration|\/c\/[a-z0-9_-]{1,128}(?:\/[a-z0-9_-]{1,128})?)?\/?$/i.test(pathname)) return;
   const url = new URL(value, 'https://portalink.invalid');
   const safe = new URL(url.pathname.replace(/\/$/, ''), url.origin);
+  if (pathname.startsWith('/cite/') && url.searchParams.get('cite') === '1') safe.searchParams.set('cite','1');
   const view = url.searchParams.get('view');
   const page = url.searchParams.get('page');
   const media = url.searchParams.get('media');

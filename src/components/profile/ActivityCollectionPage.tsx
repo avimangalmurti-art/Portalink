@@ -1,3 +1,4 @@
+import { likesCapability } from '../../features/engagement/capabilities';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React from 'react';
 import { ProjectPreviewCard } from './ProjectPreviewCard';
@@ -44,6 +45,7 @@ type ActivityCollectionProps = {
 
 export function ActivityCollectionPage(props: ActivityCollectionProps) {
   const { user, isAuthenticated } = useAuth();
+  if(props.kind==='like'&&!likesCapability)return <p>This collection is unavailable.</p>;
   return <ActivityCollectionContent key={user?.id ?? 'guest'} {...props} isViewerOwnCollection={isAuthenticated && props.isViewerOwnCollection} />;
 }
 

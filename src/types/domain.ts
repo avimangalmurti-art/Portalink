@@ -43,7 +43,14 @@ export type PublicAppearance = {
 };
 
 /** A creator's public identity plus the portfolio structure they own. */
+export type PublicCitationEvent = {
+ id:string; direction:"incoming"|"outgoing"; item_id:string; label:string;
+ other_creator_name:string; other_creator_handle:string; other_project_id:string;
+ other_project_title:string; other_profile_id:string; other_category_id:string;
+ citing_project_title:string; created_at:string; note:string|null;
+};
 export type Profile = {
+ publicCitationEvents?: PublicCitationEvent[];
   /** Public Journey is explicitly opt-in; absent older columns remain private. */
   portfolioHeadline?: string | null;
   school?: string;
@@ -53,6 +60,8 @@ export type Profile = {
   allowPdfDownload?: boolean;
   startHereProjectId?: Id | null;
   showJourney?: boolean;
+  showOutgoingCitations?: boolean;
+  showIncomingCitations?: boolean;
   thenNow?: { then: Id; now: Id } | null;
   id: Id;
   name: string;
@@ -88,7 +97,7 @@ export type Profile = {
  * profile editing reuses one validation vocabulary rather than growing a second
  * model. `avatar` is a prepared, not-yet-uploaded file.
  */
-export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns' | 'showJourney' | 'thenNow' | 'portfolioHeadline' | 'school' | 'availability' | 'contactEmailPublic' | 'contactEmail' | 'allowPdfDownload' | 'startHereProjectId'>> & {
+export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns' | 'showJourney' | 'showOutgoingCitations' | 'showIncomingCitations' | 'thenNow' | 'portfolioHeadline' | 'school' | 'availability' | 'contactEmailPublic' | 'contactEmail' | 'allowPdfDownload' | 'startHereProjectId'>> & {
   /** Normalized without the leading "@"; uniqueness is re-checked on write. */
   handle?: string;
   avatar?: import('./profile').PreparedAvatar;
@@ -287,6 +296,8 @@ export type ProjectCreationDetails = {
   answers: { what: string; did: string; learned: string };
 };
 export type Project = {
+  madeOn?: string;
+  citationPermitted?: boolean;
   tags?: string[];
   thenNowCaption?: string;
   /** Known from the stored project and portal visibility; absent on legacy fixtures. */
@@ -456,7 +467,7 @@ export type Notification = {
   body: string;
   timestamp: string;
   isUnread: boolean;
-  kind?: 'message' | 'reply' | 'follow' | 'system';
+  kind?: 'message' | 'reply' | 'follow' | 'system' | 'citation';
   targetPath?: string | null;
   actorProfileId?: Id | null;
 };

@@ -122,6 +122,7 @@ export function ProfileEditorPage({
                 <input type="checkbox" checked={fields.showJourney} disabled={isBusy} onChange={event => editor.setShowJourney(event.target.checked)} />
               </label>
 
+              <label className="flex min-h-11 items-center justify-between gap-4 text-sm">Show what I cite<input type="checkbox" checked={fields.showOutgoingCitations} disabled={isBusy} onChange={e=>editor.setCitationPreference('showOutgoingCitations',e.target.checked)}/></label><label className="flex min-h-11 items-center justify-between gap-4 text-sm">Show who cites me<input type="checkbox" checked={fields.showIncomingCitations} disabled={isBusy} onChange={e=>editor.setCitationPreference('showIncomingCitations',e.target.checked)}/></label>
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
               <ProfileLocationPicker id="profile-editor-city" value={fields.location} error={fieldErrors.location} disabled={isBusy} onChange={value => editor.setField('location', value)} />
               </section>

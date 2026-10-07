@@ -1,3 +1,4 @@
+import { likesCapability } from '../../features/engagement/capabilities';
 import type {
   CommentService,
   EngagementService,
@@ -381,6 +382,7 @@ export const supabaseEngagementService: EngagementService = {
   getProjectEngagement: engagementSummary,
   getProjectEngagements: engagementSummaries,
   async setEngagement(mutation) {
+    if(mutation.kind === 'like' && !likesCapability) throw new EngagementServiceError('permission_denied','Likes are unavailable.');
     const accountId = await currentAccountId(false);
     if (!accountId) throw new EngagementServiceError('unauthenticated', 'Sign in before engaging with work.');
     const table = requireSupabase().from('project_engagement');
@@ -421,7 +423,7 @@ export const supabaseNotificationService: NotificationService = {
       body: row.body,
       timestamp: row.created_at,
       isUnread: row.read_at === null,
-      kind: row.kind === 'message' || row.kind === 'reply' || row.kind === 'follow' ? row.kind : 'system',
+      kind: row.kind === 'message' || row.kind === 'reply' || row.kind === 'follow' || row.kind === 'citation' ? row.kind : 'system',
       targetPath: row.target_path ?? null,
       actorProfileId: row.actor_profile_id ?? null,
     }));

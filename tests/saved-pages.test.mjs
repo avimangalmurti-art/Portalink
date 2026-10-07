@@ -14,6 +14,7 @@ function load(path, imports = {}, globals = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+      if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
     if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
       if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
       if (id === './server/projectReach') return load('../src/server/projectReach.ts', {'../features/reads/readSignal':load('../src/features/reads/readSignal.ts')}, globals);

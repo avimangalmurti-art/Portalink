@@ -4,6 +4,8 @@ These rules persist the user's product, operating, architecture, mobile UX, micr
 
 ## Shared agent and repository agreement
 
+- Every publish must come from a source commit on GitHub `main` or in an open pull request against `main`. Record the source commit and PR (when applicable) before publishing; local-only and autosave commits are not publishable. An open PR is source traceability, not permission to publish.
+
 - Every worktree used for publishing must have the ignored `.env.local` available with the production `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` before building. Never copy, print, commit, or package credential values. Use an existing local environment file/link; do not overwrite it. Builds must fail on missing configuration, and both main and visitor bundle graphs must be verified to contain the configured Supabase host/key before packaging.
 
 - This is the canonical project instruction file for Codex and Claude Code. `CLAUDE.md` imports it; keep shared rules here rather than maintaining competing copies.

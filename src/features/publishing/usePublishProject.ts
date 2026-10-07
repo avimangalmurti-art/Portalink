@@ -26,6 +26,7 @@ export type PublishStep = 'metadata' | 'preview' | 'done';
  * public detail; a creator can add context when it genuinely helps the work.
  */
 const EMPTY_METADATA: DraftMetadata = {
+  accessLevel: 'public',
   title: '',
   summary: ''
 };
@@ -488,7 +489,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     /** Which field to move focus to after a failed validation pass. */
     invalidField,
     isMediaMissing,
-    setField,
+    setField, setCitationFields: (fields: Pick<DraftMetadata, 'accessLevel' | 'madeOn'>) => setMetadata(current => ({ ...current, ...fields })),
     media,
     /** The transport: phase, progress, per-file states, failure, retry, cancel. */
     upload,

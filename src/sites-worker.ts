@@ -1,3 +1,4 @@
+import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
 import { resolveShareRequest, injectShareResolution } from './server/shareAddress';
@@ -313,16 +314,14 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const kind = body.kind
     const engaged = body.engaged
     if (!ENGAGEMENT_KINDS.includes(kind as EngagementKind) || typeof engaged !== 'boolean') throw new Error('Invalid engagement action.')
-    const [verifiedProject] = await requireReadableTargets(request, [target], user, kind === 'save' && engaged)
+    await requireReadableTargets(request, [target], user)
     if (engaged) {
       const save = db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
         .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind)
-      if (kind === 'save') {
-        const event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'save',body.pageHeading,undefined,verifiedProject as PageActionProject)
-        try { await db.batch(event ? [save,event] : [save]) } catch { throw json({error:'Your save could not be shared with the creator. Please try again.'},503) }
-      }
-      else await save.run()
+      // Save is a private bookmark. Preserve historic D1 events; new saves do
+      // not create disclosed creator actions or notifications.
+      await save.run()
     } else {
       await db.prepare(`DELETE FROM media_engagements
         WHERE account_id = ? AND project_id = ? AND attachment_id = ? AND page_index = ? AND kind = ?`)
@@ -374,6 +373,8 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    const license = citationLicenseResponse(url.pathname); if (license) return license;
+    if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
     if (url.pathname === '/api/studio/attention') return handleStudioAttention(request,environment.DB,reachConfig)
     if (url.pathname === '/api/reach') return ingestReach(request,environment.DB,reachConfig)

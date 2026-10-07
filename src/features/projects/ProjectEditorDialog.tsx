@@ -112,7 +112,7 @@ export function ProjectEditorDialog({
     </ProjectFormDialog>;
   }
   const canAddFiles = added.capability?.isAvailable === true;
-  const focusField = (key: 'title' | 'summary') => {
+  const focusField = (key: string) => {
     requestAnimationFrame(() => document.getElementById(`project-${key}`)?.focus());
   };
   async function saveChanges() {
@@ -134,7 +134,7 @@ export function ProjectEditorDialog({
                 <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={value => editor.setField('summary', value)} />
 
               </div> : editor.mode === 'journey' ? <div className="project-form-details">
-                <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-in">Made in<input id="project-made-in" type="month" className="text-control p-3" disabled={isLocked} value={editor.metadata.creationDetails?.madeIn ?? ''} onChange={e => editor.setJourneyField('madeIn', e.target.value)} /><span className="text-xs text-[var(--text-secondary)]">Uses the publication date when left blank.</span></label>
+                <label className="flex flex-col gap-2 text-sm" htmlFor="project-made-on">Made on<input id="project-made-on" type="date" className="text-control p-3" disabled={isLocked} value={editor.metadata.madeOn ?? ''} onChange={e=>editor.setField('madeOn',e.target.value)}/></label><label>Access<select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={e=>editor.setField('accessLevel',e.target.value)}><option value="private">Private</option><option value="public">Public</option><option value="citable">Citable</option></select></label><p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
                 <ProfileField id="project-then-now-caption" label="Then/Now caption" maxLength={180} value={editor.metadata.thenNowCaption ?? ''} placeholder="Add a short comparison caption" disabled={isLocked} onChange={value => editor.setJourneyField('caption', value)} />
               </div> : <>
               <section hidden={isMobile && section !== 'files'} aria-labelledby="project-files-title" className="project-form-media project-form-media--edit">
@@ -248,7 +248,9 @@ export function ProjectEditorDialog({
                 </div>
               </section>
               <div hidden={isMobile && section !== 'details'} className="project-form-details">
-              <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
+              <label className="flex flex-col gap-2 text-sm" htmlFor="project-details-made-on">Made on<input id="project-details-made-on" type="date" className="text-control p-3" disabled={isLocked} value={editor.metadata.madeOn ?? ''} onChange={e=>editor.setField('madeOn',e.target.value)}/></label>
+                <label>Access<select value={editor.metadata.accessLevel ?? 'public'} disabled={isLocked} onChange={e=>editor.setField('accessLevel',e.target.value)}><option value="private">Private</option><option value="public">Public</option><option value="citable">Citable</option></select></label><p>Others' AI tools may use single pages or images from this project, always with your name and a link back.</p>
+                <ProfileField ref={titleRef} id="project-title" label="Title" required value={editor.metadata.title} error={editor.fieldErrors.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" disabled={isLocked} onChange={(value) => editor.setField('title', value)} />
               <ProfileField id="project-summary" label="Description" formatting={isMobile} required multiline value={editor.metadata.summary} placeholder="Describe the work" error={editor.fieldErrors.summary} disabled={isLocked} onChange={(value) => editor.setField('summary', value)} />
               </div>
               </>}

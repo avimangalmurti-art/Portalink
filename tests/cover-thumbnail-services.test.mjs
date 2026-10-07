@@ -24,7 +24,7 @@ const manifest = (bucket = 'project-covers', projectId = PROJECT) => ({ version:
 function harness(options = {}) {
   const uploads = [], calls = [], signing = [], generated = [];
   const rows = {
-    projects: { id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, revision: 'revision-1', is_hidden: false, cover_thumbnail: null, ...options.projectRow },
+    projects: { published_at: '2026-09-01T00:00:00Z', id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, revision: 'revision-1', is_hidden: false, cover_thumbnail: null, ...options.projectRow },
     profiles: { id: PROFILE, is_private: false, ...options.profileRow },
     portfolio_categories: { id: CATEGORY, profile_id: PROFILE, is_hidden: false, ...options.categoryRow },
   };
@@ -215,7 +215,7 @@ function hydrationHarness() {
 
 test('cover-only hydration strips originals/PDF page paths before signing and never initializes multipart readers for thumbnailed projects', async () => {
   const h = hydrationHarness();
-  const projects = [{ id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, title: 'Document', summary: 'Report', cover_thumbnail: manifest('project-media') }];
+  const projects = [{ published_at: '2026-09-01T00:00:00Z', id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, title: 'Document', summary: 'Report', cover_thumbnail: manifest('project-media') }];
   const attachments = [{ id: 'attachment', project_id: PROJECT, storage_path: 'original.pdf', kind: 'document', is_cover: true, metadata: {
     multipart: { version: 1 }, pageCount: 12, coverPageNumber: 2, renderedPages: [{ attachmentId: 'attachment', withinDocumentIndex: 1, storagePath: 'page1.png' }],
   } }];
@@ -233,7 +233,7 @@ test('cover-only hydration strips originals/PDF page paths before signing and ne
 
 test('opening the same document uses full hydration and retains its original viewer attachment', async () => {
   const h = hydrationHarness();
-  const result = await h.hydrate([{ id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, title: 'Document', summary: 'Report', cover_thumbnail: manifest() }], [],
+  const result = await h.hydrate([{ published_at: '2026-09-01T00:00:00Z', id: PROJECT, profile_id: PROFILE, category_id: CATEGORY, title: 'Document', summary: 'Report', cover_thumbnail: manifest() }], [],
     [{ id: 'attachment', project_id: PROJECT, storage_path: 'original.pdf', kind: 'document', is_cover: true, position: 0 }], 'full');
   assert.ok(h.resolved[0].paths.includes('original.pdf'));
   assert.equal(result.get(PROJECT).attachments[0].sourceUrl, 'signed:original.pdf');
@@ -244,7 +244,7 @@ test('opening the same document uses full hydration and retains its original vie
 test('owner hydration identifies hidden projects and hidden portals before offering a live share card', async () => {
  for(const [projectHidden,categoryHidden,expected] of [[false,false,true],[true,false,false],[false,true,false]]){
   const h=hydrationHarness();
-  const projects=await h.hydrate([{id:PROJECT,profile_id:PROFILE,category_id:CATEGORY,title:'Study',summary:'',is_hidden:projectHidden}],[{id:CATEGORY,label:'Work',is_hidden:categoryHidden}],[],'cover');
+  const projects=await h.hydrate([{published_at:'2026-09-01T00:00:00Z',id:PROJECT,profile_id:PROFILE,category_id:CATEGORY,title:'Study',summary:'',is_hidden:projectHidden}],[{id:CATEGORY,label:'Work',is_hidden:categoryHidden}],[],'cover');
   assert.equal(projects.get(PROJECT).isPubliclyVisible,expected);
  }
 });

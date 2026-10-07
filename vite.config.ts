@@ -1,4 +1,5 @@
 import { requireBuildEnvironment } from './scripts/build-environment.mjs'
+import { handleCitation, citationLicenseResponse } from './src/server/citation'
 import { readPortfolioCard } from './src/server/sharedPreview'
 import { resolveShareRequest, injectShareResolution } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
@@ -26,6 +27,12 @@ export default defineConfig(({ command, mode }) => {
         const origin = `http://${request.headers.host || '127.0.0.1:5178'}`;
         const url = new URL(request.url ?? '/', origin);
         const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
+        const license = citationLicenseResponse(url.pathname);
+        if (license) { response.statusCode=license.status; response.setHeader('Content-Type',license.headers.get('content-type')!); response.end(await license.text()); return; }
+        if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/cite/')) {
+          const result=await handleCitation(new Request(url,{method:request.method}),{fetch:async()=>new Response(await server.transformIndexHtml('/cite.html',await readFile('cite.html','utf8')))},config);
+          response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return;
+        }
         if (request.method === 'GET' && url.pathname.startsWith('/api/portfolio-card/')) {
           try {
             const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), origin, config);
@@ -66,6 +73,6 @@ export default defineConfig(({ command, mode }) => {
   build: {
     outDir: 'dist/client',
     manifest: true,
-    rollupOptions: { input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), visitor: fileURLToPath(new URL('./share.html', import.meta.url)) } },
+    rollupOptions: { input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), visitor: fileURLToPath(new URL('./share.html', import.meta.url)), citation: fileURLToPath(new URL('./cite.html', import.meta.url)) } },
   },
 }})

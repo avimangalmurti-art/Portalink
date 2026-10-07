@@ -1365,6 +1365,11 @@ function AppContent() {
            works from every destination rather than only inside a category. */}
       <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
+        const citeIntent = window.sessionStorage.getItem('portalink:cite-intent');
+        if (citeIntent && result.mediaPersisted && !result.sessionOnly) {
+          window.location.assign(`/cite/${encodeURIComponent(citeIntent)}?cite=1`);
+          return;
+        }
         setIsPublishOpen(false);
         setPublishTargetCategoryId(null);
         setJourneyMadeIn(null);

@@ -18,6 +18,7 @@ export function journeyAllowed(profile: Pick<Profile, 'showJourney'>, owner: boo
   return owner || profile.showJourney === true;
 }
 export function projectMonth(project: Project): string | null {
+  if (project.madeOn && /^\d{4}-\d{2}-\d{2}$/.test(project.madeOn)) return project.madeOn.slice(0,7);
   const madeIn = project.creationDetails?.madeIn;
   if (madeIn && /^(?:[1-9]\d{3})-(0[1-9]|1[0-2])$/.test(madeIn)) return madeIn;
   const date = new Date(project.publishedAt ?? '');
@@ -33,7 +34,7 @@ export function journeyProjects(projects: Project[], owner: boolean): Project[] 
 export function journeyGroups(projects: Project[], owner: boolean, currentYear = new Date().getFullYear()): JourneyGroup[] {
   const sorted = journeyProjects(projects, owner).slice().sort((a, b) =>
     (projectMonth(b) ?? '').localeCompare(projectMonth(a) ?? '')
-    || (b.publishedAt ?? '').localeCompare(a.publishedAt ?? '') || a.id.localeCompare(b.id));
+    || (b.madeOn ?? b.publishedAt ?? '').localeCompare(a.madeOn ?? a.publishedAt ?? '') || a.id.localeCompare(b.id));
   const years = new Map<number | null, Project[]>();
   for (const project of sorted) {
     const month = projectMonth(project), year = month ? Number(month.slice(0, 4)) : null;

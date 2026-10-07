@@ -55,7 +55,7 @@ test('both create and edit description fields have no maximum length', () => {
   }
 });
 
-test('draft, publish (including fallback), and edit services pass the entire description', async () => {
+test('draft, atomic publish, and edit preserve descriptions; missing citation RPC fails closed', async () => {
   const file = parse('../src/services/supabase/contentServices.ts');
   const declaration = find(file, (n) => ts.isVariableDeclaration(n) && n.name.getText(file) === 'supabaseProjectService');
   const methods = ['updateDraft', 'publishProject', 'updateProject'].map((name) =>
@@ -68,7 +68,7 @@ test('draft, publish (including fallback), and edit services pass the entire des
   };
   let useFallback = false;
   const { service } = execute(`exports.service = {${methods}}`, {
-    PublishServiceError: Error, ProjectMutationError: Error, draftFromRow: (row) => row,
+    PublishServiceError: class extends Error { constructor(code, message) { super(message); this.code = code; } }, ProjectMutationError: Error, draftFromRow: (row) => row,
     withProjectLocation: (relevance) => relevance,
     removeStoredMedia: async () => undefined,
     requireSupabase: () => ({
@@ -77,7 +77,7 @@ test('draft, publish (including fallback), and edit services pass the entire des
         calls.push([name, data]);
         return useFallback && data.p_topic_keys
           ? { error: { code: 'PGRST202', message: 'function not found' } }
-          : { data: name === 'publish_project' ? 'new-project' : {}, error: null };
+          : { data: name === 'publish_project_citation_fields' ? 'new-project' : {}, error: null };
       },
     }),
   });
@@ -88,9 +88,10 @@ test('draft, publish (including fallback), and edit services pass the entire des
   await service.updateDraft('draft', metadata);
   await service.publishProject(input);
   useFallback = true;
-  await service.publishProject(input);
+  await assert.rejects(service.publishProject(input), /access and date could not be saved/);
+  useFallback = false;
   await service.updateProject(input);
-  assert.equal(calls.length, 5);
+  assert.equal(calls.length, 4);
   for (const [kind, data] of calls) assert.equal(kind === 'draft' ? data.summary : data.p_summary, longDescription.trim());
 });
 

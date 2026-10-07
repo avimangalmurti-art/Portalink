@@ -1,10 +1,12 @@
 import { readThenNow } from '../../features/journey/journey';
-import type { MediaKind } from '../../types/domain';
+import type { PublicCitationEvent, MediaKind } from '../../types/domain';
 
 /** Public share rows only. Account IDs and owner-only profile preferences never
  * cross this boundary. Cover attachment metadata stays opaque for the existing
  * media mapper; the bundle is not a replacement for the full project viewer. */
 export type SharedProfileRow = {
+  show_outgoing_citations?: boolean;
+  show_incoming_citations?: boolean;
   portfolio_headline?: string | null; school?: string; availability?: string; contact_email_public?: boolean; contact_email?: string | null; allow_pdf_download?: boolean; start_here_project_id?: string | null;
   show_journey?: boolean; then_now?: unknown;
   id: string; name: string; handle: string; headline: string; location: string;
@@ -20,6 +22,7 @@ export type SharedProjectRow = {
   made_in?: string | null; field?: string | null; story_answers?: unknown;
   id: string; profile_id: string; category_id: string; title: string; summary: string;
   design: unknown; position: number; is_hidden: false; is_pinned: boolean;
+  made_on?: string; citation_permitted?: boolean;
   published_at: string; revision: string; cover_thumbnail: unknown;
   topic_keys?: string[]; content_location?: string | null; page_count?: number; kind?: MediaKind | null; geographic_scope?: string;
   geography_confidence?: number;
@@ -30,6 +33,7 @@ export type SharedAttachmentRow = {
   storage_path: string; status: string; is_cover: boolean; position: number; metadata: unknown;
 };
 export type SharedProfileBundle = {
+  citations?: PublicCitationEvent[];
   profile: SharedProfileRow;
   categories: SharedCategoryRow[];
   projects: SharedProjectRow[];
@@ -82,6 +86,8 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
     contact_email: p.contact_email_public === true && typeof p.contact_email === 'string' ? p.contact_email : null,
     allow_pdf_download: p.allow_pdf_download !== false,
     start_here_project_id: typeof p.start_here_project_id === 'string' ? p.start_here_project_id : null,
+    show_outgoing_citations: p.show_outgoing_citations !== false,
+    show_incoming_citations: p.show_incoming_citations !== false,
     show_journey: p.show_journey === true, then_now: null,
     id: p.id, name: p.name as string, handle: p.handle as string, headline: p.headline as string,
     location: p.location as string, avatar_url: p.avatar_url as string, nav_heading: p.nav_heading as string,
@@ -110,6 +116,8 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
       || (row.geographic_scope !== undefined && typeof row.geographic_scope !== 'string')
       || (row.geography_confidence !== undefined && (typeof row.geography_confidence !== 'number' || !Number.isFinite(row.geography_confidence)))) return invalid();
     return { id: row.id, profile_id: p.id as string, category_id: row.category_id, title: row.title as string,
+      made_on: typeof row.made_on==='string'?row.made_on:undefined,
+      citation_permitted: row.citation_permitted===true,
       summary: row.summary as string, design: row.design, position: row.position as number, is_hidden: false,
       is_pinned: row.is_pinned, published_at: row.published_at as string, revision: row.revision,
       cover_thumbnail: row.cover_thumbnail,
@@ -146,7 +154,24 @@ export function parseSharedProfileBundle(value: unknown, expectedProfileId: stri
       position: row.position as number, metadata: row.metadata };
   });
   uniqueIds(attachments);
-  return { profile, categories, projects, attachments };
+  let citations: PublicCitationEvent[] | undefined;
+  if(value.citations!==undefined){
+    if(!Array.isArray(value.citations))return invalid();
+    citations=value.citations.map(row=>{
+      if(!object(row)||!uuid(row.id)||!uuid(row.other_project_id)||!uuid(row.other_profile_id)||!uuid(row.other_category_id)
+        ||!['incoming','outgoing'].includes(row.direction as string)
+        ||!strings(row,['item_id','label','other_creator_name','other_creator_handle','other_project_title','citing_project_title','created_at'])
+        ||!Number.isFinite(Date.parse(row.created_at as string))
+        ||(row.note!==null&&(typeof row.note!=='string'||row.note.length>140)))return invalid();
+      return {id:row.id,direction:row.direction as PublicCitationEvent['direction'],item_id:row.item_id as string,
+        label:row.label as string,other_creator_name:row.other_creator_name as string,other_creator_handle:row.other_creator_handle as string,
+        other_project_id:row.other_project_id,other_project_title:row.other_project_title as string,
+        other_profile_id:row.other_profile_id,other_category_id:row.other_category_id,
+        citing_project_title:row.citing_project_title as string,created_at:row.created_at as string,note:row.note as string|null};
+    });
+    uniqueIds(citations);
+  }
+  return { profile, categories, projects, attachments, ...(citations!==undefined?{citations}:{}) };
 }
 
 /** Single-use document preload; retries, later routes and invalidations read

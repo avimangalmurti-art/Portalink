@@ -1,3 +1,4 @@
+import { likesCapability } from './capabilities';
 import { useEffect, useMemo } from 'react';
 import { useEngagementStore } from '../../contexts/EngagementContext';
 import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
@@ -68,6 +69,7 @@ export function useProjectEngagement(projectId: Id | null): ProjectEngagementLif
       return kind === 'like' ? record.likeCount : kind === 'save' ? record.saveCount : record.repostCount;
     },
     toggle: (kind) => {
+      if (kind === 'like' && !likesCapability) return;
       if (projectId) {
         store.toggle(projectId, kind);
       }

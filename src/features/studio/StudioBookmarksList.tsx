@@ -1,3 +1,6 @@
+import { resolveCitationItem,resolvePageId,resolveImageId,listCitations,citationProject } from '../citations/service';
+import { CiteSheet } from '../citations/CiteSheet';
+import type { CitationItem } from '../citations/model';
 import { useInternalContentShare } from '../sharing/InternalContentShare';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
@@ -40,12 +43,14 @@ function RowPreview({ row }: { row: StudioItem }) {
 
 /** A private, mobile presentation of existing collections and service actions. */
 export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false }: Props) {
+  const [citeItem,setCiteItem]=useState<CitationItem|null>(null);
+  const [citationLabels,setCitationLabels]=useState<Record<string,string>>({});
   const sendContent = useInternalContentShare();
   const auth = useAuth();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const location = readStudioLocation(params, savedRoute);
-  const category: StudioCategory = 'bookmarks';
+  const category: StudioCategory = location.category;
   const tab = location.tab;
   const data = useStudioData(category, tab);
   const refreshStudio = data.refresh;
@@ -79,6 +84,9 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     if (management.editor.result && management.editor.result !== priorSave.current) refreshStudio();
     priorSave.current = management.editor.result;
   }, [refreshStudio, management.editor.result]);
+  const citationRows=useRef(data.rows);citationRows.current=data.rows;
+  const citationRowKey=data.rows.map(row=>row.id).join('|');
+  useEffect(()=>{if(!auth.viewerProfileId)return;let live=true;void (async()=>{const records=await listCitations({outgoing:auth.viewerProfileId!});const labels:Record<string,string>={};for(const row of citationRows.current){if(row.kind==='published'){const count=records.filter(c=>c.citing_project_id===row.project.id).length;labels[row.id]=`${count} references`;}else if(row.kind==='saved-page'){const id=await resolvePageId(row.target.attachmentId,row.target.pageIndex)??row.target.attachmentId;const match=records.find(c=>c.cited_item_id===id);if(match){const project=await citationProject(match.citing_project_id);if(project)labels[row.id]=`Cited in «${project.title}»`;}}}if(live)setCitationLabels(labels);})().catch(()=>undefined);return()=>{live=false;};},[citationRowKey,data.updatedAt,auth.viewerProfileId,citeItem]);
   const visibleRows = useMemo(() => filterStudioRows(data.rows, query), [data.rows, query]);
   const selectedRows = visibleRows.filter(row => selected.has(row.id));
   const bulk = studioBulkTargets(selectedRows);
@@ -185,12 +193,13 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       unsave: { id: 'unsave', label: 'Remove bookmark', icon: BookmarkIcon, onAction: () => { void mutateRow(row, 'unsave'); } },
       'mark-read': { id: 'mark-read', label: 'Mark read', icon: MailOpenIcon, onAction: () => { void mutateRow(row, 'markRead'); } },
     };
+    if(row.kind==='saved-page') return [...available.map(id=>({...definitions[id],disabled:data.pendingIds.has(row.id)||bulkPending||isRefreshing})),{id:'cite',label:'Cite in…',onAction:()=>{void (async()=>{try{const imageId=await resolveImageId(row.target.attachmentId);let item=imageId?await resolveCitationItem(imageId):null;if(!item){const id=await resolvePageId(row.target.attachmentId,row.target.pageIndex);if(id)item=await resolveCitationItem(id);}if(item)setCiteItem(item);else setLocalError('This item is unavailable for citation.');}catch{setLocalError('Citation could not be loaded.');}})();}}];
     return available.map(id => ({ ...definitions[id], disabled: data.pendingIds.has(row.id) || bulkPending || isRefreshing }));
   }
   function renderRow(row: StudioItem) {
     const actions = actionsFor(row);
     const leftIds = row.kind === 'published' ? ['share', 'edit'] : row.kind === 'activity' ? ['open', 'mark-read'] : ['open', 'unsave'];
-    return <StudioRow key={row.id} id={row.id} title={row.title} secondary={row.secondary} date={studioDate(row.date)} leading={<RowPreview row={row} />} unread={row.kind === 'activity' && row.notification.isUnread} selecting={selecting} selected={selectedIds.has(row.id)} pending={data.pendingIds.has(row.id) || bulkPending || isRefreshing} onSelect={() => toggleRow(row.id)} onOpen={actions.some(action => action.id === 'open') ? () => openRow(row) : undefined} actions={leftIds.flatMap(id => actions.filter(action => action.id === id))} primaryAction={actions.find(action => action.id === 'open')} onMenu={() => setSheet({ row })} />;
+    return <React.Fragment key={row.id}><StudioRow key={row.id} id={row.id} title={row.title} secondary={row.secondary} date={studioDate(row.date)} leading={<RowPreview row={row} />} unread={row.kind === 'activity' && row.notification.isUnread} selecting={selecting} selected={selectedIds.has(row.id)} pending={data.pendingIds.has(row.id) || bulkPending || isRefreshing} onSelect={() => toggleRow(row.id)} onOpen={actions.some(action => action.id === 'open') ? () => openRow(row) : undefined} actions={leftIds.flatMap(id => actions.filter(action => action.id === id))} primaryAction={actions.find(action => action.id === 'open')} onMenu={() => setSheet({ row })} />{citationLabels[row.id]&&<li><button className="studio-text-control" onClick={()=>row.kind==='published'&&row.href?navigate(row.href+'#references'):setSheet({row})}>{citationLabels[row.id]}</button></li>}</React.Fragment>;
   }
 
   useMobileScreenActions(contextActions('studio', { signedIn: auth.isAuthenticated, owner: true }, { handlers: {
@@ -241,6 +250,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       </div>
     </div>}
     {sheet && <StudioActionSheet title={'view' in sheet ? 'Bookmarks' : sheet.row.title} actions={('view' in sheet ? viewActions : actionsFor(sheet.row)).map(action => ({ ...action, onAction: () => { setSheet(null); action.onAction(); } }))} onClose={() => setSheet(null)} />}
+    {citeItem&&<CiteSheet item={citeItem} onClose={()=>setCiteItem(null)}/>}
     <ProjectEditorDialog management={management} />
   </section>;
 }

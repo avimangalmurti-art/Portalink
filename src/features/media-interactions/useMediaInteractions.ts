@@ -1,3 +1,4 @@
+import { likesCapability } from '../engagement/capabilities';
 import { useInternalContentShare } from '../sharing/InternalContentShare';
 import { readPageHeading } from '../reads/pageHeadings';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -131,6 +132,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
   }, [auth, key, target]);
 
   const setEngagement = useCallback(async (kind: MediaEngagementKind, engaged: boolean, replayed = false) => {
+    if (kind === 'like' && !likesCapability) return false;
     if (!auth.isAuthenticated && !replayed) {
       gateGuest(kind);
       return;
@@ -149,7 +151,7 @@ export function useMediaInteractions(target: MediaInteractionTarget, enabled = t
     try {
       const next = await apiRequest<MediaInteractionRecord>('/api/media-interactions/engagement', {
         method: 'POST',
-        body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged ? {shareWithCreator:true} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
+        body: JSON.stringify({ ...target, kind, engaged, ...(kind === 'save' && engaged ? {shareWithCreator:false} : {}), pageHeading:readPageHeading(target.attachmentId,target.pageIndex) })
       }, true, auth.user?.id ?? null);
       if (activeScopeRef.current !== actionScope) return false;
       setRecord(next);

@@ -1,3 +1,4 @@
+import { CitationReferences } from '../../features/citations/CitationReferences';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
 import { ProjectPopupOwnerActions } from './MobileProjectPopup';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
@@ -606,6 +607,7 @@ export function ProjectMediaViewer({
         {/* The status query itself failed — distinct from a job failing, so it says
            so and offers the query again rather than a retry of the work. It stays
            with the work, because that is what it is about. */}
+        <CitationReferences projectId={projectId} owner={isOwner} />
         {processing.error && <div role="alert" className="flex shrink-0 items-center gap-2.5 border-t border-[var(--hairline)] px-4 py-2 text-[13px] text-[var(--text-secondary)]">
             <span className="min-w-0 flex-1">{processing.error}</span>
             <button type="button" onClick={processing.refresh} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Check again</button>
