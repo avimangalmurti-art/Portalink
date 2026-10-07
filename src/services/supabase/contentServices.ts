@@ -163,6 +163,8 @@ export const supabaseProfileService: ProfileService = {
     if (input.links !== undefined) update.links = input.links;
     if (input.socialLinks !== undefined) update.social_links = input.socialLinks;
     if (input.isPrivate !== undefined) update.is_private = input.isPrivate;
+    if (input.showOutgoingCitations !== undefined) update.show_outgoing_citations = input.showOutgoingCitations;
+    if (input.showIncomingCitations !== undefined) update.show_incoming_citations = input.showIncomingCitations;
     if (input.showJourney !== undefined) update.show_journey = input.showJourney;
     if (input.thenNow !== undefined) update.then_now = input.thenNow;
     for (const [key, column, limit] of [['portfolioHeadline','portfolio_headline',80],['school','school',120],['availability','availability',120]] as const) {
@@ -528,7 +530,9 @@ export const supabaseProjectService: ProjectService = {
     const categoryResult = await requireSupabase().from('portfolio_categories').select('label').eq('id', input.categoryId).eq('profile_id', input.profileId).single();
     if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That portfolio category could not be found.');
     const relevance = withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? '')), input.location);
-    const extended = await requireSupabase().rpc('publish_project', {
+    const extended = await requireSupabase().rpc('publish_project_citation_fields', {
+      p_made_on: input.metadata.madeOn || null,
+      p_access_level: input.metadata.accessLevel ?? 'public',
       p_draft_id: input.draftId,
       p_profile_id: input.profileId,
       p_category_id: input.categoryId,
@@ -543,8 +547,8 @@ export const supabaseProjectService: ProjectService = {
     // Deployments can roll forward safely: until the migration is applied, use
     // the existing RPC and derive the same metadata when the project is read.
     const needsLegacyRpc = extended.error && (extended.error.code === 'PGRST202' || extended.error.message.includes('function'));
-    if (needsLegacyRpc && input.location !== undefined) {
-      throw new PublishServiceError('network', 'Your project location could not be saved. Your draft is still here. Please try again later.');
+    if (needsLegacyRpc) {
+      throw new PublishServiceError('network', 'Your project access and date could not be saved. Your draft is still here. Please try again after the database update.');
     }
     const result = needsLegacyRpc
       ? await requireSupabase().rpc('publish_project', {
@@ -590,7 +594,9 @@ export const supabaseProjectService: ProjectService = {
     if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new ProjectMutationError('invalid_metadata', 'A title and description are required.');
     }
-    const { data, error } = await requireSupabase().rpc('update_project', {
+    const { data, error } = await requireSupabase().rpc('update_project_citation_fields', {
+      p_made_on: input.metadata.madeOn ?? null,
+      p_access_level: input.metadata.accessLevel ?? null,
       p_project_id: input.projectId,
       p_profile_id: input.profileId,
       p_title: input.metadata.title.trim(),

@@ -24,6 +24,8 @@ type ProfileRow = {
   portfolio_headline?: string | null; school?: string; availability?: string; contact_email_public?: boolean; contact_email?: string | null; allow_pdf_download?: boolean; start_here_project_id?: string | null;
 
   show_journey?: boolean;
+  show_outgoing_citations?: boolean;
+  show_incoming_citations?: boolean;
   then_now?: unknown;
   id: string;
   account_id: string;
@@ -67,6 +69,8 @@ type ProjectRow = {
   is_hidden: boolean;
   is_pinned: boolean;
   published_at: string;
+  made_on?: string;
+  citation_permitted?: boolean;
   revision: string;
   cover_thumbnail?: unknown;
   topic_keys?: string[];
@@ -332,6 +336,8 @@ async function hydrateProjects(
       thenNowCaption: readJourneyCaption(row),
       isPubliclyVisible: !row.is_hidden && categoryRows.some(category => category.id === row.category_id && !category.is_hidden),
       publishedAt: row.published_at,
+      madeOn: row.made_on ?? row.published_at.slice(0,10),
+      citationPermitted: row.citation_permitted === true,
       isPinned: row.is_pinned,
       relevance: deriveProjectRelevance({
         title: row.title,
@@ -455,6 +461,8 @@ async function loadProfiles(profileId?: string, publicOnly = false): Promise<Pro
     isPrivate: row.is_private,
     publicAppearance: normalizePublicAppearance(row.public_appearance),
     showJourney: row.show_journey === true,
+    showOutgoingCitations: row.show_outgoing_citations !== false,
+    showIncomingCitations: row.show_incoming_citations !== false,
     thenNow: (isOwner || row.show_journey === true) && [pair?.then, pair?.now].every(id => id && visibleProjectIds.has(id)) ? pair : null,
     projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
     };
@@ -483,12 +491,13 @@ async getSharedProfile(profileId) {
       return profile;
     }
     if (!response.bundle) throw new ProfileServiceError('not_found', 'That creator profile could not be found.');
-    const { profile: row, categories, projects, attachments } = response.bundle;
+    const { profile: row, categories, projects, attachments, citations } = response.bundle;
     const hydrated = await hydrateProjects(projects, categories, attachments, 'cover');
     const ordered = projects.some(project => project.position < 0)
       ? [...projects].sort((a, b) => a.position - b.position || b.published_at.localeCompare(a.published_at)) : projects;
     return {
       ...readEmployerFields(row),
+      publicCitationEvents: citations,
       id: row.id, name: row.name, handle: `@${row.handle}`, headline: row.headline, location: row.location,
       initials: deriveInitials(row.name), avatar: row.avatar_url, navHeading: row.nav_heading,
       stats: asStats(row.stats), socialLinks: asStringRecord(row.social_links), links: asLinks(row.links),
@@ -496,6 +505,8 @@ async getSharedProfile(profileId) {
       projects: ordered.flatMap(project => { const item = hydrated.get(project.id); return item ? [item] : []; }), isPrivate: false,
       publicAppearance: normalizePublicAppearance(row.public_appearance), projectGridColumns: normalizeProjectGridColumns(row.project_grid_columns),
       showJourney: row.show_journey === true,
+    showOutgoingCitations: row.show_outgoing_citations !== false,
+    showIncomingCitations: row.show_incoming_citations !== false,
       thenNow: row.show_journey === true ? readThenNow(row.then_now) : null,
     };
   },

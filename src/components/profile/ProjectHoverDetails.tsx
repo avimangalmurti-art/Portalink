@@ -1,3 +1,4 @@
+import { likesCapability } from '../../features/engagement/capabilities';
 import { FormattedText } from '../text/FormattedText';
 import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
@@ -71,7 +72,7 @@ export function PreviewMetrics({ counts, commentCount, onOpenComments }: {
   onOpenComments?: () => void;
 }) {
   return <div data-project-preview-metrics="" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
-    {METRICS.map(({ kind, label, icon }) => <span key={kind} className="inline-flex items-center gap-1" title={`${formatCount(counts[kind])} ${label}`}>
+    {METRICS.filter(metric=>likesCapability||metric.kind!=='like').map(({ kind, label, icon }) => <span key={kind} className="inline-flex items-center gap-1" title={`${formatCount(counts[kind])} ${label}`}>
       <InterfaceIcon icon={icon} size="xs" weight="medium" />
       <span>{formatCount(counts[kind])}</span>
     </span>)}

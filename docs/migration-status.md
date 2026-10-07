@@ -1,3 +1,5 @@
+<!-- 2026-10-07: 0003 applied once via approved production SQL Editor; citation/notification cascade lifecycle verified and test rows deleted. File moved unchanged to migrations; CLI ledger untouched. No publish; Studio acceptance issue remains. -->
+<!-- 2026-10-07: 202610070001 and 202610070002 applied manually through production SQL Editor in order with explicit approval; October 6 backup selected. Files moved to migrations. CLI ledger unchanged. App acceptance incomplete; no publish. See agent-handoff.md. -->
 <!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
 # Migration status register
 

@@ -1,3 +1,4 @@
+import { useCiteTarget } from '../citations/useCiteTarget';
 import { ConfirmationDialog } from '../../components/ui/ConfirmationDialog';
 import { readSharedReturnPath } from '../auth/registration';
 import { useContext } from 'react';
@@ -6,7 +7,7 @@ import { MobilePageContext } from './MobilePageContext';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, Repeat2Icon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
+import { BookmarkIcon, HeartIcon, Loader2Icon, MessageCircleIcon, QuoteIcon, SendIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { useMediaInteractions, type MediaEngagementKind, type MediaInteractionTarget } from './useMediaInteractions';
 import { mediaToolbarLayout, mobileFocusedMediaToolbarLayout } from './mediaToolbarLayout';
@@ -23,9 +24,8 @@ const ACTIONS: Array<{
   label: string;
   icon: typeof HeartIcon;
 }> = [
-  { kind: 'like', label: 'Like', icon: HeartIcon },
-  { kind: 'save', label: 'Bookmark', icon: BookmarkIcon },
-  { kind: 'repost', label: 'Repost', icon: Repeat2Icon }
+  { kind: 'save', label: 'Save', icon: BookmarkIcon },
+
 ];
 
 export function MediaInteractionBar({
@@ -100,8 +100,11 @@ export function MediaInteractionBar({
     auth.requestAuthenticatedDestination({ kind: 'route', path, label: 'engage with this page' }, 'signUp');
     return true;
   };
+  const citation = useCiteTarget(target.attachmentId,target.pageIndex,isVisible || contextOnly);
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
+    cite: !isOwner ? () => citation.open() : undefined,
+    share: () => activity.share(),
     savePage: sharedGuest || (!activity.isResolvingEngagement && activity.pendingKind !== 'save') ? () => savePage() : undefined,
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
   }, labels: { savePage: activity.record.engaged.save ? 'Unsave this page' : 'Save this page' } }) : null, 15);
@@ -122,12 +125,15 @@ export function MediaInteractionBar({
     onDoubleClick={stop}
     onKeyDown={stop}
   >
-    {saveChoice && <ConfirmationDialog title="Save this page?" description="The creator will know you saved their work and see your profile name." confirmLabel="Save" pendingLabel="Saving…" pending={activity.pendingKind==='save'} error={activity.failure} onCancel={()=>setSaveChoice(false)} onConfirm={async()=>{const saved=await activity.saveWithCreator();if(saved)setSaveChoice(false);return saved;}}/>}
+    {citation.surface}
+    {citation.citedIn}
+    {saveChoice && <ConfirmationDialog title="Save this page?" description="This page will be saved privately in your Bookmarks." confirmLabel="Save" pendingLabel="Saving…" pending={activity.pendingKind==='save'} error={activity.failure} onCancel={()=>setSaveChoice(false)} onConfirm={async()=>{activity.toggle('save');const saved=true;if(saved)setSaveChoice(false);return saved;}}/>}
     <div hidden={contextOnly} data-media-controls-row="" className="flex max-w-full items-center gap-2">
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: layout.slots.map((slot) => `${slot}fr`).join(' ')
+      gridTemplateColumns: `repeat(${isOwner ? 3 : 4}, minmax(44px, 1fr))`,
+        minWidth: isOwner ? 132 : 176
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];
@@ -153,7 +159,7 @@ export function MediaInteractionBar({
         type="button"
         aria-expanded={commentsOpen}
         aria-controls={commentsOpen ? commentsId : undefined}
-        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}${counts[3] ? ` (${activity.record.comments.length})` : ''}`}
+        aria-label={`${commentsOpen ? 'Hide' : 'Show'} comments for ${presentedTarget.label}${counts[ACTIONS.length] ? ` (${activity.record.comments.length})` : ''}`}
         title={`Comments: ${activity.record.comments.length}`}
         onClick={() => { if (!requireAccount()) setCommentsOpen((open) => !open); }}
         onKeyDown={(event) => {
@@ -166,8 +172,9 @@ export function MediaInteractionBar({
         className="media-item-action focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
       >
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="currentColor" />
-        {counts[3] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[3]}</span> : null}
+        {counts[ACTIONS.length] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[ACTIONS.length]}</span> : null}
       </button>
+      {!isOwner && <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>}
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
@@ -187,7 +194,7 @@ export function MediaInteractionBar({
       onClick={() => void activity.retry()}
       aria-label={`Retry page activity for ${presentedTarget.label}`}
       className="min-h-11 max-w-full rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] px-3 text-[12px] text-[var(--text-primary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
-    >Activity unavailable · Retry</button> : null}
+    >Activity unavailable Â· Retry</button> : null}
 
     {commentsOpen ? <MediaCommentsPopover id={commentsId} label={`Comments for ${presentedTarget.label}`} anchorRef={engagementRef} triggerRef={commentsTriggerRef} onClose={closeComments}>
       <header data-comments-header="" className="flex items-center justify-between border-b border-white/10 px-3.5 py-2.5">

@@ -24,6 +24,8 @@ export type ProfileEditorFields = {
   location: string;
   isPrivate: boolean;
   showJourney: boolean;
+  showOutgoingCitations: boolean;
+  showIncomingCitations: boolean;
   portfolioHeadline: string; school: string; availability: string; contactEmail: string; contactEmailPublic: boolean; allowPdfDownload: boolean;
   links: EditableProfileLink[];
 };
@@ -36,6 +38,8 @@ function fieldsFromProfile(profile: Profile): ProfileEditorFields {
     location: profile.location ?? '',
     isPrivate: profile.isPrivate === true,
     showJourney: profile.showJourney === true,
+    showOutgoingCitations: profile.showOutgoingCitations !== false,
+    showIncomingCitations: profile.showIncomingCitations !== false,
     portfolioHeadline: profileHeadline(profile), school: profile.school ?? '', availability: profile.availability ?? '',
     contactEmail: profile.contactEmailPublic ? profile.contactEmail ?? '' : '', contactEmailPublic: profile.contactEmailPublic === true, allowPdfDownload: profile.allowPdfDownload !== false,
     links: resolveProfileLinks(profile.links, profile.socialLinks).filter(link => !isProfileLinkAction(link.action)).map((link, index) => ({
@@ -121,6 +125,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     setFields((current) => current ? { ...current, isPrivate } : current);
   }, []);
   const setEmployerFlag = useCallback((key: 'contactEmailPublic' | 'allowPdfDownload', value: boolean) => { setFields(current => current ? {...current,[key]:value,...(key === 'contactEmailPublic' && !value ? {contactEmail:''} : {})} : current); }, []);
+  const setCitationPreference = useCallback((key:'showOutgoingCitations'|'showIncomingCitations',value:boolean)=>{setFields(current=>current?{...current,[key]:value}:current);},[]);
   const setShowJourney = useCallback((showJourney: boolean) => {
     setFields(current => current ? { ...current, showJourney } : current);
   }, []);
@@ -197,6 +202,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     if (fields.isPrivate !== original.isPrivate) {
       return true;
     }
+    if (fields.showOutgoingCitations !== original.showOutgoingCitations || fields.showIncomingCitations !== original.showIncomingCitations) return true;
     if (fields.showJourney !== original.showJourney) return true;
     if (['portfolioHeadline','school','availability','contactEmail','contactEmailPublic','allowPdfDownload'].some(key => fields[key as keyof ProfileEditorFields] !== original[key as keyof ProfileEditorFields])) return true;
     return JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(original.links));
@@ -253,6 +259,8 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
       ...(fields.name.trim() !== loadedProfile?.name.trim() ? { name: fields.name.trim() } : {}),
       ...(fields.location.trim() !== (loadedProfile?.location ?? '').trim() ? { location: fields.location.trim() } : {}),
       ...(fields.isPrivate !== (loadedProfile?.isPrivate === true) ? { isPrivate: fields.isPrivate } : {}),
+      ...(fields.showOutgoingCitations !== original.showOutgoingCitations ? {showOutgoingCitations:fields.showOutgoingCitations}:{}),
+      ...(fields.showIncomingCitations !== original.showIncomingCitations ? {showIncomingCitations:fields.showIncomingCitations}:{}),
       ...(fields.showJourney !== (loadedProfile?.showJourney === true) ? { showJourney: fields.showJourney } : {}),
       ...(JSON.stringify(persistentLinks(fields.links)) !== JSON.stringify(persistentLinks(fieldsFromProfile(loadedProfile).links)) ? {
         links: persistentLinks(fields.links),
@@ -276,7 +284,7 @@ export function useProfileEditor(profileId: Id | null, isOpen: boolean) {
     linkErrors,
     setField,
     setVisibility,
-    setShowJourney, setEmployerFlag,
+    setShowJourney, setCitationPreference, setEmployerFlag,
     setProfileLink,
     addProfileLink,
     removeProfileLink,

@@ -1,3 +1,4 @@
+import { likesCapability } from '../../features/engagement/capabilities';
 import React from 'react';
 import { BookmarkIcon, EyeIcon, HeartIcon, Repeat2Icon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -17,7 +18,7 @@ export function PageActions({
 }: { /** Documents that report viewing time prepend the eye. */showViews?: boolean;}) {
   return <div aria-hidden="true" className="mt-2 flex items-center gap-3.5 text-[var(--text-tertiary)]">
       {showViews && <InterfaceIcon icon={EyeIcon} />}
-      <InterfaceIcon icon={HeartIcon} />
+      {likesCapability&&<InterfaceIcon icon={HeartIcon} />}
       <InterfaceIcon icon={Repeat2Icon} />
       <InterfaceIcon icon={BookmarkIcon} />
     </div>;

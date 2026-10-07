@@ -1,0 +1,33 @@
+--- live shared_profile_bundle body
++++ 202610070002 replacement body
+@@ -18,6 +18,8 @@
+     'profile',jsonb_build_object('id',u.id,'name',u.name,'handle',u.handle,'headline',u.headline,
+       'location',u.location,'avatar_url',u.avatar_url,'nav_heading',u.nav_heading,'stats',u.stats,
+       'social_links',u.social_links,'links',u.links,'is_private',false,
++      'show_outgoing_citations',coalesce((to_jsonb(u)->>'show_outgoing_citations')::boolean,true),
++      'show_incoming_citations',coalesce((to_jsonb(u)->>'show_incoming_citations')::boolean,true),
+       'show_journey',coalesce((to_jsonb(u)->>'show_journey')::boolean,false),
+       'then_now',case when to_jsonb(u)->>'show_journey'='true'
+         and exists (select 1 from visible_projects p where p.id::text=to_jsonb(u)->'then_now'->>'then')
+@@ -35,16 +37,18 @@
+     'projects',coalesce((select jsonb_agg(jsonb_build_object('id',p.id,'profile_id',p.profile_id,'category_id',p.category_id,
+       'title',p.title,'summary',p.summary,'design',p.design,'position',p.position,'is_hidden',false,'is_pinned',p.is_pinned,
+       'made_in',to_jsonb(p)->'made_in','field',to_jsonb(p)->'field','story_answers',to_jsonb(p)->'story_answers',
++      'made_on',p.made_on,'citation_permitted',p.citation_permitted,
+       'published_at',p.published_at,'revision',p.revision,'cover_thumbnail',to_jsonb(p)->'cover_thumbnail',
+       'topic_keys',p.topic_keys,'content_location',p.content_location,'geographic_scope',p.geographic_scope,
+       'geography_confidence',p.geography_confidence,
+       'kind',(select a.kind from cover_rows a where a.project_id=p.id
+         order by a.is_cover desc,(a.kind='image') desc,a.position,a.id limit 1),
+-      'page_count',coalesce((select case when a.kind='document' and a.metadata->>'pageCount' ~ '^[0-9]{1,9}$'
+-        then (a.metadata->>'pageCount')::integer else 0 end from cover_rows a where a.project_id=p.id
++      'page_count',coalesce((select case when a.kind='document'
++        then public.attachment_page_count(a.metadata) else 0 end from cover_rows a where a.project_id=p.id
+         order by a.is_cover desc,(a.kind='image') desc,a.position,a.id limit 1),0))
+       || case when to_jsonb(p) ? 'then_now_caption' then jsonb_build_object('then_now_caption',to_jsonb(p)->'then_now_caption') else '{}'::jsonb end
+-      order by p.published_at desc,p.id) from visible_projects p),'[]'::jsonb),
++      order by p.made_on desc,p.published_at desc,p.id) from visible_projects p),'[]'::jsonb),
++    'citations',public.public_profile_citations($1),
+     'attachments',coalesce((select jsonb_agg(jsonb_build_object('id',a.id,'project_id',a.project_id,'kind',a.kind,
+       'file_name',a.file_name,'display_name',a.display_name,'extension',a.extension,'mime_type',a.mime_type,
+       'size_bytes',a.size_bytes,'type_label',a.type_label,'storage_path',a.storage_path,'status',a.status,

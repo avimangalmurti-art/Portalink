@@ -1,3 +1,4 @@
+import { ProjectCitationFields } from '../citations/ProjectCitationFields';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -89,6 +90,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
       {stage === 'files' ? <MobileCoverFiles media={flow.media} upload={flow.upload} disabled={busy} /> : stage === 'details' ? <section className="project-form-details" aria-labelledby="mobile-publish-step-title">
         <ProfileField id="publish-title" label="Title" required requiredIndicator="asterisk" workspace clearable value={flow.metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={flow.fieldErrors.title} disabled={busy} onChange={value => flow.setField('title', value)} />
         <ProfileField id="publish-summary" label="Description" formatting required requiredIndicator="asterisk" workspace multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
+        <ProjectCitationFields metadata={flow.metadata} disabled={busy} onChange={flow.setCitationFields}/>
         <ProfileField id="publish-location" label="Location" optional optionalParentheses workspace clearable leadingIcon={<MapPinIcon size={20} aria-hidden="true" />} value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />
       </section> : <div className="mobile-publish-review">
         <section className="mobile-review-card mobile-review-cover" aria-label="Cover">

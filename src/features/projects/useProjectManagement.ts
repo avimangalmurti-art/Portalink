@@ -32,7 +32,7 @@ import type { DeleteProjectResult, DraftMetadata, PersistedAttachment, ProjectAt
  */
 export type EditorPhase = 'idle' | 'loading' | 'editing' | 'saving' | 'saved' | 'load-failed';
 export type DeletePhase = 'idle' | 'confirming' | 'deleting' | 'deleted' | 'failed';
-export type MetadataFieldKey = 'title' | 'summary';
+export type MetadataFieldKey = 'title' | 'summary' | 'madeOn' | 'accessLevel';
 export type ProjectEditorMode = 'details' | 'description' | 'cover' | 'files' | 'journey' | 'story' | 'cover-choice';
 export type ProjectMutationFailure = {
   code: ProjectMutationErrorCode;
@@ -109,6 +109,8 @@ export function useProjectManagement(profileId: Id | null) {
     loadedProjectRef.current = project;
     setPreviewAspectRatio(getProjectAspectRatio(project));
     const nextMetadata = {
+      madeOn: project.madeOn ?? project.publishedAt?.slice(0,10),
+      accessLevel: project.isPubliclyVisible === false ? 'private' as const : project.citationPermitted ? 'citable' as const : 'public' as const,
       title: project.title,
       thenNowCaption: project.thenNowCaption ?? '',
       creationDetails: project.creationDetails,
@@ -282,7 +284,7 @@ export function useProjectManagement(profileId: Id | null) {
       const current = attachmentEdits[index];
       return !current || current.id !== original.id || current.displayName !== original.displayName || current.order !== original.order || current.isCover !== original.isCover || JSON.stringify(normalizeProjectCoverFrame(current.coverFrame)) !== JSON.stringify(normalizeProjectCoverFrame(original.coverFrame));
     });
-    return JSON.stringify(metadata.creationDetails) !== JSON.stringify(originalMetadata.creationDetails) || (metadata.thenNowCaption ?? '') !== (originalMetadata.thenNowCaption ?? '') || metadata.title.trim() !== originalMetadata.title.trim() || metadata.summary.trim() !== originalMetadata.summary.trim() || attachmentsChanged || addedMedia.items.length > 0;
+    return metadata.madeOn !== originalMetadata.madeOn || metadata.accessLevel !== originalMetadata.accessLevel || JSON.stringify(metadata.creationDetails) !== JSON.stringify(originalMetadata.creationDetails) || (metadata.thenNowCaption ?? '') !== (originalMetadata.thenNowCaption ?? '') || metadata.title.trim() !== originalMetadata.title.trim() || metadata.summary.trim() !== originalMetadata.summary.trim() || attachmentsChanged || addedMedia.items.length > 0;
   }, [addedMedia.items.length, attachmentEdits, metadata, originalAttachments, originalMetadata]);
   const validate = useCallback((): MetadataFieldKey | null => {
     const next: Partial<Record<MetadataFieldKey, string>> = {
@@ -321,7 +323,7 @@ export function useProjectManagement(profileId: Id | null) {
       if (coverUpdate) throw new Error('The project is not ready to save this preview. Try again shortly.');
       return null;
     }
-    if (editorMode === 'journey') {
+    if (editorMode === 'journey' && metadata.madeOn === originalMetadata.madeOn && metadata.accessLevel === originalMetadata.accessLevel) {
       if (!loadedProjectRef.current) return 'failed';
       const loadedProject = loadedProjectRef.current;
       isSavingRef.current = true; setEditorPhase('saving'); setSaveFailure(null);
@@ -386,6 +388,8 @@ export function useProjectManagement(profileId: Id | null) {
           projectId: editingProjectId,
           profileId,
           metadata: {
+            madeOn: metadata.madeOn,
+            accessLevel: metadata.accessLevel,
             title: metadata.title.trim(),
             creationDetails: editorMode === 'cover-choice' ? metadata.creationDetails ?? EMPTY_CREATION : metadata.creationDetails,
             summary: metadata.summary.trim()

@@ -115,7 +115,7 @@ test('isolated SQL covers public bundle, private fallback, immutable paths, revi
       create publication supabase_realtime;
       alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
     `);
-    for (const name of readdirSync(directory).filter(name => name.endsWith('.sql')).sort()) await db.exec(readFileSync(new URL(name, directory), 'utf8').replace(/create extension if not exists pgcrypto;/i, ''));
+    for (const name of readdirSync(directory).filter(name => name.endsWith('.sql') && !name.startsWith('20261007')).sort()) await db.exec(readFileSync(new URL(name, directory), 'utf8').replace(/create extension if not exists pgcrypto;/i, ''));
     for (const name of ['cover_thumbnail_schema.sql', 'project_covers_public_bucket.sql', 'shared_profile_bundle.sql']) {
       await db.exec(read(`../supabase/pending/${name}`)); await db.exec(read(`../supabase/pending/${name}`));
     }
@@ -218,4 +218,10 @@ test('bundle pair needs public Journey and two visible projects; caption absence
   value.projects[0].then_now_caption=null; result=parseSharedProfileBundle(value,id(11));assert.equal(result.projects[0].then_now_caption,null);
   value.profile.show_journey=false;assert.equal(parseSharedProfileBundle(value,id(11)).profile.then_now,null);
   value.profile.show_journey=true;value.projects.pop();assert.equal(parseSharedProfileBundle(value,id(11)).profile.then_now,null);
+});
+
+test('bundle citation projection preserves permitted fields and rejects malformed events',()=>{
+ const value=fixture();value.citations=[{id:id(50),direction:'incoming',item_id:'stable-page',label:'page 7',other_creator_name:'Creator',other_creator_handle:'creator.work',other_project_id:id(51),other_project_title:'Bridge',other_profile_id:id(52),other_category_id:id(53),citing_project_title:'Bridge',created_at:'2020-03-04T00:00:00Z',note:null,account_id:'private'}];
+ const result=parseSharedProfileBundle(value,id(11));assert.equal(result.citations.length,1);assert.equal(result.citations[0].account_id,undefined);
+ value.citations[0].created_at='bad';assert.throws(()=>parseSharedProfileBundle(value,id(11)),/invalid/);
 });
