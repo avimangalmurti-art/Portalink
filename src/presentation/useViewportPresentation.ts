@@ -8,7 +8,7 @@ function mediaQuery(): MediaQueryList | undefined {
   return typeof window === 'undefined' ? undefined : window.matchMedia?.(MOBILE_PRESENTATION_QUERY);
 }
 
-/** Called once by the stable app surface; descendants consume its context. */
+/** Canonical query for the app host and pre-shell startup; app descendants use context. */
 export function useViewportPresentation(): Presentation {
   const [presentation, setPresentation] = useState<Presentation>(() => mediaQuery()?.matches ? 'mobile' : 'web');
   useEffect(() => {

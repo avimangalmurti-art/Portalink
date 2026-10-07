@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { CommentServiceError, isRetryableCommentCode, validateCommentBody } from '../../types/comments';
 import type { CommentErrorCode, CommentThread, ProjectComments } from '../../types/comments';
 import type { Id } from '../../types/domain';
+import { interactionIntent } from '../auth/interactionIntent';
 
 /**
  * The conversation on one project.
@@ -192,10 +193,7 @@ export function useProjectComments(projectId: Id | null): ProjectCommentsLifecyc
     }
     // The service refuses this independently; this is only so the person is asked
     // to sign in rather than shown a rejection.
-    auth.requestAuthenticatedDestination({
-      kind: 'interaction',
-      label
-    });
+    auth.requestAuthenticatedDestination(interactionIntent(label));
     return true;
   }, [auth]);
 

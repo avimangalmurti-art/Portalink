@@ -10,6 +10,7 @@ import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 
 type NewChatPanelProps = {
   showHeader?: boolean;
+  selectedCreatorId?: string | null;
   onClose: () => void;
   onSelectCreator: (creatorId: string) => void;
   startingCreatorId?: string | null;
@@ -20,6 +21,7 @@ type NewChatPanelProps = {
 /** Starts with followed people and expands to visible profiles when searching. */
 export function NewChatPanel({
   showHeader = true,
+  selectedCreatorId,
   onClose,
   onSelectCreator,
   startingCreatorId = null,
@@ -77,8 +79,8 @@ export function NewChatPanel({
         {groups.map(([letter, people]) => <section key={letter} aria-labelledby={`new-chat-group-${letter === '#' ? 'other' : letter}`}>
             <h3 id={`new-chat-group-${letter === '#' ? 'other' : letter}`} className="side-panel-content-inset pb-1 pt-4 text-[12px] font-semibold text-[var(--text-tertiary)]">{letter}</h3>
             <ul className="side-panel-content-inset side-panel-navigation-list">
-              {people.map((person) => <li key={person.id}>
-                  <PersonRow person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
+              {people.map((person) => <li key={person.id} style={selectedCreatorId === person.id ? {background:'var(--surface-selected)',borderRadius:12} : undefined}>
+                  <PersonRow selected={selectedCreatorId === person.id} selectionMode={selectedCreatorId !== undefined} person={person} isStarting={startingCreatorId === person.id} isDisabled={Boolean(startingCreatorId) || !person.id} onSelect={() => { if (person.id) onSelectCreator(person.id); }} />
                 </li>)}
             </ul>
           </section>)}
@@ -92,7 +94,9 @@ export function NewChatPanel({
     </div>;
 }
 
-function PersonRow({ person, isStarting, isDisabled, onSelect }: {
+function PersonRow({ person, isStarting, isDisabled, onSelect, selected, selectionMode }: {
+  selected?: boolean;
+  selectionMode?: boolean;
   person: MessageParticipant;
   isStarting: boolean;
   isDisabled: boolean;
@@ -100,12 +104,12 @@ function PersonRow({ person, isStarting, isDisabled, onSelect }: {
 }) {
   return <div data-selected={isStarting ? 'true' : undefined} className="message-contact-row flex w-full items-center gap-3 p-2">
       <ProfileAvatar name={person.name} avatar={person.avatar} />
-      <button type="button" disabled={isDisabled} onClick={onSelect} aria-label={`Message ${person.name}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
+      <button type="button" disabled={isDisabled} onClick={onSelect} aria-pressed={selectionMode ? selected : undefined} aria-label={`${selectionMode ? 'Select' : 'Message'} ${person.name}`} className="flex min-w-0 flex-1 self-stretch items-center gap-3 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] disabled:cursor-wait disabled:opacity-60">
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[14px] font-medium text-[var(--text-primary)]">{person.name}</span>
         <span className="truncate text-[12px] text-[var(--text-tertiary)]">{person.handle}</span>
       </span>
-      {isStarting ? <span className="text-[12px] text-[var(--text-secondary)]" role="status">Opening…</span> : null}
+      {isStarting ? <span className="text-[12px] text-[var(--text-secondary)]" role="status">{selectionMode ? 'Sending…' : 'Opening…'}</span> : null}
       </button>
     </div>;
 }

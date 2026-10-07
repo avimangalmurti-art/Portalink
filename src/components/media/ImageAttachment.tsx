@@ -1,3 +1,4 @@
+import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { ErrorState } from '../ui/StateViews';
@@ -20,6 +21,8 @@ function deepLinkedImageId(pages: ProjectAttachment[]): string | null {
 /**
  * One image page: loading, ready, and failure, per page rather than per project,
  * so one unreachable file never blanks the pages around it.
+ * On mobile, the observer gates nearby pages; native lazy loading cannot start
+ * an image that stays display:none until its load event.
  */
 function ImagePage({
   projectId,
@@ -28,13 +31,14 @@ function ImagePage({
   pageCount,
   priorityCount,
   isFocused = false,
+  isMobile = false,
   zoom = 1,
   showMediaInteractions = true,
   isOwner = false,
   focusMemoryKey,
   onToggleFocus
 
-}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
+}: {projectId: string;attachment: ProjectAttachment;pageNumber: number;pageCount: number;priorityCount: number;isFocused?: boolean;isMobile?: boolean;zoom?: number;showMediaInteractions?: boolean;isOwner?: boolean;focusMemoryKey?: string;onToggleFocus: (attachmentId: string) => void;}) {
   const hostRef = useRef<HTMLLIElement>(null);
   const lastTouchRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastTouchToggleAtRef = useRef(0);
@@ -42,6 +46,10 @@ function ImagePage({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   // Remounting the element is what a retry actually means for an image.
   const [attempt, setAttempt] = useState(0);
+  const loadingStyle = {
+    '--page-loading-ratio': attachment.metadata?.widthPixels && attachment.metadata?.heightPixels
+      ? `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}` : undefined,
+  } as React.CSSProperties;
   useLayoutEffect(() => {
     if (!isFocused || !focusMemoryKey) return;
     const remembered = readViewerMemory(focusMemoryKey);
@@ -78,7 +86,7 @@ function ImagePage({
         <ErrorState title="Nothing to show yet" description={`${attachment.displayName} has no preview available in this session.`} />
       </div>;
   }
-  return <li ref={hostRef} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
+  return <li ref={hostRef} data-project-page-number={pageNumber} data-project-page-total={pageCount} data-reach-attachment={attachment.id} data-project-page-ready={status === 'ready'} data-focused-page-scroll={isFocused ? '' : undefined} role={isFocused ? undefined : 'button'} tabIndex={isFocused ? undefined : 0} aria-pressed={isFocused ? undefined : false} aria-label={`${pageCount > 1 ? `Page ${pageNumber} of ${pageCount}. ` : ''}${isFocused ? 'Single-image view. Scroll to return to all images. Pinch or Control plus wheel to zoom' : 'Expand image to fill the viewer'}`} onScroll={!isFocused || !focusMemoryKey ? undefined : (event) => updateViewerMemory(focusMemoryKey, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft })} onDoubleClick={isFocused ? undefined : (event) => {
     event.preventDefault();
     // Some touch browsers synthesize a mouse double-click after the second
     // pointer-up. The touch handler has already toggled by then, so ignore that
@@ -105,9 +113,9 @@ function ImagePage({
   }} className={`${isFocused ? 'flex h-full min-h-0 w-full items-start justify-start overflow-auto overscroll-contain' : 'block touch-manipulation'} group/media relative list-none focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`} style={!isFocused && attachment.metadata?.widthPixels && attachment.metadata?.heightPixels ? {
     aspectRatio: `${attachment.metadata.widthPixels} / ${attachment.metadata.heightPixels}`
   } : undefined}>
-      {!shouldRender ? <div className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
+      {!shouldRender ? <div data-page-loading="" style={loadingStyle} className="h-full min-h-[240px] w-full" aria-hidden="true" /> : null}
       {shouldRender ? <>
-      {status === 'loading' && <div role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
+      {status === 'loading' && <div data-page-loading="" data-initial-page-loading={pageNumber === 1 ? '' : undefined} style={loadingStyle} role="status" aria-label={`Loading ${attachment.displayName}`} className="premium-media-placeholder flex min-h-[240px] w-full items-center justify-center">
           <span className="premium-media-loading-mark" aria-hidden="true" />
         </div>}
       {status === 'error' ? <div className="flex min-h-[240px] w-full items-center justify-center p-8">
@@ -115,7 +123,7 @@ function ImagePage({
         setStatus('loading');
         setAttempt((current) => current + 1);
       }} />
-        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
+        </div> : <ResponsiveImage data-media-page-surface="" key={attempt} src={attachment.sourceUrl} alt={attachment.displayName} width={attachment.metadata?.widthPixels} height={attachment.metadata?.heightPixels} sizes={isFocused ? '100vw' : '(min-width: 1100px) 70vw, 100vw'} priority={pageNumber <= priorityCount} loading={isMobile ? 'eager' : 'lazy'} onLoad={() => setStatus('ready')} onError={() => setStatus('error')} className={`${isFocused ? 'premium-focused-media m-auto max-h-none max-w-none object-contain' : 'h-auto w-full'} block ${status === 'ready' ? 'premium-media-ready' : 'hidden'}`} style={isFocused ? { width: `${zoom * 100}%`, height: `${zoom * 100}%` } : undefined} />}
       </> : null}
       {showMediaInteractions && <MediaInteractionBar placement={isFocused ? 'focused' : 'page'} pageCount={pageCount} isOwner={isOwner} target={{
         projectId,
@@ -148,7 +156,8 @@ export function ImageAttachment({
   showMediaInteractions = true,
   isOwner = false,
   memoryScope = 'workspace',
-  pageViewToggleRequest = 0
+  pageViewToggleRequest = 0,
+  verticalReading = false
 
 
 
@@ -157,7 +166,7 @@ export function ImageAttachment({
 
 
 
-}: {projectId: string; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
+}: {projectId: string; verticalReading?: boolean; /** Ordered image pages. A single-image project simply has one. */pages: ProjectAttachment[]; /**
    * How many pages sit side by side. Presentation only — it changes how much
    * width a page is given, never the page's own proportions or its order.
    */columns?: number;onFocusModeChange?: (focused: boolean) => void;controlsVisible?: boolean;showMediaInteractions?: boolean;isOwner?: boolean;memoryScope?: string;pageViewToggleRequest?: number;}) {
@@ -165,6 +174,7 @@ export function ImageAttachment({
   const pageIdsKey = pages.map((page) => page.id).join('|');
   const linkedImageId = deepLinkedImageId(pages);
   const [focusedPageId, setFocusedPageId] = useState<string | null>(() => {
+    if (verticalReading) return null;
     if (linkedImageId) return linkedImageId;
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     return remembered && pages.some((page) => page.id === remembered) ? remembered : null;
@@ -176,6 +186,7 @@ export function ImageAttachment({
   const focusedPage = pages.find((page) => page.id === focusedPageId) ?? null;
   const focusedPageIndex = focusedPage ? pages.indexOf(focusedPage) : -1;
   useEffect(() => {
+    if (verticalReading) { setFocusedPageId(null); return; }
     if (linkedImageId) {
       setFocusedPageId(linkedImageId);
       return;
@@ -183,7 +194,7 @@ export function ImageAttachment({
     const remembered = readViewerMemory(memoryKey).focusedPageId;
     const pageIds = pageIdsKey ? pageIdsKey.split('|') : [];
     setFocusedPageId(remembered && pageIds.includes(remembered) ? remembered : null);
-  }, [linkedImageId, memoryKey, pageIdsKey]);
+  }, [linkedImageId, memoryKey, pageIdsKey, verticalReading]);
   useEffect(() => {
     if (focusedPageId && !pageIdsKey.split('|').includes(focusedPageId)) {
       setFocusedPageId(null);
@@ -220,6 +231,12 @@ export function ImageAttachment({
   const zoom = useSinglePageZoom({
     surfaceRef: zoomSurfaceRef,
     active: focusedPage !== null,
+    onEnter: (pageNumber, nextZoom) => {
+      const page = pages[pageNumber - 1];
+      if (!page) return;
+      updateViewerMemory(`${memoryKey}:${page.id}`, { zoom: nextZoom, scrollTop: 0, scrollLeft: 0 });
+      focusPage(page.id);
+    },
     onExit: exitFocus,
     memoryKey: focusedPage ? `${memoryKey}:${focusedPage.id}` : memoryKey
   });
@@ -235,11 +252,12 @@ export function ImageAttachment({
     if (focusedPage) zoomSurfaceRef.current?.focus({ preventScroll: true });
   }, [focusedPage]);
 
+  useDocumentReadingScroll(isMobile && !focusedPage, gridScrollRef, memoryKey, verticalReading && linkedImageId ? pages.findIndex(page => page.id === linkedImageId) + 1 : null);
   useLayoutEffect(() => {
-    if (focusedPage) return;
+    if (isMobile || focusedPage) return;
     const element = gridScrollRef.current;
     if (element) element.scrollTop = readViewerMemory(memoryKey).scrollTop ?? 0;
-  }, [focusedPage, memoryKey]);
+  }, [focusedPage, memoryKey, isMobile]);
 
   if (focusedPage) {
     return <div ref={zoomSurfaceRef} tabIndex={0} aria-label={`Image ${focusedPageIndex + 1} of ${pages.length}. Use arrow keys or swipe to move between images`} onKeyDown={(event) => {
@@ -265,7 +283,7 @@ export function ImageAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={pages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol className="m-0 h-full w-full list-none p-0">
-          <ImagePage projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={isMobile ? pages.length : 1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
+          <ImagePage isMobile={isMobile} projectId={projectId} attachment={focusedPage} pageNumber={pages.indexOf(focusedPage) + 1} pageCount={pages.length} priorityCount={isMobile ? pages.length : 1} isFocused zoom={zoom} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} focusMemoryKey={`${memoryKey}:${focusedPage.id}`} onToggleFocus={focusPage} />
         </ol>
         {isMobile && showMediaInteractions ? <MediaInteractionBar placement="focused" pageCount={pages.length} isOwner={isOwner} target={{
           projectId,
@@ -291,14 +309,14 @@ export function ImageAttachment({
     columnPages[index % columnCount].push(attachment);
   });
   const indexOf = new Map(pages.map((attachment, index) => [attachment.id, index]));
-  return <div className="premium-media-mode-enter relative h-full w-full">
+  return <div ref={zoomSurfaceRef} className="premium-media-mode-enter relative h-full w-full">
       <ol ref={gridScrollRef} onScroll={(event) => updateViewerMemory(memoryKey, { scrollTop: event.currentTarget.scrollTop })} className="scrollbar-overlay m-0 flex h-full w-full list-none items-start gap-[2px] overflow-x-hidden overflow-y-auto p-0">
       {columnPages.map((column, columnIndex) => <li key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-[2px]">
           {/* The pages themselves stay list items, so a screen reader still hears
              "Page 2 of 5" in the work's own order regardless of which column it
              was dealt into. */}
           <ol className="m-0 flex list-none flex-col gap-[2px] p-0">
-            {column.map((attachment) => <ImagePage key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
+            {column.map((attachment) => <ImagePage isMobile={isMobile} key={attachment.id} projectId={projectId} attachment={attachment} pageNumber={(indexOf.get(attachment.id) ?? 0) + 1} pageCount={pages.length} priorityCount={columnCount} showMediaInteractions={showMediaInteractions && !isMobile} isOwner={isOwner} onToggleFocus={focusPage} />)}
           </ol>
         </li>)}
       </ol>

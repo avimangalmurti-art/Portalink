@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FileTextIcon } from 'lucide-react';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import './pdf-page.css';
+import { markRumPdf, rumViewToken } from '../../features/performance/rum';
 
 export type PdfJs = typeof import('pdfjs-dist');
 export type PdfLoadingTask = ReturnType<PdfJs['getDocument']>;
@@ -20,13 +21,15 @@ export async function loadPdfJs(): Promise<PdfJs> {
   return pdfJsPromise;
 }
 
-export function pdfSourceOptions(source: string) {
+export function pdfSourceOptions(source: string, previewOnly = false) {
   const isLargeOriginal = source.includes('/__portalink_media/');
+  const isRemotePreview = previewOnly && /^https?:\/\//i.test(source);
   return {
     url: source,
-    // Covers and page navigation request needed byte ranges, not the entire
-    // original. Local upload previews and existing small files are unchanged.
-    ...(isLargeOriginal ? { disableAutoFetch: true, disableStream: true, rangeChunkSize: 1024 * 1024 } : {}),
+    // A wall of PDF covers must not stream every full original in parallel.
+    // Request just the ranges needed for the selected cover. Local blob upload
+    // previews and the full ordinary-document viewer keep their existing path.
+    ...(isLargeOriginal || isRemotePreview ? { disableAutoFetch: true, disableStream: true, rangeChunkSize: 1024 * 1024 } : {}),
   };
 }
 
@@ -95,7 +98,7 @@ export function PdfPage({
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument(pdfSourceOptions(source));
+      loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true));
       const document = await loadingTask.promise;
       onPageCountChange?.(document.numPages);
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));
@@ -179,10 +182,12 @@ export function PdfPage({
       viewport,
       background: '#ffffff'
     });
+    const viewToken = rumViewToken();
 
     void renderTask.promise.then(() => {
       if (!cancelled) {
         setStatus('ready');
+        markRumPdf(viewToken);
       }
     }).catch((error: unknown) => {
       if (!cancelled && !(error instanceof Error && error.name === 'RenderingCancelledException')) {

@@ -275,8 +275,14 @@ export function useMediaUpload(capability: UploadCapability | null) {
     isBusy: phase === 'uploading' || phase === 'cancelling',
     hasPersistedMedia: attachments.length > 0
   }), [phase, uploadId, progress, reportsPerFile, persisted, attachments, failure, isCleaningUp, cleanupError]);
+  const restore = useCallback((saved: { persisted: PersistedMedia[]; attachments: PersistedAttachment[] }, media: PreparedMedia[]) => {
+    setPersisted(saved.persisted); setAttachments(saved.attachments);
+    setPhase(saved.attachments.length ? 'uploaded' : 'idle');
+    attemptedMediaRef.current = media;
+  }, []);
   return {
     ...state,
+    restore,
     upload,
     retry,
     cancel,

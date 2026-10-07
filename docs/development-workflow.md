@@ -102,8 +102,8 @@ committed instructions, terminal logs, screenshots, and PRs.
 | `SUPABASE_URL` | Existing project URL for separately hosted PDF/video workers. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only worker credential in its secret manager; never a `VITE_*` value. |
 | Sites `DB` / `ASSETS` | Existing managed D1 database and static assets; bindings, not browser credentials. |
-| `PGLITE_MODULE_PATH` | Optional absolute PGlite module path for isolated `scripts/verify-*-database.mjs` checks. |
-| `PGLITE_MODULE` | Optional absolute PGlite module path for the video SQL Node test; a different variable name. |
+| `PGLITE_MODULE_PATH` | Absolute PGlite module path; required by the full-suite runner and used by isolated database checks. |
+| `PGLITE_MODULE` | Legacy alternative accepted by the full-suite runner, which normalizes both names for database tests. |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | Optional local executable paths for video processing tests/runtime. |
 
 Worker polling/lease/resource options are documented in the
@@ -146,7 +146,7 @@ run each command separately and inspect its exit status:
 ```powershell
 npm.cmd run typecheck
 npm.cmd run lint
-node.exe --test @(rg --files tests -g '*.test.mjs')
+node.exe scripts/run-node-tests.mjs
 npm.cmd run build
 ```
 
@@ -161,12 +161,16 @@ The verification scripts use in-memory PostgreSQL via PGlite with synthetic
 accounts, not the live Supabase database. If PGlite is unavailable, provision the
 test dependency in a separate temporary tools directory as an explicit local
 setup step; do not change application dependencies or claim skipped tests pass.
-Point both environment variables at the same installed `dist/index.js` entry.
+Use the installed `dist/index.js` entry. The full-suite runner requires an
+accessible module, supplies both variable names and runs all Node files with
+concurrency two. Missing configuration fails instead of silently skipping DB
+coverage. Focused `node --test` commands remain available for scoped changes.
 
 ```powershell
 # Replace the example path with the absolute path to your local test dependency.
 $env:PGLITE_MODULE_PATH = 'C:/path/to/test-tools/node_modules/@electric-sql/pglite/dist/index.js'
 $env:PGLITE_MODULE = $env:PGLITE_MODULE_PATH
+node.exe scripts/run-node-tests.mjs
 node.exe scripts/verify-private-content-database.mjs
 node.exe --test tests/video-processing-db.test.mjs
 ```
@@ -210,15 +214,15 @@ point with server credentials is different: it can claim production jobs.
 
 ## Existing automation and remaining gaps
 
-[Quality CI](../.github/workflows/quality.yml) currently runs for pull requests
-and pushes to `main`. Checkpoint pushes do not match its push trigger. The
-recovery branch has no root workflow files and must never be opened as a PR.
-Before adding broader automation, explicitly exclude checkpoint sources from
-push, PR, and manual release paths; no CI configuration was changed in this pass.
-It runs typecheck, lint, build, and PDF-worker tests. It currently does not run
-the Node suite, PGlite database checks, or video-worker tests. The checkpoint
-tooling does not add those jobs or claim new application coverage. Adding them
-remains a separate, reviewable tooling change.
+[Quality CI](../.github/workflows/quality.yml) is configured for pull requests
+and pushes to `main`. Every job explicitly excludes `autosave/` source branches;
+checkpoint pushes also do not match the push trigger. The recovery branch has
+no root workflow files and must never be opened as a PR.
+The September 29 source adds the full Node/database suite on Windows and Linux
+and video-worker tests with FFmpeg, alongside typecheck, lint, build and PDF tests.
+PGlite 0.5.8 installs into an isolated CI tools directory, not application
+dependencies. These new jobs await their first remote CI run. See the
+[release plan](trust-and-activation-release.md) for local results.
 
 Keep `autosave/**` excluded from all application workflows and future Sites,
 worker, EAS, signing, and app-store release pipelines, including manual and

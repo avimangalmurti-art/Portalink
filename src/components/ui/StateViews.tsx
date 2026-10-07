@@ -14,7 +14,8 @@ import { InterfaceIcon } from './InterfaceIcon';
 export function EmptyState({
   title,
   description,
-  action
+  action,
+  secondaryAction
 
 
 
@@ -22,13 +23,14 @@ export function EmptyState({
 
 
 
-}: {title: string;description?: string;action?: {label: string;onClick: () => void;};}) {
+}: {title: string;description?: string;action?: {label: string;onClick: () => void;};secondaryAction?: {label: string;onClick: () => void;};}) {
   return <div className="flex min-h-[200px] flex-col items-center justify-center px-6 py-8 text-center">
       <p className="type-title-2 font-medium text-[var(--text-primary)]">{title}</p>
       {description && <p className="type-body mt-1 max-w-[46ch] text-[var(--text-secondary)]">{description}</p>}
       {action && <div className="mt-3">
           <Button variant="secondary" onClick={action.onClick}>{action.label}</Button>
         </div>}
+      {secondaryAction && <button type="button" onClick={secondaryAction.onClick} className="mt-2 min-h-[44px] px-3 text-[13px] text-[var(--accent-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]">{secondaryAction.label}</button>}
     </div>;
 }
 

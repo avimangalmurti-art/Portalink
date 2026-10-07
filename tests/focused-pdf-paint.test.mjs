@@ -10,16 +10,16 @@ const code = ts.transpileModule(`${source}\nexport { PdfImagePage };`, { compile
   module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true,
 } }).outputText;
 
-function harness(retainCanvasWhileLoading = true) {
+function harness(retainCanvasWhileLoading = true, focused = true) {
   const slots = [], effects = [], tasks = [];
-  let cursor = 0, dirty = false, tree, props;
+  let cursor = 0, dirty = false, tree, props, intersection;
   class Canvas {
     width = 300; height = 150; painted = null;
     ownerDocument = { createElement: () => new Canvas() };
     getContext() { return { drawImage: image => { this.painted = image.painted; } }; }
   }
   const canvas = new Canvas();
-  const host = { scrollTop: 0, scrollLeft: 0, getBoundingClientRect: () => ({ width: 390, height: 600 }) };
+  const host = { clientWidth: 390, clientHeight: 600, scrollTop: 0, scrollLeft: 0, getBoundingClientRect: () => ({ width: 390, height: 600 }) };
   const effect = (fn, deps) => {
     const index = cursor++, previous = slots[index];
     if (!previous || deps.some((value, i) => value !== previous.deps[i])) {
@@ -38,14 +38,16 @@ function harness(retainCanvasWhileLoading = true) {
   };
   const exports = {};
   vm.runInNewContext(code, { exports, window: { devicePixelRatio: 1, setTimeout: () => 1, clearTimeout() {}, addEventListener() {}, removeEventListener() {} },
+    IntersectionObserver: class { constructor(callback) { intersection = callback; } observe() {} disconnect() {} },
     require(name) {
       if (name === 'react') return hooks;
       if (name === './viewerMemory') return { readViewerMemory: () => ({}), updateViewerMemory() {} };
+      if (name === '../../features/performance/rum') return { rumViewToken: () => null, markRumPdf() {} };
       return { InterfaceIcon: () => null, RotateCcwIcon: () => null };
     },
   });
   props = { projectId: 'project', attachmentId: 'pdf', label: 'Work', pageNumber: 1, enabled: true,
-    isFocused: true, zoom: 1, retainCanvasWhileLoading, showMediaInteractions: false, onSettled() {},
+    isFocused: focused, zoom: 1, retainCanvasWhileLoading, showMediaInteractions: false, onSettled() {},
     document: { getPage: async pageNumber => ({ pageNumber, cleanup() {},
       getViewport: ({ scale }) => ({ width: 600 * scale, height: (pageNumber === 1 ? 900 : 800) * scale }),
       render({ canvas: target }) {
@@ -71,6 +73,7 @@ function harness(retainCanvasWhileLoading = true) {
     }
   }
   return { canvas, tasks, flush, get tree() { return tree; },
+    async intersect(visible) { intersection([{ isIntersecting: visible }]); await flush(); },
     async move(pageNumber) { props = { ...props, pageNumber }; dirty = true; await flush(); },
     unmount() { for (const slot of slots) slot?.cleanup?.(); },
   };
@@ -119,4 +122,21 @@ test('failed replacements preserve the last paint and expose a retry instead of 
     labels.push(node.props?.['aria-label']); React.Children.forEach(node.props?.children, visit);
   }
   visit(h.tree); assert.ok(labels.includes('Retry Work, page 2')); h.unmount();
+});
+
+test('mobile overview loads only nearby pages and frees canvases when they leave the viewport', async () => {
+  const h = harness(true, false); await h.flush();
+  assert.equal(h.tasks.length, 0);
+  assert.equal(h.canvas.width, 0);
+  await h.intersect(true);
+  assert.equal(h.tasks.length, 1);
+  h.tasks[0].finish(); await h.flush();
+  assert.ok(h.canvas.width > 0);
+  assert.equal(h.tasks[0].target.width, 0);
+  await h.intersect(false);
+  assert.equal(h.canvas.width, 0);
+  assert.equal(h.canvas.height, 0);
+  await h.intersect(true);
+  assert.equal(h.tasks.length, 2);
+  h.unmount();
 });

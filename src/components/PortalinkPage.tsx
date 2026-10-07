@@ -1,20 +1,20 @@
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { SearchIcon } from 'lucide-react';
-import { cities, type City } from '../data/cities';
-import { BroadcastTicker } from './BroadcastTicker';
-import { getCityFacts } from '../data/cityFacts';
-import { getCountryCode } from '../data/countryCodes';
-import { buildLandPaths, buildPolarCaps, getLocalTimeAt, GLOBE_ATMOSPHERE, GLOBE_CENTER, GLOBE_COLORS, GLOBE_RADIUS, isNightAt, LAND_TONES_DAY, LAND_TONES_NIGHT } from './CityGlobe';
+import { type City } from '../data/cities';
+import { buildLandPaths, buildPolarCaps, GLOBE_ATMOSPHERE, GLOBE_CENTER, GLOBE_COLORS, GLOBE_RADIUS, isNightAt, LAND_TONES_DAY, LAND_TONES_NIGHT } from './CityGlobe';
 import { GeographicLayer } from './portalink/GeographicLayer';
 import { WorldViewToggle } from './portalink/WorldViewToggle';
 import { toCityDestination } from '../data/geography';
 import { useServices } from '../contexts/ServicesContext';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PORTALINK_SPLASH_EXIT_EVENT } from '../app/splashLifecycle';
+import { LocationSearch } from './profile/LocationSearch';
+import { placeLabel, type DirectoryPlace } from '../data/locationDirectory';
+import { usePresentation } from '../presentation/usePresentation';
+import { useDialogViewport } from '../hooks/useDialogViewport';
 type PortalinkPageProps = {
   onBack: () => void;
-  onSelectCity: (city: City) => void;
+  onSelectCity: (city: City | DirectoryPlace) => void;
   /** The live-session lifecycle, owned by `useLiveSessions` in the app shell. */
   live: LiveSessionsState;
 };
@@ -28,8 +28,10 @@ const MAX_SCALE = 8;
 export function PortalinkPage({
   onBack,
   onSelectCity,
-  live
+  live: _live
 }: PortalinkPageProps) {
+  const isMobile = usePresentation() === 'mobile';
+  const searchViewportRef = useDialogViewport(isMobile);
   const [centerLongitude, setCenterLongitude] = useState(-20);
   const [centerLatitude, setCenterLatitude] = useState(18);
   const [scale, setScale] = useState(MIN_SCALE);
@@ -49,6 +51,7 @@ export function PortalinkPage({
   } = useServices();
   const geography = geographyService.readLocalGeography();
   const dragRef = useRef<{
+    pointerId: number;
     x: number;
     y: number;
     longitude: number;
@@ -89,12 +92,25 @@ export function PortalinkPage({
       if (frameId !== null) window.cancelAnimationFrame(frameId);
     };
   }, [isGlobeDetailReady]);
+  const rotationFrame = useRef<number | null>(null);
+  const pendingRotation = useRef<{ longitude: number; latitude: number } | null>(null);
+  const flushRotation = () => {
+    rotationFrame.current = null;
+    const next = pendingRotation.current;
+    pendingRotation.current = null;
+    if (next) { setCenterLongitude(next.longitude); setCenterLatitude(next.latitude); }
+  };
+  useEffect(() => () => {
+    if (rotationFrame.current !== null) window.cancelAnimationFrame(rotationFrame.current);
+  }, []);
   function zoomBy(delta: number) {
     setScale((current) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, current * delta)));
   }
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current || !event.isPrimary || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
+      pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       longitude: centerLongitude,
@@ -104,19 +120,28 @@ export function PortalinkPage({
   }
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
     const start = dragRef.current;
-    if (!start) {
+    if (!start || start.pointerId !== event.pointerId) {
       return;
     }
     // Turning slows as the camera closes in, so drag distance stays predictable.
     const sensitivity = 0.35 / Math.max(scale, 1);
-    setCenterLongitude(start.longitude - (event.clientX - start.x) * sensitivity);
-    setCenterLatitude(Math.max(-80, Math.min(80, start.latitude + (event.clientY - start.y) * sensitivity)));
+    const longitude = start.longitude - (event.clientX - start.x) * sensitivity;
+    const latitude = Math.max(-80, Math.min(80, start.latitude + (event.clientY - start.y) * sensitivity));
+    if (isMobile) {
+      pendingRotation.current = { longitude, latitude };
+      if (rotationFrame.current === null) rotationFrame.current = window.requestAnimationFrame(flushRotation);
+    } else { setCenterLongitude(longitude); setCenterLatitude(latitude); }
   }
-  function endDrag() {
+  function endDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    if (rotationFrame.current !== null) window.cancelAnimationFrame(rotationFrame.current);
+    flushRotation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     dragRef.current = null;
     setIsDragging(false);
   }
-  function focusCity(city: City) {
+  function focusCity(city: City | DirectoryPlace) {
+    if (city.latitude === undefined || city.longitude === undefined) return;
     setCenterLongitude(city.longitude);
     setCenterLatitude(city.latitude);
   }
@@ -135,8 +160,7 @@ export function PortalinkPage({
     centerLatitude,
     scale
   }), [centerLongitude, centerLatitude, scale]);
-  const suggestions = query.trim() ? cities.filter((city) => city.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).slice(0, 5) : [];
-  return <div className="relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
+  return <div className="portalink-world relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
       <ScreenBack><div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
@@ -146,10 +170,10 @@ export function PortalinkPage({
       {/* Starfield backdrop. */}
       <div aria-hidden="true" className="portalink-stars pointer-events-none absolute inset-0" />
 
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center px-6">
+      <div className="portalink-world-stage relative z-10 flex min-h-0 flex-1 items-center justify-center px-6" style={isMobile ? undefined : { containerType: 'size' }}>
         {/* Rotation keeps pointer priority; zoom is a separate gesture, so a
            drag can never resolve into opening a city. */}
-        <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={(event) => {
+        <div ref={globeRef} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onLostPointerCapture={endDrag} onWheel={(event) => {
         event.preventDefault();
         zoomBy(event.deltaY < 0 ? 1.08 : 1 / 1.08);
       }} onKeyDown={(event) => {
@@ -159,7 +183,7 @@ export function PortalinkPage({
         if (event.key === '-' || event.key === '_') {
           zoomBy(1 / 1.25);
         }
-      }} role="group" tabIndex={0} aria-label="Globe. Drag to turn; press plus or minus to change how much geographic detail is shown." className={`aspect-square w-full max-w-[min(72vh,720px)] touch-none select-none rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}>
+      }} role="group" tabIndex={0} aria-label="Globe. Drag to turn; press plus or minus to change how much geographic detail is shown." className={`aspect-square ${isMobile ? 'w-full max-w-[min(72vh,720px)]' : 'w-[min(100cqw,100cqh,720px)] max-w-full'} touch-none select-none rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}>
           <svg viewBox="0 0 104 104" className="h-full w-full" role="img" aria-label="Interactive globe. Drag to turn, then choose a city.">
             <defs>
               <clipPath id="portalink-clip">
@@ -291,27 +315,15 @@ export function PortalinkPage({
 
       
 
-      <div className="relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7">
-        {suggestions.length > 0 && <ul className="mb-2 list-none space-y-1 p-0">
-            {suggestions.map((city) => <li key={city.name} className="list-none">
-                <button type="button" onClick={() => {
-            focusCity(city);
-            onSelectCity(city);
-          }} onMouseEnter={() => focusCity(city)} className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-[var(--portalink-border-subtle)] bg-[var(--portalink-surface)] px-4 py-2 text-left text-small font-semibold text-[var(--portalink-text-primary)] transition-colors duration-150 hover:bg-[var(--portalink-surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)]">
-                  <span className="flex min-w-0 items-baseline gap-1.5">
-                    <span className="min-w-0 truncate">{city.name}</span>
-                    {getCountryCode(city.name) && <span className="shrink-0 text-[12px] font-medium uppercase tracking-[0.04em] text-[var(--portalink-text-tertiary)]">{getCountryCode(city.name)}</span>}
-                  </span>
-                  <span className="shrink-0 font-normal text-[var(--portalink-text-secondary)] [font-variant-numeric:tabular-nums]">{getLocalTimeAt(city.longitude)}</span>
-                </button>
-              </li>)}
-          </ul>}
-        
+      <div ref={searchViewportRef} className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
+        <LocationSearch label="Find a place" value={query} onChange={setQuery} above blurOnSelect={isMobile}
+          onConfirm={isMobile ? onSelectCity : undefined}
+          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); if (!isMobile) onSelectCity(place); }} />
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}
       <div data-mobile-scroll-end="" className="relative z-10 shrink-0">
-        <BroadcastTicker live={live} />
+
       </div>
     </div>;
 }

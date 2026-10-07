@@ -100,7 +100,7 @@ const ReorderGroup = () => null;
 const MobileReorderList = () => null;
 function projectHarness() {
   const slots = []; let cursor = 0;
-  const react = { ...React,
+  const react = { ...React, lazy: () => MobileReorderList,
     useState(initial) { const i=cursor++; if(!(i in slots)) slots[i]=typeof initial==='function'?initial():initial;return [slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}]; },
     useRef(initial) { const i=cursor++; return slots[i]??={current:initial}; },
     useCallback: fn => fn, useLayoutEffect() {},
@@ -111,6 +111,7 @@ function projectHarness() {
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup }, useDragControls: () => ({}), AnimatePresence: () => null, motion: { div: 'div' } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
+    if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
@@ -136,7 +137,8 @@ test('mobile project groups emit complete membership without changing pinned or 
   assert.deepEqual(h.props.pinnedIds, ['p1', 'p2']);
   assert.deepEqual(h.props.hiddenIds, ['h1', 'h2']);
   h.props.mobileReorderDisabled = true;
-  assert.ok(all(h.render()).filter(node => node.type === MobileReorderList).every(node => node.props.disabled));
+  assert.equal(all(h.render()).filter(node => node.type === MobileReorderList).length, 0);
+  assert.equal(all(h.render()).filter(node => node.type === 'ul').length, 3);
 });
 
 test('visitor index has no reordering and WEB keeps its original drag group', () => {
@@ -148,9 +150,22 @@ test('visitor index has no reordering and WEB keeps its original drag group', ()
   assert.equal(all(h.render()).filter(node => node.type === ReorderGroup).length, 1);
 });
 
-test('mobile project writes are gated while loading, saving or searching a partial list', () => {
+test('project writes are gated during unavailable arrangements, partial search, and MOBILE display sorting', () => {
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /mobileReorderDisabled=\{arrangement\.isLoading \|\| Boolean\(arrangement\.loadError\) \|\| arrangement\.isSaving \|\| Boolean\(query\.trim\(\)\)\}/);
+  const expression = source.match(/mobileReorderDisabled=\{([^}]+)\}/)?.[1];
+  assert.ok(expression);
+  const evaluate = (overrides = {}) => vm.runInNewContext(expression, {
+    arrangement: { isLoading: false, loadError: null, isSaving: false }, indexQuery: '', isMobile: true, mobileSort: 'saved', ...overrides,
+  });
+  assert.equal(evaluate(), false);
+  for (const key of ['isLoading', 'loadError', 'isSaving']) assert.equal(evaluate({ arrangement: { [key]: key === 'loadError' ? 'Unavailable' : true } }), true);
+  assert.equal(evaluate({ isMobile: false, indexQuery: 'filtered' }), true);
+  const indexQuery = source.match(/const indexQuery = ([^;]+);/)?.[1];
+  assert.ok(indexQuery);
+  assert.equal(vm.runInNewContext(indexQuery, { isMobile: true, query: 'filtered' }), '', 'MOBILE has no index search filter');
+  assert.equal(evaluate({ mobileSort: 'recent' }), true);
+  assert.equal(evaluate({ mobileSort: 'title' }), true);
+  assert.equal(evaluate({ isMobile: false, mobileSort: 'recent' }), false, 'MOBILE sorting never blocks WEB arrangement');
 });
 
 // Exercise the installed sensor's gesture lifecycle as well as our component
@@ -278,7 +293,7 @@ test('floating mobile rows only navigate, with owner reordering kept in the menu
   const ordinaryRow = group.props.renderItem(group.props.items[0], { onTouchStart: activateTouch }, actions);
   assert.equal(ordinaryRow.props.reorderActivator.onTouchStart, activateTouch);
   const source = readFileSync(new URL('../src/components/profile/ProfileCategoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /<ProjectIndexList mobileReorderFromMenu=\{mobileProjectView\}/);
+  assert.match(source, /<ProjectIndexList[^\n]*mobileReorderFromMenu=\{isMobile\}/);
 });
 
 

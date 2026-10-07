@@ -35,6 +35,15 @@ test('fitted mobile pages reserve horizontal swipes and navigate in both directi
   assert.deepEqual(h.exits, []);
 });
 
+test('reading mode fits width, keeps vertical reading, and turns only horizontal swipes', () => {
+  const h=harness(),view=h.render({readingMode:true}),p=view.swipeHandlers;
+  assert.equal(view.swipeStyle.touchAction,'pan-y');
+  p.onPointerDown(h.event());p.onPointerMove(h.event(200,400));p.onPointerUp(h.event(200,450));
+  assert.deepEqual(h.exits,[]);
+  p.onPointerDown(h.event());p.onPointerMove(h.event(80,302));p.onPointerUp(h.event(80,302));
+  assert.deepEqual(h.moves,[1]);
+});
+
 test('a completed downward mobile swipe exits once without turning a page', () => {
   const h = harness(), p = h.render().swipeHandlers;
   p.onPointerDown(h.event()); p.onPointerMove(h.event(203, 330));

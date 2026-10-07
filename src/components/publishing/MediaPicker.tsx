@@ -1,3 +1,4 @@
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, BoxIcon, CheckIcon, CodeIcon, FileIcon, FileTextIcon, GripVerticalIcon, ImageIcon, InfoIcon, Loader2Icon, MoreHorizontalIcon, MusicIcon, PlusIcon, RulerIcon, TableIcon, VideoIcon, XIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -13,6 +14,10 @@ import { ProjectFilesMenu } from './ProjectFilesMenu';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { positionAnchoredMenu } from '../../utils/anchoredMenu';
+import { usePresentation } from '../../presentation/usePresentation';
+
+const WEB_MEDIA_REORDER_TYPE = 'application/x-portalink-media-index';
+const hasFileDrop = (transfer: DataTransfer) => transfer.files.length > 0 || Array.from(transfer.types).includes('Files');
 
 /**
  * Project files — the universal asset list.
@@ -53,13 +58,17 @@ type MediaPickerProps = {
   disabled?: boolean;
   /** File management is disclosed separately from the mobile project details. */
   compact?: boolean;
+  /** The guided file step exposes its list without another disclosure. */
+  expanded?: boolean;
 };
 export function MediaPicker({
   media,
   upload,
   disabled = false,
-  compact = false
+  compact = false,
+  expanded = false
 }: MediaPickerProps) {
+  const isWeb = usePresentation() === 'web';
   const addRef = useRef<HTMLInputElement>(null);
   const replaceRef = useRef<HTMLInputElement>(null);
   const replaceTargetRef = useRef<string | null>(null);
@@ -68,7 +77,6 @@ export function MediaPicker({
   const [showsFormats, setShowsFormats] = useState(false);
   const fileOptionsRef = useRef<HTMLButtonElement>(null);
   const requirementsRef = useRef<HTMLDivElement>(null);
-  const removeConfirmationRef = useRef<HTMLDivElement>(null);
   const {
     items,
     error,
@@ -81,11 +89,6 @@ export function MediaPicker({
     const frame = requestAnimationFrame(() => requirementsRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [showsFormats]);
-  useEffect(() => {
-    if (!isRemovingAll) return;
-    const frame = requestAnimationFrame(() => removeConfirmationRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [isRemovingAll]);
   // Editing the list is impossible while its bytes are being sent.
   const isTransferring = upload?.phase === 'uploading' || upload?.phase === 'cancelling';
   const isLocked = disabled || isTransferring || upload?.phase === 'uploaded';
@@ -94,11 +97,33 @@ export function MediaPicker({
     replaceTargetRef.current = mediaId;
     replaceRef.current?.click();
   };
-  const collapsed = compact && items.length > 0 && !showsFiles;
-  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined} className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
-      {compact && items.length > 0 ? <div className="flex items-center justify-between gap-3">
+  const collapsed = compact && !expanded && items.length > 0 && !showsFiles;
+  return <section aria-labelledby="publish-files-label" data-compact-files={compact || undefined}
+    data-web-file-picker={isWeb ? '' : undefined} data-file-drag-over={isWeb && isDragOver && !isLocked && !media.isFull ? '' : undefined}
+    onDragOverCapture={isWeb ? (event) => {
+      if (!hasFileDrop(event.dataTransfer)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = isLocked || media.isFull ? 'none' : 'copy';
+      setIsDragOver(!isLocked && !media.isFull);
+    } : undefined}
+    onDragLeaveCapture={isWeb ? (event) => {
+      if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+      setIsDragOver(false);
+    } : undefined}
+    onDropCapture={isWeb ? (event) => {
+      if (!hasFileDrop(event.dataTransfer)) return;
+      // OS file drops are additions, never row reorder indices. Capture before
+      // a row can interpret them, even when this list is temporarily locked.
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDragOver(false);
+      if (!isLocked && !media.isFull && event.dataTransfer.files.length > 0) media.select(event.dataTransfer.files);
+    } : undefined}
+    className={`project-form-media ${items.length > 0 ? 'project-form-media--populated' : ''}`}>
+      {compact && !expanded && items.length > 0 ? <div className="flex items-center justify-between gap-3">
         <span id={collapsed ? 'publish-files-label' : undefined} className="text-[13px] text-[var(--text-secondary)]">{items.length} {items.length === 1 ? 'file' : 'files'} selected</span>
-        <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : 'Edit files'}</button>
+        <button id="publish-add-files" type="button" aria-expanded={showsFiles} onClick={() => setShowsFiles((open) => !open)} className="shape-compact min-h-11 px-3 text-[14px] font-medium text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{showsFiles ? 'Done' : disabled ? 'View files' : 'Edit files'}</button>
       </div> : null}
       {!collapsed && <>
       <div className="flex items-center justify-between gap-3">
@@ -108,10 +133,7 @@ export function MediaPicker({
           <ProjectFilesMenu triggerRef={fileOptionsRef} hasFiles={items.length > 0} locked={isLocked} showsRequirements={showsFormats} onRequirements={() => setShowsFormats((open) => !open)} onRemoveAll={() => setIsRemovingAll(true)} />
         </div>
       </div>
-      {isRemovingAll && <div ref={removeConfirmationRef} tabIndex={-1} role="group" aria-label="Confirm removing all files" className="rounded-[10px] border border-[var(--hairline-strong)] p-2.5 outline-none">
-        <p className="text-[13px] text-[var(--text-primary)]">Remove all files from this draft?</p>
-        <div className="mt-2 flex justify-end gap-2"><Button size="sm" disabled={isLocked} onClick={() => { setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Keep files</Button><Button size="sm" variant="danger" disabled={isLocked} onClick={() => { media.clear(); setIsRemovingAll(false); fileOptionsRef.current?.focus(); }}>Remove all</Button></div>
-      </div>}
+      {isRemovingAll && <ConfirmationDialog title="Remove all files?" description="All selected files will be removed from this draft. Your published projects will stay unchanged." confirmLabel="Remove all files" cancelLabel="Keep files" variant="destructive" confirmDisabled={isLocked} onCancel={()=>setIsRemovingAll(false)} onConfirm={()=>{media.clear();setIsRemovingAll(false);}}/>}
 
       {/* One hidden input for adding, one for replacing a specific row. */}
       <input ref={addRef} type="file" multiple className="sr-only" aria-labelledby="publish-files-label" disabled={disabled} onChange={(event) => {
@@ -138,15 +160,16 @@ export function MediaPicker({
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
           </Button>
-          <p className="text-[13px] text-[var(--text-secondary)]">or drop files here</p>
+          <p className="text-[13px] text-[var(--text-secondary)]">{compact ? 'Choose photos, videos or documents from your device.' : 'or drop files here'}</p>
         </div> : <div className="project-media-selection">
           <ul aria-label="Project files, in presentation order" className="project-media-list scrollbar-slim m-0 flex list-none flex-col gap-1.5 p-0">
-          {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} transport={upload ? {
+          {items.map((item, index) => <AssetRow key={item.id} asset={item} index={index} total={items.length} disabled={isLocked} webDragEnabled={isWeb} transport={upload ? {
         phase: upload.phase,
         // Per-file progress only when the service attributes bytes to files.
         item: upload.itemProgress[item.id] ?? null
       } : null} onReorder={media.reorder} onSetCover={() => media.setCoverPage(item.id, item.metadata?.coverPageNumber ?? 1, item.metadata?.pageCount)} onReplace={() => requestReplace(item.id)} onRename={(title) => media.rename(item.id, title)} onRemove={() => media.remove(item.id)} />)}
           </ul>
+          {isWeb && !isLocked && !media.isFull && <p className="mt-2 text-[13px] text-[var(--text-secondary)]">Drop more files here, or choose Add.</p>}
         </div>}
 
       {showsFormats && <div ref={requirementsRef} tabIndex={-1} role="group" aria-label="File requirements" className="rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-inset)] p-3 outline-none">
@@ -262,6 +285,7 @@ function AssetRow({
   index,
   total,
   disabled,
+  webDragEnabled,
   transport,
   onReorder,
   onSetCover,
@@ -285,7 +309,7 @@ function AssetRow({
 
 
 
-}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
+}: {asset: PreparedMedia;index: number;total: number;disabled: boolean;webDragEnabled: boolean;transport: {phase: MediaUpload['phase'];item: {fraction: number;state: UploadItemState;} | null;} | null;onReorder: (fromIndex: number, toIndex: number) => void;onSetCover: () => void;onReplace: () => void;onRename: (title: string) => void;onRemove: () => void;}) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const rowRef = useRef<HTMLLIElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -339,11 +363,18 @@ function AssetRow({
     return () => document.removeEventListener('mousedown', close);
   }, [isMenuOpen]);
   return <li ref={rowRef} draggable={!disabled} onDragStart={(event) => {
+    if (webDragEnabled) {
+      if (disabled) { event.preventDefault(); return; }
+      event.dataTransfer.setData(WEB_MEDIA_REORDER_TYPE, String(index));
+    }
     event.dataTransfer.setData('text/plain', String(index));
     event.dataTransfer.effectAllowed = 'move';
   }} onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
     event.preventDefault();
-    const from = Number(event.dataTransfer.getData('text/plain'));
+    const value = event.dataTransfer.getData(webDragEnabled ? WEB_MEDIA_REORDER_TYPE : 'text/plain');
+    if (webDragEnabled && (disabled || hasFileDrop(event.dataTransfer) || !/^\d+$/.test(value))) return;
+    const from = Number(value);
+    if (webDragEnabled && (!Number.isSafeInteger(from) || from >= total)) return;
     if (!Number.isNaN(from) && from !== index) {
       onReorder(from, index);
     }

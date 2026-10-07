@@ -8,7 +8,12 @@ import ts from 'typescript';
 function harness() {
   const refs = [], animations = [], observers = [];
   let cursor = 0, effect, cleanup, previousDeps, presentation = 'mobile', reducedMotion = false;
-  const viewport = { clientWidth: 100 };
+  const attributes = new Set();
+  const viewport = { clientWidth: 100,
+    toggleAttribute(name, enabled) { if (enabled) attributes.add(name); else attributes.delete(name); },
+    removeAttribute(name) { attributes.delete(name); },
+    hasAttribute(name) { return attributes.has(name); },
+  };
   const text = { scrollWidth: 180, animate(frames, options) {
     const animation = { frames, options, cancelled: false, cancel() { this.cancelled = true; } };
     animations.push(animation);
@@ -52,6 +57,7 @@ function harness() {
 test('overflow starts revealing immediately and stops exactly at the end of the creator name', () => {
   const h = harness();
   h.render();
+  assert.equal(h.viewport.hasAttribute('data-name-overflow'), true);
   assert.equal(h.animations.length, 1);
   const { frames, options } = h.animations[0];
   assert.equal(frames[0].transform, 'translateX(0)');

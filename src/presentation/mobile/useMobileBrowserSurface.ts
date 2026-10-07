@@ -19,7 +19,7 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
       tags[0].name = 'theme-color';
       document.head.appendChild(tags[0]);
     }
-    const attributes = tags.map(tag => ({ content: tag.getAttribute('content'), media: tag.getAttribute('media') }));
+    const attributes = tags.map(tag => ({ content: tag.getAttribute('data-portalink-theme-original') ?? tag.getAttribute('content'), media: tag.getAttribute('media') }));
 
     const sync = () => {
       if (!frameRef.current) return;
@@ -30,7 +30,8 @@ export function useMobileBrowserSurface(presentation: Presentation, appearance: 
       surfaces.forEach(element => element.style.setProperty('background-color', color));
       tags.forEach(tag => {
         tag.setAttribute('content', color);
-        tag.removeAttribute('media');
+        // Both OS selectors use the resolved in-app color. Keep the selectors
+        // so restoring WEB also restores its original metadata exactly.
       });
     };
     sync();

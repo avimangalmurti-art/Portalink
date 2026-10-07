@@ -50,7 +50,7 @@ Refresh both browser clients after switching configurations. Prototype previews 
 
 **WEB:** keep the Codex preview or a normal desktop browser window at **http://127.0.0.1:5173/**. Leave its desktop dimensions and device-emulation state unchanged.
 
-**MOBILE:** open a separate Chrome window at the exact same address. Open DevTools (F12), select **Toggle device toolbar**, choose **Responsive**, and enter a width of **430px**. Also check **390px**. A height around 844px is a useful starting point, not a product constraint. Keep DevTools/device mode active in that window and arrange it beside WEB.
+**MOBILE:** use **iPhone Air portrait, 420 × 912 CSS pixels**, as the primary working viewport (user-selected September 29, 2026). In Chrome, open the same address, open DevTools (F12), select **Toggle device toolbar**, choose **Responsive**, and enter **420 × 912**. In the Codex browser, use the viewport override at the same dimensions. Keep this baseline for subsequent mobile design work; use 390px/430px as supplementary regression widths when relevant. Preserve fluid layouts and actual safe-area/visual-viewport handling: Safari toolbars, keyboards and installed-PWA mode affect usable height. A desktop viewport override does not reproduce those device features or prove real-iPhone behavior. Keep the phone-sized view separate from WEB where supported.
 
 Chrome's [official device-mode instructions](https://developer.chrome.com/docs/devtools/device-mode) explain viewport sizing, touch simulation, orientation and the limits of emulation. Device emulation approximates a phone; it does not replace real-device verification.
 

@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import vm from 'node:vm';
 import postcss from 'postcss';
 import ts from 'typescript';
+import React from 'react';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const css = postcss.parse(read('../src/index.css'));
@@ -49,8 +50,8 @@ test('main, project and details headers all opt into the public alignment contra
 test('all public header controls share fixed geometry without pressed-state movement', () => {
   const tokens = declarations(scope);
   assert.equal(tokens['--shared-header-height'], '64px');
-  assert.equal(tokens['--shared-header-control'], '40px');
-  assert.equal(tokens['--shared-header-glyph'], '18px');
+  assert.equal(tokens['--shared-header-control'], '44px');
+  assert.equal(tokens['--shared-header-glyph'], '24px');
   const header = declarations(`${scope} [data-shared-navigation-header]`);
   for (const size of ['height', 'min-height', 'max-height']) assert.equal(header[size], 'var(--shared-header-height)');
   assert.equal(header['padding-block'], '0');
@@ -69,10 +70,10 @@ test('all public header controls share fixed geometry without pressed-state move
   assert.equal(control.padding, '0');
   assert.equal(control['margin-block'], '0');
   assert.equal(control.transform, 'none');
-  // Every 40px control has 12px above/below it in the 64px header, regardless
+  // Every 44px control has 10px above/below it in the 64px header, regardless
   // of the rail's horizontal width or theme. This is a source-level contract,
   // not a substitute for claiming browser pixel measurements.
-  assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 12);
+  assert.equal((parseInt(tokens['--shared-header-height']) - parseInt(tokens['--shared-header-control'])) / 2, 10);
 });
 
 test('information glyph stays on the header centerline without losing Plex Mono', () => {
@@ -108,4 +109,34 @@ test('public sidebar aligns with the workspace inset and details header stays an
   assert.equal(details.position, 'sticky');
   assert.equal(details.top, '0');
   assert.equal(details['z-index'], '10');
+});
+
+test('shared projects omit density callbacks and gesture hints while keeping document reading callbacks', () => {
+  const path = '../src/components/profile/ProfileCategoryPage.tsx';
+  const change = attributes(path, 'onPagesPerRowChange');
+  const densityExpression = change.result[0].expression.getText(change.file);
+  const update = () => {};
+  assert.equal(vm.runInNewContext(densityExpression, { sharedReadOnly: true, setPageLayoutDraft: update }), undefined);
+  assert.equal(vm.runInNewContext(densityExpression, { sharedReadOnly: false, setPageLayoutDraft: update }), update);
+  assert.equal(attributes(path, 'onPageFocusModeChange').result.length, 1);
+  assert.equal(attributes(path, 'pageViewToggleRequest').result.length, 1);
+
+  let hint;
+  function visit(node) {
+    if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(change.file) === 'MobileProjectGestureHint') {
+      let parent = node.parent;
+      while (parent && !ts.isJsxExpression(parent)) parent = parent.parent;
+      hint = parent.expression.getText(change.file);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(change.file);
+  assert.ok(hint);
+  const script = ts.transpileModule(`result = (${hint});`, { compilerOptions: { jsx: ts.JsxEmit.React } }).outputText;
+  const context = { React, MobileProjectGestureHint: 'gesture-hint', mobileProjectView: true, isIndexCollapsed: true, isPageFocused: false, activeAttachments: [{ kind: 'document' }] };
+  for (const sharedReadOnly of [false, true]) {
+    const result = { ...context, sharedReadOnly };
+    vm.runInNewContext(script, result);
+    assert.equal(Boolean(result.result), !sharedReadOnly);
+  }
 });

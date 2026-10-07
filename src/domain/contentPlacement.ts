@@ -81,7 +81,7 @@ export function decideProjectPlacement(input: ProjectPlacementInput): ProjectPla
   const isOwner = input.viewerProfileId === view.creator.id;
   const isFollowing = input.followedCreatorIds?.includes(view.creator.id) ?? false;
   const hasPrivateAccess = isOwner || isFollowing;
-  const publicSurface = surface === 'search' || surface === 'discover' || surface === 'location' || surface === 'shared';
+  const publicSurface = surface === 'home' || surface === 'search' || surface === 'discover' || surface === 'location' || surface === 'shared';
   const ownerWorkspaceSurface = surface === 'profile' || surface === 'portal' || surface === 'direct';
 
   if (view.creator.isPrivate && (publicSurface || !hasPrivateAccess)) {
@@ -94,9 +94,6 @@ export function decideProjectPlacement(input: ProjectPlacementInput): ProjectPla
     return { eligible: false, reason: 'hidden_project' };
   }
 
-  if (surface === 'home' && !isOwner && !isFollowing) {
-    return { eligible: false, reason: 'outside_relationship_sphere' };
-  }
   if (surface === 'portal' && input.requestedCategoryId !== view.project.categoryId) {
     return { eligible: false, reason: 'wrong_portal' };
   }

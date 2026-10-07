@@ -1,9 +1,11 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+const actionMap = sourceModule('src/presentation/mobile/contextActions.ts', { 'lucide-react': new Proxy({}, { get: (_, key) => key }) });
 
 function compile(path, require, globals = {}) {
   const exports = {};
@@ -50,8 +52,9 @@ test('app boundary contains browser zoom before popup handlers without swallowin
   assert.equal(listeners.size, 0);
 });
 
-function densityHarness({ readOnly = false } = {}) {
+function densityHarness({ readOnly = false, mobile = false } = {}) {
   let cursor = 0, effectCursor = 0, pages = 3, projectId = 'project';
+  const motions = [];
   const slots = [], effects = [], pending = [], listeners = new Map(), timers = new Map(), commits = [];
   let timerId = 0;
   const surface = {
@@ -72,18 +75,25 @@ function densityHarness({ readOnly = false } = {}) {
       }
     },
   };
+  react.useLayoutEffect = react.useEffect;
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
   const layout = compile('../src/features/projects/pageLayout.ts', () => ({}));
   const { ProjectMediaViewer } = compile('../src/components/media/ProjectMediaViewer.tsx', name => {
     if (name === 'react') return react;
+    if (name.endsWith('/contextActions')) return actionMap;
+    if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
+    if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isInitializing: false, viewerProfileId: null }) };
+    if (name.endsWith('/contentPinchMotion')) return { touchMidpoint: touches => ({ x: touches[1].clientX / 2, y: 0 }), beginContentPinch: () => { const m = { updates: [], settled: [], cancelled: false, update(...args) { this.updates.push(args); }, settle(value) { this.settled.push(value); }, cancel() { this.cancelled = true; } }; motions.push(m); return m; } };
     if (name.endsWith('/pinchGesture')) return pinch;
     if (name.endsWith('/pageLayout')) return layout;
     if (name.endsWith('/viewerMemory')) return { readViewerMemory: () => ({}), updateViewerMemory() {} };
-    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({}) };
+    if (name.endsWith('/useProjectEngagement')) return { useProjectEngagement: () => ({ isPending: () => false, isEngaged: () => false }) };
+    if (name.endsWith('/MobilePageContext')) return { MobilePageContext: React.createContext(null) };
     if (name.endsWith('/useProjectComments')) return { useProjectComments: () => ({}) };
     return new Proxy({}, { get: () => () => null });
-  }, { URLSearchParams, performance: { now: () => 1000 }, WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
-    window: { location: { search: '' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
+  }, { URL, URLSearchParams, performance: { now: () => 1000 }, WheelEvent: { DOM_DELTA_LINE: 1, DOM_DELTA_PAGE: 2 },
+    window: { location: { search: '', pathname: '/p/creator/c/category/project', origin: 'https://portalink.test' }, setTimeout(fn) { timers.set(++timerId, fn); return timerId; }, clearTimeout(id) { timers.delete(id); } },
   });
   const attachments = ['one', 'two'].map(id => ({ id, kind: 'image', displayName: id, typeLabel: 'Image' }));
   const setPages = next => { pages = next; };
@@ -96,7 +106,7 @@ function densityHarness({ readOnly = false } = {}) {
   function render() {
     cursor = effectCursor = 0;
     attach(ProjectMediaViewer({ projectId, projectTitle: 'Work', attachments, pageCount: null,
-      responseRailWidth: { width: 52 }, singlePanel: null, pagesPerRow: pages, onPagesPerRowChange: setPages,
+      mobileNavigation: mobile ? { index: null, isIndexOpen: false } : undefined, responseRailWidth: { width: 52 }, singlePanel: null, pagesPerRow: pages, onPagesPerRowChange: setPages,
       onPagesPerRowCommit: readOnly ? undefined : commit,
       processing: { resolveState: () => 'ready', resolveMessage: () => '', canRetry: () => false, retrying: [] },
       isRailOpen: false, onRailOpenChange() {}, onClose() {},
@@ -105,7 +115,7 @@ function densityHarness({ readOnly = false } = {}) {
   }
   render();
   const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
-  return { commits, timers, listeners, render, get pages() { return pages; },
+  return { motions, commits, timers, listeners, render, get pages() { return pages; },
     start(distance) { listeners.get('touchstart')({ touches: touches(distance) }); },
     move(distance) {
       const event = { touches: touches(distance), cancelable: true, defaultPrevented: true, preventDefault() { this.prevented = true; } };
@@ -144,4 +154,30 @@ test('project gestures preserve native scrolling, read-only permissions and canc
   h.start(100); h.changeProject(); h.move(1);
   assert.equal(h.pages, 2, 'Old gesture cannot resize the next project');
   h.cleanup();
+});
+
+
+test('MOBILE vertical readers leave pinch and scrolling to their page renderers', () => {
+  const h = densityHarness({ mobile: true });
+  for (const event of ['wheel', 'touchstart', 'touchmove', 'touchend', 'touchcancel']) {
+    assert.equal(h.listeners.has(event), false, `${event} must not also change the overview density`);
+  }
+  assert.equal(h.pages, 3, 'opening a mobile reader does not overwrite authored density');
+  assert.deepEqual(h.motions, []);
+  assert.deepEqual(h.commits, []);
+  h.cleanup();
+});
+
+test('MOBILE project changes never reattach density gestures or schedule unintended saves', () => {
+  for (const readOnly of [false, true]) {
+    const h = densityHarness({ mobile: true, readOnly });
+    h.render(); h.changeProject(); h.render();
+    assert.equal(h.listeners.size, 0);
+    assert.equal(h.timers.size, 0);
+    assert.deepEqual(h.motions, []);
+    assert.deepEqual(h.commits, []);
+    assert.equal(h.pages, 3);
+    h.cleanup();
+    assert.equal(h.listeners.size, 0);
+  }
 });

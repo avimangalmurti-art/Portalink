@@ -1,14 +1,6 @@
 /* @import url() FONT IMPORTS MUST ALWAYS BE AT THE VERY TOP OF THIS FILE, ABOVE THE TAILWIND IMPORTS — DO NOT DELETE THIS COMMENT */
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-/* Multi-script coverage. Latin, Japanese (Kanji/Kana), Devanagari, and Siddham
-   (Bonji) are separate families because no single file carries all four; they
-   are composed into one stack via --script-fallback below, so a run mixing all
-   four scripts shapes correctly instead of falling through to last-resort
-   glyphs. */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Siddham&display=swap');
+/* The same external typefaces load without blocking paint in index.html.
+   Keep the multi-script fallback stack below while those fonts arrive. */
 
 /* CRITICAL: THE FOLLOWING TAILWIND IMPORTS MUST NEVER BE DELETED OR REORDERED — DO NOT DELETE THIS COMMENT */
 @import 'tailwindcss/base';
@@ -68,7 +60,7 @@ html[data-appearance='light'] {
 }
 html[data-appearance='dark'] {
   color-scheme: dark;
-  background-color: #1e1e1e;
+  background-color: #000000;
 }
 body {
   background-color: inherit;
@@ -107,6 +99,7 @@ body,
 
 /* Preserve the supplied splash artwork in both themes, including its backdrop. */
 .portalink-splash {
+  --portalink-splash-background: #f5eaf4;
   background-color: #f5eaf4;
   background-image: none;
   contain: strict;
@@ -115,11 +108,64 @@ body,
 }
 
 .portalink-splash-media {
-  display: block;
+  display: grid;
+  place-items: center;
+  container-type: size;
+  grid-area: 1 / 1;
   width: min(100vw, 100dvh, 576px);
-  height: auto;
+  height: min(100vw, 100dvh, 576px);
   max-height: 100dvh;
-  object-fit: contain;
+  pointer-events: none;
+}
+
+.portalink-splash[data-presentation='mobile'],
+.portalink-welcome-media {
+  --portalink-splash-background: #f8fdfc;
+}
+
+/* Size the painted frame itself to the asset ratio. A full-viewport video with
+   object-fit: contain leaves internal letterbox edges that outer clipping misses. */
+.portalink-splash-frame {
+  position: relative;
+  width: min(100cqw, calc(100cqh * var(--portalink-media-ratio)));
+  aspect-ratio: var(--portalink-media-ratio);
+  overflow: hidden;
+  background: var(--portalink-splash-background);
+  color-scheme: light;
+}
+.portalink-splash-frame > .portalink-splash-asset {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  background: var(--portalink-splash-background);
+  object-fit: fill;
+}
+/* Cover the decoded/composited perimeter and blend its tiny color variation into
+   the canvas, for both the video and fallback without changing the artwork scale. */
+.portalink-splash-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 3px 4px var(--portalink-splash-background);
+}
+
+/* Decorative startup media never offers native playback UI. The MOBILE animated
+   fallback (WEB poster) stays underneath until confirmed video frames arrive. */
+.portalink-splash-video {
+  pointer-events: none;
+  user-select: none;
+}
+.portalink-splash-video::-webkit-media-controls,
+.portalink-splash-video::-webkit-media-controls-panel,
+.portalink-splash-video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
 }
 
 /* Sensible defaults so any new page or component inherits the system. */
@@ -299,10 +345,12 @@ textarea {
 .reduce-translucency {
   --mac-sidebar-bg: var(--mac-content-bg);
 }
-/* High contrast strengthens labels and separators only. Controls keep their own
-   dimensions and treatment — this task is the token foundation, not a redesign,
-   and the existing high-contrast system continues to apply alongside it. */
+/* Content edges use opaque contrast ink so artwork cannot dilute the outline.
+   Controls and cards keep their dimensions; separators retain their own tokens. */
 .high-contrast {
+  --content-preview-edge-width: 2px;
+  --content-preview-edge-color: #111111;
+  --content-preview-ink: var(--control-text);
   --mac-label-primary: #000000;
   --mac-label-secondary: rgba(0, 0, 0, 0.75);
   --mac-label-tertiary: rgba(0, 0, 0, 0.55);
@@ -311,6 +359,7 @@ textarea {
   --mac-fill-secondary: rgba(0, 0, 0, 0.12);
 }
 .high-contrast.theme-dark {
+  --content-preview-edge-color: #ffffff;
   --mac-label-primary: #ffffff;
   --mac-label-secondary: rgba(255, 255, 255, 0.8);
   --mac-label-tertiary: rgba(255, 255, 255, 0.6);
@@ -469,8 +518,8 @@ textarea {
   --label-quinary: rgba(255, 255, 255, 0.24);
   --label-seximal: rgba(255, 255, 255, 0.14);
   --separator: rgba(255, 255, 255, 0.18);
-  --surface-shell: #1e1e1e;
-  --surface-canvas: #1e1e1e;
+  --surface-shell: #000000;
+  --surface-canvas: #000000;
   --surface-raised: #262626;
   --surface-sunken: var(--fill-tertiary);
   --surface-placeholder: var(--fill-primary);
@@ -551,7 +600,7 @@ textarea {
 .theme-dark {
   --portalink-bg-primary: #000000;
   --star-rgb: 255, 255, 255;
-  --sky-bg: #171719;
+  --sky-bg: #000000;
   --sky-ink: #f5f5f7;
 }
 /* ── High Contrast ──────────────────────────────────────────────────────────
@@ -593,6 +642,11 @@ textarea {
 /* System accessibility settings augment the same semantic tokens. These media
    queries update live and do not require a reload or a separate app-only mode. */
 @media (prefers-contrast: more) {
+  :is(.theme-light, .theme-dark) {
+    --content-preview-edge-width: 2px;
+    --content-preview-edge-color: #111111;
+    --content-preview-ink: var(--control-text);
+  }
   .theme-light {
     --label-primary: rgba(0, 0, 0, 0.98);
     --label-secondary: rgba(0, 0, 0, 0.78);
@@ -604,6 +658,7 @@ textarea {
     --feed-card-border: rgba(0, 0, 0, 0.55);
   }
   .theme-dark {
+    --content-preview-edge-color: #ffffff;
     --label-secondary: #ffffff;
     --label-tertiary: rgba(255, 255, 255, 0.86);
     --separator: rgba(255, 255, 255, 0.46);
@@ -716,8 +771,8 @@ textarea {
    the resolved document appearance here so those surfaces never fall back to
    light tokens while the application is dark. */
 html[data-appearance='dark'] {
-  --background-primary: #1e1e1e;
-  --background-secondary: #1e1e1e;
+  --background-primary: #000000;
+  --background-secondary: #000000;
   --surface-default: #262626;
   --surface-raised: #262626;
   --surface-sunken: rgba(255, 255, 255, 0.05);
@@ -1220,6 +1275,13 @@ button[data-portalink-tile],
 }
 .project-preview-extension[aria-hidden='true'] { pointer-events: none; }
 .project-preview-extension-content { border-top: 1px solid var(--control-border); }
+/* Borderless cards and their expanded details use an inset accessibility edge,
+   without resizing the artwork or changing ordinary-mode presentation. */
+.feed-card,
+.project-preview-extension[aria-hidden='false'] {
+  outline: var(--content-preview-edge-width, 0px) solid var(--content-preview-edge-color, transparent);
+  outline-offset: calc(-1 * var(--content-preview-edge-width, 0px));
+}
 #root .codex-shell .project-preview-creator { background: transparent; border: 0; }
 @media (prefers-reduced-motion: reduce) {
   .project-preview-image,
@@ -1405,17 +1467,17 @@ button[data-portalink-tile],
   inset: 0;
   z-index: 50;
   pointer-events: none;
-  border: 1px solid transparent;
+  border: var(--content-preview-edge-width, 1px) solid var(--content-preview-edge-color, transparent);
   border-radius: inherit;
   transition: border-color 150ms var(--ease-standard);
 }
 @media (hover: hover) and (pointer: fine) {
   .individual-content-outline:hover::after {
-    border-color: var(--hairline-strong);
+    border-color: var(--content-preview-edge-color, var(--hairline-strong));
   }
 }
 .individual-content-outline:focus-within::after {
-  border-color: var(--hairline-strong);
+  border-color: var(--content-preview-edge-color, var(--hairline-strong));
 }
 @media (prefers-reduced-motion: reduce) {
   .individual-content-outline::after {
@@ -1490,15 +1552,15 @@ button[data-portalink-tile],
   background-color: var(--surface-pressed);
   transform: scale(0.98);
 }
-.accent-theme button:disabled,
-.accent-theme [aria-disabled='true'] {
+.accent-theme button:disabled:not([data-ui-control]),
+.accent-theme [aria-disabled='true']:not([data-ui-control]) {
   opacity: 0.42;
   cursor: not-allowed;
 }
 /* Selected navigation and toggles read as a soft filled chip. */
-.accent-theme button[aria-current='page'],
-.accent-theme button[aria-pressed='true'],
-.accent-theme button[aria-selected='true'] {
+.accent-theme button[aria-current='page']:not([data-ui-control]),
+.accent-theme button[aria-pressed='true']:not([data-ui-control]),
+.accent-theme button[aria-selected='true']:not([data-ui-control]) {
   background-color: var(--surface-selected) !important;
   color: var(--text-primary) !important;
 }
@@ -1794,11 +1856,10 @@ button[data-portalink-tile],
 .feed-starfield .feed-card p {
   color: var(--feed-card-text) !important;
 }
-/* The project description is the meaning-bearing text revealed by the content
-   interaction. Keep it tied to the chosen accent even though the feed's broad
-   legibility rule makes the rest of the card text neutral. */
+/* Descriptions retain the chosen accent ordinarily. High Contrast uses the
+   readable ink paired with the card's chosen gray, including across themes. */
 #root .codex-shell [data-project-hover-description] {
-  color: var(--accent-text) !important;
+  color: var(--content-preview-ink, var(--accent-text)) !important;
 }
 /* Creator attribution is an integrated card footer, so its ink resolves from
    the same opaque surface as the rest of the card. */
@@ -3857,9 +3918,9 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell {
   --codex-workspace-inset: 6px;
   --codex-workspace-border-width: 1px;
-  --codex-shell-bg: #f1f1ef;
-  --codex-sidebar-bg: #f1f1ef;
-  --codex-workspace-bg: #fafaf9;
+  --codex-shell-bg: #FFFFFF;
+  --codex-sidebar-bg: #FFFFFF;
+  --codex-workspace-bg: #FFFFFF;
   --codex-panel-bg: #f4f4f2;
   --codex-control-bg: rgba(31, 31, 29, 0.055);
   --codex-control-hover: rgba(31, 31, 29, 0.075);
@@ -3904,9 +3965,9 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 .codex-shell.theme-dark {
-  --codex-shell-bg: #181818;
-  --codex-sidebar-bg: #212120;
-  --codex-workspace-bg: #181818;
+  --codex-shell-bg: #000000;
+  --codex-sidebar-bg: #000000;
+  --codex-workspace-bg: #000000;
   --codex-panel-bg: #202020;
   --codex-control-bg: rgba(255, 255, 255, 0.055);
   --codex-control-hover: rgba(255, 255, 255, 0.085);
@@ -4106,6 +4167,12 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell main aside.ps-panel {
   background: var(--codex-panel-bg) !important;
+}
+
+/* Messages follows the platform canvas in Light, Dark and System appearance.
+   Keep its shared panel geometry without inheriting the legacy gray fill. */
+.codex-shell [data-messages-page] .ps-panel {
+  background: var(--surface-canvas) !important;
 }
 
 .codex-shell .ps-panel-toolbar,
@@ -4704,72 +4771,29 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
    selection, success, warning, danger, primary accent actions, and brand marks
    are never repainted by this layer. */
 .codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-'])
+  :where(button, [role='button']):not([data-ui-control]):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-'])
   :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
   color: inherit !important;
 }
 
-.codex-shell
-  :where(button, [role='button']):not([data-keep-color]):not([data-system-color]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([data-semantic-action]):is([aria-current='page'], [aria-current='true'], [aria-selected='true'], [aria-pressed='true'])
-  :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
-  color: var(--control-selected-text) !important;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
+    :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover {
     background-color: var(--control-hover-surface) !important;
     color: var(--control-hover-text) !important;
   }
 
   .codex-shell
-    :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover
+    :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):hover
     :where([data-interface-icon-frame], [data-interface-icon]):not([data-keep-color]) {
     color: inherit !important;
   }
 }
 
 .codex-shell
-  :where(button, [role='button']):not(:disabled):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):active {
+  :where(button, [role='button']):not([data-ui-control]):not(:disabled):not([aria-disabled='true']):not([data-keep-color]):not([data-system-color]):not([data-semantic-action]):not([data-creator-link]):not([data-profile-module]):not([data-portalink-tile]):not(.ps-btn-primary):not(.ps-btn-danger):not([class*='bg-[var(--accent-primary)]']):not([class*='bg-[var(--status-']):not([class*='text-[var(--status-']):not([class*='bg-[var(--studio-']):not([aria-current='page']):not([aria-current='true']):not([aria-selected='true']):not([aria-pressed='true']):active {
   background-color: var(--control-pressed-surface) !important;
   color: var(--control-pressed-text) !important;
-}
-
-/* Navigation rests on its parent surface. The saved gray still tints it, but
-   does not turn each destination into a separate card. Keep 40px hit targets. */
-#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']) {
-  background: color-mix(in srgb, var(--control-rest-surface) 12%, transparent) !important;
-  color: var(--text-primary) !important;
-  box-shadow: none !important;
-}
-#root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page'])
-  :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
-  color: var(--text-secondary) !important;
-}
-@media (hover: hover) and (pointer: fine) {
-  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover {
-    background: color-mix(in srgb, var(--control-hover-surface) 30%, var(--codex-sidebar-bg)) !important;
-  }
-  #root .codex-shell :is(.sidebar-surface, .shared-profile-sidebar)
-    :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn):not([aria-current='page']):not(:disabled):hover
-    :is(svg, [data-interface-icon-frame]):not([data-keep-color]) {
-    color: var(--text-primary) !important;
-  }
-}
-
-/* A selected Portal in the signed-in navigation is ink-only. This override
-   follows the platform-wide ps-* selected-state rules above so those generic
-   controls cannot restore a rounded fill or inset edge afterward. */
-#root .codex-shell .sidebar-surface
-  :is(.nav-button, .sidebar-pill-row, [data-category-row], .ps-list-btn)[aria-current='page'] {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
 }
 
 /* Copy confirmation follows the same ink-only language as a selected Portal.
@@ -4790,38 +4814,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   color: var(--accent-text) !important;
 }
 
-/* Shared Portalink navigation is a system-blue surface. Keep its selected
-   identity glyph aligned with the selected label after the global neutral
-   control palette has resolved all standard button icons. */
-#root .codex-shell .shared-profile-sidebar button[aria-current='page']
-  :where([data-interface-icon-frame], [data-interface-icon]) {
-  color: var(--accent-text) !important;
-}
-
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:hover,
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page'],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']:hover {
-  border: 0 !important;
-  box-shadow: none !important;
-}
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page'],
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']:hover {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  color: var(--accent-text) !important;
-}
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row][aria-current='page']
-  :is(span, svg, [data-interface-icon-frame], [data-interface-icon]) {
-  color: var(--accent-text) !important;
-}
-
-#root .codex-shell.shared-portalink-shell .shared-profile-sidebar [data-category-row]:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: -2px;
-}
-
 /* Portal row overflow controls keep a quiet fill on hover, never the generic
    sidebar button outline. The keyboard-only focus ring remains untouched. */
 @media (hover: hover) and (pointer: fine) {
@@ -4834,8 +4826,8 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 
 .codex-shell.shared-portalink-shell {
   --shared-header-height: 64px;
-  --shared-header-control: 40px;
-  --shared-header-glyph: 18px;
+  --shared-header-control: 44px;
+  --shared-header-glyph: 24px;
 }
 
 
@@ -4885,7 +4877,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 }
 
 /* The text-based Plex Mono information mark must not inherit the panel's
-   larger body-copy line box; its circle uses the same 18px icon frame. */
+   larger body-copy line box; its circle uses the shared navigation icon frame. */
 .codex-shell.shared-portalink-shell [data-shared-navigation-header] [data-shared-info-glyph] {
   box-sizing: border-box;
   font-size: 12px;
@@ -4903,14 +4895,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
 .codex-shell.shared-portalink-shell [data-shared-header-title] {
   font-size: 16px !important;
   line-height: 1.05 !important;
-}
-
-.codex-shell.shared-portalink-shell [data-shared-profile-home],
-.codex-shell.shared-portalink-shell [data-shared-profile-home]:hover,
-.codex-shell.shared-portalink-shell [data-shared-profile-home]:active {
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
 }
 
 .codex-shell.shared-portalink-shell [data-shared-brand-sign-in],
@@ -4941,38 +4925,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   box-shadow: none !important;
-}
-
-/* The document-list expander belongs directly to the navigation rail. It never
-   becomes a darker tile; only its icon colour and keyboard focus communicate
-   interaction in both the open and collapsed forms. */
-#root .codex-shell button[data-project-index-toggle],
-#root .codex-shell button[data-project-index-toggle]:hover,
-#root .codex-shell button[data-project-index-toggle]:active {
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Opening and closing a navigation region is structural, so the same quiet
-   system grey is used by the main, project, information, and engagement rails.
-   These controls never compete with content actions by brightening or filling. */
-#root .codex-shell button[data-structural-toggle],
-#root .codex-shell button[data-structural-toggle]:hover,
-#root .codex-shell button[data-structural-toggle]:active {
-  color: var(--gray) !important;
-  background: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
-#root .codex-shell button[data-structural-toggle]
-  :is(svg, [data-interface-icon-frame], [data-interface-icon]) {
-  color: inherit !important;
 }
 
 /* The sidebar gear opens one compact account surface instead of leaving the
@@ -5032,51 +4984,6 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   .account-menu-popover {
     animation: none;
   }
-}
-
-/* Profile sections share the dialog surface; link rows group by tone while
-   the actual fields retain their own input and validation boundaries. */
-.profile-editor-dialog {
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 88%), transparent);
-  border: 1px solid color-mix(in srgb, var(--text-primary) 8%, transparent);
-  box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.28),
-    0 6px 24px rgba(0, 0, 0, 0.16);
-  -webkit-backdrop-filter: blur(32px) saturate(130%);
-  backdrop-filter: blur(32px) saturate(130%);
-}
-
-.profile-editor-dialog [data-profile-editor-section] {
-  background: transparent;
-  box-shadow: none;
-}
-
-.profile-editor-dialog .profile-link-editor-row {
-  background: var(--surface-inset);
-  box-shadow: none;
-}
-
-.profile-editor-footer {
-  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(120%);
-  backdrop-filter: blur(20px) saturate(120%);
-}
-
-/* Save is a constructive action, so it uses the platform's system blue rather
-   than a danger-like red. The shared Button disabled state continues to make
-   it available only when the form contains a valid change. */
-#profile-editor-save {
-  border: 0 !important;
-  background: #0a84ff !important;
-  color: #ffffff !important;
-}
-
-#profile-editor-save:hover:not(:disabled) {
-  background: #409cff !important;
-}
-
-#profile-editor-save:active:not(:disabled) {
-  background: #0071e3 !important;
 }
 
 /* ── Premium project viewing ───────────────────────────────────────────────
@@ -5662,3 +5569,117 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
   [data-themed-portal].theme-light { --label-secondary: #292929; --label-tertiary: #484848; --hairline-strong: rgba(0,0,0,.62); }
 }
 .account-welcome-card .appearance-switch-track { border-radius: 999px; }
+/* Portal popups share navigation material in both private and public shells. */
+#root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+  background:var(--navigation-surface, var(--surface-raised)) !important;
+  -webkit-backdrop-filter:var(--navigation-blur, none) !important;
+  backdrop-filter:var(--navigation-blur, none) !important;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) > :is(header, nav, .global-control-header, [data-mobile-portal-project-header]) {
+  background:transparent;
+}
+#root .codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+  background:var(--surface-raised) !important;
+  -webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='mobile'] :is(.shared-portal-popup, .mobile-profile-portal-overlay > .mobile-portals-page, .mobile-project-index-overlay > [data-project-index-panel]) {
+    background:var(--surface-raised) !important;
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+}
+/* Related rows share one inset group; separators never reach its outer edges. */
+#root .codex-shell[data-presentation='mobile'] .inset-row-group:not(:empty) {
+  --row-divider-start:16px;
+  list-style:none;
+  margin:0 0 20px;
+  padding:0;
+  gap:0;
+  border:0;
+  border-radius:20px;
+  background:var(--surface-sunken);
+  isolation:isolate;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group-icons { --row-divider-start:68px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > * {
+  position:relative;
+  border-bottom:0;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :not(:last-child)::after {
+  content:'';
+  position:absolute;
+  inset-inline:var(--row-divider-start) 16px;
+  bottom:0;
+  height:1px;
+  background:var(--hairline);
+  pointer-events:none;
+  z-index:2;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :first-child { border-start-start-radius:20px; border-start-end-radius:20px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > :last-child { border-end-start-radius:20px; border-end-end-radius:20px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group [data-studio-row-surface],
+#root .codex-shell[data-presentation='mobile'] .studio-drafts-list.inset-row-group > li:not([data-selected='true']) > button {
+  background:transparent;
+  border-radius:0;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group .message-contact-row { padding:14px 16px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group > li > button { padding-inline:16px; }
+#root .codex-shell[data-presentation='mobile'] .inset-row-group .reads-actors > li { padding:16px; }
+#root .codex-shell[data-presentation='mobile'] .settings-section,
+#root .codex-shell[data-presentation='mobile'] .activation-review {
+  background:var(--surface-sunken);
+  border:0;
+  border-radius:20px;
+}
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > :not(:last-child) {
+  border-bottom:1px solid var(--hairline);
+  padding-bottom:16px;
+  margin-bottom:16px;
+}
+#root .codex-shell[data-presentation='mobile'] .activation-review-row {
+  position:relative;
+  border-top:0;
+}
+#root .codex-shell[data-presentation='mobile'] .activation-review-row:not(:last-child)::after {
+  content:''; position:absolute; inset-inline:40px 12px; bottom:0;
+  height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-header] {
+  border-bottom:0;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-navigation-header::after {
+  content:''; position:absolute; inset-inline:16px; bottom:0;
+  height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] .inset-row-group [data-studio-row]:not([data-selected]) [data-studio-row-surface] { background:transparent !important; }
+#root .codex-shell[data-presentation='mobile'] .reads-actors.inset-row-group > li,
+#root .codex-shell[data-presentation='mobile'] .reads-referrers.inset-row-group > div { padding:16px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry:not(.journey-gap):not(:last-child) .journey-entry-copy {
+  padding-bottom:16px;
+  border-bottom:1px solid var(--hairline);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-scroll {
+  border-top:1px solid var(--hairline);
+  margin-inline:20px;
+  padding-inline:0;
+  padding-top:16px;
+}
+
+/* One surface owns each mobile portal-list pill; children do not paint layers. */
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row {
+  border-radius: 16px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row.active { background: var(--surface-selected); }
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button,
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row [data-project-row-actions],
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row [data-row-menu] {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button { border-radius: 0; }

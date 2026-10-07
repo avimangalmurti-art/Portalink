@@ -32,6 +32,8 @@ export type ActivityCollection = {
   retry: () => void;
   /** True while newly-added ids are still being resolved into cards. */
   isResolvingMore: boolean;
+  /** Completion time of the successful membership read, not an item date. */
+  updatedAt: number | null;
 };
 export function useActivityCollection(kind: EngagementKind, isViewerOwnCollection: boolean): ActivityCollection {
   const {
@@ -43,6 +45,7 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<Record<Id, ProjectView | null>>({});
   const [isResolvingMore, setIsResolvingMore] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const listTokenRef = useRef(0);
   const requestedRef = useRef<Set<Id>>(new Set());
   const isMountedRef = useRef(true);
@@ -61,11 +64,13 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
     listTokenRef.current = token;
     setServiceIds(null);
     setError(null);
+    setUpdatedAt(null);
     engagementService.listEngagedProjectIds(kind).then((ids) => {
       if (!isMountedRef.current || listTokenRef.current !== token) {
         return;
       }
       setServiceIds(ids);
+      setUpdatedAt(Date.now());
     }).catch((readError) => {
       if (!isMountedRef.current || listTokenRef.current !== token) {
         return;
@@ -148,6 +153,7 @@ export function useActivityCollection(kind: EngagementKind, isViewerOwnCollectio
       setResolved({});
       loadIds();
     },
-    isResolvingMore
+    isResolvingMore,
+    updatedAt: phase === 'ready' ? updatedAt : null
   };
 }

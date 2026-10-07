@@ -1,3 +1,4 @@
+import { FormattedText } from '../text/FormattedText';
 import React, { useLayoutEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BookmarkIcon, HeartIcon, MessageCircleIcon, Repeat2Icon } from 'lucide-react';
@@ -10,9 +11,9 @@ import { usePresentation } from '../../presentation/usePresentation';
 const formatter = new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 });
 const formatCount = (count: number | null) => count === null ? '—' : formatter.format(count);
 const METRICS = [
-  { kind: 'like' as const, label: 'likes', icon: HeartIcon, color: 'var(--engagement-like-selected)' },
-  { kind: 'save' as const, label: 'bookmarks', icon: BookmarkIcon, color: 'var(--engagement-save-selected)' },
-  { kind: 'repost' as const, label: 'reposts', icon: Repeat2Icon, color: 'var(--engagement-repost-selected)' },
+  { kind: 'like' as const, label: 'likes', icon: HeartIcon },
+  { kind: 'save' as const, label: 'bookmarks', icon: BookmarkIcon },
+  { kind: 'repost' as const, label: 'reposts', icon: Repeat2Icon },
 ];
 
 /** Only the description occupies the original artwork frame. */
@@ -50,7 +51,7 @@ export function ProjectHoverDetails({ summary, className = '', onOpen, href }: {
     'data-project-hover-description': '', onClick: onOpen,
     className: 'project-hover-scrollbar block h-full min-h-0 min-w-0 overflow-y-auto overscroll-y-auto whitespace-pre-wrap break-words text-[12px] font-medium leading-[1.45] text-[var(--accent-text)]',
   };
-  const text = <span className="block">{summary}</span>;
+  const text = <FormattedText text={summary} />;
   return <div ref={containerRef} className={`absolute inset-0 bg-[var(--control-rest-surface)] p-3 text-[var(--control-text)] ${className}`}>
     {href ? <Link to={href} tabIndex={-1} {...props}>{text}</Link> : <div {...props}>{text}</div>}
   </div>;
@@ -70,13 +71,13 @@ export function PreviewMetrics({ counts, commentCount, onOpenComments }: {
   onOpenComments?: () => void;
 }) {
   return <div data-project-preview-metrics="" className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold tabular-nums text-[var(--control-icon)]">
-    {METRICS.map(({ kind, label, icon, color }) => <span key={kind} className="inline-flex items-center gap-1" title={`${formatCount(counts[kind])} ${label}`}>
-      <InterfaceIcon icon={icon} size="xs" weight="medium" keepColor stroke={color} style={{ color }} />
+    {METRICS.map(({ kind, label, icon }) => <span key={kind} className="inline-flex items-center gap-1" title={`${formatCount(counts[kind])} ${label}`}>
+      <InterfaceIcon icon={icon} size="xs" weight="medium" />
       <span>{formatCount(counts[kind])}</span>
     </span>)}
     {onOpenComments && <button type="button" onClick={(event) => { event.stopPropagation(); onOpenComments(); }} aria-label={`Open comments${commentCount === null ? '' : ` (${commentCount})`}`}
       className="inline-flex items-center gap-1 rounded-[5px] text-[var(--control-icon)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-      <InterfaceIcon icon={MessageCircleIcon} size="xs" weight="medium" keepColor stroke="var(--apple-purple)" style={{ color: 'var(--apple-purple)' }} />
+      <InterfaceIcon icon={MessageCircleIcon} size="xs" weight="medium" />
       <span>{formatCount(commentCount)}</span>
     </button>}
   </div>;

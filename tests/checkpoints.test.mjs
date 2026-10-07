@@ -17,7 +17,7 @@ function gitCommand(cwd, args, { input, allow = [0] } = {}) {
   const env = { ...process.env };
   for (const key of Object.keys(env)) if (/^(GIT_|GCM_|SSH_)/i.test(key)) delete env[key];
   Object.assign(env, {
-    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: process.platform === 'win32' ? 'NUL' : '/dev/null',
+    GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GCM_INTERACTIVE: 'never',
   });
   const result = spawnSync('git', ['--no-optional-locks', '-c', 'core.fsmonitor=false',

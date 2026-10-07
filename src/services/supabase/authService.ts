@@ -1,6 +1,6 @@
 import type { Session, User } from '@supabase/supabase-js';
 import type { AuthService } from '../interfaces';
-import { AuthServiceError } from '../../types/auth';
+import { AuthServiceError, isFutureIssuedJwtError, SESSION_NOT_READY_MESSAGE, toAuthError } from '../../types/auth';
 import type {
   AccountSecurityState,
   AuthSession,
@@ -8,7 +8,7 @@ import type {
 } from '../../types/auth';
 import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
-import { readRegistrationProfile } from '../../features/auth/registration';
+import { readRegistrationDraft, readRegistrationProfile } from '../../features/auth/registration';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -24,37 +24,109 @@ function initialsFor(value: string): string {
     .join('') || 'TP';
 }
 
-async function profileIdentity(accountId: string): Promise<{
+const sessionTimingRetryDelays = [500, 1000, 2000];
+const pendingSessions = new Map<string, Promise<AuthSession | null>>();
+let lastMappedAccountId: string | null = null;
+let sessionGeneration = 0;
+let observedAccountId: string | null | undefined;
+
+function observeSessionAccount(accountId: string | null, signedOut = false): void {
+  if (signedOut || observedAccountId !== undefined && observedAccountId !== accountId) {
+    sessionGeneration += 1;
+    pendingSessions.clear();
+  }
+  observedAccountId = accountId;
+  if (!accountId) lastMappedAccountId = null;
+}
+
+function assertSessionGeneration(generation: number): void {
+  if (generation !== sessionGeneration) {
+    throw new AuthServiceError('reauthentication_required', 'Your sign-in session changed. Please sign in again to continue.');
+  }
+}
+
+async function assertCurrentAccount(accountId: string, generation: number): Promise<void> {
+  assertSessionGeneration(generation);
+  const { data, error } = await requireSupabase().auth.getSession();
+  assertSessionGeneration(generation);
+  if (error) throw authFailure(error, 'Your session could not be checked.');
+  if (data.session?.user.id !== accountId) {
+    throw new AuthServiceError('reauthentication_required', 'Your sign-in session changed. Please sign in again to continue.');
+  }
+}
+
+async function profileIdentity(accountId: string, generation: number): Promise<{
   profileId: string;
   displayName: string;
 }> {
   const client = requireSupabase();
-  const { data, error } = await client
-    .from('profiles')
-    .select('id,name')
-    .eq('account_id', accountId)
-    .maybeSingle();
-
-  if (error) {
-    throw new AuthServiceError('network', error.message);
+  for (let attempt = 0; ; attempt++) {
+    // A sign-out/account switch during a delay must stop this lookup. The SDK
+    // supplies the current bearer token, which may differ from the first one.
+    await assertCurrentAccount(accountId, generation);
+    assertSessionGeneration(generation);
+    const { data, error } = await client
+      .from('profiles')
+      .select('id,name')
+      .eq('account_id', accountId)
+      .maybeSingle();
+    assertSessionGeneration(generation);
+    if (error) {
+      if (isFutureIssuedJwtError(error) && attempt < sessionTimingRetryDelays.length) {
+        // Retry the read with the existing session, never replay credentials or
+        // mint another token whose issued-at time would be even further ahead.
+        await new Promise<void>(resolve => window.setTimeout(resolve, sessionTimingRetryDelays[attempt]));
+        continue;
+      }
+      throw authFailure(error, 'Your profile could not be read.');
+    }
+    const row = data as unknown as { id: string; name: string } | null;
+    return {
+      profileId: row?.id ?? '',
+      displayName: row?.name ?? '',
+    };
   }
-
-  const row = data as unknown as { id: string; name: string } | null;
-  return {
-    profileId: row?.id ?? '',
-    displayName: row?.name ?? '',
-  };
 }
 
-async function toAuthSession(session: Session | null): Promise<AuthSession | null> {
+function toAuthSession(session: Session | null): Promise<AuthSession | null> {
   if (!session) {
-    return null;
+    observeSessionAccount(null);
+    return Promise.resolve(null);
   }
+  if (observedAccountId === undefined) observedAccountId = session.user.id;
+  const generation = sessionGeneration;
+  // SIGNED_IN and signInWithPassword resolve together. Share only their
+  // in-flight work, never a cached profile identity after a write or sign-out.
+  const key = `${generation}:${session.user.id}:${session.access_token}`;
+  const pending = pendingSessions.get(key);
+  if (pending) return pending;
+  const task = mapAuthSession(session, generation).finally(() => {
+    if (pendingSessions.get(key) === task) pendingSessions.delete(key);
+  });
+  pendingSessions.set(key, task);
+  return task;
+}
 
-  const user = session.user;
+async function mapAuthSession(session: Session, generation: number): Promise<AuthSession> {
+  let user = session.user;
   // Ownership always comes from the RLS-protected profile row. User metadata is
   // editable by the account and must never be trusted as an authorization fact.
-  const identity = await profileIdentity(user.id);
+  const identity = await profileIdentity(user.id, generation);
+  const isPasswordRecovery = Boolean(passwordRecovery.read(session));
+  let registration = identity.profileId || isPasswordRecovery ? undefined : readRegistrationProfile(user.user_metadata?.portalink_registration);
+  if (!identity.profileId && !isPasswordRecovery && !registration) {
+    // A cached session can predate signup metadata. Resolve the confirmed user
+    // before falling back to this browser's email-bound pending draft.
+    const fresh = await requireSupabase().auth.getUser().catch(() => null);
+    if (fresh?.data.user?.id === user.id) {
+      user = fresh.data.user;
+      registration = readRegistrationProfile(user.user_metadata?.portalink_registration);
+    }
+    if (!registration && user.email) {
+      const saved = await readRegistrationDraft(user.email).catch(() => null);
+      registration = saved?.registration;
+    }
+  }
   const email = user.email ?? '';
   const displayName = identity.displayName || textMetadata(user, 'display_name') || textMetadata(user, 'full_name') || email.split('@')[0] || 'Creator';
   const mapped: AuthUser = {
@@ -64,13 +136,19 @@ async function toAuthSession(session: Session | null): Promise<AuthSession | nul
     displayName,
     initials: initialsFor(displayName),
     isEmailVerified: Boolean(user.email_confirmed_at),
-    registration: identity.profileId ? undefined : readRegistrationProfile(user.user_metadata?.portalink_registration),
+    registration,
   };
 
-  return { user: mapped, isPrototype: false, isPasswordRecovery: Boolean(passwordRecovery.read(session)) };
+  await assertCurrentAccount(user.id, generation);
+  assertSessionGeneration(generation);
+  lastMappedAccountId = user.id;
+  return { user: mapped, isPrototype: false, isPasswordRecovery };
 }
 
 function authFailure(error: { message: string; status?: number | null; code?: string }, fallback: string): AuthServiceError {
+  if (isFutureIssuedJwtError(error)) {
+    return new AuthServiceError('session_not_ready', SESSION_NOT_READY_MESSAGE);
+  }
   const message = error.message || fallback;
   const normalized = message.toLowerCase();
   if (error.code === 'same_password' || normalized.includes('different from the old password')) {
@@ -144,13 +222,26 @@ export const supabaseAuthService: AuthService = {
     let latestEvent = 0;
     const { data } = client.auth.onAuthStateChange((_event, session) => {
       const eventVersion = ++latestEvent;
+      // Invalidate work immediately, even when a newer event supersedes this
+      // callback before its deferred mapping runs. Reusing a token after logout
+      // must never rejoin a lookup from the previous signed-in lifetime.
+      observeSessionAccount(session?.user.id ?? null, _event === 'SIGNED_OUT');
       // Supabase recommends keeping its auth callback synchronous. Resolve the
       // profile identity on the next task, outside the auth client's lock.
       window.setTimeout(() => {
         if (!active || eventVersion !== latestEvent) return;
         void toAuthSession(session)
           .then((mapped) => active && eventVersion === latestEvent && listener(mapped))
-          .catch(() => active && eventVersion === latestEvent && listener(null));
+          .catch((error: unknown) => {
+            if (!active || eventVersion !== latestEvent) return;
+            // A temporary profile-read rejection is not a sign-out. Let the
+            // initiating getSession/signIn show its actionable error, retaining
+            // an already mapped identity only when it belongs to this account.
+            if (error instanceof AuthServiceError && error.code === 'session_not_ready' &&
+              (!lastMappedAccountId || lastMappedAccountId === session?.user.id)) return;
+            lastMappedAccountId = null;
+            listener(null, toAuthError(error));
+          });
       }, 0);
     });
     return () => {
@@ -180,11 +271,15 @@ export const supabaseAuthService: AuthService = {
   async signUp(input) {
     const client = requireSupabase();
     const email = input.email.trim().toLowerCase();
+    const registration = readRegistrationProfile(input.registration);
+    if (input.registration && !registration) {
+      throw new AuthServiceError('unknown', 'Your profile details could not be saved. Review them and try again.');
+    }
     const { data, error } = await client.auth.signUp({
       email,
       password: input.password,
       options: { emailRedirectTo: window.location.origin,
-        data: input.registration ? { portalink_registration: readRegistrationProfile(input.registration) } : undefined },
+        data: registration ? { portalink_registration: registration } : undefined },
     });
     if (error) {
       throw authFailure(error, 'Account creation failed.');
@@ -290,7 +385,9 @@ export const supabaseAuthService: AuthService = {
       const code = response?.status === 400 ? 'confirmation_mismatch' : response?.status === 401 ? 'reauthentication_required' : 'network';
       throw new AuthServiceError(code, details?.message ?? 'The deletion request could not be confirmed. Check its status before trying again.');
     }
-    const result = data as { status?: string; deleteAfter?: string; message?: string } | null;
+    const result = data as { isDeleted?: boolean; status?: string; deleteAfter?: string; message?: string } | null;
+    if (result?.status === 'completed' && result.isDeleted === true) return { isDeleted: true, status: 'completed', message: result.message ?? 'Your account has been deleted. You can register again with the same email address.' };
+    if (result?.status === 'processing') return { isDeleted: false, status: 'processing', message: result.message ?? 'Deletion is processing. Your email becomes available after completion.' };
     if (result?.status !== 'pending' || !result.deleteAfter) throw new AuthServiceError('network', 'Check your deletion status before trying again.');
     return { isDeleted: false, status: 'pending', deleteAfter: result.deleteAfter, message: result.message ?? 'Deletion scheduled. You can cancel before permanent deletion starts.' };
   },

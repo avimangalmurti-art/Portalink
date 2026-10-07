@@ -19,6 +19,7 @@ export type ProjectChapter = {
 };
 
 export type ProjectEntry = {
+  creationDetails?: import('../types/domain').ProjectCreationDetails;
   relevance?: import('../types/discovery').ProjectRelevance;
   id: string;
   categoryId: string;

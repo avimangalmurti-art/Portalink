@@ -1,0 +1,72 @@
+.profile-photo-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+  overflow: hidden;
+  outline: none;
+  overscroll-behavior: none;
+}
+/* Dialog semantics contain focus; this screen must not inherit floating-card material. */
+.app-shell .profile-photo-editor[role='dialog'][data-material='content'] {
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: var(--mac-window-bg) !important;
+}
+.profile-photo-editor-header {
+  flex: none;
+  display: grid;
+  grid-template-columns: minmax(64px, 1fr) auto minmax(64px, 1fr);
+  align-items: center;
+  padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px max(12px, env(safe-area-inset-left));
+  gap: 8px;
+}
+.profile-photo-editor-header h1 { margin: 0; font-size: 17px; font-weight: 600; text-align: center; }
+.profile-photo-editor-header button { min-height: 44px; color: var(--accent-text); background: transparent; border: 0; text-align: left; }
+.profile-photo-editor-header button:last-child { text-align: right; font-weight: 600; }
+.profile-photo-editor button:disabled { opacity: .45; }
+.profile-photo-editor-body {
+  flex: 1;
+  min-height: 0;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 20px max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.profile-photo-frame {
+  position: relative;
+  flex-shrink: 0;
+  width: min(100%, max(180px, calc(100dvh - 290px)));
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--shape-compact);
+  background: var(--surface-sunken);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+}
+.profile-photo-frame:active { cursor: grabbing; }
+.profile-photo-frame img { position: absolute; pointer-events: none; user-select: none; }
+.profile-photo-frame > span { position: absolute; inset: 0; display: grid; place-items: center; }
+.profile-photo-editor-body p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-secondary); }
+.profile-photo-zoom { display: flex; align-items: center; gap: 12px; }
+.profile-photo-zoom input { min-width: 0; flex: 1; min-height: 44px; accent-color: var(--accent-primary); }
+.profile-photo-zoom output { min-width: 44px; font-variant-numeric: tabular-nums; text-align: right; }
+.profile-photo-reset { display: flex; gap: 8px; align-items: center; justify-content: center; align-self: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--hairline-strong); border-radius: var(--shape-compact); }
+.profile-photo-editor .profile-photo-error { color: var(--status-danger); }
+.profile-photo-error button { min-height: 44px; text-decoration: underline; }
+.profile-photo-editor :is(button, input, .profile-photo-frame):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+@media (display-mode: standalone) { .profile-photo-editor { height: 100vh; } }

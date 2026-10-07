@@ -78,7 +78,11 @@ export type HomeDiscovery = {
   projects: RankedProjectView[];
   sphere: ContentSphere;
   homeMode: HomeFeedMode;
+  /** Null/absent means every eligible project has been loaded. */
+  nextCursor?: ProjectFeedCursor | null;
 };
+
+export type ProjectFeedCursor = { publishedAt: string; id: Id };
 
 export type DiscoverSections = {
   sphere: ContentSphere;
@@ -88,7 +92,7 @@ export type DiscoverSections = {
 };
 
 export type ContentSphereInput = {
-  viewerProfile: Profile | null;
+  viewerProfile: Pick<Profile, 'id' | 'location'> | null;
   availableProjects: ProjectView[];
   followedCreatorIds: Id[];
   engagement: Array<{ projectId: Id; kind: 'like' | 'save' | 'repost'; createdAt: string }>;

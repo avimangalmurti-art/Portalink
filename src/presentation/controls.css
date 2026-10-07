@@ -1,0 +1,126 @@
+/* Explicit action controls only. Navigation, media, cards and borderless detail
+   affordances keep their own contracts until a caller deliberately opts in. */
+:where(#root .codex-shell [data-ui-control]) {
+  /* Responsive visibility utilities must take precedence over this default. */
+  display: inline-flex;
+}
+:where(#root .codex-shell) [data-ui-control] {
+  --ui-control-height: 36px;
+  --ui-control-padding: 12px;
+  --ui-control-gap: 8px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  height: var(--ui-control-height);
+  min-height: var(--ui-control-height);
+  gap: var(--ui-control-gap);
+  padding: 0 var(--ui-control-padding);
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 400;
+  vertical-align: middle;
+}
+:where(#root .codex-shell) [data-ui-control][data-control-size='sm'] {
+  --ui-control-height: 32px;
+  --ui-control-padding: 10px;
+  --ui-control-gap: 6px;
+}
+:where(#root .codex-shell) [data-ui-control][data-control-size='lg'] {
+  --ui-control-height: 40px;
+  --ui-control-padding: 14px;
+}
+:where(#root .codex-shell[data-presentation='mobile']) [data-ui-control]:is([data-control-size='sm'], [data-control-size='md']) {
+  --ui-control-height: 44px;
+}
+:where(#root .codex-shell[data-presentation='mobile']) [data-ui-control][data-control-size='lg'] {
+  --ui-control-height: 48px;
+}
+:where(#root .codex-shell) [data-ui-control='icon'] {
+  width: var(--ui-control-height);
+  min-width: var(--ui-control-height);
+  padding: 0;
+}
+
+/* Surface and ink move together. The strong scope replaces legacy .ps-btn
+   paint; geometry above stays overridable by the existing larger form actions. */
+#root .codex-shell [data-ui-control] {
+  --ui-control-rest-surface: var(--control-rest-surface);
+  --ui-control-rest-text: var(--control-text);
+  --ui-control-hover-surface: var(--control-hover-surface);
+  --ui-control-hover-text: var(--control-hover-text);
+  --ui-control-selected-surface: var(--control-selected-surface);
+  --ui-control-selected-text: var(--control-selected-text);
+  --ui-control-pressed-surface: var(--control-pressed-surface);
+  --ui-control-pressed-text: var(--control-pressed-text);
+  --ui-control-border: var(--control-border);
+  --ui-control-surface: var(--ui-control-rest-surface);
+  --ui-control-text: var(--ui-control-rest-text);
+  border: 1px solid var(--ui-control-border) !important;
+  border-radius: var(--shape-compact) !important;
+  background: var(--ui-control-surface) !important;
+  color: var(--ui-control-text) !important;
+  box-shadow: none;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
+}
+#root .codex-shell [data-ui-control][data-control-variant='ghost'] {
+  --ui-control-rest-surface: transparent;
+  --ui-control-rest-text: var(--text-secondary);
+  --ui-control-border: transparent;
+}
+#root .codex-shell [data-ui-control][data-control-variant='primary'] {
+  --ui-control-rest-surface: var(--accent-primary);
+  --ui-control-rest-text: var(--accent-foreground);
+  --ui-control-hover-surface: var(--accent-hover);
+  --ui-control-hover-text: var(--accent-foreground);
+  --ui-control-selected-surface: var(--accent-primary);
+  --ui-control-selected-text: var(--accent-foreground);
+  --ui-control-pressed-surface: var(--accent-pressed);
+  --ui-control-pressed-text: var(--accent-foreground);
+  --ui-control-border: color-mix(in srgb, var(--accent-primary) 75%, black);
+  font-weight: 500;
+}
+#root .codex-shell [data-ui-control][data-control-variant='danger'] {
+  --ui-control-rest-surface: var(--status-danger);
+  --ui-control-rest-text: var(--status-danger-foreground);
+  --ui-control-hover-surface: var(--status-danger-hover);
+  --ui-control-hover-text: var(--status-danger-foreground);
+  --ui-control-selected-surface: var(--status-danger);
+  --ui-control-selected-text: var(--status-danger-foreground);
+  --ui-control-pressed-surface: var(--status-danger-pressed, var(--status-danger-hover));
+  --ui-control-pressed-text: var(--status-danger-foreground);
+  --ui-control-border: color-mix(in srgb, var(--status-danger) 75%, black);
+  font-weight: 500;
+}
+@media (hover: hover) and (pointer: fine) {
+  #root .codex-shell [data-ui-control]:where(:not(:disabled, [aria-disabled='true']):hover) {
+    --ui-control-surface: var(--ui-control-hover-surface);
+    --ui-control-text: var(--ui-control-hover-text);
+  }
+}
+/* Persistent selection/open beats hover; an enabled press beats both. */
+#root .codex-shell [data-ui-control]:where([aria-pressed='true'], [aria-expanded='true'], [aria-checked='true'], [aria-selected='true'], [aria-current='page'], [aria-current='true']) {
+  --ui-control-surface: var(--ui-control-selected-surface);
+  --ui-control-text: var(--ui-control-selected-text);
+}
+#root .codex-shell [data-ui-control]:where(:not(:disabled, [aria-disabled='true']):active) {
+  --ui-control-surface: var(--ui-control-pressed-surface);
+  --ui-control-text: var(--ui-control-pressed-text);
+}
+#root .codex-shell [data-ui-control]:where(:disabled, [aria-disabled='true']) {
+  opacity: .45;
+  cursor: default;
+}
+#root .codex-shell [data-ui-control]:focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px;
+}
+#root .codex-shell [data-ui-control] :where([data-interface-icon-frame], [data-interface-icon]) {
+  color: inherit !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell [data-ui-control] {
+    transition: none;
+  }
+}

@@ -1,32 +1,37 @@
 import React from 'react';
+import { Loader2Icon } from 'lucide-react';
 import { InterfaceIcon } from './InterfaceIcon';
 import type { InterfaceIconSource } from './InterfaceIcon';
-export type IconButtonProps = {
+import type { ButtonSize, ButtonVariant } from './Button';
+export type IconButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'aria-label'> & {
   /** Required: an icon-only control must still have an accessible name. */
   label: string;
   icon: InterfaceIconSource;
-  size?: 'sm' | 'md';
+  size?: ButtonSize;
+  variant?: ButtonVariant;
   /** Marks the control as the current selection, not merely hovered. */
   isSelected?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-  'aria-haspopup'?: boolean;
-  'aria-expanded'?: boolean;
+  isLoading?: boolean;
 };
 
 /** Icon-only control with a real accessible name and a visible focus ring. */
-export function IconButton({
+export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton({
   label,
   icon: Icon,
   size = 'md',
-  isSelected = false,
+  variant = 'ghost',
+  isSelected,
+  isLoading = false,
   disabled = false,
+  type = 'button',
   onClick,
-  'aria-haspopup': hasPopup,
-  'aria-expanded': isExpanded
-}: IconButtonProps) {
-  const box = size === 'sm' ? 'h-8 w-8 rounded-[8px]' : 'h-9 w-9 rounded-[8px]';
-  return <button type="button" onClick={disabled ? undefined : onClick} disabled={disabled} title={label} aria-label={label} aria-pressed={isSelected || undefined} aria-haspopup={hasPopup} aria-expanded={isExpanded} className={`inline-flex shrink-0 items-center justify-center transition-colors duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-default disabled:opacity-45 ${box} ${isSelected ? 'bg-[var(--control-selected-surface)] text-[var(--control-selected-text)] hover:bg-[var(--control-pressed-surface)]' : 'text-[var(--text-secondary)] hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] active:bg-[var(--control-pressed-surface)]'}`}>
-      <InterfaceIcon icon={Icon} size={size === 'sm' ? 'md' : 'lg'} weight={isSelected ? 'semibold' : 'regular'} />
+  title = label,
+  'aria-pressed': ariaPressed,
+  'aria-busy': ariaBusy,
+  ...props
+}, ref) {
+  const isBlocked = disabled || isLoading;
+  return <button {...props} ref={ref} type={type} onClick={isBlocked ? undefined : onClick} disabled={isBlocked} title={title} aria-label={label} aria-pressed={isSelected ?? ariaPressed} aria-busy={isLoading || ariaBusy} data-ui-control="icon" data-control-size={size} data-control-variant={variant}>
+      <InterfaceIcon icon={isLoading ? Loader2Icon : Icon} size={size === 'sm' ? 'md' : 'lg'} weight={isSelected ? 'semibold' : 'regular'} effect={isLoading ? 'rotate' : undefined} effectActive={isLoading} />
     </button>;
-}
+});

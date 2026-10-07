@@ -64,18 +64,20 @@ For changes that require full application verification:
 ```powershell
 npm.cmd run typecheck
 npm.cmd run lint
-node.exe --test @(rg --files tests -g '*.test.mjs')
+node.exe scripts/run-node-tests.mjs
 npm.cmd run build
 ```
 
-Check each command's result before continuing. The Node suite's video database
-test needs `PGLITE_MODULE` or it is skipped. Python worker tests require their
+Check each command's result before continuing. The full Node runner requires
+`PGLITE_MODULE_PATH` (or legacy `PGLITE_MODULE`) and fails when absent, so database
+checks cannot silently skip. Python worker tests require their
 separate dependencies. Setup and verification limits are documented in the
 [development guide](docs/development-workflow.md).
 
-GitHub currently runs typecheck, lint, build, and PDF-worker tests. It does not
-publish Sites, apply Supabase migrations, or deploy workers, and it does not yet
-run the Node suite or video-worker tests. A successful build is not a deployment.
+Quality CI is configured for typecheck, lint, build, PDF/video-worker tests and
+the full Node/database suite on Windows and Linux. The new September 29 jobs
+await their first remote run. CI does not publish Sites, apply Supabase migrations,
+or deploy workers. A successful build is not a deployment.
 
 ## Account deletion remains disabled
 

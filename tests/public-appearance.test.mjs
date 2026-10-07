@@ -1,3 +1,5 @@
+const shareModel = sourceModule('src/features/sharing/shareModel.ts');
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -58,10 +60,10 @@ test('saved appearance writes serialize, deduplicate and retry after a failed sa
   assert.deepEqual(writes, [['one', A.accentColor], ['one', B.accentColor], ['two', A.accentColor]]);
 });
 
-function hookHarness(initial = A, initialStatus = 'ready') {
+function hookHarness(initial = A, initialStatus = 'ready', initialPalette) {
   let cursor = 0, dirty = true, result, id = 'one', enabled = true;
   const slots = [], effects = [], timers = new Map(), writes = [];
-  let timerId = 0, save = async () => undefined;
+  let timerId = 0, invalidations = 0, save = async () => undefined;
   let query = { status: initialStatus, profile: { publicAppearance: initial }, error: null, retry() {} };
   const react = {
     useState(initial) {
@@ -82,7 +84,7 @@ function hookHarness(initial = A, initialStatus = 'ready') {
   };
   const { api, preferences } = publicModule();
   const profileData = { useProfileQuery: () => query, useProfileData: () => cache };
-  const cache = { cacheProfile() {} };
+  const cache = { invalidateProfiles() { invalidations++; }, cacheProfile() { assert.fail('A delayed appearance response must never replace the whole profile'); } };
   const services = { profiles: { async updateProfile(profileId, input) { writes.push([profileId, plain(input.publicAppearance)]); await save(profileId, input.publicAppearance); } } };
   const hook = compile('../src/features/profile/useCreatorAppearance.ts', {
     setTimeout: fn => { const id = ++timerId; timers.set(id, fn); return id; }, clearTimeout: id => timers.delete(id),
@@ -91,11 +93,11 @@ function hookHarness(initial = A, initialStatus = 'ready') {
   }).useCreatorAppearance;
   function render() {
     let turns = 0;
-    do { if (++turns > 30) throw Error('Render loop'); dirty = false; cursor = 0; result = hook(id, enabled); while (effects.length) effects.shift()(); } while (dirty);
+    do { if (++turns > 30) throw Error('Render loop'); dirty = false; cursor = 0; result = hook(id, enabled, initialPalette); while (effects.length) effects.shift()(); } while (dirty);
     return result;
   }
   return {
-    render, writes, setSave: fn => { save = fn; },
+    render, writes, setSave: fn => { save = fn; }, get invalidations() { return invalidations; },
     choose: patch => { render().choose(patch); return render(); },
     setQuery: value => { query = { ...query, ...value }; return render(); },
     navigate: (nextId, active = true) => { id = nextId; enabled = active; return render(); },
@@ -108,6 +110,30 @@ test('existing creator settings load without being overwritten by local defaults
   assert.deepEqual(plain(h.render().appearance), A);
   await h.render().flush();
   assert.equal(h.writes.length, 0);
+});
+
+test('a reloaded personal palette seeds only unsaved branding, never a saved creator profile', async () => {
+  const storage = new Map([['portalinknetworks.interfaceAppearance.mobile', JSON.stringify({ accentColor: B.accentColor, systemGray: B.systemGray })]]);
+  const { preferences } = publicModule(storage);
+  const { accentColor, systemGray } = preferences.readInterfaceAppearance('mobile');
+  const newProfile = hookHarness(null, 'ready', { accentColor, systemGray });
+  assert.equal(newProfile.render().appearance.accentColor, B.accentColor);
+  assert.equal(newProfile.render().appearance.systemGray, B.systemGray);
+  await newProfile.render().flush();
+  assert.equal(newProfile.writes[0][1].systemGray, B.systemGray);
+  const existing = hookHarness(A, 'ready', { accentColor, systemGray });
+  assert.deepEqual(plain(existing.render().appearance), A);
+  await existing.render().flush(); assert.equal(existing.writes.length, 0);
+});
+
+test('visitor appearance overrides are independent between web and mobile', () => {
+  const storage = new Map([['portalink.publicTheme.one', 'dark']]);
+  const { api } = publicModule(storage);
+  api.writeVisitorTheme('one', 'light', 'web');
+  assert.equal(api.readVisitorTheme('one', 'mobile'), 'dark');
+  api.writeVisitorTheme('one', 'dark', 'mobile');
+  assert.equal(api.readVisitorTheme('one', 'web'), 'light');
+  assert.equal(storage.get('portalink.publicTheme.one'), 'dark');
 });
 
 test('changes made while loading are merged into the saved creator appearance', async () => {
@@ -162,11 +188,12 @@ test('failed website saves stay retryable and prevent a successful pre-copy flus
 test('public bootstrap honors a newly opened creator link while retaining guest read-only routing', () => {
   const storage = new Map([['portalink.sharedViewerProfileId', 'old']]);
   const fakeReact = { createElement: (type, props) => ({ type, props }), useState: () => [true, () => {}], useEffect: fn => fn(), useCallback: fn => fn };
-  const routes = { sharedProfile: { path: '/share/:profileId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' } };
+  const routes = { sharedCollaboration: {path:'/share/:profileId/collaboration'}, controlCenter: {path:'/settings'}, sharedProfile: { path: '/share/:profileId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' } };
   const router = { useLocation: () => ({ pathname: '/share/new' }), Navigate: 'redirect', matchPath: (path, pathname) => path === '/share/:profileId' ? { params: { profileId: pathname.split('/')[2] } } : null };
   const api = compile('../src/app/ApplicationBootstrap.tsx', {
     window: { sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, setTimeout: () => 1 },
-    require: name => name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
+    require: name => name.endsWith('/shareModel') ? shareModel : name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
+      : name.includes('useViewportPresentation') ? { useViewportPresentation: () => 'web' }
       : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` } : {},
   });
   assert.notEqual(api.ApplicationBootstrap().type, 'redirect');
@@ -201,4 +228,14 @@ test('a welcome-screen color choice survives sign-in without changing a public c
   h.choose({accentColor: A.accentColor});
   await h.render().flush();
   assert.equal(h.writes.length, 1);
+});
+
+test('a delayed appearance save refetches current identity instead of caching its older profile snapshot', async () => {
+  const h=hookHarness(); let finish;
+  h.setSave(()=>new Promise(resolve=>{finish=resolve;}));
+  const pending=h.choose(B).flush(); await h.settle();
+  h.setQuery({profile:{name:'New name',isPrivate:true,publicAppearance:A}});
+  finish({name:'Old name',isPrivate:false,publicAppearance:B}); await pending; await h.settle();
+  assert.equal(h.invalidations,1); // cacheProfile itself fails the test if called.
+  assert.deepEqual(plain(h.render().appearance),B);
 });

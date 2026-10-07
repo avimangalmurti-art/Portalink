@@ -1,3 +1,4 @@
+import type { ShareAddress, HandleResolution, PortfolioCard } from '../features/sharing/shareModel';
 /**
  * The engineering boundary.
  *
@@ -12,15 +13,14 @@
  *  - Services never touch React state or the DOM.
  */
 
-import type { AppearancePreferences, CategoryDeletionCapability, CreateCategoryInput, CreatorAnalytics, FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Location, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../types/domain';
+import type { CategoryDeletionCapability, CreateCategoryInput, FeedCreator, FollowRequest, FollowState, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, UpdateProfileInput } from '../types/domain';
 import type { AssetProcessingStatus, DeleteProjectResult, DraftMetadata, ProcessingCapability, ProjectDraft, PublishProjectInput, PublishResult, StartUploadInput, UpdateProjectInput, UpdateProjectResult, UploadCapability, UploadOperation, UploadOutcome } from '../types/publishing';
 import type { EngagementKind, EngagementMutation, ProjectEngagement } from '../types/engagement';
 import type { Comment, ProjectComments } from '../types/comments';
-import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecurityState, AuthRecoverySession, AuthSession, ChangeEmailInput, ChangeEmailResult, ChangePasswordInput, ChangePasswordResult, DeleteAccountInput, DeleteAccountResult, PasswordResetRequestInput, PasswordResetRequestResult, ResendVerificationInput, ResendVerificationResult, SignInInput, SignUpInput, SignUpResult, UpdatePasswordInput } from '../types/auth';
-import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../types/profile';
-import type { GeographicBounds, GeographicLod, GeographicResult } from '../types/geography';
-import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode } from '../types/discovery';
-import type { ReportingPeriodId } from '../data/studioAnalytics';
+import type { AccountDeletionCapability, AccountSecurityCapability, AccountSecurityState, AuthError, AuthRecoverySession, AuthSession, ChangeEmailInput, ChangeEmailResult, ChangePasswordInput, ChangePasswordResult, DeleteAccountInput, DeleteAccountResult, PasswordResetRequestInput, PasswordResetRequestResult, ResendVerificationInput, ResendVerificationResult, SignInInput, SignUpInput, SignUpResult, UpdatePasswordInput } from '../types/auth';
+import type { CreateProfileInput, CreateProfileResult } from '../types/profile';
+import type { GeographicResult } from '../types/geography';
+import type { DiscoverSections, DiscoverySignalKind, ExplorationMode, HomeDiscovery, HomeFeedMode, ProjectFeedCursor } from '../types/discovery';
 import type { ConversationPage, ConversationSummary, DirectMessage, MessageCursor, MessagePage, MessageParticipant, MessageReaction, MessagingPreferences } from '../types/messages';
 import type { SaveInsights } from '../types/creatorSaves';
 
@@ -37,7 +37,8 @@ export interface AuthService {
   /** The session as it stands right now, or null when signed out. */
   getSession(): Promise<AuthSession | null>;
   /** Subscribe to session changes. Returns its own unsubscribe. */
-  onAuthStateChange(listener: (session: AuthSession | null) => void): () => void;
+  /** A lookup failure can clear a stale identity without pretending the user signed out. */
+  onAuthStateChange(listener: (session: AuthSession | null, error?: AuthError) => void): () => void;
   signIn(input: SignInInput): Promise<AuthSession>;
   /** Never returns a session when the address must be confirmed first. */
   signUp(input: SignUpInput): Promise<SignUpResult>;
@@ -59,8 +60,8 @@ export interface AuthService {
    */
   getAccountDeletionCapability(): Promise<AccountDeletionCapability>;
   /**
-   * Requests reversible deletion with a 48-hour grace period. Never signs out
-   * or reports an immediate deletion. Permanent cleanup is a separate worker.
+   * Requests immediate deletion. Reports completion only after confirmed cleanup.
+   * Incomplete cleanup is returned as processing and resumed by the worker.
    *
    * Throws `AuthServiceError` with `confirmation_mismatch` when the typed
    * confirmation does not match, or `deletion_unavailable` when no backend can
@@ -125,14 +126,20 @@ export interface ProfileService {
    * distinguish "no such profile" from a profile it can open.
    */
   getProfile(profileId: Id): Promise<Profile>;
+  /** Public-only grid bundle, isolated from the owner's fuller profile cache. */
+  getSharedProfile?(profileId: Id): Promise<Profile>;
+  /** A lightweight layout read/write for Home; never a partial Profile cache entry. */
+  getProjectGridLayout?(profileId: Id): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;
+  updateProjectGridLayout?(profileId: Id, columns: number): Promise<Pick<Profile, 'id' | 'projectGridColumns'>>;
   /** The profile owned by an account, or null when it has not been created yet. */
   getProfileForAccount(accountId: Id): Promise<Profile | null>;
   listProfiles(): Promise<Profile[]>;
-  /**
-   * Usability check only. Authoritative uniqueness belongs to the database, so
-   * `createProfile` must still be able to reject with `handle_taken`.
-   */
-  checkHandleAvailability(handle: string): Promise<HandleAvailability>;
+  getPortfolioCard?(profileId: Id): Promise<PortfolioCard | null>;
+  getShareAddress?(profileId: Id): Promise<ShareAddress>;
+  checkPublicHandle?(handle: string): Promise<'available' | 'taken' | 'unavailable'>;
+  claimPublicHandle?(profileId: Id, handle: string): Promise<ShareAddress>;
+  markHandleShared?(profileId: Id, handle: string): Promise<void>;
+  resolvePublicHandle?(handle: string): Promise<HandleResolution | null>;
   /** Establishes the initial profile for an account. Throws `ProfileServiceError`. */
   createProfile(accountId: Id, input: CreateProfileInput): Promise<CreateProfileResult>;
   updateProfile(profileId: Id, input: UpdateProfileInput): Promise<Profile>;
@@ -187,15 +194,19 @@ export interface ProjectService {
    * never be written to a project and silently fall back at render time.
    */
   updateProjectDesign(projectId: Id, design: ProjectDesign): Promise<ProjectDesign>;
+  /** Owner-only authored tags, preserving unrelated project presentation JSON. */
+  updateProjectTags(projectId: Id, tags: string[]): Promise<void>;
   /** Owner-only order for the project cards on the profile overview. */
   saveProfileProjectOrder(profileId: Id, projectIds: Id[]): Promise<void>;
   getProjectArrangement(profileId: Id, categoryId: Id): Promise<ProjectArrangement>;
   saveProjectArrangement(profileId: Id, categoryId: Id, arrangement: ProjectArrangement): Promise<void>;
-  /** "Upload work" / "Add document": no storage backend exists yet. */
-  uploadProjectMedia(profileId: Id, categoryId: Id, files: File[]): Promise<Project>;
   /* ── Publishing ──────────────────────────────────────────────────────── */
   /** Starts an unpublished draft inside a category the account owns. */
   createDraft(profileId: Id, categoryId: Id): Promise<ProjectDraft>;
+  getDraft(draftId: Id): Promise<ProjectDraft | null>;
+  listDrafts?(profileId: Id): Promise<ProjectDraft[]>;
+  updateProjectJourneyDetails(projectId: Id, details: import('../types/domain').ProjectCreationDetails, caption: string): Promise<void>;
+  updateProjectCreationDetails(projectId: Id, details: import('../types/domain').ProjectCreationDetails): Promise<void>;
   updateDraft(draftId: Id, metadata: DraftMetadata): Promise<ProjectDraft>;
   discardDraft(draftId: Id): Promise<void>;
   /**
@@ -304,25 +315,21 @@ export interface MediaService {
  */
 export interface DiscoveryService {
   /** One coherent Home snapshot: ranking, hero, and the sphere that produced it. */
-  getHomeDiscovery(): Promise<HomeDiscovery>;
+  getHomeDiscovery(cursor?: ProjectFeedCursor): Promise<HomeDiscovery>;
   /** Persists an understandable Home objective, never raw scoring weights. */
   setHomeFeedMode(mode: HomeFeedMode): Promise<HomeDiscovery>;
   /** Bounded, separately ranked Discover zones. */
   getDiscoverSections(mode: ExplorationMode): Promise<DiscoverSections>;
   /** Only an explicit "show me more" action writes a discovery signal. */
   recordProjectSignal(projectId: Id, kind: DiscoverySignalKind): Promise<void>;
-  /** Null when the curated hero no longer names a canonical project. */
-  getFeaturedProject(): Promise<ProjectView | null>;
-  listFeedProjects(): Promise<ProjectView[]>;
   /**
    * Public work whose creator explicitly chose the requested Portalink city.
    * Project prose and the viewer's Home relationships never qualify this list.
    */
   listLocationProjects(locationId: Id): Promise<ProjectView[]>;
   listAccountsToExplore(): Promise<FeedCreator[]>;
-}
-export interface SearchService {
-  search(query: string): Promise<SearchResult[]>;
+  /** Public account identities only, searched on the server before pagination. */
+  searchAccounts?(query: string, offset?: number): Promise<FeedCreator[]>;
 }
 /**
  * The follow graph.
@@ -366,6 +373,7 @@ export interface SearchService {
  */
 export interface SocialService {
   /** Confirmed connections only; the service enforces who can read the list. */
+  getProfileConnectionCounts?(profileId: Id): Promise<{ followers: number; following: number; canViewConnections?: boolean }>;
   listProfileConnections(profileId: Id, kind: import('../types/social').ProfileConnectionKind, offset?: number): Promise<import('../types/social').ProfileConnectionPage>;
   getFollowState(profileId: Id): Promise<FollowState>;
   followProfile(profileId: Id): Promise<FollowState>;
@@ -436,18 +444,20 @@ export interface CommentService {
  * 5. **A count that cannot be reported is `null`, never `0`.**
  */
 export interface EngagementService {
+  listProjectParticipants?(projectId: Id, kind: EngagementKind, offset?: number): Promise<Array<{ id: Id; name: string; avatar: string }>>;
   getProjectEngagement(projectId: Id): Promise<ProjectEngagement>;
   /** One read for many projects, so a feed does not issue one request per card. */
   getProjectEngagements(projectIds: Id[]): Promise<ProjectEngagement[]>;
   setEngagement(mutation: EngagementMutation): Promise<ProjectEngagement>;
   /** The projects the viewer has engaged with, for their own activity surfaces. */
   listEngagedProjectIds(kind: EngagementKind): Promise<Id[]>;
+  listSavedProjectEntries?(): Promise<Array<{projectId: Id; savedAt: string}>>;
 }
 export interface NotificationService {
   listNotifications(): Promise<Notification[]>;
   markRead(notificationId: Id): Promise<void>;
   markAllRead(): Promise<void>;
-  subscribeToNotifications(onChange: () => void): () => void;
+  subscribeToNotifications(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;
 }
 /** Private bookmarks; identity comes from the session, never an argument. */
 export interface CreatorSaveService {
@@ -473,7 +483,7 @@ export interface MessagingService {
   markConversationRead(conversationId: Id, throughCreatedAt: string): Promise<void>;
   /** Supabase Realtime when available; callers retain a refresh fallback. */
   subscribeToMessages(conversationId: Id, onMessage: (message: DirectMessage) => void, onStatus?: (connected: boolean) => void, onRefresh?: () => void): () => void;
-  subscribeToConversationChanges(onChange: () => void): () => void;
+  subscribeToConversationChanges(onChange: () => void, onStatus?: (connected: boolean) => void): () => void;
   subscribeToTyping(conversationId: Id, onTyping: (profileId: Id, isTyping: boolean) => void): () => void;
   broadcastTyping(conversationId: Id, profileId: Id, isTyping: boolean): void;
   getPreferences(): Promise<MessagingPreferences>;
@@ -489,7 +499,6 @@ export interface MessagingService {
   reportConversation(conversationId: Id, reason: string): Promise<void>;
 }
 export interface LiveService {
-  listLocations(): Promise<Location[]>;
   /** Omit the location to list every session the network is carrying. */
   listSessions(locationId?: Id): Promise<LiveSession[]>;
   /** What joining actually does here, asked before a session is offered. */
@@ -501,54 +510,20 @@ export interface LiveService {
   joinSession(sessionId: Id): Promise<LiveSession>;
   leaveSession(sessionId: Id): Promise<void>;
 }
-export interface AnalyticsService {
-  /** The reporting window is a query parameter, not a client-side filter. */
-  getCreatorAnalytics(profileId: Id, periodId?: ReportingPeriodId): Promise<CreatorAnalytics>;
-  /**
-   * Whether generation can run at all. Asked before an action is offered, so the
-   * UI never presents a generative control as though it will produce work.
-   */
-  getGenerativeCapability(): Promise<GenerativeCapability>;
-  /**
-   * Studio's generative actions. Each RETURNS what it did rather than resolving
-   * void: a void promise cannot distinguish "generated" from "did nothing", which
-   * is exactly how a prototype ends up claiming output it never produced.
-   */
-  requestLayoutRevision(projectId: Id): Promise<GenerationOutcome>;
-  simulateDraft(files: File[]): Promise<GenerationOutcome>;
-  synthesizeCrossMedia(projectIds: Id[]): Promise<GenerationOutcome>;
-}
-export interface CommerceService {
-  getProduct(productId: Id): Promise<Product>;
-}
-
-/**
- * The globe's data boundary. Today the dataset is local and small, so the globe
- * renders from `readLocalGeography()` synchronously. `getVisibleGeography` is the
- * shape a spatial service, vector-tile source, or server-side clustering
- * endpoint should implement — swapping it must not change the globe's visuals or
- * its navigation contract.
- */
+/** The globe renders synchronously from the local geography dataset. */
 export interface GeographyService {
   readLocalGeography(): GeographicResult;
-  getVisibleGeography(bounds: GeographicBounds, lod: GeographicLod): Promise<GeographicResult>;
-}
-
-/** Appearance is the one service already persisted locally, by design. */
-export interface PreferencesService {
-  readAppearance(): AppearancePreferences;
-  writeAppearance(preferences: Partial<AppearancePreferences>): void;
 }
 
 /** The single registry components resolve services from. */
 export type Services = {
+  reads?: import('../features/reads/readSignal').ReadSignalService;
   // `auth` is the only authority on who is signed in.
   auth: AuthService;
   profiles: ProfileService;
   projects: ProjectService;
   media: MediaService;
   discovery: DiscoveryService;
-  search: SearchService;
   social: SocialService;
   engagement: EngagementService;
   creatorSaves: CreatorSaveService;
@@ -556,8 +531,5 @@ export type Services = {
   notifications: NotificationService;
   messaging: MessagingService;
   live: LiveService;
-  analytics: AnalyticsService;
-  commerce: CommerceService;
   geography: GeographyService;
-  preferences: PreferencesService;
 };

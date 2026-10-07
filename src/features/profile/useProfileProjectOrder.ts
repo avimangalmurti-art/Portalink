@@ -1,6 +1,7 @@
 import { membershipSignature, useSavedChangeHistory, type HistoryWriteMode } from '../../hooks/useSavedChangeHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
+import { useProfileData } from '../../contexts/ProfileDataContext';
 import type { Id, Project } from '../../types/domain';
 
 function messageFor(error: unknown): string {
@@ -12,6 +13,7 @@ function messageFor(error: unknown): string {
 /** Owner-only ordering boundary for the project cards on the profile overview. */
 export function useProfileProjectOrder(profileId: Id | null, projects: Project[], isOwner: boolean) {
   const { projects: projectService } = useServices();
+  const { invalidateProfiles } = useProfileData();
   const canonicalIds = useMemo(() => projects.map((project) => project.id), [projects]);
   const canonicalSignature = canonicalIds.join(',');
   const [order, setOrder] = useState<Id[]>(canonicalIds);
@@ -24,6 +26,7 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
     equals: (a, b) => a.join(',') === b.join(',') });
   const { begin, complete, finish, isCurrent, replay, isSaving } = historyState;
   const isMountedRef = useRef(true);
+  const canonicalScopeRef = useRef({ profileId, signature: canonicalSignature });
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -33,6 +36,19 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
   }, []);
 
   useEffect(() => {
+    const previous = canonicalScopeRef.current;
+    canonicalScopeRef.current = { profileId, signature: canonicalSignature };
+    // A background refresh must not discard a drag draft or a failed save's
+    // retry. A different profile or changed membership still resets the scope.
+    if (previous.profileId === profileId
+      && membershipSignature(previous.signature ? previous.signature.split(',') : []) === membershipSignature(canonicalIds)
+      && (isSaving || retryOrderRef.current || orderRef.current.join(',') !== committedOrderRef.current.join(','))) {
+      if (!isSaving) {
+        committedOrderRef.current = canonicalIds;
+        setOrder([...orderRef.current]);
+      }
+      return;
+    }
     orderRef.current = canonicalIds;
     committedOrderRef.current = canonicalIds;
     setOrder(canonicalIds);
@@ -74,25 +90,34 @@ export function useProfileProjectOrder(profileId: Id | null, projects: Project[]
 
   const save = useCallback(async (next: Id[], mode: HistoryWriteMode = 'change'): Promise<boolean> => {
     if (!profileId || !isOwner) return false;
-    const operation = begin(mode);
+    // A partially applied Undo/Redo can invalidate its history entry after
+    // refresh. The retained retry target is still a valid explicit change.
+    const operation = begin(mode) ?? (mode !== 'change' ? begin('change') : null);
     if (!operation) return false;
     const previous = [...committedOrderRef.current];
     const snapshot = [...next];
     setSaveError(null); retryOrderRef.current = null;
     try {
       await projectService.saveProfileProjectOrder(profileId, snapshot);
+      // The write may finish after navigation; the next visit must still reload
+      // the stored order instead of the old cached profile.
+      invalidateProfiles();
       if (!isCurrent(operation)) return false;
       complete(operation, previous, snapshot, 'Reorder projects');
       committedOrderRef.current = snapshot; orderRef.current = snapshot; setOrder(snapshot);
       return true;
     } catch (error) {
+      // A multi-row write may have partially reached the server. Keep the retry
+      // snapshot below while other surfaces reload what was actually stored.
+      invalidateProfiles();
       if (!isCurrent(operation)) return false;
       orderRef.current = previous; setOrder(previous); setSaveError(messageFor(error));
       retryOrderRef.current = { order: snapshot, mode }; return false;
     } finally { finish(operation); }
-  }, [begin, complete, finish, isCurrent, isOwner, profileId, projectService]);
+  }, [begin, complete, finish, isCurrent, isOwner, profileId, projectService, invalidateProfiles]);
 
   const commit = useCallback(() => {
+    if (retryOrderRef.current) return save(retryOrderRef.current.order, retryOrderRef.current.mode);
     const next = orderRef.current;
     if (next.join(',') === committedOrderRef.current.join(',')) {
       return Promise.resolve(true);

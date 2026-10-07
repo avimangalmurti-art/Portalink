@@ -4,17 +4,17 @@
   "description": "A creator platform for publishing work and discovering people, projects, and places.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f7f7f8",
+  "background_color": "#f8fdfc",
   "theme_color": "#0b0c0f",
   "icons": [
     {
-      "src": "/icons/portalink-app-192.png",
+      "src": "/icons/portalink-app-192-03b564a6.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/portalink-app-512.png",
+      "src": "/icons/portalink-app-512-03b564a6.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

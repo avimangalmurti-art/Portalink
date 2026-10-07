@@ -1,13 +1,13 @@
 // Candidate worker core. No Deno.serve, scheduler, credentials or startup side
 // effects. The caller must supply a service client and explicitly release it.
-export async function runDeletionTick(admin, { enabled = false, maxBatches = 10 } = {}) {
+export async function runDeletionTick(admin, { enabled = false, maxBatches = 10, accountId = null } = {}) {
   if (!enabled) return { status: 'disabled' };
   const rpc = async (name, args = {}) => {
     const { data, error } = await admin.rpc(name, args);
     if (error) throw new Error(`Deletion checkpoint failed: ${name}`);
     return data;
   };
-  const job = await rpc('claim_account_deletion');
+  const job = await rpc('claim_account_deletion', accountId ? { p_account_id: accountId } : {});
   if (!job) return { status: 'idle' };
   const keys = { p_job: job.id, p_lease: job.lease_token };
   try {

@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { Id, ProjectLocation } from '../types/domain';
-import { cities } from '../data/cities';
 import { toLocationId } from '../utils/location';
+import { locationDirectory, type DirectoryPlace } from '../data/locationDirectory';
 import type { LiveSessionsState } from '../features/live/useLiveSessions';
 import { PortalinkPage } from './PortalinkPage';
 import { CityContentPage } from './CityContentPage';
-import { EmptyState } from './ui/StateViews';
+import { EmptyState, LoadingState } from './ui/StateViews';
+import { SearchAccountsPage } from './SearchAccountsPage';
 
 type SearchBrowsePageProps = {
   query: string;
@@ -18,10 +19,14 @@ type SearchBrowsePageProps = {
   locationId: Id | null;
   onOpenAtlas: () => void;
   onOpenWorld: () => void;
+  onReturnHome?: () => void;
+  onBack?: () => void;
   onOpenLocation: (locationId: Id) => void;
 };
 
 export function SearchBrowsePage({
+  query,
+  onQueryChange,
   onOpenProject,
   onOpenCreator,
   onWarmCreator,
@@ -29,10 +34,24 @@ export function SearchBrowsePage({
   view,
   locationId,
   onOpenAtlas,
+  onOpenWorld,
+  onReturnHome,
+  onBack,
   onOpenLocation
 }: SearchBrowsePageProps) {
+  const [resolved, setResolved] = useState<{ id: string; place: DirectoryPlace | null; failed?: boolean } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (view !== 'location' || !locationId) return;
+    let current = true;
+    void locationDirectory.resolve(locationId).then(place => { if (current) setResolved({ id: locationId, place }); })
+      .catch(() => { if (current) setResolved({ id: locationId, place: null, failed: true }); });
+    return () => { current = false; };
+  }, [view, locationId, attempt]);
   if (view === 'location') {
-    const selectedCity = cities.find((city) => toLocationId(city.name) === locationId) ?? null;
+    if (!resolved || resolved.id !== locationId) return <LoadingState label="Opening location…" />;
+    if (resolved.failed) return <EmptyState title="Location could not load" description="Try loading the directory again." action={{ label: 'Try again', onClick: () => { setResolved(null); setAttempt(value => value + 1); } }} />;
+    const selectedCity = resolved.place;
 
     if (!selectedCity) {
       return (
@@ -40,6 +59,7 @@ export function SearchBrowsePage({
           <EmptyState
             title="Location not found"
             description="Return to Portalink and choose another place."
+            action={{ label: 'Browse another city', onClick: onOpenWorld }}
           />
         </div>
       );
@@ -48,7 +68,7 @@ export function SearchBrowsePage({
     return (
       <CityContentPage
         city={selectedCity}
-        onBack={onOpenAtlas}
+        onBack={onOpenWorld}
         onOpenProject={onOpenProject}
         onOpenCreator={onOpenCreator}
         onWarmCreator={onWarmCreator}
@@ -59,16 +79,12 @@ export function SearchBrowsePage({
   if (view === 'world') {
     return (
       <PortalinkPage
-        onBack={onOpenAtlas}
-        onSelectCity={(city) => onOpenLocation(toLocationId(city.name))}
+        onBack={onReturnHome ?? onOpenAtlas}
+        onSelectCity={(city) => onOpenLocation('id' in city ? city.id : toLocationId(city.name))}
         live={live}
       />
     );
   }
 
-  return (
-    <div className="flex h-full w-full items-center justify-center px-6 py-10">
-      <EmptyState title="Search" description="Portalink Search is being designed." />
-    </div>
-  );
+  return <SearchAccountsPage query={query} onQueryChange={onQueryChange} onOpenCreator={onOpenCreator} onWarmCreator={onWarmCreator} onBack={onBack ?? onReturnHome} />;
 }

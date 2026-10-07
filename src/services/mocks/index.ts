@@ -10,21 +10,18 @@ import { projectRelevanceForPersistence } from '../../domain/discovery/ranking';
  * Replace these one at a time with `Api*` implementations in `services/index.ts`.
  */
 
-import { accountsToExploreIds, featuredCuration, feedCuration } from '../../data/feed';
+import { accountsToExploreIds } from '../../data/feed';
 import { applyPrototypeProfileUpdate, countPrototypeCategoryProjects, findProfileById, getProfileById, profiles, registerPrototypeCategory, registerPrototypeProfile, registerPrototypeProject, removePrototypeCategory, removePrototypeProject, renamePrototypeCategory, reorderPrototypeCategories, reorderPrototypeProjects, setPrototypeCategoryIcon, updatePrototypeProject } from '../../data/profiles';
 import type { Profile as PrototypeProfile } from '../../data/profiles';
 import { cities } from '../../data/cities';
 import { liveSessionSeeds } from '../../data/liveSessions';
 import { getCountryCode } from '../../data/countryCodes';
-import { getCityAccentToken } from '../../data/cityAccents';
 import { toLocationId } from '../../utils/location';
 import { defaultReportingPeriodId, gazeCapital, getReportingPeriod, kpisForPeriod } from '../../data/studioAnalytics';
-import { readAccentColor, readAppearanceMode, readHighContrast, readReduceTranslucency, writeAccentColor, writeAppearanceMode, writeHighContrast, writeReduceTranslucency } from '../../utils/appearancePreferences';
-import { localGeography } from '../../data/geography';
 import { getSeededProjectTypefaceId } from '../../data/projectTypefaces';
 import { typefaces } from '../../data/typefaces';
 import { attachmentsFromPreparedMedia } from '../../features/media/projectAttachments';
-import type { AnalyticsService, CommentService, CommerceService, DiscoveryService, EngagementService, GeographyService, LiveService, MediaService, MessagingService, NotificationService, PreferencesService, ProfileService, ProjectService, SearchService, SocialService } from '../interfaces';
+import type { CommentService, DiscoveryService, EngagementService, LiveService, MediaService, MessagingService, NotificationService, ProfileService, ProjectService, SocialService } from '../interfaces';
 import { EngagementServiceError } from '../../types/engagement';
 import { SocialServiceError } from '../../types/social';
 import { CommentServiceError, validateCommentBody } from '../../types/comments';
@@ -33,16 +30,17 @@ import type { Comment, CommentAuthor, ProjectComments } from '../../types/commen
 // rather than trusting the caller. A real implementation verifies a token instead.
 import { readPrototypeSession } from '../prototype/authService';
 import type { EngagementKind, ProjectEngagement } from '../../types/engagement';
-import type { AppearancePreferences, FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Location, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
+import type { FeedCreator, FollowRequest, FollowState, GenerationOutcome, GenerativeCapability, Id, LiveCapability, LiveSession, Notification, PortfolioArrangement, PortfolioCategory, Product, Profile, Project, ProjectArrangement, ProjectDesign, ProjectView, SearchResult, UpdateProfileInput } from '../../types/domain';
 import { CategoryMutationError, ProfileServiceError } from '../../types/profile';
 import { ProcessingServiceError, ProjectMutationError, PublishServiceError, UploadServiceError } from '../../types/publishing';
 import type { DeleteProjectResult, ProjectDraft, PublishProjectInput, PublishResult, UpdateProjectInput, UpdateProjectResult } from '../../types/publishing';
-import type { CreateProfileInput, CreateProfileResult, HandleAvailability } from '../../types/profile';
+import type { CreateProfileInput, CreateProfileResult } from '../../types/profile';
 import { createProfileHandle } from '../../utils/profileHandle';
 import { deriveInitials, normalizeHandle } from '../../features/profile/validation';
 import { buildUserContentSphere, rankDiscoverProjects, rankHomeProjects } from '../../domain/discovery/ranking';
 import { creatorLocationMatches, decideProjectPlacement } from '../../domain/contentPlacement';
 import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pageLayout';
+import { MAX_PROJECT_GRID_COLUMNS, MIN_PROJECT_GRID_COLUMNS } from '../../utils/projectGridDensity';
 
 /**
  * These mocks serve CONTENT only. They never decide who is signed in — that is
@@ -146,17 +144,6 @@ export const mockProfileService: ProfileService = {
     const ownProfileId = readPrototypeSession()?.user.profileId ?? null;
     return resolve(profiles.filter((profile) => !profile.isPrivate || profile.id === ownProfileId).map(profileForCurrentViewer));
   },
-  async checkHandleAvailability(handle): Promise<HandleAvailability> {
-    const normalized = normalizeHandle(handle);
-    // Evaluated against local fixtures only. Real uniqueness is a Postgres
-    // constraint; this can never be authoritative.
-    const taken = isHandleTaken(normalized);
-    return resolve({
-      handle: normalized,
-      isAvailable: !taken,
-      reason: taken ? 'That handle is already taken.' : undefined
-    }, 480);
-  },
   async createProfile(accountId, input: CreateProfileInput): Promise<CreateProfileResult> {
     await resolve(undefined, 620);
     const handle = input.handle === undefined ? createProfileHandle(input.name) : normalizeHandle(input.handle);
@@ -199,6 +186,9 @@ export const mockProfileService: ProfileService = {
   },
   async updateProfile(profileId, input: UpdateProfileInput) {
     await resolve(undefined, 320);
+    if (input.projectGridColumns !== undefined && (!Number.isInteger(input.projectGridColumns) || input.projectGridColumns < MIN_PROJECT_GRID_COLUMNS || input.projectGridColumns > MAX_PROJECT_GRID_COLUMNS)) {
+      throw new ProfileServiceError('invalid_input', `Projects per row must be between ${MIN_PROJECT_GRID_COLUMNS} and ${MAX_PROJECT_GRID_COLUMNS}.`);
+    }
     const current = getProfileById(profileId) as Profile;
     const {
       handle,
@@ -472,6 +462,11 @@ export const mockProjectService: ProjectService = {
     projectDesigns.set(projectId, next);
     return next;
   },
+  async updateProjectTags(projectId, tags) {
+    const owner = findProjectOwner(projectId);
+    if (!owner) throw new Error('That project no longer exists.');
+    owner.project.tags = [...tags];
+  },
   async saveProfileProjectOrder(profileId, projectIds) {
     const live = getProfileById(profileId).projects.map((project) => project.id);
     const unique = [...new Set(projectIds)];
@@ -522,11 +517,14 @@ export const mockProjectService: ProjectService = {
     });
     return undefined;
   },
-  async uploadProjectMedia() {
-    // NOT IMPLEMENTED: no media storage. Always rejects so the UI shows a
-    // truthful error path rather than pretending the upload succeeded.
-    await resolve(undefined);
-    throw new Error('Uploads are not connected yet.');
+  async getDraft(draftId) { return drafts.get(draftId) ?? null; },
+  async updateProjectJourneyDetails(projectId, details, caption) {
+    const project = await this.getProject(projectId);
+    project.creationDetails = details; project.thenNowCaption = caption;
+  },
+  async updateProjectCreationDetails(projectId, details) {
+    const project = await this.getProject(projectId);
+    project.creationDetails = details;
   },
   async createDraft(profileId, categoryId) {
     const profile = getProfileById(profileId);
@@ -575,7 +573,7 @@ export const mockProjectService: ProjectService = {
     }
     // Defence in depth: the public fields are required at the boundary too, so
     // no path can create a project with metadata invented to fill a gap.
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new PublishServiceError('invalid_metadata', 'A title and a description are both required.');
     }
     const preparedMedia = input.media ?? [];
@@ -613,6 +611,7 @@ export const mockProjectService: ProjectService = {
       categoryId: input.categoryId,
       title: input.metadata.title.trim(),
       summary: input.metadata.summary.trim(),
+      creationDetails: input.metadata.creationDetails,
       cover,
       relevance: withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata), input.location),
       coverAlt: isPersisted ? input.metadata.title.trim() : `${input.metadata.title.trim()} — locally prepared preview`,
@@ -655,7 +654,7 @@ export const mockProjectService: ProjectService = {
     }
     // Defence in depth: the public fields are required here too, so no path can
     // strip a published project down to invented or empty metadata.
-    if (!input.metadata.title.trim() || !input.metadata.summary.trim()) {
+    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new ProjectMutationError('invalid_metadata', 'A title and a description are both required.');
     }
     if (input.metadata.title.trim().toLowerCase() === PROTOTYPE_PUBLISH_FAILURE_TITLE) {
@@ -698,6 +697,7 @@ export const mockProjectService: ProjectService = {
       ...current,
       title: input.metadata.title.trim(),
       summary: input.metadata.summary.trim(),
+      creationDetails: input.metadata.creationDetails,
       cover: coverAsset?.sourceUrl ?? current.cover,
       coverAlt: input.metadata.title.trim(),
       coverKind: coverAsset ? coverAsset.kind === 'video' ? 'video' : coverAsset.kind === 'document' ? 'document' : undefined : current.coverKind,
@@ -848,31 +848,15 @@ export const mockDiscoveryService: DiscoveryService = {
   async recordProjectSignal() {
     return resolve(undefined);
   },
-  // Curation decides WHICH work and in what order; the work itself always
-  // resolves canonically, so discovery cannot contradict a profile.
-  async getFeaturedProject() {
-    const entry = prototypeViews().find(({ view }) => view.project.id === featuredCuration.projectId);
-    return resolve(entry && decideProjectPlacement({ view: entry.view, surface: 'discover', ...entry.flags }).eligible ? entry.view : null);
-  },
-  async listFeedProjects() {
-    const eligible = prototypeViews().filter(({ view, flags }) => decideProjectPlacement({ view, surface: 'discover', ...flags }).eligible);
-    const eligibleById = new Map(eligible.map(({ view }) => [view.project.id, view]));
-    const curated = feedCuration.map((entry) => eligibleById.get(entry.projectId)).filter((view): view is ProjectView => Boolean(view));
-    // Work published through the product is eligible for discovery the moment it
-    // exists, and leads the run as the newest thing on the platform. It is the
-    // same canonical record the profile and category show.
-    const curatedIds = new Set(curated.map((view) => view.project.id));
-    const published = eligible.map(({ view }) => view).filter((view) => view.project.sessionOnly && !curatedIds.has(view.project.id));
-    return resolve([...published, ...curated]);
-  },
   async listLocationProjects(locationId) {
-    const city = cities.find((entry) => toLocationId(entry.name) === locationId);
+    const { locationDirectory, profileMatchesPlace } = await import('../../data/locationDirectory');
+    const city = await locationDirectory.resolve(locationId);
     if (!city) return resolve([]);
     const located = prototypeViews()
-      .filter(({ view, flags }) => creatorLocationMatches(view.creator.location, city.name)
+      .filter(({ view, flags }) => (city.legacy ? creatorLocationMatches(view.creator.location, city.name) : profileMatchesPlace(view.creator.location, city))
         && decideProjectPlacement({
           view,
-          surface: 'location',
+          surface: city.legacy ? 'location' : 'discover',
           requestedLocationName: city.name,
           ...flags,
         }).eligible)
@@ -883,10 +867,17 @@ export const mockDiscoveryService: DiscoveryService = {
   async listAccountsToExplore() {
     const creators = accountsToExploreIds.map((profileId) => profiles.find((profile) => profile.id === profileId)).filter((profile): profile is PrototypeProfile => profile !== undefined && !profile.isPrivate).map(creatorFromProfile);
     return resolve(creators);
+  },
+  async searchAccounts(query, offset = 0) {
+    const term = query.trim().replace(/^@/, '').toLocaleLowerCase();
+    return resolve(profiles.filter(profile => !profile.isPrivate && term && `${profile.name} ${profile.handle}`.toLocaleLowerCase().includes(term))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id)).slice(offset, offset + 30)
+      .map(profile => ({ ...creatorFromProfile(profile), kind: `@${profile.handle}` })));
   }
 };
-export const mockSearchService: SearchService = {
-  async search(query) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockSearchService = {
+  async search(query: string) {
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
       return resolve([] as SearchResult[]);
@@ -1561,22 +1552,6 @@ export const mockMessagingService: MessagingService = {
 /** Joined sessions are in-memory for the session only, like follows. */
 const joinedSessionIds = new Set<Id>();
 export const mockLiveService: LiveService = {
-  async listLocations() {
-    return resolve(cities.map((city) => {
-      const id = toLocationId(city.name);
-      return {
-        id,
-        name: city.name,
-        countryCode: getCountryCode(city.name),
-        // NOT IMPLEMENTED: no timezone database. Local time is derived from
-        // longitude by `getLocalTimeAt` / `formatSolarUtcOffset` instead.
-        timeZone: '',
-        latitude: city.latitude,
-        longitude: city.longitude,
-        accentToken: getCityAccentToken(id)
-      };
-    }) satisfies Location[], 0);
-  },
   async listSessions(locationId) {
     // Deterministic prototype seeds. Real sessions would come from the broadcast
     // backend; these describe sessions rather than carrying any audio.
@@ -1607,8 +1582,9 @@ export const mockLiveService: LiveService = {
     return resolve(undefined);
   }
 };
-export const mockAnalyticsService: AnalyticsService = {
-  async getCreatorAnalytics(profileId, periodId = defaultReportingPeriodId) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockAnalyticsService = {
+  async getCreatorAnalytics(profileId: Id, periodId = defaultReportingPeriodId) {
     return resolve({
       profileId,
       periodLabel: getReportingPeriod(periodId).label,
@@ -1628,7 +1604,7 @@ export const mockAnalyticsService: AnalyticsService = {
    * produced. Each now reports plainly that nothing was generated and nothing was
    * changed. A real implementation dispatches the job and returns its outcome.
    */
-  async requestLayoutRevision(projectId) {
+  async requestLayoutRevision(projectId: Id) {
     void projectId;
     return resolve({
       didGenerate: false,
@@ -1636,7 +1612,7 @@ export const mockAnalyticsService: AnalyticsService = {
       message: 'No layout revision was generated. This action is a prototype: your project and its files are unchanged.'
     } satisfies GenerationOutcome, 700);
   },
-  async simulateDraft(files) {
+  async simulateDraft(files: File[]) {
     // The files are never read, uploaded, or stored.
     void files;
     return resolve({
@@ -1645,7 +1621,7 @@ export const mockAnalyticsService: AnalyticsService = {
       message: 'No performance simulation was run. Your draft files were not uploaded or analysed, and nothing was saved.'
     } satisfies GenerationOutcome, 700);
   },
-  async synthesizeCrossMedia(projectIds) {
+  async synthesizeCrossMedia(projectIds: Id[]) {
     void projectIds;
     return resolve({
       didGenerate: false,
@@ -1654,8 +1630,9 @@ export const mockAnalyticsService: AnalyticsService = {
     } satisfies GenerationOutcome, 700);
   }
 };
-export const mockCommerceService: CommerceService = {
-  async getProduct(productId) {
+/** Standalone fixture helper; not registered in a product runtime. */
+export const mockCommerceService = {
+  async getProduct(productId: Id) {
     // NOT IMPLEMENTED: commerce data is presentational in the prototype.
     return resolve({
       id: productId,
@@ -1669,48 +1646,4 @@ export const mockCommerceService: CommerceService = {
   }
 };
 
-/**
- * Local geography. Level-of-detail and visibility are resolved in the frontend
- * (`utils/geoScene.ts`) because the dataset is small; a production provider may
- * answer per-bounds instead without changing the globe components.
- */
-export const localGeographyService: GeographyService = {
-  readLocalGeography() {
-    return localGeography;
-  },
-  async getVisibleGeography() {
-    // NOT IMPLEMENTED: there is no spatial service. The whole local dataset is
-    // returned regardless of bounds; the LOD resolver culls what is off-screen.
-    return resolve(localGeography);
-  }
-};
-
-/** The one service that is genuinely local by design. */
-export const localPreferencesService: PreferencesService = {
-  readAppearance(): AppearancePreferences {
-    return {
-      // One set of defaults for the whole product: Dark, the standard blue
-      // accent, High Contrast ON, Reduce Translucency ON. These must match the
-      // shell's own fallbacks — when they disagreed, what a first-time visitor
-      // saw depended on which of the two happened to be read first.
-      mode: readAppearanceMode('dark'),
-      accentColor: readAccentColor('#0A84FF'),
-      highContrast: readHighContrast(true),
-      reduceTranslucency: readReduceTranslucency(true)
-    };
-  },
-  writeAppearance(preferences) {
-    if (preferences.mode !== undefined) {
-      writeAppearanceMode(preferences.mode);
-    }
-    if (preferences.accentColor !== undefined) {
-      writeAccentColor(preferences.accentColor);
-    }
-    if (preferences.highContrast !== undefined) {
-      writeHighContrast(preferences.highContrast);
-    }
-    if (preferences.reduceTranslucency !== undefined) {
-      writeReduceTranslucency(preferences.reduceTranslucency);
-    }
-  }
-};
+export { localGeographyService } from '../local';

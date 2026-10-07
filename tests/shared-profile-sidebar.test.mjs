@@ -18,9 +18,9 @@ const layoutDefaults = compile('../src/utils/panelLayoutDefaults.ts', () => ({})
 
 // Render the real component and exercise its handlers without creating users,
 // changing live data, or requiring a browser. Only hooks and external UI are stubbed.
-function harness() {
+function harness(initialPresentation = 'web') {
   const state = [];
-  let cursor = 0;
+  let cursor = 0, presentation = initialPresentation;
   let width;
   const calls = [];
   const react = { ...React,
@@ -34,6 +34,8 @@ function harness() {
   const { SharedProfileSidebar } = compile('../src/components/profile/SharedProfileSidebar.tsx', (name) => {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button' };
     if (name === 'react') return react;
     if (name === '../../app/routes') return routes;
     if (name === '../../utils/panelLayoutDefaults') return layoutDefaults;
@@ -54,9 +56,9 @@ function harness() {
       { id: 'type', label: 'Typography', iconName: 'type' },
     ] },
     activeCategoryId: null, theme: 'light', onThemeChange: (theme) => calls.push(theme),
-    onOpenCategory: (id) => calls.push(id), onSignIn: () => calls.push('sign-in'), onCreateAccount: () => calls.push('sign-up'),
+    onOpenCategory: (id) => calls.push(id), onSettingsOpen: () => calls.push('settings'),
   };
-  return { calls, render(changes = {}) { cursor = 0; return SharedProfileSidebar({ ...props, ...changes }); } };
+  return { calls, setPresentation(value) { presentation = value; }, render(changes = {}) { cursor = 0; return SharedProfileSidebar({ ...props, ...changes }); } };
 }
 function nodes(tree) {
   if (!tree || typeof tree !== 'object') return [];
@@ -97,22 +99,39 @@ test('collapse keeps all creator portal icons named, clickable and selected with
   tree = h.render({ activeCategoryId: 'type' });
   assert.equal(tree.props['data-collapsed'], 'true');
   assert.equal(portals(tree)[1].props['aria-current'], 'page');
-  assert.equal(home(tree).props.to, '/share/creator');
+  assert.equal(home(tree), undefined, 'Expand navigation to use the creator name; no redundant home icon');
   assert.ok(nodes(tree).some((node) => node.type === 'nav' && /overflow-y-auto/.test(node.props.className)));
 });
 
-test('expanding restores the chosen width and the resize handle without changing routes', () => {
+test('public navigation can collapse and expand without offering layout resize handles', () => {
   const h = harness();
   let tree = h.render();
-  nodes(tree).find((node) => node.type === 'resize-handle').props.onResize(280);
+  assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   toggle(tree).props.onClick();
   tree = h.render();
   assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   toggle(tree).props.onClick();
   tree = h.render();
   assert.equal(tree.props.style.width, '280px');
-  assert.ok(nodes(tree).some((node) => node.type === 'resize-handle'));
+  assert.ok(!nodes(tree).some((node) => node.type === 'resize-handle'));
   assert.deepEqual(h.calls, []);
+});
+
+test('shared navigation keeps the creator name as its only home link and keeps bio out of the sidebar', () => {
+  for (const presentation of ['web']) {
+    const h = harness(presentation);
+    const profile = { id: 'creator', name: 'Creator', headline: 'Jolly Good\nWorking across cities.', categories: [] };
+    const wrapper = h.render({ profile });
+    const tree = wrapper;
+    assert.equal(nodes(tree).some(node => node.props['data-shared-profile-headline'] !== undefined), false);
+    assert.equal(nodes(tree).some(node => node.props.children === 'Jolly Good'), false);
+    assert.ok(nodes(tree).some(node => node.type === 'nav' && node.props['aria-label'] === 'Creator portals'));
+    assert.equal(nodes(tree).find(node => node.props['data-shared-portals-heading'] !== undefined).props.children.trim(), 'Portals');
+    assert.equal(nodes(tree).filter(node => node.type === 'Link').length, 1);
+    assert.equal(home(tree).props.to, '/share/creator');
+    assert.ok(nodes(home(tree)).some(node => node.props.children === 'Creator'));
+    assert.equal(nodes(tree).some(node => node.props.icon === 'HomeIcon' || node.props.children === 'Profile'), false);
+  }
 });
 
 test('settings and theme remain usable in the collapsed rail for both themes', () => {
@@ -124,10 +143,7 @@ test('settings and theme remain usable in the collapsed rail for both themes', (
     assert.deepEqual(h.calls, [theme === 'dark' ? 'light' : 'dark']);
     nodes(tree).find((node) => node.props?.['aria-label'] === 'Open settings').props.onClick();
     tree = h.render({ theme });
-    const menu = nodes(tree).find((node) => node.props?.role === 'menu');
-    assert.match(menu.props.className, /w-56 max-w-/);
-    nodes(menu).filter((node) => node.props?.role === 'menuitem')[1].props.onClick();
-    assert.equal(h.calls.at(-1), 'sign-in');
+    assert.equal(h.calls.at(-1), 'settings');
     assert.ok(!nodes(h.render({ theme })).some((node) => node.props?.role === 'menu'));
   }
 });
@@ -136,8 +152,29 @@ test('empty public portfolios still offer expansion and return-to-profile', () =
   const h = harness();
   const profile = { id: 'empty', name: 'Empty Creator', categories: [] };
   toggle(h.render({ profile })).props.onClick();
-  const tree = h.render({ profile });
+  let tree = h.render({ profile });
   assert.equal(portals(tree).length, 0);
   assert.equal(toggle(tree).props['aria-label'], 'Expand navigation');
+  assert.equal(home(tree), undefined);
+  toggle(tree).props.onClick();
+  tree = h.render({ profile });
   assert.equal(home(tree).props.to, '/share/empty');
+});
+
+test('MOBILE restores the creator drawer and preserves WEB collapse preference', () => {
+  const h = harness(); toggle(h.render()).props.onClick();
+  assert.equal(h.render().props['data-collapsed'], 'true');
+  h.setPresentation('mobile');
+  const tree = h.render({ activeCategoryId: 'photos' });
+  assert.equal(tree.type, 'PublicProfileDrawer');
+  let closed = 0;
+  const drawer = tree.props.children(() => closed++);
+  assert.equal(home(drawer).props.to, '/share/creator');
+  assert.equal(portals(drawer).length, 2);
+  portals(drawer)[0].props.onClick();
+  assert.equal(closed, 1);
+  assert.deepEqual(h.calls, ['photos']);
+  assert.equal(nodes(drawer).some(node => node.type === 'context-button'), false);
+  h.setPresentation('web'); const web = h.render();
+  assert.equal(web.type, 'aside'); assert.equal(web.props['data-collapsed'], 'true');
 });

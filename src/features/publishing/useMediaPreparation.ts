@@ -16,7 +16,7 @@ import type { ProjectCoverFrame } from '../../types/domain';
  * implementation adds uploading/progress/retry without rewriting this UI.
  */
 const MAX_ASSETS = 105;
-let mediaCounter = 0;
+
 function rejectionMessage(code: MediaRejectionCode, detail: string): string {
   switch (code) {
     case 'too_large':
@@ -41,7 +41,7 @@ function reindex(items: PreparedMedia[]): PreparedMedia[] {
       isCover: item.isCover && canBeCover(item.family, item.capability)
     }));
   }
-  const suggested = ordered.find((item) => canPreviewLocally(item.family, item.capability) && item.family === 'image') ?? ordered.find((item) => canBeCover(item.family, item.capability));
+  const suggested = ordered.find((item) => canBeCover(item.family, item.capability));
   return ordered.map((item) => ({
     ...item,
     isCover: item.id === suggested?.id
@@ -109,9 +109,8 @@ export function useMediaPreparation() {
           preparedUrls.push(previewUrl);
         }
         const dimensions = detected.family === 'image' ? await readImageDimensions(file) : null;
-        mediaCounter += 1;
         return {
-          id: `asset-${mediaCounter}`,
+          id: `asset-${crypto.randomUUID()}`,
           file,
           fileName: file.name,
           displayTitle: file.name,
@@ -190,10 +189,10 @@ export function useMediaPreparation() {
       })));
     });
   }, []);
-  const setPageCount = useCallback((mediaId: string, pageCount: number) => {
+  const setPageCount = useCallback((mediaId: string, pageCount: number, size?: { widthPixels: number; heightPixels: number }) => {
     if (!Number.isInteger(pageCount) || pageCount < 1) return;
-    setItems((current) => current.map((item) => item.id !== mediaId || item.metadata?.pageCount === pageCount ? item : {
-      ...item, metadata: { ...item.metadata, pageCount },
+    setItems((current) => current.map((item) => item.id !== mediaId || (item.metadata?.pageCount === pageCount && (!size || item.metadata?.widthPixels === size.widthPixels && item.metadata.heightPixels === size.heightPixels)) ? item : {
+      ...item, metadata: { ...item.metadata, pageCount, ...size },
     }));
   }, []);
   const setCoverPage = useCallback((mediaId: string, pageNumber: number, pageCount?: number, frame?: ProjectCoverFrame) => {
@@ -252,10 +251,21 @@ export function useMediaPreparation() {
     hasReleasedRef.current = true;
     ownedUrlsRef.current = [];
   }, []);
+  const restore = useCallback((saved: PreparedMedia[]) => {
+    ownedUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    ownedUrlsRef.current = [];
+    hasReleasedRef.current = false;
+    setItems(saved.map(item => {
+      const previewUrl = canPreviewLocally(item.family, item.capability) ? URL.createObjectURL(item.file) : null;
+      if (previewUrl) ownedUrlsRef.current.push(previewUrl);
+      return { ...item, previewUrl };
+    }));
+  }, []);
   const cover = useMemo(() => items.find((item) => item.isCover) ?? null, [items]);
   const state: MediaPreparationState = error ? 'invalid' : isSelecting ? 'selecting' : items.length === 0 ? 'empty' : capability?.isAvailable ? 'ready' : 'upload-unavailable';
   return {
     items,
+    restore,
     cover,
     error,
     state,

@@ -14,7 +14,7 @@ function eventTarget(values = {}) {
   };
 }
 
-function mount(window) {
+function mount(window, enabled = true) {
   let effect;
   const exports = {};
   const source = readFileSync(new URL('../src/hooks/useDialogViewport.ts', import.meta.url), 'utf8');
@@ -23,7 +23,7 @@ function mount(window) {
     assert.equal(name, 'react');
     return { useRef: () => ({ current: null }), useEffect: (callback) => { effect = callback; } };
   } });
-  const ref = exports.useDialogViewport();
+  const ref = exports.useDialogViewport(enabled);
   const styles = new Map();
   ref.current = { style: { setProperty: (key, value) => styles.set(key, value) } };
   const unmount = effect();
@@ -64,4 +64,17 @@ test('dialog falls back to window resizing when VisualViewport is unavailable', 
   assert.equal(styles.get('--dialog-viewport-height'), '500px');
   unmount();
   assert.equal(window.listeners.size, 0);
+});
+
+test('a closed, persistently mounted dialog does not subscribe until opened', () => {
+  const window = eventTarget({ innerHeight: 700, visualViewport: eventTarget({ height: 640, offsetTop: 0 }) });
+  const closed = mount(window, false);
+  assert.equal(closed.styles.size, 0);
+  assert.equal(window.listeners.size, 0);
+  assert.equal(window.visualViewport.listeners.size, 0);
+  const opened = mount(window, true);
+  assert.equal(opened.styles.get('--dialog-viewport-height'), '640px');
+  opened.unmount();
+  assert.equal(window.listeners.size, 0);
+  assert.equal(window.visualViewport.listeners.size, 0);
 });

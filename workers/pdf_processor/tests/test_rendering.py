@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 from pathlib import Path
 import tempfile
 import unittest
@@ -69,8 +70,11 @@ class RenderingTests(unittest.TestCase):
                 validate_pdf(source)
             self.assertEqual(caught.exception.code, "corrupted_pdf")
             self.assertFalse(caught.exception.retryable)
+            # PyMuPDF's failed-open traceback can retain a native file handle
+            # until collection on Windows. Release it before temp cleanup.
+            del caught
+            gc.collect()
 
 
 if __name__ == "__main__":
     unittest.main()
-

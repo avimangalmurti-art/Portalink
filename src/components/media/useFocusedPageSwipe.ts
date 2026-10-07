@@ -2,8 +2,9 @@ import { useRef, type CSSProperties, type PointerEvent } from 'react';
 import { usePresentation } from '../../presentation/usePresentation';
 
 /** Fitted MOBILE pages swipe sideways to turn and down to exit; zoomed pages pan. */
-export function useFocusedPageSwipe({ active, zoom, onMove, onExit }: {
+export function useFocusedPageSwipe({ active, zoom, onMove, onExit, readingMode = false }: {
   active: boolean;
+  readingMode?: boolean;
   zoom: number;
   onMove: (direction: -1 | 1) => void;
   onExit: () => void;
@@ -39,7 +40,7 @@ export function useFocusedPageSwipe({ active, zoom, onMove, onExit }: {
     if (!active || !start || event.pointerType !== 'touch' || zoom > 1.01 ||
       (isMobile && start.id !== event.pointerId)) return;
     const dx = event.clientX - start.x, dy = event.clientY - start.y;
-    if (isMobile && start.axis !== 'x' && dy > 56 && dy > Math.abs(dx) * 1.25) {
+    if (!readingMode && isMobile && start.axis !== 'x' && dy > 56 && dy > Math.abs(dx) * 1.25) {
       event.preventDefault();
       event.stopPropagation();
       onExit();
@@ -50,7 +51,7 @@ export function useFocusedPageSwipe({ active, zoom, onMove, onExit }: {
   };
   // Native pan-y cancels the pointer before a downward swipe can complete.
   // Only the fitted page owns both axes; zoomed content keeps native scrolling.
-  const touchAction = isMobile && active && zoom <= 1.01 ? 'none' : 'pan-x pan-y';
+  const touchAction = isMobile && active && zoom <= 1.01 ? readingMode ? 'pan-y' : 'none' : 'pan-x pan-y';
   return {
     isMobile,
     swipeStyle: { touchAction, '--focused-page-touch-action': touchAction } as CSSProperties,

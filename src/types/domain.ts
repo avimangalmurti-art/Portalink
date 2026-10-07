@@ -24,11 +24,16 @@ export type ProfileStat = {
   label: string;
   value: string;
 };
+export type ProfileLinkAction = 'bio' | 'collaboration' | 'message';
 export type ProfileLink = {
   label: string;
   href: string;
   /** Reuses the Portal icon vocabulary; absent legacy records use `globe`. */
   iconName?: string;
+  /** Built-in destinations use callbacks, never the external href. */
+  action?: ProfileLinkAction;
+  /** Preserve removed defaults so they stay removed across devices. */
+  hidden?: boolean;
 };
 
 export type PublicAppearance = {
@@ -39,6 +44,16 @@ export type PublicAppearance = {
 
 /** A creator's public identity plus the portfolio structure they own. */
 export type Profile = {
+  /** Public Journey is explicitly opt-in; absent older columns remain private. */
+  portfolioHeadline?: string | null;
+  school?: string;
+  availability?: string;
+  contactEmailPublic?: boolean;
+  contactEmail?: string;
+  allowPdfDownload?: boolean;
+  startHereProjectId?: Id | null;
+  showJourney?: boolean;
+  thenNow?: { then: Id; now: Id } | null;
   id: Id;
   name: string;
   handle: string;
@@ -64,6 +79,8 @@ export type Profile = {
   isPrivate?: boolean;
   /** Creator branding shared by every public URL; null until first saved. */
   publicAppearance?: PublicAppearance | null;
+  /** Owner's saved 2–13 project-card count, shared by Home and the public profile. */
+  projectGridColumns?: number;
 };
 /**
  * Editing an existing profile. Deliberately the same identity fields
@@ -71,7 +88,7 @@ export type Profile = {
  * profile editing reuses one validation vocabulary rather than growing a second
  * model. `avatar` is a prepared, not-yet-uploaded file.
  */
-export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance'>> & {
+export type UpdateProfileInput = Partial<Pick<Profile, 'name' | 'headline' | 'location' | 'links' | 'socialLinks' | 'isPrivate' | 'publicAppearance' | 'projectGridColumns' | 'showJourney' | 'thenNow' | 'portfolioHeadline' | 'school' | 'availability' | 'contactEmailPublic' | 'contactEmail' | 'allowPdfDownload' | 'startHereProjectId'>> & {
   /** Normalized without the leading "@"; uniqueness is re-checked on write. */
   handle?: string;
   avatar?: import('./profile').PreparedAvatar;
@@ -247,17 +264,47 @@ export type ProjectDesign = {
   /** Creator-selected number of pages per row that viewers initially see. */
   pagesPerRow?: number;
 };
+/** Immutable, pre-rendered cover artwork; originals remain separate attachments. */
+export type ProjectCoverThumbnail = {
+  social?: { path: string; width: 1200; height: 630; sourceUrl?: string | null };
+  version: 1;
+  bucket: 'project-covers' | 'project-media';
+  sourceAttachmentId: string;
+  sourceKey: string;
+  frameBaked: true;
+  variants: Array<{
+    size: 200 | 400 | 800;
+    path: string;
+    width: number;
+    height: number;
+    sourceUrl?: string | null;
+  }>;
+};
+export type ProjectCreationDetails = {
+  /** Creator-reviewed month, YYYY-MM. */
+  madeIn: string;
+  field: string;
+  answers: { what: string; did: string; learned: string };
+};
 export type Project = {
+  tags?: string[];
+  thenNowCaption?: string;
+  /** Known from the stored project and portal visibility; absent on legacy fixtures. */
+  isPubliclyVisible?: boolean;
+  creationDetails?: ProjectCreationDetails;
   id: Id;
   categoryId: Id;
   title: string;
   summary: string;
   /** Canonical publication time, used for recency without inventing an age. */
   publishedAt?: string;
+  /** Published index grouping, readable without loading owner arrangement tools. */
+  isPinned?: boolean;
   /** Content-derived discovery metadata; never copied from the creator's home. */
   relevance?: ProjectRelevance;
   cover: string;
   coverAlt: string;
+  coverThumbnail?: ProjectCoverThumbnail;
   /** Set when the cover needs a renderer other than a normal image element. */
   coverKind?: 'video' | 'document';
   /**

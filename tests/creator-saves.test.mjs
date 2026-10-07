@@ -44,7 +44,7 @@ function saveService({ signedIn = true, data = true, error = null } = {}) {
     order: async () => ({ data, error }),
   };
   const client = {
-    auth: { getUser: async () => ({ data: { user: signedIn ? { id: 'verified-account' } : null }, error: null }) },
+    auth: { getSession: async () => ({ data: { session: signedIn ? { user: { id: 'verified-account' } } : null }, error: null }) },
     from(table) { calls.push(['table', table]); return chain; },
     rpc: async (name, params) => { calls.push([name, params]); return { data, error }; },
   };
@@ -79,6 +79,8 @@ test('insights accept real zeros but reject unavailable or invalid totals', asyn
 test('creator save button is absent on own profile and shows selected state for another creator', () => {
   let auth = { user: { id: 'a' }, isAuthenticated: true, viewerProfileId: 'mine' };
   const { CreatorSaveButton } = load('../src/features/library/CreatorSaveButton.tsx', {
+    '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
+    '../../presentation/mobile/contextActions': { contextActions: () => null },
     react: React, 'lucide-react': icons,
     '../../contexts/AuthContext': { useAuth: () => auth },
     '../../contexts/ServicesContext': { useServices: () => ({ creatorSaves: {} }) },
@@ -95,7 +97,7 @@ test('creator save button is absent on own profile and shows selected state for 
 test('footer utilities have real routes and selected states in both sidebar sizes', () => {
   const source = read('../src/components/Sidebar.tsx');
   const start = source.indexOf('function PersonalFooterLinks');
-  const end = source.indexOf('function AccountMenuTrigger', start);
+  const end = source.indexOf('function SettingsTrigger', start);
   const component = source.slice(start, end).replace('function PersonalFooterLinks', 'export function PersonalFooterLinks');
   const code = ts.transpileModule(component, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React } }).outputText;
   const exports = {};
@@ -115,13 +117,15 @@ test('footer utilities have real routes and selected states in both sidebar size
 
 test('saved library has distinct Projects and Creators collections with a private explanation', () => {
   const pages = load('../src/features/library/PersonalPages.tsx', {
+    '../../presentation/mobile/MobileProfileContext': { MobileProfileContext: ({ children }) => children },
+    '../../presentation/usePresentation': { usePresentation: () => 'web' },
     '../../presentation/mobile/MobileBackNavigation': { ScreenBack: ({ children }) => React.createElement(React.Fragment, null, children) },
     react: React, 'lucide-react': icons, 'react-router-dom': { Link: () => null, useSearchParams: () => [new URLSearchParams(), () => {}] },
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },
     '../../contexts/ServicesContext': { useServices: () => ({}) },
     '../../components/profile/ActivityCollectionPage': { ActivityCollectionPage: ({ kind, embedded }) => React.createElement('div', { 'data-collection': kind, 'data-embedded': embedded }) },
     '../../components/profile/CreatorAvatar': {}, '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null },
-    '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {}, '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': {},
+    '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {}, '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': {}, './collectionQueries': {},
   });
   const html = renderToStaticMarkup(React.createElement(pages.SavedPage, { onBack() {}, onOpenProject() {} }));
   assert.match(html, /Projects/); assert.match(html, /Pages/); assert.match(html, /Creators/);
@@ -132,8 +136,23 @@ test('saved library has distinct Projects and Creators collections with a privat
 test('shared profile stays minimal and owner header no longer duplicates Saved', () => {
   const profile = read('../src/components/UserProfilePage.tsx');
   assert.match(profile, /!showsOwnerTools && !isSharedView && <CreatorSaveButton/);
-  assert.match(profile, /ENGAGEMENT_KINDS\.filter\(\(kind\) => kind !== 'save'\)/);
+  assert.doesNotMatch(profile, /ENGAGEMENT_KINDS/);
   const accountQuery = read('../src/features/library/useAccountQuery.ts');
   assert.match(accountQuery, /result\?\.account === account && result\?\.query === query/);
   assert.match(accountQuery, /current = false/);
+});
+
+test('a creator-save failure from the context sheet propagates to its visible notice', async () => {
+  let model;
+  const { CreatorSaveButton } = load('../src/features/library/CreatorSaveButton.tsx', {
+    react: React, 'lucide-react': icons,
+    '../../presentation/mobile/MobileContextActions': { useMobileScreenActions(value) { model = value; } },
+    '../../presentation/mobile/contextActions': { contextActions: (_kind, _viewer, target) => target },
+    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'a' }, isAuthenticated: true, viewerProfileId: 'mine' }) },
+    '../../contexts/ServicesContext': { useServices: () => ({ creatorSaves: { setCreatorSave: async () => { throw Error('Offline'); } } }) },
+    '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null },
+    './useAccountQuery': { useAccountQuery: () => ({ data: false, loading: false }) },
+  });
+  renderToStaticMarkup(React.createElement(CreatorSaveButton, { profileId: 'other', name: 'Creator' }));
+  await assert.rejects(model.handlers.saveCreator(), /Offline/);
 });

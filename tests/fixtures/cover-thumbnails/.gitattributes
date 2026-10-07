@@ -1,0 +1,2 @@
+# Preserve PDF byte offsets across Windows checkouts.
+report.pdf binary

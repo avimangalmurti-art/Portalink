@@ -1,5 +1,4 @@
 import React, { createContext, useContext } from 'react';
-import { services as defaultServices } from '../services';
 import type { Services } from '../services/interfaces';
 
 /**
@@ -7,16 +6,18 @@ import type { Services } from '../services/interfaces';
  * engineering can swap in production implementations without touching any
  * component.
  */
-const ServicesContext = createContext<Services>(defaultServices);
+const ServicesContext = createContext<Services | null>(null);
 export function ServicesProvider({
-  services = defaultServices,
+  services,
   children
 
 
 
-}: {services?: Services;children: React.ReactNode;}) {
+}: {services: Services;children: React.ReactNode;}) {
   return <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>;
 }
 export function useServices(): Services {
-  return useContext(ServicesContext);
+  const services = useContext(ServicesContext);
+  if (!services) throw new Error('A service registry must be provided by the application entry.');
+  return services;
 }

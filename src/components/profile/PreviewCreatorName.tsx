@@ -18,6 +18,7 @@ export function PreviewCreatorName({ name, active }: { name: string; active: boo
     let previousDistance = -1;
     const measure = () => {
       const distance = Math.max(0, text.scrollWidth - viewport.clientWidth);
+      viewport.toggleAttribute('data-name-overflow', distance > 1);
       if (distance === previousDistance) return;
       previousDistance = distance;
       animation?.cancel();
@@ -36,7 +37,7 @@ export function PreviewCreatorName({ name, active }: { name: string; active: boo
     observer.observe(viewport);
     observer.observe(text);
     measure();
-    return () => { observer.disconnect(); animation?.cancel(); };
+    return () => { observer.disconnect(); animation?.cancel(); viewport.removeAttribute('data-name-overflow'); };
   }, [active, isMobile, name, reduceMotion]);
 
   if (!isMobile) return <span className="min-w-0 truncate text-left text-[11px] font-semibold">{name}</span>;

@@ -12,7 +12,7 @@ export function useProfileConnections(profileId: string, kind: ProfileConnection
   const ownerKey = `${auth.user?.id ?? 'guest'}:${profileId}`;
   const key = `${ownerKey}:${kind ?? 'none'}:${refreshVersion}`;
   const [state, setState] = useState<Collection>(() => empty(key));
-  const [counts, setCounts] = useState<{ key: string; followers?: number; following?: number }>({ key: ownerKey });
+  const [counts, setCounts] = useState<{ key: string; followers?: number; following?: number; canViewConnections?: boolean }>({ key: ownerKey });
   const request = useRef(0);
   const busy = useRef(false);
   const currentKey = useRef(key);
@@ -42,6 +42,15 @@ export function useProfileConnections(profileId: string, kind: ProfileConnection
     load();
     return () => { request.current += 1; busy.current = false; };
   }, [load]);
+
+  useEffect(() => {
+    if (!social.getProfileConnectionCounts) return;
+    let active = true;
+    social.getProfileConnectionCounts(profileId).then(totals => {
+      if (active) setCounts({ key: ownerKey, ...totals });
+    }).catch(() => { if (active) setCounts({ key: ownerKey }); });
+    return () => { active = false; };
+  }, [social, profileId, ownerKey, refreshVersion]);
 
   const current = state.key === key ? state : empty(key);
   return {

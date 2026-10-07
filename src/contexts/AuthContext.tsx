@@ -63,11 +63,13 @@ type AuthContextValue = {
    * and the destination is remembered independently of the sheet so cancelling
    * cannot bounce the person back into the same request.
    */
-  requestAuthenticatedDestination: (intent: AuthIntent) => void;
+  requestAuthenticatedDestination: (intent: AuthIntent, view?: 'signIn' | 'signUp' | 'forgotPassword') => void;
   /** Why the sheet opened, when it opened because of a gated destination. */
   gateMessage: string | null;
   /** Reads the pending destination and clears it, so it resolves exactly once. */
   consumePendingIntent: () => AuthIntent | null;
+  /** Snapshot for registration metadata; reading must not consume navigation. */
+  peekPendingIntent: () => AuthIntent | null;
   /**
    * The address last typed into any auth form, so moving between sign in, sign
    * up, and recovery — or returning after a failure — never asks for it twice.
@@ -119,7 +121,10 @@ export function AuthProvider({
   const pendingIntentRef = useRef<AuthIntent | null>(null);
   const [gateMessage, setGateMessage] = useState<string | null>(null);
   const [initializeAttempt, setInitializeAttempt] = useState(0);
-  const [rememberedEmail, setRememberedEmail] = useState('');
+  // Forms own their live input. Remembering the journey's address must not
+  // broadcast a new auth context to every screen for each keystroke.
+  const rememberedEmailRef = useRef('');
+  const rememberEmail = useCallback((email: string) => { rememberedEmailRef.current = email; }, []);
   // Restores focus to whatever opened the sheet once it closes.
   const openerRef = useRef<HTMLElement | null>(null);
   const isAuthenticated = phase === 'authenticated' && session !== null;
@@ -129,6 +134,8 @@ export function AuthProvider({
   const hasPresentedRecoveryRef = useRef(false);
   // Guards against a second submit while a request is in flight.
   const isSigningInRef = useRef(false);
+  const acceptedSessionVersionRef = useRef(0);
+  const signInGenerationRef = useRef(0);
   useEffect(() => {
     let isCurrent = true;
     let receivedAuthEvent = false;
@@ -137,6 +144,7 @@ export function AuthProvider({
       if (!isCurrent) {
         return;
       }
+      acceptedSessionVersionRef.current += 1;
       if (next?.isPasswordRecovery && !hasPresentedRecoveryRef.current) {
         hasPresentedRecoveryRef.current = true;
         pendingViewRef.current = 'resetPassword';
@@ -146,11 +154,16 @@ export function AuthProvider({
       if (!next) hasPresentedRecoveryRef.current = false;
       sessionRef.current = next;
       setSession(next);
+      setError(null);
       setPhase(next ? 'authenticated' : 'unauthenticated');
     };
-    const unsubscribe = auth.onAuthStateChange((next) => {
+    const unsubscribe = auth.onAuthStateChange((next, failure) => {
       receivedAuthEvent = true;
       acceptSession(next);
+      if (isCurrent && failure) {
+        setError(failure);
+        setPhase('failed');
+      }
     });
     auth.getSession().then((next) => {
       if (!receivedAuthEvent) acceptSession(next);
@@ -163,6 +176,7 @@ export function AuthProvider({
     });
     return () => {
       isCurrent = false;
+      signInGenerationRef.current += 1;
       unsubscribe();
     };
   }, [auth, initializeAttempt]);
@@ -174,26 +188,43 @@ export function AuthProvider({
       return null;
     }
     isSigningInRef.current = true;
+    const sessionVersion = acceptedSessionVersionRef.current;
+    const generation = signInGenerationRef.current;
+    const startingSession = sessionRef.current;
+    const sessionChanged = () => acceptedSessionVersionRef.current !== sessionVersion || sessionRef.current !== startingSession;
     setPhase('authenticating');
     setError(null);
     try {
       const next = await auth.signIn(input);
+      if (generation !== signInGenerationRef.current) return null;
+      const current = sessionRef.current;
+      // The SDK can publish SIGNED_IN before this request finishes mapping its
+      // profile. That same account may finish the form, but a newer sign-out,
+      // recovery session or different account must win over this older result.
+      let committed = next;
+      if (sessionChanged()) {
+        if (!current || current.user.id !== next.user.id || current.isPasswordRecovery) return null;
+        committed = current;
+      }
       // Committing the session and closing the sheet happen HERE, in the one
       // place that knows the attempt succeeded. The caller must not close the
       // sheet itself: `closeAuth` treats a close while still signed out as a
       // cancellation and drops the pending destination, and React has not
       // re-rendered yet at the moment an awaiting caller would run.
       isAuthenticatedRef.current = true;
-      sessionRef.current = next;
-      setSession(next);
+      sessionRef.current = committed;
+      setSession(committed);
       setPhase('authenticated');
       // Focus must not return to the Sign in button that no longer applies;
       // the destination view takes it instead.
       openerRef.current = null;
       setPendingView(null);
       setGateMessage(null);
-      return next;
+      return committed;
     } catch (caught) {
+      // A late profile-read failure cannot erase a session already accepted
+      // from the SDK, or replace the outcome of an explicit sign-out.
+      if (generation !== signInGenerationRef.current || sessionChanged()) return null;
       setError(toAuthError(caught));
       // Still signed out — the attempt failed, nothing changed. The sheet stays
       // open on the form so the error is visible and can be corrected.
@@ -204,6 +235,7 @@ export function AuthProvider({
     }
   }, [auth]);
   const signOut = useCallback(async () => {
+    signInGenerationRef.current += 1;
     setPhase('signing-out');
     setError(null);
     try {
@@ -212,7 +244,7 @@ export function AuthProvider({
       setSession(null);
       setPhase('unauthenticated');
       // The address belonged to the session that just ended.
-      setRememberedEmail('');
+      rememberedEmailRef.current = '';
       return true;
     } catch (caught) {
       setError(toAuthError(caught));
@@ -250,11 +282,12 @@ export function AuthProvider({
     }
   }, [auth]);
   const completeAccountDeletion = useCallback(() => {
+    signInGenerationRef.current += 1;
     sessionRef.current = null;
     setSession(null);
     setPhase('unauthenticated');
     setError(null);
-    setRememberedEmail('');
+    rememberedEmailRef.current = '';
     setPendingView(null);
     setGateMessage(null);
     pendingIntentRef.current = null;
@@ -270,18 +303,19 @@ export function AuthProvider({
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(null);
   }, []);
-  const requestAuthenticatedDestination = useCallback((intent: AuthIntent) => {
+  const requestAuthenticatedDestination = useCallback((intent: AuthIntent, view: 'signIn' | 'signUp' | 'forgotPassword' = 'signIn') => {
     pendingIntentRef.current = intent;
-    setGateMessage(describeIntent(intent));
+    setGateMessage(view === 'signIn' ? describeIntent(intent) : null);
     openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setError(null);
-    setPendingView('signIn');
+    setPendingView(view);
   }, []);
   const consumePendingIntent = useCallback(() => {
     const taken = pendingIntentRef.current;
     pendingIntentRef.current = null;
     return taken;
   }, []);
+  const peekPendingIntent = useCallback(() => pendingIntentRef.current, []);
   const closeAuth = useCallback(() => {
     clearPasswordRecoveryReturn();
     setPendingView(null);
@@ -320,9 +354,10 @@ export function AuthProvider({
     requestAuthenticatedDestination,
     gateMessage,
     consumePendingIntent,
-    rememberedEmail,
-    rememberEmail: setRememberedEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, rememberedEmail]);
+    peekPendingIntent,
+    get rememberedEmail() { return rememberedEmailRef.current; },
+    rememberEmail
+  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

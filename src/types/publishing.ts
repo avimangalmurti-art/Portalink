@@ -300,6 +300,10 @@ export class ProcessingServiceError extends Error {
 /* ── Draft ──────────────────────────────────────────────────────────────── */
 
 export type DraftMetadata = {
+  /** Optional creator-entered tags; device drafts preserve the editable text. */
+  tags?: string;
+  thenNowCaption?: string;
+  creationDetails?: import('./domain').ProjectCreationDetails;
   title: string;
   summary: string;
 };
@@ -312,6 +316,7 @@ export type ProjectDraft = {
   categoryId: Id;
   metadata: DraftMetadata;
   createdAt: string;
+  updatedAt?: string;
 };
 
 /**
@@ -331,6 +336,8 @@ export type ProjectDraft = {
  * the bytes were persisted.
  */
 export type PublishProjectInput = {
+  /** Checkpoint the confirmed identity before cover/detail follow-up work. */
+  onCommitted?: (result: PublishResult) => Promise<void>;
   draftId: Id;
   profileId: Id;
   categoryId: Id;
@@ -345,7 +352,11 @@ export type PublishProjectInput = {
   media?: PreparedMedia[];
 };
 export type PublishResult = {
+  /** The project exists; retry only the details write, never publication. */
+  creationDetailsPending?: boolean;
   projectId: Id;
+  /** Publication succeeded; optional recoverable cover preparation notice. */
+  message?: string;
   /**
    * Always false while no storage backend exists: the project carries local
    * previews for this session only. The UI must say so rather than implying an

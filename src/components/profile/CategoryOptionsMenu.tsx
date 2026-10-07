@@ -1,15 +1,14 @@
 import { useMenuFocus } from '../../hooks/useMenuFocus';
-import { useModalFocus } from '../../hooks/useModalFocus';
+import { ConfirmationDialog } from '../ui/ConfirmationDialog';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { EyeIcon, EyeOffIcon, Loader2Icon, MoreHorizontalIcon, PencilIcon, ShapesIcon, Trash2Icon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, MoreHorizontalIcon, PencilIcon, ShapesIcon, Trash2Icon } from 'lucide-react';
 import type { CategoryDeletionCapability, PortfolioCategory } from '../../types/domain';
-import { resolveAccentTokens } from '../../utils/accentTokens';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { usePresentation } from '../../presentation/usePresentation';
 
 /** Shared owner menu; mobile exposes its trigger without requiring hover. */
-export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete, onMoveUp, onMoveDown }: {
+export function CategoryOptionsMenu({ category, isHidden = false, isBusy = false, disabled = false, mobile = false, readDeletionCapability, onHideToggle, onRenameStart, onChangeIcon, onDelete, onMoveUp, onMoveDown }: {
   category: PortfolioCategory;
   accentColor: string;
   theme: 'light' | 'dark';
@@ -21,7 +20,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
   onHideToggle?: () => void;
   onRenameStart?: () => void;
   onChangeIcon?: () => void;
-  onDelete?: () => void;
+  onDelete?: () => void | boolean | Promise<void | boolean>;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
 }) {
@@ -38,8 +37,7 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
   });
   // Deleting is destructive and unrecoverable, so it confirms in place.
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const menuFocus = useMenuFocus({ open: isMenuOpen, menuRef, triggerRef, mode: isConfirmingDelete ? 'dialog' : 'menu', onOpen: () => setIsMenuOpen(true), onClose: () => setIsMenuOpen(false) });
-  useModalFocus(isMenuOpen && isConfirmingDelete, menuRef, () => setIsConfirmingDelete(false));
+  const menuFocus = useMenuFocus({ open: isMenuOpen && !isConfirmingDelete, menuRef, triggerRef, mode: isConfirmingDelete ? 'dialog' : 'menu', onOpen: () => setIsMenuOpen(true), onClose: () => setIsMenuOpen(false) });
   useEffect(() => {
     if (!isMenuOpen) {
       setIsConfirmingDelete(false);
@@ -102,8 +100,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
 
-          {isMenuOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" data-mobile-portal-menu={mobile ? '' : undefined} role={isConfirmingDelete ? 'alertdialog' : 'menu'} aria-modal={isConfirmingDelete || undefined} aria-describedby={isConfirmingDelete ? `delete-portal-${category.id}-description` : undefined} aria-label={isConfirmingDelete ? `Delete ${category.label}` : `${category.label} options`} style={{
-        ...resolveAccentTokens(accentColor, theme),
+          {/* The shell host keeps menus outside row clipping without a second theme. */}
+          {isMenuOpen && !isConfirmingDelete && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" data-mobile-portal-menu={mobile ? '' : undefined} role={isConfirmingDelete ? 'alertdialog' : 'menu'} aria-modal={isConfirmingDelete || undefined} aria-describedby={isConfirmingDelete ? `delete-portal-${category.id}-description` : undefined} aria-label={isConfirmingDelete ? `Delete ${category.label}` : `${category.label} options`} style={{
         position: 'fixed',
         top: mobile ? `max(env(safe-area-inset-top, 0px), ${menuPosition.top}px)` : menuPosition.top,
         left: menuPosition.left,
@@ -114,33 +112,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
           maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px)',
           overflowY: 'auto' as const
         } : {})
-      }} className={`side-panel-popover theme-${theme} accent-theme ${mobile ? 'w-[224px]' : 'w-[164px]'} overflow-hidden rounded-[10px] border border-[var(--hairline)] py-1 text-[var(--text-primary)]`}>
-              {isConfirmingDelete ? <div className="px-3 py-2">
-                  <p className="m-0 text-[12px] font-semibold leading-snug text-[var(--text-primary)]">Delete “{category.label}”?</p>
-                  {/* Consequences come from the service, so this never promises an
-               outcome the store would not actually perform. */}
-                  <div id={`delete-portal-${category.id}-description`}>{!capability ? <p className="mt-1 flex items-center gap-1.5 text-[11px] leading-snug text-[var(--text-secondary)]">
-                      <Loader2Icon className="h-3 w-3 shrink-0 animate-spin" aria-hidden="true" />
-                      Checking what this removes…
-                    </p> : capability.isAvailable ? <ul className="m-0 mt-1 list-none space-y-0.5 p-0 text-[11px] leading-snug text-[var(--text-secondary)]">
-                      {capability.removes.map((line) => <li key={line}>{line}</li>)}
-                    </ul> : <p role="alert" className="mt-1 text-[11px] leading-snug text-[var(--text-secondary)]">{capability.reason}</p>}</div>
-                  <div className="mt-2.5 flex items-center gap-1.5">
-                    <button type="button" onClick={() => setIsConfirmingDelete(false)} style={mobile ? { minHeight: 44 } : undefined} className="dialog-action-button h-7 flex-1 rounded-[7px] border border-[var(--hairline-strong)] text-[12px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      {capability && !capability.isAvailable ? 'Close' : 'Cancel'}
-                    </button>
-                    {/* Offered only once the store has confirmed it is safe. */}
-                    {(!capability || capability.isAvailable) && <button type="button" data-keep-color="" disabled={!capability || disabled || isBusy} onClick={() => {
-              setIsMenuOpen(false);
-              onDelete?.();
-            }} style={{
-              backgroundColor: 'var(--status-danger)',
-              ...(mobile ? { minHeight: 44 } : {})
-            }} className="dialog-action-button h-7 flex-1 rounded-[7px] text-[12px] font-semibold text-[var(--status-danger-foreground)] transition-colors hover:bg-[var(--status-danger-hover)] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-                      {isBusy ? 'Deleting…' : 'Delete'}
-                    </button>}
-                  </div>
-                </div> : <>
+      }} className={`side-panel-popover ${mobile ? 'w-[224px]' : 'w-[164px]'} overflow-hidden rounded-[10px] border border-[var(--hairline)] py-1 text-[var(--text-primary)]`}>
+              <>
               {[[onMoveUp, 'Move up'], [onMoveDown, 'Move down']].map(([action, label]) => typeof action === 'function' && <button key={String(label)} type="button" role="menuitem" disabled={disabled || isBusy} onClick={() => { setIsMenuOpen(false); action(); }} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{String(label)}</button>)}
               <button type="button" role="menuitem" disabled={disabled || isBusy} style={mobile ? { minHeight: 44 } : undefined} onClick={() => {
             setIsMenuOpen(false);
@@ -172,7 +145,8 @@ export function CategoryOptionsMenu({ category, accentColor, theme, isHidden = f
                     <span className="group-hover/delete:text-[var(--status-danger)]" data-keep-color="">Delete</span>
                   </button>
                 </>}
-                </>}
-            </div>, document.body)}
+                </>
+            </div>, document.querySelector('.app-shell') ?? document.body)}
+          {isMenuOpen && isConfirmingDelete && <ConfirmationDialog returnFocusRef={triggerRef} title={`Delete “${category.label}”?`} description={!capability ? 'Checking what this removes…' : capability.isAvailable ? capability.removes.join(' ') : capability.reason} confirmLabel="Delete portal" variant="destructive" pending={isBusy} pendingLabel="Deleting…" confirmDisabled={!capability?.isAvailable || disabled} onCancel={()=>setIsConfirmingDelete(false)} onConfirm={async()=>{const deleted=await onDelete?.();if(deleted!==false)setIsMenuOpen(false);return deleted;}}/>}
         </div>;
 }

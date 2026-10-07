@@ -128,7 +128,7 @@ test('creation rejects blank descriptions while allowing unrestricted prose', ()
   for (const summary of ['', '  \n ', 'Detailed project description. '.repeat(10000)]) {
     let errors;
     const { validate } = execute(callbacks('features/publishing/usePublishProject.ts', ['validate']), {
-      metadata: { title: 'Project', summary }, validateTitle: validators.validateTitle,
+      firstProject: false, metadata: { title: 'Project', summary }, validateTitle: validators.validateTitle,
       FIELD_ORDER: ['title', 'summary'], setFieldErrors: (next) => { errors = next; }, setInvalidField() {},
     });
     assert.equal(validate(), Boolean(summary.trim()));

@@ -1,4 +1,15 @@
-# Account deletion: review candidate, disabled
+# Account deletion: immediate-deletion candidate, disabled
+
+## October 4 immediate-deletion revision
+
+The user explicitly requested no 48-hour waiting period and immediate reuse of the email after confirmed deletion. This supersedes the old grace-period product decision described in the historical review below. The pending schema now makes a request due immediately. The candidate handler can run a bounded deletion tick for only the verified caller and returns completed/isDeleted only after Auth absence and Storage reconciliation are confirmed. Large or failed jobs return processing and require a durable retry worker; they do not promise that the email is free yet. Cancellation remains possible only before a worker claims the job, with no guaranteed cancellation window.
+
+Project-covers is now included in the file manifest and upload/move/delete fences, using the existing profile-owned path namespace. Synthetic tests cover departing/surviving cover ownership and late uploads. Shared conversation/message/comment preservation remains mandatory. Production endpoint and frontend flag remain OFF; no SQL, Auth deletion, runtime deployment, or scheduler was performed.
+
+Release still requires: current production schema compatibility (including published cover/privacy functions), a concrete Sites/D1 removal/retention implementation preserving other members’ data, durable retry scheduling, provider Storage/TUS/PDF concurrency tests, deleted-user rendering, actual Auth deletion followed by a new signup with the same email, and review of the resulting release. No disposable Supabase integration project is currently connected in this task. Do not enable from synthetic test results alone.
+
+Local revision verification:17 Node tests and13 in-memory database checks pass, plus typecheck and focused lint. Historical grace-period wording below documents the older proposal, not the currently requested behavior.
+
 
 The production `delete-account` endpoint returns HTTP 503 before creating a client or accessing any account, database row or file. The frontend release flag is also hardcoded off. No permanent deletion worker or scheduler is deployed.
 
@@ -51,6 +62,50 @@ After permanent processing, a surviving chat displays **Deleted User**, preserve
 Deleting an owned project also removes that project's content, including its comment section. Replies on projects owned by other people are preserved. Content quoted or independently copied by other people is not owned by the departing account. Existing public caches and already issued signed URLs are not revoked by a pending marker; no immediate removal is promised during grace.
 
 ## Validation and remaining release gate
+
+### September 30 readiness review
+
+Account removal is still disabled. A production inventory and local snapshots
+do not authorize enabling the candidate or calling Auth deletion around it.
+The reviewed administrative request concerns four explicit accounts; no private
+account identifiers belong in this document.
+
+The existing 14 Node checks and 13 in-memory SQL checks pass. The SQL verifier
+now supplies a synthetic `realtime.send` implementation matching the provider
+signature, so September 28 messaging triggers execute during these checks.
+It records events locally and performs no network delivery. This repairs a
+stale test fixture, not production behavior.
+
+The candidate is **not ready for administrative execution**:
+
+- Its request handler admits only its verified caller; there is no administrative
+  operation allowlist, protected-account exclusion or operation-specific claim.
+  The worker currently claims any due job. A future administrative path must
+  retain the grace period and all durable checkpoints, with self-service off.
+- `project-covers` is absent from ownership discovery, manifests and upload
+  fences. A separate synthetic experiment with both pending cover schemas
+  reproduced an upload during deletion grace that the manifest omitted; the
+  cover privacy guard then blocked anonymization. The passing 13-check baseline
+  suite does not establish compatibility with these pending schemas.
+- Sites/D1 interactions require a separate read and explicit retention/removal
+  decision. They are not covered by Supabase comment counts or cascades. The
+  scoped live read for this operation found no target-owned D1 rows; the sole
+  observed engagement belongs to the protected account and must remain.
+
+Live participant foreign keys still cascade. Before the September 30 reset,
+one empty request and its surviving participant's read/state records were in
+the cascade scope. The user then explicitly approved a **one-time administrator
+exception**, including that empty request, after reviewing the four-account,
+four-portal and one-avatar scope and backup limitations. The provider dashboard
+operation completed; postflight confirmed only the protected account remains,
+its profile/project/portal/draft fingerprints match, and its Storage counts and
+D1 data are unchanged. Exact private evidence is Git-ignored in the owning
+checkout; see the handoff. No migration, worker release or self-service enabling
+occurred. This exception is consumed and does not authorize another removal.
+
+The preservation instruction remains in force for future operations even when
+there are no messages. Do not treat a generic request to continue preparation
+as another exception or enable the public deletion flow.
 
 Local verification uses **only synthetic data**:
 

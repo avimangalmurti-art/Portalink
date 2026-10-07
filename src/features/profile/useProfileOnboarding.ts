@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
-import { normalizeHandle } from './validation';
-import type { AvatarRejectionCode, CreateProfileInput, HandleCheckStatus, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
+import type { CreateProfileInput, PreparedAvatar, ProfileOnboardingStatus } from '../../types/profile';
 import type { Profile } from '../../types/domain';
 import { readImageDimensions } from '../../utils/imageMetadata';
 import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registration';
+import { AVATAR_REJECTIONS, validateAvatarFile } from './avatarValidation';
 
 /**
  * The onboarding feature boundary.
@@ -15,14 +15,6 @@ import { createOrResumeProfile, saveRegistrationAvatar } from '../auth/registrat
  * a database or a storage bucket; swapping the service is the only change a
  * real backend requires.
  */
-
-const ACCEPTED_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
-const AVATAR_REJECTIONS: Record<AvatarRejectionCode, string> = {
-  unsupported_type: 'Choose a PNG, JPEG, WebP, or GIF image.',
-  too_large: 'Choose an image under 4 MB.',
-  unreadable: 'That file could not be read. Choose another.'
-};
 
 /** Whether the signed-in account still needs a profile. */
 export function useProfileOnboardingStatus(): ProfileOnboardingStatus {
@@ -50,7 +42,7 @@ export type AvatarSelection = {
    * nothing to warn about.
    */
   storageNotice: string | null;
-  select: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => void;
+  select: (file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => boolean;
   clear: () => void;
 };
 
@@ -95,15 +87,12 @@ export function useAvatarSelection(): AvatarSelection {
   }, []);
   const select = useCallback((file: File | null, crop?: Pick<PreparedAvatar, 'originalSource' | 'crop'>) => {
     if (!file) {
-      return;
+      return false;
     }
-    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
-      setError(AVATAR_REJECTIONS.unsupported_type);
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError(AVATAR_REJECTIONS.too_large);
-      return;
+    const rejection = validateAvatarFile(file);
+    if (rejection) {
+      setError(rejection);
+      return false;
     }
     try {
       setError(null);
@@ -127,8 +116,10 @@ export function useAvatarSelection(): AvatarSelection {
           ...dimensions
         } : current);
       }).catch(() => undefined);
+      return true;
     } catch {
       setError(AVATAR_REJECTIONS.unreadable);
+      return false;
     }
   }, [replacePreview]);
   const clear = useCallback(() => {
@@ -144,103 +135,6 @@ export function useAvatarSelection(): AvatarSelection {
     clear
   };
 }
-export type HandleCheck = {
-  status: HandleCheckStatus;
-  /** The normalized handle the current answer applies to. */
-  checkedHandle: string | null;
-  message: string | null;
-  check: (handle: string) => void;
-  reset: () => void;
-  retry: () => void;
-};
-
-/**
- * Availability, as its own lifecycle: idle → checking → available / unavailable
- * / error, with retry. Debounced so typing does not flood the service.
- */
-export function useHandleAvailability(): HandleCheck {
-  const {
-    profiles
-  } = useServices();
-  const [status, setStatus] = useState<HandleCheckStatus>('idle');
-  const [checkedHandle, setCheckedHandle] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const lastRequestedRef = useRef<string | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const run = useCallback(async (handle: string) => {
-    lastRequestedRef.current = handle;
-    setStatus('checking');
-    setMessage(null);
-    try {
-      const result = await profiles.checkHandleAvailability(handle);
-      // Ignore answers to a handle the user has already moved on from.
-      if (lastRequestedRef.current !== handle) {
-        return;
-      }
-      setCheckedHandle(result.handle);
-      setStatus(result.isAvailable ? 'available' : 'unavailable');
-      setMessage(result.isAvailable ? `${result.handle} is available.` : result.reason ?? 'That handle is not available.');
-    } catch (caught) {
-      if (lastRequestedRef.current !== handle) {
-        return;
-      }
-      setStatus('error');
-      setMessage(caught instanceof Error ? caught.message : 'Could not check that handle.');
-    }
-  }, [profiles]);
-  const check = useCallback((handle: string) => {
-    const normalized = normalizeHandle(handle);
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-    }
-    if (!normalized) {
-      lastRequestedRef.current = null;
-      setStatus('idle');
-      setCheckedHandle(null);
-      setMessage(null);
-      return;
-    }
-    // Invalidate an older in-flight answer immediately, rather than leaving it
-    // current during this new value's debounce window.
-    lastRequestedRef.current = normalized;
-    setStatus('checking');
-    setMessage(null);
-    timerRef.current = window.setTimeout(() => {
-      timerRef.current = null;
-      void run(normalized);
-    }, 350);
-  }, [run]);
-  useEffect(() => () => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-    }
-    lastRequestedRef.current = null;
-  }, []);
-  const reset = useCallback(() => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    lastRequestedRef.current = null;
-    setStatus('idle');
-    setCheckedHandle(null);
-    setMessage(null);
-  }, []);
-  const retry = useCallback(() => {
-    if (lastRequestedRef.current) {
-      void run(lastRequestedRef.current);
-    }
-  }, [run]);
-  return {
-    status,
-    checkedHandle,
-    message,
-    check,
-    reset,
-    retry
-  };
-}
-
 /** Creating the profile, and linking it to the account for this session. */
 export function useCreateProfile() {
   const services = useServices();
@@ -252,7 +146,9 @@ export function useCreateProfile() {
     if (!accountId) {
       throw new Error('Sign in before creating a profile.');
     }
-    if (input.creationKey) await saveRegistrationAvatar(input.creationKey, input.avatar ?? null);
+    // The complete signup draft was saved before sending confirmation. A local
+    // cache failure here must not prevent the authenticated Storage/profile save.
+    if (input.creationKey && input.avatar) await saveRegistrationAvatar(input.creationKey, input.avatar).catch(() => undefined);
     const result = await createOrResumeProfile(services, accountId, input);
     // Only now does the account own a profile.
     await auth.linkProfile(result.profile.id);

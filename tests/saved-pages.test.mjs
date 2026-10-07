@@ -11,9 +11,16 @@ import { createMemoryRouter } from 'react-router-dom';
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 function load(path, imports = {}, globals = {}) {
   const source = read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://test.supabase.co'").replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'test-key'");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
+  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
-  vm.runInNewContext(code, { exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+  vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+    if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
+      if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
+      if (id === './server/projectReach') return load('../src/server/projectReach.ts', {'../features/reads/readSignal':load('../src/features/reads/readSignal.ts')}, globals);
+      if (id === '../../presentation/mobile/MobileProfileContext') return { MobileProfileContext: ({children})=>children };
+      if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
+    if (id === './server/rum' || id === './server/rumOwner') return {};
+    if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
     return imports[id];
   } });
@@ -22,6 +29,8 @@ function load(path, imports = {}, globals = {}) {
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
+  sqlite.exec(read('../drizzle/0000_media_interactions.sql'));
+  sqlite.exec(read('../drizzle/0001_saved_media_read_index.sql'));
   return { sqlite, binding: {
     prepare(sql) {
       let values = [];
@@ -39,6 +48,11 @@ function database() {
 function workerFor(db) {
   const worker = load('../src/sites-worker.ts', {}, {
     fetch: async (url, init) => {
+      if (new URL(url).pathname === '/rest/v1/projects') {
+        return Response.json([{ id: 'project', category: { id: 'portal' }, attachments: [
+          { id: 'original/file.pdf', kind: 'document', position: 0, page_count: 8 },
+        ] }]);
+      }
       assert.equal(url, 'https://test.supabase.co/auth/v1/user');
       const account = init.headers.authorization?.replace('Bearer ', '');
       return account === 'expired' ? new Response('{}', { status: 401 }) : Response.json({ id: account });
@@ -156,12 +170,13 @@ test('images resolve by attachment identity after reordering; inaccessible or re
 
 function savedPageModule(useSearchParams) {
   return load('../src/features/library/PersonalPages.tsx', {
+    '../../presentation/usePresentation': { usePresentation: () => 'web' },
     '../../presentation/mobile/MobileBackNavigation': { ScreenBack: ({ children }) => React.createElement(React.Fragment, null, children) },
     react: React, 'lucide-react': {}, 'react-router-dom': { useSearchParams },
     '../../app/routes': routes, '../../contexts/AuthContext': { useAuth: () => ({ isAuthenticated: true, user: { id: 'a' } }) },
     '../../contexts/ServicesContext': {}, '../../components/profile/ActivityCollectionPage': { ActivityCollectionPage: () => null }, '../../components/profile/CreatorAvatar': {},
     '../../components/ui/InterfaceIcon': { InterfaceIcon: () => null }, '../../components/ui/StateViews': {}, '../../components/messages/InboxPanel': {},
-    '../../types/profile': {}, './useAccountQuery': {}, './SavedPagesCollection': { SavedPagesCollection: () => React.createElement('section', { 'aria-label': 'Saved pages' }) },
+    '../../types/profile': {}, './useAccountQuery': {}, './collectionQueries': {}, './SavedPagesCollection': { SavedPagesCollection: () => React.createElement('section', { 'aria-label': 'Saved pages' }) },
   });
 }
 

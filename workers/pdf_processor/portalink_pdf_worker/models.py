@@ -13,6 +13,7 @@ class PdfJob:
     source_path: str
     page_offset: int
     attempt_count: int
+    lease_token: str
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> "PdfJob":
@@ -24,6 +25,7 @@ class PdfJob:
             source_path=str(row["source_path"]),
             page_offset=int(row.get("page_offset") or 0),
             attempt_count=int(row.get("attempt_count") or 1),
+            lease_token=str(row["lease_token"]),
         )
 
 

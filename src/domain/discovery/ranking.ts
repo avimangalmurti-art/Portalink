@@ -346,10 +346,8 @@ function oneProjectPerCreator(views: RankedProjectView[]): RankedProjectView[] {
 }
 
 export function rankHomeProjects(available: ProjectView[], sphere: ContentSphere, now = new Date(), homeMode: HomeFeedMode = 'balanced'): HomeDiscovery {
-  // Home is the relationship inbox, not another discovery ranking surface.
-  // Every published project from the viewer and creators they follow is
-  // eligible. There is deliberately no per-creator collapse or fixed item cap:
-  // both would make valid work silently disappear from Home.
+  // Home currently includes every public creator's published work, newest first.
+  // Preserve pagination and multiple projects per creator; relationships do not gate it.
   const eligible = available
     .filter((view) => decideProjectPlacement({
       view,

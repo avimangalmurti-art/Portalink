@@ -1,0 +1,61 @@
+.settings-page { min-height: 100%; width: 100%; padding: 0 var(--content-gutter) 24px; background: var(--surface-canvas); color: var(--text-primary); }
+.settings-page-header { display: flex; align-items: center; gap: 8px; min-height: 72px; border-bottom: 1px solid var(--hairline); }
+.settings-page-header h1 { margin: 0; font-size: 26px; line-height: 1.2; font-weight: 650; letter-spacing: -.025em; }
+.settings-back { display: flex; width: 44px; height: 44px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 12px; }
+.settings-page-sections { display: flex; flex-direction: column; gap: 9px; width: 100%; max-width: 920px; padding-top: 13px; }
+.settings-section { border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-raised); overflow: hidden; }
+.settings-section h2 { margin: 0; }
+.settings-section-trigger { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 66px; padding: 14px 17px; text-align: start; border-radius: inherit; }
+.settings-section-label { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.settings-section-title { font-size: 16px; line-height: 21px; font-weight: 600; }
+.settings-section-subtitle { font-size: 12px; line-height: 17px; font-weight: 400; color: var(--text-secondary); }
+.settings-chevron { flex-shrink: 0; color: var(--text-secondary); transition: transform 160ms ease; }
+.settings-chevron.is-open { transform: rotate(180deg); }
+.settings-section-content { display: flex; flex-wrap: wrap; gap: 12px; padding: 0 17px 17px; font-size: 14px; line-height: 1.5; }
+.settings-section-content p { width: 100%; margin: 0; color: var(--text-secondary); }
+.settings-section-content .nav-settings-panel { border: 0; padding: 0; background: transparent; }
+.settings-section-content .nav-settings-panel > :is(h2, p) { display: none; }
+.settings-section-content .nav-settings-panel > div { margin-top: 0; }
+.settings-text-action { color: var(--accent-text); }
+.settings-page :is(button, select):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.settings-back:hover, .settings-section-trigger:hover { background: var(--surface-hover); }
+.settings-back:active, .settings-section-trigger:active { background: var(--surface-selected); }
+[data-presentation='mobile'] .settings-page { padding-inline: 13px; }
+[data-presentation='mobile'] .settings-page-header { min-height: 68px; }
+[data-presentation='mobile'] .settings-page-header h1 { font-size: 25px; }
+/* Autosave announcements must not insert a row above the controls on touch. */
+[data-presentation='mobile'] .settings-appearance-saving {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+/* Scope neutral interiors to this settings panel, using the chosen grey's ink. */
+[data-presentation='mobile'] .settings-page .nav-settings-panel {
+  --surface-raised: var(--control-rest-surface);
+  --surface-inset: var(--control-rest-surface);
+  --surface-sunken: var(--control-rest-surface);
+  --text-primary: var(--control-text);
+  --text-secondary: var(--control-text);
+  --text-tertiary: var(--control-text);
+}
+@media (prefers-reduced-motion: reduce) { .settings-chevron { transition: none; } }
+
+/* Center Settings action labels within the full touch target. */
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > [data-ui-control='button'] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > [data-ui-control='button'] {
+  padding-block: 0;
+  line-height: 1.25;
+}
+#root .codex-shell[data-presentation='mobile'] .settings-action-label {
+  display: block;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+  line-height: 1.25;
+  text-align: center;
+}

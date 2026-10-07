@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { createPasswordRecoveryTracker } from './passwordRecovery';
+import { rumSupabaseFetch } from '../../features/performance/rum';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
@@ -49,6 +50,7 @@ if (isProductionRuntime && !isSupabaseConfigured) {
 
 export const supabase = isSupabaseConfigured
   ? createClient(projectUrl, publishableKey, {
+      global: { fetch: rumSupabaseFetch },
       auth: {
         storageKey: authStorageKey,
         persistSession: true,

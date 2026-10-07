@@ -1,10 +1,8 @@
-import { useMenuFocus } from '../hooks/useMenuFocus';
 import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import { MobileNavigation } from '../presentation/mobile/MobileNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import { useCompactNavigation } from '../hooks/useCompactNavigation';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { BellIcon, BookmarkIcon } from 'lucide-react';
@@ -16,15 +14,12 @@ import type { Profile, PortfolioCategory as ProfileCategory } from '../types/dom
 import { getCategoryIcon } from './profile/categoryIcons';
 import type { CategoryManagement } from '../features/profile/useCategoryManagement';
 import type { CategoryDeletionCapability } from '../types/domain';
-import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, LogInIcon, LogOutIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
-import { AiMarkIcon } from './AiMarkIcon';
+import { AlbumIcon, AlertCircleIcon, SatelliteDishIcon, BarChart3Icon, CheckIcon, Loader2Icon, ChevronDownIcon, ChevronRightIcon, CircleUserRoundIcon, Clock3Icon, Disc3Icon, DoorOpenIcon, Gamepad2Icon, HeartIcon, HomeIcon, LayersIcon, LayoutGridIcon, ListMusicIcon, MessageCircleIcon, Music2Icon, PanelLeftCloseIcon, PanelLeftOpenIcon, PlayIcon, PlusIcon, SearchIcon, SettingsIcon, SunIcon, MoonIcon, TypeIcon, UserRoundIcon, WarehouseIcon } from 'lucide-react';
 import { PortalRingIcon } from './PortalRingIcon';
 import { NewCategoryDialog } from './profile/NewCategoryDialog';
 import { CategoryOptionsMenu } from './profile/CategoryOptionsMenu';
-import { resolveAccentTokens } from '../utils/accentTokens';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import type { InterfaceIconSource } from './ui/InterfaceIcon';
-import { CreatorAvatar } from './profile/CreatorAvatar';
 import { ResizablePanelHandle, useResizablePanelWidth } from './ui/ResizablePanelHandle';
 import { panelLayoutDefaults } from '../utils/panelLayoutDefaults';
 type NavItem = {
@@ -35,6 +30,7 @@ type NavItem = {
 type SidebarProps = {
   isHomeActive: boolean;
   isSearchActive: boolean;
+  onSearchOpen?: () => void;
   isPortalinkActive: boolean;
   accentColor: string;
   /**
@@ -78,6 +74,7 @@ type SidebarProps = {
   onProfileOpen: () => void;
   /** Canonical profile address; when present, profile access works before hydration. */
   profileHref?: string;
+  /** Contextual MOBILE compose action beside the navigation capsule. */
   /**
    * Opens the profile currently being VIEWED, which is not always the viewer's
    * own. The portal row names that creator, so it must land on them.
@@ -191,156 +188,10 @@ function PersonalFooterLinks({ collapsed, activityActive, insightsActive }: {col
   ] as const).map(([label, route, icon, active]) => <Link key={route} to={buildPath(route)} aria-label={`Open ${label}`} title={label} aria-current={active ? 'page' : undefined} className={`${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} nav-button shape-compact flex shrink-0 items-center justify-center transition-colors hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${active ? 'bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'}`}><InterfaceIcon icon={icon} size="sm" weight="medium" /></Link>)}</>;
 }
 
-function AccountMenuTrigger({
-  collapsed,
-  accentColor,
-  theme,
-  isAuthenticated,
-  isAuthActionPending,
-  accountName,
-  accountAvatar,
-  profileHref,
-  onProfileOpen,
-  onSettingsOpen,
-  onSignIn,
-  onSignOut
-}: {
-  collapsed: boolean;
-  accentColor: string;
-  theme: 'light' | 'dark';
-  isAuthenticated: boolean;
-  isAuthActionPending: boolean;
-  accountName?: string;
-  accountAvatar?: string | null;
-  profileHref?: string;
-  onProfileOpen: () => void;
-  onSettingsOpen: () => void;
-  onSignIn: () => void;
-  onSignOut: () => Promise<boolean>;
-}) {
-  const presentation = usePresentation();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
-  const [inviteStatus, setInviteStatus] = useState<'idle' | 'copied'>('idle');
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 8, left: 8 });
-
-  const closeMenu = useCallback(() => {
-    setIsOpen(false);
-    setInviteStatus('idle');
-  }, []);
-
-  const positionMenu = useCallback(() => {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (!rect) {
-      return;
-    }
-    const menuWidth = Math.min(326, window.innerWidth - 16);
-    const menuHeight = menuRef.current?.offsetHeight ?? 0;
-    setPosition({
-      top: Math.max(8, rect.top - menuHeight - 10),
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8))
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    if (isOpen) {
-      positionMenu();
-    }
-  }, [isOpen, positionMenu]);
-
-
-
-  const menuFocus = useMenuFocus({ open: isOpen, menuRef, triggerRef, onOpen: () => setIsOpen(true), onClose: closeMenu });
-  useEffect(() => { if (!isOpen) return; window.addEventListener('resize', positionMenu); return () => window.removeEventListener('resize', positionMenu); }, [isOpen, positionMenu]);
-  async function inviteFriend() {
-    // Invites use the public viewer route, so a recipient never lands inside the
-    // sender's account workspace. The public page already offers its own Join
-    // the Portalink Network path for anyone who wants an account.
-    const publicProfileHref = profileHref?.replace(/^\/p\//, '/share/');
-    const inviteUrl = publicProfileHref ? new URL(publicProfileHref, window.location.origin).toString() : window.location.origin;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Portalink Networks',
-          text: 'Join me on the Portalink Network.',
-          url: inviteUrl
-        });
-        return;
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return;
-        }
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(inviteUrl);
-      setInviteStatus('copied');
-    } catch {
-      // A blocked clipboard write does not claim success.
-    }
-  }
-
-  async function handleAuthAction() {
-    if (!isAuthenticated) {
-      closeMenu();
-      onSignIn();
-      return;
-    }
-    setIsSigningOut(true);
-    const signedOut = await onSignOut();
-    setIsSigningOut(false);
-    if (signedOut) {
-      closeMenu();
-    }
-  }
-
-  const shownName = isAuthenticated ? accountName?.trim() || 'Portalink member' : 'Welcome to Portalink';
-  const triggerClassName = collapsed
-    ? 'nav-button sidebar-rail-slot shape-compact flex items-center justify-center transition-colors focus:outline-none'
-    : 'nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center transition-colors focus:outline-none';
-
-  return <>
-      <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" onClick={() => setIsOpen((open) => !open)} aria-label="Open account and settings menu" aria-haspopup="menu" aria-expanded={isOpen} className={triggerClassName}>
-        <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
-      </button>
-      {isOpen && createPortal(<div ref={menuRef} tabIndex={-1} data-presentation={presentation} data-themed-portal="" role="menu" aria-label="Account and settings" style={{
-        ...resolveAccentTokens(accentColor, theme),
-        position: 'fixed',
-        top: position.top,
-        left: position.left,
-        zIndex: 10000
-      }} className={`account-menu-popover theme-${theme} accent-theme w-[min(326px,calc(100vw-16px))] overflow-hidden rounded-[22px] p-3 text-[var(--text-primary)]`}>
-          {isAuthenticated && profileHref ? <Link to={profileHref} role="menuitem" onClick={closeMenu} className="account-menu-identity flex h-10 w-full items-center gap-2.5 rounded-[12px] px-1.5 text-left font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <CreatorAvatar name={shownName} avatar={accountAvatar} shape="compact" className="h-7 w-7 shrink-0 text-[10px]" />
-              <span className="min-w-0 flex-1 truncate text-[15px]">{shownName}</span>
-            </Link> : <button type="button" role="menuitem" onClick={() => {
-          closeMenu();
-          isAuthenticated ? onProfileOpen() : onSignIn();
-        }} className="account-menu-identity flex h-10 w-full items-center gap-2.5 rounded-[12px] px-1.5 text-left font-semibold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              {isAuthenticated ? <CreatorAvatar name={shownName} avatar={accountAvatar} shape="compact" className="h-7 w-7 shrink-0 text-[10px]" /> : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]"><CircleUserRoundIcon className="h-4 w-4" aria-hidden="true" /></span>}
-              <span className="min-w-0 flex-1 truncate text-[15px]">{shownName}</span>
-            </button>}
-          <span role="separator" className="mx-1 my-2 block h-px bg-[var(--hairline)]" />
-          <button type="button" role="menuitem" onClick={() => void inviteFriend()} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <InterfaceIcon icon={SendIcon} weight="medium" />
-            <span className="min-w-0 flex-1">{inviteStatus === 'copied' ? 'Invite link copied' : 'Invite a friend'}</span>
-          </button>
-          <button type="button" role="menuitem" onClick={() => {
-        closeMenu();
-        onSettingsOpen();
-      }} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <InterfaceIcon icon={SettingsIcon} weight="medium" />
-            <span className="min-w-0 flex-1">Settings</span>
-          </button>
-          <button type="button" role="menuitem" disabled={isAuthActionPending || isSigningOut} onClick={() => void handleAuthAction()} className="account-menu-row flex h-9 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left text-[14px] font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-            <InterfaceIcon icon={isAuthenticated ? LogOutIcon : LogInIcon} weight="medium" />
-            <span className="min-w-0 flex-1">{isAuthenticated ? isSigningOut || isAuthActionPending ? 'Logging out…' : 'Log out' : 'Log in'}</span>
-          </button>
-          <span className="sr-only" aria-live="polite">{inviteStatus === 'copied' ? 'Invite link copied.' : ''}</span>
-        </div>, document.body)}
-    </>;
+function SettingsTrigger({ collapsed, onOpen }: { collapsed: boolean; onOpen: () => void }) {
+  return <button type="button" onClick={onOpen} aria-label="Open settings" title="Settings" className={`nav-button ${collapsed ? 'sidebar-rail-slot' : 'sidebar-primary-control mx-auto'} shape-compact flex shrink-0 items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
+    <InterfaceIcon icon={SettingsIcon} size="sm" weight="medium" />
+  </button>;
 }
 function CategoryRowContent({
   category,
@@ -388,7 +239,7 @@ function CategoryRowContent({
 
 
 
-}: {category: ProfileCategory;isActive: boolean;accentColor: string;theme: 'light' | 'dark';isDraggable: boolean;isHidden?: boolean;isRenaming?: boolean; /** An operation on THIS row is in flight, so its controls stand down. */isBusy?: boolean;showOptions?: boolean; /** Asked when the confirmation opens, so the answer comes from the store. */readDeletionCapability?: () => Promise<CategoryDeletionCapability>;onSelect: () => void;onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;onDragHandlePointerDown?: (event: React.PointerEvent) => void;onHideToggle?: () => void;onRenameStart?: () => void;onRenameCommit?: (label: string) => void;onRenameCancel?: () => void;onChangeIcon?: () => void; /** Removes the category from the portfolio. Owner-only, destructive. */onDelete?: () => void;}) {
+}: {category: ProfileCategory;isActive: boolean;accentColor: string;theme: 'light' | 'dark';isDraggable: boolean;isHidden?: boolean;isRenaming?: boolean; /** An operation on THIS row is in flight, so its controls stand down. */isBusy?: boolean;showOptions?: boolean; /** Asked when the confirmation opens, so the answer comes from the store. */readDeletionCapability?: () => Promise<CategoryDeletionCapability>;onSelect: () => void;onKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;onDragHandlePointerDown?: (event: React.PointerEvent) => void;onHideToggle?: () => void;onRenameStart?: () => void;onRenameCommit?: (label: string) => void;onRenameCancel?: () => void;onChangeIcon?: () => void; /** Removes the category from the portfolio. Owner-only, destructive. */onDelete?: () => void | boolean | Promise<void | boolean>;}) {
   const Icon = getCategoryIcon(category.iconName);
   const [draftLabel, setDraftLabel] = useState(category.label);
   useEffect(() => {
@@ -538,15 +389,12 @@ function getPortalsHeading(profile: Profile, isOwner: boolean): string {
 export function Sidebar({
   isHomeActive,
   isSearchActive,
+  onSearchOpen,
   isPortalinkActive,
   accentColor,
   onControlCenterOpen,
   isAuthenticated,
-  isAuthActionPending,
-  accountName,
-  accountAvatar,
   onSignIn,
-  onSignOut,
   onPortalinkOpen,
   addCategoryRequest,
   liveShow,
@@ -652,7 +500,7 @@ export function Sidebar({
   async function deleteCategory(categoryId: string) {
     const deleted = await management.deleteCategory(categoryId);
     if (!deleted) {
-      return;
+      return false;
     }
     // Deleting the category you are viewing moves you to the next one, so the
     // workspace is never left pointing at something that no longer exists.
@@ -664,6 +512,7 @@ export function Sidebar({
       }
     }
     setRenamingCategoryId((current) => current === categoryId ? null : current);
+    return true;
   }
   // The owner adds categories from their profile page; that request lands here.
   useEffect(() => {
@@ -766,14 +615,10 @@ export function Sidebar({
   /* One system panel control in both states, matching the project and engagement
      sidebars instead of giving the main sidebar a separate globe metaphor. */
   const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
-      {isSidebarCollapsed ? <PanelLeftOpenIcon className="h-[18px] w-[18px]" aria-hidden="true" /> : <PanelLeftCloseIcon className="h-[18px] w-[18px]" aria-hidden="true" />}
+      <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
-  if (isMobile) return <MobileNavigation
-    theme={theme} onThemeChange={onThemeChange} onPortalink={onPortalinkOpen} onMessages={onMessagesOpen}
-    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive}
-    settings={<AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />}
-    liveControl={liveShow ? <button type="button" className="mobile-nav-destination nav-button shape-compact" onClick={onLeaveShow} aria-label={`Leave live session: ${liveShow}`}><InterfaceIcon icon={Disc3Icon} /></button> : undefined}
-  />;
+  if (isMobile) return <MobileNavigation onMessages={onMessagesOpen}
+    onProfile={onProfileOpen} profileHref={profileHref} isProfileActive={isProfileActive} />;
   return <>
       {/* Collapsed, the rail is the whole width: the aside's own side padding was
          insetting the surface by 10px on each side while the divider sat inside
@@ -837,7 +682,7 @@ export function Sidebar({
                 <button type="button" disabled aria-label="Studio unavailable" title="Studio is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={WarehouseIcon} weight="medium" />
                 </button>
-                <button type="button" disabled aria-label="Search unavailable" title="Search is not available yet" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
+                <button type="button" onClick={onSearchOpen} aria-label="Search accounts" className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none">
                   <InterfaceIcon icon={SearchIcon} weight="medium" />
                 </button>
                 <button type="button" onClick={() => onMessagesOpen()} aria-label="Open messages" aria-current={activeTarget === 'messages' ? 'page' : undefined} className="nav-button shape-compact sidebar-rail-slot transition-colors focus:outline-none" data-profile-tile="">
@@ -861,7 +706,7 @@ export function Sidebar({
                 </div>
                 <div role="group" aria-label="Main navigation row two" className="contents">
                   <NavTile label="Studio" icon={WarehouseIcon} isActive={false} activeClassName="" ariaLabel="Studio unavailable" title="Studio is not available yet" disabled />
-                  <NavTile label="Search" icon={SearchIcon} isActive={false} activeClassName="" ariaLabel="Search unavailable" title="Search is not available yet" disabled />
+                  <NavTile label="Search" icon={SearchIcon} isActive={activeTarget === 'search'} activeClassName="" ariaLabel="Search accounts" onSelect={onSearchOpen} />
                   <NavTile label="Messages" icon={MessageCircleIcon} isActive={activeTarget === 'messages'} activeClassName="" onSelect={() => onMessagesOpen()} ariaLabel="Open messages" isProfileTile />
                   <NavTile label="Profile" icon={CircleUserRoundIcon} isActive={activeTarget === 'profile'} activeClassName="" onSelect={handleProfileOpen} href={profileHref} ariaLabel="Open your profile" isProfileTile />
                 </div>
@@ -931,7 +776,7 @@ export function Sidebar({
                         // The category page titles itself from the record, so the
                         // rename goes to the record rather than to a local label map.
                         void commitRename(category.id, label);
-                      }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => void deleteCategory(category.id)} />)}
+                      }} onChangeIcon={() => onChangeCategoryIcon(category.id)} onDelete={() => deleteCategory(category.id)} />)}
                     </Reorder.Group> : <ul className="m-0 list-none p-0">
                       {arrangedCategories.map((category) => <li key={category.id} className="relative list-none">
                           <CategoryRowContent category={decorateCategory(category)} isActive={activeTarget === 'category' && activeCategoryId === category.id} accentColor={accentColor} theme={theme} isDraggable={false} isHidden={hiddenCategoryIds.includes(category.id)} onSelect={() => handleCategorySelect(category.id)} />
@@ -949,13 +794,13 @@ export function Sidebar({
               and Appearance. The same order is preserved in the collapsed rail. */}
           <div className={`sidebar-account-footer mt-auto shrink-0 border-t border-[var(--hairline)] ${isSidebarCollapsed ? 'sidebar-rail' : 'pt-2'}`}>
             {isSidebarCollapsed ? <>
-              <AccountMenuTrigger collapsed accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
+              <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
               {isAuthenticated && <PersonalFooterLinks collapsed activityActive={isActivityActive} insightsActive={isInsightsActive} />}
               <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
               </button>
             </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
-                <AccountMenuTrigger collapsed={false} accentColor={accentColor} theme={theme} isAuthenticated={isAuthenticated} isAuthActionPending={isAuthActionPending} accountName={accountName} accountAvatar={accountAvatar} profileHref={profileHref} onProfileOpen={onProfileOpen} onSettingsOpen={onControlCenterOpen} onSignIn={onSignIn} onSignOut={onSignOut} />
+                <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
                 {isAuthenticated && <PersonalFooterLinks collapsed={false} activityActive={isActivityActive} insightsActive={isInsightsActive} />}
                 <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}

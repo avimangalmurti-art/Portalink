@@ -31,7 +31,7 @@ test('publish validation accepts long prose and still enforces the title rules',
   for (const summary of ['Brief description', longDescription]) {
     let errors;
     const { run } = execute(`exports.run = ${callback}`, {
-      metadata: { title: 'My project', summary }, validateTitle: validators.validateTitle,
+      firstProject:false, metadata: { title: 'My project', summary }, validateTitle: validators.validateTitle,
       FIELD_ORDER: ['title', 'summary'], setFieldErrors: (value) => { errors = value; }, setInvalidField() {},
     });
     assert.equal(run(), true);

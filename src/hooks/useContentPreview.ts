@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent, PointerEvent } from 'react';
 
 /** Touch previews are armed by a completed tap, never by focus or a scroll. */
-export function useContentPreview(disabled = false) {
+export function useContentPreview(disabled = false, minimumWidth = 0, directTouch = false) {
   const ref = useRef<HTMLElement>(null);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -11,6 +11,7 @@ export function useContentPreview(disabled = false) {
   const pointer = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const touchClick = useRef<'tap' | 'cancelled' | null>(null);
   const expanded = !disabled && (hovered || focused || pinned);
+  const canExpand = () => !minimumWidth || !ref.current || ref.current.getBoundingClientRect().width >= minimumWidth;
 
   const close = () => {
     pinnedRef.current = false;
@@ -27,13 +28,19 @@ export function useContentPreview(disabled = false) {
     return () => document.removeEventListener('pointerdown', outside);
   }, [pinned, focused]);
   useEffect(() => { if (disabled) close(); }, [disabled]);
+  useEffect(() => {
+    if (!expanded || !minimumWidth || !ref.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(([entry]) => { if (entry.contentRect.width < minimumWidth) close(); });
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [expanded, minimumWidth]);
 
   const open = (event: MouseEvent<HTMLElement>, action: () => void) => {
     if (disabled) return;
     if (touchClick.current === 'cancelled') {
       event.preventDefault();
       event.stopPropagation();
-    } else if (touchClick.current === 'tap' && !pinnedRef.current) {
+    } else if (!directTouch && touchClick.current === 'tap' && !pinnedRef.current && canExpand()) {
       event.preventDefault();
       event.stopPropagation();
       pinnedRef.current = true;
@@ -43,6 +50,13 @@ export function useContentPreview(disabled = false) {
   };
   return {
     ref, expanded, open,
+    toggleDetails() {
+      if (touchClick.current === 'cancelled') { touchClick.current = null; return; }
+      if (disabled || !canExpand()) return;
+      if (expanded) close();
+      else { pinnedRef.current = true; setPinned(true); }
+      touchClick.current = null;
+    },
     events: {
       onPointerLeave: (event: PointerEvent<HTMLElement>) => {
         if (event.pointerType === 'mouse') setHovered(false);
@@ -54,7 +68,7 @@ export function useContentPreview(disabled = false) {
       onPointerMoveCapture: (event: PointerEvent<HTMLElement>) => {
         // A neighbor can slide under a stationary pointer as another preview
         // closes. Only actual pointer movement should open that new card.
-        if (event.pointerType === 'mouse') setHovered(true);
+        if (!directTouch && event.pointerType === 'mouse') setHovered(canExpand());
         if (pointer.current && Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 8) pointer.current.moved = true;
       },
       onPointerUpCapture: () => {
@@ -63,7 +77,7 @@ export function useContentPreview(disabled = false) {
       },
       onPointerCancel: () => { pointer.current = null; touchClick.current = 'cancelled'; },
       onFocusCapture: (event: React.FocusEvent<HTMLElement>) => {
-        if (event.target.matches(':focus-visible')) setFocused(true);
+        if (!directTouch && event.target.matches(':focus-visible')) setFocused(canExpand());
       },
       onBlurCapture: (event: React.FocusEvent<HTMLElement>) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node)) setFocused(false);

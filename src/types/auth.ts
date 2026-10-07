@@ -52,7 +52,7 @@ export type AuthRecoverySession = {
  * re-focuses that one, `reauthentication_required` sends the person back through
  * sign-in, and `rate_limited` means wait rather than retry immediately.
  */
-export type AuthErrorCode = 'invalid_credentials' | 'email_not_verified' | 'email_taken' | 'weak_password' | 'same_password' | 'invalid_email' | 'reauthentication_required' | 'verification_unavailable' | 'recovery_session_invalid' | 'rate_limited' | 'network' | 'confirmation_mismatch' | 'deletion_unavailable' | 'unsupported' | 'unknown';
+export type AuthErrorCode = 'invalid_credentials' | 'email_not_verified' | 'email_taken' | 'weak_password' | 'same_password' | 'invalid_email' | 'reauthentication_required' | 'session_not_ready' | 'verification_unavailable' | 'recovery_session_invalid' | 'rate_limited' | 'network' | 'confirmation_mismatch' | 'deletion_unavailable' | 'unsupported' | 'unknown';
 
 /** A failure in the form the UI can render: a code to branch on, a sentence to show. */
 export type AuthError = {
@@ -73,8 +73,19 @@ export class AuthServiceError extends Error {
   }
 }
 
+export const SESSION_NOT_READY_MESSAGE = 'Sign-in is temporarily delayed. Wait a few seconds, then try signing in again. You do not need to reset your password.';
+
+/** Only this timing rejection is safe to retry; expired/invalid tokens are not. */
+export function isFutureIssuedJwtError(caught: unknown): boolean {
+  return typeof caught === 'object' && caught !== null && 'message' in caught &&
+    typeof caught.message === 'string' && /\bjwt issued (?:at|in the) future\b/i.test(caught.message);
+}
+
 /** Narrows an unknown thrown value into something the UI can present. */
 export function toAuthError(caught: unknown): AuthError {
+  if (isFutureIssuedJwtError(caught)) {
+    return { code: 'session_not_ready', message: SESSION_NOT_READY_MESSAGE };
+  }
   if (caught instanceof AuthServiceError) {
     return {
       code: caught.code,

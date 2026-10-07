@@ -1,4 +1,4 @@
-import { Upload } from 'tus-js-client';
+import { supabaseMediaProcessingReadService } from './mediaProcessingReads';
 import type { MediaService } from '../interfaces';
 import type {
   PersistedMedia,
@@ -16,7 +16,7 @@ import { ensureMultipartReader, MANIFEST_SUFFIX, multipartSource, multipartSpec,
 
 type ActiveUpload = {
   cancelRequested: boolean;
-  cancelCurrent?: () => Promise<void>;
+  activeParts: Set<() => Promise<void>>;
   completion: Promise<UploadOutcome>;
 };
 
@@ -34,43 +34,6 @@ function stateFor(media: PreparedMedia): PersistedMedia['processingState'] {
   return media.processingState === 'preparing' || media.processingState === 'uploading'
     ? 'ready'
     : media.processingState;
-}
-
-type PdfJobRow = {
-  attachment_id: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
-  processed_pages: number;
-  page_count: number | null;
-  error_code: string | null;
-  error_message: string | null;
-  is_retryable: boolean;
-  updated_at: string;
-};
-
-function asProcessingStatus(row: PdfJobRow) {
-  const state = row.status === 'completed'
-    ? 'ready' as const
-    : row.status === 'failed'
-      ? 'processing-failed' as const
-      : 'processing' as const;
-  const progress = row.processed_pages > 0
-    ? ` ${row.processed_pages}${row.page_count ? ` of ${row.page_count}` : ''} pages finished.`
-    : '';
-  return {
-    objectId: row.attachment_id,
-    state,
-    pageCount: typeof row.page_count === 'number' && row.page_count > 0 ? row.page_count : undefined,
-    processedPages: Math.max(0, row.processed_pages),
-    message: row.error_message
-      ?? (state === 'ready'
-        ? 'The PDF preview is ready.'
-        : row.status === 'queued'
-          ? 'The PDF is stored safely and queued for page preparation.'
-          : `The PDF is stored safely. Its pages are being prepared.${progress}`),
-    failureCode: state === 'processing-failed' ? 'unknown' as const : undefined,
-    isRetryable: state === 'processing-failed' ? row.is_retryable : undefined,
-    updatedAt: row.updated_at,
-  };
 }
 
 function progressItems(
@@ -92,45 +55,43 @@ function progressItems(
 }
 
 const TUS_CHUNK_BYTES = 6 * 1024 * 1024;
+const MAX_CONCURRENT_PARTS = 3;
+const IMMUTABLE_CACHE_SECONDS = '31536000';
 
 async function uploadFileResumably(input: {
-  uploadId: string;
-  operation: StartUploadInput;
   runtime: ActiveUpload;
   item: PreparedMedia;
-  itemIndex: number;
   storagePath: string;
-  completedBytes: number;
-  totalBytes: number;
+  accessToken: string;
   body?: Blob;
-  itemBytesCompleted?: number;
   contentType?: string;
+  onBytesUploaded: (bytes: number) => void;
+  isStopped?: () => boolean;
 }): Promise<void> {
-  const client = requireSupabase();
-  const { data, error } = await client.auth.getSession();
-  const accessToken = data.session?.access_token;
-  if (error || !accessToken) {
-    throw new Error(error?.message ?? 'Your session expired before the upload could start. Sign in and try again.');
-  }
-  if (input.runtime.cancelRequested) return;
+  if (input.runtime.cancelRequested || input.isStopped?.()) return;
+
+  // Browsing must not download the resumable upload client. Retain cancellation
+  // if the owner closes/cancels while this first-use chunk is loading.
+  const { Upload } = await import('tus-js-client');
+  if (input.runtime.cancelRequested || input.isStopped?.()) return;
 
   const projectId = new URL(requireSupabaseProjectUrl()).hostname.split('.')[0];
   const endpoint = `https://${projectId}.storage.supabase.co/storage/v1/upload/resumable`;
 
   await new Promise<void>((resolve, reject) => {
     let settled = false;
+    let aborting = false;
+    let cancellation: Promise<void> | undefined;
     const finish = (callback: () => void) => {
       if (settled) return;
       settled = true;
-      input.runtime.cancelCurrent = undefined;
+      input.runtime.activeParts.delete(cancel);
       callback();
     };
     const upload = new Upload(input.body ?? input.item.file, {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${accessToken}`,
-      },
+      headers: { authorization: `Bearer ${input.accessToken}` },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_BYTES,
@@ -139,41 +100,80 @@ async function uploadFileResumably(input: {
         bucketName: PROJECT_MEDIA_BUCKET,
         objectName: input.storagePath,
         contentType: input.contentType ?? (input.item.mimeType || 'application/octet-stream'),
-        cacheControl: '3600',
+        cacheControl: IMMUTABLE_CACHE_SECONDS,
       },
       onProgress(bytesUploaded) {
-        const itemBytes = (input.itemBytesCompleted ?? 0) + bytesUploaded;
-        const itemFraction = input.item.sizeBytes > 0 ? itemBytes / input.item.sizeBytes : 0;
-        const operationBytes = input.completedBytes + itemBytes;
-        input.operation.onProgress?.({
-          uploadId: input.uploadId,
-          fraction: input.totalBytes > 0 ? operationBytes / input.totalBytes : itemFraction,
-          bytesSent: operationBytes,
-          bytesTotal: input.totalBytes,
-          items: progressItems(input.operation.media, input.itemIndex, false, itemFraction),
-        });
+        if (!settled && !aborting && !input.runtime.cancelRequested) input.onBytesUploaded(bytesUploaded);
       },
       onError(uploadError) {
-        if (input.runtime.cancelRequested) {
-          finish(resolve);
-          return;
-        }
+        // abort(true) must finish before this part settles and cleanup can start.
+        if (aborting) return;
+        if (input.runtime.cancelRequested) { void cancel().catch(() => undefined); return; }
         finish(() => reject(uploadError));
       },
       onSuccess() {
+        if (aborting) return;
         finish(resolve);
       },
     });
-
-    input.runtime.cancelCurrent = async () => {
-      try {
-        await upload.abort(true);
-      } finally {
-        finish(resolve);
-      }
-    };
-    upload.start();
+    function cancel(): Promise<void> {
+      if (cancellation) return cancellation;
+      aborting = true;
+      cancellation = (async () => {
+        try { await upload.abort(true); }
+        finally { finish(resolve); }
+      })();
+      return cancellation;
+    }
+    input.runtime.activeParts.add(cancel);
+    try { upload.start(); } catch (error) { finish(() => reject(error)); }
   });
+}
+
+/** A logical file finishes only after every started part (including aborts) settles. */
+async function uploadMultipartParts(input: {
+  runtime: ActiveUpload;
+  item: PreparedMedia;
+  storagePath: string;
+  accessToken: string;
+  spec: ReturnType<typeof multipartSpec>;
+  onBytesUploaded: (bytes: number) => void;
+}): Promise<void> {
+  const bytesByPart = Array<number>(input.spec.partCount).fill(0);
+  let totalUploaded = 0;
+  let nextPart = 0;
+  let failed = false;
+  let failure: unknown;
+  const worker = async () => {
+    while (!input.runtime.cancelRequested && !failed && nextPart < input.spec.partCount) {
+      const part = nextPart++;
+      const offset = part * input.spec.partBytes;
+      const size = Math.min(input.item.sizeBytes - offset, input.spec.partBytes);
+      const progress = (bytes: number) => {
+        if (failed || input.runtime.cancelRequested) return;
+        // Retries can report earlier offsets; logical progress never goes back
+        // or double-counts bytes sent again by a different request.
+        const next = Math.max(bytesByPart[part], Math.min(size, Math.max(0, bytes)));
+        totalUploaded += next - bytesByPart[part];
+        bytesByPart[part] = next;
+        input.onBytesUploaded(totalUploaded);
+      };
+      try {
+        await uploadFileResumably({ ...input,
+          storagePath: partPath(input.storagePath, part),
+          body: input.item.file.slice(offset, offset + size),
+          contentType: 'application/octet-stream', onBytesUploaded: progress,
+          isStopped: () => failed,
+        });
+        progress(size);
+      } catch (error) {
+        if (!failed) { failed = true; failure = error; }
+        await Promise.allSettled([...input.runtime.activeParts].map(cancel => cancel()));
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(MAX_CONCURRENT_PARTS, input.spec.partCount) }, worker));
+  if (failed && !input.runtime.cancelRequested) throw failure;
 }
 
 async function performUpload(
@@ -212,19 +212,26 @@ async function performUpload(
       };
       persisted.push(stored);
       try {
-        const base = { uploadId, operation: input, runtime, item, itemIndex: index, completedBytes: sentBytes, totalBytes };
+        // One token snapshot per logical file, shared by its bounded part uploads.
+        const { data, error: sessionError } = await client.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (sessionError || !accessToken) throw new Error(sessionError?.message ?? 'Your session expired before the upload could start. Sign in and try again.');
+        let reportedBytes = 0;
+        const onBytesUploaded = (bytes: number) => {
+          reportedBytes = Math.max(reportedBytes, Math.min(item.sizeBytes, Math.max(0, bytes)));
+          const fraction = item.sizeBytes > 0 ? reportedBytes / item.sizeBytes : 0;
+          input.onProgress?.({ uploadId,
+            fraction: totalBytes > 0 ? (sentBytes + reportedBytes) / totalBytes : fraction,
+            bytesSent: sentBytes + reportedBytes, bytesTotal: totalBytes,
+            items: progressItems(input.media, index, false, fraction),
+          });
+        };
+        const base = { runtime, item, accessToken, onBytesUploaded };
         if (multipart) {
-          for (let part = 0; part < multipart.partCount && !runtime.cancelRequested; part += 1) {
-            const offset = part * multipart.partBytes;
-            await uploadFileResumably({ ...base,
-              storagePath: partPath(storagePath, part),
-              body: item.file.slice(offset, Math.min(item.sizeBytes, offset + multipart.partBytes)),
-              itemBytesCompleted: offset, contentType: 'application/octet-stream',
-            });
-          }
+          await uploadMultipartParts({ ...base, storagePath, spec: multipart });
           if (!runtime.cancelRequested) {
             const manifest = new Blob([JSON.stringify({ ...multipart, fileName: item.fileName, mimeType: item.mimeType })], { type: 'application/json' });
-            const { error } = await bucket.upload(storagePath, manifest, { contentType: 'application/json', upsert: false });
+            const { error } = await bucket.upload(storagePath, manifest, { contentType: 'application/json', cacheControl: IMMUTABLE_CACHE_SECONDS, upsert: false });
             if (error) throw error;
             stored.sourceUrl = await multipartSource(storagePath, multipart, item.fileName, item.mimeType);
           }
@@ -283,6 +290,7 @@ async function performUpload(
 }
 
 export const supabaseMediaService: MediaService = {
+  ...supabaseMediaProcessingReadService,
   async getUploadCapability() {
     return {
       isAvailable: true,
@@ -295,6 +303,7 @@ export const supabaseMediaService: MediaService = {
     const uploadId = crypto.randomUUID();
     const runtime: ActiveUpload = {
       cancelRequested: false,
+      activeParts: new Set(),
       completion: Promise.resolve({ uploadId, status: 'cancelled', persisted: [], cleanupRequired: false }),
     };
     runtime.completion = performUpload(uploadId, input, runtime);
@@ -313,7 +322,7 @@ export const supabaseMediaService: MediaService = {
       });
     }
     runtime.cancelRequested = true;
-    await runtime.cancelCurrent?.();
+    await Promise.allSettled([...runtime.activeParts].map(cancel => cancel()));
     return runtime.completion;
   },
 
@@ -328,44 +337,6 @@ export const supabaseMediaService: MediaService = {
         cleanupRequired: true,
       });
     }
-  },
-
-  async getProcessingCapability() {
-    return {
-      isAvailable: true,
-      reason: 'Documents and videos are prepared by private background workers.',
-      canRetry: true,
-      refreshIntervalSeconds: 3,
-    };
-  },
-
-  async getProcessingStatus(objectIds) {
-    if (objectIds.length === 0) return [];
-    const [documents, videos] = await Promise.all([requireSupabase()
-      .from('pdf_processing_jobs')
-      .select('attachment_id,status,processed_pages,page_count,error_code,error_message,is_retryable,updated_at')
-      .in('attachment_id', objectIds), requireSupabase().from('video_processing_jobs')
-      .select('attachment_id,status,error_message,is_retryable,updated_at').in('attachment_id', objectIds)]);
-    // PDF status may be restricted to signed-in viewers. Public videos must
-    // remain independent, including during staged migration deployment.
-    if (documents.error && !['42P01', 'PGRST205', '42501'].includes(documents.error.code)) {
-      throw new ProcessingServiceError('network', documents.error.message);
-    }
-    // Older deployments continue serving existing PDF/native media while the video migration is installed.
-    if (videos.error && !['42P01', 'PGRST205'].includes(videos.error.code)) {
-      throw new ProcessingServiceError('network', videos.error.message);
-    }
-    return [
-      ...((documents.data ?? []) as unknown as PdfJobRow[]).map(asProcessingStatus),
-      ...(videos.data ?? []).map((row) => ({
-        objectId: row.attachment_id as string,
-        state: row.status === 'completed' ? 'ready' as const : row.status === 'failed' ? 'processing-failed' as const : 'processing' as const,
-        message: row.status === 'completed' ? 'Video ready to play.' : row.status === 'failed' ? row.error_message ?? 'Video conversion failed.'
-          : row.status === 'queued' ? 'Video queued for conversion.' : 'Preparing video for playback…',
-        isRetryable: row.status === 'failed' ? Boolean(row.is_retryable) : undefined,
-        updatedAt: row.updated_at as string,
-      })),
-    ];
   },
 
   async retryProcessing(objectId) {

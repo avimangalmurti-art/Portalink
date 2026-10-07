@@ -15,7 +15,9 @@ function execute(source, globals = {}) {
   return exports;
 }
 const { createProfileHandle } = execute(read('src/utils/profileHandle.ts'));
-const validation = execute(read('src/features/profile/validation.ts'));
+const shareModel=execute(read('src/features/sharing/shareModel.ts'));
+const validation = execute(read('src/features/profile/validation.ts'),{require:()=>shareModel});
+const directory = execute(read('src/data/locationDirectory.ts'), { require: () => ({ cities: [] }) });
 
 test('automatic handles support duplicate, long and non-ASCII names within the existing format', () => {
   const handles = new Set();
@@ -119,6 +121,9 @@ function component(file, name, props, overrides = {}) {
     if (dependency.endsWith('/AuthContext')) return { useAuth: () => ({ user: { id: 'account', isEmailVerified: true } }) };
     if (dependency.endsWith('/publicAppearance')) return { DEFAULT_PUBLIC_APPEARANCE: { accentColor: '#0A84FF', systemGray: 'gray6', mode: 'auto' } };
     if (dependency.endsWith('/validation')) return validation;
+    if (dependency.endsWith('/data/cities')) return execute(read('src/data/cities.ts'));
+    if (dependency.endsWith('/data/countryCodes')) return execute(read('src/data/countryCodes.ts'));
+    if (dependency.endsWith('/data/locationDirectory')) return directory;
     if (dependency.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (dependency.endsWith('/useProfileOnboarding')) return overrides;
     if (dependency.endsWith('/usePresentation')) return { usePresentation: () => overrides.presentation ?? 'web' };
@@ -130,6 +135,60 @@ function component(file, name, props, overrides = {}) {
 function nodes(tree) { return !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)]; }
 const find = (tree, predicate) => nodes(tree).find(predicate);
 
+test('account details collapse without reserving content and selection stays an accessible accent-only radio', () => {
+  let chosen = false;
+  const render = component('src/components/profile/ProfileVisibilityField.tsx', 'ProfileVisibilityField', {
+    id: 'visibility', isPrivate: false, collapsible: true, onChange: value => { chosen = value; },
+  });
+  let tree = render();
+  assert.equal(find(tree, node => node.type === 'p'), undefined);
+  assert.equal(tree.props['aria-describedby'], undefined);
+  assert.equal(find(tree, node => node.type === 'button').props['aria-expanded'], false);
+  const radios = nodes(tree).filter(node => node.type === 'input');
+  assert.equal(radios.length, 2);
+  assert.ok(radios.every(node => node.props.type === 'radio' && node.props.className === 'sr-only'));
+  radios[1].props.onChange();
+  tree = render({isPrivate: chosen});
+  assert.equal(nodes(tree).filter(node => node.type === 'input')[1].props.checked, true);
+  find(tree, node => node.type === 'button').props.onClick();
+  tree = render({isPrivate: chosen});
+  assert.equal(tree.props['aria-describedby'], 'visibility-hint');
+  assert.match(React.Children.toArray(find(tree, node => node.type === 'p').props.children).join(''), /Only you and approved followers/);
+  find(tree, node => node.type === 'button').props.onClick();
+  assert.equal(find(render({isPrivate: chosen}), node => node.type === 'p'), undefined);
+  assert.ok(find(render({collapsible: false}), node => node.type === 'p'), 'Existing non-collapsible presentation remains available.');
+});
+
+test('the directory picker preserves custom text and applies only explicit choices within the profile limit', () => {
+  let value = 'Existing location outside catalogue';
+  const render = component('src/components/profile/ProfileLocationPicker.tsx', 'ProfileLocationPicker', {
+    id: 'location', value, onChange: next => { value = next; },
+  });
+  let tree = render();
+  assert.equal(tree.type, 'LocationSearch');
+  assert.equal(tree.props.label, 'Location (optional)');
+  assert.equal(tree.props.value, value);
+  assert.equal(tree.props.maxLength, validation.LOCATION_MAX_LENGTH);
+  assert.equal(value, 'Existing location outside catalogue', 'Rendering never normalizes or overwrites saved text.');
+  const city = { id: 'gn-1', kind: 'city', name: 'San Francisco', countryCode: 'US', regionName: 'California', uniqueInCountry: true };
+  assert.equal(tree.props.canSelect(city), true);
+  tree.props.onSelect(city);
+  assert.equal(value, 'San Francisco, California, US');
+  assert.equal(validation.validateLocation(value), null);
+  const long = { ...city, name: 'x'.repeat(49) };
+  assert.equal(tree.props.canSelect(long), false);
+  tree.props.onSelect(long);
+  assert.equal(value, 'San Francisco, California, US', 'An over-limit choice is rejected, never truncated.');
+  tree.props.onChange('A custom location');
+  assert.equal(value, 'A custom location');
+  tree.props.onChange(''); assert.equal(value, '');
+  tree = render({value});
+  assert.equal(tree.props.value, '');
+  const disabled = render({ disabled: true, error: 'Use 48 characters or fewer.' });
+  assert.equal(disabled.props.disabled, true);
+  assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
+});
+
 test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
   for (const presentation of ['web', 'mobile']) {
   let submitted;
@@ -140,13 +199,15 @@ test('setup exposes large image selection, name and location and submits without
   });
   let tree = render();
   const fields = nodes(tree).filter((node) => node.type === 'ProfileField');
-  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Where are you from?']);
-  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, 'featured');
+  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name']);
+  assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
+  assert.equal(fields[0].props.required, presentation === 'mobile');
+  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
   assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted, undefined);
   fields[0].props.onChange('Avi');
-  fields[1].props.onChange('San Francisco');
+  find(tree, node => node.props.id === 'onboarding-location').props.onChange('San Francisco');
   const visibility = find(tree, node => node.type === 'ProfileVisibilityField');
   assert.equal(Boolean(visibility), presentation === 'mobile');
   visibility?.props.onChange(true);

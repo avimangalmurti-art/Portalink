@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 
 /** Follow the visible screen, including mobile browser chrome and keyboards. */
-export function useDialogViewport() {
-  const ref = useRef<HTMLDivElement>(null);
+export function useDialogViewport<T extends HTMLElement = HTMLDivElement>(enabled = true) {
+  const ref = useRef<T>(null);
   useEffect(() => {
+    if (!enabled) return;
     const overlay = ref.current;
     if (!overlay) return;
     const viewport = window.visualViewport;
@@ -20,6 +21,6 @@ export function useDialogViewport() {
       viewport?.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
-  }, []);
+  }, [enabled]);
   return ref;
 }

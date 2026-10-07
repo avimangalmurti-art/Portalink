@@ -105,11 +105,13 @@ export function useMessaging({
       nextConversationOffsetRef.current = page.nextOffset;
       setNextConversationOffset(page.nextOffset);
       setStatus('success');
+      return true;
     } catch (caught) {
       if (!background && version === conversationRequestVersion.current) {
         setError(friendlyError(caught, 'Messages could not be loaded.'));
         if (!append) setStatus('error');
       }
+      return false;
     } finally {
       if (append) setIsLoadingMoreConversations(false);
     }
@@ -363,11 +365,14 @@ export function useMessaging({
   }, [initialRecipientId, startConversation]);
 
   useEffect(() => {
-    const refresh = () => { if (document.visibilityState === 'visible') void loadConversations({ background: true }); };
-    const unsubscribe = messaging.subscribeToConversationChanges(refresh);
-    const timer = window.setInterval(refresh, 30_000);
+    let connected = false;
+    let refreshTimer: number | undefined;
+    const refresh = () => { if (document.visibilityState === 'visible') void loadConversations({ background: true }).then((success) => { if (success === false) connected = false; }); };
+    const schedule = () => { window.clearTimeout(refreshTimer); refreshTimer = window.setTimeout(refresh, 150); };
+    const unsubscribe = messaging.subscribeToConversationChanges(schedule, (ready) => { connected = ready; if (ready) schedule(); });
+    const timer = window.setInterval(() => { if (!connected) refresh(); }, 30_000);
     document.addEventListener('visibilitychange', refresh);
-    return () => { unsubscribe(); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
+    return () => { unsubscribe(); window.clearTimeout(refreshTimer); window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
   }, [loadConversations, messaging]);
 
   const activeConversationId = activeConversation?.id ?? null;
@@ -379,6 +384,8 @@ export function useMessaging({
     let current = true;
     let refreshing = false;
     let refreshAgain = false;
+    let connected = false;
+    let refreshTimer: number | undefined;
     const accept = (incoming: DirectMessage) => {
       if (!current || incoming.conversationId !== conversationId) return;
       setIsParticipantTyping(false);
@@ -404,22 +411,27 @@ export function useMessaging({
         threadCache.current.set(conversationId, { messages: next, before: page.before });
         setMessages(next);
         setOlderCursor(page.before);
+        // Read receipts are scoped to the active conversation's realtime feed.
+        // Refresh its inbox summary too, where participantReadAt is stored.
+        void loadConversations({ background: true });
       } catch {
-        if (current) setIsRealtimeConnected(false);
+        if (current) { connected = false; setIsRealtimeConnected(false); }
       } finally {
         refreshing = false;
         if (refreshAgain && current) { refreshAgain = false; void refresh(); }
       }
     };
-    const unsubscribe = messaging.subscribeToMessages(conversationId, accept, (connected) => {
+    const schedule = () => { window.clearTimeout(refreshTimer); refreshTimer = window.setTimeout(() => { void refresh(); }, 150); };
+    const unsubscribe = messaging.subscribeToMessages(conversationId, accept, (ready) => {
       if (!current) return;
-      setIsRealtimeConnected(connected);
-      if (connected) void refresh();
-    }, () => { void refresh(); });
-    const timer = window.setInterval(() => { void refresh(); }, 30_000);
+      connected = ready;
+      setIsRealtimeConnected(ready);
+      if (ready) void refresh();
+    }, schedule);
+    const timer = window.setInterval(() => { if (!connected) void refresh(); }, 30_000);
     const onVisible = () => { void refresh(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { current = false; unsubscribe(); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+    return () => { current = false; unsubscribe(); window.clearTimeout(refreshTimer); window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [activeConversationId, loadConversations, messaging, placeMessage]);
 
   useEffect(() => {

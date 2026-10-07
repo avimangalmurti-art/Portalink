@@ -9,7 +9,7 @@ export function deferred() {
 }
 
 /** Executes the real hook with controlled effects, service responses and clock events. */
-export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = {}) {
+export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = { invalidateProfiles() {} }, dependencies = {}, globals = {}) {
   const slots = [];
   const intervals = new Map();
   const timeouts = new Map();
@@ -46,21 +46,23 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
   vm.runInNewContext(ts.transpileModule(readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, {
-    exports, crypto, URL, console, document,
+    exports, crypto, URL, Error, console, document,
     window: {
       setInterval(fn) { intervals.set(++timer, fn); return timer; },
       clearInterval(id) { intervals.delete(id); },
       setTimeout(fn) { timeouts.set(++timer, fn); return timer; },
       clearTimeout(id) { timeouts.delete(id); },
     },
+    ...globals,
     require(name) {
+      if (Object.hasOwn(dependencies, name)) return dependencies[name];
       if (name === 'react') return react;
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
       if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
-      if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth') || name.endsWith('/types/profile') || name.endsWith('/useSavedChangeHistory')) {
+      if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth') || name.endsWith('/types/profile') || name.endsWith('/useSavedChangeHistory') || name === './validation') {
         const nested = {};
-        const path = name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : name.endsWith('/useSavedChangeHistory') ? '../../src/hooks/useSavedChangeHistory.ts' : name.endsWith('/types/profile') ? '../../src/types/profile.ts' : '../../src/types/auth.ts';
+        const path = name === './validation' ? '../../src/features/profile/validation.ts' : name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : name.endsWith('/useSavedChangeHistory') ? '../../src/hooks/useSavedChangeHistory.ts' : name.endsWith('/types/profile') ? '../../src/types/profile.ts' : '../../src/types/auth.ts';
         vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
           compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
         }).outputText, { exports: nested, require: () => react });

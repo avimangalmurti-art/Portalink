@@ -27,6 +27,7 @@ function harness(file, component, props) {
     };
     if (name === 'react/jsx-runtime') return jsxRuntime;
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, onDismiss) => { dismiss = onDismiss; } };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => 'web' };
     if (name.endsWith('/assetTypes')) return { supportedFormatGroups: [] };
     return new Proxy({}, { get: (_, key) => key });
   } });

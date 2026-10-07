@@ -117,11 +117,12 @@ function zoomHarness(enabled = true) {
     },
   };
   const pinch = compile('../src/utils/pinchGesture.ts', () => ({}));
-  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : react, {
+  const density = compile('../src/utils/projectGridDensity.ts', () => ({}));
+  const { useContentZoom } = compile('../src/hooks/useContentZoom.ts', name => name.endsWith('/pinchGesture') ? pinch : name.endsWith('/projectGridDensity') ? density : react, {
     window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const listeners = new Map();
-  const view = useContentZoom(enabled);
+  const view = useContentZoom(4, enabled);
   view.ref.current = {
     addEventListener: (type, handler) => listeners.set(type, handler),
     removeEventListener: (type, handler) => { if (listeners.get(type) === handler) listeners.delete(type); },
@@ -151,7 +152,7 @@ test('deliberate pinch or modified-wheel zoom remains available and listeners cl
     let prevented = false;
     h.listeners.get('wheel')({ deltaY: -20, [modifier]: true, preventDefault() { prevented = true; } });
     assert.equal(prevented, true);
-    assert.equal(h.state[0], h.initial[0] + 1);
+    assert.equal(h.state[0].columns, 3);
     h.cleanup.forEach((cleanup) => cleanup?.());
     assert.equal(h.listeners.size, 0);
   }
@@ -167,12 +168,12 @@ test('phone pinches resize only overview content, stay bounded, and ignore singl
   };
   h.listeners.get('touchstart')({ touches: touches(100) });
   assert.equal(move(125).prevented, true);
-  assert.equal(h.state[0], h.initial[0] + 1);
-  move(10000); assert.equal(h.state[0], 6);
-  move(1); assert.equal(h.state[0], 0);
-  move(100); assert.equal(h.state[0], h.initial[0], 'Reversing a pinch restores its starting size');
+  assert.equal(h.state[0].columns, 3);
+  move(10000); assert.equal(h.state[0].columns, 2);
+  move(1); assert.equal(h.state[0].columns, 13);
+  move(100); assert.equal(h.state[0].columns, 4, 'Reversing a pinch restores its starting size');
   h.listeners.get('touchend')();
-  move(200); assert.equal(h.state[0], h.initial[0]);
+  move(200); assert.equal(h.state[0].columns, 4);
   h.listeners.get('touchstart')({ touches: [touches(100)[0]] });
   h.listeners.get('touchmove')({ touches: [touches(100)[0]], cancelable: true, preventDefault() { assert.fail('Single-finger scroll must remain native'); } });
   h.cleanup.forEach(cleanup => cleanup?.());
@@ -197,8 +198,29 @@ test('ordinary profile and shared-profile screens retain the app-shell vertical 
   assert.ok(expression);
   for (const kind of ['profile', 'sharedProfile']) {
     const classes = vm.runInNewContext(expression, { route: { kind }, activeCategory: null,
-      isSearchOpen: false, isMessagesOpen: false, inDesignFeature: null });
+      isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false, isMobileStudioOpen: false, inDesignFeature: null });
     assert.match(classes, /\boverflow-y-auto\b/);
     assert.doesNotMatch(classes, /\boverflow-hidden\b/);
   }
+});
+
+test('mobile Studio owns a nested full-height scroller while the app shell stays fixed', () => {
+  const file = ts.createSourceFile('App.tsx', readSource('../src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let classes, scrollMode, contentClasses;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'screenMainClassName') classes = node.initializer.getText(file);
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'screenContent') {
+      const attributes = node.initializer.openingElement.attributes.properties;
+      scrollMode = attributes.find(attribute => attribute.name?.getText(file) === 'data-screen-scroll').initializer.expression.getText(file);
+      contentClasses = attributes.find(attribute => attribute.name?.getText(file) === 'className').initializer.expression.getText(file);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.ok(classes && scrollMode && contentClasses);
+  const context = { activeCategory: null, isSearchOpen: false, isMessagesOpen: false, isProfileEditorRoute: false,
+    isMobileStudioOpen: true, inDesignFeature: null, isFeedView: false, isPortalsOpen: false };
+  assert.match(vm.runInNewContext(classes, context), /\boverflow-hidden\b/);
+  assert.equal(vm.runInNewContext(scrollMode, context), 'nested');
+  assert.match(vm.runInNewContext(contentClasses, context), /(?:^|\s)h-full(?:\s|$)/);
 });

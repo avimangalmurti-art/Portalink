@@ -11,7 +11,7 @@ import type { NavigationDestination } from '../components/navigation';
  * a pasted URL resolves the same record for everyone.
  */
 
-export type RouteId = 'home' | 'destination' | 'discovery' | 'search' | 'profile' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
+export type RouteId = 'home' | 'discovery' | 'search' | 'profile' | 'profileEditor' | 'collaboration' | 'sharedCollaboration' | 'profileCategory' | 'project' | 'sharedProfile' | 'sharedProfileCategory' | 'sharedProject' | 'productDetail' | 'portalink' | 'location' | 'portals' | 'insights' | 'studio' | 'messages' | 'controlCenter' | 'activity' | 'saved' | 'notifications';
 export type RouteDefinition = {
   id: RouteId;
   path: string;
@@ -25,12 +25,6 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/',
     params: [],
     description: 'Relationship feed containing the viewer’s own work and work from creators they follow.'
-  },
-  destination: {
-    id: 'destination',
-    path: '/feed/:destinationSlug',
-    params: ['destinationSlug'],
-    description: 'An editorial or label feed destination from the sidebar.'
   },
   discovery: {
     id: 'discovery',
@@ -49,6 +43,24 @@ export const routes: Record<RouteId, RouteDefinition> = {
     path: '/p/:profileId',
     params: ['profileId'],
     description: 'A creator profile: identity, stats, and portfolio categories.'
+  },
+  collaboration: {
+    id: 'collaboration',
+    path: '/p/:profileId/collaboration',
+    params: ['profileId'],
+    description: 'A creator’s dedicated collaboration screen, separate from direct messages.'
+  },
+  sharedCollaboration: {
+    id: 'sharedCollaboration',
+    path: '/share/:profileId/collaboration',
+    params: ['profileId'],
+    description: 'The collaboration screen within a public shared profile.'
+  },
+  profileEditor: {
+    id: 'profileEditor',
+    path: '/profile/edit',
+    params: [],
+    description: 'Edit the authenticated account’s own creator profile.'
   },
   profileCategory: {
     id: 'profileCategory',
@@ -124,9 +136,9 @@ export const routes: Record<RouteId, RouteDefinition> = {
   },
   controlCenter: {
     id: 'controlCenter',
-    path: '/appearance',
+    path: '/settings',
     params: [],
-    description: 'Control Center, opened from the sidebar. Public: it configures this browser.'
+    description: 'Full-screen Settings, opened directly from the sidebar. Public browser preferences and gated account actions.'
   },
   saved: {
     id: 'saved', path: '/saved', params: [],
@@ -162,9 +174,7 @@ export function destinationFromSlug(slug: string): NavigationDestination | null 
   return navigationDestinations.find((destination) => destinationSlug(destination) === slug) ?? null;
 }
 
-/** The canonical path for an editorial destination. Home has its own route. */
+/** Preserve old screen-preset URLs; retired editorial feeds resolve to not-found. */
 export function destinationPath(destination: NavigationDestination): string {
-  return destination === 'Today' ? routes.home.path : buildPath('destination', {
-    destinationSlug: destinationSlug(destination)
-  });
+  return destination === 'Today' ? routes.home.path : `/feed/${destinationSlug(destination)}`;
 }

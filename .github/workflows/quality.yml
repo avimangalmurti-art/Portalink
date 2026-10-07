@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   web:
+    if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -24,6 +25,7 @@ jobs:
       - run: npm run build
 
   pdf-worker:
+    if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -35,3 +37,39 @@ jobs:
       - run: pip install -r workers/pdf_processor/requirements.txt
       - run: python -m unittest discover -s tests -p "test_*.py"
         working-directory: workers/pdf_processor
+
+  node-tests:
+    if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install isolated database test runtime
+        run: npm install --prefix "${{ runner.temp }}/portalink-db-tools" --no-save --package-lock=false @electric-sql/pglite@0.5.8
+      - name: Run Node and database regressions
+        run: node scripts/run-node-tests.mjs
+        env:
+          PGLITE_MODULE_PATH: ${{ runner.temp }}/portalink-db-tools/node_modules/@electric-sql/pglite/dist/index.js
+
+  video-worker:
+    if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: pip install -r workers/video_processor/requirements.txt
+      - run: python -m unittest discover -s workers/video_processor/tests -p "test_*.py"

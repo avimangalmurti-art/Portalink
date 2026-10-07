@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __APP_VERSION__: string;
+
 interface ImportMetaEnv {
   readonly VITE_RUNTIME_MODE?: 'prototype' | 'production';
   readonly VITE_SUPABASE_URL?: string;

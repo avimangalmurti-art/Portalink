@@ -1,6 +1,7 @@
 // Appearance preferences persist, so whatever the viewer has set in Control
 // Center is what the product opens with next time — their current settings
 // become the default rather than resetting to a built-in theme.
+import type { Presentation } from '../presentation/usePresentation';
 /**
  * The resolved appearance the interface is actually rendering in. Distinct from
  * `StoredAppearanceMode`, which may be 'auto' and has to be resolved against the
@@ -12,6 +13,9 @@ export type StoredAppearanceMode = 'light' | 'dark' | 'auto';
 export type StoredContrastMode = 'default' | 'increased';
 export type StoredIconColor = 'default' | 'black' | 'white' | 'gray';
 export type StoredLanguage = 'auto' | 'en' | 'es' | 'fr' | 'de';
+export type StudioView = 'categories' | 'list';
+
+const STUDIO_VIEW_KEY = 'portalinknetworks.studioView.mobile';
 
 const MODE_KEY = 'portalinknetworks.appearanceMode';
 // The old key was also populated from account branding. Start device appearance
@@ -106,6 +110,15 @@ export function writeLanguage(lang: StoredLanguage): void {
   write(LANGUAGE_KEY, lang);
 }
 
+/** Studio presentation is a MOBILE preference and never changes WEB layout. */
+export function readStudioView(): StudioView {
+  return read(STUDIO_VIEW_KEY) === 'list' ? 'list' : 'categories';
+}
+
+export function writeStudioView(view: StudioView): void {
+  write(STUDIO_VIEW_KEY, view);
+}
+
 // The navigation-button system gray. Stored by id rather than by hex, because
 // one gray resolves to two different values depending on the appearance.
 const NAV_GRAY_KEY = 'portalinknetworks.navSystemGray';
@@ -134,4 +147,43 @@ export function readReduceTranslucency(fallback: boolean): boolean {
 
 export function writeReduceTranslucency(enabled: boolean): void {
   write(REDUCE_TRANSLUCENCY_KEY, String(enabled));
+}
+
+export type InterfaceAppearance = {
+  mode: StoredAppearanceMode;
+  accentColor: string;
+  systemGray: string;
+  highContrast: boolean;
+  reduceTranslucency: boolean;
+};
+
+export type AppearanceScope = 'platform' | 'public';
+export function interfaceAppearanceKey(presentation: Presentation, scope: AppearanceScope = 'platform'): string {
+  return `portalinknetworks.${scope === 'public' && presentation === 'mobile' ? 'publicAppearance' : 'interfaceAppearance'}.${presentation}`;
+}
+
+/** Legacy values are a starting snapshot only; new choices never write them. */
+export function readInterfaceAppearance(presentation: Presentation, scope: AppearanceScope = 'platform'): InterfaceAppearance {
+  const fallback: InterfaceAppearance = scope === 'public' && presentation === 'mobile' ? readInterfaceAppearance(presentation) : {
+    mode: readDeviceAppearanceMode(),
+    accentColor: readAccentColor('#0A84FF'),
+    systemGray: readNavSystemGray('gray6'),
+    highContrast: readHighContrast(false),
+    reduceTranslucency: readReduceTranslucency(false),
+  };
+  try {
+    const value = JSON.parse(read(interfaceAppearanceKey(presentation, scope)) ?? 'null');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback;
+    return {
+      mode: ['light', 'dark', 'auto'].includes(value.mode) ? value.mode : fallback.mode,
+      accentColor: typeof value.accentColor === 'string' && /^#[\da-f]{6}$/i.test(value.accentColor) ? value.accentColor : fallback.accentColor,
+      systemGray: typeof value.systemGray === 'string' && /^gray(?:[2-6])?$/.test(value.systemGray) ? value.systemGray : fallback.systemGray,
+      highContrast: typeof value.highContrast === 'boolean' ? value.highContrast : fallback.highContrast,
+      reduceTranslucency: typeof value.reduceTranslucency === 'boolean' ? value.reduceTranslucency : fallback.reduceTranslucency,
+    };
+  } catch { return fallback; }
+}
+
+export function writeInterfaceAppearance(presentation: Presentation, value: InterfaceAppearance, scope: AppearanceScope = 'platform'): void {
+  write(interfaceAppearanceKey(presentation, scope), JSON.stringify(value));
 }

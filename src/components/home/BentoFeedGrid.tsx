@@ -4,18 +4,17 @@ import { layoutBento, type BentoPosition } from '../../utils/bentoLayout';
 import { useElementSize } from '../../hooks/useElementSize';
 import { useContentZoom } from '../../hooks/useContentZoom';
 import { ZoomReadout } from '../ui/ZoomReadout';
+import { WebGalleryControls } from '../../presentation/web/WebGalleryControls';
+import { usePresentation } from '../../presentation/usePresentation';
 
 /**
  * The packing layer for the discovery feed.
  *
- * It owns ONE thing: where a cell sits and how many columns it occupies. It does
- * not know what a project is, never fetches anything, and never reads or writes
- * a project record — every cell arrives as an already-rendered node with a pure
- * function describing its width at a given column count.
+ * It owns where a cell sits, never fetches or writes a project record, and
+ * receives every cell as an already-rendered node. Each project occupies one
+ * column so zoom always enlarges or reduces all covers in the same direction.
  *
- * Why not multi-column: CSS columns pack beautifully but cannot give an item a
- * horizontal span, so a landscape piece can never be wider than a portrait one.
- * A grid can, but a plain grid forces a row's items to share a row height, which
+ * A plain grid forces a row's items to share a row height, which
  * either stretches cards or leaves holes under short ones. So the grid is laid
  * out on a fine row unit and each cell claims as many of those rows as its own
  * content actually needs — true masonry with controllable spans, and no card is
@@ -31,12 +30,6 @@ const GAP = 4;
 const ROW_UNIT = 4;
 export type BentoCellItem = {
   key: string;
-  /**
-   * How many columns this cell occupies. A pure function of the resolved column
-   * count, so the same input always produces the same layout — no randomness and
-   * no per-item exceptions.
-   */
-  span: (columns: number) => number;
   content: React.ReactNode;
 };
 
@@ -73,21 +66,19 @@ function resolveColumns(width: number): number {
   return 8;
 }
 export function BentoFeedGrid({
-  items
+  items,
+  columns: savedColumns,
+  onColumnsChange
 
 
-}: {items: BentoCellItem[];}) {
+}: {items: BentoCellItem[]; columns?: number; onColumnsChange?: (columns: number) => void;}) {
+  const isWeb = usePresentation() === 'web';
   const {
     ref,
     width
   } = useElementSize<HTMLDivElement>();
-  /*
-   * The viewer's reading size, applied ON TOP of the width-derived column count.
-   * Spans and ratios are untouched: a landscape piece is still twice a portrait
-   * one at every zoom, so the composition scales rather than being re-authored.
-   */
-  const view = useContentZoom<HTMLDivElement>();
-  const columns = view.scaleColumns(width === 0 ? 2 : resolveColumns(width));
+  const view = useContentZoom<HTMLDivElement>(savedColumns ?? (width === 0 ? 2 : resolveColumns(width)), true, savedColumns, onColumnsChange);
+  const columns = view.columns;
   /*
    * Without ResizeObserver a cell cannot know its own height, so the fine row
    * unit would leave content overlapping. The fallback is a plain auto-row grid
@@ -102,13 +93,14 @@ export function BentoFeedGrid({
   }, []);
   const positions = canPack && items.every((item) => measurements[item.key]) ? layoutBento(items.map((item) => ({
     key: item.key,
-    span: Math.max(1, Math.min(item.span(columns), columns)),
+    span: 1,
     baseRows: Math.ceil((measurements[item.key].base + GAP) / ROW_UNIT),
     rows: Math.ceil((measurements[item.key].height + GAP) / ROW_UNIT),
   })), columns) : null;
   return <div ref={view.ref} className="relative w-full">
+      {isWeb && items.length > 0 && <WebGalleryControls columns={columns} onChange={view.chooseColumns} />}
       <ZoomReadout view={view} />
-      <div ref={ref} style={{
+      <div ref={ref} data-project-grid-columns={columns} style={{
       display: 'grid',
       gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
       columnGap: GAP,
@@ -128,7 +120,7 @@ export function BentoFeedGrid({
         alignItems: 'start'
       })
     }}>
-      {items.map((item) => <BentoCell key={item.key} cellKey={item.key} span={Math.max(1, Math.min(item.span(columns), columns))} canPack={canPack} position={positions?.get(item.key)} onMeasure={measure}>
+      {items.map((item) => <BentoCell key={item.key} cellKey={item.key} span={1} canPack={canPack} position={positions?.get(item.key)} onMeasure={measure}>
           {item.content}
         </BentoCell>)}
       </div>

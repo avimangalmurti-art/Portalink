@@ -23,13 +23,27 @@ The [Supabase client](../src/services/supabase/client.ts) fails closed when prod
 
 Some unfinished domains expose unavailable capabilities in production. Source code, a passing build, and old worker verification notes are not evidence of active hosted services. Account deletion remains hard-disabled in the client and [edge endpoint](../supabase/functions/delete-account/index.ts). Its replacement remains in `supabase/pending`, subject to the [separate release gate](account-deletion-safety.md).
 
-The page-interaction worker verifies sessions for writes and scopes saved-page
-lists to the account, but the inspected source does not verify the caller's
-access to the target project/attachment before returning page interactions or
-adding engagement/comments. Supabase authentication alone does not supply that
-authorization for D1. This source finding needs a separately scoped review;
-it is not a live endpoint audit or authorization to replace the store. Any future
-account-deletion design must also explicitly account for existing D1 records.
+The September 29 source correction makes the page-interaction worker resolve
+each target project, category and attachment through Supabase SELECT policies
+with the caller's identity before reading or writing D1 activity. Anonymous
+requests use the publishable key only; errors fail closed. Saved-page lists and
+removal remain account-scoped so inaccessible saved entries can still be removed.
+This correction and the account-state/text-preview changes below were published
+in Sites v270 from `caf7b21`. Any future account-deletion design must also
+explicitly account for existing D1 records.
+
+The same source changes scope profile and engagement state to the current
+account, discard late results from earlier sessions, and keep independent like
+and save mutations from overwriting each other. Public share HTML gets anonymous,
+visibility-filtered text metadata with no-store caching. The current local,
+unpublished preview update additionally reuses a trusted existing public
+Supabase avatar for profile links when available. Shared pages otherwise
+omit preview images, including inaccessible or unavailable records; they never
+inherit the site-wide brand image or create signed media URLs. Root preview
+metadata remains unchanged. See [shared-view verification](shared-view-experience.md)
+for the unpublished preview update and the historical
+[release plan](trust-and-activation-release.md) for separate website, database
+and worker release states.
 
 The inspected client/worker source contains in-app notifications but no device
 push registration and delivery implementation. Native push is future work;

@@ -82,12 +82,14 @@ test('both presentations keep the same provider, DOM host, and child element ide
   let presentation = 'web';
   const readingScopes = [];
   const context = React.createContext('web');
-  const { AppPresentation } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
+  const { AppPresentation, AppPresentationProvider } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
     if (name === 'react') return React;
     if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
-    if (name === './usePresentation') return { PresentationContext: context };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextProvider: 'MobileContextProvider' };
+    if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
     if (name.endsWith('.css')) return {};
@@ -97,17 +99,19 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const dialog = React.createElement('section', { key: 'publishing', role: 'dialog' });
   const children = [React.createElement('aside', { key: 'navigation' }), screen, dialog];
   const props = { className: 'app-shell codex-shell', 'data-layout-mode': 'adaptive', style: { color: 'inherit' }, children };
-  const web = AppPresentation(props);
+  const web = { provider: AppPresentationProvider({ children }), host: AppPresentation(props) };
   presentation = 'mobile';
-  const mobile = AppPresentation(props);
+  const mobile = { provider: AppPresentationProvider({ children }), host: AppPresentation(props) };
   assert.deepEqual(readingScopes, [[false, '/share/profile/project'], [true, '/share/profile/project']]);
-  assert.equal(web.type, context.Provider); assert.equal(mobile.type, web.type);
-  assert.equal(web.key, mobile.key);
+  assert.equal(web.provider.type, context.Provider); assert.equal(mobile.provider.type, web.provider.type);
+  assert.equal(web.provider.key, mobile.provider.key);
   for (const [tree, mode] of [[web, 'web'], [mobile, 'mobile']]) {
-    assert.equal(tree.props.value, mode);
-    const host = tree.props.children;
+    assert.equal(tree.provider.props.value, mode);
+    assert.equal(tree.provider.props.children, children);
+    const host = tree.host;
     assert.equal(host.type, 'div'); assert.equal(host.key, null);
-    assert.equal(host.props.children, children);
+    assert.equal(host.props.children.type, 'MobileContextProvider');
+    assert.equal(host.props.children.props.children, children);
     assert.equal(host.props.style, props.style);
     assert.equal(host.props.className, props.className);
     assert.equal(host.props['data-layout-mode'], 'adaptive');
@@ -115,12 +119,52 @@ test('both presentations keep the same provider, DOM host, and child element ide
   }
 });
 
+function presentationBoundary(mode) {
+  // The attribute may scope the shell itself or a descendant portal host.
+  // The optional literal space permits only that descendant relation: no
+  // unscoped siblings, negated attributes, or arbitrary intervening selectors.
+  return new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
+}
+
+test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
+  for (const mode of ['web', 'mobile']) {
+    const boundary = presentationBoundary(mode);
+    assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
+    assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
+    for (const selector of [
+      '#root .codex-shell .mobile-project-description-sheet',
+      `#root .codex-shell + [data-presentation='${mode}'] .surface`,
+      `#root .codex-shell :not([data-presentation='${mode}']) .surface`,
+      `#root .codex-shell [data-presentation='${mode}-other'] .surface`,
+      `#root .codex-shell [data-presentation='${mode === 'mobile' ? 'web' : 'mobile'}'] .surface`,
+    ]) assert.equal(boundary.test(selector), false, selector);
+  }
+});
+
 test('every platform CSS selector is scoped, including nested rules and selector lists', () => {
   for (const mode of ['web', 'mobile']) {
     const root = postcss.parse(read(`../src/presentation/${mode}/${mode}.css`));
     let rules = 0;
-    root.walkAtRules((rule) => assert.ok(['media', 'supports', 'container'].includes(rule.name), `Global @${rule.name} is not platform scoped`));
+    const animationNames = new Set();
+    root.walkAtRules((rule) => {
+      if (rule.name === 'keyframes') {
+        // Keyframe steps aren't DOM selectors. Keep their names unique to this
+        // presentation, including the existing mobile description transition.
+        assert.ok(rule.params.startsWith(`${mode}-`) || (mode === 'mobile' && rule.params === 'project-description-arrive'), `Unscoped animation ${rule.params}`);
+        assert.ok(!animationNames.has(rule.params), `Duplicate animation ${rule.params}`);
+        animationNames.add(rule.params);
+        const otherMode = mode === 'web' ? 'mobile' : 'web';
+        assert.ok(!read(`../src/presentation/${otherMode}/${otherMode}.css`).includes(rule.params), `Animation ${rule.params} crosses presentations`);
+        assert.ok(!read('../src/index.css').includes(rule.params), `Animation ${rule.params} collides with shared CSS`);
+        return;
+      }
+      assert.ok(['media', 'supports', 'container'].includes(rule.name), `Global @${rule.name} is not platform scoped`);
+    });
     root.walkRules((rule) => {
+      if (rule.parent?.type === 'atrule' && rule.parent.name === 'keyframes') {
+        for (const step of rule.selectors) assert.match(step, /^(?:from|to|(?:100|\d{1,2})(?:\.\d+)?%)$/);
+        return;
+      }
       rules++;
       for (const selector of rule.selectors) {
         // Frame rules can target the scoped host itself; descendant rules and
@@ -128,8 +172,40 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // presentation attribute also scopes body-portalled mobile controls,
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
-        const boundary = new RegExp(`^(?:(?:#root )?\\.codex-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
-        assert.match(selector, boundary);
+        const boundary = presentationBoundary(mode);
+        // AccountWelcomeSurface emits this alternate DOM scope only when
+        // usePresentation() is mobile; account-entry-focus exercises that gate.
+        const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='light')?\](?=[\s:.#\[]|$)/;
+        // Safari document scrolling must unlock ancestors of AppPresentation.
+        // Permit only these canvas declarations, inside the exact phone query;
+        // other document rules still require the normal presentation boundary.
+        const canvasSelectors = new Set([
+          'html:root', 'html:root body', 'html:root #root',
+          'html:root[data-standalone]', 'html:root[data-standalone] body', 'html:root[data-standalone] #root',
+        ]);
+        const mobileDocumentCanvas = mode === 'mobile' && canvasSelectors.has(selector)
+          && rule.parent?.type === 'atrule' && rule.parent.name === 'media'
+          && rule.parent.params === '(max-width: 639px)'
+          && rule.nodes.length > 0 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+            (node.prop === 'height' && node.value === 'auto')
+            || (node.prop === 'min-height' && node.value === '100dvh')
+            || (node.prop === 'overflow' && node.value === 'visible')
+            || (selector === 'html:root' && node.prop === 'overflow-x' && node.value === 'clip')
+          ));
+        // The existing portal popup locks its document ancestor only while an
+        // active MOBILE overlay exists; it must not become a global root lock.
+        const mobilePortalScrollLock = mode === 'mobile'
+          && selector === "html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobile-project-index-overlay):not(.screen-exit *, [inert] *, [aria-hidden='true'] *))"
+          && rule.nodes.length === 2 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+            (node.prop === 'overflow' && node.value === 'hidden')
+            || (node.prop === 'overscroll-behavior' && node.value === 'none')
+          ));
+        const readerRoot = "html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *))";
+        const mobileReaderScrollbar = mode === 'mobile' && rule.nodes.length === 1 && rule.nodes.every((node) => node.type === 'decl' && !node.important && (
+          ([readerRoot, `${readerRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
+          || ([`${readerRoot}::-webkit-scrollbar`, `${readerRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
+        ));
+        assert.ok(boundary.test(selector) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar, `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

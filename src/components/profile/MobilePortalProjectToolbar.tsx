@@ -1,0 +1,43 @@
+import React from 'react';
+import { ChevronDownIcon, ChevronLeftIcon, Grid2X2Icon, ListIcon, PlusIcon } from 'lucide-react';
+import type { PortfolioCategory } from '../../types/domain';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
+import { getCategoryIcon } from './categoryIcons';
+
+export type MobileProjectSort = 'recent' | 'title' | 'saved';
+
+/** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
+export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
+  sort, onSort, sharedReadOnly = false }: {
+  category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
+  layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
+  sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
+  sharedReadOnly?: boolean;
+}) {
+  return <header className="mobile-portal-index-toolbar">
+    <div className="mobile-portal-index-heading">
+      <button type="button" onClick={onBack} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="mobile-portal-index-control">
+        <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
+      </button>
+      <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
+      <h2 title={category.label}>{category.label}</h2>
+      {onCreate && <button type="button" onClick={onCreate} aria-label={`Add a new project to ${category.label}`} className="mobile-portal-index-control">
+        <InterfaceIcon icon={PlusIcon} size="lg" />
+      </button>}
+    </div>
+    {!sharedReadOnly && <div className="mobile-portal-index-preferences">
+      <label className="mobile-portal-index-control mobile-portal-index-layout mobile-portal-index-sort">
+        <span aria-hidden="true">{sort === 'recent' ? 'Recent' : sort === 'title' ? 'Name' : 'Saved order'}</span>
+        <InterfaceIcon icon={ChevronDownIcon} size="sm" />
+        <select value={sort} aria-label="Sort projects" onChange={event => onSort(event.target.value as MobileProjectSort)}>
+          <option value="recent">Recent</option><option value="title">Name</option><option value="saved">Saved order</option>
+        </select>
+      </label>
+      <div className="mobile-portal-index-view-controls">
+        <button type="button" className="mobile-portal-index-control mobile-portal-index-layout" aria-label={layout === 'list' ? 'Show project grid' : 'Show project list'} aria-pressed={layout === 'grid'} onClick={() => onLayout(layout === 'list' ? 'grid' : 'list')}>
+          <InterfaceIcon icon={layout === 'list' ? Grid2X2Icon : ListIcon} />
+        </button>
+      </div>
+    </div>}
+  </header>;
+}

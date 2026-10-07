@@ -5,8 +5,9 @@ import test from 'node:test';
 import React from 'react';
 import ts from 'typescript';
 
-function harness(mobile = true, capability = { isAvailable: true, removes: ['Empty portal'], blockingProjectCount: 0 }) {
+function harness(mobile = true, capability = { isAvailable: true, removes: ['Empty portal'], blockingProjectCount: 0 }, appShell = {}) {
   let cursor = 0, effects = []; const slots = [], calls = [];
+  const body = {}, portalTargets = [];
   const react = { ...React,
     useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = initial; return [slots[index], next => { slots[index] = typeof next === 'function' ? next(slots[index]) : next; }]; },
     useRef() { const index = cursor++; return slots[index] ??= { current: null }; },
@@ -16,11 +17,12 @@ function harness(mobile = true, capability = { isAvailable: true, removes: ['Emp
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/CategoryOptionsMenu.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, document: { body: {}, addEventListener() {}, removeEventListener() {} }, window: { innerHeight: 800 }, require(name) {
+  }).outputText, { exports, document: { body, querySelector: selector => { assert.equal(selector, '.app-shell'); return appShell; }, addEventListener() {}, removeEventListener() {} }, window: { innerHeight: 800 }, require(name) {
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
+    if (name.endsWith('/ConfirmationDialog')) return { ConfirmationDialog: 'confirmation-dialog' };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
-    if (name === 'react-dom') return { createPortal: child => child };
+    if (name === 'react-dom') return { createPortal: (child, target) => { portalTargets.push(target); return child; } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
     if (name.endsWith('/accentTokens')) return { resolveAccentTokens: () => ({}) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: () => null };
@@ -30,7 +32,7 @@ function harness(mobile = true, capability = { isAvailable: true, removes: ['Emp
   const props = { category: { id: 'portal', label: 'Design' }, mobile, theme: 'dark', accentColor: '#ff2d55',
     readDeletionCapability: async () => { calls.push('check'); return capability; },
     onDelete: () => calls.push('delete'), onHideToggle: () => calls.push('hide'), onRenameStart: () => calls.push('rename'), onChangeIcon: () => calls.push('icon') };
-  return { calls, props, render() { cursor = 0; effects = []; const tree = exports.CategoryOptionsMenu(props); effects.forEach(fn => fn()); return tree; } };
+  return { calls, props, appShell, body, portalTargets, render() { cursor = 0; effects = []; const tree = exports.CategoryOptionsMenu(props); effects.forEach(fn => fn()); return tree; } };
 }
 function all(node) { return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(all)] : []; }
 const text = node => React.isValidElement(node) ? React.Children.toArray(node.props.children).map(text).join('') : String(node ?? '');
@@ -44,7 +46,7 @@ test('mobile exposes touch-sized menu actions while WEB retains its compact trig
     const tree = open(h);
     assert.deepEqual(all(tree).filter(node => node.props.role === 'menuitem').map(text), ['Hide', 'Rename', 'Change icon', 'Delete']);
     assert.equal(all(tree).find(node => node.props.role === 'menu').props.style.position, 'fixed');
-    assert.equal(all(tree).find(node => node.props.role === 'menu').props['data-presentation'], mobile ? 'mobile' : 'web', 'The body portal must keep its presentation scope');
+    assert.equal(all(tree).find(node => node.props.role === 'menu').props['data-presentation'], mobile ? 'mobile' : 'web', 'The portal must keep its presentation scope');
   }
   for (const [label, call] of [['Hide', 'hide'], ['Rename', 'rename'], ['Change icon', 'icon']]) {
     const h = harness(); button(open(h), label).props.onClick();
@@ -53,15 +55,27 @@ test('mobile exposes touch-sized menu actions while WEB retains its compact trig
   }
 });
 
+test('category menus inherit the live app shell appearance without a nested theme or copied palette', () => {
+  for (const mobile of [true, false]) for (const appShell of [{}, null]) {
+    const h = harness(mobile, undefined, appShell);
+    const menu = all(open(h)).find(node => node.props.role === 'menu');
+    assert.equal(h.portalTargets.at(-1), appShell ?? h.body);
+    assert.doesNotMatch(menu.props.className, /theme-(dark|light)|accent-theme/);
+    assert.deepEqual(Object.keys(menu.props.style).filter(name => name.startsWith('--')), []);
+    assert.equal(menu.props.style.position, 'fixed');
+    assert.equal(menu.props.style.zIndex, 9999);
+  }
+});
+
 test('Delete requires a fresh capability check and a separate confirmation; occupied portals cannot be deleted', async () => {
   for (const allowed of [true, false]) {
     const h = harness(true, { isAvailable: allowed, removes: [], reason: 'Move projects first.', blockingProjectCount: allowed ? 0 : 2 });
     button(open(h), 'Delete').props.onClick();
-    assert.equal(button(h.render(), 'Delete').props.disabled, true);
+    assert.equal(all(h.render()).find(n=>n.type==='confirmation-dialog').props.confirmDisabled, true);
     assert.deepEqual(h.calls, ['check']);
     await Promise.resolve(); await Promise.resolve();
-    const confirmation = button(h.render(), 'Delete');
-    if (allowed) { assert.equal(confirmation.props.disabled, false); confirmation.props.onClick(); assert.deepEqual(h.calls, ['check', 'delete']); }
-    else { assert.equal(confirmation, undefined); assert.deepEqual(h.calls, ['check']); }
+    const confirmation = all(h.render()).find(n=>n.type==='confirmation-dialog');
+    if (allowed) { assert.equal(confirmation.props.confirmDisabled, false); await confirmation.props.onConfirm(); assert.deepEqual(h.calls, ['check', 'delete']); }
+    else { assert.equal(confirmation.props.confirmDisabled, true); assert.deepEqual(h.calls, ['check']); }
   }
 });

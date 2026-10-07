@@ -1,7 +1,31 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
+import { ProjectPopupEngagement } from './ProjectPopupEngagement';
+import { ProjectPopupOwnerActions } from './MobileProjectPopup';
+import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
+import { CreatorAvatar } from '../profile/CreatorAvatar';
+import { FormattedText } from '../text/FormattedText';
+import { useProjectReach } from '../../features/reads/useProjectReach';
+import { useNavigate } from 'react-router-dom';
+import { buildPath } from '../../app/routes';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMobileActions, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { contextActions } from '../../presentation/mobile/contextActions';
+import { copyPublicLink } from '../../utils/copyPublicLink';
+import { MobilePageContext } from '../../features/media-interactions/MobilePageContext';
+import { MediaInteractionBar } from '../../features/media-interactions/MediaInteractionBar';
+import type { PagePosition } from './MobileProjectPageCounter';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ListIcon, UserRoundIcon, AlertCircleIcon, AudioLinesIcon, BadgeCheckIcon, BookUserIcon, BoxIcon, EllipsisIcon, FileIcon, FileTextIcon, ImageIcon, MessageCircleIcon, PanelRightCloseIcon, PanelRightOpenIcon, PlayIcon, XIcon } from 'lucide-react';
 import { AttachmentRenderer } from './AttachmentRenderer';
+import { MobileVideoSequence, type VideoSequenceEntry } from './MobileVideoSequence';
+import { MobileVideoFrame, type VideoCreator } from './MobileVideoFrame';
+import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigationOutsideTap';
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
+import { MobileProjectPageCounter } from './MobileProjectPageCounter';
+import { jumpToProjectPage } from './projectPageScroll';
+import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
+import type { ProjectManagement } from '../../features/projects/useProjectManagement';
+import type { PdfDocument } from './PdfPage';
+import { useProjectBackSwipe } from './useProjectBackSwipe';
 import type { AssetProcessingState } from '../../features/media/useAssetProcessing';
 import { EngagementBar, EngagementFeedback } from '../../features/engagement/EngagementBar';
 import { useProjectEngagement } from '../../features/engagement/useProjectEngagement';
@@ -13,6 +37,7 @@ import type { LucideIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { normalizePagesPerRow } from '../../features/projects/pageLayout';
 import { pinchDistance, pinchSteps } from '../../utils/pinchGesture';
+import { beginContentPinch, touchMidpoint, type ContentPinchMotion } from './contentPinchMotion';
 import { readViewerMemory, updateViewerMemory } from './viewerMemory';
 import { projectContinuityStyle } from '../../utils/projectContinuity';
 import { preloadProjectMedia } from '../../features/media/preloadProjectMedia';
@@ -76,9 +101,12 @@ export function ProjectMediaViewer({
   responseRailWidth,
   singlePanel,
   mobileNavigation,
+  videoSequence,
+  creator,
   projectId,
   projectTitle,
   projectSummary,
+  descriptionEditor, onDeleteProject,
   publishedAt,
   credits = [],
   pageCount,
@@ -87,6 +115,7 @@ export function ProjectMediaViewer({
   pagesPerRow = 3,
   onPagesPerRowChange,
   onPagesPerRowCommit,
+  savingPageLayout = false,
   pageViewToggleRequest = 0,
   onPageFocusModeChange,
   processing,
@@ -106,7 +135,7 @@ export function ProjectMediaViewer({
 
 
 
-}: {responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public share links present the work without any account-only social controls. */readOnlyShare?: boolean;onClose: () => void;}) {
+}: {creator?: VideoCreator;videoSequence?: { scope: string; entries: VideoSequenceEntry[]; onSelectProject: (id: string) => void };responseRailWidth: ReturnType<typeof useResizablePanelWidth>;singlePanel: 'index' | 'response' | null;mobileNavigation?: { indexOpener?: React.RefObject<HTMLButtonElement>; index: React.ReactNode; isIndexOpen: boolean; onOpenIndex: () => void; onCloseIndex: () => void; onBack: () => void };projectId: string;projectTitle: string; /** The project's own words about the work. Absent when it has none. */projectSummary?: string;descriptionEditor?: ProjectManagement['editor'];onDeleteProject?: () => void;publishedAt?: string;credits?: ProjectCredit[];pageCount: number | null;attachments: ProjectAttachment[];contentTypefaceStack?: string; /** Creator-selected initial pages-per-row layout. */pagesPerRow?: number; /** Viewer-side density changes made directly over the work surface. */onPagesPerRowChange?: (pagesPerRow: number) => void; /** Persists the final density after a pinch settles. Omitted for public, read-only views. */onPagesPerRowCommit?: (pagesPerRow: number) => void; savingPageLayout?: boolean; /** A new value toggles between the page overview and the last focused page. */pageViewToggleRequest?: number;onPageFocusModeChange?: (focused: boolean) => void; /** Canonical processing state is owned by the workspace so the header and renderer read the same fixed total. */processing: AssetProcessingState; /** Reports the PDF catalog's immutable total to the navigation header. */onDocumentPageCountResolved?: (attachmentId: string, pageCount: number) => void; /** Controlled by the profile workspace so it survives project and portal navigation. */isRailOpen: boolean;onRailOpenChange: (open: boolean) => void; /** True when the signed-in creator is looking at their own project. */isOwner?: boolean; /** Public shares allow visitor responses while keeping creator editing unavailable. */readOnlyShare?: boolean;onClose: () => void;}) {
   /**
    * How many pages sit side by side. The creator chooses the opening reading for
    * this project and the project record carries it to every visitor. The choice
@@ -124,9 +153,13 @@ export function ProjectMediaViewer({
   const deepLinkedAttachmentId = typeof window === 'undefined'
     ? null
     : new URLSearchParams(window.location.search).get('media');
-  const [activeId, setActiveId] = useState<string | null>(() => deepLinkedAttachmentId && attachments.some((attachment) => attachment.id === deepLinkedAttachmentId)
-    ? deepLinkedAttachmentId
-    : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null);
+  const resolveInitialAttachment = () => deepLinkedAttachmentId && attachments.some(attachment => attachment.id === deepLinkedAttachmentId)
+    ? deepLinkedAttachmentId : readViewerMemory(viewerMemoryKey).activeAttachmentId ?? null;
+  const [selection, setSelection] = useState(() => ({ scope: viewerMemoryKey, id: resolveInitialAttachment() }));
+  // Resolve a newly navigated project before paint, rather than briefly mounting
+  // its first (possibly non-video) attachment before the memory effect runs.
+  const activeId = selection.scope === viewerMemoryKey ? selection.id : resolveInitialAttachment();
+  const setActiveId = useCallback((id: string | null) => setSelection({ scope: viewerMemoryKey, id }), [viewerMemoryKey]);
   /**
    * Which of the two readings of the work the rail is showing. They share the one
    * area rather than stacking, because both are prose about the same piece and a
@@ -137,11 +170,19 @@ export function ProjectMediaViewer({
   const [isProjectShared, setIsProjectShared] = useState(false);
   const [isImmersive, setIsImmersive] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
-  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'verification'>('project');
+  const [sharedInfoPanel, setSharedInfoPanel] = useState<'project' | 'comments' | 'verification'>('project');
   const controlsTimerRef = useRef<number | null>(null);
   const viewerRootRef = useRef<HTMLDivElement>(null);
   const isMobileViewer = Boolean(mobileNavigation);
   const [mobilePopup, setMobilePopup] = useState<'description' | 'comments' | 'verification' | 'engagement' | null>(null);
+  const [mobileEngagementOpen, setMobileEngagementOpen] = useState(false);
+  const mobileEngagementRef = useRef<HTMLElement>(null);
+  const mobileEngagementToggleRef = useRef<HTMLButtonElement>(null);
+  const closeMobileEngagement = useCallback(() => {
+    setMobileEngagementOpen(false);
+    mobileEngagementToggleRef.current?.focus({ preventScroll: true });
+  }, []);
+  useNavigationOutsideTap(isMobileViewer && mobileEngagementOpen && !mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive, mobileEngagementRef, () => setMobileEngagementOpen(false));
   const popupAnchorRef = useRef<HTMLDivElement>(null);
   const descriptionTriggerRef = useRef<HTMLButtonElement>(null);
   const commentsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -150,6 +191,7 @@ export function ProjectMediaViewer({
   const closeMobilePopup = useCallback(() => setMobilePopup(null), []);
   useEffect(() => {
     setMobilePopup(null);
+    setMobileEngagementOpen(false);
   }, [projectId, isMobileViewer, mobileNavigation?.isIndexOpen, isImmersive]);
   useEffect(() => {
     setSharedInfoPanel('project');
@@ -163,7 +205,7 @@ export function ProjectMediaViewer({
     const rememberedAttachmentId = readViewerMemory(viewerMemoryKey).activeAttachmentId;
     setActiveId(rememberedAttachmentId && attachments.some((attachment) => attachment.id === rememberedAttachmentId) ? rememberedAttachmentId : null);
     setIsProjectShared(false);
-  }, [attachmentIdsKey, attachments, deepLinkedAttachmentId, viewerMemoryKey]);
+  }, [attachmentIdsKey, attachments, deepLinkedAttachmentId, viewerMemoryKey, setActiveId]);
   const revealControls = useCallback(() => {
     setAreControlsVisible(true);
     if (controlsTimerRef.current !== null) {
@@ -199,12 +241,12 @@ export function ProjectMediaViewer({
    * canonical data and the finished preview arrives through the normal read.
    */
   // Canonical engagement, shared with the viewer's own activity collections: the
-  // same project can never read differently in two places. Public links pass no
-  // project id, so these account-only services remain completely dormant there.
-  const engagement = useProjectEngagement(readOnlyShare ? null : projectId);
+  // same project can never read differently in two places. Public links expose
+  // visitor actions through the same guest gate and backend permission checks.
+  const engagement = useProjectEngagement(projectId);
   // Keyed to the project, so project A's thread, pending reply, or failure can
   // never appear on project B.
-  const comments = useProjectComments(readOnlyShare ? null : projectId);
+  const comments = useProjectComments(projectId);
   useEffect(() => {
     if (mobilePopup === 'engagement' && !engagement.resolveError && !engagement.failure) {
       setMobilePopup(null);
@@ -212,32 +254,8 @@ export function ProjectMediaViewer({
       requestAnimationFrame(() => descriptionTriggerRef.current?.focus({ preventScroll: true }));
     }
   }, [mobilePopup, engagement.resolveError, engagement.failure]);
-  const shareProject = async () => {
-    const url = window.location.href;
-    // Selection feedback belongs to the click itself. Native share sheets can be
-    // cancelled and clipboard permission can be unavailable, but neither should
-    // make the control appear as though the intentional press never happened.
-    setIsProjectShared(true);
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: projectTitle, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-      }
-    } catch (caught) {
-      // Cancelling the operating-system sheet keeps the explicit pressed state;
-      // it simply avoids a second clipboard attempt the user did not request.
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        // The visual confirmation still reports the click. Clipboard and native
-        // share permissions are browser capabilities, not engagement state.
-      }
-    }
-  };
+  const sendContent = useInternalContentShare();
+  const shareProject = () => sendContent({title:projectTitle,url:window.location.href,onSent:()=>setIsProjectShared(true)});
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
   useEffect(() => {
     setIsImmersive(false);
@@ -258,7 +276,43 @@ export function ProjectMediaViewer({
    * one piece rather than as separate files to step between — a photo essay is
    * one work, not five attachments.
    */
+  const isDocumentReading = isMobileViewer && active?.kind === 'document';
+  const isVerticalReading = isMobileViewer && (active?.kind === 'document' || active?.kind === 'image');
+  const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
   const imagePages = attachments.filter((item) => item.kind === 'image');
+  const previewScope = `${projectId}:${active?.id ?? ''}`;
+  // Opening work on a phone still starts at full width. Only an explicit
+  // slider choice changes that reading; WEB keeps the authored density.
+  const [mobileDensity, setMobileDensity] = useState<{ scope: string; value: number } | null>(null);
+  const mobilePagesPerRow = mobileDensity?.scope === previewScope ? mobileDensity.value : 1;
+  const changeMobileDensity = (value: number) => {
+    const next = normalizePagesPerRow(value);
+    setMobileDensity({ scope: previewScope, value: next });
+    onPagesPerRowChange?.(next);
+  };
+  const [contextPosition, setContextPosition] = useState<PagePosition | null>(null);
+  const currentPage = contextPosition?.scope === previewScope && contextPosition.ready !== false ? contextPosition.current - 1 : null;
+  const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
+  const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
+  const journeyNavigate = useNavigate(), journeyAuth = useAuth();
+  const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp') : undefined;
+  useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
+  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
+  const mobileActions = useMobileActions();
+  const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+    reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
+    startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
+    thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
+    saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
+    share: shareProject, copy: () => copyPublicLink(publicUrl),
+  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
+  useMobileScreenActions(projectActionModel, 20, () => setMobilePopup('description'));
+  const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
+  const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
+    setPreviewPdf({ scope: previewScope, document });
+  }, [previewScope]);
+  const pagePreviewSources = active?.kind === 'image' ? imagePages.map(page => page.sourceUrl)
+    : (active?.metadata?.renderedPages ?? []).filter(page => Boolean(page.sourceUrl)).map(page => page.sourceUrl);
   const switchable = attachments.filter((item) => item.kind !== 'image' || item.id === imagePages[0]?.id);
   useEffect(() => {
     const activeSwitchableIndex = switchable.findIndex((item) => item.id === active?.id || (active?.kind === 'image' && item.kind === 'image'));
@@ -280,33 +334,46 @@ export function ProjectMediaViewer({
     : active?.kind === 'document' && documentPageCount !== 1;
   const publishedLabel = formatPublishedDate(publishedAt);
   const densitySurfaceRef = useRef<HTMLDivElement>(null);
+  const backSwipe = useProjectBackSwipe(densitySurfaceRef, {
+    enabled: isMobileViewer && !isImmersive && !mobileNavigation?.isIndexOpen && !mobilePopup && active?.kind !== 'model3d' && !isDocumentReading,
+    scope: `${projectId}:${active?.id ?? ''}`,
+    onBack: mobileNavigation?.onBack,
+  });
   const wheelDeltaRef = useRef(0);
   const lastDensityStepRef = useRef(0);
   const densityCommitTimerRef = useRef<number | null>(null);
   const densityCommitCallbackRef = useRef(onPagesPerRowCommit);
-  const densityPinchRef = useRef<{ distance: number; pages: number; next: number } | null>(null);
+  const densityPinchRef = useRef<{ distance: number; origin: { x: number; y: number }; pages: number; next: number; motion: ContentPinchMotion | null } | null>(null);
+  const densitySettleRef = useRef<ContentPinchMotion | null>(null);
+  useLayoutEffect(() => {
+    densitySettleRef.current?.settle();
+    densitySettleRef.current = null;
+  }, [normalizedPagesPerRow]);
   useEffect(() => {
     densityCommitCallbackRef.current = onPagesPerRowCommit;
   }, [onPagesPerRowCommit]);
   useEffect(() => () => {
+    densityPinchRef.current?.motion?.cancel();
+    densitySettleRef.current?.cancel();
+    densitySettleRef.current = null;
     densityPinchRef.current = null;
     if (densityCommitTimerRef.current !== null) {
       window.clearTimeout(densityCommitTimerRef.current);
       densityCommitTimerRef.current = null;
     }
-  }, [projectId]);
+  }, [projectId, active?.id, isImmersive, isMobileViewer]);
   /**
    * The work surface itself is the density instrument for touch or trackpad
    * pinches. Browsers expose a trackpad pinch as a wheel event with `ctrlKey`;
    * an ordinary two-finger vertical swipe has no modifier and must remain native
-   * page scrolling. Pinching inward reveals more, smaller pages and pinching
-   * outward reveals fewer, larger pages. The listener is non-passive so only the
+   * page scrolling. Pinching inward reveals more, smaller pages; page renderers
+   * claim an outward gesture to enter single-page zoom. The listener is non-passive so only the
    * recognized pinch can be contained inside the 1–9 density range instead of
    * also zooming the browser page.
    */
   useEffect(() => {
     const surface = densitySurfaceRef.current;
-    if (!surface || !hasPageLayout || !onPagesPerRowChange) {
+    if (!surface || !hasPageLayout || !onPagesPerRowChange || isImmersive || isVerticalReading) {
       return undefined;
     }
     const handleDensityWheel = (event: WheelEvent) => {
@@ -342,41 +409,58 @@ export function ProjectMediaViewer({
       }, 450);
     };
     const handleTouchStart = (event: TouchEvent) => {
+      densityPinchRef.current?.motion?.cancel();
       const distance = pinchDistance(event.touches);
-      densityPinchRef.current = distance === null ? null : { distance, pages: normalizedPagesPerRow, next: normalizedPagesPerRow };
+      densityPinchRef.current = distance === null ? null : { distance, origin: touchMidpoint(event.touches), pages: normalizedPagesPerRow, next: normalizedPagesPerRow,
+        motion: null };
     };
     const handleTouchMove = (event: TouchEvent) => {
       const pinch = densityPinchRef.current;
       const distance = pinchDistance(event.touches);
       if (!pinch || distance === null) return;
       if (event.cancelable) event.preventDefault();
-      const next = normalizePagesPerRow(pinch.pages - pinchSteps(distance, pinch.distance));
+      if (isMobileViewer) {
+        pinch.motion ??= beginContentPinch(surface, pinch.origin);
+        pinch.motion?.update(Math.min(pinch.pages, Math.max(pinch.pages / 9, distance / pinch.distance)), touchMidpoint(event.touches));
+      }
+      const next = normalizePagesPerRow(isMobileViewer ? pinch.pages * pinch.distance / distance : pinch.pages - pinchSteps(distance, pinch.distance));
       if (next === pinch.next) return;
       pinch.next = next;
-      onPagesPerRowChange(next);
+      if (!isMobileViewer) onPagesPerRowChange(next);
     };
     const handleTouchEnd = () => {
       const pinch = densityPinchRef.current;
       densityPinchRef.current = null;
-      if (!pinch || pinch.next === pinch.pages) return;
+      if (!pinch) return;
+      if (pinch.next === pinch.pages) { pinch.motion?.settle(false); return; }
+      if (isMobileViewer) {
+        densitySettleRef.current = pinch.motion;
+        onPagesPerRowChange(pinch.next);
+      }
       if (densityCommitTimerRef.current !== null) window.clearTimeout(densityCommitTimerRef.current);
       densityCommitTimerRef.current = null;
       densityCommitCallbackRef.current?.(pinch.next);
+    };
+    const handleTouchCancel = () => {
+      const pinch = densityPinchRef.current;
+      if (!isMobileViewer) { handleTouchEnd(); return; }
+      densityPinchRef.current = null;
+      pinch?.motion?.settle(false);
     };
     surface.addEventListener('wheel', handleDensityWheel, { passive: false });
     surface.addEventListener('touchstart', handleTouchStart, { passive: true });
     surface.addEventListener('touchmove', handleTouchMove, { passive: false });
     surface.addEventListener('touchend', handleTouchEnd, { passive: true });
-    surface.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+    surface.addEventListener('touchcancel', handleTouchCancel, { passive: true });
     return () => {
       surface.removeEventListener('wheel', handleDensityWheel);
       surface.removeEventListener('touchstart', handleTouchStart);
       surface.removeEventListener('touchmove', handleTouchMove);
       surface.removeEventListener('touchend', handleTouchEnd);
-      surface.removeEventListener('touchcancel', handleTouchEnd);
+      surface.removeEventListener('touchcancel', handleTouchCancel);
     };
-  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange]);
-  const emptyMedia = <div data-premium-project-viewer="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
+  }, [hasPageLayout, normalizedPagesPerRow, onPagesPerRowChange, isImmersive, isMobileViewer, isVerticalReading]);
+  const emptyMedia = <div data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="flex h-full min-h-0 w-full items-center justify-center p-6">
         <div className="premium-project-empty flex max-w-sm flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[var(--surface-sunken)] text-[var(--text-secondary)]">
             <InterfaceIcon icon={FileIcon} size="lg" weight="medium" />
@@ -402,14 +486,7 @@ export function ProjectMediaViewer({
    * rather than leaving its freed space as empty canvas, and opening it contracts
    * the work back. The rail owns the only fixed dimension in the row.
    */
-  const sharedProjectInformation = <div id="shared-project-detail-panel" className="side-panel-content-inset flex flex-col gap-4 py-2">
-            <div>
-              <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
-            </div>
-            <div>
-              {!isMobileViewer && <h3 className="text-[12px] font-semibold text-[var(--text-primary)]">Description</h3>}
-              {projectSummary ? <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
-            </div>
+  const sharedProjectMetadata = <>
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 text-[12px] leading-snug">
               {pageCount !== null && <><dt className="text-[var(--text-tertiary)]">Pages</dt><dd className="text-right font-medium tabular-nums text-[var(--text-primary)]">{pageCount}</dd></>}
               {publishedLabel && <><dt className="text-[var(--text-tertiary)]">Published</dt><dd className="text-right font-medium text-[var(--text-primary)]">{publishedLabel}</dd></>}
@@ -423,6 +500,15 @@ export function ProjectMediaViewer({
                     </div>)}
                 </dl>
               </div>}
+  </>;
+  const sharedProjectInformation = <div id="shared-project-detail-panel" className="side-panel-content-inset flex flex-col gap-4 py-2">
+            <div>
+              <h3 data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="text-[17px] font-semibold leading-snug text-[var(--text-primary)]">{projectTitle}</h3>
+            </div>
+            <div>
+              {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">No project description has been added.</p>}
+            </div>
+            {sharedProjectMetadata}
           </div>;
   const sharedVerification = <section id="shared-project-detail-panel" data-ai-verification-visualization="" aria-label="AI verification services" className="side-panel-content-inset flex flex-col gap-4 py-2">
               <div className="flex items-start justify-between gap-3">
@@ -489,18 +575,32 @@ export function ProjectMediaViewer({
 
               <p className="text-[9px] leading-relaxed text-[var(--text-tertiary)]">Supporting signals are not proof of authorship. No live verification has been completed for this sample report.</p>
             </section>;
-  return <div ref={viewerRootRef} data-premium-project-viewer="" data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
-    if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
-  }} className="flex h-full min-h-0 w-full flex-row">
-      <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <div ref={densitySurfaceRef} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
-          {active ? <AttachmentRenderer projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
+  const activeMedia = active ? <AttachmentRenderer verticalReading={isVerticalReading} projectId={projectId} attachment={active} imagePages={imagePages} imageColumns={isVerticalReading ? mobilePagesPerRow : hasPageLayout ? normalizedPagesPerRow : 1} projectTitle={projectTitle} artwork={artwork} processing={{
           state: processing.resolveState(active),
           message: processing.resolveMessage(active),
           canRetry: processing.canRetry(active),
           isRetrying: processing.retrying.includes(active.id),
           onRetry: () => void processing.retry(active.id)
-        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions={!readOnlyShare} isOwner={isOwner} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia}
+        }} onDocumentPageCountResolved={onDocumentPageCountResolved} onPreviewDocument={isMobileViewer ? handlePreviewDocument : undefined} onFocusModeChange={handlePageFocusModeChange} controlsVisible={areControlsVisible} showMediaInteractions isOwner={isOwner && !readOnlyShare} memoryScope={viewerMemoryScope} pageViewToggleRequest={pageViewToggleRequest} onClose={onClose} /> : emptyMedia;
+  return <MobilePageContext.Provider value={pageTarget}><div ref={viewerRootRef} data-premium-project-viewer="" data-document-reading-view={isDocumentReading || undefined} data-mobile-page-reader={isMobileViewer && (active?.kind === 'document' || active?.kind === 'image') ? '' : undefined} data-mobile-combined-rail={mobileNavigation ? '' : undefined} data-read-only-share={readOnlyShare ? 'true' : 'false'} data-immersive={isImmersive ? 'true' : 'false'} data-controls-visible={areControlsVisible ? 'true' : 'false'} onPointerMove={revealControls} onPointerDown={revealControls} onFocusCapture={holdControls} onBlurCapture={revealControls} onPointerLeave={() => {
+    if (isImmersive && !isMobileViewer) setAreControlsVisible(false);
+  }} className="flex h-full min-h-0 w-full flex-row">
+      {isMobileViewer && !mobileNavigation?.isIndexOpen && <MobileProjectPageCounter density={hasPageLayout && onPagesPerRowChange ? { value: mobilePagesPerRow, saving: savingPageLayout, onChange: changeMobileDensity, onCommit: value => onPagesPerRowCommit?.(normalizePagesPerRow(value)) } : undefined} readingMode={isDocumentReading && !isImmersive} showProgress={isReadingHeader && !isImmersive} segmentedProgress={!readOnlyShare} onSelectPage={isDocumentReading ? page => { jumpToProjectPage(densitySurfaceRef.current, page); } : undefined} onPositionChange={setContextPosition} showControl={!isImmersive} key={previewScope} surfaceRef={densitySurfaceRef} scope={previewScope} previewSources={pagePreviewSources} pdfDocument={previewPdf?.scope === previewScope ? previewPdf.document : null} />}
+
+      {isMobileViewer && !isImmersive && active?.kind === 'document' && pageTarget && <MediaInteractionBar key={`${previewScope}:${currentPage}`} target={pageTarget} contextOnly isOwner={isOwner && !readOnlyShare} pageCount={contextPosition?.total ?? pageCount ?? undefined} />}
+      <div data-project-work-column="" style={{ display: singlePanel === 'response' ? 'none' : undefined }} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <div ref={densitySurfaceRef} {...backSwipe} data-project-stage="" data-page-density-surface="" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectContinuityStyle(projectId)} className="min-h-0 flex-1">
+          {isMobileViewer && active?.kind === 'video' && videoSequence && videoSequence.entries.length > 1 ? <MobileVideoSequence key={videoSequence.scope}
+            videos={videoSequence.entries} creator={creator} activeId={`${projectId}:${active.id}`} onSelect={entry => {
+              updateViewerMemory(`${viewerMemoryScope}:project:${entry.projectId}`, { activeAttachmentId: entry.attachment.id });
+              if (entry.projectId === projectId) setActiveId(entry.attachment.id);
+              else videoSequence.onSelectProject(entry.projectId);
+            }} renderVideo={(entry, playing) => <AttachmentRenderer key={`${entry.projectId}:${entry.attachment.id}`} projectId={entry.projectId} projectTitle={entry.projectTitle}
+              attachment={entry.attachment} videoActive={playing} showMediaInteractions isOwner={isOwner && !readOnlyShare && entry.projectId === projectId}
+              processing={entry.projectId === projectId ? {
+                state: processing.resolveState(entry.attachment), message: processing.resolveMessage(entry.attachment), canRetry: processing.canRetry(entry.attachment),
+                isRetrying: processing.retrying.includes(entry.attachment.id), onRetry: () => void processing.retry(entry.attachment.id),
+              } : undefined} onClose={onClose} />} /> : isMobileViewer && active?.kind === 'video' ? <div className="mobile-video-single"><MobileVideoFrame creator={creator} sourceTitle={projectTitle}>{activeMedia}</MobileVideoFrame></div> : activeMedia}
         </div>
 
         {/* The status query itself failed — distinct from a job failing, so it says
@@ -546,26 +646,38 @@ export function ProjectMediaViewer({
       {mobileNavigation?.isIndexOpen ? !isImmersive && <MobileProjectIndexPortal anchorRef={viewerRootRef}>
         <button type="button" aria-label="Close project list" className="mobile-project-index-dismiss" onClick={mobileNavigation.onCloseIndex} />
         {mobileNavigation.index}
-      </MobileProjectIndexPortal> : isMobileViewer ? <aside data-project-response-rail="" data-rail-expanded="false" aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto">
+      </MobileProjectIndexPortal> : isMobileViewer ? <aside ref={mobileEngagementRef} data-project-response-rail="" data-rail-expanded="false" data-mobile-engagement-open={mobileEngagementOpen ? 'true' : 'false'} aria-label={`Project controls for ${projectTitle}`} className="ps-panel flex flex-col overflow-y-auto" onKeyDown={event => {
+        if (event.key === 'Escape' && mobileEngagementOpen && !mobilePopup) { event.preventDefault(); event.stopPropagation(); closeMobileEngagement(); }
+      }}>
+        <div id="mobile-project-engagement-actions" data-mobile-engagement-content="" hidden={!mobileEngagementOpen}>
         <div ref={popupAnchorRef} data-mobile-project-popup-controls="" className="side-panel-navigation-list items-center">
           <button ref={descriptionTriggerRef} type="button" aria-label="Show project description" aria-haspopup="dialog" aria-expanded={mobilePopup === 'description'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('description')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <span data-shared-info-glyph="" aria-hidden="true" style={{ fontFamily: "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }} className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-[1.5px] border-current text-[15px] font-semibold leading-none">i</span>
           </button>
-          {!readOnlyShare && <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('comments')} className="mobile-project-popup-trigger" data-keep-color="" style={{ color: 'var(--apple-purple)' }}>
-            <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="medium" keepColor stroke="var(--apple-purple)" />
-          </button>}
+          <button ref={commentsTriggerRef} type="button" aria-label="Show comments" aria-haspopup="dialog" aria-expanded={mobilePopup === 'comments'} aria-controls="mobile-project-popup" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} className="mobile-project-popup-trigger">
+            <InterfaceIcon icon={MessageCircleIcon} size="lg" weight="regular" keepColor stroke="var(--project-control-foreground, currentColor)" />
+          </button>
           {readOnlyShare && <button ref={verificationTriggerRef} type="button" aria-label="Show AI verification services" aria-haspopup="dialog" aria-expanded={mobilePopup === 'verification'} aria-controls="mobile-project-popup" onClick={() => setMobilePopup('verification')} className="mobile-project-popup-trigger text-[var(--text-secondary)]">
             <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
           </button>}
         </div>
-        {!readOnlyShare && <div data-project-rail-actions="" className="flex justify-center">
-          <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
-        </div>}
-        {!readOnlyShare && (engagement.resolveError || engagement.failure) && <div className="side-panel-navigation-list items-center">
+        <div data-project-rail-actions="" className="flex justify-center">
+          <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="viewer" isShared={isProjectShared} onShare={() => void shareProject()} />
+        </div>
+        {(engagement.resolveError || engagement.failure) && <div className="side-panel-navigation-list items-center">
           <button ref={feedbackTriggerRef} type="button" aria-label="Review engagement error" aria-haspopup="dialog" aria-expanded={mobilePopup === 'engagement'} onClick={() => setMobilePopup('engagement')} className="mobile-project-popup-trigger text-[var(--text-primary)]">
             <InterfaceIcon icon={AlertCircleIcon} size="lg" weight="medium" />
           </button>
         </div>}
+        </div>
+        <nav className="mobile-content-action-bar" aria-label="Content controls">
+          <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
+
+          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('description'); }}>
+          <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
+        </button>
+          <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
+        </nav>
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
@@ -578,9 +690,15 @@ export function ProjectMediaViewer({
                 <InterfaceIcon icon={BookUserIcon} size="lg" weight="medium" />
               </button>}
           </div>
+          <div data-project-rail-actions="" className="flex justify-center p-2">
+            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant={isRailOpen ? 'inline' : 'rail'} isShared={isProjectShared} onShare={() => void shareProject()} />
+          </div>
+          {isRailOpen && <button type="button" onClick={() => setSharedInfoPanel(sharedInfoPanel === 'comments' ? 'project' : 'comments')} aria-pressed={sharedInfoPanel === 'comments'} aria-controls="shared-project-detail-panel" className="side-panel-content-inset min-h-11 text-left text-[13px] font-semibold text-[var(--text-primary)]">
+            {sharedInfoPanel === 'comments' ? 'Show project information' : 'Show comments'}
+          </button>}
+          {isRailOpen && sharedInfoPanel === 'comments' && <div id="shared-project-detail-panel" className="side-panel-content-inset py-2"><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={false} /></div>}
           {isRailOpen && sharedInfoPanel === 'project' && sharedProjectInformation}
           {isRailOpen && sharedInfoPanel === 'verification' && sharedVerification}
-          {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize project details. Double-click to restore the default width." />}
         </aside> : <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Response to ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
         {/* The control travels with the rail rather than sitting on the work, so
            the thing that moves is the thing you press. */}
@@ -595,8 +713,8 @@ export function ProjectMediaViewer({
           </button>
           {/* The semantic colour and spoken label identify the destination of the
              next press without adding a hover tooltip over the compact control. */}
-          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} data-keep-color="" style={{ color: railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)' }} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
-              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" keepColor stroke={railPanel === 'comments' ? 'var(--international-orange)' : 'var(--apple-purple)'} />
+          {isRailOpen && <button type="button" onClick={() => setRailPanel((panel) => panel === 'comments' ? 'description' : 'comments')} aria-label={railPanel === 'comments' ? 'Show project description' : 'Show comments'} className="side-panel-header-control side-panel-header-icon flex shrink-0 items-center justify-center rounded-[8px] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <InterfaceIcon icon={railPanel === 'comments' ? FileTextIcon : MessageCircleIcon} size="lg" weight="medium" />
             </button>}
           {/* Offered only where it has something to do: the owner of the portal,
              looking at a piece that genuinely holds more than one page. The
@@ -607,12 +725,12 @@ export function ProjectMediaViewer({
              live here and NOT on the discovery or explore grids — a tile there is a
              way in to the project, not a place to respond to it. */}
           {isRailOpen && <div className="engagement-toolbar-actions min-w-0">
-              <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
+              <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" isShared={isProjectShared} onShare={() => void shareProject()} />
             </div>}
         </div>
 
         {!isRailOpen && <div data-project-rail-actions="" className="flex flex-1 justify-center py-2">
-            <EngagementBar engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
+            <EngagementBar onRequireAccount={requireSharedAccount} engagement={engagement} projectTitle={projectTitle} size="compact" variant="rail" isShared={isProjectShared} onShare={() => void shareProject()} />
           </div>}
 
         {/* Closed, the rail carries nothing but its own control: the engagement
@@ -622,28 +740,27 @@ export function ProjectMediaViewer({
             {/* The conversation sits beside the work it is about, on the canonical
              project detail rather than on a page of its own. */}
             {railPanel === 'comments' ? <CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /> : <section className="flex flex-col gap-2.5">
-                <h3 className="text-left text-[13px] font-semibold text-[var(--text-primary)]">Description</h3>
+                <h3 style={{ fontFamily: contentTypefaceStack }} className="text-left text-[13px] font-semibold text-[var(--text-primary)]">{projectTitle}</h3>
                 {/* Only what the creator wrote, in the face the work is set in. A
                project with no description says so rather than being padded with
                fields to fill the space. */}
-                {projectSummary ? <p data-font-preview="" style={{
-            fontFamily: contentTypefaceStack
-          }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]">{projectSummary}</p> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
+                {projectSummary ? <FormattedText style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[var(--text-primary)]" text={projectSummary} /> : <p className="text-[13px] leading-relaxed text-[var(--text-secondary)]">This project has no description.</p>}
               </section>}
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'description' ? 'Project description' : mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'description' ? descriptionTriggerRef : mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MobileProjectDescriptionSheet key={projectId} projectId={projectId} projectTitle={projectTitle} description={projectSummary} typeface={contentTypefaceStack} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} details={<><ProjectPopupEngagement projectId={projectId} projectTitle={projectTitle} url={publicUrl} engagement={engagement} onRequireAccount={requireSharedAccount} onOpenComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} />{isOwner && !readOnlyShare ? <ProjectPopupOwnerActions onOptions={() => mobileActions?.open(projectActionModel)} onClose={closeMobilePopup} onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} onEditDescription={descriptionEditor ? () => descriptionEditor.open(projectId, 'description') : undefined} onDelete={onDeleteProject} /> : <button type="button" className="project-popup-comments" onClick={() => { closeMobilePopup(); mobileActions?.open(projectActionModel); }}>Project options</button>}</>} editor={isOwner && !readOnlyShare ? descriptionEditor : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'description' ? 'Description' : mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
+          <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
           <button type="button" data-comments-close="" aria-label="Close project popup" onClick={closeMobilePopup}><InterfaceIcon icon={XIcon} size="md" weight="medium" /></button>
         </header>
         <div data-mobile-project-popup-content="" className="min-h-0 overflow-y-auto overscroll-contain">
-          {mobilePopup === 'engagement' && !readOnlyShare ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' && !readOnlyShare ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner} /></div>
+          {mobilePopup === 'engagement' ? <EngagementFeedback engagement={engagement} /> : mobilePopup === 'comments' ? <div data-mobile-project-comment-thread=""><CommentThreadView comments={comments} projectTitle={projectTitle} isOwner={isOwner && !readOnlyShare} /></div>
             : mobilePopup === 'verification' ? sharedVerification
             : readOnlyShare ? sharedProjectInformation
-            : <p data-font-preview="" style={{ fontFamily: contentTypefaceStack }} className="whitespace-pre-wrap break-words text-[16px] leading-relaxed text-[var(--text-primary)]">{projectSummary || 'This project has no description.'}</p>}
+            : <FormattedText style={{ fontFamily: contentTypefaceStack }} className="text-[16px] leading-relaxed text-[var(--text-primary)]" text={projectSummary || 'This project has no description.'} />}
         </div>
       </MediaCommentsPopover>}
-    </div>;
+    </div></MobilePageContext.Provider>;
 }

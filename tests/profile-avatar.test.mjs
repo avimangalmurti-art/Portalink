@@ -21,7 +21,7 @@ function avatarHarness(props) {
     useRef(value) { return { current: value }; },
     useId() { return 'avatar-preview'; },
   };
-  const image = { ResponsiveImage: ({ decorative, priority, ...attributes }) => React.createElement('img', attributes) };
+  const image = { ResponsiveImage: ({ decorative, priority, measureWidth, ...attributes }) => React.createElement('img', { ...attributes, 'data-test-priority': priority, 'data-test-measure-width': measureWidth }) };
   function load(path, imports) {
     const exports = {};
     vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
@@ -85,4 +85,19 @@ test('uploaded avatars open at full size and failed images fall back to initials
   assert.ok(dialog);
   assert.equal(harness.find(dialog, (node) => node.type === 'img'), null);
   assert.ok(harness.find(dialog, (node) => node.type === 'span' && node.props.children === 'PN'));
+});
+
+test('shared identity can prioritize its avatar while ordinary and opened avatar behavior is preserved', () => {
+  for (const priority of [undefined, true, 'viewport']) {
+    const h = avatarHarness({ name: 'Portalink Networks', avatar: '/avatar.webp', priority });
+    const image = h.find(h.render(), node => node.type === 'img');
+    assert.equal(image.props['data-test-priority'], priority ?? false);
+    assert.equal(image.props['data-test-measure-width'], true);
+    assert.equal(image.props.src, '/avatar.webp', 'The single stored avatar URL is preserved without invented transforms');
+    assert.equal(image.props.srcSet, undefined, 'No avatar variants exist in the current profile contract');
+    assert.equal(image.props.sizes, undefined, 'The obsolete fixed 128px display size is replaced by real measurement');
+    h.find(h.render(), node => node.type === 'button').props.onClick();
+    const dialog = h.find(h.render(), node => node.props?.role === 'dialog');
+    assert.equal(h.find(dialog, node => node.type === 'img').props['data-test-priority'], true);
+  }
 });

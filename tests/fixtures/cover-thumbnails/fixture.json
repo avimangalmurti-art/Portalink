@@ -1,0 +1,290 @@
+{
+  "bucket": "project-media",
+  "projects": [
+    {
+      "id": "22222222-2222-4222-8222-000000000001",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000001/source-1",
+          "project_id": "22222222-2222-4222-8222-000000000001",
+          "kind": "image",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000001/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600,
+            "coverFrame": {
+              "x": 0.7,
+              "y": 0.5,
+              "zoom": 1.4,
+              "aspectRatio": 1,
+              "crop": {
+                "x": 0.35,
+                "y": 0.1,
+                "width": 0.6,
+                "height": 0.9,
+                "zoom": 1.4
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000002",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000002/source-2",
+          "project_id": "22222222-2222-4222-8222-000000000002",
+          "kind": "document",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000002/report.pdf",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "application/pdf",
+          "metadata": {
+            "pageCount": 2,
+            "coverPageNumber": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000003",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000003/source-3",
+          "project_id": "22222222-2222-4222-8222-000000000003",
+          "kind": "video",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000003/video.mp4",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "video/mp4",
+          "metadata": {
+            "posterStoragePath": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000003/poster.svg",
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000004",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": true
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000004/source-4",
+          "project_id": "22222222-2222-4222-8222-000000000004",
+          "kind": "image",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000004/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000005",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": true,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000005/source-5",
+          "project_id": "22222222-2222-4222-8222-000000000005",
+          "kind": "image",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000005/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000006",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": true
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000006/source-6",
+          "project_id": "22222222-2222-4222-8222-000000000006",
+          "kind": "image",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000006/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000007",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": {
+        "version": 1
+      },
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000007/source-7",
+          "project_id": "22222222-2222-4222-8222-000000000007",
+          "kind": "image",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000007/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    },
+    {
+      "id": "22222222-2222-4222-8222-000000000008",
+      "profile_id": "11111111-1111-4111-8111-111111111111",
+      "category_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "revision": "33333333-3333-4333-8333-333333333333",
+      "is_hidden": false,
+      "cover_thumbnail": null,
+      "profiles": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "is_private": false
+      },
+      "portfolio_categories": {
+        "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "profile_id": "11111111-1111-4111-8111-111111111111",
+        "is_hidden": false
+      },
+      "project_attachments": [
+        {
+          "id": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000008/source-8",
+          "project_id": "22222222-2222-4222-8222-000000000008",
+          "kind": "audio",
+          "storage_path": "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000008/artwork.svg",
+          "position": 0,
+          "is_cover": true,
+          "size_bytes": 500,
+          "mime_type": "image/svg+xml",
+          "metadata": {
+            "widthPixels": 900,
+            "heightPixels": 600
+          }
+        }
+      ]
+    }
+  ],
+  "files": {
+    "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000001/artwork.svg": "artwork.svg",
+    "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000002/report.pdf": "report.pdf",
+    "11111111-1111-4111-8111-111111111111/22222222-2222-4222-8222-000000000003/poster.svg": "artwork.svg"
+  }
+}

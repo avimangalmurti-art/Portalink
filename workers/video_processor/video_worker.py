@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 import json
 import logging
 import math
@@ -19,6 +20,7 @@ LOG = logging.getLogger("portalink.video")
 PART_BYTES = 40 * 1024 * 1024
 SUFFIX = ".portalink-multipart.json"
 FORMATS = "mov,matroska,webm,avi,mpegts,mpeg,mpegvideo,ogg"
+UPLOAD_CONCURRENCY = 2
 
 
 class ConversionError(Exception):
@@ -113,27 +115,89 @@ def run_process(command: list[str], directory: Path, pulse, deadline: float, *, 
 
 def probe_video(path: Path, directory: Path, pulse, deadline: float) -> dict:
     data = run_process([os.getenv("FFPROBE_PATH", "ffprobe"), "-v", "error", "-protocol_whitelist", "file,pipe",
-                        "-format_whitelist", FORMATS, "-show_entries", "stream=codec_type,codec_name,width,height,pix_fmt:format=duration", "-of", "json", str(path)],
+                        "-format_whitelist", FORMATS, "-show_entries",
+                        "stream=codec_type,codec_name,profile,level,width,height,pix_fmt,sample_aspect_ratio,field_order,channels:stream_tags=rotate:stream_side_data:format=duration",
+                        "-of", "json", str(path)],
                        directory, pulse, deadline, probe=True)
     video = next((stream for stream in data.get("streams", []) if stream.get("codec_type") == "video"), None)
     duration = float(data.get("format", {}).get("duration", 0))
     if not video or not math.isfinite(duration) or duration <= 0 or video.get("width", 0) <= 0 or video.get("height", 0) <= 0:
         raise ConversionError("This file does not contain a readable video.")
-    return {**video, "duration": duration}
+    audio = next((stream for stream in data.get("streams", []) if stream.get("codec_type") == "audio"), None)
+    return {**video, "duration": duration, "audio": audio}
+
+
+def can_remux(metadata: dict) -> bool:
+    """Copy only already-compatible streams that need no visual normalization."""
+    audio = metadata.get("audio")
+    return (
+        metadata.get("codec_name") == "h264" and metadata.get("pix_fmt") == "yuv420p"
+        and metadata.get("profile") in ("Constrained Baseline", "Baseline", "Main", "High")
+        and 0 < metadata.get("level", 0) <= 42
+        and metadata.get("sample_aspect_ratio") == "1:1"
+        and metadata.get("field_order") == "progressive"
+        and not metadata.get("side_data_list")
+        and str(metadata.get("tags", {}).get("rotate", "0")) == "0"
+        and all(0 < metadata.get(axis, 0) <= 1920 and metadata[axis] % 2 == 0 for axis in ("width", "height"))
+        and (audio is None or (audio.get("codec_name") == "aac" and audio.get("profile") == "LC"
+                               and 0 < audio.get("channels", 0) <= 2))
+    )
 
 
 def transcode(source: Path, destination: Path, pulse, deadline: float) -> dict:
-    probe_video(source, source.parent, pulse, deadline)
-    run_process([os.getenv("FFMPEG_PATH", "ffmpeg"), "-nostdin", "-v", "error", "-y", "-max_alloc", "268435456",
+    metadata = probe_video(source, source.parent, pulse, deadline)
+    command = [os.getenv("FFMPEG_PATH", "ffmpeg"), "-nostdin", "-v", "error", "-y", "-max_alloc", "268435456",
                  "-protocol_whitelist", "file,pipe", "-format_whitelist", FORMATS, "-threads", "2", "-i", str(source),
-                 "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1",
+                 "-map", "0:v:0", "-map", "0:a:0?", "-map_metadata", "-1", "-map_chapters", "-1"]
+    if can_remux(metadata):
+        try:
+            run_process([*command, "-c", "copy", "-movflags", "+faststart", str(destination)], source.parent, pulse, deadline)
+            result = probe_video(destination, source.parent, pulse, deadline)
+            if can_remux(result):
+                # Stream-copy skips the decoder. Verify the copied packets too,
+                # so damaged input does not become a nominally playable output.
+                run_process([os.getenv("FFMPEG_PATH", "ffmpeg"), "-nostdin", "-v", "error", "-xerror",
+                             "-max_alloc", "268435456", "-protocol_whitelist", "file,pipe", "-format_whitelist", FORMATS,
+                             "-threads", "2", "-i", str(destination), "-map", "0:v:0", "-map", "0:a:0?",
+                             "-f", "null", "-"], source.parent, pulse, deadline)
+                return result
+        except ConversionError:
+            # A container/bitstream copy may fail despite a compatible probe.
+            # Retry the established normalization path under the same deadline.
+            pulse()
+    run_process([*command,
                  "-vf", "scale=w='max(2,trunc(min(1920,min(1920*dar,iw*sar))/2)*2)':h='max(2,trunc(ow/dar/2)*2)',setsar=1",
                  "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-threads", "2",
                  "-c:a", "aac", "-b:a", "160k", "-ac", "2", "-movflags", "+faststart", str(destination)], source.parent, pulse, deadline)
     result = probe_video(destination, source.parent, pulse, deadline)
-    if result["codec_name"] != "h264" or result["pix_fmt"] != "yuv420p":
+    if (result["codec_name"] != "h264" or result["pix_fmt"] != "yuv420p"
+            or (result["audio"] is not None and result["audio"]["codec_name"] != "aac")):
         raise ConversionError("The playable video copy could not be verified.", retryable=True)
     return result
+
+
+def upload_parts(repository: Repository, file, destination: str, spec: dict, uploaded: list[str], pulse):
+    # At most two 40 MiB buffers/requests are in flight. Only the main thread
+    # heartbeats; all uploads drain before its caller can clean up an attempt.
+    with ThreadPoolExecutor(max_workers=UPLOAD_CONCURRENCY) as executor:
+        pending = set()
+        index = 0
+        while index < spec["partCount"] or pending:
+            pulse()
+            while index < spec["partCount"] and len(pending) < UPLOAD_CONCURRENCY:
+                path = part_path(destination, index)
+                data = file.read(PART_BYTES)
+                uploaded.append(path)  # An uncertain response may still write.
+                pending.add(executor.submit(repository.upload, path, data, "application/octet-stream"))
+                del data
+                index += 1
+            completed, pending = wait(pending, timeout=0.25, return_when=FIRST_COMPLETED)
+            for future in completed:
+                future.result()
+    pulse()
+    # Publish the manifest only after every part has succeeded.
+    uploaded.append(destination)
+    repository.upload(destination, json.dumps(spec).encode(), "application/json")
 
 
 def process_job(repository: Repository, job: dict):
@@ -176,13 +240,7 @@ def process_job(repository: Repository, job: dict):
                 destination += SUFFIX
             with output.open("rb") as file:
                 if output_spec:
-                    for index in range(output_spec["partCount"]):
-                        pulse()
-                        path = part_path(destination, index)
-                        uploaded.append(path)  # An uncertain upload response may still have written the object.
-                        repository.upload(path, file.read(PART_BYTES), "application/octet-stream")
-                    uploaded.append(destination)
-                    repository.upload(destination, json.dumps(output_spec).encode(), "application/json")
+                    upload_parts(repository, file, destination, output_spec, uploaded, pulse)
                 else:
                     uploaded.append(destination)
                     repository.upload(destination, file.read(), "video/mp4")
