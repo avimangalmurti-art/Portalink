@@ -61,13 +61,13 @@ test('publication persists the explicitly chosen place and an optional blank', a
     assert.equal(calls[0].p_geographic_scope,location?'city':'location_independent');
   }
 });
-test('legacy publication cannot silently discard a chosen location; WEB fallback remains supported',async()=>{
+test('missing citation publication RPC never drops location or access/date fields',async()=>{
   for(const location of ['Oakland','']) {
     const {service,calls}=serviceHarness(true);
-    await assert.rejects(service.publishProject({...input,location}),/location could not be saved/);
+    await assert.rejects(service.publishProject({...input,location}),/access and date could not be saved/);
     assert.equal(calls.length,1);
   }
   const {service,calls}=serviceHarness(true);
-  await service.publishProject(input);
-  assert.equal(calls.length,2);
+  await assert.rejects(service.publishProject(input), /access and date could not be saved/);
+  assert.equal(calls.length,1);
 });

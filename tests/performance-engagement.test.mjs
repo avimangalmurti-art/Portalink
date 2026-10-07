@@ -22,6 +22,7 @@ function setup({ failure = null } = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/services/supabase/communityServices.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, setTimeout, require(name) {
+      if (name === '../../features/engagement/capabilities') return { LIKES_ENABLED: false };
       if (name === './client') return { requireSupabase: () => client };
       if (name.endsWith('comments')) return { CommentServiceError: ServiceError };
       if (name.endsWith('engagement')) return { EngagementServiceError: ServiceError };

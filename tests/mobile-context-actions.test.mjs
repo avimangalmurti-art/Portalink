@@ -16,9 +16,9 @@ const all = ['deleteChat','newProject','search','explore','refresh','settings','
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
  home:['search','explore','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
- project:['saveProject','savePage','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
+ project:['savePage','share','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
  messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','deleteChat','block','report'], explore:['search','yourWorld','myCity','reset'],
- shared:['share','savePage','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],
+ shared:['savePage','share','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],
 };
 for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false},{signedIn:true},{signedIn:true,owner:true}]) {
  test(`${kind}: capabilities and cap for ${JSON.stringify(viewer)}`, () => {
@@ -38,7 +38,7 @@ test('owner maps preserve requested order; unavailable callbacks are absent', ()
  assert.deepEqual(Array.from(ids(contextActions('home',{signedIn:true},{handlers:{newProject:handlers.newProject,explore:handlers.explore}}))),['explore']);
 });
 test('shared visitor actions offer auth and preserve the existing return destination', () => {
- assert.deepEqual(Array.from(ids(contextActions('shared',{signedIn:false},{handlers}))),['signIn','createAccount','share','savePage','comment','copy','categories','settings']);
+ assert.deepEqual(Array.from(ids(contextActions('shared',{signedIn:false},{handlers}))),['savePage','share','signIn','createAccount','comment','copy','categories','settings']);
  const source=read('../src/presentation/mobile/SharedContextActions.tsx');
  assert.match(source,/readSharedReturnPath\(pathname \+ search\)/); assert.match(source,/requestAuthenticatedDestination\(\{ kind: 'route', path/);
 });
@@ -54,8 +54,8 @@ test('shared current-page registration retains auth-gated actions alongside port
  const page=contextActions('shared',{signedIn:false},{handlers:{savePage:()=>calls.push('auth-save'),comment:()=>calls.push('auth-comment')}});
  const shell=contextActions('shared',{signedIn:false},{handlers:{signIn:handlers.signIn,createAccount:handlers.createAccount,share:handlers.share,copy:handlers.copy,categories:handlers.categories,settings:handlers.settings}});
  const merged=mergeContextActions([page,shell]);
- assert.deepEqual(Array.from(ids(merged)),['signIn','createAccount','share','savePage','comment','copy','categories','settings']);
- for(const action of merged.groups.flat().filter(a=>['savePage','comment'].includes(a.id)))action.run();
+ assert.deepEqual(Array.from(ids(merged)),['savePage','share','signIn','createAccount','comment','copy','categories','settings']);
+ for(const action of [...merged.primary,...merged.groups.flat()].filter(a=>['savePage','comment'].includes(a.id)))action.run();
  assert.deepEqual(calls,['auth-save','auth-comment']);
 });
 test('registration composition stays in the active route kind and keeps canonical ordering', () => {

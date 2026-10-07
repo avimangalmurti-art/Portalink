@@ -13,7 +13,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
 function contentFixture({ hiddenCategory = false, owner = false } = {}) {
   const queries = [], hydration = [], signals = [];
   const rows = {
-    projects: ['a', 'b'].map(id => ({ id, profile_id: 'creator', category_id: id === 'a' ? 'category' : 'other', title: id, summary: 'Design', topic_keys: ['design'], design: { typefaceId: id } })),
+    projects: ['a', 'b'].map(id => ({ published_at: '2026-09-01T00:00:00Z', id, profile_id: 'creator', category_id: id === 'a' ? 'category' : 'other', title: id, summary: 'Design', topic_keys: ['design'], design: { typefaceId: id } })),
     profiles: [{ id: 'creator', name: 'Creator', headline: 'Bio', location: 'City', avatar_url: 'avatar' }],
     portfolio_categories: [{ id: 'category', label: 'Design' }, { id: 'other', label: 'Other' }].filter(row => row.id !== 'category' || !hiddenCategory || owner),
     project_attachments: [{ project_id: 'a', id: 'attachment-a' }, { project_id: 'b', id: 'attachment-b' }],
@@ -190,7 +190,7 @@ test('feed PDF covers sign only the selected rendered page while full viewers ke
     normalizeProjectCoverFrame: value => value, resolveStoredMediaKind: kind => kind,
     deriveProjectRelevance: () => ({}), asDesign: value => value,
   });
-  const row = { id: 'p', title: 'PDF', category_id: 'category' };
+  const row = { published_at: '2026-09-01T00:00:00Z', id: 'p', title: 'PDF', category_id: 'category' };
   const attachment = { id: 'pdf', project_id: 'p', kind: 'document', storage_path: 'original', is_cover: true, metadata: {
     multipart: { partCount: 20 }, coverPageNumber: 2,
     renderedPages: Array.from({ length: 300 }, (_, i) => ({ index: i, withinDocumentIndex: i + 1, attachmentId: 'pdf', storagePath: `page-${i + 1}`, width: 600, height: 800, aspectRatio: .75 })),
