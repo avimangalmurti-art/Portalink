@@ -1,3 +1,9 @@
+## 2026-10-06 — Shared portfolio account prompt removed (local, unpublished)
+Removed SharedSignInBar rendering/import from App shared routes and VisitorApp public entry. Floating Viewing portfolio/Sign in/Create account prompt no longer mounts on either entry; existing Settings/account auth actions preserved. Shared-portfolio request applies both presentations. Typecheck and diff check passed; browser visual verification pending. Sites349 remains live, no publication or SQL. Unused component retained to avoid unrelated cleanup.
+
+## 2026-10-06 — Pending mobile changes published, Sites349
+Source c849344f46be98747ff7314edc17deae302f0f54; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_03bdc7ed3c708191bdf797ef0a9d2985; deployment appgdep_6ac5923f04488191926ce70754df20ea succeeded2026-10-07T00:28:58.340414Z. Publishes mobile action shapes, dock order Explore/Messages/Studio/Profile, share preview dividers/single-line title, globe contrast/Enter confirmation, location feed icon-only Back, onboarding focused location layout, Settings label centering. Typecheck/lint(existing101warnings)/production build and11focused tests passed. Public audience/environment revision2 retained, archive560files. Physical iPhone keyboard/visual verification pending. No SQL or GitHub main integration. Postpublication handoff local.
+
 ## 2026-10-06 — Settings action label centering (local, unpublished)
 MOBILE Settings action labels now explicit spans centered within flex buttons, equal zero vertical padding and consistent1.25 line-height. Covers account signed-in/guest actions, invite, privacy and notifications; WEB span neutral, existing actions/sizes retained. Typecheck and diff check passed. Screenshot confirms vertical misalignment; physical/browser rendering verification pending. Prior unpublished work preserved, Sites348 remains live; no publication/SQL.
 

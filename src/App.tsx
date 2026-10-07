@@ -23,7 +23,6 @@ import { useLocation } from 'react-router-dom';
 import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
-import { SharedSignInBar } from './components/profile/SharedSignInBar';
 import { interactionIntent } from './features/auth/interactionIntent';
 import { getTypefaceStack } from './data/typefaces';
 import { resolveNavButtonTokens } from './data/navButtonTokens';
@@ -1331,7 +1330,6 @@ function AppContent() {
       {/* The session's own conditions are stated above the page, because they
            belong to no single screen. */}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
-      {isSharedRoute && <SharedSignInBar name={canReadViewedProfile ? viewedProfile?.name : undefined} />}
       {!isSharedRoute && !isProfileEditorRoute && <SessionStatusBanner onCreateProfile={() => setIsOnboardingOpen(true)} />}
       {/* A creator opened from an attribution is now confirmed by the profile
              route's own read, whose loading, not-found, and retryable failure states

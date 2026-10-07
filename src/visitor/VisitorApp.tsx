@@ -9,7 +9,6 @@ import { AppPresentation } from '../presentation/AppPresentation';
 import { usePresentation } from '../presentation/usePresentation';
 import { MobileBackProvider } from '../presentation/mobile/MobileBackNavigation';
 import { SharedProfileSidebar } from '../components/profile/SharedProfileSidebar';
-import { SharedSignInBar } from '../components/profile/SharedSignInBar';
 import { DeferredDialog, DeferredSurface, DeferredSurfaceBoundary } from '../components/ui/DeferredDialog';
 import { useSharedProfileQuery } from '../features/profile/useSharedProfileQuery';
 import { useAuth } from '../contexts/AuthContext';
@@ -148,7 +147,6 @@ export function VisitorApp() {
         onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
-        <SharedSignInBar name={profile?.name} />
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
             <main tabIndex={-1} aria-label={settings ? 'Settings' : profile ? `${profile.name} shared portfolio` : 'Shared portfolio'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
