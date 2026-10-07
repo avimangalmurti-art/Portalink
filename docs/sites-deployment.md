@@ -1,3 +1,7 @@
+## 2026-10-07 — Sites353 from merged GitHub main
+
+Published source ca9bc8bd3a0786f783e2a1ef72fa90ea71f35dff; saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_b26cf416d4488191a325ada09ce26d33; deployment appgdep_6ac69c13f16c81918057e0c556f4d21b succeeded2026-10-07T19:23:26.297486Z. Existing audience/env revision2 preserved. Production guard and main/visitor configuration graph checks pass. User approved two hostname-validation literals; no localhost endpoint URL. Live Home, Portalite handle/UUID, image/page citation render, signed-in Studio/References smoke pass. See agent-handoff.md and docs/evidence/sites353-20261007. No SQL/Storage/D1 writes.
+
 ## 2026-10-04 — Sites305 published: all public work on user Home
 
 Source1ac885925bad66f05fe5dd826636902c3c42f2d5; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_ebadf37d56b48191b4c8ab3067e6b46a; deployment appgdep_6ac2f162ba008191a14f497dc90e4f47 succeeded2026-10-05T00:38:03.459367+00:00 (Oct4Pacific). Existing URL/audience/runtime revision2 preserved.37focused tests/typecheck/lint/build/main+visitor configuration verification pass. Readonly public RPC13projects/0private creators. Authenticated browser Home unverified; service scope and actual Home component/source tested. Archive543entries533files excludes env/logs/node_modules. No SQL/GitHub push/merge. Receipts local/uncommitted.
