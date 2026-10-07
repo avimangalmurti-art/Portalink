@@ -32,14 +32,14 @@ function render(variant, selected = false, pending = false) {
   return { actions, buttons: nodes(tree).filter(node => node.type === 'button') };
 }
 
-test('mobile viewer presents neutral like/save and native-style share with existing action callbacks', () => {
+test('mobile viewer presents neutral like/save and repost with existing action callbacks', () => {
   const h = render('viewer');
-  assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Share: Work']);
+  assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Repost: Work']);
   const glyphs = h.buttons.map(button => nodes(button).find(node => node.type === InterfaceIcon));
   assert.ok(glyphs.every(icon => icon.props.stroke === 'currentColor'));
-  assert.equal(glyphs[2].props.icon, icons.ShareIcon);
+  assert.equal(glyphs[2].props.icon, icons.Repeat2Icon);
   h.buttons.forEach(button => button.props.onClick());
-  assert.deepEqual(h.actions, ['like', 'save', 'share']);
+  assert.deepEqual(h.actions, ['like', 'save', 'repost']);
 });
 
 test('selected and pending mobile actions retain monochrome feedback and protection', () => {
@@ -49,11 +49,11 @@ test('selected and pending mobile actions retain monochrome feedback and protect
   assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.fill, 'currentColor');
 });
 
-test('desktop rail uses system monochrome icons while retaining repost and share actions', () => {
+test('desktop rail uses system monochrome icons while retaining repost without Share', () => {
   const h = render('rail');
-  assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Repost: Work', 'Share: Work']);
+  assert.deepEqual(h.buttons.map(button => button.props['aria-label']), ['Like: Work', 'Save: Work', 'Repost: Work']);
   assert.equal(nodes(h.buttons[0]).find(node => node.type === InterfaceIcon).props.stroke, 'currentColor');
-  assert.equal(nodes(h.buttons[3]).find(node => node.type === InterfaceIcon).props.icon, icons.SendIcon);
+  assert.equal(h.buttons.some(button => button.props['aria-label'] === 'Share: Work'), false);
 });
 
 

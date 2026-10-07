@@ -4882,3 +4882,84 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   font-size: 20px;
   line-height: 1.2;
 }
+
+/* Equal side slots center the location in the screen, not the leftover row. */
+#root .codex-shell[data-presentation='mobile'] [data-city-header] {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  padding-inline: var(--mobile-navigation-inset-start, 18px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-header] > h1 {
+  grid-column: 2;
+  grid-row: 1;
+  width: 100%;
+  margin: 0;
+  text-align: center;
+}
+#root .codex-shell[data-presentation='mobile'] [data-city-header] > button {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Both portal states use one frame without relying on route-inherited measurements. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page,
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] > [data-project-index-panel] {
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%) !important;
+  box-sizing: border-box;
+  width: min(calc(100% - 32px), 420px) !important;
+  max-width: min(calc(100% - 32px), 420px) !important;
+  height: min(70dvh, 640px) !important;
+  min-height: 0 !important;
+  max-height: calc(100% - 32px) !important;
+  border-radius: 24px !important;
+  animation: none;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
+  inset: 0;
+  height: 100dvh;
+  z-index: 80;
+}
+
+/* Project authoring fills the keyboard-visible viewport instead of the reading popup. */
+[data-presentation='mobile'] [data-project-description-overlay]:has([data-writing-screen]) {
+  padding: 0;
+}
+#root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet[data-writing-screen] {
+  position: absolute !important;
+  inset: 0 !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: 100% !important;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+[data-presentation='mobile'] [data-writing-screen] .project-description-heading {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+[data-presentation='mobile'] [data-writing-screen] .project-description-heading h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-presentation='mobile'] [data-writing-screen] .project-description-editor {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+[data-presentation='mobile'] [data-writing-screen] .project-description-editor textarea {
+  flex: 1 0 80px;
+  min-height: 80px;
+  overflow-y: auto;
+}

@@ -13,14 +13,10 @@ export type WorkbenchViewProps = {
  onRetry?:()=>void;partial:boolean;draftsUnavailable?:boolean;cover?:{source:string;kind:Project['coverKind'];pageNumber?:number;frame?:Project['coverFrame']};
  onContinue:()=>void;onDrafts:()=>void;onBookmarks:()=>void;onReads:()=>void;onMaterial:(item:Material)=>void;onAttention:(row:Attention)=>void;onDismiss:(id:string)=>void;
 };
-export function StudioWorkbenchHeader({onBookmarks,onReads,workspace}:{onBookmarks:()=>void;onReads:()=>void;workspace?:WorkbenchViewProps}) {
+export function StudioWorkbenchHeader({onBookmarks}:{onBookmarks:()=>void;onReads:()=>void;workspace?:WorkbenchViewProps}) {
  return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1><div data-inline-screen-actions=""><MobileContextButton /></div></div>
    <nav className="studio-hub-navigation" aria-label="Studio sections">
-    {workspace && <>
-      <button type="button" onClick={workspace.onContinue}><strong>New project</strong></button>
-    </>}
     <button type="button" onClick={onBookmarks}><strong>Bookmarks</strong></button>
-    <button type="button" onClick={onReads}><strong>Insights</strong></button>
    </nav>
   </header>;
 }

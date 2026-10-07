@@ -6,16 +6,15 @@ import { EngagementBar } from '../../features/engagement/EngagementBar';
 import type { ProjectEngagementLifecycle } from '../../features/engagement/useProjectEngagement';
 import type { EngagementKind } from '../../types/engagement';
 import { useServices } from '../../contexts/ServicesContext';
-import { InternalContentShareDialog } from '../../features/sharing/InternalContentShare';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 
-export function ProjectPopupEngagement({ projectId, projectTitle, url, engagement, onRequireAccount, onOpenComments }: { projectId: string; projectTitle: string; url: string; engagement: ProjectEngagementLifecycle; onRequireAccount?: () => void; onOpenComments?: () => void }) {
+export function ProjectPopupEngagement({ projectId, projectTitle, engagement, onRequireAccount, onOpenComments }: { projectId: string; projectTitle: string; url: string; engagement: ProjectEngagementLifecycle; onRequireAccount?: () => void; onOpenComments?: () => void }) {
  const { engagement: service } = useServices();
  const comments = useProjectComments(onOpenComments ? projectId : null);
- const [selected, setSelected] = useState<EngagementKind | 'share' | null>(null);
+ const [selected, setSelected] = useState<EngagementKind | null>(null);
  const [people, setPeople] = useState<Array<{id: string; name: string; avatar: string}>>([]);
  const [offset, setOffset] = useState(0), [more, setMore] = useState(false), [loading, setLoading] = useState(false), [error, setError] = useState(''), [retry, setRetry] = useState(0);
- const kind = selected && selected !== 'share' ? selected : null;
+ const kind = selected;
  const pending = kind ? engagement.isPending(kind) : false;
  useEffect(() => {
   if (!kind) return;
@@ -28,8 +27,8 @@ export function ProjectPopupEngagement({ projectId, projectTitle, url, engagemen
  }, [service, projectId, kind, offset, pending, retry]);
  const select = (next: EngagementKind) => { setPeople([]); setOffset(0); setSelected(next); setRetry(value => value + 1); };
  return <div className="project-popup-engagement" data-has-comments={Boolean(onOpenComments) || undefined}>
-  <EngagementBar leadingAction={onOpenComments && <button type="button" data-engagement-action="comments" aria-label={`Comments: ${projectTitle}`} onClick={onOpenComments}><span className="grid grid-cols-[auto_auto] items-center justify-items-center gap-x-1.5 gap-y-1.5"><InterfaceIcon icon={MessageCircleIcon} size="lg" />{comments.phase === 'ready' && <span className="text-[13px] font-medium tabular-nums">{comments.totalCount}</span>}<span className="col-start-1 row-start-2 text-[12px] leading-none">Comments</span></span></button>} engagement={engagement} projectTitle={projectTitle} showCounts variant="panel" onRequireAccount={onRequireAccount} onSelectAction={select} onShare={() => { setSelected('share'); }} />
-  {selected === 'share' ? <InternalContentShareDialog inline target={{url,title:projectTitle}} onClose={() => setSelected(null)} /> : kind && <section className="project-engagement-people" aria-label={`${kind === 'like' ? 'Likes' : kind === 'save' ? 'Saves' : 'Reposts'}`} aria-busy={loading}>
+  <EngagementBar leadingAction={onOpenComments && <button type="button" data-engagement-action="comments" aria-label={`Comments: ${projectTitle}`} onClick={onOpenComments}><span className="grid grid-cols-[auto_auto] items-center justify-items-center gap-x-1.5 gap-y-1.5"><InterfaceIcon icon={MessageCircleIcon} size="lg" />{comments.phase === 'ready' && <span className="text-[13px] font-medium tabular-nums">{comments.totalCount}</span>}</span></button>} engagement={engagement} projectTitle={projectTitle} showCounts variant="panel" onRequireAccount={onRequireAccount} onSelectAction={select} />
+  {kind && <section className="project-engagement-people" aria-label={`${kind === 'like' ? 'Likes' : kind === 'save' ? 'Saves' : 'Reposts'}`} aria-busy={loading}>
    <h3>{kind === 'like' ? 'Likes' : kind === 'save' ? 'Saves' : 'Reposts'}{engagement.count(kind) !== null ? ` · ${engagement.count(kind)}` : ''}</h3>
    {error ? <p role="status">{error} <button type="button" onClick={() => setRetry(value => value + 1)}>Try again</button></p> : <>
     {people.map(person => <div key={person.id} className="project-engagement-person"><CreatorAvatar name={person.name} avatar={person.avatar} shape="squircle" /><span>{person.name}</span></div>)}

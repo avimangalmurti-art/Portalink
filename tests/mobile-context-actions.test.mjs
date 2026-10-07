@@ -12,19 +12,19 @@ const compile = (path, dependencies = {}, globals = {}) => {
 };
 const { contextActions, mergeContextActions } = compile('../src/presentation/mobile/contextActions.ts');
 const ids = model => [...model.primary, ...model.groups.flat()].map(action => action.id);
-const all = ['search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
+const all = ['deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
  home:['search','explore','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
- project:['saveProject','savePage','share','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
- messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','block','report'], explore:['search','yourWorld','myCity','reset'],
+ project:['saveProject','savePage','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
+ messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','deleteChat','block','report'], explore:['search','yourWorld','myCity','reset'],
  shared:['share','savePage','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],
 };
 for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false},{signedIn:true},{signedIn:true,owner:true}]) {
  test(`${kind}: capabilities and cap for ${JSON.stringify(viewer)}`, () => {
    const model = contextActions(kind, viewer, {handlers});
    const actions = [...model.primary,...model.groups.flat()];
-   assert.ok(actions.length <= 8); assert.ok(model.primary.length <= 3);
+   assert.ok(actions.length <= (kind === 'profile' && viewer.owner ? 9 : 8)); assert.ok(model.primary.length <= 3);
    assert.ok(actions.every(action => typeof action.run === 'function' && !('disabled' in action)));
    if (!viewer.signedIn) for (const id of ['follow','saveCreator','edit','delete','mute']) assert.ok(!ids(model).includes(id));
    if (!viewer.owner) for (const id of ['editProfile','insights','reorder','edit','cover','visibility','delete']) assert.ok(!ids(model).includes(id));
@@ -33,8 +33,8 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  });
 }
 test('owner maps preserve requested order; unavailable callbacks are absent', () => {
- assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['editProfile','share','reorder','insights','bookmarks','copy','settings']);
- assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','share','pageIndex','copy','visibility','delete']);
+ assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','reorder','insights','bookmarks','copy','settings']);
+ assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','pageIndex','copy','visibility','delete']);
  assert.deepEqual(Array.from(ids(contextActions('home',{signedIn:true},{handlers:{newProject:handlers.newProject,explore:handlers.explore}}))),['explore']);
 });
 test('shared visitor actions offer auth and preserve the existing return destination', () => {
@@ -45,7 +45,7 @@ test('shared visitor actions offer auth and preserve the existing return destina
 
 test('owner project includes both curation actions and deletion within the eight-action sheet',()=>{
  const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}});
- assert.deepEqual(Array.from(ids(owner)),['edit','cover','share','startHere','thenNow','pageIndex','visibility','delete']);
+ assert.deepEqual(Array.from(ids(owner)),['edit','cover','startHere','thenNow','pageIndex','visibility','delete']);
  for(const viewer of [{signedIn:false},{signedIn:true,owner:false}])assert.ok(!ids(contextActions('project',viewer,{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}})).includes('startHere'));
 });
 
@@ -63,7 +63,7 @@ test('registration composition stays in the active route kind and keeps canonica
  const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{edit:handlers.edit,delete:handlers.delete}});
  const home=contextActions('home',{signedIn:true},{handlers});
  const merged=mergeContextActions([project,owner,home]);
- assert.deepEqual(Array.from(ids(merged)),['edit','share','delete']); assert.equal(merged.title,'Work');
+ assert.deepEqual(Array.from(ids(merged)),['edit','delete']); assert.equal(merged.title,'Work');
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
@@ -257,7 +257,7 @@ test('project holds resolve engagement only on demand, use shared capabilities a
  shared=true;render();assert.deepEqual(Array.from(ids(latest)),['share','copy']);
 });
 
-test('workbench has Drafts, Bookmarks and Reads; Select is only supplied by collection lists',()=>{const handlers={newProject(){},drafts(){},bookmarks(){},reads(){}};assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers}))),['drafts','bookmarks','reads']);assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers:{...handlers,select(){}}}))),['drafts','bookmarks','reads','select']);});
+test('workbench has Drafts and Bookmarks; Select is only supplied by collection lists',()=>{const handlers={newProject(){},drafts(){},bookmarks(){},reads(){}};assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers}))),['drafts','bookmarks']);assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers:{...handlers,select(){}}}))),['drafts','bookmarks','select']);});
 
  test('Journey pair action uses the owner profile menu and remains unavailable to visitors', () => {
  const calls=[];
@@ -277,3 +277,11 @@ test('workbench has Drafts, Bookmarks and Reads; Select is only supplied by coll
  assert.match(css, /mobile-context-scrim \{[^}]*top: auto; bottom: 0; padding: 0;/);
  assert.match(css, /mobile-context-sheet \{\s*position: absolute; bottom: 0; margin-block: 0;/);
  });
+
+test('Delete chat is a destructive signed-in conversation action', () => {
+ const model = contextActions('conversation', {signedIn:true}, {handlers:{deleteChat:()=>{}}});
+ const action = model.groups.flat().find(a => a.id === 'deleteChat');
+ assert.equal(action.label, 'Delete chat');
+ assert.equal(action.destructive, true);
+ assert.equal(ids(contextActions('conversation', {signedIn:false}, {handlers:{deleteChat:()=>{}}})).includes('deleteChat'), false);
+});

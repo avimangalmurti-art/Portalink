@@ -224,3 +224,16 @@ test('mobile bio opens directly with top Save, no footer and protected Close', a
   assert.ok(h.button('Keep editing'));
   await h.click('Discard changes'); assert.equal(h.closes, 1);
 });
+
+test('project description editing uses full visible screen with formatting and Save above text', () => {
+  const h = harness(true);
+  h.click('Description options'); h.click('Edit description');
+  const tree = nodes(h.render());
+  assert.equal(tree.find(n => n.type === 'section').props['data-writing-screen'], true);
+  const header = tree.find(n => n.type === 'header');
+  assert.ok(nodes(header).some(n => n.type === 'text-format-toolbar' && n.props.variant === 'dropdown'));
+  assert.ok(nodes(header).some(n => n.type === 'button' && n.props.children === 'Save'));
+  const form = tree.find(n => n.type === 'form');
+  assert.ok(nodes(form).some(n => n.type === 'textarea'));
+  assert.equal(nodes(form).some(n => n.type === 'footer'), false);
+});

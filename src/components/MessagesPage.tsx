@@ -8,7 +8,7 @@ import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArchiveIcon, ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
+import { ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { useMessaging } from '../features/messages/useMessaging';
@@ -94,7 +94,7 @@ export function MessagesPage({
   const conversationMenuRef = useRef<HTMLDivElement>(null);
   const conversationTriggerRef = useRef<HTMLButtonElement>(null);
   const conversationMenuFocus = useMenuFocus({ open: isConversationMenuOpen, menuRef: conversationMenuRef, triggerRef: conversationTriggerRef, onOpen: () => setIsConversationMenuOpen(true), onClose: () => setIsConversationMenuOpen(false) });
-  const [confirmation, setConfirmation] = useState<'delete-request' | 'block' | null>(null);
+  const [confirmation, setConfirmation] = useState<'delete-request' | 'delete-chat' | 'block' | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
@@ -294,6 +294,7 @@ export function MessagesPage({
   useMobileScreenActions(contextActions(conversation ? 'conversation' : 'messages', { signedIn: auth.isAuthenticated }, { title: conversation ? conversation.participant.name : 'Messages', handlers: conversation ? {
     viewProfile: participantId ? () => navigate(buildPath('profile', { profileId: participantId })) : undefined,
     mute: () => messaging.setMuted(!conversation.isMuted),
+    deleteChat: () => setConfirmation('delete-chat'),
     block: conversation.participant.id ? () => setConfirmation('block') : undefined,
     report: () => { setIsReportOpen(true); setReportSent(false); },
   } : { newMessage: openNewMessage, search: !isNewChatOpen ? () => searchInput.current?.focus() : undefined, blocked: () => setIsPrivacyOpen(true) }, labels: { mute: conversation?.isMuted ? 'Unmute' : 'Mute' } }));
@@ -338,7 +339,7 @@ export function MessagesPage({
           <button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" ref={conversationTriggerRef} onKeyDown={conversationMenuFocus.onTriggerKeyDown} aria-haspopup="menu" type="button" aria-expanded={isConversationMenuOpen} onClick={() => setIsConversationMenuOpen((open) => !open)} aria-label="Conversation options" className="side-panel-compact-control shape-compact flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={MoreHorizontalIcon} /></button>
           {isConversationMenuOpen ? <div ref={conversationMenuRef} tabIndex={-1} aria-label="Conversation options" className="absolute right-[var(--side-panel-content-inset)] top-[calc(100%+var(--side-panel-row-gap))] z-20 w-52 rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1.5 shadow-xl" role="menu">
               <ConversationMenuButton icon={messaging.activeConversation.isMuted ? Volume2Icon : VolumeXIcon} label={messaging.activeConversation.isMuted ? 'Unmute conversation' : 'Mute conversation'} onClick={() => { setIsConversationMenuOpen(false); void messaging.setMuted(!messaging.activeConversation?.isMuted); }} />
-              <ConversationMenuButton icon={ArchiveIcon} label="Archive conversation" onClick={() => { setIsConversationMenuOpen(false); void messaging.archiveConversation(); }} />
+              <ConversationMenuButton danger icon={Trash2Icon} label="Delete chat" onClick={() => { setIsConversationMenuOpen(false); setConfirmation('delete-chat'); }} />
               <ConversationMenuButton icon={FlagIcon} label="Report conversation" onClick={() => { setIsConversationMenuOpen(false); setIsReportOpen(true); setReportSent(false); }} />
               {messaging.activeConversation.participant.id ? <ConversationMenuButton danger icon={BanIcon} label={`Block ${messaging.activeConversation.participant.name}`} onClick={() => { setIsConversationMenuOpen(false); setConfirmation('block'); }} /> : null}
             </div> : null}
@@ -474,7 +475,7 @@ export function MessagesPage({
         </main>
       </div>
 
-      {confirmation && <ConfirmationDialog title={confirmation==='block' ? `Block ${messaging.activeConversation?.participant.name ?? 'this creator'}?` : 'Delete this message request?'} description={confirmation==='block' ? 'They will not be able to start or continue conversations with you. The conversation will leave your list.' : 'This message request will be removed from your list.'} confirmLabel={confirmation==='block' ? 'Block' : 'Delete request'} variant="destructive" pending={messaging.pendingAction!==null} error={messaging.error} onCancel={()=>setConfirmation(null)} onConfirm={async()=>{const done=await (confirmation==='block' ? messaging.blockParticipant() : messaging.deleteRequest());if(done)setConfirmation(null);return done;}}/>}
+      {confirmation && <ConfirmationDialog title={confirmation==='block' ? `Block ${messaging.activeConversation?.participant.name ?? 'this creator'}?` : confirmation==='delete-chat' ? 'Delete this chat?' : 'Delete this message request?'} description={confirmation==='block' ? 'They will not be able to start or continue conversations with you. The conversation will leave your list.' : confirmation==='delete-chat' ? 'This chat will be removed from your list only. The other person keeps their messages. Reopening the conversation can restore its history.' : 'This message request will be removed from your list.'} confirmLabel={confirmation==='block' ? 'Block' : confirmation==='delete-chat' ? 'Delete chat' : 'Delete request'} variant="destructive" pending={messaging.pendingAction!==null} error={messaging.error} onCancel={()=>setConfirmation(null)} onConfirm={async()=>{const done=await (confirmation==='block' ? messaging.blockParticipant() : confirmation==='delete-chat' ? messaging.archiveConversation() : messaging.deleteRequest());if(done)setConfirmation(null);return done;}}/>}
 
       {isReportOpen ? <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsReportOpen(false); }}>
           <form role="dialog" aria-modal="true" aria-labelledby="report-conversation-title" onSubmit={(event) => {

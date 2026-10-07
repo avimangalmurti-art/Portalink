@@ -94,8 +94,8 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
   };
   const error = editing ? activeEditor.error : null;
   const saved = editing && phase === 'saved';
-  const writingScreen = fullScreenEditor && editing && !saved;
-  const topEditorActions = writingScreen && directEditAction;
+  const writingScreen = (fullScreenEditor || contentLabel === 'Description') && editing && !saved;
+  const topEditorActions = writingScreen && (directEditAction || contentLabel === 'Description');
   const host = document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
   return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-project={contentLabel === 'Description' || undefined}
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
