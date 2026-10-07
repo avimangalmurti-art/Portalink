@@ -4818,3 +4818,67 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 
 #root .codex-shell [data-mobile-onboarding='dark'] .onboarding-location-search:focus-within { background: #000; }
 #root .codex-shell [data-mobile-onboarding='light'] .onboarding-location-search:focus-within { background: #fff; }
+
+/* Selecting a portal retains the centered chooser frame. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-portal-continuation] {
+  z-index: 80;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-portal-continuation] > [data-project-index-panel] {
+  inset: auto !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: min(calc(100% - 32px), 420px) !important;
+  height: var(--mobile-portal-popup-height, min(70dvh, 640px));
+  min-height: 0;
+  max-height: calc(100% - 32px);
+  border-radius: 24px !important;
+}
+
+/* The inbox fills the visible screen independently of its outer page scroller. */
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] {
+  position: fixed;
+  inset: 0 0 var(--mobile-content-safe-bottom, 104px);
+  height: auto;
+  max-height: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] > [data-messages-body] {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex: 1 1 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] > [data-messages-body] > aside {
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+/* Insights uses the same compact control row as other mobile destinations. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  grid-template-columns: 44px minmax(0, 1fr) var(--explore-action-width, 44px);
+  gap: 8px;
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+  align-items: center;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button {
+  height: 44px;
+  min-height: 44px;
+  width: 44px;
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: var(--explore-action-width, 44px);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header h1 {
+  margin: 0;
+  min-width: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}

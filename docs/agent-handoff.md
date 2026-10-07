@@ -1,3 +1,15 @@
+## 2026-10-06 — Mobile Insights header (local, unpublished)
+Insights PersonalHeader now opts into visible mobile Back and inline MobileContextButton. Scoped mobile grid44px/title/Explore-width action,44px targets14px radius,20px centered title, existing safe-area gutters. WEB and other PersonalHeader callers preserved; Reads drill-down Back callback unchanged. Typecheck, three focused insights tests and diff check pass; browser/phone header rendering pending. Prior portal/inbox CSS retained. Sites350 live, no deployment/SQL.
+
+## 2026-10-06 — Inbox fills mobile viewport (local, unpublished)
+MOBILE inbox now fixed to screen inset0 with existing dock clearance, border-box, explicit full-height body/aside flex chain. Removes dependence on outer page scroller sizing/flex compression; existing pinned controls and internal list scrolling retained. Conversation screens/new message/WEB unchanged. Fifteen focused messaging tests and diff check pass; actual phone/browser list geometry remains unverified. Prior portal continuation CSS retained. Sites350 still live, no deployment/SQL.
+
+## 2026-10-06 — Portal selection frame consistency (local, unpublished)
+MOBILE continuation index panel formerly constrained below profile header with dock clearance, shrinking retained chooser height. Scoped continuation CSS now uses chooser centered position, width min(viewport-32px,420px), retained measured height bounded viewport-32px,24px radius and z80. Ordinary project index and WEB unchanged. Two focused portal popup tests and diff check pass; actual browser/iPhone geometry remains unverified. Sites350 live, no deployment/SQL.
+
+## 2026-10-06 — Shared portfolio prompt removal published, Sites350
+Source51078046eb7a2512d536a6e4dcaf9fcf38ab752f; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_b243a691ed248191b1fdcc82e3d3a7de; deployment appgdep_6ac5935a0f348191a8494589025878d4 succeeded2026-10-07T00:33:40.458062Z. Removes floating shared account prompt from App and VisitorApp. Prior typecheck/diff passed; production build/bundle configuration verification passed. Public audience/environment revision2 retained,560file archive. No SQL or GitHub main integration. Postpublication handoff local.
+
 ## 2026-10-06 — Shared portfolio account prompt removed (local, unpublished)
 Removed SharedSignInBar rendering/import from App shared routes and VisitorApp public entry. Floating Viewing portfolio/Sign in/Create account prompt no longer mounts on either entry; existing Settings/account auth actions preserved. Shared-portfolio request applies both presentations. Typecheck and diff check passed; browser visual verification pending. Sites349 remains live, no publication or SQL. Unused component retained to avoid unrelated cleanup.
 

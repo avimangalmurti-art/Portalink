@@ -1,5 +1,6 @@
 import { plainFormattedText } from '../../components/text/textFormatting';
 import { MobileProfileContext } from '../../presentation/mobile/MobileProfileContext';
+import { MobileContextButton } from '../../presentation/mobile/MobileContextActions';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
 import React, { lazy, Suspense, useCallback, useState } from 'react';
 import { ArrowLeftIcon, BookmarkIcon } from 'lucide-react';
@@ -23,10 +24,12 @@ const ReadsProject = lazy(() => import('../reads/ReadsView').then(module=>({defa
 const LoadTimingInsights = lazy(() => import('./LoadTimingInsights'));
 const MobileInsights = lazy(() => import('./MobileInsights').then(module => ({ default: module.MobileInsights })));
 
-function PersonalHeader({ title, onBack }: { title: string; onBack: () => void }) {
+function PersonalHeader({ title, onBack, insights = false }: { title: string; onBack: () => void; insights?: boolean }) {
+  const isMobile = usePresentation() === 'mobile';
   return <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
-    <ScreenBack><button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>
+    <ScreenBack visibleOnMobile={insights}><button type="button" onClick={onBack} aria-label="Go back" className="shape-compact flex h-10 w-10 items-center justify-center hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></ScreenBack>
     <h1 className="text-medium font-semibold text-[var(--text-primary)]">{title}</h1>
+    {insights && isMobile && <div data-inline-screen-actions=""><MobileContextButton /></div>}
   </header>;
 }
 
@@ -95,7 +98,7 @@ export function InsightsPage({ onBack }: { onBack: () => void }) {
   const query = useCallback(() => creatorSaves.getSaveInsights(), [creatorSaves]);
   const state = useAccountQuery(query);
   return <section aria-label="Private creator insights" className={isMobile ? 'mobile-insights-page' : undefined}>
-    <PersonalHeader title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
+    <PersonalHeader insights title={projectId ? "Reads" : isMobile ? "Your insights" : "Insights"} onBack={projectId ? () => setParams({}) : onBack} />
     <div className={isMobile ? 'mobile-insights-scroll' : undefined}>{projectId ? <Suspense fallback={<LoadingState label="Loading Reads" />}><ReadsProject key={projectId} projectId={projectId}/></Suspense> : <>
     {isMobile ? <Suspense fallback={<LoadingState label="Loading insights" />}><MobileInsights saves={state} /></Suspense> : <div className="px-[var(--content-gutter)] py-6">
       <div className="flex items-center justify-between gap-4"><p className="text-[13px] text-[var(--text-secondary)]">Only you can see these insights.</p><button type="button" onClick={state.retry} disabled={state.loading} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh</button></div>
