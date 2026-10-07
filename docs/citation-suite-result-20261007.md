@@ -1,6 +1,6 @@
 # Citation full-suite comparison — 7 October 2026
 
-Sites352: 1567 tests, 1430 passed, 136 failed, 1 skipped. Citation branch: final numbers recorded in the PR and handoff. All 136 baseline failures persist; 65 additional failures are listed below. These are not classified as existing baseline failures. Typecheck and production build pass; lint has 0 errors and 110 warnings.
+Sites352: 1567 tests, 1430 passed, 136 failed, 1 skipped. Citation branch: 1584 tests, 1382 passed, 201 failed, 1 skipped. All 136 baseline failures persist; 65 additional failures are listed below. These are not classified as existing baseline failures. Typecheck and production build pass; lint has 0 errors and 110 warnings.
 
 The legacy source-evaluation loaders do not automatically follow new imports. The errors below indicate fixture/contract gaps, not proof that runtime behavior is correct. This suite is failing and does not establish release readiness. No tests were disabled or removed to obtain these results.
 
