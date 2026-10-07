@@ -233,3 +233,13 @@ test('first Escape closes expanded location results before the parent modal can 
   assert.equal(escape().defaultPrevented, true);
   assert.equal(dismissals, 1, 'The next Escape must still reach the parent dismissal policy');
 });
+
+test('choosing a place waits for Enter when confirmation is separate', async t => {
+ const confirmed=[];
+ const h=harness({onConfirm:place=>confirmed.push(place)});t.after(()=>h.dispose());
+ h.search('London');h.advance(180);h.requests[0].resolve([london]);await h.flush();
+ h.options()[0].props.onClick();h.render();
+ assert.deepEqual(h.selected,[london]);assert.equal(confirmed.length,0);
+ h.key('Enter');assert.deepEqual(confirmed,[london]);
+ h.search('Paris');h.key('Enter');assert.equal(confirmed.length,1,'Changing the query clears the selected place');
+});

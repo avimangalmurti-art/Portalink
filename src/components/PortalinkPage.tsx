@@ -317,7 +317,8 @@ export function PortalinkPage({
 
       <div ref={searchViewportRef} className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
         <LocationSearch label="Find a place" value={query} onChange={setQuery} above blurOnSelect={isMobile}
-          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); onSelectCity(place); }} />
+          onConfirm={isMobile ? onSelectCity : undefined}
+          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); if (!isMobile) onSelectCity(place); }} />
       </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}

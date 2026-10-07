@@ -219,7 +219,7 @@ export function ProfileOnboardingDialog({
             }));
           }} />
 
-              <ProfileLocationPicker id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
+              <ProfileLocationPicker focusedScreen={isMobile} id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
 
               {isMobile && <ProfileVisibilityField id="onboarding-visibility" collapsible isPrivate={isPrivate} onChange={value => { touched.current.isPrivate = true; setIsPrivate(value); }} disabled={isSubmitting} />}
 

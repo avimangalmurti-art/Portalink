@@ -4729,3 +4729,92 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   background: var(--surface-selected) !important;
   box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
+
+/* Main-screen action buttons match Explore's five-column rounded rectangle. */
+#root .codex-shell[data-presentation='mobile'] {
+  --explore-action-width: max(44px, calc((100vw - var(--mobile-navigation-inset-start) - var(--mobile-screen-action-right) - 32px) / 5));
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-messages-page], .studio-workbench-header, [data-profile-page]) button.mobile-context-button {
+  width: var(--explore-action-width); height: 44px; border-radius: 14px;
+}
+#root .codex-shell[data-presentation='mobile'] :is([data-inbox-controls], .studio-workbench-header) [data-inline-screen-actions] {
+  width: var(--explore-action-width); flex-basis: var(--explore-action-width);
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] .mobile-screen-action-row {
+  grid-template-columns: minmax(0, 1fr) var(--explore-action-width);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-workbench-header .studio-drafts-heading {
+  grid-template-columns: minmax(0, 1fr) auto var(--explore-action-width);
+}
+
+/* Keep the share identity and its public totals inside one bounded section. */
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] > header {
+  gap: 8px; padding-inline: 18px 74px;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] > header h2 {
+  flex: 1; min-width: 0; padding: 0; margin: 0;
+  white-space: nowrap; text-align: center; font-size: clamp(16px, 4.5vw, 20px);
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-profile-preview {
+  border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+  border-radius: 0; padding-block: 16px; row-gap: 4px;
+}
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-preview-stats {
+  border-top: 0; margin-top: 12px; padding-top: 0;
+}
+
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search .location-search > :is(label, input) {
+  color: #f6f3ea; -webkit-text-fill-color: #f6f3ea;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search .location-search > input {
+  background: #171717; caret-color: var(--accent-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search .location-search > input::placeholder {
+  color: #aeb4b1; -webkit-text-fill-color: #aeb4b1;
+}
+
+#root .codex-shell[data-presentation='mobile'] .mobile-city-back {
+  width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0;
+  display: flex; align-items: center; justify-content: center; border-radius: 14px;
+  background: var(--navigation-surface, var(--nav-button-background));
+  color: var(--navigation-foreground, var(--nav-button-text));
+}
+
+/* Onboarding location uses the same keyboard-visible result layout as globe search. */
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  z-index: 90;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 18px 12px;
+  display: flex;
+  background: var(--canvas);
+}
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within .location-search {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 1;
+  min-height: 0;
+}
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within .location-search > :is(label, input) { flex-shrink: 0; }
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within .location-search-results {
+  position: static;
+  order: -1;
+  flex: 1;
+  min-height: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+}
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within .location-search-results ul {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+#root .codex-shell [data-mobile-onboarding] .onboarding-location-search:focus-within :is(.location-search-status, .location-attribution) { flex-shrink: 0; }
+
+#root .codex-shell [data-mobile-onboarding='dark'] .onboarding-location-search:focus-within { background: #000; }
+#root .codex-shell [data-mobile-onboarding='light'] .onboarding-location-search:focus-within { background: #fff; }

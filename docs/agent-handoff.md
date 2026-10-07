@@ -1,3 +1,27 @@
+## 2026-10-06 — Settings action label centering (local, unpublished)
+MOBILE Settings action labels now explicit spans centered within flex buttons, equal zero vertical padding and consistent1.25 line-height. Covers account signed-in/guest actions, invite, privacy and notifications; WEB span neutral, existing actions/sizes retained. Typecheck and diff check passed. Screenshot confirms vertical misalignment; physical/browser rendering verification pending. Prior unpublished work preserved, Sites348 remains live; no publication/SQL.
+
+## 2026-10-06 — Onboarding location search (local, unpublished)
+MOBILE registration and authenticated profile setup location pickers now opt into keyboard-visible focused search layout matching globe: results fill space above input, list internally scrolls, selected place keeps focus until Enter confirms/blurs. Existing profile editor and WEB picker behavior retained. Uses existing dialog viewport variables and location directory/state; no backend changes. Typecheck, focused lint, eight location search tests and diff check passed. Physical iPhone keyboard/layout verification remains pending. Prior unpublished edits retained; Sites348 still live, no deployment/SQL.
+
+## 2026-10-06 — Location feed Back icon (local, unpublished)
+CityContentPage MOBILE back now arrow-only with accessible Back to World label and standard44px/14px system navigation surface; WEB retains Back to World text. Existing callback/state preserved. Diff reviewed, browser/device geometry pending; prior local changes retained. Sites348 live, no deployment/SQL.
+
+## 2026-10-06 — Globe location contrast/Enter confirmation (local, unpublished)
+MOBILE globe label/input text forced light on charcoal, placeholder mutedlight. LocationSearch optional onConfirm separates provisional selection from Enter; selection retained in ref cleared on typing, pointer selection does not blur when confirmation enabled. Portalink mobile selection only updates query/globe; Enter invokes existing city navigation then blur. WEB/other pickers retain immediate selection. Focused checks running, real iPhone keyboard verification pending. Previous shape/dock/share-divider edits retained; Sites348 live, no deployment/SQL.
+
+## 2026-10-06 — Mobile share section boundaries (local, unpublished)
+Share-main ready/loading preview now bounded by top/bottom gray dividers with identity/tabs and projects/portals totals inside; removed internal stats divider. Header reserves action space and single-line responsive16–20px heading with no extra inner padding. WEB/other share stages preserved. Scoped CSS/diff reviewed; browser/iPhone layout pending. Prior action-button shape and dock order edits retained. Sites348 live, no deployment/SQL.
+
+## 2026-10-06 — Mobile dock order (local, unpublished)
+Main bottom navigation now Explore/Messages/Studio/Profile left to right. Sliders destination relabeled Explore, canonical home route retained; profileFromDock/active states and actions unchanged. Three focused navigation tests and diff check pass. Prior main action-button shape edit retained. Sites348 live, no deployment/SQL.
+
+## 2026-10-06 — Main-screen action shape (local, unpublished)
+MOBILE Messages/Studio workbench/Profile three-dot action widths now derived from Explore five-column header: viewport minus shared gutters and32px gaps divided5, min44px. Existing44px height/14px radius retained; inbox/Studio reserved grid slots widened accordingly. Positions/actions/WEB unchanged. Scoped CSS/diff reviewed; browser/physical geometry pending. Sites348 live, no deployment/SQL.
+
+## 2026-10-06 — Latest changes published, Sites348
+Source11654141dd1e13a42f1ade96ef17e3aa0b6f09be; version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_2c8592a0fb588191a9f8792cfffd6fb7; deployment appgdep_6ac58c69329481919da8f638d2af63b9 succeeded2026-10-07T00:04:03.511250Z. Publishes Comments icon/label/canonical count, Search accounts callback from Home header, Home route/top selected state and active reload/action states. Typecheck/lint(existing warnings)/production build and11focused tests passed; archive560files. Public audience/environment revision2 retained. Share total absent from backend; no invented count. Explore suggested as sliders product name only, dock accessible label remains Home. Browser/device verification pending. No SQL/GitHub main integration. Postpublication handoff local.
+
 ## 2026-10-06 — Home header selected state (local, unpublished)
 Home icon explicitly navigates canonical home route and returns feed to top; aria-current page/data-selected marks current content destination. MOBILE selected surface/border for Home, Reload while refreshing and action button while expanded, pressed feedback for header controls. Globe/account buttons navigate separate existing screens; five-control header remains Home-only. Seven focused Home tests and diff check pass; browser/device state verification pending. Prior Comments/count and account-search routing edits retained, Sites347 live, no publication/SQL.
 

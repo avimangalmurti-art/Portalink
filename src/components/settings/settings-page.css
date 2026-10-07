@@ -46,3 +46,16 @@
   justify-content: center;
   text-align: center;
 }
+
+#root .codex-shell[data-presentation='mobile'] .settings-section-content > [data-ui-control='button'] {
+  padding-block: 0;
+  line-height: 1.25;
+}
+#root .codex-shell[data-presentation='mobile'] .settings-action-label {
+  display: block;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+  line-height: 1.25;
+  text-align: center;
+}

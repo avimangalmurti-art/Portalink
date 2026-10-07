@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const read=path=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const nodes=tree=>React.isValidElement(tree)?[tree,...React.Children.toArray(tree.props.children).flatMap(nodes)]:[];
-test('dock orders Messages, Studio, Home and Profile, with no rail or separate compose',()=>{
+test('dock orders Explore, Messages, Studio and Profile, with no rail or separate compose',()=>{
  const exports={}; const calls=[];
  vm.runInNewContext(ts.transpileModule(read('../src/presentation/mobile/MobileNavigation.tsx'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require(name){
   if(name==='react')return {...React,useRef:()=>({current:null})};
@@ -19,7 +19,7 @@ test('dock orders Messages, Studio, Home and Profile, with no rail or separate c
  const destinations=[];
  const tree=exports.MobileNavigation({onMessages(...args){destinations.push(['messages',args]);},onProfile(...args){destinations.push(['profile',args]);},isProfileActive:false});
  const dock=nodes(tree).find(n=>n.props.className==='mobile-navigation-dock');
- assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Messages','Studio','Home','Profile']);
+ assert.deepEqual(React.Children.toArray(dock.props.children).map(n=>n.type==='context-button'?'Actions':n.props.item.label),['Explore','Messages','Studio','Profile']);
  assert.equal(nodes(tree).some(n=>n.type==='aside'),false);assert.equal(calls[0][0],true);
  for(const label of ['Messages','Profile']){
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
@@ -29,7 +29,7 @@ test('dock orders Messages, Studio, Home and Profile, with no rail or separate c
  const linkedTree=exports.MobileNavigation({onMessages(){},onProfile(){},profileHref:'/p/me',isProfileActive:true});
  const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
  assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');
- const linkedHome=nodes(linkedTree).find(n=>n.props.item?.label==='Home');
+ const linkedHome=nodes(linkedTree).find(n=>n.props.item?.label==='Explore');
  assert.equal(linkedHome.type(linkedHome.props).props.state,undefined);
  const source=read('../src/presentation/mobile/MobileNavigation.tsx');assert.doesNotMatch(source,/useNavigationSwipe|useNavigationOutsideTap|onCreateProject|mobile-navigation-opener|Videos|appearance/);
 });

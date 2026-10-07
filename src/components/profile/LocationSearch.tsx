@@ -14,8 +14,9 @@ type Props = {
   canSelect?: (place: DirectoryPlace) => boolean;
   above?: boolean;
   blurOnSelect?: boolean;
+  onConfirm?: (place: DirectoryPlace) => void;
 };
-export function LocationSearch({ id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above, blurOnSelect }: Props) {
+export function LocationSearch({ id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above, blurOnSelect, onConfirm }: Props) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [open, setOpen] = useState(false);
@@ -25,6 +26,7 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
   const [retry, setRetry] = useState(0);
   const list = useRef<HTMLUListElement>(null);
   const input = useRef<HTMLInputElement>(null);
+  const selectedPlace = useRef<DirectoryPlace | null>(null);
   const searching = open && !disabled && value.trim().length >= 1;
   useEffect(() => {
     if (!searching) return;
@@ -44,11 +46,13 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
     if (item.offsetTop < parent.scrollTop) parent.scrollTop = item.offsetTop;
     else if (item.offsetTop + item.offsetHeight > parent.scrollTop + parent.clientHeight) parent.scrollTop = item.offsetTop + item.offsetHeight - parent.clientHeight;
   }, [active, results]);
-  const select = (place: DirectoryPlace) => {
+  const select = (place: DirectoryPlace, confirm = false) => {
     if (canSelect && !canSelect(place)) return;
     setOpen(false);
-    if (blurOnSelect) input.current?.blur();
+    selectedPlace.current = place;
     onSelect(place);
+    if (onConfirm && confirm) onConfirm(place);
+    if (blurOnSelect && (!onConfirm || confirm)) input.current?.blur();
   };
   return <div className="location-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
     <label htmlFor={inputId}>{label}</label>
@@ -57,15 +61,16 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
       aria-activedescendant={searching && results[active] ? `${inputId}-result-${active}` : undefined}
       aria-invalid={error ? true : undefined} aria-describedby={error ? `${inputId}-error` : undefined}
       placeholder="Search city, region or country" onFocus={() => setOpen(true)}
-      onChange={event => { setResults([]); setActive(0); setOpen(true); onChange(event.target.value); }}
+      onChange={event => { selectedPlace.current = null; setResults([]); setActive(0); setOpen(true); onChange(event.target.value); }}
       onKeyDown={event => {
         if (event.nativeEvent.isComposing) return;
         if (event.key === 'Escape' && searching) { event.preventDefault(); event.stopPropagation(); setOpen(false); }
         else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault(); setOpen(true);
           setActive(index => !open ? 0 : Math.max(0, Math.min(results.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1))));
-        } else if (event.key === 'Enter' && searching) {
-          event.preventDefault(); if (results[active]) select(results[active]);
+        } else if (event.key === 'Enter') {
+          if (searching && results[active]) { event.preventDefault(); select(results[active], true); }
+          else if (onConfirm && selectedPlace.current) { event.preventDefault(); onConfirm(selectedPlace.current); if (blurOnSelect) input.current?.blur(); }
         }
       }} />
     {searching && <div className={`location-search-results${above ? ' is-above' : ''}`}>

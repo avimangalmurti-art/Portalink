@@ -101,25 +101,25 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
       </SettingsSection>
       <SettingsSection id="account" title="Account" subtitle="Profile, log out, delete account">
         {auth.isAuthenticated ? <>
-          <Button variant="secondary" onClick={props.onOpenProfile}>View profile</Button>
-          {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}>Edit profile</Button>}
-          <Button variant="secondary" disabled={signingOut || auth.phase === 'signing-out'} onClick={() => void handleSignOut()}>{signingOut ? 'Logging out…' : 'Log out'}</Button>
-          <Button variant="secondary" onClick={() => setDeletingAccount(true)}>Delete account…</Button>
+          <Button variant="secondary" onClick={props.onOpenProfile}><span className="settings-action-label">View profile</span></Button>
+          {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}><span className="settings-action-label">Edit profile</span></Button>}
+          <Button variant="secondary" disabled={signingOut || auth.phase === 'signing-out'} onClick={() => void handleSignOut()}><span className="settings-action-label">{signingOut ? 'Logging out…' : 'Log out'}</span></Button>
+          <Button variant="secondary" onClick={() => setDeletingAccount(true)}><span className="settings-action-label">Delete account…</span></Button>
           {signOutError && <p role="alert">Unable to log out. Please try again.</p>}
-        </> : <><Button onClick={() => auth.requestAuthenticatedDestination({ kind: 'my-profile' }, 'signIn')}>Sign in</Button><Button variant="secondary" onClick={() => auth.requestAuth('signUp')}>Create account</Button></>}
+        </> : <><Button onClick={() => auth.requestAuthenticatedDestination({ kind: 'my-profile' }, 'signIn')}><span className="settings-action-label">Sign in</span></Button><Button variant="secondary" onClick={() => auth.requestAuth('signUp')}><span className="settings-action-label">Create account</span></Button></>}
       </SettingsSection>
       <SettingsSection id="invite" title="Invite a friend" subtitle="Share Portalink with others">
-        <Button variant="secondary" onClick={() => void inviteFriend()}>Share invite link</Button>
-        <Button variant="secondary" onClick={() => void copyInvite()}>Copy invite link</Button>
+        <Button variant="secondary" onClick={() => void inviteFriend()}><span className="settings-action-label">Share invite link</span></Button>
+        <Button variant="secondary" onClick={() => void copyInvite()}><span className="settings-action-label">Copy invite link</span></Button>
         {inviteStatus !== 'idle' && <p role="status">{inviteStatus === 'copied' ? 'Invite link copied.' : 'Unable to share the invite link. Please try again.'}</p>}
       </SettingsSection>
       <SettingsSection id="privacy" title="Privacy" subtitle="Data, permissions, visibility">
         <p>Manage your account visibility in Edit profile and who can message you in Message settings.</p>
-        {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}>Account visibility</Button>}
-        <Button variant="secondary" onClick={() => openAccountRoute('messages')}>Open messages</Button>
+        {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}><span className="settings-action-label">Account visibility</span></Button>}
+        <Button variant="secondary" onClick={() => openAccountRoute('messages')}><span className="settings-action-label">Open messages</span></Button>
       </SettingsSection>
       <SettingsSection id="notifications" title="Notifications" subtitle="Messages, requests, updates">
-        <Button variant="secondary" onClick={() => openAccountRoute('notifications')}>View notifications</Button>
+        <Button variant="secondary" onClick={() => openAccountRoute('notifications')}><span className="settings-action-label">View notifications</span></Button>
       </SettingsSection>
       <SettingsSection id="language" title="Language" subtitle="App language and region">
         <p>Portalink is currently available in English.</p>
