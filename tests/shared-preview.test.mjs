@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -87,7 +88,7 @@ function setup() {
     const source = read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://test.supabase.co'")
       .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'public-test-key'");
     vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-      { ...globals, exports, require: name => { assert.ok(name in imports, name); return imports[name]; } });
+      { ...globals, exports, require: name => { if(name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, name); return imports[name]; } });
     return exports;
   }
   const model = compile('../src/features/sharing/shareModel.ts');

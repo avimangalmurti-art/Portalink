@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -15,6 +16,8 @@ function load(path, dependencies = {}) {
   vm.runInNewContext(compiled.get(path), {
     exports, URL, Error,
     require(name) {
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       assert.ok(name in dependencies, `Unexpected dependency: ${name}`);
       return dependencies[name];
     },

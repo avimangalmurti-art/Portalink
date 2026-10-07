@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -9,7 +10,11 @@ const source = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 function execute(code, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText,
-    { exports, crypto, File, Blob, URL, ...globals, require(name) { assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; } });
+    { exports, crypto, File, Blob, URL, ...globals, require(name) {
+      if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
+      if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name]; } });
   return exports;
 }
 const load = (path, imports, globals) => execute(source(path), imports, globals);
@@ -18,7 +23,7 @@ const validation = load('src/features/profile/validation.ts', { '../sharing/shar
 const registration = load('src/features/auth/registration.ts', { '../profile/validation': validation, '../sharing/shareModel': shareModel });
 const authTypes = load('src/types/auth.ts');
 const id = 'bf9c6b61-ac26-432c-9a9e-ebf55721cfff';
-const draft = { version: 1, id, name: '  Example Creator  ', location: '  City  ', accentColor: '#0A84FF', hasAvatar: false };
+const draft = { version: 1, id, name: '  Example Creator  ', handle: 'example.creator', location: '  City  ', accentColor: '#0A84FF', hasAvatar: false };
 const session = (account = 'a', extra = {}) => ({ user: { id: account, isEmailVerified: true, profileId: '', registration: draft, ...extra } });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
@@ -228,6 +233,7 @@ test('shared signup saves the safe destination on both platforms while ordinary 
       signupField(tree, key).props.onChange(value);
     }
     await h.render().props.onSubmit({ preventDefault() {} });
+    await h.render().props.onSubmit({ preventDefault() {} });
     assert.equal(submitted.length, 1);
     assert.equal(submitted[0].registration.returnPath, options.expected);
     assert.equal(store.saved.registration.returnPath, options.expected);
@@ -256,6 +262,7 @@ test('fresh signup remount restores pending details and picture without repeatin
     for (const [key, value] of [['email', 'saved@example.test'], ['password', 'do-not-store-password'], ['confirmation', 'do-not-store-password']]) {
       signupField(tree, key).props.onChange(value);
     }
+    tree = first.render(); await tree.props.onSubmit({ preventDefault() {} });
     tree = first.render(); await tree.props.onSubmit({ preventDefault() {} });
     first.render();
     assert.equal(submitted.length, 1);
@@ -306,6 +313,7 @@ test('an unsubmitted saved draft restores all editable fields and reuses its id 
     signupField(tree, 'password').props.onChange('new-password');
     signupField(tree, 'confirmation').props.onChange('new-password');
     tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    if (!submitted.length) { tree = h.render(); await tree.props.onSubmit({ preventDefault() {} }); }
     assert.equal(submitted.length, 1);
     assert.equal(submitted[0].registration.id, id);
     assert.equal(submitted[0].registration.isPrivate, true);
@@ -348,12 +356,14 @@ test('changing the normalized signup email after an uncertain failure starts a s
     signupField(tree, 'password').props.onChange('test-password');
     signupField(tree, 'confirmation').props.onChange('test-password');
     tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    if (!submitted.length) { tree = h.render(); await tree.props.onSubmit({ preventDefault() {} }); }
     const firstSaved = store.saved;
     assert.equal(submitted.length, 1);
     assert.equal(submitted[0].registration.id, id);
     tree = h.render();
     signupField(tree, 'email').props.onChange(' FIRST@EXAMPLE.TEST ');
     tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
+    if (!submitted.length) { tree = h.render(); await tree.props.onSubmit({ preventDefault() {} }); }
     assert.equal(submitted[1].registration.id, id, 'Whitespace and letter case retain the same account attempt');
     tree = h.render();
     signupField(tree, 'email').props.onChange('second@example.test');
@@ -528,6 +538,8 @@ test('one registration form validates account and profile fields before the sing
     nodes(tree).find(node => node.props?.id === `auth-signup-${key}`).props.onChange(value);
   }
   tree = render(); await tree.props.onSubmit({preventDefault() {}});
+  tree = render();
+  if (presentation === 'mobile') { assert.ok(nodes(tree).some(node => node.props?.role === 'status' && String(node.props.children).includes('Your public handle')), 'final handle is visible before confirmation'); await tree.props.onSubmit({preventDefault() {}}); }
   assert.equal(submitted.length, 0, 'Profile details are a draft until the final account screen submits.');
   if (presentation === 'mobile') {
     assert.equal(step, 'account');
@@ -577,7 +589,9 @@ test('one registration form validates account and profile fields before the sing
     assert.equal(nodes(tree).find(node => node.props?.id === 'auth-signup-password').props.value, 'test-password');
     assert.equal(nodes(tree).find(node => node.type === 'Action').props.children, 'Create account');
   }
-  tree = render(); await Promise.all([tree.props.onSubmit({preventDefault() {}}), tree.props.onSubmit({preventDefault() {}})]);
+  tree = render();
+  if (!nodes(tree).some(node => node.props?.role === 'status' && String(node.props.children).includes('Your public handle'))) { await tree.props.onSubmit({preventDefault() {}}); tree = render(); }
+  await Promise.all([tree.props.onSubmit({preventDefault() {}}), tree.props.onSubmit({preventDefault() {}})]);
   assert.equal(submitted.length, 1, 'Repeated activation must not submit two accounts.');
   assert.equal(submitted[0][2].name, 'Creator');
   assert.equal(submitted[0][2].location, 'City');

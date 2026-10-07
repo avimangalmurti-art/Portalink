@@ -1,3 +1,15 @@
+## 2026-10-07 — public visitor fixes, review only
+
+Task branch codex/public-visitor-fixes in isolated logs/public-visitor-fixes, based on current main ca9bc8bd3a0786f783e2a1ef72fa90ea71f35dff (Sites353). Prior PR1 and PR2 are merged and Sites353 already live; older notes below are historical. Shared desktop checkout and other writer untouched. No SQL, production content/account/Storage/D1 mutation, merge or publish this turn.
+
+Shared formatting parser fixes exact colour+bold/italic leak in Journey and all existing FormattedText surfaces; plain formatting for share/OG and citations. Live read-only audit: 16 projects/8 portals, two summaries with editor formatting, full list and screenshots in docs/public-visitor-fixes-20261007.md. Visitor welcome import/render removed; creator public appearance/system preference applied silently. Bare handle canonical resolver, OG/share generator and public sitemap; local anonymous HTML/live-RPC checks confirm bare200, work301, UUIDshare301. Existing UUID cite addresses remain stable and use configured production origin.
+
+Handle root cause unconditional seven-character prefix/random suffix, now exact available3–30-character request, suffix only checked collision, final-handle confirmation before signup. Existing handles/data unchanged. Availability uses existing anonymous RPC, no migration.
+
+Matching full Node/PGlite suites: main1594/1429pass/165fail/0skip; branch1602/1443pass/159fail/0skip. All159 failing names occur on main, zero new failures. Focused21/21 pass. Typecheck/build pass; lint0errors/111warnings. Build guard verifies production Supabase configuration in both graphs. One EBUSY PDF asset build retry succeeded. No tests disabled/deleted/newly skipped.
+
+Limit: browser timing API unavailable; before/after millisecond request waterfall/first paint not verified. Live before already had14of15images loaded behind appearance modal; no evidence modal caused claimed9s delay. Report records observed sequence, not invented performance improvement. WEB and420x912 MOBILE previews verified, no physical-device claim. Ignored production env link retained, no credentials logged or staged. PR review remains required; still no publish.
+
 ## 2026-10-07 — PR #1 merged; PR #2 zero additional failures, no publish
 
 User authorized merging only PR #1. Marked ready through GitHub GraphQL, merged exact guarded head07ca5f5 as f527539a27acdcbbd578f1fa25cbd753125f57e8. github/main tree diff against07ca5f5 is empty. PR #2 remains draft/open, not merged or published. Citation task isolated worktree retained, shared root untouched. Merge updated main into citation branch after committing this reconciliation; no rebase/force push.

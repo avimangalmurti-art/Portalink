@@ -13,6 +13,8 @@ function load(path, imports, globals = {}) {
   vm.runInNewContext(ts.transpileModule(read(path), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
+    if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+    if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts',{'../features/sharing/shareModel':shareModel});
     assert.ok(name in imports, `Missing test import: ${name}`);
     return imports[name];
   } });

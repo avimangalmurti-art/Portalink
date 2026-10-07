@@ -1,3 +1,4 @@
+import { FormattedText } from '../../components/text/FormattedText';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline } from '../citations/journeyCitations';
 import React, { useState } from 'react';
@@ -33,7 +34,7 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onEditDescription,
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
-        </button><p className="journey-caption">{project.thenNowCaption?.trim() || learnedLine(project)}</p>
+        </button><FormattedText className="journey-caption" text={project.thenNowCaption?.trim() || learnedLine(project)} />
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
     </section>}
     {owner && !isMobile && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
@@ -47,7 +48,7 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onEditDescription,
         <div className="journey-entry-copy"><span className="journey-month">{(project.madeOn ?? project.publishedAt) && Number.isFinite(Date.parse(project.madeOn ?? project.publishedAt!)) ? new Date(project.madeOn ?? project.publishedAt!).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', ...(project.madeOn ? { timeZone: 'UTC' } : {}) }) : 'Posting date unavailable'}</span>
           <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
           <span className="journey-portal">{profile.categories.find(portal => portal.id === project.categoryId)?.label}</span>
-          <p className="journey-learned">{learnedLine(project)}</p>
+          <FormattedText className="journey-learned" text={learnedLine(project)} />
           {(isMobile || (owner && onEdit)) && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
         </div>
       </li>;})())}</ol>

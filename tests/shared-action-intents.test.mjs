@@ -12,6 +12,7 @@ function load(path, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name];
   } });
   return exports;

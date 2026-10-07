@@ -1,3 +1,5 @@
+import { useServices } from '../../contexts/ServicesContext';
+import { createProfileHandle, prepareProfileHandle } from '../../utils/profileHandle';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon, Loader2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -178,6 +180,12 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   });
   const submittingRef = useRef(false);
   const [name, setName] = useState('');
+  const { profiles } = useServices();
+  const [requestedHandle, setRequestedHandle] = useState<string | null>(null);
+  const [preparedHandle, setPreparedHandle] = useState<string | null>(null);
+  const [checkingHandle, setCheckingHandle] = useState(false);
+  const handle = requestedHandle ?? createProfileHandle(name);
+
   const [location, setLocation] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [email, setEmail] = useState(auth.rememberedEmail);
@@ -204,6 +212,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       if (!current || !saved) return;
       registrationId.current = saved.registration.id;
       setName(saved.registration.name);
+      setRequestedHandle(saved.registration.handle ?? null);
       setLocation(saved.registration.location);
       setIsPrivate(saved.registration.isPrivate === true);
       setEmail(saved.email);
@@ -249,6 +258,20 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
         </>}
       </div>;
   }
+  async function confirmHandle() {
+    if (checkingHandle) return false;
+    if (preparedHandle !== handle) {
+      setCheckingHandle(true);
+      try {
+        const finalHandle = await prepareProfileHandle(handle, profiles.checkPublicHandle ?? (() => Promise.resolve('unavailable')));
+        setRequestedHandle(finalHandle); setPreparedHandle(finalHandle);
+        setFieldErrors(current => ({ ...current, handle: null }));
+      } catch (error) { setFieldErrors(current => ({ ...current, handle: error instanceof Error ? error.message : 'Could not check this handle.' })); if (isMobile) props.onStepChange('profile'); }
+      finally { setCheckingHandle(false); }
+      return false; // Show the exact final address before the user confirms.
+    }
+    return true;
+  }
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (signUp.isLoading || draftLoading || draftError || submittingRef.current) {
@@ -258,7 +281,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     if (isMobile && props.step === 'profile') {
       const profileErrors = { name: validateProfileName(name), location: validateLocation(location) };
       setFieldErrors(profileErrors);
-      if (!Object.values(profileErrors).some(Boolean) && !avatar.error) props.onStepChange('account');
+      if (!Object.values(profileErrors).some(Boolean) && !avatar.error && await confirmHandle()) props.onStepChange('account');
       return;
     }
     const nextErrors = {
@@ -273,10 +296,11 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       if (isMobile && (nextErrors.name || nextErrors.location || avatar.error)) props.onStepChange('profile');
       return;
     }
+    if (!await confirmHandle() || submittingRef.current) return;
     submittingRef.current = true;
     try {
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
+        name: name.trim(), handle: preparedHandle ?? handle, location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
         ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);
     } finally { submittingRef.current = false; }
   }
@@ -287,6 +311,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       {(!isMobile || props.step === 'profile') && <>
       <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
       <ProfileField id="auth-signup-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
+      <ProfileField id="auth-signup-handle" label="Public handle" value={handle} error={fieldErrors.handle} disabled={signUp.isLoading || checkingHandle} onChange={value => { setRequestedHandle(value); setPreparedHandle(null); }} />
       {isMobile ? <ProfileLocationPicker focusedScreen id="auth-signup-location" value={location} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} /> : <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />}
       {isMobile && <ProfileVisibilityField id="auth-signup-visibility" collapsible isPrivate={isPrivate} onChange={setIsPrivate} disabled={signUp.isLoading} />}
       </>}
@@ -318,6 +343,8 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       }));
     }} />
       </>}
+      {preparedHandle === handle && <p role="status">Your public handle will be @{preparedHandle}. Continue to confirm.</p>}
+      {checkingHandle && <p role="status">Checking your handle…</p>}
       </div>
       {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
         {signUp.isLoading ? 'Creating account…' : 'Create account'}

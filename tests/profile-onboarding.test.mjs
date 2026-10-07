@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -14,19 +15,18 @@ function execute(source, globals = {}) {
   } }).outputText, { exports, crypto, File, ...globals });
   return exports;
 }
-const { createProfileHandle } = execute(read('src/utils/profileHandle.ts'));
-const shareModel=execute(read('src/features/sharing/shareModel.ts'));
+const { createProfileHandle } = execute(read('src/utils/profileHandle.ts'), {require:()=>sourceModule('src/features/sharing/shareModel.ts')});
+const shareModel=sourceModule('src/features/sharing/shareModel.ts');
 const validation = execute(read('src/features/profile/validation.ts'),{require:()=>shareModel});
 const directory = execute(read('src/data/locationDirectory.ts'), { require: () => ({ cities: [] }) });
 
-test('automatic handles support duplicate, long and non-ASCII names within the existing format', () => {
-  const handles = new Set();
-  for (const name of ['Avi', 'Avi', '李 明', 'Élodie Martin', '_Person', 'x'.repeat(48)]) {
-    const handle = createProfileHandle(name);
+test('automatic handles preserve full names; collision suffixes stay within thirty characters', () => {
+  assert.equal(createProfileHandle('citetest'),'citetest');
+  assert.equal(createProfileHandle('Avi'),'avi');
+  for (const name of ['Avi', '李 明', 'Élodie Martin', 'x'.repeat(48)]) {
+    const handle = createProfileHandle(name, true);
     assert.equal(validation.validateHandle(handle), null);
-    assert.match(handle, /^[a-z0-9][a-z0-9._-]{1,19}$/);
-    assert.equal(handles.has(handle), false);
-    handles.add(handle);
+    assert.ok(handle.length <= 30);
   }
 });
 
@@ -47,7 +47,7 @@ function creationService(errors = []) {
   };
   class ProfileServiceError extends Error { constructor(code, message) { super(message); this.code = code; } }
   const { service } = execute(`exports.service = { ${method} }`, {
-    ProfileServiceError, createProfileHandle, normalizeHandle: validation.normalizeHandle,
+    ProfileServiceError, createProfileHandle, validateHandle: validation.validateHandle, normalizeHandle: validation.normalizeHandle,
     uploadAvatar: async () => { uploads++; return 'https://example.test/avatar.webp'; },
     requireSupabase: () => ({ from: () => chain }),
     throwProfileError: (error) => { throw new ProfileServiceError('network', error.message); },
@@ -115,6 +115,8 @@ function component(file, name, props, overrides = {}) {
     return [slots[index], (value) => { slots[index] = typeof value === 'function' ? value(slots[index]) : value; }];
   } };
   const exports = execute(read(file), { require(dependency) {
+    if (dependency.endsWith('/ServicesContext')) return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
+    if (dependency.endsWith('/profileHandle')) return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
     if (dependency === 'react') return react;
     if (dependency === 'react/jsx-runtime') return jsxRuntime;
     if (dependency === 'framer-motion') return { useReducedMotion: () => true, AnimatePresence: 'AnimatePresence', motion: { div: 'div', section: 'section' } };
@@ -199,7 +201,7 @@ test('setup exposes large image selection, name and location and submits without
   });
   let tree = render();
   const fields = nodes(tree).filter((node) => node.type === 'ProfileField');
-  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name']);
+  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Public handle']);
   assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
   assert.equal(fields[0].props.required, presentation === 'mobile');
   assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
@@ -213,10 +215,13 @@ test('setup exposes large image selection, name and location and submits without
   visibility?.props.onChange(true);
   tree = render();
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
+  assert.equal(submitted, undefined, 'first press checks and displays the final handle');
+  tree = render();
+  await find(tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
   assert.equal(submitted.name, 'Avi');
   assert.equal(submitted.location, 'San Francisco');
   assert.equal(submitted.isPrivate, presentation === 'mobile');
-  assert.equal('handle' in submitted, false);
+  assert.equal(submitted.handle, 'avi');
   assert.equal('headline' in submitted, false);
   }
 });

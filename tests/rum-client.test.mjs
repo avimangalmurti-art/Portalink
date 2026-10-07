@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -12,7 +13,7 @@ function load(path, globals = {}) {
   vm.runInNewContext(code, { exports, URL, ...globals });
   return exports;
 }
-const shareModel=load('src/features/sharing/shareModel.ts');
+const shareModel=sourceModule('src/features/sharing/shareModel.ts');
 const core = load('src/features/performance/rumCore.ts',{require:()=>shareModel});
 const json = value => JSON.parse(JSON.stringify(value));
 const version = 'abcdef1234567';

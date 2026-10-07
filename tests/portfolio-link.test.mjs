@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,9 @@ import ts from 'typescript';
 import { generate } from 'lean-qr';
 import { createHash } from 'node:crypto';
 import { renderCoverAssets } from '../src/features/media/coverThumbnailCore.mjs';
-function load(file,imports={},globals={}) { const exports={};const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,URL,URLSearchParams,Response,Request,AbortSignal,crypto,...globals,require:n=>{assert.ok(n in imports,n);return imports[n];}});return exports; }
+function load(file,imports={},globals={}) { const exports={};const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,URL,URLSearchParams,Response,Request,AbortSignal,crypto,...globals,require:n=>{
+      if (n.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (n.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');assert.ok(n in imports,n);return imports[n];}});return exports; }
 const model=load('src/features/sharing/shareModel.ts');
 const id='11111111-1111-4111-8111-111111111111';
 test('handle grammar, suggestions, all product roots and URL fallbacks',()=>{
@@ -128,4 +131,30 @@ test('old UUID project URLs redirect to the handle without losing the project or
  const result=await server.resolveShareRequest(new Request(`https://site.test/share/${id}/c/portal/work?from=resume`),{supabaseUrl:'https://test.supabase.co',publishableKey:'public'});
  assert.equal(result.redirect.status,301);
  assert.equal(result.redirect.headers.get('location'),'https://site.test/avi/c/portal/work?from=resume');
+});
+
+test('bare creator handles are canonical; work and UUID aliases redirect once with the suffix preserved',async()=>{
+ const resolution={profileId:id,handle:'portalite.work',alias:true};
+ const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(url,options)=>Response.json(JSON.parse(options.body).p_profile_id ? {handle:'portalite.work'} : resolution)});
+ const config={supabaseUrl:'https://test.supabase.co',publishableKey:'test'};
+ assert.equal((await server.resolveShareRequest(new Request('https://site.test/portalite'),config)).redirect,undefined);
+ for(const path of ['/portalite.work','/share/'+id]){
+  const result=await server.resolveShareRequest(new Request('https://site.test'+path+'/c/portal/project?via=friend'),config);
+  assert.equal(result.redirect.status,301);
+  assert.equal(result.redirect.headers.get('location'),'https://site.test/portalite/c/portal/project?via=friend');
+ }
+ const html=server.injectShareResolution('<head><meta property="og:url" content="old"><link rel="canonical" href="old"></head>',resolution,'https://site.test/portalite');
+ assert.match(html,/rel="canonical" href="https:\/\/site.test\/portalite"/);
+ assert.doesNotMatch(html,/content="old"|href="old"/);
+});
+
+test('public sitemap emits only bare valid public handles and fails closed on upstream errors',async()=>{
+ const requests=[];
+ const server=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async(url,options)=>{requests.push({url,options});return Response.json([{id,handle:'portalite.work'},{id,handle:'bad_handle'}]);}});
+ const response=await server.publicSitemap(new Request('https://site.test/sitemap.xml'),{supabaseUrl:'https://test.supabase.co',publishableKey:'test'});
+ assert.equal(response.status,200);assert.match(await response.text(),/<loc>https:\/\/site.test\/portalite<\/loc>/);
+ assert.ok(requests[0].url.includes('is_private=eq.false'));assert.equal(requests[0].options.credentials,'omit');
+ assert.equal(new Headers(requests[0].options.headers).has('authorization'),false);
+ const failing=load('src/server/shareAddress.ts',{'../features/sharing/shareModel':model},{fetch:async()=>new Response(null,{status:500})});
+ assert.equal((await failing.publicSitemap(new Request('https://site.test/sitemap.xml'),{supabaseUrl:'https://test.supabase.co',publishableKey:'test'})).status,503);
 });
