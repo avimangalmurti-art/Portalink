@@ -1,3 +1,11 @@
+## Studio collection buttons — review branch, not published
+
+- MOBILE task branch `codex/studio-buttons`, based on current `github/main` `2e68e49`, isolated in `logs/studio-header-fix/logs/studio-buttons`. Other task branches preserved.
+- Fixed collection/category disagreement; collection is authoritative with legacy category fallback. Saved-alias pill navigation leaves /saved for /studio so it cannot remain locked to Bookmarks.
+- Removed hard-coded Bookmarks heading/search/empty-state/options labels from Published, Activity and All. Selection resets on collection changes as before. Mobile pills use existing theme surfaces for readable contrast; WEB presentation unchanged.
+- 44 focused tests pass, including actual collection component heading/row/selection regression checks; typecheck and diff check pass. Signed-in browser/physical-phone verification still required; no live data mutations, SQL, Storage, merge or publish.
+- Previous mobile consistency work remains separately in open PR #13; these changes do not include it.
+
 ## 2026-10-08 — MOBILE Studio Back/Select in header, unpublished
 
 Isolated logs/studio-header-fix/logs/studio-controls-fix, branch codex/studio-controls-header from github/main46111c8. Mobile parent header now hosts the existing child-owned Back/Select/Done and options controls through a portal, above the collection rail; mobile Studio h1 hidden. Selection state/callbacks remain in Bookmarks/Drafts; desktop receives no header host and retains original controls/header. Default/References/Cited header retains Back and existing actions. Draft mobile Back no longer says Studio. No pill colour/collection label/reference badge redesign, no MCP/SQL/user-data/publish.

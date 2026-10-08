@@ -5010,3 +5010,11 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin: 0; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-bookmarks-controls { display: flex; align-items: center; gap: 12px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { margin-right: calc(var(--mobile-screen-action-size, 48px) + 12px); }
+
+/* Collection controls use the same light/dark surfaces as the Studio header. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills button {
+  background: var(--surface-raised); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills button[aria-pressed='true'] {
+  background: var(--surface-selected); border-color: var(--text-secondary);
+}
