@@ -54,6 +54,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const location = readStudioLocation(params, savedRoute);
   const category: StudioCategory = location.category;
   const tab = location.tab;
+  const collectionTitle = category === 'all' ? 'All' : category[0].toUpperCase() + category.slice(1);
   const data = useStudioData(category, tab);
   const refreshStudio = data.refresh;
   const management = useProjectManagement(auth.viewerProfileId);
@@ -215,10 +216,10 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
   const navigation = <div className="studio-bookmarks-navigation">
-        <button type="button" className="studio-bookmarks-back" aria-label="Back from Bookmarks" disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
+        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
         <div className="studio-bookmarks-controls">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
-          <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label="Bookmark options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
+          <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
         </div>
       </div>;
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
@@ -226,10 +227,10 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     <header className="studio-header">
       {headerHost ? createPortal(navigation, headerHost) : navigation}
       <div className="studio-heading">
-        <h1 ref={heading} tabIndex={-1} className="studio-title">Bookmarks</h1>
+        <h1 ref={heading} tabIndex={-1} className="studio-title">{collectionTitle}</h1>
         <p className="studio-status">{statusLine}</p>
       </div>
-      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder="Search bookmarks" value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
+      <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder={`Search ${collectionTitle.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {category === 'bookmarks' && <div className="studio-bookmark-tabs" role="group" aria-label="Saved collection">{STUDIO_BOOKMARK_TABS.map(kind => <button key={kind} type="button" aria-pressed={tab === kind} disabled={bulkPending} onClick={() => chooseTab(kind)}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}</div>}
       {selecting && <div className="studio-selection-summary"><span role="status">{selectedRows.length} selected</span><button type="button" disabled={!canSelect} onClick={() => setSelected(selectedRows.length === visibleRows.length ? new Set() : new Set(visibleRows.map(row => row.id)))}>{selectedRows.length === visibleRows.length ? 'Deselect all' : 'Select all shown'}</button></div>}
     </header>
@@ -238,7 +239,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       {(localError || data.mutationError) && <p role="alert" className="studio-feedback text-[var(--status-danger)]">{localError || data.mutationError}</p>}
       {data.status === 'loading' && !data.rows.length ? <LoadingState label="Loading Studio" /> : null}
       {data.error && <ErrorState title="Some of Studio could not load" description={data.error} onRetry={data.refresh} />}
-      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : 'No bookmarks yet'} description={query ? 'Try another search, or clear this one.' : 'Keep projects, pages and creators here using their bookmark action.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
+      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'bookmarks' ? 'No bookmarks yet' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No items yet'} description={query ? 'Try another search, or clear this one.' : category === 'bookmarks' ? 'Keep projects, pages and creators here using their bookmark action.' : category === 'published' ? 'Your published projects appear here.' : category === 'activity' ? 'Your updates appear here.' : 'Your work, bookmarks and updates appear here.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
       {data.loadMoreError && <ErrorState title="More saved pages could not load" description={data.loadMoreError} onRetry={() => { void data.loadMore(); }} />}
       {data.hasMore && <div className="studio-load-more"><p>Search and selection cover the pages loaded so far.</p><button type="button" className="studio-text-control" disabled={data.loadingMore || bulkPending} onClick={() => { void data.loadMore(); }}>{data.loadingMore ? 'Loading…' : 'Load more saved pages'}</button></div>}
     </div>
@@ -252,7 +253,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
         {selectedRows.length > 0 && !bulk.unsave.length && !bulk.markRead.length && !bulk.share.length && <span className="studio-selection-hint">These updates are already read</span>}
       </div>
     </div>}
-    {sheet && <StudioActionSheet title={'view' in sheet ? 'Bookmarks' : sheet.row.title} actions={('view' in sheet ? viewActions : actionsFor(sheet.row)).map(action => ({ ...action, onAction: () => { setSheet(null); action.onAction(); } }))} onClose={() => setSheet(null)} />}
+    {sheet && <StudioActionSheet title={'view' in sheet ? collectionTitle : sheet.row.title} actions={('view' in sheet ? viewActions : actionsFor(sheet.row)).map(action => ({ ...action, onAction: () => { setSheet(null); action.onAction(); } }))} onClose={() => setSheet(null)} />}
     {citeItem&&<CiteSheet item={citeItem} onClose={()=>setCiteItem(null)}/>}
     <ProjectEditorDialog management={management} />
   </section>;

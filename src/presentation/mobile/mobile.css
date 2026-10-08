@@ -5011,6 +5011,14 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-bookmarks-controls { display: flex; align-items: center; gap: 12px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { margin-right: calc(var(--mobile-screen-action-size, 48px) + 12px); }
 
+/* Collection controls use the same light/dark surfaces as the Studio header. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills button {
+  background: var(--surface-raised); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-pills button[aria-pressed='true'] {
+  background: var(--surface-selected); border-color: var(--text-secondary);
+}
+
 /* Match Profile's inset separator while each content region scrolls independently. */
 #root .codex-shell[data-presentation='mobile'] [data-inbox-controls] { position: relative; }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-main { border-radius: var(--shape-compact); -webkit-tap-highlight-color: transparent; }

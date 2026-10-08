@@ -1,3 +1,11 @@
+## Studio collection buttons — review branch, not published
+
+- MOBILE task branch `codex/studio-buttons`, based on current `github/main` `2e68e49`, isolated in `logs/studio-header-fix/logs/studio-buttons`. Other task branches preserved.
+- Fixed collection/category disagreement; collection is authoritative with legacy category fallback. Saved-alias pill navigation leaves /saved for /studio so it cannot remain locked to Bookmarks.
+- Removed hard-coded Bookmarks heading/search/empty-state/options labels from Published, Activity and All. Selection resets on collection changes as before. Mobile pills use existing theme surfaces for readable contrast; WEB presentation unchanged.
+- 44 focused tests pass, including actual collection component heading/row/selection regression checks; typecheck and diff check pass. Signed-in browser/physical-phone verification still required; no live data mutations, SQL, Storage, merge or publish.
+- Previous mobile consistency work remains separately in open PR #13; these changes do not include it.
+
 ## 2026-10-07 — MOBILE screen consistency and reader preferences, unpublished
 
 Task branch codex/mobile-screen-consistency from github/main2e68e49574c5c0572e2912fb9496fa9c00cdab4b, isolated logs/studio-header-fix/logs/mobile-screen-consistency. Shared desktop checkout, MCP PR6 and release-receipt PRs10/12 untouched. No SQL, production rows, Storage, D1, merge or publish.

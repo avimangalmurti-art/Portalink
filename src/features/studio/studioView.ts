@@ -5,7 +5,7 @@ export const STUDIO_CATEGORIES: readonly StudioCategory[] = ['drafts', 'publishe
 export const STUDIO_BOOKMARK_TABS: readonly StudioBookmarkTab[] = ['projects', 'pages', 'creators'];
 
 export function readStudioLocation(params: URLSearchParams, savedRoute = false) {
-  const value = params.get('category');
+  const value = params.get('collection') ?? params.get('category');
   const category: StudioCategory = savedRoute ? 'bookmarks' : STUDIO_CATEGORIES.includes(value as StudioCategory) ? value as StudioCategory : 'bookmarks';
   const selectedTab = params.get('tab');
   const tab: StudioBookmarkTab = selectedTab === 'pages' || selectedTab === 'creators' ? selectedTab : 'projects';

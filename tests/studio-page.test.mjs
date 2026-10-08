@@ -119,3 +119,30 @@ test('mobile selection and Back render in the header host and retain selection b
  page.button('Back from Bookmarks').props.onClick();
  assert.deepEqual(page.calls, [['back']]);
 });
+
+test('collection selection wins over a stale legacy category and drives actual rows', () => {
+ for (const category of ['published', 'activity', 'all']) {
+  const selected = view.readStudioLocation(new URLSearchParams('collection='+category+'&category=bookmarks'));
+  assert.equal(selected.category, category);
+  const page = pageHarness({ initialSearch: 'collection='+category+'&category=bookmarks' });
+  const entries = page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id);
+  assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, category[0].toUpperCase()+category.slice(1));
+  assert.deepEqual(entries, category === 'published' ? ['published:p1'] : category === 'activity' ? ['activity:n1'] : ['published:p1','saved-project:p1','activity:n1']);
+ }
+ assert.equal(view.readStudioLocation(new URLSearchParams('category=published')).category, 'published');
+ assert.equal(view.readStudioLocation(new URLSearchParams('collection=published'), true).category, 'bookmarks');
+});
+
+test('switching collections updates heading, rows and selection together', () => {
+ const page = pageHarness({ initialSearch: 'collection=bookmarks' });
+ page.button('Select items').props.onClick();
+ assert.ok(page.button('Exit selection'));
+ page.setSearch('collection=published');
+ assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, 'Published');
+ assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['published:p1']);
+ assert.ok(page.button('Select items'));
+ assert.ok(page.button('Back from Published'));
+ page.setSearch('collection=activity');
+ assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, 'Activity');
+ assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['activity:n1']);
+});
