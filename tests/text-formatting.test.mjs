@@ -40,3 +40,13 @@ test('nested emphasis and inline colour from the live project render and strip c
  assert.match(html,/<strong><em><span style="color:#34c759">Some of these posters/);
  assert.doesNotMatch(html,/\*\*\*|\{#34c759\|/);
 });
+
+test('MOBILE omits every formatting control while WEB retains its precise controls', () => {
+ const exports = {}; let presentation = 'mobile';
+ vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/text/TextFormattingToolbar.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText, {
+  exports, require: name => name === 'react' ? {...React,useState: value=>[value,()=>{}]} : name.endsWith('/usePresentation') ? {usePresentation:()=>presentation} : name.endsWith('/textFormatting') ? {formatSelection} : new Proxy({}, {get:()=>()=>null}),
+ });
+ const props = {inputRef:{current:null},value:'**Existing**',onChange(){}};
+ for (const variant of ['panel','workspace','dropdown']) assert.equal(exports.TextFormattingToolbar({...props,variant}),null);
+ presentation = 'web'; assert.ok(exports.TextFormattingToolbar({...props,variant:'dropdown'}));
+});

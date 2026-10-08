@@ -2,6 +2,7 @@ import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
 import { createPortal } from 'react-dom';
+import { usePresentation } from '../../presentation/usePresentation';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { GripVerticalIcon, HandshakeIcon, InfoIcon, MessagesSquareIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
 import { getCategoryIcon, profileLinkIconOptions, type ProfileLinkIconOption } from '../../components/profile/categoryIcons';
@@ -167,6 +168,7 @@ export function ProfileLinksEditor({
   onRemove,
   onReorder,
 }: ProfileLinksEditorProps) {
+  const presentation = usePresentation();
   const visibleLinks = links.filter(link => !isProfileLinkAction(link.action));
   const removedActions = links.filter(link => isProfileLinkAction(link.action) && link.hidden);
   const [selectedId, setSelectedId] = useState<string | null>(links[0]?.id ?? null);
@@ -268,10 +270,10 @@ export function ProfileLinksEditor({
     </fieldset>
 
     {isChoosingIcon && selected ? createPortal(
-      <div role="presentation" onMouseDown={(event) => {
+      <div data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setIsChoosingIcon(false);
       }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
-        <section ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
+        <section data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault();
             event.stopPropagation();
@@ -285,7 +287,8 @@ export function ProfileLinksEditor({
             <h2 id="profile-link-icon-heading" className="text-medium font-semibold">Choose link icon</h2>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
+          <div className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
+            <div data-link-icon-pinned="" className={presentation === 'mobile' ? "shrink-0" : "contents"}>
             <div className="flex justify-center pt-4">
               <span aria-hidden="true" className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
                 <DraftIcon className="h-10 w-10" />
@@ -301,6 +304,8 @@ export function ProfileLinksEditor({
               <input type="search" value={iconQuery} onChange={(event) => setIconQuery(event.target.value)} placeholder="Search Instagram, YouTube, maps…" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
             </label>
 
+            </div>
+            <div data-link-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
             <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
@@ -311,6 +316,7 @@ export function ProfileLinksEditor({
               })}
             </div>
             {filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
+            </div>
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-[var(--hairline)] px-6 py-4">

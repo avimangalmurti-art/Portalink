@@ -4,7 +4,8 @@ import { formatSelection, type TextFormat } from './textFormatting';
 import { usePresentation } from '../../presentation/usePresentation';
 import { FormattedText } from './FormattedText';
 export function TextFormattingToolbar({inputRef,value,onChange,disabled,maxLength,variant='panel'}:{inputRef:RefObject<HTMLTextAreaElement>;value:string;onChange:(value:string)=>void;disabled?:boolean;maxLength?:number;variant?:'panel'|'dropdown'|'workspace'}){
- const inline = usePresentation() === 'mobile' && variant !== 'dropdown';
+ const mobile = usePresentation() === 'mobile';
+ const inline = false;
  const [open,setOpen]=useState(false),[notice,setNotice]=useState('');
  const apply=(format:TextFormat,color?:string)=>{
   const input=inputRef.current;if(!input||disabled)return;
@@ -13,6 +14,7 @@ export function TextFormattingToolbar({inputRef,value,onChange,disabled,maxLengt
   setNotice('');onChange(next.value);requestAnimationFrame(()=>{input.focus();input.setSelectionRange(next.start,next.end);});
  };
  const icons=[['bold','Bold',BoldIcon],['italic','Italic',ItalicIcon],['underline','Underline',UnderlineIcon],['strike','Strikethrough',StrikethroughIcon],['bullet','Bullet list',ListIcon],['number','Numbered list',ListOrderedIcon],['outdent','Decrease indent',IndentDecreaseIcon],['indent','Increase indent',IndentIncreaseIcon],['quote','Quote',QuoteIcon]] as const;
+ if(mobile) return null;
  if(variant==='dropdown') return <div className="text-format-tools text-format-tools--dropdown">
   <select aria-label="Format text" value="" disabled={disabled} onChange={event=>{
    const choice=event.target.value;

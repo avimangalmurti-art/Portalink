@@ -5649,7 +5649,7 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
 #root .codex-shell[data-presentation='mobile'] [data-profile-header] {
   border-bottom:0;
 }
-#root .codex-shell[data-presentation='mobile'] .profile-navigation-header::after {
+#root .codex-shell[data-presentation='mobile'] :is(.profile-navigation-header, .mobile-home-search-header, [data-inbox-controls])::after {
   content:''; position:absolute; inset-inline:16px; bottom:0;
   height:1px; background:var(--hairline); pointer-events:none;
 }

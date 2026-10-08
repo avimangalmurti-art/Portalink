@@ -212,11 +212,17 @@ function PdfImagePage({
     let cancelled = false;
     let settled = false;
     const viewToken = rumViewToken();
-    const renderTask = page.render({
+    let renderTask: ReturnType<PdfPageProxy['render']>;
+    try { renderTask = page.render({
       canvas: renderCanvas,
       viewport: renderViewport,
       background: '#ffffff'
-    });
+    }); } catch {
+      if (renderCanvas !== canvas) { renderCanvas.width = 0; renderCanvas.height = 0; }
+      setStatus('failed');
+      onSettledRef.current(pageNumber);
+      return undefined;
+    }
     const renderTimeout = window.setTimeout(() => {
       if (settled || cancelled) {
         return;
@@ -262,6 +268,8 @@ function PdfImagePage({
         setStatus('failed');
         onSettledRef.current(pageNumber);
       }
+    }).finally(() => {
+      if (renderCanvas !== canvas) { renderCanvas.width = 0; renderCanvas.height = 0; }
     });
 
     return () => {

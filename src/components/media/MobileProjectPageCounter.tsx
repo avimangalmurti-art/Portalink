@@ -27,6 +27,9 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
 }) {
   const [position, setPosition] = useState<PagePosition | null>(null);
   const [openScope, setOpenScope] = useState<string | null>(null);
+  const [densityDraft, setDensityDraft] = useState<{ scope: string; value: number } | null>(null);
+  const densityValue = densityDraft?.scope === scope ? densityDraft.value : density?.value;
+  const commitDensity = (value: number) => { setDensityDraft(null); density?.onChange(value); density?.onCommit(value); };
   const open = showControl && openScope === scope && position?.scope === scope;
   const navigatorRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -150,12 +153,12 @@ export function MobileProjectPageCounter({ surfaceRef, scope, previewSources = [
       </div> : <progress aria-label="Reading progress" value={position.current} max={position.total} />)}
     {open && <MobilePageThumbnails onSelectPage={onSelectPage} id={panelId} current={position.current} total={position.total} surfaceRef={surfaceRef} previewSources={previewSources} pdfDocument={pdfDocument} />}
     {showDensity && density && <label className="mobile-project-density" data-project-reading-control="">
-      <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={density.value} disabled={density.saving}
-        onChange={event => density.onChange(Number(event.currentTarget.value))}
-        onPointerUp={event => density.onCommit(Number(event.currentTarget.value))}
-        onKeyUp={event => density.onCommit(Number(event.currentTarget.value))}
-        onBlur={event => density.onCommit(Number(event.currentTarget.value))}
-        aria-label="Pages per row" aria-valuetext={`${density.value} ${density.value === 1 ? 'page' : 'pages'} per row`} />
+      <input data-pages-per-row-slider="" type="range" min={MIN_PAGES_PER_ROW} max={MAX_PAGES_PER_ROW} step={1} value={densityValue} disabled={density.saving}
+        onChange={event => setDensityDraft({ scope, value: Number(event.currentTarget.value) })}
+        onPointerUp={event => commitDensity(Number(event.currentTarget.value))}
+        onKeyUp={event => commitDensity(Number(event.currentTarget.value))}
+        onBlur={event => commitDensity(Number(event.currentTarget.value))}
+        aria-label="Pages per row" aria-valuetext={`${densityValue} ${densityValue === 1 ? 'page' : 'pages'} per row`} />
     </label>}
   </div>;
 }

@@ -5018,3 +5018,11 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-citation-pills button[aria-pressed='true'] {
   background: var(--surface-selected); border-color: var(--text-secondary);
 }
+
+/* Match Profile's inset separator while each content region scrolls independently. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] { position: relative; }
+#root .codex-shell[data-presentation='mobile'] .profile-identity-main { border-radius: var(--shape-compact); -webkit-tap-highlight-color: transparent; }
+#root .codex-shell[data-presentation='mobile'] [data-profile-header] { -webkit-tap-highlight-color: transparent; }
+[data-presentation='mobile'][data-link-icon-screen] { padding: 0; background: var(--surface-canvas); }
+[data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
