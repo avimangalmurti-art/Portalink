@@ -1,3 +1,11 @@
+## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
+
+Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.
+
+61 focused Studio tests and typecheck/diff check pass. Browser-controlled isolated real Drafts component fixture420x912 measures Back48x48 atx16, Select100x48 atx244, actions48x48 atx356, all y8 with999px radius and matching theme surfaces. Select→Done→Select verified. At1280x800 mobile header hidden, original WEB Back/Select remain. Evidence docs/evidence/studio-header-reference/header-mobile.jpg. This fixture uses local disposable presentation data only; no backend mutations/auth bypass and no claim of physical-phone or fully authenticated app acceptance. Temporary preview/tabs closed and viewport reset.
+
+No SQL, Storage, user-data, merge or publish. Sites357/main e53e69d remain live; receipt PR15 separate. Initial no-Back implementation ff113f4 is superseded by this requested header revision. Shared root/other tasks preserved.
+
 ## Studio collection buttons — review branch, not published
 
 - MOBILE task branch `codex/studio-buttons`, based on current `github/main` `2e68e49`, isolated in `logs/studio-header-fix/logs/studio-buttons`. Other task branches preserved.

@@ -7,7 +7,7 @@ import { contextActions } from '../../presentation/mobile/contextActions';
 import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeftIcon, ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
+import { ArrowLeftIcon, ChevronLeftIcon, ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { CreatorAvatar } from '../../components/profile/CreatorAvatar';
@@ -216,7 +216,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
   const navigation = <div className="studio-bookmarks-navigation">
-        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
+        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}>{headerHost?<ChevronLeftIcon aria-hidden="true" />:<><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></>}</button>
         <div className="studio-bookmarks-controls">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>

@@ -1,5 +1,6 @@
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { ProjectDiscardConfirmation } from '../../components/publishing/ProjectFormDialog';
+import { ChevronLeftIcon } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useState } from 'react';
 import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
@@ -11,7 +12,7 @@ export function StudioDraftsList({drafts,onBack,onResume,onDiscard,onNew,onBookm
  useMobileScreenActions(contextActions('studio',{signedIn:true,owner:true},{handlers:{newProject:onNew,drafts:finishSelection,bookmarks:onBookmarks,reads:onReads,select:drafts.length?()=>setSelecting(true):undefined}}));
  const selectedDrafts=drafts.filter(d=>selected.has(d.id));
  const toggle=(id:string)=>setSelected(v=>{const next=new Set(v);if(next.has(id))next.delete(id);else next.add(id);return next;});
- const navigation = <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>{headerHost ? '←' : <>← {selecting?'Done':'Studio'}</>}</button>
+ const navigation = <div className="studio-drafts-heading"><button type="button" className="studio-drafts-back" aria-label="Back from Drafts" disabled={busy} onClick={()=>selecting?finishSelection():onBack()}>{headerHost ? <ChevronLeftIcon aria-hidden="true" /> : <>← {selecting?'Done':'Studio'}</>}</button>
    <button type="button" className="studio-drafts-control" disabled={busy||!drafts.length} aria-pressed={selecting} onClick={()=>selecting?finishSelection():setSelecting(true)}>{selecting?'Done':'Select'}</button><div data-inline-screen-actions=""><MobileContextButton /></div></div>;
  return <section className="mobile-studio studio-workbench" data-studio-selecting={selecting?'true':'false'} aria-label="Drafts">
   <header className="studio-workbench-header">
