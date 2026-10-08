@@ -10,7 +10,7 @@ const pageLayout = sourceModule('src/features/projects/pageLayout.ts', {});
 
 const AttachmentRenderer = () => null, EngagementBar = () => null, CommentThreadView = () => null, MediaCommentsPopover = () => null, EngagementFeedback = () => null;
 const MobileProjectPageCounter = () => null;
-const MobileProjectDescriptionSheet = () => null;
+const FollowContentInfoPopup = () => null;
 const MobileVideoSequence = () => null;
 const MobileVideoFrame = () => null;
 function nodes(node) {
@@ -54,7 +54,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/MobileProjectPageCounter')) return { MobileProjectPageCounter };
     if (name.endsWith('/EngagementBar')) return { EngagementBar, EngagementFeedback };
     if (name.endsWith('/CommentThreadView')) return { CommentThreadView };
-    if (name.endsWith('/MobileProjectDescriptionSheet')) return { MobileProjectDescriptionSheet };
+    if (name.endsWith('/FollowContentInfoPopup')) return { FollowContentInfoPopup };
     if (name.endsWith('/MediaCommentsPopover')) return { MediaCommentsPopover };
     if (name.endsWith('/useNavigationOutsideTap')) return { useNavigationOutsideTap: (open, layer, onClose) => {
       outsideCalls.push({ open, layer, onClose });
@@ -224,7 +224,7 @@ test('mobile overview Back yields to focused pages, the project index and respon
     button(tree, label).props.onClick();
     tree = h.render();
     assert.equal(h.swipeCalls.at(-1).enabled, false);
-    if (label === 'Show project description') nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.onClose();
+    if (label === 'Show project description') nodes(tree).find(node => node.type === FollowContentInfoPopup).props.onClose();
     else button(tree, 'Close project popup').props.onClick();
     tree = h.render();
     assert.equal(h.swipeCalls.at(-1).enabled, true);
@@ -273,7 +273,7 @@ test('mobile keeps selected media while opening its floating project list and se
   assert.equal(nodes(tree).some(node => node.type === MediaCommentsPopover), false);
   button(tree, 'Show project description').props.onClick();
   tree = h.render();
-  assert.equal(nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.projectId, 'project');
+  assert.equal(nodes(tree).find(node => node.type === FollowContentInfoPopup).props.projectId, 'project');
   assert.equal(nodes(tree).some(node => node.type === CommentThreadView), false);
   assert.equal(withProp(tree, 'data-project-work-column').props.style.display, undefined);
   h.openIndex();
@@ -293,11 +293,11 @@ test('the mobile action opens project information without changing WEB rail pref
     const h=harness({readOnlyShare});
     const props={onRailOpenChange:()=>assert.fail('Information must not resize the WEB rail')};
     button(h.render(props),'Show project engagement').props.onClick();
-    const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===MobileProjectDescriptionSheet);
+    const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===FollowContentInfoPopup);
     assert.equal(sheet.props.projectId,'project');
     assert.equal(withProp(tree,'data-mobile-engagement-content').props.hidden,true);
     sheet.props.onClose();
-    assert.equal(nodes(h.render(props)).some(node=>node.type===MobileProjectDescriptionSheet),false);
+    assert.equal(nodes(h.render(props)).some(node=>node.type===FollowContentInfoPopup),false);
   }
 });
 
@@ -306,7 +306,7 @@ test('project information owns dismissal while its obsolete inline rail stays cl
   const tree=h.render();
   assert.equal(h.outsideCalls.at(-1).open,false);
   withProp(tree,'data-project-response-rail').props.onKeyDown({key:'Escape',preventDefault(){assert.fail('Modal owns Escape')},stopPropagation(){}});
-  nodes(tree).find(node=>node.type===MobileProjectDescriptionSheet).props.onClose();
+  nodes(tree).find(node=>node.type===FollowContentInfoPopup).props.onClose();
   assert.equal(h.swipeCalls.at(-1).enabled,false);
   h.render();assert.equal(h.swipeCalls.at(-1).enabled,true);
 });
@@ -314,7 +314,7 @@ test('project information owns dismissal while its obsolete inline rail stays cl
 test('opening the project index closes information and retains the selected attachment', () => {
   const h=harness();button(h.render(),'second, Video').props.onClick();
   button(h.render(),'Show project engagement').props.onClick();h.render();h.openIndex();
-  const tree=h.render();assert.equal(nodes(tree).some(node=>node.type===MobileProjectDescriptionSheet),false);
+  const tree=h.render();assert.equal(nodes(tree).some(node=>node.type===FollowContentInfoPopup),false);
   assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
   assert.equal(withProp(tree,'data-project-response-rail'),undefined);
 });
@@ -348,7 +348,7 @@ test('shared mobile projects retain public details and permission-gated visitor 
   assert.equal(media.props.isOwner, false);
   button(tree, 'Show project description').props.onClick();
   tree = h.render({ isOwner: true, descriptionEditor: { editable: true } });
-  const sheet = nodes(tree).find(node => node.type === MobileProjectDescriptionSheet);
+  const sheet = nodes(tree).find(node => node.type === FollowContentInfoPopup);
   assert.equal(sheet.props.projectId, 'project'); assert.equal(sheet.props.editor, undefined);
   assert.ok(button(tree, 'Show comments'));
   assert.ok(nodes(tree).some(node => node.type === EngagementBar));

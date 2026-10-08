@@ -1,6 +1,5 @@
+import { FollowContentInfoPopup } from './FollowContentInfoPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
-import { ProjectPopupEngagement } from './ProjectPopupEngagement';
-import { ProjectPopupOwnerActions } from './MobileProjectPopup';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
 import { CreatorAvatar } from '../profile/CreatorAvatar';
 import { FormattedText } from '../text/FormattedText';
@@ -23,7 +22,7 @@ import { useNavigationOutsideTap } from '../../presentation/mobile/useNavigation
 import { MobileProjectIndexPortal } from './MobileProjectIndexPortal';
 import { MobileProjectPageCounter } from './MobileProjectPageCounter';
 import { jumpToProjectPage } from './projectPageScroll';
-import { MobileProjectDescriptionSheet } from './MobileProjectDescriptionSheet';
+
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
 import type { PdfDocument } from './PdfPage';
 import { useProjectBackSwipe } from './useProjectBackSwipe';
@@ -302,6 +301,8 @@ export function ProjectMediaViewer({
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   const mobileActions = useMobileActions();
   const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+    edit: isOwner && !readOnlyShare && descriptionEditor ? () => { closeMobilePopup(); descriptionEditor.open(projectId); } : undefined,
+    delete: isOwner && !readOnlyShare && onDeleteProject ? () => { closeMobilePopup(); onDeleteProject(); } : undefined,
     reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
@@ -752,7 +753,7 @@ export function ProjectMediaViewer({
           </div>}
         {isRailOpen && !singlePanel && !mobileNavigation && <ResizablePanelHandle side="left" value={responseRailWidth.width} min={readOnlyShare ? 240 : 304} max={440} onResize={responseRailWidth.updateWidth} onResizeEnd={responseRailWidth.commitWidth} onReset={responseRailWidth.resetWidth} label="Resize engagement sidebar. Double-click to restore the default width." />}
       </aside>}
-      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MobileProjectDescriptionSheet key={projectId} projectId={projectId} projectTitle={projectTitle} description={projectSummary} typeface={contentTypefaceStack} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} details={<><ProjectPopupEngagement projectId={projectId} projectTitle={projectTitle} url={publicUrl} engagement={engagement} onRequireAccount={requireSharedAccount} onOpenComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} /></>} ownerActions={isOwner && !readOnlyShare ? <ProjectPopupOwnerActions onOptions={() => mobileActions?.open(projectActionModel)} onClose={closeMobilePopup} onEditTitle={descriptionEditor ? () => descriptionEditor.open(projectId) : undefined} onEditDescription={descriptionEditor ? () => descriptionEditor.open(projectId, 'description') : undefined} onDelete={onDeleteProject} /> : undefined} editor={isOwner && !readOnlyShare ? descriptionEditor : undefined} onClose={closeMobilePopup} />}
+      {isMobileViewer && mobilePopup === 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <FollowContentInfoPopup key={projectId} projectId={projectId} title={projectTitle} description={projectSummary} creatorHeader={creator && <button type="button" className="project-popup-creator" disabled={!creator.id} onClick={() => { if (creator.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button>} engagement={engagement} onRequireAccount={requireSharedAccount} onComments={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('comments'); }} onOptions={() => mobileActions?.open(projectActionModel)} onClose={closeMobilePopup} />}
       {isMobileViewer && mobilePopup && mobilePopup !== 'description' && !mobileNavigation?.isIndexOpen && !isImmersive && <MediaCommentsPopover id="mobile-project-popup" label={mobilePopup === 'comments' ? 'Project comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'} anchorRef={popupAnchorRef} triggerRef={mobilePopup === 'comments' ? commentsTriggerRef : mobilePopup === 'engagement' ? feedbackTriggerRef : verificationTriggerRef} onClose={closeMobilePopup}>
         <header data-comments-header="" className="flex items-center justify-between gap-3">
           <h3 className="font-semibold text-[var(--text-primary)]">{mobilePopup === 'comments' ? 'Comments' : mobilePopup === 'engagement' ? 'Engagement update' : 'AI verification'}</h3>
