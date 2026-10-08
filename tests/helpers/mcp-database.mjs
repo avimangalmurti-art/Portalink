@@ -28,7 +28,7 @@ export async function mcpFixture(){
  insert into project_attachments(id,kind,metadata) values('legacy-malformed','document','{"pageCount":"12 pages"}');
  insert into profiles(id,name) values('00000000-0000-4000-8000-000000000099','Existing');
 
- 
+
  create role service_role;
  alter table projects add column cover_thumbnail jsonb;
  `);
