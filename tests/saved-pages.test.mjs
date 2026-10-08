@@ -16,6 +16,7 @@ function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (id === './server/mcp') return { handleMcp: () => { throw new Error('Unexpected MCP route in media fixture'); }, mcpDiscovery: () => { throw new Error('Unexpected MCP discovery'); } };
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
     if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
       if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);

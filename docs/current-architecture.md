@@ -66,3 +66,7 @@ Portable domain logic, types, and contracts can be shared while each client
 keeps its appropriate presentation. This task adds no native app or backend.
 
 Follow [AGENTS.md](../AGENTS.md) for platform scope and safeguards, and [development workflow](development-workflow.md) for collaboration and verification. The historical [WEB/MOBILE report](web-mobile-architecture.md) records the initial extraction and its checks; its old test counts and deployment observations are dated evidence.
+
+## Pending Portalink MCP library
+
+The review-only MCP implementation is in `src/server/mcp.ts`, routed by the existing Sites worker at `/mcp` with `/.well-known/mcp.json`. Anonymous data reads use citable-only database RPCs and existing media/cover paths. Only external usage receipts and hashed throttle/dedupe records can be written through the two server-key RPCs; no content-write tools exist. Studio Cited, Journey and item counts understand external receipts. See [the MCP review/rollout notes](portalink-mcp.md). SQL remains pending, private worker secrets are not configured, and the server is not published. Existing Supabase/Storage/D1 and app authentication are retained.

@@ -1,3 +1,4 @@
+import { handleMcp, mcpDiscovery } from './server/mcp';
 import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
@@ -31,6 +32,8 @@ interface D1Database {
 interface SitesEnvironment {
   ASSETS: StaticAssets
   DB?: D1Database
+  MCP_SERVER_KEY?: string
+  MCP_IP_SALT?: string
   RUM_OWNER_PROFILE_ID?: string
 }
 
@@ -374,6 +377,8 @@ const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if (url.pathname === '/.well-known/mcp.json') return mcpDiscovery();
+    if (url.pathname === '/mcp') return handleMcp(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,serverKey:environment.MCP_SERVER_KEY,ipSalt:environment.MCP_IP_SALT});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}

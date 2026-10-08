@@ -11,7 +11,7 @@ export async function handleCitation(request:Request,assets:{fetch(request:Reque
  const response=await assets.fetch(new Request(new URL('/cite',request.url),request));
  let html=await response.text();
  const license=citationLicense(PUBLIC_ORIGIN,item.citable),json=JSON.stringify(citationJsonLd(item,PUBLIC_ORIGIN)).replace(/</g,'\\u003c');
- html=html.replace('<!--CITATION_HEAD-->',`<link rel="license" href="${escape(license)}"><script type="application/ld+json">${json}</script>`).replace('<!--CITATION_BODY-->',`<main><h1>${escape(item.projectTitle)}</h1><blockquote>${escape(plainCitation(item,PUBLIC_ORIGIN))}</blockquote>${item.citable?'':'<p>View only. The creator has not permitted AI retrieval or reproduction.</p>'}</main>`);
+ html=html.replace('<!--CITATION_HEAD-->',`<link rel="license" href="${escape(license)}"><script type="application/ld+json">${json}</script>`).replace('<!--CITATION_BODY-->',`<main><h1>${escape(item.projectTitle)}</h1>${item.citable?'<span class="citation-badge">Citable</span>':''}<blockquote>${escape(plainCitation(item,PUBLIC_ORIGIN))}</blockquote>${item.citable?'':'<p>View only. The creator has not permitted AI retrieval or reproduction.</p>'}</main>`);
  return new Response(request.method==='HEAD'?null:html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
  }catch{return new Response('Citation unavailable',{status:503,headers:{'cache-control':'no-store'}});}
 }
