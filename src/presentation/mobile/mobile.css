@@ -4996,3 +4996,17 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(> .studio-citation-shell) {
   padding-block: 0; overflow: hidden;
 }
+
+/* Studio collection controls share the top safe-area header, above the pills. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header {
+  position: relative;
+  padding: var(--mobile-screen-action-top) var(--mobile-screen-action-right) 16px var(--mobile-navigation-inset-start);
+  min-height: calc(var(--mobile-screen-action-top) + 60px);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-workbench-header { padding: 0; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header h1 { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback { display: flex; align-items: center; min-height: 44px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > button { display: grid; place-items: center; width: 44px; height: 44px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin: 0; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-bookmarks-controls { display: flex; align-items: center; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { margin-right: calc(var(--mobile-screen-action-size, 48px) + 12px); }

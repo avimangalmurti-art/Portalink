@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE Studio Back/Select in header, unpublished
+
+Isolated logs/studio-header-fix/logs/studio-controls-fix, branch codex/studio-controls-header from github/main46111c8. Mobile parent header now hosts the existing child-owned Back/Select/Done and options controls through a portal, above the collection rail; mobile Studio h1 hidden. Selection state/callbacks remain in Bookmarks/Drafts; desktop receives no header host and retains original controls/header. Default/References/Cited header retains Back and existing actions. Draft mobile Back no longer says Studio. No pill colour/collection label/reference badge redesign, no MCP/SQL/user-data/publish.
+
+55 focused Studio tests pass, including header portal target, single controls, selection exit and Back callbacks. Typecheck/diff check pass. Browser/physical-iPhone layout remains unverified. Prior Sites355 release receipt is in PR10; shared root and other tasks untouched.
+
 ## 2026-10-08 — MOBILE project information owner menu, unpublished
 
 Isolated branch codex/project-menu-fix from github/main0360a8b. Owner Project options, Edit title, Edit description and Delete project now render inside the information popup three-dot menu, not below engagement. Both grid and media-viewer entry paths use the same menu slot; existing owner checks, editor callbacks and delete confirmation remain. Bio and WEB unchanged. 43 focused popup/viewer/description checks pass, including menu disclosure and no duplicate description action; typecheck and diff check pass. No SQL, data changes, merge or publish. Physical-phone/browser layout remains unverified. PR6/7/8 untouched.

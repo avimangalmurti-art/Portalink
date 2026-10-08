@@ -4,6 +4,7 @@ import type { CitationItem } from '../citations/model';
 import { useInternalContentShare } from '../sharing/InternalContentShare';
 import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
+import { createPortal } from 'react-dom';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, ArchiveIcon, BellIcon, BookmarkIcon, CopyIcon, EllipsisIcon, MailOpenIcon, PencilIcon, RefreshCwIcon, SearchIcon, Share2Icon, XIcon } from 'lucide-react';
@@ -27,6 +28,7 @@ import { readStudioLocation, STUDIO_BOOKMARK_TABS, studioBulkTargets, studioDate
 type Props = {
   onBack: () => void;
   onOpenProject: (id: string, location?: ProjectLocation) => void;
+  headerHost?: HTMLElement | null;
   savedRoute?: boolean;
   onNewProject?: () => void;
 };
@@ -42,7 +44,7 @@ function RowPreview({ row }: { row: StudioItem }) {
 }
 
 /** A private, mobile presentation of existing collections and service actions. */
-export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false }: Props) {
+export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false, headerHost }: Props) {
   const [citeItem,setCiteItem]=useState<CitationItem|null>(null);
   const [citationLabels,setCitationLabels]=useState<Record<string,string>>({});
   const sendContent = useInternalContentShare();
@@ -212,16 +214,17 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const viewActions: StudioRowAction[] = [{ id: 'refresh', label: 'Refresh', icon: RefreshCwIcon, disabled: data.status === 'loading', onAction: data.refresh }];
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
-  return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
-    <ScreenBack action={back}>{null}</ScreenBack>
-    <header className="studio-header">
-      <div className="studio-bookmarks-navigation">
+  const navigation = <div className="studio-bookmarks-navigation">
         <button type="button" className="studio-bookmarks-back" aria-label="Back from Bookmarks" disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
         <div className="studio-bookmarks-controls">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label="Bookmark options" aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
         </div>
-      </div>
+      </div>;
+  return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
+    <ScreenBack action={back}>{null}</ScreenBack>
+    <header className="studio-header">
+      {headerHost ? createPortal(navigation, headerHost) : navigation}
       <div className="studio-heading">
         <h1 ref={heading} tabIndex={-1} className="studio-title">Bookmarks</h1>
         <p className="studio-status">{statusLine}</p>
