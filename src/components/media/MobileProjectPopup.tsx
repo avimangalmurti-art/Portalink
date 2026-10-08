@@ -75,7 +75,7 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
  const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
  const options = onOptions ?? (contextHandlers ? () => mobileActions?.open(contextActions(shared ? 'shared' : 'project',{signedIn:auth.isAuthenticated,owner:!shared && auth.viewerProfileId === (creator?.id ?? creatorId)}, {title:project.title,handlers:contextHandlers})) : undefined);
 
- return <MobileProjectDescriptionSheet projectId={project.id} projectTitle={project.title} description={project.summary} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} details={<>
+ return <MobileProjectDescriptionSheet projectId={project.id} projectTitle={project.title} description={project.summary} ownerActions={owner ? <ProjectPopupOwnerActions onOptions={options} onEditTitle={contextHandlers?.edit ?? onOptions} onEditDescription={onEditDescription ?? contextHandlers?.edit ?? onOptions} onDelete={contextHandlers?.delete} onClose={onClose} /> : undefined} onClose={onClose} creatorHeader={creator ? <button type="button" className="project-popup-creator" onClick={() => { if(creator.id) { onClose(); navigate(buildPath(shared ? 'sharedProfile' : 'profile',{profileId:creator.id})); } }} disabled={!creator.id}><CreatorAvatar name={creator.name} avatar={creator.avatar} shape="squircle" className="h-12 w-12" priority /><span>{creator.name}</span></button> : <p role="status">{creatorError ? 'Creator details could not be loaded.' : 'Loading creator…'}</p>} details={<>
 
   <ProjectPopupEngagement projectId={project.id} projectTitle={project.title} url={url} engagement={engagement} onRequireAccount={requireAccount} onOpenComments={onOpenComments ? () => { onClose(); onOpenComments(); } : undefined} />
 
@@ -83,7 +83,7 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 
 
-  {owner && <ProjectPopupOwnerActions onOptions={options} onEditTitle={contextHandlers?.edit ?? onOptions} onEditDescription={onEditDescription ?? contextHandlers?.edit ?? onOptions} onDelete={contextHandlers?.delete} onClose={onClose} />}
+
 
   {!owner && options && <button type="button" className="project-popup-comments" onClick={() => { onClose(); options(); }}>Project options</button>}
 

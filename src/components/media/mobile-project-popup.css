@@ -95,3 +95,5 @@
 
 [data-presentation='mobile'] [data-centered-project] .project-popup-engagement [data-engagement-action] { min-height: 44px; }
 [data-presentation='mobile'] [data-centered-project] .project-popup-engagement [data-engagement-action] > span { flex-direction: row; gap: 6px; }
+
+[data-presentation='mobile'] #project-description-actions .project-popup-owner-actions { margin-top: 0; }

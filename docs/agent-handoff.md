@@ -1,3 +1,7 @@
+## 2026-10-08 — MOBILE project information owner menu, unpublished
+
+Isolated branch codex/project-menu-fix from github/main0360a8b. Owner Project options, Edit title, Edit description and Delete project now render inside the information popup three-dot menu, not below engagement. Both grid and media-viewer entry paths use the same menu slot; existing owner checks, editor callbacks and delete confirmation remain. Bio and WEB unchanged. 43 focused popup/viewer/description checks pass, including menu disclosure and no duplicate description action; typecheck and diff check pass. No SQL, data changes, merge or publish. Physical-phone/browser layout remains unverified. PR6/7/8 untouched.
+
 ## 2026-10-08 — PR #5 pre-merge assertion audit
 
 User authorizes merging PR5 only after hosted CI is green and assertion audit is reported. Initial hosted run29ee2c5:WEB/Windows Node/PDF/video pass; Ubuntu Node had1checkpoint diagnostic mismatch. Corrected test-only POSIX expectation to exact fail-closed Git error; no checkpoint runner or application change. Added unchanged outside-content/link assertions. No skips/quarantines/SQL/publish.
