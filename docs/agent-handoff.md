@@ -1,3 +1,11 @@
+## 2026-10-08 — Sites357: approved mobile consistency and Studio buttons released
+
+PR13 and PR14 merged through GitHub; exact main commit e53e69d419e271aed78f2d6dac0b478d476ed920 built in isolated logs/studio-header-fix/logs/all-changes-release with the existing ignored production environment linked. Hosted Web, Windows/Ubuntu Node, PDF/video checks green. Combined full local suite1617pass/0fail/0skip; typecheck passes; lint0errors111existing warnings. Fresh exact-main build passes both VITE_SUPABASE guards and main/visitor host/key verification. No 127.0.0.1 endpoint URLs; previously approved dormant router/Auth localhost defaults retained.
+
+Sites357 version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_68eb6b06676c81918a8648410493867c; deployment appgdep_6ac738983b2c81919ad7305c37c32666 succeeded2026-10-08T06:30:59.858772+00:00. Public URL/audience/environment revision2 preserved; has_mcpfalse. Official workflow pushed exact source and packaged550files, SHA2565c8a40fd49172291b687b18893326005cb46037d41f3b6df2acb7fa87ccf83a2. No SQL, Storage, D1, account/content or runtime configuration changes. MCP draft PR6 and pending migration remain out of release.
+
+Browser live420x912 authenticated test-account Studio: Published/Cited/References pill selection updates route/state; Cited and References load genuine empty states. Image and document citation entries load actual image/Page1 with production citation URLs. Evidence docs/verification/sites357/studio-cited.jpg. Test account has no own published work: populated owner-row/Select browser verification and physical-phone large-project slider stability remain unverified. Command-line HEAD probes were blocked403 for every route; these are not recorded as application route successes. Browser additionally verified Home loads, bare /portalite renders Journey with no blocking modal, and both UUID share and .work aliases land on /portalite. Redirect status codes were not independently verified this release. User tab restored to References and viewport override reset; temporary QA tab closed after verification.
+
 ## Studio collection buttons — review branch, not published
 
 - MOBILE task branch `codex/studio-buttons`, based on current `github/main` `2e68e49`, isolated in `logs/studio-header-fix/logs/studio-buttons`. Other task branches preserved.
