@@ -1,6 +1,6 @@
 ## 2026-10-08 — anonymous citable MCP, review only
 
-Owner branch codex/mcp-library in isolated logs/mcp-library, based on github/main 0360a8b9655f55c3402ccc55bb326703aeff5d67. Existing Sites354/app release and production data unchanged. No SQL, Storage, D1, Auth mutation, merge or publish. All changes are this task's own work; shared checkout/other worktrees and handle-repair proposal untouched.
+Draft PR #6 https://github.com/avimangalmurti-art/Portalink/pull/6; implementation 3e8ae2f, fixture cleanup 3ff9f27. Owner branch codex/mcp-library in isolated logs/mcp-library, based on github/main 0360a8b9655f55c3402ccc55bb326703aeff5d67. Existing Sites354/app release and production data unchanged. No SQL, Storage, D1, Auth mutation, merge or publish. All changes are this task's own work; shared checkout/other worktrees and handle-repair proposal untouched.
 
 Existing worker now routes stateless /mcp and discovery; exact search/fetch/cite/license tools and license resources. Anonymous citable-only RPCs, production citation URLs, existing public 400px covers/one-hour anonymous media signing, explicit unrendered cover fallback. External usage receipts only, no content-write tools; server-key rate/receipt RPCs use hashed IP with rolling60/min and ten-minute dedupe. Creator Studio Cited/Journey/counts support outside-Portalink context, citable badges and own-Studio connection help.
 
