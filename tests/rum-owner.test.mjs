@@ -55,7 +55,7 @@ function setup() {
   const rum = load('src/server/rum.ts');
   const worker = load('src/sites-worker.ts', {
     './features/sharing/shareModel': load('src/features/sharing/shareModel.ts'),
-    './server/shareAddress': {}, './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
+    './server/shareAddress': {}, './server/mcp': { handleMcp: () => { throw new Error('Unexpected MCP route in non-MCP fixture'); }, mcpDiscovery: () => { throw new Error('Unexpected MCP discovery'); } }, './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
     './server/sharedPreview': {}, './server/publicMedia': { isPublicMediaRoute: () => false },
     './server/rumOwner': owner, './server/rum': rum,
   }, { fetch }).default;

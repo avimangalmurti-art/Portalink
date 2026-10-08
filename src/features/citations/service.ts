@@ -49,10 +49,10 @@ export async function citationNote(id:string,note:string) {if(note.length>140) t
 export async function removeCitation(id:string) {const {error}=await requireSupabase().from('citations').delete().eq('id',id);if(error) throw new Error('Citation could not be removed.');}
 
 export type CitingProject = {id:string;title:string;creator:string;profileId:string;categoryId:string};
-export async function citationProject(id:string):Promise<CitingProject|null>{const {data,error}=await requireSupabase().from('projects').select('id,title,profile_id,category_id,profiles!projects_profile_id_fkey(name)').eq('id',id).maybeSingle();if(error)throw new Error('Project could not be loaded.');if(!data)return null;const row=data as unknown as {id:string;title:string;profile_id:string;category_id:string;profiles:{name:string}|null};return {id:row.id,title:row.title,profileId:row.profile_id,categoryId:row.category_id,creator:row.profiles?.name??''};}
+export async function citationProject(id:string|null):Promise<CitingProject|null>{if(!id)return null;const {data,error}=await requireSupabase().from('projects').select('id,title,profile_id,category_id,profiles!projects_profile_id_fkey(name)').eq('id',id).maybeSingle();if(error)throw new Error('Project could not be loaded.');if(!data)return null;const row=data as unknown as {id:string;title:string;profile_id:string;category_id:string;profiles:{name:string}|null};return {id:row.id,title:row.title,profileId:row.profile_id,categoryId:row.category_id,creator:row.profiles?.name??''};}
 export const citingProjectPath=(p:CitingProject)=>`/share/${p.profileId}/c/${p.categoryId}/${p.id}`;
 
-export async function publicCitedIn(itemId:string):Promise<Array<{id:string;created_at:string;project:CitingProject}>> {
+export async function publicCitedIn(itemId:string):Promise<Array<{id:string;created_at:string;project:CitingProject|null;source?:'app'|'external';context?:string|null}>> {
  const {data,error}=await requireSupabase().rpc('public_cited_in',{p_item_id:itemId});
  if(error)throw new Error('Citations could not be loaded.');
  return data??[];

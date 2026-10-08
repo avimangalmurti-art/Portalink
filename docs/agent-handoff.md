@@ -1,3 +1,13 @@
+## 2026-10-08 — anonymous citable MCP, review only
+
+Owner branch codex/mcp-library in isolated logs/mcp-library, based on github/main 0360a8b9655f55c3402ccc55bb326703aeff5d67. Existing Sites354/app release and production data unchanged. No SQL, Storage, D1, Auth mutation, merge or publish. All changes are this task's own work; shared checkout/other worktrees and handle-repair proposal untouched.
+
+Existing worker now routes stateless /mcp and discovery; exact search/fetch/cite/license tools and license resources. Anonymous citable-only RPCs, production citation URLs, existing public 400px covers/one-hour anonymous media signing, explicit unrendered cover fallback. External usage receipts only, no content-write tools; server-key rate/receipt RPCs use hashed IP with rolling60/min and ten-minute dedupe. Creator Studio Cited/Journey/counts support outside-Portalink context, citable badges and own-Studio connection help.
+
+Pending review: supabase/pending/202610080002_external_citations_mcp.sql; do not apply/move until approved/applied. Requires applied0001-0003. Runtime secrets MCP_SERVER_KEY/MCP_IP_SALT not configured; no VITE secrets. Missing configuration fails closed. Migration/rollout and connector instructions: docs/portalink-mcp.md. Official SDK actual local-HTTP client transcript: docs/mcp-client-transcript.md, synthetic in-memory PGlite only. Production rows created/changed/removed: none.
+
+Checks: branch1613pass/0fail/0skip vs source-equivalent main1603pass/0fail/0skip; baseline differs from main only by handoff receipt. Typecheck pass, lint0errors/111existing warnings, production env hardlink ignored and both bundle graphs/guard pass. Existing assertions preserved, new explicit fixture import boundaries; focused cover/creator7pass. Production E2E still pending approved SQL, private worker secrets, approved deployment, anonymous client search/fetch/cite, notification in creator Studio, count/Journey/dedupe and real media fallback. No hosted/phone proof claimed. User explicitly forbids publish without approval.
+
 ## 2026-10-08 — PR #5 pre-merge assertion audit
 
 User authorizes merging PR5 only after hosted CI is green and assertion audit is reported. Initial hosted run29ee2c5:WEB/Windows Node/PDF/video pass; Ubuntu Node had1checkpoint diagnostic mismatch. Corrected test-only POSIX expectation to exact fail-closed Git error; no checkpoint runner or application change. Added unchanged outside-content/link assertions. No skips/quarantines/SQL/publish.

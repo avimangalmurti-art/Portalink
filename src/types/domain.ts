@@ -44,6 +44,7 @@ export type PublicAppearance = {
 
 /** A creator's public identity plus the portfolio structure they own. */
 export type PublicCitationEvent = {
+ source?:"app"|"external"; context?:string|null;
  id:string; direction:"incoming"|"outgoing"; item_id:string; label:string;
  other_creator_name:string; other_creator_handle:string; other_project_id:string;
  other_project_title:string; other_profile_id:string; other_category_id:string;
