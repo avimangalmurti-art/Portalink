@@ -6,7 +6,7 @@ Separate isolated worktree logs/repeatable-suite, branch codex/repeatable-suite 
 
 Final three runs each1603tests/1603pass/0fail/0skip; extra cases are the formerly unbootstrapped emitted-artifact checks and a new preflight regression test. Typecheck passes, lint0errors/111existing warnings. Full runner now requires a prior build; development instructions/CI order corrected. GitHub Actions had no build secrets/variables, so artifact-only CI uses clearly marked synthetic non-authenticating values, never releases its outputs. Synthetic CI-config build plus4artifact/preflight tests pass locally. Production publishing still requires the existing production env/guard. Hosted CI and physical devices not claimed. Existing PGlite tool path required, both env variable names used; disposable checkpoint Git fixtures run with normal permissions.
 
-Suite branch is review-only: do not merge or publish without approval. Release source remains main d88f793 (Sites354); release checkout unchanged. Shared desktop checkout, preview and other worktrees untouched. No migrations applied or modified. This handoff supersedes older release/suite counts below.
+PR #5 https://github.com/avimangalmurti-art/Portalink/pull/5 is open against main; implementation3105d7ec8699a75c32c76b86b725fe0fc70c91f0. Suite branch is review-only: do not merge or publish without approval. Release source remains main d88f793 (Sites354); release checkout unchanged. Shared desktop checkout, preview and other worktrees untouched. No migrations applied or modified. This handoff supersedes older release/suite counts below.
 
 ## 2026-10-07 — public visitor fixes, review only
 
