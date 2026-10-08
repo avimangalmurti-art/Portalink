@@ -4963,3 +4963,36 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   min-height: 80px;
   overflow-y: auto;
 }
+
+/* Studio: one stationary safe-area header and collection rail, one content scroller. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell {
+  height: var(--mobile-viewport-height, 100dvh); overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header {
+  display: block; flex: none; z-index: 30;
+  background: var(--surface-canvas);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-workbench-header {
+  position: relative; padding-top: var(--mobile-screen-action-top);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  position: relative; flex: none; z-index: 30; margin-right: 0;
+  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+  background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench > .studio-workbench-header:has(.studio-hub-heading) {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-studio {
+  overflow: hidden; flex: 1; min-height: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-studio > :is(.studio-header, .studio-workbench-header) {
+  padding-top: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-workbench-scroll {
+  overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior-y: contain;
+}
+
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(> .studio-citation-shell) {
+  padding-block: 0; overflow: hidden;
+}

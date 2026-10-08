@@ -18,7 +18,7 @@ export function attentionRows(profile: Profile | null, reach30: ReachSummary[] |
  // Global rule priority, with stable project order within a rule. No missing data is inferred as zero.
  // The first page is the default cover. A missing generated thumbnail is not a creator task.
  for(const p of projects)if(!p.summary.trim())add(p,'description','Add a description','Tell the story behind this work');
- for(const p of projects)if(!p.creationDetails?.madeIn?.trim())add(p,'date','When was this made?','Date missing');
+ for(const p of projects)if(!p.madeOn?.trim()&&!p.creationDetails?.madeIn?.trim())add(p,'date','When was this made?','Date missing');
  const unique=new Set<string>();
  for(const kind of ['reply','read'] as const)for(const event of [...activity].sort((a,b)=>b.at.localeCompare(a.at))){
   const p=projects.find(p=>p.id===event.projectId),key=`${event.projectId}:${kind}:${event.attachmentId}:${event.pageIndex}`;

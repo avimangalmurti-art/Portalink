@@ -76,3 +76,15 @@ test('Studio header stays compact when a resumable draft exists',()=>{
 
 
 test('an existing description needs no story answers',()=>{ assert.equal(rows(project('p',{creationDetails:{madeIn:'2026-08',answers:{what:'',did:'',learned:''}}}),[],[]).length,0); });
+
+test('made_on prevents obsolete missing-date attention while truly missing dates remain actionable',()=>{
+ assert.equal(rows(project('p',{madeOn:'2026-01-09',creationDetails:undefined}),[],[]).some(r=>r.action==='date'),false);
+ assert.equal(rows(project('p',{madeOn:'',creationDetails:undefined}),[],[]).filter(r=>r.action==='date').length,1);
+});
+
+test('mobile shell can own the header without a duplicate Bookmarks shortcut or child header',()=>{
+ const header=renderToStaticMarkup(React.createElement(viewModule.StudioWorkbenchHeader,{onBookmarks(){},onReads(){},showBookmarks:false}));
+ assert.match(header,/>Studio</);assert.doesNotMatch(header,/studio-hub-navigation|Bookmarks/);
+ const html=renderToStaticMarkup(React.createElement(View,{...props,hideHeader:true}));
+ assert.doesNotMatch(html,/studio-workbench-header/);assert.match(html,/studio-workbench-scroll/);
+});
