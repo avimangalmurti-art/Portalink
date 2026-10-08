@@ -29,6 +29,7 @@ type Props = {
   onBack: () => void;
   onOpenProject: (id: string, location?: ProjectLocation) => void;
   headerHost?: HTMLElement | null;
+  hideBack?: boolean;
   savedRoute?: boolean;
   onNewProject?: () => void;
 };
@@ -44,7 +45,7 @@ function RowPreview({ row }: { row: StudioItem }) {
 }
 
 /** A private, mobile presentation of existing collections and service actions. */
-export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false, headerHost }: Props) {
+export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = false, headerHost, hideBack = false }: Props) {
   const [citeItem,setCiteItem]=useState<CitationItem|null>(null);
   const [citationLabels,setCitationLabels]=useState<Record<string,string>>({});
   const sendContent = useInternalContentShare();
@@ -216,7 +217,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
   const navigation = <div className="studio-bookmarks-navigation">
-        <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>
+        {!hideBack && <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></button>}
         <div className="studio-bookmarks-controls">
           <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>

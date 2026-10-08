@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE Studio landing tab and no Back, unpublished
+
+Task branch codex/studio-landing from current github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing. User requests no Back button in Studio and its landing view on first tab. Optional clarification received no answer after a reasonable wait: interpreted landing as existing Needs attention overview, added MOBILE-only Overview first and selected on bare /studio. Drafts/Published/Bookmarks/References/Cited/Activity/All remain. Clicking Overview returns to workbench. Removed actual Back button rendering from mobile fallback and mobile child collection controls via explicit hideBack; Select/Done/actions stay in header. WEB receives no new tab or hideBack and retains navigation.
+
+61 focused Studio tests pass, including rendered shell default selection/content switching, Drafts mobile/WEB Back distinction and collection Select/Done; typecheck/diff check pass. Authenticated browser/physical-phone acceptance not performed for this edit. No SQL, Storage, user data, merge or publish. Existing Sites357 is main e53e69d; release receipt PR15 contains deployment evidence, separate from this task. Previous task branches/root preserved.
+
 ## Studio collection buttons — review branch, not published
 
 - MOBILE task branch `codex/studio-buttons`, based on current `github/main` `2e68e49`, isolated in `logs/studio-header-fix/logs/studio-buttons`. Other task branches preserved.

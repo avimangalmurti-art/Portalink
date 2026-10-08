@@ -5026,3 +5026,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'][data-link-icon-screen] { padding: 0; background: var(--surface-canvas); }
 [data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
+
+/* Studio tabs are destinations: only Select/Done and actions occupy the header. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: flex-end; }

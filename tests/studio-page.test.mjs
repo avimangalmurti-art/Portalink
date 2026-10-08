@@ -21,7 +21,7 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
   const currentRows = [...rows];
@@ -63,7 +63,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     './useStudioData': { useStudioData: (category, tab) => { const sections = model.studioSections(currentRows, category, tab); return { ...data, sections, rows: sections.flatMap(section => section.rows) }; } },
   };
   const { StudioPage } = load('../src/features/studio/StudioBookmarksList.tsx', name => { assert.ok(name in deps, name); return deps[name]; }, { requestAnimationFrame: callback => frames.push(callback), window: { location: { origin: 'https://portalink.test' } }, navigator: {}, document: { querySelector: () => null, activeElement: null }, HTMLElement: class {} });
-  function render() { let renders = 0; while (dirty) { assert.ok(++renders < 20, 'render settles'); cursor = 0; dirty = false; effects = []; tree = StudioPage({ headerHost, savedRoute, onBack: () => calls.push(['back']), onOpenProject: id => calls.push(['open', id]) }); effects.forEach(effect => effect()); } return tree; }
+  function render() { let renders = 0; while (dirty) { assert.ok(++renders < 20, 'render settles'); cursor = 0; dirty = false; effects = []; tree = StudioPage({ headerHost, hideBack, savedRoute, onBack: () => calls.push(['back']), onOpenProject: id => calls.push(['open', id]) }); effects.forEach(effect => effect()); } return tree; }
   return { get nodes() { return nodes(render()); }, history, calls, frames, data,
     button(label) { return this.nodes.find(node => node.type === 'button' && node.props['aria-label'] === label); },
     setSearch(value) { params = new URLSearchParams(value); dirty = true; },
@@ -145,4 +145,13 @@ test('switching collections updates heading, rows and selection together', () =>
  page.setSearch('collection=activity');
  assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, 'Activity');
  assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['activity:n1']);
+});
+
+test('mobile Studio omits Back but retains Select and Done in the header', () => {
+ const page = pageHarness({ initialSearch:'collection=published', headerHost:{}, hideBack:true });
+ assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), false);
+ page.button('Select items').props.onClick();
+ assert.ok(page.button('Exit selection'));
+ page.button('Exit selection').props.onClick();
+ assert.ok(page.button('Select items'));
 });
