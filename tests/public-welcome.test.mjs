@@ -10,10 +10,10 @@ const load = (file, dependencies = {}, globals = {}) => {
     { exports, require: name => dependencies[name] ?? new Proxy({}, {get:(_,key)=>key}), ...globals });
   return exports;
 };
-test('visitor entry mounts appearance once per fresh load', () => {
+test('visitor entry never mounts a blocking appearance sheet', () => {
   const source = readFileSync(new URL('../src/visitor/VisitorApp.tsx', import.meta.url),'utf8');
-  assert.match(source, /!appearanceConfirmed/);
-  assert.match(source, /PublicPortfolioWelcome appearance=\{appearance\}/);
+  assert.doesNotMatch(source, /appearanceConfirmed/);
+  assert.doesNotMatch(source, /PublicPortfolioWelcome/);
   assert.doesNotMatch(source, /shouldWelcomePublicVisitor|welcomedProfileId/);
   assert.match(source, /ControlCenterPage/);
 });

@@ -154,7 +154,7 @@ test('selection presents real checkboxes, explicit options remain accessible, an
   options.props.onClick(); assert.deepEqual(calls, ['menu']);
   const open = nodes(tree).find(node => node.props['aria-label'] === 'Open Project');
   assert.equal(open.props['aria-describedby'], 'studio-row-description');
-  assert.equal(nodes(tree).find(node => node.props.id === 'studio-row-description').props.children, 'Creator');
+  assert.equal(nodes(tree).find(node => node.props.id === 'studio-row-description').props.children.props.text, 'Creator');
   assert.ok(nodes(StudioRow({ ...props, unread: true })).some(node => node.props['aria-label'] === 'Open Project, unread'));
   tree = StudioRow({ ...props, selecting: true, selected: true });
   assert.equal(hookOptions.enabled, false);

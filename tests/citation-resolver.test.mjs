@@ -1,6 +1,7 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import {matchPath} from 'react-router-dom';
 import test from 'node:test';import assert from 'node:assert/strict';import ts from 'typescript';import vm from 'node:vm';import {readFileSync} from 'node:fs';
-function load(file,require=()=>({}),extra={}){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require,URL,Request,Response,JSON,Date,...extra});return exports;}
+function load(file,dependency=()=>({}),extra={}){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require: name=>name.endsWith('/textFormatting')?sourceModule('src/components/text/textFormatting.ts'):dependency(name),URL,Request,Response,JSON,Date,...extra});return exports;}
 const model=load('src/features/citations/model.ts');const server=load('src/server/citation.ts',path=>path.includes('publicOrigin')?{PUBLIC_ORIGIN:'https://portalinknetworksinc.avimangalmurti566055.chatgpt.site'}:model);
 const item={id:'image/a',creator:'Creator <safe>',projectTitle:'Work',projectId:'project',creatorId:'creator',madeOn:'2020-03-04',kind:'image',number:2,citable:true};
 const config={supabaseUrl:'https://example.test',publishableKey:'test-key'};const assets={fetch:async()=>new Response('<head><!--CITATION_HEAD--></head><body><!--CITATION_BODY--></body>')};

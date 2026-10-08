@@ -24,7 +24,7 @@ const employer = load('features/employer/employer.ts');
 const profileId = '11111111-1111-4111-8111-111111111111';
 const profile = { id: profileId, name: 'Creator', links: [], socialLinks: {}, categories: [{ id: 'portal', label: 'Photography' }],
   projects: [{ id: 'work', categoryId: 'portal', title: 'A project', attachments: [] }, { id: 'next', categoryId: 'portal', title: 'Next project', isPinned: true }] };
-const appearance = { theme: 'light', mode: 'system', accentColor: '#336699', systemGray: 'gray', highContrast: false, reduceTranslucency: false,
+const appearance = { theme: 'light', systemTheme: 'light', mode: 'auto', accentColor: '#336699', systemGray: 'gray', highContrast: false, reduceTranslucency: false,
   chooseMode() {}, chooseAppearance() {} };
 
 test('failed handle lookup cannot trap Back navigation to a UUID project', async () => {
@@ -178,24 +178,17 @@ test('cold public mobile visit shows the portfolio immediately and keeps the exa
   assert.ok(shellChildren.some(node => node.props.className?.includes('codex-workspace')));
   assert.ok(h.queryCalls.length > 0);
   tree = h.render();
-  assert.ok(one(tree, 'lazy:./mobile/PublicPortfolioWelcome'));
+  assert.equal(one(tree, 'lazy:./mobile/PublicPortfolioWelcome'), undefined);
   assert.equal(h.state.location.search + h.state.location.hash, '?via=friend#work');
   assert.equal(h.navigations.length + h.assigned.length + h.replaced.length, 0);
 });
 
-test('shared visitors receive appearance on every fresh entry and dismiss it once', () => {
-  for (const presentation of ['mobile', 'web']) {
-    const h = appHarness(); h.state.presentation = presentation;
-    const welcome = one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome');
-    assert.ok(welcome);
-    welcome.props.onComplete();
-    assert.equal(one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome'), undefined);
-    assert.ok(one(appHarness().render(), 'lazy:./mobile/PublicPortfolioWelcome'));
-  }
-  for (const configure of [h => { h.state.auth.pendingView = 'resetPassword'; }, h => { h.state.query.profile = null; }]) {
-    const h = appHarness(); configure(h);
-    assert.equal(one(h.render(), 'lazy:./mobile/PublicPortfolioWelcome'), undefined);
-  }
+test('shared visitors immediately see work with no appearance modal on either presentation', () => {
+ for (const presentation of ['mobile','web']) {
+  const h=appHarness();h.state.presentation=presentation;
+  assert.equal(one(h.render(),'lazy:./mobile/PublicPortfolioWelcome'),undefined);
+  assert.ok(one(h.render(),'VisitorProfileGrid'));
+ }
 });
 
 test('shared messaging uses the canonical recipient key, gates guests without sending, and avoids a self-recipient', () => {
@@ -252,7 +245,9 @@ test('shared Settings retains its portfolio query, appearance handlers and Back 
   h.state.route = { kind: 'controlCenter' }; h.state.location = { pathname: '/settings', search: '', hash: '', state: { settingsReturn: `/share/${profileId}` } };
   const settings = one(h.render(), 'lazy:../components/ControlCenterPage');
   assert.equal(h.replaced.length, 0);
-  assert.equal(settings.props.onAppearanceModeChange, appearance.chooseMode);
+  assert.equal(typeof settings.props.onAppearanceModeChange, 'function');
+  settings.props.onAppearanceModeChange('dark');
+  assert.equal(one(h.render(),'lazy:../components/ControlCenterPage').props.theme,'dark');
   assert.equal(h.queryCalls.at(-1)[0], profileId);
   settings.props.onBack(); assert.equal(h.navigations.at(-1)[0], -1);
 });
@@ -540,4 +535,12 @@ test('shared account sign-in opens the signed-in member profile in the full plat
     assert.equal(h.assigned.at(-1), '/p/member-profile');
     assert.equal(h.navigations.length, 0, 'Account entry must load the platform rather than keep the public visitor shell');
   }
+});
+
+test('visitor silently respects creator branding, system theme and an explicit visitor switch',()=>{
+ const h=appHarness();h.state.query.profile={...h.state.query.profile,publicAppearance:{mode:'dark',accentColor:'#34c759',systemGray:'gray3'}};
+ let tree=h.render();assert.ok(tree.props.className.includes('theme-dark'));assert.equal(tree.props.style['--accent-color'],'#34c759');
+ one(tree,'SharedProfileSidebar').props.onThemeChange('light');assert.ok(h.render().props.className.includes('theme-light'));
+ const other=appHarness();other.state.query.profile={...other.state.query.profile,publicAppearance:{mode:'auto',accentColor:'#34c759',systemGray:'gray3'}};
+ assert.ok(other.render().props.className.includes('theme-light'));
 });

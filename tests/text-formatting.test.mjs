@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-function load(path){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require:n=>n==='react'?React:{}});return exports;}
+function load(path){const exports={};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React,esModuleInterop:true}}).outputText,{exports,require:n=>n==='react'?React:n.endsWith('/textFormatting')?load('../src/components/text/textFormatting.ts'):{}});return exports;}
 const {formatSelection}=load('../src/components/text/textFormatting.ts');
 const {FormattedText}=load('../src/components/text/FormattedText.tsx');
 test('format selected text without changing surrounding words and retain selection',()=>{const result=formatSelection('My creative work',3,11,'bold');assert.equal(result.value,'My **creative** work');assert.equal(result.value.slice(result.start,result.end),'creative');});
@@ -30,4 +30,13 @@ test('header format dropdown applies a selection, restores focus, and respects d
  assert.equal(writes.length,1);
  assert.ok(render().some(n=>n.type==='option'&&n.props.value==='bullet'));
  assert.ok(render().some(n=>n.type==='option'&&n.props.value==='#0a84ff'));
+});
+
+test('nested emphasis and inline colour from the live project render and strip consistently',()=>{
+ const raw='***{#34c759|Some of these posters are the faces of my dear friends. }***';
+ const {plainFormattedText}=load('../src/components/text/textFormatting.ts');
+ assert.equal(plainFormattedText(raw),'Some of these posters are the faces of my dear friends. ');
+ const html=renderToStaticMarkup(React.createElement(FormattedText,{text:raw}));
+ assert.match(html,/<strong><em><span style="color:#34c759">Some of these posters/);
+ assert.doesNotMatch(html,/\*\*\*|\{#34c759\|/);
 });

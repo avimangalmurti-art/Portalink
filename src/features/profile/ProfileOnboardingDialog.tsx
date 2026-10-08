@@ -1,3 +1,5 @@
+import { useServices } from '../../contexts/ServicesContext';
+import { createProfileHandle, prepareProfileHandle } from '../../utils/profileHandle';
 import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,13 +46,14 @@ export function ProfileOnboardingDialog({
   onReduceTranslucencyChange
 }: ProfileOnboardingDialogProps) {
   const auth = useAuth();
+  const { profiles } = useServices();
   const isMobile = usePresentation() === 'mobile';
   const [registration, setRegistration] = useState(auth.user?.registration);
   const [draftLoading, setDraftLoading] = useState(Boolean(registration));
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const [missingSavedAvatar, setMissingSavedAvatar] = useState(false);
-  const touched = useRef({ name: false, location: false, isPrivate: false, avatar: false });
+  const touched = useRef({ name: false, handle: false, location: false, isPrivate: false, avatar: false });
   const autoStarted = useRef(false);
   const completed = useRef(false);
   const cleaned = useRef(false);
@@ -59,6 +62,10 @@ export function ProfileOnboardingDialog({
   const create = useCreateProfile();
   const selectAvatar = avatar.select;
   const [name, setName] = useState(registration?.name ?? '');
+  const [requestedHandle, setRequestedHandle] = useState<string | null>(registration?.handle ?? null);
+  const [preparedHandle, setPreparedHandle] = useState<string | null>(registration?.handle ?? null);
+  const [checkingHandle, setCheckingHandle] = useState(false);
+  const handle = requestedHandle ?? createProfileHandle(name);
   const [location, setLocation] = useState(registration?.location ?? '');
   const [isPrivate, setIsPrivate] = useState(registration?.isPrivate === true);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
@@ -85,6 +92,7 @@ export function ProfileOnboardingDialog({
     // account without replacing any edits already made in the form.
     setRegistration(incoming);
     if (!touched.current.name) setName(incoming.name);
+    if (!touched.current.handle && incoming.handle) { setRequestedHandle(incoming.handle); setPreparedHandle(incoming.handle); }
     if (!touched.current.location) setLocation(incoming.location);
     if (!touched.current.isPrivate) setIsPrivate(incoming.isPrivate === true);
     setDraftLoading(true);
@@ -115,7 +123,7 @@ export function ProfileOnboardingDialog({
       autoStarted.current = true;
       setDraftLoading(false);
       if (Object.values(touched.current).some(Boolean)) return;
-      await createRef.current({ name: registration.name, location: registration.location,
+      await createRef.current({ name: registration.name, handle: registration.handle, location: registration.location,
         isPrivate: registration.isPrivate === true,
         avatar: pending, creationKey: registration.id,
         publicAppearance: { ...DEFAULT_PUBLIC_APPEARANCE, accentColor: registration.accentColor, systemGray: registration.systemGray ?? DEFAULT_PUBLIC_APPEARANCE.systemGray } });
@@ -159,6 +167,18 @@ export function ProfileOnboardingDialog({
     if (Object.values(nextErrors).some(Boolean) || avatar.error) {
       return;
     }
+    if (checkingHandle) return;
+    if (preparedHandle !== handle) {
+      if (validateProfileName(name)) { setFieldErrors(current => ({ ...current, name: validateProfileName(name) })); return; }
+      setCheckingHandle(true);
+      try {
+        const finalHandle = await prepareProfileHandle(handle, profiles.checkPublicHandle ?? (() => Promise.resolve('unavailable')));
+        setRequestedHandle(finalHandle); setPreparedHandle(finalHandle);
+        setFieldErrors(current => ({ ...current, handle: null }));
+      } catch (error) { setFieldErrors(current => ({ ...current, handle: error instanceof Error ? error.message : 'Could not check this handle.' })); }
+      finally { setCheckingHandle(false); }
+      return;
+    }
     if (isSubmittingRef.current) {
       // Already creating: refuse rather than create a second profile.
       return;
@@ -167,6 +187,7 @@ export function ProfileOnboardingDialog({
     try {
       await create.run({
         name,
+        handle: preparedHandle ?? handle,
         location: location.trim() || undefined,
         isPrivate,
         avatar: avatar.avatar ?? undefined,
@@ -219,6 +240,9 @@ export function ProfileOnboardingDialog({
             }));
           }} />
 
+              <ProfileField id="onboarding-handle" label="Public handle" value={handle} error={fieldErrors.handle} disabled={isSubmitting || checkingHandle} onChange={value => { touched.current.handle = true; setRequestedHandle(value); setPreparedHandle(null); }} />
+              {preparedHandle === handle && <p role="status">Your public handle will be @{preparedHandle}. Continue to confirm.</p>}
+              {checkingHandle && <p role="status">Checking your handle…</p>}
               <ProfileLocationPicker focusedScreen={isMobile} id="onboarding-location" value={location} error={fieldErrors.location} disabled={isSubmitting} onChange={value => { touched.current.location = true; setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />
 
               {isMobile && <ProfileVisibilityField id="onboarding-visibility" collapsible isPrivate={isPrivate} onChange={value => { touched.current.isPrivate = true; setIsPrivate(value); }} disabled={isSubmitting} />}

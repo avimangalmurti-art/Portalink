@@ -1,7 +1,7 @@
 import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
-import { resolveShareRequest, injectShareResolution } from './server/shareAddress';
+import { resolveShareRequest, injectShareResolution, publicSitemap } from './server/shareAddress';
 import { prefersHtml, withSharedPreview } from './server/sharedPreview';
 import { handlePublicMedia, isPublicMediaRoute } from './server/publicMedia';
 import { handleRumIngest, readRumSummary } from './server/rum';
@@ -373,6 +373,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
@@ -445,7 +446,7 @@ const worker = {
     }
     if (address.resolution) for (const name of ['content-length','content-encoding','etag','last-modified']) headers.delete(name);
     if (address.unavailable) headers.set('retry-after', '30');
-    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
+    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, url.origin + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
     if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
     return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,

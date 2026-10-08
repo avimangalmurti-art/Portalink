@@ -10,7 +10,7 @@ export function useHandleRoute(original: AppRoute): { route: AppRoute; pending: 
   const [attempt,setAttempt] = useState(0);
   const [state, setState] = useState<{ handle: string | null; value: HandleResolution | null; done: boolean }>(() => {
     const value = parseResolution(window.__PORTALINK_HANDLE__);
-    return { handle, value: value?.handle === handle ? value : null, done: value?.handle === handle };
+    return { handle, value: value && portfolioPath(value.profileId,value.handle) === `/${handle}` ? value : null, done: Boolean(value && portfolioPath(value.profileId,value.handle) === `/${handle}`) };
   });
   useEffect(() => {
     if (!handle) {
@@ -23,7 +23,7 @@ export function useHandleRoute(original: AppRoute): { route: AppRoute; pending: 
     void profiles.resolvePublicHandle?.(handle).then(value => {
       if (!active) return;
       setState({ handle, value, done: true });
-      if (value?.alias) navigate(portfolioPath(value.profileId, value.handle) + location.pathname.slice(handle.length + 1).replace(/\/$/, '') + location.search, { replace: true });
+      if (value && portfolioPath(value.profileId,value.handle) !== `/${handle}`) navigate(portfolioPath(value.profileId, value.handle) + location.pathname.slice(handle.length + 1).replace(/\/$/, '') + location.search, { replace: true });
     }).catch(() => { if (active) { setState({ handle, value: null, done: true }); setError({ handle, message: 'This portfolio could not load. Please try again.' }); } });
     if (!profiles.resolvePublicHandle) setState({ handle, value: null, done: true });
     return () => { active = false; };

@@ -7,6 +7,8 @@ export function sourceModule(path, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../' + path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, URLSearchParams, crypto, ...globals, require(name) {
+    if (!(name in imports) && name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+    if (!(name in imports) && name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     assert.ok(name in imports, `Unexpected source dependency ${name}`); return imports[name];
   }});
   return exports;

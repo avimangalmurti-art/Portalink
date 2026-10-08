@@ -1,4 +1,4 @@
-import { handleFromPath } from '../sharing/shareModel';
+import { handleFromPath, validHandle } from '../sharing/shareModel';
 import type { AuthService, ProfileService } from '../../services/interfaces';
 import type { AuthSession } from '../../types/auth';
 import type { CreateProfileInput, PreparedAvatar } from '../../types/profile';
@@ -9,6 +9,7 @@ export type RegistrationProfile = {
   version: 1;
   id: string;
   name: string;
+  handle?: string;
   location: string;
   /** Omitted by older drafts, which retain the existing public default. */
   isPrivate?: boolean;
@@ -43,13 +44,14 @@ export function readRegistrationProfile(value: unknown): RegistrationProfile | u
   const data = value as Record<string, unknown>;
   if (data.version !== 1 || typeof data.id !== 'string' || !/^[a-f0-9-]{36}$/i.test(data.id)
     || typeof data.name !== 'string' || validateProfileName(data.name)
+    || (data.handle !== undefined && (typeof data.handle !== 'string' || !validHandle(data.handle)))
     || typeof data.location !== 'string' || validateLocation(data.location)
     || typeof data.accentColor !== 'string' || !/^#[a-f0-9]{6}$/i.test(data.accentColor)
     || typeof data.hasAvatar !== 'boolean'
     || (data.isPrivate !== undefined && typeof data.isPrivate !== 'boolean')) return;
   const returnPath = readSharedReturnPath(data.returnPath);
   const systemGray = typeof data.systemGray === 'string' && /^gray(?:[2-6])?$/.test(data.systemGray) ? data.systemGray : undefined;
-  return { version: 1, id: data.id, name: data.name.trim(), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, ...(systemGray ? { systemGray } : {}), hasAvatar: data.hasAvatar, ...(returnPath ? { returnPath } : {}) };
+  return { version: 1, id: data.id, name: data.name.trim(), ...(typeof data.handle === 'string' ? { handle: data.handle } : {}), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, ...(systemGray ? { systemGray } : {}), hasAvatar: data.hasAvatar, ...(returnPath ? { returnPath } : {}) };
 }
 
 export function canResumeRegistration(session: AuthSession | null, view: string | null): boolean {

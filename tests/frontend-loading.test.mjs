@@ -15,6 +15,8 @@ function execute(source, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true,
   } }).outputText, { exports, ...globals, require(name) {
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     assert.ok(name in imports, `Unexpected import ${name}`);
     return imports[name];
   } });

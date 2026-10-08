@@ -104,7 +104,7 @@ test('missing metadata is created for mobile then removed on unmount', () => {
   assert.equal(h.listeners.size, 0);
 });
 
-test('both entry shells resolve saved mobile appearance before app boot, preserving WEB metadata', () => {
+test('platform preserves saved appearance while visitor silently follows system before creator branding', () => {
   for (const entry of ['index.html', 'share.html']) {
     const html = readFileSync(new URL(`../${entry}`, import.meta.url), 'utf8');
     const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].find(([, code]) => code.includes('data-portalink-theme-original'))[1];
@@ -119,9 +119,9 @@ test('both entry shells resolve saved mobile appearance before app boot, preserv
         location: { pathname: '/share/fixture' }, navigator: {},
         localStorage: { getItem: key => key.includes('interfaceAppearance') ? JSON.stringify({ mode }) : null },
       } });
-      const resolved = mode === 'auto' ? dark ? 'dark' : 'light' : mode;
-      assert.deepEqual(tags.map(tag => tag.getAttribute('content')), mobile ? [resolved === 'dark' ? '#000000' : '#ffffff', resolved === 'dark' ? '#000000' : '#ffffff'] : ['#ffffff', '#000000']);
-      if (mobile) assert.equal(root.dataset.appearance, resolved);
+      const resolved = entry === 'share.html' ? (dark ? 'dark' : 'light') : mode === 'auto' ? dark ? 'dark' : 'light' : mode;
+      assert.deepEqual(tags.map(tag => tag.getAttribute('content')), (mobile || entry === 'share.html') ? [resolved === 'dark' ? '#000000' : '#ffffff', resolved === 'dark' ? '#000000' : '#ffffff'] : ['#ffffff', '#000000']);
+      if (mobile || entry === 'share.html') assert.equal(root.dataset.appearance, resolved);
     }
   }
 });

@@ -1,3 +1,4 @@
+import { FormattedText } from '../text/FormattedText';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../features/messages/useNotifications';
@@ -31,7 +32,7 @@ export function InboxPanel() {
             {activity.notifications.map((entry) => {
               const content = <>
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-tertiary)]">{kindLabel(entry.kind)}</span>
-                  <span className={`text-[14px] leading-relaxed ${entry.isUnread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>{entry.body}<span className="sr-only">{entry.isUnread ? ' (unread)' : ''}</span></span>
+                  <span className={`text-[14px] leading-relaxed ${entry.isUnread ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}><FormattedText text={entry.body} /><span className="sr-only">{entry.isUnread ? ' (unread)' : ''}</span></span>
                   <time dateTime={entry.timestamp} className="mt-1 text-[12px] text-[var(--text-tertiary)]">{Number.isNaN(Date.parse(entry.timestamp)) ? entry.timestamp : new Date(entry.timestamp).toLocaleString()}</time>
                 </>;
               return <li key={entry.id} className="flex items-start gap-3 py-3">

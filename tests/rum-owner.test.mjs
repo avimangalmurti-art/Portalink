@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -18,7 +19,7 @@ function load(path, imports = {}, globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, {
     exports, URL, URLSearchParams, Request, Response, Headers, AbortSignal, TextDecoder, crypto,
-    ...globals, require: name => { assert.ok(name in imports, `Unexpected module ${name}`); return imports[name]; },
+    ...globals, require: name => { if(name.endsWith('/textFormatting'))return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, `Unexpected module ${name}`); return imports[name]; },
   });
   return exports;
 }

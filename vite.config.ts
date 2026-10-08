@@ -1,7 +1,7 @@
 import { requireBuildEnvironment } from './scripts/build-environment.mjs'
 import { handleCitation, citationLicenseResponse } from './src/server/citation'
 import { readPortfolioCard } from './src/server/sharedPreview'
-import { resolveShareRequest, injectShareResolution } from './src/server/shareAddress'
+import { resolveShareRequest, injectShareResolution, publicSitemap } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
 import { isPublicSharePath } from './src/features/sharing/shareModel'
 import { defineConfig, loadEnv } from 'vite'
@@ -27,6 +27,7 @@ export default defineConfig(({ command, mode }) => {
         const origin = `http://${request.headers.host || '127.0.0.1:5178'}`;
         const url = new URL(request.url ?? '/', origin);
         const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
+        if (url.pathname === '/sitemap.xml') { const result=await publicSitemap(new Request(url,{method:request.method}),config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         const license = citationLicenseResponse(url.pathname);
         if (license) { response.statusCode=license.status; response.setHeader('Content-Type',license.headers.get('content-type')!); response.end(await license.text()); return; }
         if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/cite/')) {
@@ -45,7 +46,7 @@ export default defineConfig(({ command, mode }) => {
             const address = await resolveShareRequest(new Request(url), config);
             if (address.redirect) { response.statusCode=301; response.setHeader('Location',address.redirect.headers.get('location') ?? '/'); response.end(); return; }
             const html = await server.transformIndexHtml('/share.html', await readFile('share.html','utf8'));
-            response.setHeader('Content-Type','text/html'); response.setHeader('Cache-Control','no-store'); response.end(injectShareResolution(html,address.resolution)); return;
+            response.setHeader('Content-Type','text/html'); response.setHeader('Cache-Control','no-store'); response.end(injectShareResolution(html,address.resolution,url.origin+url.pathname)); return;
           } catch { request.url='/share.html'; }
         }
         next();

@@ -1,15 +1,16 @@
 import React from 'react';
 import './text-formatting.css';
-function inline(text:string): React.ReactNode[] {
-  const pattern=/(\*\*.+?\*\*|\+\+[^+]+\+\+|~~[^~]+~~|\*[^*]+\*|\{#[a-fA-F0-9]{6}\|[^}]+\})/g;
-  return text.split(pattern).filter(Boolean).map((part,i)=>{
-    if(part.startsWith('**'))return <strong key={i}>{inline(part.slice(2,-2))}</strong>;
-    if(part.startsWith('++'))return <u key={i}>{inline(part.slice(2,-2))}</u>;
-    if(part.startsWith('~~'))return <s key={i}>{inline(part.slice(2,-2))}</s>;
-    if(part.startsWith('*'))return <em key={i}>{inline(part.slice(1,-1))}</em>;
-    if(/^\{#[a-fA-F0-9]{6}\|/.test(part))return <span key={i} style={{color:part.slice(1,8)}}>{inline(part.slice(9,-1))}</span>;
-    return part;
+import { formattedInline, type FormattedInline } from './textFormatting';
+function inline(text: string): React.ReactNode[] {
+  const render = (nodes: FormattedInline[]): React.ReactNode[] => nodes.map((node,i) => {
+    const children = node.children ? render(node.children) : node.text;
+    if (node.kind === 'strongEm') return <strong key={i}><em>{children}</em></strong>;
+    if (node.kind === 'color') return <span key={i} style={{ color: node.color }}>{children}</span>;
+    if (node.kind === 'text') return children;
+    const Tag = node.kind;
+    return <Tag key={i}>{children}</Tag>;
   });
+  return render(formattedInline(text));
 }
 export function FormattedText({text,className='',style}:{text:string;className?:string;style?:React.CSSProperties}){
   const lines=text.split('\n');const result:React.ReactNode[]=[];

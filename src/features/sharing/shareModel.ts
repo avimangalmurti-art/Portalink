@@ -1,5 +1,6 @@
+import { plainFormattedText } from '../../components/text/textFormatting';
 /** Public address grammar is shared by client, router and worker. */
-export const RESERVED_HANDLES = new Set('share p studio messages settings search portalink api media feed discover profile item portals insights appearance saved notifications assets icons startup c collaboration activity edit home index.html share.html favicon.ico og.png image.png image-dark.png site.webmanifest robots.txt sitemap.xml manifest.json sw.js portalink-welcome-loop.webp portalink-splash-mobile.mp4'.split(' '));
+export const RESERVED_HANDLES = new Set('share cite licenses p studio messages settings search portalink api media feed discover profile item portals insights appearance saved notifications assets icons startup c collaboration activity edit home index.html share.html favicon.ico og.png image.png image-dark.png site.webmanifest robots.txt sitemap.xml manifest.json sw.js portalink-welcome-loop.webp portalink-splash-mobile.mp4'.split(' '));
 export function normalizePublicHandle(value: string): string { return value.trim().replace(/^@/, '').toLowerCase(); }
 export function validHandle(value: string): boolean { return /^[a-z0-9][a-z0-9.]{2,29}$/.test(value) && !RESERVED_HANDLES.has(value); }
 export function handleFromPath(path: string): string | null {
@@ -19,12 +20,12 @@ export function parseResolution(value: unknown): HandleResolution | null {
   return row && typeof row.profileId === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(row.profileId) && typeof row.handle === 'string' && validHandle(row.handle) && typeof row.alias === 'boolean'
     ? { profileId: row.profileId, handle: row.handle, alias: row.alias } : null;
 }
-export function portfolioPath(id: string, handle?: string | null): string { return handle && validHandle(handle) ? `/${handle}` : `/share/${encodeURIComponent(id)}`; }
+export function portfolioPath(id: string, handle?: string | null): string { return handle && validHandle(handle) ? `/${handle.endsWith('.work') && validHandle(handle.slice(0,-5)) ? handle.slice(0,-5) : handle}` : `/share/${encodeURIComponent(id)}`; }
 export function portfolioProjectPath(id: string, categoryId: string, projectId: string, handle?: string | null): string {
   return `${portfolioPath(id, handle)}/c/${encodeURIComponent(categoryId)}/${encodeURIComponent(projectId)}`;
 }
 export function shareCardText(name: string, headline: string | undefined, count: number, school?: string) {
-  return { title: `${name.trim()} — Portfolio`, description: [headline?.trim(), school?.trim(), `${count} ${count === 1 ? 'project' : 'projects'}`].filter(Boolean).join(' · ').slice(0, 160) };
+  return { title: `${name.trim()} — Portfolio`, description: [headline ? plainFormattedText(headline).trim() : '', school?.trim(), `${count} ${count === 1 ? 'project' : 'projects'}`].filter(Boolean).join(' · ').slice(0, 160) };
 }
 export type PortfolioCard = { title: string; description: string; image: string | null; width?: number; height?: number; url: string };
 export type Audience = 'professor' | 'employer' | 'friend';

@@ -28,7 +28,6 @@ const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module 
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
 const ProfileOnboardingDialog = lazy(() => import('../features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
-const PublicPortfolioWelcome = lazy(() => import('./mobile/PublicPortfolioWelcome').then(module => ({ default: module.PublicPortfolioWelcome })));
 type SharedRoute = Extract<AppRoute, { kind: 'sharedProfile' | 'sharedCategory' | 'sharedProject' }>
   | { kind: 'sharedCollaboration'; profileId: string };
 const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
@@ -48,7 +47,8 @@ export function VisitorApp() {
     return () => window.removeEventListener('scroll', remember);
   }, [presentation, location.pathname]);
   const appearance = useDeviceAppearance(presentation, 'public');
-  const { theme, accentColor, systemGray, highContrast, reduceTranslucency } = appearance;
+  const [visitorOverride, setVisitorOverride] = useState<{id:string | null;mode:'auto' | 'light' | 'dark'} | null>(null);
+  const highContrast = appearance.highContrast, reduceTranslucency = appearance.reduceTranslucency;
   const shared = route.kind === 'sharedProfile' || route.kind === 'sharedCategory' || route.kind === 'sharedProject' || route.kind === 'sharedCollaboration';
   const sharedShell = isPublicSharePath(location.pathname);
   const lastSharedRoute = useRef<SharedRoute | null>(null);
@@ -60,14 +60,19 @@ export function VisitorApp() {
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
-  const [appearanceConfirmed, setAppearanceConfirmed] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const deferredIntent = useRef<AuthIntent | null>(null);
   const interactiveSignIn = useRef(false), resumedRegistration = useRef<string | null>(null);
   const invalidShared = !settings && sharedShell && (!shared || !profileId || !isProfileId(profileId));
   const query = useSharedProfileQuery(invalidShared ? null : profileId, projectId, categoryId);
-  const profile = query.profile, project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
+  const profile = query.profile;
+  const publicStyle = profile?.publicAppearance;
+  const theme = visitorOverride && visitorOverride.id === profileId ? visitorOverride.mode === 'auto' ? appearance.systemTheme : visitorOverride.mode : publicStyle?.mode && publicStyle.mode !== 'auto' ? publicStyle.mode : appearance.systemTheme;
+  const choosePublicMode = useCallback((mode:'auto' | 'light' | 'dark') => { setVisitorOverride({id:profileId,mode}); appearance.chooseMode(mode); },[profileId,appearance.chooseMode]);
+  const accentColor = publicStyle?.accentColor ?? appearance.accentColor;
+  const systemGray = publicStyle?.systemGray ?? appearance.systemGray;
+  const project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
     if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : ''));
@@ -143,7 +148,7 @@ export function VisitorApp() {
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
   return <AppPresentation actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
-      {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={appearance.chooseMode}
+      {profile && <SharedProfileSidebar profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
         onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
@@ -153,7 +158,7 @@ export function VisitorApp() {
               <div data-screen-scroll={projectId && !settings ? 'nested' : 'page'} className={`feed-starfield min-h-full ${projectId && !settings ? 'h-full' : ''}`}>
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
-                    {settings ? <ControlCenterPage theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={appearance.chooseMode}
+                    {settings ? <ControlCenterPage theme={theme} appearanceMode={appearance.mode} onAppearanceModeChange={choosePublicMode}
                       systemGray={systemGray} onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })}
                       accentColor={accentColor} onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })}
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}
@@ -174,7 +179,6 @@ export function VisitorApp() {
           </div>
         </div>
       </div>
-      {profile && shared && !settings && !appearanceConfirmed && !auth.pendingView && !onboardingOpen && <Suspense fallback={null}><PublicPortfolioWelcome appearance={appearance} onComplete={() => setAppearanceConfirmed(true)} /></Suspense>}
       {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopupId(null)} onSelect={openProject} />}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
         <AuthDialog showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}

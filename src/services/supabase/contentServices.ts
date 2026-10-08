@@ -48,6 +48,7 @@ import {
 import { creatorLocationMatches } from '../../domain/contentPlacement';
 import { requireSupabase } from './client';
 import { refreshProjectCoverThumbnail, removePrivateCoverThumbnails, removeProfilePublicCovers } from './coverThumbnails';
+import { validateHandle } from '../../features/profile/validation';
 import { createProfileHandle } from '../../utils/profileHandle';
 import { normalizePublicAppearance } from '../../utils/publicAppearance';
 import { MAX_PROJECT_GRID_COLUMNS, MIN_PROJECT_GRID_COLUMNS, normalizeProjectGridColumns } from '../../utils/projectGridDensity';
@@ -114,6 +115,7 @@ export const supabaseProfileService: ProfileService = {
     if (!handle || !input.name.trim()) {
       throw new ProfileServiceError('invalid_input', 'Enter a profile name before continuing.');
     }
+    if (validateHandle(handle)) throw new ProfileServiceError('invalid_handle', 'Use 3–30 lowercase letters, numbers or dots.');
     const avatarUrl = await uploadAvatar(accountId, input.avatar, input.creationKey);
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const { data, error } = await requireSupabase()
@@ -131,7 +133,7 @@ export const supabaseProfileService: ProfileService = {
         .select('id')
         .single();
       if (error?.code === '23505' && automaticHandle && error.message.includes('profiles_handle_key') && attempt < 2) {
-        handle = createProfileHandle(input.name);
+        handle = createProfileHandle(input.name, true);
         continue;
       }
       if (error?.code === '23505' && error.message.includes('profiles_account_id_key')) {
