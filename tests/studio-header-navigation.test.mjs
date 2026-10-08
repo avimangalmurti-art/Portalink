@@ -16,11 +16,12 @@ test('Studio header exposes Bookmarks without New project or Insights', () => {
  assert.equal(opened, true);
 });
 
-test('mobile Drafts has no Back button while WEB retains its existing navigation', () => {
+test('mobile Drafts restores Back while WEB retains its existing navigation', () => {
  const react = {...React,useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const {StudioDraftsList} = sourceModule('src/features/studio/StudioDraftsList.tsx',{
   react,
   'react-dom':{createPortal:children=>children},
+  'lucide-react':{ChevronLeftIcon:'chevron'},
   '../../components/ui/ModalPortal':{ModalPortal:'modal'},
   '../../components/publishing/ProjectFormDialog':{ProjectDiscardConfirmation:'confirmation'},
   '../../presentation/mobile/MobileContextActions':{MobileContextButton:'actions',useMobileScreenActions(){}},
@@ -28,13 +29,13 @@ test('mobile Drafts has no Back button while WEB retains its existing navigation
  });
  const props={drafts:[],onBack(){},onResume(){},onDiscard:async()=>{},onBookmarks(){},onReads(){}};
  const mobile = nodes(StudioDraftsList({...props,hideBack:true}));
- assert.equal(mobile.some(n=>n.props['aria-label']==='Back from Drafts'),false);
+ assert.equal(mobile.some(n=>n.props['aria-label']==='Back from Drafts'),true);
  assert.ok(mobile.some(n=>n.type==='button'&&n.props.children==='Select'));
  const web = nodes(StudioDraftsList(props));
  assert.ok(web.some(n=>n.props['aria-label']==='Back from Drafts'));
 });
 
-test('mobile Studio starts on Overview, and selecting Drafts switches the content without Back', () => {
+test('mobile Studio starts on Overview, and selecting Drafts switches the content with consistent header controls', () => {
  let params=new URLSearchParams(), mobile=true;
  const react={...React,useEffect(){},useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
@@ -66,11 +67,11 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  assert.equal(pills[0].props.children,'Overview');
  assert.equal(pills[0].props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='overview'));
- assert.equal(tree.some(n=>n.props['aria-label']==='Back from Studio'),false);
+ assert.equal(tree.some(n=>n.props['aria-label']==='Back from Studio'),true);
  pills.find(n=>n.props['data-studio-pill']==='drafts').props.onClick();
  tree=nodes(StudioPage(props));
  assert.equal(tree.find(n=>n.props['data-studio-pill']==='drafts').props['aria-pressed'],true);
- assert.equal(tree.find(n=>n.type==='drafts').props.hideBack,true);
+ assert.equal(tree.find(n=>n.type==='drafts').props.hideBack,undefined);
  assert.equal(tree.some(n=>n.type==='overview'),false);
  params=new URLSearchParams();mobile=false;
  tree=nodes(StudioPage(props));

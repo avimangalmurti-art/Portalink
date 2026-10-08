@@ -147,9 +147,9 @@ test('switching collections updates heading, rows and selection together', () =>
  assert.deepEqual(page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id), ['activity:n1']);
 });
 
-test('mobile Studio omits Back but retains Select and Done in the header', () => {
+test('mobile Studio retains Back, Select and Done together in the header', () => {
  const page = pageHarness({ initialSearch:'collection=published', headerHost:{}, hideBack:true });
- assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), false);
+ assert.equal(page.nodes.some(node => node.props.className === 'studio-bookmarks-back'), true);
  page.button('Select items').props.onClick();
  assert.ok(page.button('Exit selection'));
  page.button('Exit selection').props.onClick();

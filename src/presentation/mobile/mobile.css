@@ -5027,5 +5027,13 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
 
-/* Studio tabs are destinations: only Select/Done and actions occupy the header. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: flex-end; }
+
+/* Studio header reference: circular Back/actions, pill Select/Done on one row. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: space-between; gap: 12px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); margin: 0 auto 0 0; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back) span { display: none; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) svg { width: 24px; height: 24px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { height: 48px; min-width: 100px; padding: 0 20px; margin: 0; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); font-size: 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }

@@ -21,12 +21,13 @@ test('mobile Studio header receives existing collection controls and hides its r
  assert.match(css, /data-presentation='mobile'\] \.studio-mobile-shell-header h1 \{ display: none;/);
 });
 
-test('mobile landing overview is the first tab, with no fallback Back button', () => {
+test('mobile landing overview is the first tab, with reference-style fallback header controls', () => {
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts','published'/);
  assert.match(source,/collection\?\?\(mobile\?'overview':'all'\)/);
  assert.match(source,/collection==='overview'/);
- assert.doesNotMatch(source,/aria-label="Back from Studio"/);
- assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\} hideBack=\{mobile\}/);
- assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\} hideBack=\{mobile\}/);
+ assert.match(source,/aria-label="Back from Studio"/);
+ assert.match(source,/className="studio-text-control" aria-label="Select items" disabled>Select/);
+ assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
+ assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
 });
