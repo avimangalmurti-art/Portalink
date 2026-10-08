@@ -12,6 +12,8 @@ function load(path, imports = {}, globals = {}) {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
+      if (name.endsWith('/sharing/InternalContentShare')) return { useInternalContentShare: () => () => { throw new Error('Unexpected sharing action'); } };
+      if (name.endsWith('/engagement/capabilities')) return sourceModule('src/features/engagement/capabilities.ts');
       if (name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     assert.ok(name in imports, `Unexpected import: ${name}`); return imports[name];
   } });
@@ -78,7 +80,7 @@ test('shared page save returns through sign-in to the clicked media/page and req
     h.hook.value.toggle('save'); await h.hook.flush();
     assert.equal(h.writes.length, 1); assert.equal(h.writes[0].required, true);
     assert.equal(h.writes[0].url, '/api/media-interactions/engagement');
-    assert.deepEqual(JSON.parse(h.writes[0].init.body), { ...target, kind: 'save', engaged: true });
+    assert.deepEqual(JSON.parse(h.writes[0].init.body), { ...target, kind: 'save', engaged: true, shareWithCreator: false });
   } finally { h.hook.dispose(); }
 });
 

@@ -105,7 +105,7 @@ test('missing name is rejected before uploading or writing', async () => {
 function component(file, name, props, overrides = {}) {
   const slots = [];
   let cursor = 0;
-  const react = { ...React, useEffect() {}, useRef(value) {
+  const react = { ...React, useLayoutEffect() {}, useEffect() {}, useRef(value) {
     const index = cursor++;
     if (!(index in slots)) slots[index] = { current: value };
     return slots[index];
@@ -166,7 +166,7 @@ test('the directory picker preserves custom text and applies only explicit choic
   const render = component('src/components/profile/ProfileLocationPicker.tsx', 'ProfileLocationPicker', {
     id: 'location', value, onChange: next => { value = next; },
   });
-  let tree = render();
+  let tree = nodes(render()).find(node=>node.type==='LocationSearch');
   assert.equal(tree.type, 'LocationSearch');
   assert.equal(tree.props.label, 'Location (optional)');
   assert.equal(tree.props.value, value);
@@ -184,9 +184,9 @@ test('the directory picker preserves custom text and applies only explicit choic
   tree.props.onChange('A custom location');
   assert.equal(value, 'A custom location');
   tree.props.onChange(''); assert.equal(value, '');
-  tree = render({value});
+  tree = nodes(render({value})).find(node=>node.type==='LocationSearch');
   assert.equal(tree.props.value, '');
-  const disabled = render({ disabled: true, error: 'Use 48 characters or fewer.' });
+  const disabled = nodes(render({ disabled: true, error: 'Use 48 characters or fewer.' })).find(node=>node.type==='LocationSearch');
   assert.equal(disabled.props.disabled, true);
   assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
 });

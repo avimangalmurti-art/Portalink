@@ -56,6 +56,8 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     ...globals,
     require(name) {
       if (Object.hasOwn(dependencies, name)) return dependencies[name];
+      if (name.endsWith('/engagement/capabilities')) { const nested = {}; vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../src/features/engagement/capabilities.ts', import.meta.url), 'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:nested}); return nested; }
+      if (name.endsWith('/sharing/InternalContentShare')) return { useInternalContentShare: () => () => { throw new Error('Unexpected share in media state fixture'); } };
       if (name === 'react') return react;
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
       if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };

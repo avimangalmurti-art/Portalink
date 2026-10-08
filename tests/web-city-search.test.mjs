@@ -107,7 +107,7 @@ test('unmatched locations have feedback, remain editable, and dismiss on outside
   assert.equal(h.options().length, 0);
   assert.equal(h.input().props['aria-activedescendant'], undefined);
   assert.match(nodes(h.render()).find(node => node.props.role === 'status').props.children, /No matching locations/);
-  assert.equal(h.key('Enter').prevented, true);
+  assert.equal(h.key('Enter').prevented, false, 'Unmatched custom text can submit normally');
   assert.equal(h.selected.length, 0);
   h.render().props.onBlur({ currentTarget: { contains: () => true }, relatedTarget: {} });
   assert.equal(h.input().props['aria-expanded'], true, 'Moving focus to retry/attribution stays inside');
@@ -181,7 +181,8 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     const search = () => nodes(render()).find(node => node.type === 'LocationSearch');
     assert.equal(search().props.label, 'Find a place'); assert.equal(search().props.above, true);
     search().props.onChange('Oak'); assert.equal(search().props.value, 'Oak');
-    search().props.onSelect(sample[0]); assert.deepEqual(visits, [sample[0]]);
+    search().props.onSelect(sample[0]); assert.deepEqual(visits, presentation === 'web' ? [sample[0]] : []);
+    if(presentation === 'mobile') { search().props.onConfirm(sample[0]); assert.deepEqual(visits,[sample[0]]); }
     assert.equal(search().props.value, 'Oakland, California, US');
     const globe = nodes(render()).find(node => node.props.role === 'group');
     assert.match(globe.props.className, presentation === 'mobile' ? /w-full max-w-\[min\(72vh,720px\)\]/ : /100cqw,100cqh,720px/);

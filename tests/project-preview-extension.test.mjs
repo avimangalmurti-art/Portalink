@@ -26,9 +26,10 @@ function cardHarness(presentation = 'mobile') {
   const { ProjectPreviewCard } = load('ProjectPreviewCard', name => {
     imports.push(name);
     if (name === 'framer-motion' || name === './PreviewCreatorName') assert.fail('A bitmap card must not import animated attribution');
-    if (name === 'react') return { ...React, lazy: factory => { lazyFactory = factory; return LazyExtension; }, useEffect: () => undefined };
+    if (name === 'react') return { ...React, useState: initial => [initial, next => { if (next === true) details++; }], lazy: factory => { lazyFactory = factory; return LazyExtension; }, useEffect: () => undefined };
     if (name === 'react-router-dom') return { Link: 'link' };
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'horizontal-dots' };
+    if (name.endsWith('/MobileContextActions')) return { useMobileActions: () => ({ open() {} }) };
     if (name.endsWith('/InterfaceIcon')) return { InterfaceIcon: 'interface-icon' };
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };

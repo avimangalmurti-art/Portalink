@@ -46,7 +46,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
-    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions() {} };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open() {} }), useMobileScreenActions() {} };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
@@ -288,93 +288,35 @@ test('mobile engagement failures keep the recovery popup accessible', () => {
   assert.ok(nodes(tree).some(node => node.type === EngagementFeedback));
 });
 
-test('the mobile engagement toggle opens and closes local controls without changing WEB rail preferences', () => {
-  for (const readOnlyShare of [false, true]) {
-    const h = harness({ readOnlyShare });
-    const props = { onRailOpenChange: () => assert.fail('The mobile toggle must not change WEB rail preferences') };
-    let tree = h.render(props);
-    const toggle = button(tree, 'Show project engagement');
-    const content = withProp(tree, 'data-mobile-engagement-content');
-    assert.ok(toggle);
-    assert.equal(toggle.props['aria-expanded'], false);
-    assert.equal(toggle.props['aria-controls'], content.props.id);
-    assert.equal(content.props.hidden, true);
-    assert.equal(h.outsideCalls.at(-1).open, false);
-    toggle.props.onClick();
-    tree = h.render(props);
-    const expandedToggle = button(tree, 'Hide project engagement');
-    assert.equal(expandedToggle.ref, toggle.ref, 'One persistent button owns both states');
-    assert.equal(expandedToggle.props['aria-expanded'], true);
-    assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, false);
-    assert.equal(withProp(tree, 'data-project-response-rail').props['data-mobile-engagement-open'], 'true');
-    assert.equal(h.outsideCalls.at(-1).open, true);
-    assert.equal(h.outsideCalls.at(-1).layer, withProp(tree, 'data-project-response-rail').ref);
-    assert.ok(button(tree, 'Show project description'));
-    assert.equal(Boolean(button(tree, 'Show comments')), true);
-    assert.equal(Boolean(button(tree, 'Show AI verification services')), readOnlyShare);
-    assert.equal(nodes(tree).some(node => node.type === EngagementBar), true);
-    expandedToggle.props.onClick();
-    tree = h.render(props);
-    assert.equal(button(tree, 'Show project engagement').props['aria-expanded'], false);
-    assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
-    assert.equal(h.outsideCalls.at(-1).open, false);
+test('the mobile action opens project information without changing WEB rail preferences', () => {
+  for (const readOnlyShare of [false,true]) {
+    const h=harness({readOnlyShare});
+    const props={onRailOpenChange:()=>assert.fail('Information must not resize the WEB rail')};
+    button(h.render(props),'Show project engagement').props.onClick();
+    const tree=h.render(props),sheet=nodes(tree).find(node=>node.type===MobileProjectDescriptionSheet);
+    assert.equal(sheet.props.projectId,'project');
+    assert.equal(withProp(tree,'data-mobile-engagement-content').props.hidden,true);
+    sheet.props.onClose();
+    assert.equal(nodes(h.render(props)).some(node=>node.type===MobileProjectDescriptionSheet),false);
   }
 });
 
-test('Escape returns focus to the engagement toggle; outside dismissal preserves content focus', () => {
-  const h = harness();
-  let tree = h.render(), focused = 0;
-  const toggle = button(tree, 'Show project engagement');
-  toggle.ref.current = { focus(options) { assert.equal(options.preventScroll, true); focused++; } };
-  const key = value => ({ key: value, prevented: false, stopped: false,
-    preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; } });
-  const closedEscape = key('Escape');
-  withProp(tree, 'data-project-response-rail').props.onKeyDown(closedEscape);
-  assert.equal(closedEscape.prevented, false);
-  toggle.props.onClick();
-  tree = h.render();
-  const otherKey = key('ArrowDown');
-  withProp(tree, 'data-project-response-rail').props.onKeyDown(otherKey);
-  assert.equal(otherKey.prevented, false);
-  const escape = key('Escape');
-  withProp(tree, 'data-project-response-rail').props.onKeyDown(escape);
-  tree = h.render();
-  assert.equal(escape.prevented, true);
-  assert.equal(escape.stopped, true);
-  assert.equal(focused, 1);
-  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
-  button(tree, 'Show project engagement').props.onClick();
-  h.render();
-  const outside = h.outsideCalls.at(-1);
-  assert.equal(outside.open, true);
-  outside.onClose();
-  tree = h.render();
-  assert.equal(focused, 1, 'content-origin dismissal must not steal focus from the first tap or gesture');
-  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, true);
-  assert.equal(h.outsideCalls.at(-1).open, false);
+test('project information owns dismissal while its obsolete inline rail stays closed', () => {
+  const h=harness();button(h.render(),'Show project engagement').props.onClick();
+  const tree=h.render();
+  assert.equal(h.outsideCalls.at(-1).open,false);
+  withProp(tree,'data-project-response-rail').props.onKeyDown({key:'Escape',preventDefault(){assert.fail('Modal owns Escape')},stopPropagation(){}});
+  nodes(tree).find(node=>node.type===MobileProjectDescriptionSheet).props.onClose();
+  assert.equal(h.swipeCalls.at(-1).enabled,false);
+  h.render();assert.equal(h.swipeCalls.at(-1).enabled,true);
 });
 
-test('the description modal suspends engagement outside dismissal and owns Escape until it closes', () => {
-  const h = harness();
-  let tree = h.render();
-  button(tree, 'Show project engagement').props.onClick();
-  tree = h.render();
-  assert.equal(h.outsideCalls.at(-1).open, true);
-  button(tree, 'Show project description').props.onClick();
-  tree = h.render();
-  assert.equal(h.outsideCalls.at(-1).open, false);
-  assert.equal(withProp(tree, 'data-mobile-engagement-content').props.hidden, false);
-  withProp(tree, 'data-project-response-rail').props.onKeyDown({ key: 'Escape',
-    preventDefault() { assert.fail('Escape belongs to the description modal'); },
-    stopPropagation() { assert.fail('Escape belongs to the description modal'); } });
-  nodes(tree).find(node => node.type === MobileProjectDescriptionSheet).props.onClose();
-  tree = h.render();
-  assert.equal(button(tree, 'Hide project engagement').props['aria-expanded'], true);
-  assert.equal(h.outsideCalls.at(-1).open, true);
-  h.openIndex();
-  tree = h.render();
-  assert.equal(h.outsideCalls.at(-1).open, false);
-  assert.equal(button(tree, 'Hide project engagement'), undefined);
+test('opening the project index closes information and retains the selected attachment', () => {
+  const h=harness();button(h.render(),'second, Video').props.onClick();
+  button(h.render(),'Show project engagement').props.onClick();h.render();h.openIndex();
+  const tree=h.render();assert.equal(nodes(tree).some(node=>node.type===MobileProjectDescriptionSheet),false);
+  assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
+  assert.equal(withProp(tree,'data-project-response-rail'),undefined);
 });
 
 test('WEB retains its response rail without the mobile engagement toggle for workspace and public views', () => {
@@ -557,11 +499,11 @@ test('mobile density is scoped to the open project and attachment and member cha
   assert.equal(counter(h.render(props)), undefined, 'the portal popup does not receive the reading pill');
 });
 
-test('density control stays out of public shares, WEB, non-page media and callback-free readers', () => {
+test('public readers retain a density slider; WEB, non-page media and callback-free readers keep existing controls', () => {
   const callbacks = { pagesPerRow: 7, onPagesPerRowChange() { assert.fail('No draft'); }, onPagesPerRowCommit() { assert.fail('No save'); } };
   for (const mediaKind of ['image', 'document']) {
     const shared = harness({ mediaKind, readOnlyShare: true }).render(callbacks);
-    assert.equal(nodes(shared).find(node => node.type === MobileProjectPageCounter).props.density, undefined);
+    assert.equal(nodes(shared).find(node => node.type === MobileProjectPageCounter).props.density.value, 1);
     assert.equal(nodes(shared).find(node => node.type === AttachmentRenderer).props.imageColumns, 1);
     const web = harness({ mobile: false, mediaKind }).render(callbacks);
     assert.equal(nodes(web).some(node => node.type === MobileProjectPageCounter), false);
@@ -900,12 +842,12 @@ test('mobile content bar orders portal, actions, engagement and creator, with ca
     const bar = nodes(tree).find(node => node.props.className === 'mobile-content-action-bar');
     const controls = React.Children.toArray(bar.props.children);
     assert.equal(controls[0].props['aria-label'], 'Open portal');
-    assert.equal(controls[1].type, 'context-button');
-    assert.equal(controls[2].props['aria-label'], 'Show project engagement');
-    assert.equal(controls[3].props['aria-label'], 'View Creator profile');
+    assert.equal(controls.length, 3);
+    assert.equal(controls[1].props['aria-label'], 'Show project engagement');
+    assert.equal(controls[2].props['aria-label'], 'View Creator profile');
     controls[0].props.onClick();
     assert.equal(withProp(h.render(), 'data-mobile-combined-rail').props['data-mobile-combined-rail'], '');
-    controls[3].props.onClick();
+    controls[2].props.onClick();
     assert.equal(h.navigationCalls.at(-1), `${readOnlyShare ? 'sharedProfile' : 'profile'}:creator-id`);
   }
 });

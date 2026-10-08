@@ -104,7 +104,7 @@ function find(tree, predicate) {
 
 function messagesHarness(presentation = 'mobile', initial = {}) {
   const slots = [];
-  let cursor = 0, options, exits = 0, closes = 0;
+  let cursor = 0, options, actions, exits = 0, closes = 0;
   const routeChanges = [];
   const ScreenBack = () => null;
   const NewChatPanel = () => null;
@@ -126,6 +126,8 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
     },
   };
   const api = compile('../src/components/MessagesPage.tsx', name => {
+    if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions:model=>{actions=model}};
+    if (name.endsWith('/contextActions')) return {contextActions:(_screen,_role,model)=>model};
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
@@ -139,6 +141,7 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
   }, { sessionStorage: { getItem: () => null } });
   return {
     render() { cursor = 0; return api.MessagesPage(props); }, messaging, routeChanges,
+    newMessage() { actions.handlers.newMessage(); },
     back(tree) { find(tree, node => node.type === ScreenBack && node.props.action).props.action(); },
     newChat(tree) { return find(tree, node => node.type === NewChatPanel); },
     get options() { return options; }, get exits() { return exits; }, get closes() { return closes; },
@@ -148,7 +151,7 @@ function messagesHarness(presentation = 'mobile', initial = {}) {
 test('mobile Back closes New message first, then leaves Messages from the list', () => {
   const h = messagesHarness();
   let tree = h.render();
-  find(tree, node => node.props['aria-label'] === 'New message').props.onClick();
+  h.newMessage();
   tree = h.render(); h.back(tree);
   assert.equal(h.closes, 2, 'Opening and dismissing cancel pending thread work');
   assert.equal(h.exits, 0);
@@ -158,7 +161,7 @@ test('mobile Back closes New message first, then leaves Messages from the list',
 test('mobile New message uses one header and its visible Back returns to the list', () => {
   const h = messagesHarness();
   h.messaging.unreadCount = 3;
-  find(h.render(), node => node.props['aria-label'] === 'New message').props.onClick();
+  h.render(); h.newMessage();
   let tree = h.render();
   assert.equal(find(tree, node => node.type === 'h1').props.children, 'New message');
   assert.equal(h.newChat(tree).props.showHeader, false);
@@ -170,8 +173,8 @@ test('mobile New message uses one header and its visible Back returns to the lis
   assert.equal(h.exits, 0);
   assert.equal(h.closes, 2, 'Visible Back cancels pending conversation starts');
   assert.equal(find(tree, node => node.type === 'h1').props.children, 'Messages');
-  assert.ok(find(tree, node => node.props['aria-label'] === 'Message settings'));
-  find(tree, node => node.props['aria-label'] === 'Go back').props.onClick();
+  assert.equal(find(tree, node => node.props['aria-label'] === 'Message settings'), null);
+  h.back(tree);
   assert.equal(h.exits, 1);
 });
 

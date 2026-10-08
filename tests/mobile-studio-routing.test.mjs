@@ -51,9 +51,10 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.context.isProtectedRoute, true);
     assert.match(result.context.screenMainClassName, /overflow-hidden/);
     result.screen.props.onBack();
-    assert.equal(result.screen.props.onNewProject, undefined);
+    assert.equal(result.screen.props.onNewProject, result.context.requestMobilePublish);
+    result.screen.props.onNewProject();
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
-    assert.deepEqual(result.calls, ['back', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
+    assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
   }
   assert.equal(studio.screen.props.savedRoute, false);
   assert.equal(saved.screen.props.savedRoute, true);
@@ -91,8 +92,13 @@ test('mobile Studio requires the existing auth gate and cannot mount private con
 });
 
 
-test('mobile Studio keeps creation in the profile rather than adding a productivity shortcut', () => {
-  for (const route of ['studio', 'saved']) assert.equal(renderRoute('mobile', route).screen.props.onNewProject, undefined);
+test('mobile Studio receives creation for Cite-in-New-project while WEB and guests retain their gate', () => {
+  for (const route of ['studio', 'saved']) {
+    const result = renderRoute('mobile', route);
+    assert.equal(result.screen.props.onNewProject, result.context.requestMobilePublish);
+    result.screen.props.onNewProject();
+    assert.deepEqual(result.calls, ['create']);
+  }
   for (const route of ['studio', 'saved']) assert.equal(renderRoute('web', route).screen.props.onNewProject, undefined);
   assert.equal(renderRoute('mobile', 'studio', { auth: { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null } }).screen.props.onNewProject, undefined);
   assert.ok(!source.text.includes('onMobileCreateProject'));
@@ -106,7 +112,7 @@ test('closing creation restores the mobile trigger without stealing another dest
       focus(options) { calls.push(['focus', options.preventScroll]); }
     }
     const opener = new Element(), body = {}, doc = { body, activeElement: opener, querySelector: () => after === 'another-modal' ? {} : null };
-    const context = vm.createContext({ firstProjectPublisher:false, setFirstProjectPublisher() {}, setJourneyMadeIn() {}, HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
+    const context = vm.createContext({ firstProjectPublisher:false, setPublishResumeDraft() {},setFirstProjectPublisher() {}, setJourneyMadeIn() {}, HTMLElement: Element, document: doc, mobilePublishOpener: { current: null },
       requestGlobalPublish: () => { calls.push('create'); doc.activeElement = body; },
       setIsPublishOpen: value => calls.push(['open', value]), setPublishTargetCategoryId: value => calls.push(['target', value]),
       requestAnimationFrame: frame => frames.push(frame),

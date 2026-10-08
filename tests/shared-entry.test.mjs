@@ -32,7 +32,7 @@ test('shared collaboration preserves guest entry and its optional auth return de
   assert.equal(tree.type, 'aside');
   const signIn = nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in');
   signIn.props.onClick();
-  assert.equal(h.requested[0].intent.path, path);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.requested[0])), { intent: { kind: 'my-profile' }, view: 'signIn' });
 });
 
 function signInBar({ path = '/share/creator/c/art/project', search = '?view=projects&page=2&media=image-a', name = 'Creator Name', initializing = false, signedIn = false, phase = 'idle', storage = new Map(), blockedStorage = false } = {}) {
@@ -95,7 +95,7 @@ test('shared Sign in targets the account and Create account preserves a safe sha
   button.props.onClick();
   assert.equal(h.requested.length, 1);
   assert.equal(h.requested[0].view, view);
-  if (view === 'signIn') { assert.equal(h.requested[0].intent.kind, 'my-profile'); continue; }
+  if (view === 'signIn') { assert.deepEqual(JSON.parse(JSON.stringify(h.requested[0])), { intent: { kind: 'my-profile' }, view: 'signIn' }); continue; }
   assert.equal(h.requested[0].intent.kind, 'route');
   assert.equal(h.requested[0].intent.path, '/share/creator/c/art/project?view=portals&page=12&media=image-a');
   assert.doesNotMatch(h.requested[0].intent.path, /secret|next=|access_token|code=/);
@@ -109,7 +109,7 @@ test('shared profile, category and project account actions choose the correct de
   for (const [path, search] of [['/share/creator', '?view=portals'], ['/share/creator/c/art', '?view=projects'], ['/share/creator/c/art/project', '?page=5&media=page-a']]) for (const label of ['Sign in', 'Create account']) {
     const h = signInBar({ path, search });
     nodes(h.render()).find(node => node.type === 'button' && node.props.children === label).props.onClick();
-    if (label === 'Sign in') assert.equal(h.requested[0].intent.kind, 'my-profile');
+    if (label === 'Sign in') assert.deepEqual(JSON.parse(JSON.stringify(h.requested[0])), { intent: { kind: 'my-profile' }, view: 'signIn' });
     else assert.equal(h.requested[0].intent.path, path + search);
   }
 });
@@ -251,6 +251,6 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
     'hide the sized media wrapper too, so the shared loading label stays centered');
   assert.match(html, /html\[data-shared-view\] #portalink-preboot::after\s*\{[^}]*Opening shared content/);
   const app = read('../src/App.tsx');
-  assert.match(app, /isSharedRoute && <SharedSignInBar/);
+  assert.doesNotMatch(app, /isSharedRoute && <SharedSignInBar/);
   assert.match(app, /<AuthDialog showWelcomeMedia=\{!isSharedRoute\}/);
 });

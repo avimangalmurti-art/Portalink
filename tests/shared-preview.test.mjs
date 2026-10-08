@@ -16,7 +16,7 @@ const coverPath = id(1) + '/' + id(5) + '/cover.png';
 const clone = value => JSON.parse(JSON.stringify(value));
 
 function creator(overrides = {}) {
-  return { id: id(1), name: 'Test creator', headline: 'Design and architecture', is_private: false, ...overrides };
+  return { id: id(1), name: 'Test creator', headline: 'Design and architecture', avatar_url: config.supabaseUrl + '/storage/v1/object/public/avatars/' + id(1) + '/avatar.webp', is_private: false, ...overrides };
 }
 function attachment(overrides = {}) {
   return { id: 'cover-attachment', project_id: id(3), kind: 'image', mime_type: 'image/png',
@@ -146,6 +146,14 @@ function value(html, name) {
 function assertGeneric(html, expected = shell) {
   assert.equal(html, expected, 'Unavailable/unsafe cover keeps the original generic shell intact');
 }
+function assertProfileImage(html) {
+  assert.equal(value(html, 'og:image'), 'https://portalink.example/media/avatars/' + id(1) + '/avatar.webp');
+  assert.equal(value(html, 'twitter:image'), value(html, 'og:image'));
+  assert.equal(value(html, 'og:image:width'), '800');
+  assert.equal(value(html, 'og:image:height'), '800');
+  assert.equal(value(html, 'twitter:card'), 'summary_large_image');
+  assert.doesNotMatch(html.slice(0, html.indexOf('</head>')), /og\.png|Hello World — the Portalink character/);
+}
 function assertImage(html, path = coverPath, width = 1600, height = 900) {
   assert.equal(value(html, 'og:image'), config.supabaseUrl + '/storage/v1/object/sign/project-media/' + path + '?token=test');
   assert.equal(value(html, 'twitter:image'), value(html, 'og:image'));
@@ -155,18 +163,18 @@ function assertImage(html, path = coverPath, width = 1600, height = 900) {
   assert.doesNotMatch(html.slice(0, html.indexOf('</head>')), /og\.png|Hello World — the Portalink character/);
 }
 
-test('profile card uses its first project cover, creator title, public-only queries and clean canonical URL', async () => {
+test('profile card uses its public avatar, creator title, public-only queries and clean canonical URL', async () => {
   const h = setup();
   const response = await h.request(profilePath + '?token=private-value', {
     authorization: 'Bearer owner-session', cookie: 'session=private', 'if-none-match': 'template-etag',
   });
   const html = await response.text();
   assert.match(html, /<title>Test creator — Portfolio<\/title>/);
-  assert.equal(value(html, 'og:description'), 'Design and architecture · 1 project');
+  assert.equal(value(html, 'og:description'), '1 project');
   assert.equal(value(html, 'og:type'), 'profile');
   assert.equal(value(html, 'og:url'), 'https://portalink.example' + profilePath);
   assert.doesNotMatch(html, /private-value|owner-session/);
-  assertImage(html);
+  assertProfileImage(html);
   assert.equal(h.reads()[0].url.searchParams.get('is_private'), 'eq.false');
   const projectQuery = h.reads().find(call => call.url.pathname.endsWith('/projects')).url.searchParams;
   assert.equal(projectQuery.get('profile_id'), 'eq.' + id(1));
@@ -232,13 +240,13 @@ test('category card keeps collection title and binds its first project lookup to
   }
 });
 
-test('profile cover follows explicit negative wall ordering, otherwise newest published first', async () => {
+test('category cover follows explicit negative wall ordering, otherwise newest published first', async () => {
   for (const arranged of [false, true]) {
     const h = setup();
     h.state.projects = [project({ id: id(8), position: arranged ? -2 : 5,
       published_at: '2026-08-01T12:00:00Z',
       attachments: [attachment({ project_id: id(8), storage_path: id(1) + '/' + id(5) + '/older.png' })] }), project()];
-    const html = await (await h.request(profilePath)).text();
+    const html = await (await h.request(categoryPath)).text();
     const expected = arranged ? 'older.png' : 'cover.png';
     assert.ok(value(html, 'og:image').includes(expected));
     const lookups = h.reads().filter(call => call.url.pathname.endsWith('/projects') && call.options.method !== 'HEAD');
@@ -250,11 +258,11 @@ test('profile cover follows explicit negative wall ordering, otherwise newest pu
   }
 });
 
-test('profile without a headline uses truthful count; short headline stops at 80 characters', async () => {
+test('profile metadata uses truthful count without exposing headline text', async () => {
   const h=setup(); h.state.profiles[0].headline=''; h.state.projects[0].profile.headline='';
   assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
   h.state.projects[0].profile.headline='a'.repeat(200);
-  assert.equal(value(await (await h.direct()).text(),'og:description'),'a'.repeat(80)+' · 1 project');
+  assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
 });
 
 test('an older pinned project takes precedence over wall order and recent publication', async () => {
@@ -262,20 +270,20 @@ test('an older pinned project takes precedence over wall order and recent public
   h.state.projects = [project(), project({ id: id(8), is_pinned: true, position: 5,
     published_at: '2026-08-01T12:00:00Z',
     attachments: [attachment({ project_id: id(8), storage_path: id(1) + '/' + id(5) + '/pinned.png' })] })];
-  assert.ok(value(await (await h.request(profilePath)).text(), 'og:image').includes('pinned.png'));
+  assert.ok(value(await (await h.request(categoryPath)).text(), 'og:image').includes('pinned.png'));
 });
 
-test('explicit short headline and school match the profile, including deliberate headline clearing',async()=>{
+test('profile metadata omits headline, school and contact details',async()=>{
  const h=setup();Object.assign(h.state.projects[0].profile,{portfolio_headline:'Product designer',school:'SFSU',contact_email:'never-in-metadata@example.invalid'});
- assert.equal(value(await (await h.direct()).text(),'og:description'),'Product designer · SFSU · 1 project');
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
  h.state.projects[0].profile.portfolio_headline='';
- assert.equal(value(await (await h.direct()).text(),'og:description'),'SFSU · 1 project');
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
 });
 test('missing optional employer columns retry the legacy public projection without session headers',async()=>{
  const h=setup();h.state.employerColumnsMissing=true;
- assert.equal(value(await (await h.direct()).text(),'og:description'),'Design and architecture · 1 project');
+ assert.equal(value(await (await h.direct()).text(),'og:description'),'1 project');
  assert.ok(h.calls.some(call=>call.url.searchParams.get('select')?.includes('portfolio_headline')));
- assert.ok(h.calls.some(call=>call.url.searchParams.get('select')==='id,name,headline,is_private'));
+ assert.ok(h.calls.some(call=>call.url.searchParams.get('select')==='id,name,handle,headline,avatar_url,is_private'));
 });
 test('project metadata selects the owner relation explicitly when profiles also pins a project',async()=>{
  const h=setup();await h.request(projectPath);
@@ -324,12 +332,13 @@ test('head rewrite escapes text, replaces duplicate metadata regardless of order
   h.state.profiles[0].name = 'A " & <script>alert(1)</script>';
   h.state.profiles[0].headline = "It's <b>work</b>";
   h.state.projects[0].profile = { ...h.state.profiles[0] };
+  h.state.projects[0].summary = "It's <b>work</b>";
   h.state.extraHead = '<TITLE>STALE-TITLE</TITLE><meta content="STALE-TITLE" property="og:title"><meta content="STALE-IMAGE" property="og:image:secure_url">'
     + '<META NAME="TWITTER:IMAGE:ALT" CONTENT="STALE-ALT"><meta property="og:image:width" content="999">'
     + '<meta name="twitter:image0" content="STALE-CARD"><link href="https://stale.example" rel="canonical">'
     + '<meta content="STALE-DESC" NAME="DESCRIPTION"><meta content="STALE-TYPE" PROPERTY="OG:TYPE">';
   h.state.extraBody = '<p>body-preserved</p><meta name="description" content="BODY-META"><script>const title = "<title>BODY-TITLE</title>";</script>';
-  const html = await (await h.request(profilePath)).text();
+  const html = await (await h.request(projectPath)).text();
   const head = html.slice(0, html.indexOf('</head>'));
   assert.ok(head.includes('A &quot; &amp; &lt;script&gt;alert(1)&lt;/script&gt;'));
   assert.ok(head.includes('It&#39;s &lt;b&gt;work&lt;/b&gt;'));
@@ -342,12 +351,12 @@ test('head rewrite escapes text, replaces duplicate metadata regardless of order
 
 test('private, missing and mismatched targets keep generic tags and never return a prior cached card', async () => {
   const h = setup();
-  assertImage(await (await h.request(profilePath)).text());
+  assertProfileImage(await (await h.request(profilePath)).text());
   for (const rows of [[], [creator({ is_private: true, name: 'Secret' })], [creator({ id: id(9), name: 'Wrong creator' })]]) {
     h.state.profiles = rows;
     assertGeneric(await (await h.request(profilePath, { authorization: 'Bearer owner-session' })).text());
   }
-  assert.equal(h.signs().length, 1);
+  assert.equal(h.signs().length, 0);
 });
 
 test('hidden or mismatched project, creator and category relationships fail closed', async () => {
@@ -434,18 +443,18 @@ test('only same-origin signed image URLs for the exact requested storage object 
 
 test('upstream and Storage failures keep generic HTML and do not poison the next successful preview', async () => {
   const h = setup();
-  assertImage(await (await h.request(profilePath)).text());
+  assertImage(await (await h.request(projectPath)).text());
   h.state.status = 503;
-  assertGeneric(await (await h.request(profilePath)).text());
+  assertGeneric(await (await h.request(projectPath)).text());
   h.state.status = 200;
   h.state.failure = new Error('private-upstream-detail');
-  assertGeneric(await (await h.request(profilePath)).text());
+  assertGeneric(await (await h.request(projectPath)).text());
   h.state.failure = null;
   h.state.now += 300_001;
   h.state.signStatus = 503;
-  assertGeneric(await (await h.request(profilePath)).text());
+  assertGeneric(await (await h.request(projectPath)).text());
   h.state.signStatus = 200;
-  assertImage(await (await h.request(profilePath)).text());
+  assertImage(await (await h.request(projectPath)).text());
 });
 
 test('redirected metadata and signing requests keep generic HTML without following Location', async () => {
@@ -461,60 +470,60 @@ test('redirected metadata and signing requests keep generic HTML without followi
 
 test('a stalled upstream is aborted and falls back to the generic shell instead of serving a cached card', async () => {
   const h = setup();
-  assertImage(await (await h.request(profilePath)).text());
+  assertImage(await (await h.request(projectPath)).text());
   h.state.waitForAbort = true;
   // AbortSignal.timeout uses an unref'ed timer, so hold this test alive while
   // the actual production deadline fires without inventing a network service.
   const keepAlive = setTimeout(() => {}, 3_000);
   try {
-    assertGeneric(await (await h.request(profilePath)).text());
+    assertGeneric(await (await h.request(projectPath)).text());
     assert.equal(h.signs().length, 1);
   } finally { clearTimeout(keepAlive); }
 });
 
 test('five-minute cache reuses signing but rechecks public access every time and excludes query strings', async () => {
   const h = setup();
-  const first = await (await h.request(profilePath + '?page=1')).text();
+  const first = await (await h.request(projectPath + '?page=1')).text();
   const initialReads = h.reads().length;
   h.state.now += 299_000;
-  assert.equal(await (await h.request(profilePath + '?page=2')).text(), first);
+  assert.equal(await (await h.request(projectPath + '?page=2')).text(), first);
   assert.ok(h.reads().length > initialReads, 'Public permissions rechecked before cache hits');
   assert.equal(h.signs().length, 1);
   h.state.now += 1_001;
-  assertImage(await (await h.request(profilePath)).text());
+  assertImage(await (await h.request(projectPath)).text());
   assert.equal(h.signs().length, 2);
 });
 
 test('cache invalidates changed text, cover path, dimensions and SPA shell before expiry', async () => {
   const h = setup();
-  await h.request(profilePath);
+  await h.request(projectPath);
   h.state.profiles[0].name = 'Updated creator';
   h.state.projects[0].profile.name = 'Updated creator';
-  assert.match(await (await h.request(profilePath)).text(), /Updated creator — Portfolio/);
+  assert.match(await (await h.request(projectPath)).text(), /Courtyard — Updated creator/);
   h.state.projects[0].attachments[0].storage_path = id(1) + '/' + id(5) + '/new.png';
-  assertImage(await (await h.request(profilePath)).text(), id(1) + '/' + id(5) + '/new.png');
+  assertImage(await (await h.request(projectPath)).text(), id(1) + '/' + id(5) + '/new.png');
   h.state.projects[0].attachments[0].metadata = { widthPixels: 900, heightPixels: 1600 };
-  assertImage(await (await h.request(profilePath)).text(), id(1) + '/' + id(5) + '/new.png', 900, 1600);
+  assertImage(await (await h.request(projectPath)).text(), id(1) + '/' + id(5) + '/new.png', 900, 1600);
   h.state.extraHead = '<meta name="build-revision" content="second-shell">';
-  assert.match(await (await h.request(profilePath)).text(), /second-shell/);
+  assert.match(await (await h.request(projectPath)).text(), /second-shell/);
 });
 
 test('cache isolates path, canonical origin and publishable configuration', async () => {
   const h = setup();
-  await h.direct(profilePath);
+  await h.direct(categoryPath);
   await h.direct(projectPath);
   assert.equal(h.signs().length, 2);
-  const otherOrigin = await (await h.direct(profilePath, { origin: 'https://preview.portalink.example' })).text();
-  assert.equal(value(otherOrigin, 'og:url'), 'https://preview.portalink.example' + profilePath);
+  const otherOrigin = await (await h.direct(categoryPath, { origin: 'https://preview.portalink.example' })).text();
+  assert.equal(value(otherOrigin, 'og:url'), 'https://preview.portalink.example' + categoryPath);
   assert.equal(h.signs().length, 3);
-  await h.direct(profilePath, { previewConfig: { ...config, publishableKey: 'another-public-key' } });
+  await h.direct(categoryPath, { previewConfig: { ...config, publishableKey: 'another-public-key' } });
   assert.equal(h.signs().length, 4);
 });
 
 test('crawler HTML, wildcard and absent Accept headers work; higher JSON preference or HTML exclusion skips metadata', async () => {
   for (const accept of ['text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', '*/*', null]) {
     const h = setup();
-    const response = await h.request(profilePath, { accept, 'if-none-match': 'template-etag', 'if-modified-since': 'yesterday' });
+    const response = await h.request(projectPath, { accept, 'if-none-match': 'template-etag', 'if-modified-since': 'yesterday' });
     assert.equal(response.status, 200);
     assertImage(await response.text());
     assert.equal(new URL(h.assetRequests[0].url).pathname, '/share');
@@ -523,7 +532,7 @@ test('crawler HTML, wildcard and absent Accept headers work; higher JSON prefere
   }
   for (const accept of ['application/json', 'application/json;q=1,text/html;q=0.8', 'text/html;q=0,*/*;q=1']) {
     const h = setup();
-    await h.request(profilePath, { accept });
+    await h.request(projectPath, { accept });
     assert.equal(h.calls.length, 0, accept);
   }
 });
@@ -614,7 +623,7 @@ test('sheet card and handle crawler metadata use the same public social asset an
  const card=await h.preview.readPortfolioCard(id(1),'https://portalink.example',config);
  const response=await h.preview.withSharedPreview(new Response(shell,{headers:{'content-type':'text/html'}}),new Request('https://portalink.example/creator',{headers:{accept:'text/html'}}),config,id(1));
  const html=await response.text();
- assert.equal(value(html,'og:title'),card.title);assert.equal(value(html,'og:description'),card.description);assert.equal(value(html,'og:image'),card.image);assert.equal(value(html,'og:image:width'),'1200');assert.equal(value(html,'og:image:height'),'630');assert.equal(h.signs().length,0);
+ assert.equal(value(html,'og:title'),card.title);assert.equal(value(html,'og:description'),card.description);assert.equal(value(html,'og:image'),card.image);assert.equal(value(html,'og:image:width'),'800');assert.equal(value(html,'og:image:height'),'800');assert.equal(h.signs().length,0);
 });
 
 

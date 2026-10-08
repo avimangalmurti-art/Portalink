@@ -1,3 +1,4 @@
+import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -12,6 +13,8 @@ function load(path, imports) {
   const code = ts.transpileModule(read(path), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, require: (id) => {
+    if (!(id in imports) && id.endsWith('/MobileContextActions')) return {useMobileScreenActions(){}};
+    if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
     return imports[id];
   } });

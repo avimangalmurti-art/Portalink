@@ -38,6 +38,10 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     async markRead(row) { calls.push(['mark-read', row.id]); row.notification.isUnread = false; dirty = true; return true; },
   };
   const deps = {
+    '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
+    '../citations/service': {listCitations:async()=>[],resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
+    '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
+    '../../components/text/textFormatting': {plainFormattedText:s=>s},
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
     '../../presentation/mobile/contextActions': load('../src/presentation/mobile/contextActions.ts', () => new Proxy({}, {get: (_o,key)=>key})),
     react,
@@ -73,7 +77,7 @@ test('selection shows its toolbar, unsaves only bookmarks, then exits', async ()
   assert.equal(page.nodes.some(node => node.props.className === 'studio-compose'), false);
   page.nodes.find(node => node.type === 'studio-row').props.onSelect();
   const toolbar = page.nodes.find(node => node.props['aria-label'] === 'Selected item actions');
-  const unsave = nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Unsave ('));
+  const unsave = nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Remove bookmarks ('));
   assert.ok(unsave);
   unsave.props.onClick();
   for (let i = 0; i < 10; i++) await Promise.resolve();

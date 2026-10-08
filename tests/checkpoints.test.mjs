@@ -387,7 +387,12 @@ test('symlink or Windows junction in a tracked path blocks capture', async t => 
   await fs.symlink(outside, linked, process.platform === 'win32' ? 'junction' : 'dir');
   const result = await f.run();
   assert.equal(result.state, 'blocked');
-  assert.match(result.error, /Symbolic link|junction/);
+  // POSIX Git rejects a tracked path beyond a symlink during check-ignore,
+  // before the runner's explicit lstat guard. Windows junctions reach that guard.
+  if (process.platform === 'win32') assert.match(result.error, /Symbolic link|junction/);
+  else assert.equal(result.error, 'Git check-ignore failed; no working files were changed.');
+  assert.equal(await fs.readFile(path.join(outside, 'file.txt'), 'utf8'), 'outside content\n');
+  assert.equal((await fs.lstat(linked)).isSymbolicLink(), true);
   assert.equal(await exists(path.join(f.storeRoot, 'checkpoint.git')), false);
   assert.deepEqual(f.calls.scans, []);
   assert.deepEqual(f.calls.pushes, []);

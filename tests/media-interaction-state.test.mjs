@@ -69,26 +69,26 @@ test('engagement waits for the initial account read and an earlier retry cannot 
   try {
     await s.hook.flush();
     assert.equal(s.hook.value.isResolvingEngagement, true);
-    s.hook.value.toggle('like'); await s.hook.flush();
+    s.hook.value.toggle('repost'); await s.hook.flush();
     assert.equal(s.writes.length, 0);
     s.reads[0].resolve(record()); await s.hook.flush();
     assert.equal(s.hook.value.isResolvingEngagement, false);
 
     const retry = s.hook.value.retry(); await s.hook.flush();
-    s.hook.value.toggle('like'); await s.hook.flush();
+    s.hook.value.toggle('repost'); await s.hook.flush();
     assert.equal(s.writes.length, 1);
-    assert.equal(s.hook.value.record.engaged.like, true);
-    assert.equal(s.hook.value.record.counts.like, 1);
-    assert.deepEqual(JSON.parse(s.writes[0].init.body), { ...target, kind: 'like', engaged: true });
+    assert.equal(s.hook.value.record.engaged.repost, true);
+    assert.equal(s.hook.value.record.counts.repost, 1);
+    assert.deepEqual(JSON.parse(s.writes[0].init.body), { ...target, kind: 'repost', engaged: true });
 
     s.reads[1].resolve(record()); await retry; await s.hook.flush();
-    assert.equal(s.hook.value.record.engaged.like, true);
-    assert.equal(s.hook.value.record.counts.like, 1);
-    assert.equal(s.hook.value.pendingKind, 'like');
-    s.writes[0].resolve(record({ engaged: { like: true, save: false, repost: false }, counts: { like: 7, save: 0, repost: 0 } }));
+    assert.equal(s.hook.value.record.engaged.repost, true);
+    assert.equal(s.hook.value.record.counts.repost, 1);
+    assert.equal(s.hook.value.pendingKind, 'repost');
+    s.writes[0].resolve(record({ engaged: { like: false, save: false, repost: true }, counts: { like: 0, save: 0, repost: 7 } }));
     await s.hook.flush();
-    assert.equal(s.hook.value.record.engaged.like, true);
-    assert.equal(s.hook.value.record.counts.like, 7);
+    assert.equal(s.hook.value.record.engaged.repost, true);
+    assert.equal(s.hook.value.record.counts.repost, 7);
     assert.equal(s.hook.value.pendingKind, null);
     assert.equal(s.hook.value.isLoading, false);
     assert.equal(s.hook.value.isResolvingEngagement, false);
@@ -138,11 +138,11 @@ test('deferred page activity starts on visibility and an account change invalida
 });
 
 
-test('save toggle always shares with the creator and unsave does not create a save event', async () => {
+test('save toggle stays private and unsave does not create a save event', async () => {
   const s=setup();try {
     await s.hook.flush();s.reads[0].resolve(record());await s.hook.flush();
     s.hook.value.toggle('save');await s.hook.flush();
-    assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,true);
+    assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,false);
     s.writes[0].resolve(record({engaged:{like:false,save:true,repost:false}}));await s.hook.flush();
     s.hook.value.toggle('save');await s.hook.flush();
     const body=JSON.parse(s.writes[1].init.body);
@@ -155,7 +155,7 @@ test('named save stays with the initiating account and a late result cannot over
   const s=setup();try {
     await s.hook.flush();s.reads[0].resolve(record());await s.hook.flush();
     const save=s.hook.value.saveWithCreator();await s.hook.flush();
-    assert.equal(s.writes[0].account,'alice');assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,true);
+    assert.equal(s.writes[0].account,'alice');assert.equal(JSON.parse(s.writes[0].init.body).shareWithCreator,false);
     s.auth.user={id:'bob'};s.hook.rerender();await s.hook.flush();
     s.reads.at(-1).resolve(record({engaged:{like:false,save:false,repost:false}}));await s.hook.flush();
     s.writes[0].resolve(record({engaged:{like:false,save:true,repost:false}}));await save;await s.hook.flush();

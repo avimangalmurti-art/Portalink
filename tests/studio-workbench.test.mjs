@@ -47,30 +47,30 @@ test('Studio buttons remain label-only with no preview data',()=>{
  const reads=renderToStaticMarkup(React.createElement(View,{...props,publishedCount:1,week:model.weeklyReads([{projectId:'p',title:'Study',opened:4,finished:2}],3)}));assert.doesNotMatch(reads,/Reads this week/);assert.doesNotMatch(reads,/Top project|4 opened|2 finished|3 saved/);
 });
 
-test('Studio visibly offers labeled Bookmarks and Insights shortcuts before workspace content',()=>{
+test('Studio visibly offers Bookmarks while Insights stays in the profile actions',()=>{
  const calls=[];
  const header=viewModule.StudioWorkbenchHeader({onBookmarks:()=>calls.push('bookmarks'),onReads:()=>calls.push('insights')});
  const nodes=e=>React.isValidElement(e)?[e,...React.Children.toArray(e.props.children).flatMap(nodes)]:[];
  const nav=nodes(header).find(e=>e.type==='nav');
  assert.equal(nav.props['aria-label'],'Studio sections');
  const buttons=nodes(nav).filter(e=>e.type==='button');
- assert.equal(buttons.length,2);buttons.forEach(b=>b.props.onClick());
- assert.deepEqual(calls,['bookmarks','insights']);
+ assert.equal(buttons.length,1);buttons.forEach(b=>b.props.onClick());
+ assert.deepEqual(calls,['bookmarks']);
  const html=renderToStaticMarkup(header);
- assert.match(html,/Bookmarks/);assert.match(html,/Insights/);
+ assert.match(html,/Bookmarks/);assert.doesNotMatch(html,/Insights/);
  assert.doesNotMatch(html,/Saved projects, pages and creators|See how people engage/);
  assert.doesNotMatch(html,/Create portal|New project/);
 });
 
-test('Continue, Bookmarks and Insights offer distinct Studio destinations',()=>{
+test('Studio header stays compact when a resumable draft exists',()=>{
  const calls=[];
  const workspace={...props,draft:{id:'draft',stage:'details',createdAt:'2026-10-01',metadata:{title:'Study'}},onContinue:()=>calls.push('continue')};
  const header=viewModule.StudioWorkbenchHeader({workspace,onBookmarks:()=>calls.push('bookmarks'),onReads:()=>calls.push('reads')});
  const nodes=e=>React.isValidElement(e)?[e,...React.Children.toArray(e.props.children).flatMap(nodes)]:[];
  const buttons=nodes(nodes(header).find(e=>e.type==='nav')).filter(e=>e.type==='button');
  assert.ok(buttons.every(b=>nodes(b).filter(e=>e.type==='span').length===0));
- assert.deepEqual(buttons.map(b=>nodes(b).find(e=>e.type==='strong').props.children),['Continue','Bookmarks','Insights']);
- buttons.forEach(b=>b.props.onClick());assert.deepEqual(calls,['continue','bookmarks','reads']);
+ assert.deepEqual(buttons.map(b=>nodes(b).find(e=>e.type==='strong').props.children),['Bookmarks']);
+ buttons.forEach(b=>b.props.onClick());assert.deepEqual(calls,['bookmarks']);
 });
 
 
