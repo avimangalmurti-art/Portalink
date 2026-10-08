@@ -10,3 +10,13 @@ test('Studio rail follows the safe-area header and selected pills never scroll v
  assert.match(scoped,/\.studio-workbench-scroll \{\s*overflow-y: auto; flex: 1; min-height: 0/);
  assert.match(readFileSync('src/features/studio/studio-workbench.css','utf8'),/\.studio-mobile-shell-header \{ display: none/);
 });
+
+
+test('mobile Studio header receives existing collection controls and hides its redundant title',()=>{
+ const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
+ assert.match(source,/className="studio-mobile-header-controls" ref=\{setHeaderHost\}/);
+ assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
+ assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
+ const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
+ assert.match(css, /data-presentation='mobile'\] \.studio-mobile-shell-header h1 \{ display: none;/);
+});
