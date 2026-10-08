@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE New Project Details keyboard layout, unpublished
+
+Branch codex/publish-keyboard-fix from github/main0360a8b, isolated logs/studio-header-fix/logs/publish-keyboard-fix. The Details body previously hid overflow and gave Description zero-basis shrinking flex space; keyboard viewport reduction collapsed its editor and overlapped Location. Details now has an internal vertical scroller, nonshrinking form content, and minimum multiline/editor/textarea heights. Back/Review stay outside the scroller. Selectors are MOBILE Details-only; Files, Review, WEB and publishing state unchanged.
+
+26 focused publishing/dialog/mobile viewport tests pass; diff check passes. Added CSS regression for scrolling and editor minimum heights. No physical-iPhone or authenticated browser verification performed; real-phone keyboard acceptance remains required. No SQL, user-data changes, merge or publish. PR7 Studio and PR6 MCP untouched.
+
 ## 2026-10-08 — PR #5 pre-merge assertion audit
 
 User authorizes merging PR5 only after hosted CI is green and assertion audit is reported. Initial hosted run29ee2c5:WEB/Windows Node/PDF/video pass; Ubuntu Node had1checkpoint diagnostic mismatch. Corrected test-only POSIX expectation to exact fail-closed Git error; no checkpoint runner or application change. Added unchanged outside-content/link assertions. No skips/quarantines/SQL/publish.
