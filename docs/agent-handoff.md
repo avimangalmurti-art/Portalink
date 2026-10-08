@@ -1,3 +1,9 @@
+## 2026-10-08 — Sites356: mobile Studio header controls released
+
+PR11 merged; user authorized publication. Built/pushed exact main2e68e49574c5c0572e2912fb9496fa9c00cdab4b in isolated logs/studio-header-fix/logs/studio-header-release. Back/Select/Done and options now occupy the header above collections; redundant mobile Studio title hidden. WEB/state/callbacks preserved.55focused Studio tests, typecheck, build and both main/visitor production Supabase guards pass. Lint0errors/111existing warnings. Existing approved dormant router/Auth localhost defaults and hostname-validation literal unchanged. Full suite/physical-phone/authenticated browser layout not rerun.
+
+Sites356 saved version appgprj_6a9273ef43f8819198e0878a0020ad91~appgver_3cf73d4bbc6c81919628ffdd447bae0c; deployment appgdep_6ac72bf32b288191ac65d17adc5a2986 succeeded2026-10-08T05:37:01.068347+00:00. Existing public host/environment revision2 preserved. Official Sites workflow completed with existing Git Bash PATH and TAR_OPTIONS=--force-local for Windows. Archive550files SHA25649c3744fa78199dcfc201368f53490520ebbbc6856c883204944b2d246999c26. Existing ignored production environment linked, credentials excluded. No MCP/SQL/Storage/user data/D1 changes. Sites355 receipt remains PR10; this receipt is documentation only.
+
 ## 2026-10-08 — MOBILE Studio Back/Select in header, unpublished
 
 Isolated logs/studio-header-fix/logs/studio-controls-fix, branch codex/studio-controls-header from github/main46111c8. Mobile parent header now hosts the existing child-owned Back/Select/Done and options controls through a portal, above the collection rail; mobile Studio h1 hidden. Selection state/callbacks remain in Bookmarks/Drafts; desktop receives no header host and retains original controls/header. Default/References/Cited header retains Back and existing actions. Draft mobile Back no longer says Studio. No pill colour/collection label/reference badge redesign, no MCP/SQL/user-data/publish.
