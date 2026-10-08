@@ -10,7 +10,7 @@ const code = ts.transpileModule(`${source}\nexport { PdfImagePage };`, { compile
   module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true,
 } }).outputText;
 
-function harness(retainCanvasWhileLoading = true, focused = true) {
+function harness(retainCanvasWhileLoading = true, focused = true, throwRender = false) {
   const slots = [], effects = [], tasks = [];
   let cursor = 0, dirty = false, tree, props, intersection;
   class Canvas {
@@ -51,6 +51,7 @@ function harness(retainCanvasWhileLoading = true, focused = true) {
     document: { getPage: async pageNumber => ({ pageNumber, cleanup() {},
       getViewport: ({ scale }) => ({ width: 600 * scale, height: (pageNumber === 1 ? 900 : 800) * scale }),
       render({ canvas: target }) {
+        if (throwRender) throw new Error('Canvas allocation failed');
         let finish, fail;
         const promise = new Promise((resolve, reject) => { finish = () => { target.painted = pageNumber; resolve(); }; fail = () => reject(new Error('Render failed')); });
         const task = { promise, finish, fail, target, cancelled: false, cancel() { this.cancelled = true; } };
@@ -139,4 +140,17 @@ test('mobile overview loads only nearby pages and frees canvases when they leave
   await h.intersect(true);
   assert.equal(h.tasks.length, 2);
   h.unmount();
+});
+
+test('synchronous PDF render failure becomes a retryable page rather than crashing the viewer', async () => {
+  const h = harness(true, true, true); await h.flush();
+  assert.equal(h.tasks.length, 0);
+  const labels = [];
+  function visit(node) { if (!node || typeof node !== 'object') return; labels.push(node.props?.['aria-label']); React.Children.forEach(node.props?.children, visit); }
+  visit(h.tree); assert.ok(labels.includes('Retry Work, page 1')); h.unmount();
+});
+test('failed PDF replacement releases its temporary bitmap while keeping the visible paint', async () => {
+  const h = harness(); await h.flush(); h.tasks[0].finish(); await h.flush();
+  await h.move(2); const failed = h.tasks.at(-1); failed.fail(); await h.flush();
+  assert.equal(h.canvas.painted, 1); assert.equal(failed.target.width, 0); assert.equal(failed.target.height, 0); h.unmount();
 });

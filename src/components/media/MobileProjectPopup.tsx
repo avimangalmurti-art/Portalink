@@ -85,7 +85,6 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
 
 
-  {!owner && options && <button type="button" className="project-popup-comments" onClick={() => { onClose(); options(); }}>Project options</button>}
 
  </>} />;
 

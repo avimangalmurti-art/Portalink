@@ -10,3 +10,8 @@ export function rememberAccount(account: string | undefined, person: FeedCreator
   if (!account) return;
   try { localStorage.setItem(key(account), JSON.stringify([person, ...readRecentAccounts(account).filter(p => p.id !== person.id)].slice(0, 30))); } catch { /* Storage is optional; navigation remains available. */ }
 }
+
+export function forgetAccount(account: string | undefined, personId: string) {
+  if (!account) return;
+  try { localStorage.setItem(key(account), JSON.stringify(readRecentAccounts(account).filter(person => person.id !== personId))); } catch { /* Storage is optional. */ }
+}
