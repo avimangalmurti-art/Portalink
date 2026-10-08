@@ -97,3 +97,11 @@
 [data-presentation='mobile'] [data-centered-project] .project-popup-engagement [data-engagement-action] > span { flex-direction: row; gap: 6px; }
 
 [data-presentation='mobile'] #project-description-actions .project-popup-owner-actions { margin-top: 0; }
+
+/* The creator identity is a touch target with the same bounded control shape. */
+[data-presentation='mobile'] .project-popup-identity > .project-popup-creator {
+  border-radius: var(--shape-compact); -webkit-tap-highlight-color: transparent;
+}
+[data-presentation='mobile'] .project-popup-identity > .project-popup-creator:active {
+  background: var(--control-rest-surface);
+}

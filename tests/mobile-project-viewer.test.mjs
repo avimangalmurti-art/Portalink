@@ -851,3 +851,16 @@ test('mobile content bar orders portal, actions, engagement and creator, with ca
     assert.equal(h.navigationCalls.at(-1), `${readOnlyShare ? 'sharedProfile' : 'profile'}:creator-id`);
   }
 });
+
+test('mobile reader restores density independently for each project and document', () => {
+  const h = harness({ mediaKind: 'document' });
+  h.viewerMemory.set('workspace:project:project:density:first', { pagesPerRow: 4 });
+  h.viewerMemory.set('workspace:project:other:density:first', { pagesPerRow: 2 });
+  const counter = tree => nodes(tree).find(node => node.type === MobileProjectPageCounter);
+  const render = overrides => h.render({ onPagesPerRowChange() {}, ...overrides });
+  assert.equal(counter(render()).props.density.value, 4);
+  counter(render()).props.density.onChange(3);
+  assert.equal(h.viewerMemory.get('workspace:project:project:density:first').pagesPerRow, 3);
+  assert.equal(counter(render({ projectId: 'other' })).props.density.value, 2);
+  assert.equal(counter(render()).props.density.value, 3);
+});
