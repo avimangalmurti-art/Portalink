@@ -9,22 +9,22 @@ import type { Material } from './useWorkbench';
 import type { Project } from '../../types/domain';
 import './studio-workbench.css';
 export type WorkbenchViewProps = {
- draft:DraftResume|null;draftCount:number;attention:Attention[];week:ReturnType<typeof weeklyReads>;publishedCount:number;material:Material[];
+ hideHeader?:boolean;draft:DraftResume|null;draftCount:number;attention:Attention[];week:ReturnType<typeof weeklyReads>;publishedCount:number;material:Material[];
  onRetry?:()=>void;partial:boolean;draftsUnavailable?:boolean;cover?:{source:string;kind:Project['coverKind'];pageNumber?:number;frame?:Project['coverFrame']};
  onContinue:()=>void;onDrafts:()=>void;onBookmarks:()=>void;onReads:()=>void;onMaterial:(item:Material)=>void;onAttention:(row:Attention)=>void;onDismiss:(id:string)=>void;
 };
-export function StudioWorkbenchHeader({onBookmarks}:{onBookmarks:()=>void;onReads:()=>void;workspace?:WorkbenchViewProps}) {
- return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1><div data-inline-screen-actions=""><MobileContextButton /></div></div>
-   <nav className="studio-hub-navigation" aria-label="Studio sections">
+export function StudioWorkbenchHeader({onBookmarks,showBookmarks=true,showActions=true}:{onBookmarks:()=>void;onReads:()=>void;workspace?:WorkbenchViewProps;showBookmarks?:boolean;showActions?:boolean}) {
+ return <header className="studio-workbench-header"><div className="studio-drafts-heading studio-hub-heading"><h1>Studio</h1>{showActions&&<div data-inline-screen-actions=""><MobileContextButton /></div>}</div>
+   {showBookmarks&&<nav className="studio-hub-navigation" aria-label="Studio sections">
     <button type="button" onClick={onBookmarks}><strong>Bookmarks</strong></button>
-   </nav>
+   </nav>}
   </header>;
 }
 export function StudioWorkbenchView(p:WorkbenchViewProps){
  const [all,setAll]=useState(false),[menu,setMenu]=useState<Attention|null>(null);
  const allDone=!p.partial&&!p.attention.length&&!(p.week?.opened||p.week?.finished||p.week?.saved)&&p.draftCount<=1;
  return <section className="mobile-studio studio-workbench" data-mobile-studio="" aria-label="Studio">
-  <StudioWorkbenchHeader onBookmarks={p.onBookmarks} onReads={p.onReads} workspace={p} />
+  {!p.hideHeader&&<StudioWorkbenchHeader onBookmarks={p.onBookmarks} onReads={p.onReads} workspace={p} />}
   <div className="studio-workbench-scroll">
    {p.partial?<p className="studio-workbench-note" role="status">Some workspace information could not load. Unavailable numbers are hidden.{p.onRetry?<button className="studio-workbench-link" onClick={p.onRetry}>Try again</button>:null}</p>:null}
    {allDone?<p className="studio-workbench-note" data-studio-all-done="">Nothing needs your attention.</p>:<>

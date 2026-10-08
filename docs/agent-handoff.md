@@ -3,6 +3,13 @@
 Branch codex/publish-keyboard-fix from github/main0360a8b, isolated logs/studio-header-fix/logs/publish-keyboard-fix. The Details body previously hid overflow and gave Description zero-basis shrinking flex space; keyboard viewport reduction collapsed its editor and overlapped Location. Details now has an internal vertical scroller, nonshrinking form content, and minimum multiline/editor/textarea heights. Back/Review stay outside the scroller. Selectors are MOBILE Details-only; Files, Review, WEB and publishing state unchanged.
 
 26 focused publishing/dialog/mobile viewport tests pass; diff check passes. Added CSS regression for scrolling and editor minimum heights. No physical-iPhone or authenticated browser verification performed; real-phone keyboard acceptance remains required. No SQL, user-data changes, merge or publish. PR7 Studio and PR6 MCP untouched.
+## 2026-10-08 — MOBILE Studio header/scroll correction, unpublished
+
+PR #7 https://github.com/avimangalmurti-art/Portalink/pull/7, implementation11c94f5. Isolated logs/studio-header-fix, codex/studio-header-fix from github/main0360a8b. MCP draft PR6/worktree and shared desktop edits untouched; no merge/SQL/production data/publish.
+
+Root causes: citation collection rail was before the child-owned Studio header; selected-pill scrollIntoView could move the document; legacy madeIn-only attention ignored canonical made_on. Mobile shell now owns safe-area Studio title before the rail, the workbench omits its duplicate header/Bookmarks shortcut, selected-pill centering changes only horizontal scrollLeft, and a measured mobile viewport frame contains one content scroller. Existing collection selection/options controls retained, WEB child header/layout preserved. Date attention respects madeOn (legacy madeIn still accepted) on both presentations.
+
+53 focused Studio/routing checks pass, including canonical-date and header/rail regressions. Typecheck passes. Production-configured build and both entry bundle guards pass; lint0errors/111existing warnings. Browser-controlled isolated CSS/component layout fixture:420x912 document height912, header y66.5 with synthetic52px safe area, rail y120; content scroll912 with document scroll0 and header/rail unchanged.390x844 and430x932 also contain the page;1280x800 hides the new mobile header. Synthetic fixture only, not signed-in app or physical iPhone acceptance. Temporary preview/tab stopped; no production rows fabricated or changed. Updated mobile layout needs real-phone verification after approved publication.
 
 ## 2026-10-08 — PR #5 pre-merge assertion audit
 
