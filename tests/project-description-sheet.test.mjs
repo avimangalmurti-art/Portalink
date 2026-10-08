@@ -237,3 +237,15 @@ test('project description editing uses full visible screen with formatting and S
   assert.ok(nodes(form).some(n => n.type === 'textarea'));
   assert.equal(nodes(form).some(n => n.type === 'footer'), false);
 });
+
+
+test('owner controls are hidden until the description three-dot menu opens', () => {
+  const actions = React.createElement('button', { type: 'button' }, 'Edit title');
+  const h = harness(true, { ownerActions: actions });
+  assert.equal(h.button('Edit title'), undefined);
+  h.click('Description options');
+  assert.ok(h.button('Edit title'));
+  assert.equal(h.button('Edit description'), undefined, 'No duplicate description action');
+  h.click('Description options');
+  assert.equal(h.button('Edit title'), undefined);
+});

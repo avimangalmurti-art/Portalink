@@ -24,6 +24,7 @@ type Props = {
   description?: string;
   typeface?: string;
   details?: React.ReactNode;
+  ownerActions?: React.ReactNode;
   creatorHeader?: React.ReactNode;
   editor?: ProjectManagement['editor'];
   textEditor?: SheetTextEditor;
@@ -35,7 +36,7 @@ type Props = {
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, ownerActions, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -142,11 +143,13 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
         {topEditorActions && (phase === 'load-failed'
           ? <button type="button" onClick={activeEditor.retryLoad}>Try again</button>
           : <button type="button" className="project-description-top-save" disabled={busy || !activeEditor.isDirty || phase === 'loading'} aria-busy={busy} onClick={() => { void activeEditor.save(); }}>{busy ? 'Saving…' : 'Save'}</button>)}
-        {canEdit && !editing && <div className="project-description-menu">
+        {(canEdit || ownerActions) && !editing && <div className="project-description-menu">
           <button ref={optionsRef} type="button" aria-label={directEditAction ? `Edit ${label}` : `${contentLabel} options`} aria-expanded={directEditAction ? undefined : menuOpen} aria-controls={directEditAction ? undefined : "project-description-actions"}
             onClick={event => { stop(event); if (directEditAction) { setExpanded(true); activeEditor?.open(); } else setMenuOpen(value => !value); }}><MoreHorizontalIcon aria-hidden="true" /></button>
           {menuOpen && <div id="project-description-actions">
+            {ownerActions ?? <>
             <button ref={editRef} type="button" onClick={() => { setMenuOpen(false); setExpanded(true); activeEditor?.open(); }}>{`Edit ${label}`}</button>
+            </>}
           </div>}
         </div>}
         {(!creatorHeader || editing) && <button type="button" aria-label={`Close ${label}`} disabled={busy} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button>}

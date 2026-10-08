@@ -1,3 +1,6 @@
+## 2026-10-08 — MOBILE project information owner menu, unpublished
+
+Isolated branch codex/project-menu-fix from github/main0360a8b. Owner Project options, Edit title, Edit description and Delete project now render inside the information popup three-dot menu, not below engagement. Both grid and media-viewer entry paths use the same menu slot; existing owner checks, editor callbacks and delete confirmation remain. Bio and WEB unchanged. 43 focused popup/viewer/description checks pass, including menu disclosure and no duplicate description action; typecheck and diff check pass. No SQL, data changes, merge or publish. Physical-phone/browser layout remains unverified. PR6/7/8 untouched.
 ## 2026-10-08 — MOBILE New Project Details keyboard layout, unpublished
 
 Branch codex/publish-keyboard-fix from github/main0360a8b, isolated logs/studio-header-fix/logs/publish-keyboard-fix. The Details body previously hid overflow and gave Description zero-basis shrinking flex space; keyboard viewport reduction collapsed its editor and overlapped Location. Details now has an internal vertical scroller, nonshrinking form content, and minimum multiline/editor/textarea heights. Back/Review stay outside the scroller. Selectors are MOBILE Details-only; Files, Review, WEB and publishing state unchanged.
