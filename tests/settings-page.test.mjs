@@ -24,7 +24,7 @@ function load(auth, nav, react = React) {
   }});
   return exports.ControlCenterPage;
 }
-const action = (tree,label) => all(tree).find(n => typeof n.props.onClick === 'function' && all(n).some(child=>child.props.children===label));
+const action = (tree,label) => all(tree).find(n => n.type === 'button' && typeof n.props.onClick === 'function' && all(n).some(child=>child.props.children===label));
 const props = {theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#ff375f',highContrast:false,reduceTranslucency:false,language:'auto',onBack(){},onOpenProfile(){}};
 const all = node => React.isValidElement(node) ? [node,...React.Children.toArray(node.props.children).flatMap(all)] : [];
 test('Settings is a page with visible Back, seven collapsed sections and no modal on first paint', () => {

@@ -1,3 +1,9 @@
+## 2026-10-08 — PR #5 pre-merge assertion audit
+
+User authorizes merging PR5 only after hosted CI is green and assertion audit is reported. Initial hosted run29ee2c5:WEB/Windows Node/PDF/video pass; Ubuntu Node had1checkpoint diagnostic mismatch. Corrected test-only POSIX expectation to exact fail-closed Git error; no checkpoint runner or application change. Added unchanged outside-content/link assertions. No skips/quarantines/SQL/publish.
+
+Reviewed all126stale repairs. Precision issues were corrected (callback identity/invocation, full auth intent, header sibling position, permission RPC target, social-card/fallback checks, bounded named CSS classes, actual WEB message button). Extra Save nonempty and Settings button-only checks added. Intentional retired-state exceptions and bounded CSS expansion are listed in docs/pr5-assertion-audit-20261008.md; do not claim every old assertion was unchanged. Focused140+15checks pass. Final hosted CI must pass exact final head before merge. All changes are tests/CI/docs/test-runner setup; no production source change, so no Sites publication is needed when merged. Existing Sites354 remains the release.
+
 ## 2026-10-07 — Sites 354 released; repeatable suite repaired on separate branch
 
 PR #4 merged to main d88f7938ffc1294c6cbf2594218504e941123e30 and published as Sites354 from that exact main commit. Production env link and both VITE_SUPABASE guards/entry-graph host/key checks passed. User accepted dormant localhost validation/library literals; actual endpoints use production configuration. Live bare /portalite200 without modal; /portalite.work301 and UUID share301 to bare handle; formatted friends/SFSU Journey summaries render; image and document UUID citation routes200 with production citation URLs. Receipt/screenshots: docs/sites354-release-20261007.md. No SQL, Storage, account/content or D1 mutation.

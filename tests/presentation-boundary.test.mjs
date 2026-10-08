@@ -131,11 +131,12 @@ function presentationBoundary(mode) {
 test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
   for (const mode of ['web', 'mobile']) {
     const boundary = presentationBoundary(mode);
-    const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.[a-z-]+)?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+    const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
     assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
     assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
     for (const selector of [
       '#root .codex-shell .mobile-project-description-sheet',
+      `#root .codex-shell.unscoped[data-presentation='${mode}'] .surface`,
       `#root .codex-shell + [data-presentation='${mode}'] .surface`,
       `#root .codex-shell :not([data-presentation='${mode}']) .surface`,
       `#root .codex-shell [data-presentation='${mode}-other'] .surface`,
@@ -176,7 +177,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // with or without zero specificity for component-level overrides.
         // A compound host selector (:has(), data attributes, etc.) retains scope.
         const boundary = presentationBoundary(mode);
-        const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.[a-z-]+)?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
+        const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
         // AccountWelcomeSurface emits this alternate DOM scope only when
         // usePresentation() is mobile; account-entry-focus exercises that gate.
         const mobileOnboardingBoundary = /^#root \.codex-shell (?:\.auth-signin-experience)?\[data-mobile-onboarding(?:='(?:light|dark)')?\](?=[\s:.#\[]|$)/;

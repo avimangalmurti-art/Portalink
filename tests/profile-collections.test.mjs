@@ -492,7 +492,7 @@ test('selected mobile projects hide the profile header and restore it on return 
         assert.equal(children[1].props['data-mobile-project-selected'], mobileProjectSelected ? '' : undefined);
       }
       const overview = h.render();
-      assert.equal(nodes(overview).find(node => node.props?.['data-profile-header'] !== undefined).props.className, 'profile-header-region contents');
+      assert.equal(React.Children.toArray(overview.props.children).filter(node => node.type !== 'ScreenBack')[0].props.className, 'profile-header-region contents');
       assert.equal(nodes(overview).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
     }
   }
@@ -939,7 +939,7 @@ test('shared profile fallback omits following and retries while platform follow 
 
 test('connection totals use a counts-only RPC and reject unavailable totals rather than inventing zero', async () => {
   for (const result of [{ data: { followers: 7, following: 3 }, error: null }, { data: null, error: null }, { data: null, error: { message: 'offline' } }]) {
-    const client = { async rpc(name, args) { if (name === 'can_view_profile_connections') return {data:false,error:null}; assert.equal(name, 'profile_connection_counts'); assert.equal(args.p_profile_id, 'person'); return result; } };
+    const client = { async rpc(name, args) { if (name === 'can_view_profile_connections') { assert.equal(args.p_profile_id, 'person'); return {data:false,error:null}; } assert.equal(name, 'profile_connection_counts'); assert.equal(args.p_profile_id, 'person'); return result; } };
     const { supabaseSocialService } = compile('../src/services/supabase/communityServices.ts', name => name === './client' ? { requireSupabase: () => client } : name.endsWith('/social') ? socialTypes : {});
     if (result.data) {
       const totals = await supabaseSocialService.getProfileConnectionCounts('person');

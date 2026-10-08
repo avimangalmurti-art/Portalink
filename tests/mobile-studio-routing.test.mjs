@@ -51,9 +51,10 @@ test('mobile Studio and saved alias share one account-scoped workspace with exis
     assert.equal(result.context.isProtectedRoute, true);
     assert.match(result.context.screenMainClassName, /overflow-hidden/);
     result.screen.props.onBack();
-    assert.equal(typeof result.screen.props.onNewProject, 'function');
+    assert.equal(result.screen.props.onNewProject, result.context.requestMobilePublish);
+    result.screen.props.onNewProject();
     result.screen.props.onOpenProject('project-a', { profileId: 'owner', categoryId: 'category-a' });
-    assert.deepEqual(result.calls, ['back', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
+    assert.deepEqual(result.calls, ['back', 'create', ['project', 'project-a', { profileId: 'owner', categoryId: 'category-a' }]]);
   }
   assert.equal(studio.screen.props.savedRoute, false);
   assert.equal(saved.screen.props.savedRoute, true);
@@ -92,7 +93,12 @@ test('mobile Studio requires the existing auth gate and cannot mount private con
 
 
 test('mobile Studio receives creation for Cite-in-New-project while WEB and guests retain their gate', () => {
-  for (const route of ['studio', 'saved']) assert.equal(typeof renderRoute('mobile', route).screen.props.onNewProject, 'function');
+  for (const route of ['studio', 'saved']) {
+    const result = renderRoute('mobile', route);
+    assert.equal(result.screen.props.onNewProject, result.context.requestMobilePublish);
+    result.screen.props.onNewProject();
+    assert.deepEqual(result.calls, ['create']);
+  }
   for (const route of ['studio', 'saved']) assert.equal(renderRoute('web', route).screen.props.onNewProject, undefined);
   assert.equal(renderRoute('mobile', 'studio', { auth: { isAuthenticated: false, isInitializing: false, phase: 'unauthenticated', user: null } }).screen.props.onNewProject, undefined);
   assert.ok(!source.text.includes('onMobileCreateProject'));

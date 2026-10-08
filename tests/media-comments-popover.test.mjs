@@ -299,7 +299,9 @@ for (const mode of ['mobile', 'web']) {
     const dismiss = nodes.find(node => node.type === 'button' && node.props.children === 'Dismiss');
     assert.ok(dismiss, 'Ordinary post-load failures retain their dismiss action');
     dismiss.props.onClick(); assert.equal(env.dismissals, 1);
-    assert.ok(nodes.filter(node => node.type === 'button' && /^Save:/.test(node.props['aria-label'] ?? '')).every(node => !node.props.disabled));
+    const recoveredActions = nodes.filter(node => node.type === 'button' && /^Save:/.test(node.props['aria-label'] ?? ''));
+    assert.equal(recoveredActions.length, 1);
+    assert.equal(recoveredActions[0].props.disabled, false);
 
     env.activity.failure = null;
     nodes = descendants(env.render());

@@ -151,6 +151,8 @@ function assertProfileImage(html) {
   assert.equal(value(html, 'twitter:image'), value(html, 'og:image'));
   assert.equal(value(html, 'og:image:width'), '800');
   assert.equal(value(html, 'og:image:height'), '800');
+  assert.equal(value(html, 'twitter:card'), 'summary_large_image');
+  assert.doesNotMatch(html.slice(0, html.indexOf('</head>')), /og\.png|Hello World — the Portalink character/);
 }
 function assertImage(html, path = coverPath, width = 1600, height = 900) {
   assert.equal(value(html, 'og:image'), config.supabaseUrl + '/storage/v1/object/sign/project-media/' + path + '?token=test');

@@ -180,7 +180,7 @@ test('mobile New message uses one header and its visible Back returns to the lis
 
 test('WEB retains its Messages toolbar and New message panel header', () => {
   const h = messagesHarness('web');
-  h.render(); h.newMessage();
+  find(h.render(), node => node.props['aria-label'] === 'New message').props.onClick();
   const tree = h.render();
   assert.equal(find(tree, node => node.type === 'h1').props.children, 'Messages');
   assert.equal(h.newChat(tree).props.showHeader, true);
