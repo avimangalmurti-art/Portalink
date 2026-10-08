@@ -12,3 +12,5 @@
 .studio-drafts-list {list-style:none;padding:0;display:grid;gap:12px}
 .studio-drafts-list li > button,.studio-drafts-list li > label {width:100%;min-height:72px;display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:16px;background:var(--surface-raised);text-align:left}
 .studio-drafts-list span {font-size:13px;color:var(--text-secondary)}
+
+.studio-mobile-shell-header { display: none; }
