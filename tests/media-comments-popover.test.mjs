@@ -220,6 +220,12 @@ function interactionBarHarness(mode, guest = false) {
   const popover = () => null;
   const icon = () => null;
   const { MediaInteractionBar } = load('../src/features/media-interactions/MediaInteractionBar.tsx', {
+    '../../components/ui/ConfirmationDialog': {ConfirmationDialog:'confirmation'},
+    '../citations/useCiteTarget': {useCiteTarget:()=>({surface:null,citedIn:null,open(){}})},
+    '../citations/CiteSheet': {CiteSheet:()=>null},
+    '../citations/CitedIn': {CitedIn:()=>null},
+    '../engagement/capabilities': {likesCapability:false},
+    '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw new Error('Unexpected share in comments fixture');}},
     react,
     'lucide-react': Object.fromEntries(['BookmarkIcon', 'HeartIcon', 'Loader2Icon', 'MessageCircleIcon', 'Repeat2Icon', 'SendIcon', 'Trash2Icon', 'XIcon'].map(name => [name, icon])),
     '../../components/ui/InterfaceIcon': { InterfaceIcon: icon },
@@ -255,11 +261,11 @@ function descendants(node) {
 test('shared mobile guest page actions stay tappable while resolving and prompt Create account', () => {
   const env = interactionBarHarness('mobile', true);
   const nodes = descendants(env.render());
-  const actions = nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):|^Show comments for|^Share Page/.test(node.props['aria-label'] ?? ''));
-  assert.equal(actions.length, 5);
+  const actions = nodes.filter(node => node.type === 'button' && /^Save:|^Show comments for|^Share Page/.test(node.props['aria-label'] ?? ''));
+  assert.equal(actions.length, 3);
   env.activity.toggle = env.activity.share = () => assert.fail('Guest action must not write or share');
   for (const action of actions) { assert.ok(!action.props.disabled); action.props.onClick(); }
-  assert.equal(env.gates.length, 5);
+  assert.equal(env.gates.length, 3);
   assert.ok(env.gates.every(call => call.view === 'signUp' && call.intent.path === '/share/creator/c/portal/project?page=2'));
   assert.equal(descendants(env.render()).some(node => node.type === env.popover), false);
 });
@@ -268,8 +274,8 @@ for (const mode of ['mobile', 'web']) {
   test(`${mode} exposes first-read retry outside closed Comments and keeps recovery reachable inside`, () => {
     const env = interactionBarHarness(mode);
     let nodes = descendants(env.render());
-    const actions = nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):/.test(node.props['aria-label'] ?? ''));
-    assert.equal(actions.length, 3);
+    const actions = nodes.filter(node => node.type === 'button' && /^Save:/.test(node.props['aria-label'] ?? ''));
+    assert.equal(actions.length, 1);
     assert.ok(actions.every(node => node.props.disabled));
     assert.equal(nodes.some(node => node.type === env.popover), false);
     const retry = nodes.find(node => node.props['aria-label'] === 'Retry page activity for Page 1');
@@ -293,7 +299,7 @@ for (const mode of ['mobile', 'web']) {
     const dismiss = nodes.find(node => node.type === 'button' && node.props.children === 'Dismiss');
     assert.ok(dismiss, 'Ordinary post-load failures retain their dismiss action');
     dismiss.props.onClick(); assert.equal(env.dismissals, 1);
-    assert.ok(nodes.filter(node => node.type === 'button' && /^(Like|Bookmark|Repost):/.test(node.props['aria-label'] ?? '')).every(node => !node.props.disabled));
+    assert.ok(nodes.filter(node => node.type === 'button' && /^Save:/.test(node.props['aria-label'] ?? '')).every(node => !node.props.disabled));
 
     env.activity.failure = null;
     nodes = descendants(env.render());

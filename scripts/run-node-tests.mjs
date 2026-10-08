@@ -12,6 +12,13 @@ if (!databaseModule) {
   process.exit(1);
 }
 await access(databaseModule);
+try {
+  await access(resolve(root, 'logs/client-module-graph.json'));
+  await access(resolve(root, 'dist/client/.vite/manifest.json'));
+} catch {
+  console.error('Run npm.cmd run build before the full suite: visitor-entry-build tests verify emitted bundle artifacts. See docs/development-workflow.md.');
+  process.exit(1);
+}
 const files = (await readdir(new URL('../tests/', import.meta.url)))
   .filter(name => name.endsWith('.test.mjs')).sort().map(name => resolve(root, 'tests', name));
 const child = spawn(process.execPath, ['--test', '--test-concurrency=2', ...files], {

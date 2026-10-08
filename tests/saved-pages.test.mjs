@@ -24,6 +24,7 @@ function load(path, imports = {}, globals = {}) {
       if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
     if (id === './server/rum' || id === './server/rumOwner') return {};
     if (id === './server/sharedPreview') return { isSharedPreviewPath: () => false, withSharedPreview: async response => response };
+    if (id.endsWith('/MobileContextActions')) return {useMobileScreenActions(){}};
     if (!(id in imports)) throw new Error(`Missing test import ${id}`);
     return imports[id];
   } });

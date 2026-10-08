@@ -43,7 +43,7 @@ function harness(presentation = 'web') {
   };
   function render(changes = {}, propChanges = {}) {
     currentFlow = {
-      step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {}, isSavingDraft: false,
+      discard:async()=>true, step: 'metadata', state: 'editing', isDirty: true, isOwner: true, draft: {}, isSavingDraft: false,
       media: { items: [] }, firstProject: false, location: '', metadata: { title: ' Wet Paint ', summary: '' }, fieldErrors: {},
       inferredRelevance: {}, upload: {}, publish: {}, ...changes,
     };
@@ -181,16 +181,16 @@ test('first-project dashed-tile reentry resumes the saved Details step instead o
   const guided=nodes(tree).find(node=>node.type==='MobilePublishFlow');
   assert.equal(guided.props.editingStep,'details');assert.equal(guided.props.flow.metadata.creationDetails.answers.what,'Saved answer');assert.equal(guided.props.flow.media.items[0].id,'saved-file');
 });
-test('first-project close cannot abandon a draft when local checkpoint fails', async () => {
+test('first-project close waits for discard cleanup and retains the draft on failure', async () => {
   let closed=0;
-  const tree=harness('mobile').render({saveLocalDraft:async()=>{throw Error('quota');}}, {firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  const tree=harness('mobile').render({discard:async()=>false}, {firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
   await tree.props.onClose();assert.equal(closed,0);
 });
 
 
 test('first-project recovery retains safe close and locked fields after switching to WEB', async () => {
   let saved=0,closed=0;
-  const tree=harness('web').render({hasCommittedProject:true,saveLocalDraft:async()=>saved++,canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
+  const tree=harness('web').render({hasCommittedProject:true,discard:async()=>{saved++;return true;},canPublish:true,media:{items:[{}]}},{firstProject:{name:'Mira',categories:['Work']},onClose:()=>closed++});
   await tree.props.onClose();assert.equal(saved,1);assert.equal(closed,1);
   const guided = nodes(tree).find(node => node.type === 'MobilePublishFlow');
   assert.equal(guided.props.flow.hasCommittedProject, true);
@@ -204,8 +204,8 @@ test('first-project recovery retains safe close and locked fields after switchin
     return new Proxy({}, {get:(_,key)=>key});
   }});
   const review = nodes(exports.MobilePublishFlow(guided.props));
-  assert.equal(review.find(node=>node.props?.children==='Edit details').props.disabled,true);
-  assert.equal(review.find(node=>node.props?.children==='Edit files and cover').props.disabled,true);
+  assert.equal(review.find(node=>node.props?.['aria-label']==='Edit project details').props.disabled,true);
+  assert.equal(review.find(node=>node.props?.['aria-label']==='Edit cover').props.disabled,true);
   assert.equal(review.find(node=>node.props?.type==='submit').props.disabled,false);
   assert.ok(React.Children.toArray(review.find(node=>node.props?.type==='submit').props.children).includes('Finish saving details'));
 });

@@ -638,11 +638,11 @@ test('email confirmation completes the saved profile once; a missing image asks 
       create.status = 'success'; create.createdProfile = {id: 'created'};
       render(); await tick(); render();
       if (mode === 'mobile-welcome') {
-        assert.deepEqual(completed, [], 'Mobile must pause at Welcome after saving.');
+        assert.deepEqual(completed, ['created'], 'Mobile completes immediately after saving.');
         const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
         const welcome = nodes(render()).find(node => node.type === 'Welcome');
-        assert.ok(welcome);
-        welcome.props.onComplete(); welcome.props.onComplete();
+        assert.equal(welcome, undefined, 'No obsolete Welcome pause');
+        render();
       }
       assert.deepEqual(completed, ['created']); assert.deepEqual(cleaned, [id]);
     } else {

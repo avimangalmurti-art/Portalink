@@ -96,11 +96,11 @@ test('remove-all requires confirmation and Keep files preserves the draft', () =
   const requestRemoval = () => find(h.render(), (node) => node.type === 'ProjectFilesMenu').props.onRemoveAll();
   requestRemoval();
   assert.equal(cleared, 0);
-  label(h.render(), 'Keep files').props.onClick();
+  find(h.render(),node=>node.type==='ConfirmationDialog').props.onCancel();
   assert.equal(cleared, 0);
   assert.equal(label(h.render(), 'Remove all'), undefined);
   requestRemoval();
-  label(h.render(), 'Remove all').props.onClick();
+  find(h.render(),node=>node.type==='ConfirmationDialog').props.onConfirm();
   assert.equal(cleared, 1);
   assert.equal(label(h.render(), 'Remove all'), undefined);
 });

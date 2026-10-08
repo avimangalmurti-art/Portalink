@@ -44,6 +44,7 @@ function harness() {
     openPortalink: () => calls.push(['world']), openProfile: id => calls.push(['profile', id]),
     setGlobalCreateAccountId: value => { context.globalCreateAccountId = value; context.isGlobalCreatePending = evaluate(initializer('isGlobalCreatePending'), context); },
     setPublishAccountId: value => { context.publishAccountId = value; },
+    setPublishResumeDraft: value => { context.publishResumeDraft = value; },
     setPortalChoice: value => { context.portalChoice = value; },
     setPublishConfirmation: value => { context.publishConfirmation = value; },
     setIsPublishOpen: value => { context.isPublishOpen = value; },
@@ -182,6 +183,7 @@ function homeHarness(presentation, feed, props) {
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
+    if (name === 'react-router-dom') return { useNavigate: () => () => {} };
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null }) };

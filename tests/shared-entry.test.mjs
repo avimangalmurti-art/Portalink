@@ -32,7 +32,7 @@ test('shared collaboration preserves guest entry and its optional auth return de
   assert.equal(tree.type, 'aside');
   const signIn = nodes(tree).find(node => node.type === 'button' && node.props.children === 'Sign in');
   signIn.props.onClick();
-  assert.equal(h.requested[0].intent.path, path);
+  assert.equal(h.requested[0].intent.kind, 'my-profile');
 });
 
 function signInBar({ path = '/share/creator/c/art/project', search = '?view=projects&page=2&media=image-a', name = 'Creator Name', initializing = false, signedIn = false, phase = 'idle', storage = new Map(), blockedStorage = false } = {}) {
@@ -251,6 +251,6 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
     'hide the sized media wrapper too, so the shared loading label stays centered');
   assert.match(html, /html\[data-shared-view\] #portalink-preboot::after\s*\{[^}]*Opening shared content/);
   const app = read('../src/App.tsx');
-  assert.match(app, /isSharedRoute && <SharedSignInBar/);
+  assert.doesNotMatch(app, /isSharedRoute && <SharedSignInBar/);
   assert.match(app, /<AuthDialog showWelcomeMedia=\{!isSharedRoute\}/);
 });

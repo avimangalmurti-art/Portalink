@@ -24,6 +24,7 @@ function load(auth, nav, react = React) {
   }});
   return exports.ControlCenterPage;
 }
+const action = (tree,label) => all(tree).find(n => typeof n.props.onClick === 'function' && all(n).some(child=>child.props.children===label));
 const props = {theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#ff375f',highContrast:false,reduceTranslucency:false,language:'auto',onBack(){},onOpenProfile(){}};
 const all = node => React.isValidElement(node) ? [node,...React.Children.toArray(node.props.children).flatMap(all)] : [];
 test('Settings is a page with visible Back, seven collapsed sections and no modal on first paint', () => {
@@ -43,7 +44,7 @@ test('guest private destinations request authentication before leaving Settings'
   const react={...React,useState:value=>[value,()=>{}]};
   const Page=load({isAuthenticated:false,requestAuthenticatedDestination:intent=>calls.push(intent)},
     {to(){assert.fail('A shared visitor must not be redirected before sign-in');}},react);
-  for(const title of ['Open messages','View notifications']) all(Page(props)).find(n=>n.props.children===title).props.onClick();
+  for(const title of ['Open messages','View notifications']) action(Page(props),title).props.onClick();
   assert.deepEqual(calls.map(c=>c.path),['/messages','/notifications']);
   assert.ok(calls.every(c=>c.kind==='route'));
 });
@@ -65,12 +66,12 @@ test('Account reuses sign-in/signup for guests and owner profile navigation for 
   const react={...React,useState:value=>[value,()=>{}]};
   let Page=load({isAuthenticated:false,requestAuth:view=>calls.push(view),requestAuthenticatedDestination:(intent,view)=>{assert.equal(intent.kind,'my-profile');calls.push(view);}},{},react);
   let account=all(Page(props)).find(n=>n.props.id==='account');
-  all(account).find(n=>n.props.children==='Sign in').props.onClick();
-  all(account).find(n=>n.props.children==='Create account').props.onClick();
+  action(account,'Sign in').props.onClick();
+  action(account,'Create account').props.onClick();
   assert.deepEqual(calls,['signIn','signUp']);
   Page=load({isAuthenticated:true,viewerProfileId:'owner'},{profileEditor:()=>calls.push('edit')},react);
   account=all(Page({...props,onOpenProfile:()=>calls.push('profile')})).find(n=>n.props.id==='account');
-  all(account).find(n=>n.props.children==='View profile').props.onClick();
-  all(account).find(n=>n.props.children==='Edit profile').props.onClick();
+  action(account,'View profile').props.onClick();
+  action(account,'Edit profile').props.onClick();
   assert.deepEqual(calls.slice(-2),['profile','edit']);
 });

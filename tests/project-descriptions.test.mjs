@@ -107,7 +107,7 @@ test('hover descriptions preserve paragraphs and scroll rather than truncate', (
   });
   const tree = ProjectHoverDetails({ projectId: 'project', summary: longDescription });
   const description = React.Children.toArray(tree.props.children).find((child) => child.props?.['data-project-hover-description'] !== undefined);
-  assert.equal(description.props.children.props.children, longDescription);
+  assert.equal(description.props.children.props.text, longDescription);
   for (const name of ['whitespace-pre-wrap', 'break-words', 'overflow-y-auto', 'overscroll-y-auto']) {
     assert.ok(description.props.className.split(/\s+/).includes(name));
   }

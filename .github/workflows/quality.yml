@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# Synthetic configuration only for emitted-artifact tests. These jobs never
+# publish or upload application bundles; releases require the production env.
+env:
+  VITE_SUPABASE_URL: https://portalink-ci-artifacts.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_artifact_fixture_no_auth
+
 jobs:
   web:
     if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
@@ -55,6 +61,8 @@ jobs:
       - run: npm ci
       - name: Install isolated database test runtime
         run: npm install --prefix "${{ runner.temp }}/portalink-db-tools" --no-save --package-lock=false @electric-sql/pglite@0.5.8
+      - name: Build artifacts for visitor-entry regressions
+        run: npm run build
       - name: Run Node and database regressions
         run: node scripts/run-node-tests.mjs
         env:

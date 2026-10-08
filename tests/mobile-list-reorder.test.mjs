@@ -111,6 +111,7 @@ function projectHarness() {
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup }, useDragControls: () => ({}), AnimatePresence: () => null, motion: { div: 'div' } };
     if (name === 'lucide-react') return new Proxy({}, { get: () => () => null });
+    if (name.endsWith('/MobileProjectPopup')) return {MobileProjectPopup:'project-popup'};
     if (name.endsWith('/useMobileProjectContext')) return { useMobileProjectContext: () => ({}) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/MobileReorderList')) return { MobileReorderList };
@@ -274,6 +275,8 @@ test('floating mobile rows only navigate, with owner reordering kept in the menu
   assert.deepEqual(selections, [row.props.project.id]);
   all(rendered).find(node => node.props['data-row-menu'] !== undefined).props.onClick();
   rendered = h.renderRow(row);
+  const popup = all(rendered).find(node=>node.type==='project-popup');
+  assert.ok(popup); popup.props.onOptions(); rendered = h.renderRow(row);
   const moves = all(rendered).filter(node => node.props.role === 'menuitem').map(node => node.props.children).filter(label => typeof label === 'string');
   assert.deepEqual(moves, ['Move up', 'Move down']);
   h.props.isOwner = false;

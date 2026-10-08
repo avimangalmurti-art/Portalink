@@ -146,8 +146,8 @@ run each command separately and inspect its exit status:
 ```powershell
 npm.cmd run typecheck
 npm.cmd run lint
-node.exe scripts/run-node-tests.mjs
 npm.cmd run build
+node.exe scripts/run-node-tests.mjs
 ```
 
 PowerShell does not automatically stop after a failed native command. Check
@@ -165,6 +165,15 @@ Use the installed `dist/index.js` entry. The full-suite runner requires an
 accessible module, supplies both variable names and runs all Node files with
 concurrency two. Missing configuration fails instead of silently skipping DB
 coverage. Focused `node --test` commands remain available for scoped changes.
+
+Build first: the visitor-entry checks inspect emitted manifests and module graphs.
+The runner fails with a setup message when those artifacts are absent. Use normal
+filesystem permissions for the disposable Git repositories created by checkpoint
+tests; sandbox-denied Git initialization is a setup failure, not a flake.
+
+CI builds emitted artifacts with explicitly synthetic, non-authenticating test
+configuration. Those outputs are never published or uploaded as release bundles.
+Local release builds must still use the existing production environment and guard.
 
 ```powershell
 # Replace the example path with the absolute path to your local test dependency.

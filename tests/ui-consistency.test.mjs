@@ -159,8 +159,10 @@ test('project editor Escape uses existing dirty and transfer safeguards', () => 
   for (const state of [{}, { isDirty: true }, { isDirty: true, isSaving: true }, { isTransferring: true }, { cleaning: true }]) {
     let closed = 0; const changes = [];
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
-      useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
+      useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
     const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
+      if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
       return new Proxy({}, { get: (_, key) => key });
     } });
@@ -176,8 +178,10 @@ test('project editor Escape uses existing dirty and transfer safeguards', () => 
 test('shared project dialog sends all dismissal paths through the same transfer lock', () => {
   for (const closeDisabled of [false, true]) {
     let escape, closed = 0;
-    const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }), useRef: () => ({ current: null }) };
+    const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }), useLayoutEffect() {}, useRef: () => ({ current: null }) };
     const { ProjectFormDialog } = compile('../src/components/publishing/ProjectFormDialog.tsx', { React: react, require(name) {
+      if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
+      if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
       if (name === 'framer-motion') return { motion: { div: 'div', section: 'section' }, useReducedMotion: () => true };
       if (name.endsWith('/useModalFocus')) return { useModalFocus: (_open, _ref, fn) => { escape = fn; } };
@@ -202,9 +206,11 @@ test('shared project dialog sends all dismissal paths through the same transfer 
 test('editing keeps Save associated with the form so Enter uses the normal save path', async () => {
   let saved = 0, prevented = false;
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
-    useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, () => {}] };
+    useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, () => {}] };
   const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
-    if (name === 'react') return react;
+    if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
+      if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
+      if (name === 'react') return react;
     return new Proxy({}, { get: (_, key) => key });
   } });
   const tree = ProjectEditorDialog({ management: { editor: {
