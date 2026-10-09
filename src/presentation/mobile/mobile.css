@@ -5066,3 +5066,37 @@ body:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-float
 #root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within::before {
   border-color: var(--hairline);
 }
+
+/* Main-screen arrival clearance: equal space on both sides of the hairline. */
+#root .codex-shell[data-presentation='mobile'] {
+  --main-screen-divider-space: 28px;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.profile-navigation-header, .mobile-home-search-header, [data-mobile-inbox] [data-inbox-controls]) {
+  padding-bottom: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-mobile-scroll-end] {
+  padding-top: calc(var(--scroll-header-height, 0px) + var(--main-screen-divider-space));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] .mobile-home-search-header {
+  margin-bottom: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content),
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content > .mobile-profile-wall {
+  padding-top: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  padding-bottom: var(--main-screen-divider-space);
+  background-image: linear-gradient(var(--hairline), var(--hairline));
+  background-size: calc(100% - 32px) 1px;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills + * {
+  padding-top: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-workbench-scroll {
+  border-top: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench .studio-workbench-scroll {
+  padding-top: 0;
+}

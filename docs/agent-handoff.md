@@ -20,6 +20,11 @@ Branch codex/message-picker-navigation from main197b493. Messages marks the reci
 ## 2026-10-08 — MOBILE invitation composer, unpublished
 
 Branch codex/invitation-composer from main197b493. Invitation textarea autofocuses on mount and receives focus rather than thread region on entry. Mobile invitation guidance is a compact paragraph without duplicated recipient title; WEB EmptyState retained. Remove sharp focused shell ring, retain rounded neutral hairline. 29 focused messaging tests, typecheck and diff check pass; targeted lint zero errors/one existing warning. Physical-iPhone automatic keyboard opening remains unverified and subject to Safari focus restrictions. No invitation sent, production writes, SQL or publish.
+## 2026-10-08 — MOBILE four main-screen divider spacing, unpublished
+
+Branch codex/main-screen-divider-spacing from main197b493. Shared mobile-only divider clearance28px above/below for Profile, Explore, inbox and Studio; existing Profile/Explore/inbox inset hairline retained. Studio gains matching inset line below pills and removes duplicate workbench scroll border. Inbox retains sticky-header compensation. This supersedes PR20's narrower inbox-only clearance when integrated; do not double-apply it. WEB selectors unaffected.
+
+49 focused navigation/context tests and diff check pass. Isolated CSS fixture420x912 measures28px each side on all four; WEB1280x800 new padding rules inactive. Evidence docs/evidence/main-screen-divider-spacing/mobile-layout.jpg. Fixture contains disposable layout placeholders, not real app data; authenticated/physical-phone verification pending. Preview stopped, owned tab closed and viewport reset. No SQL, production writes or publish.
 
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
