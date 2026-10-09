@@ -167,8 +167,8 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
       </form> : <>
         <div className="project-description-body scrollbar-overlay" tabIndex={0} aria-label={contentLabel === 'Description' ? 'Project description text' : `${contentLabel} text`}>
           <FormattedText style={{ fontFamily: typeface }} text={(saved ? activeEditor.savedValue : description) || emptyMessage} />
-          {details && <div className="project-description-details">{details}</div>}
         </div>
+        {details && <div className="project-description-details project-description-footer">{details}</div>}
         {saved && <footer className="project-description-saved"><span role="status">{contentLabel} saved</span><button ref={doneRef} type="button" onClick={() => { void activeEditor.close(); }}>Done</button></footer>}
       </>}
     </section>

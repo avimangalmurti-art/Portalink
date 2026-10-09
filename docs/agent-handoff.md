@@ -2,6 +2,42 @@
 
 Owned logs/info-popup-dismiss checkout, codex/create-account-invite from github/main 5151636. Share and Copy invite use PUBLIC_ORIGIN rather than the preview host; /?welcome=1 opens signUp once after auth initialization. Signed-in, callback and recovery visits preserve their flow. Six focused invite checks pass. No SQL or publish. Popup fixes remain separately on PR33.
 
+## 2026-10-09 - MOBILE project popup footer and engagement alignment
+
+Continuation on codex/info-popup-dismiss / PR33, logs/info-popup-dismiss.
+The grid project's engagement details were inside the scrolling description;
+short descriptions left a large blank area below them. Details now form a footer
+sibling of the flexing/scrolling description, with original bottom padding and
+an overflow bound for expanded participant lists. Only this mobile sheet changes.
+The engagement grid creates equal columns for the actual button count (no empty
+fourth slot), and comments/save/repost all use row flex centering and identical
+line-height. Existing actions/count data are preserved; WEB unaffected.
+
+18 popup/description focused tests pass; typecheck passes. Browser disposable
+layout fixture with actual mobile popup CSS at420x912: all three button tops and
+icon/count centers equal; footer sits at panel bottom for short descriptions.
+Long description scroll height3103/client431 with engagement visible at bottom.
+Evidence ignored logs/footer-short.png, footer-long.png. Fixture has explicitly
+synthetic text/icons/counts; no live/physical-phone claim. No SQL or publish.
+
+## 2026-10-09 - MOBILE info-popup dismissal fix, unpublished
+
+Task branch codex/info-popup-dismiss from github/main5151636; isolated
+logs/info-popup-dismiss. MobileContextProvider previously retained an opened
+options sheet when delegating the screen action to the info popup. It now clears
+that sheet before opening information. ProjectMediaViewer now closes information
+before an intentional three-dot handoff to project options. Normal dismissal
+never opens options; selected content/page memory is preserved. Owner options
+remain available deliberately; WEB viewer and backend behavior unchanged.
+
+Regression tests on original source: 75 passed, 2 failed (stale-sheet state and
+three-dot handoff). After correction: 80 focused viewer/context/info tests pass;
+typecheck passes; targeted lint 0 errors/4 existing refresh warnings; diff check
+passes. Runtime component/state tests, not real-phone/live authenticated proof.
+No SQL, data mutation, merge or publish. Existing launch-readiness PR32 preserved.
+Dependencies reused through a junction to the compatible existing installation
+after the isolated installer stalled; partial installation retained in ignored logs.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.

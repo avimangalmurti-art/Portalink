@@ -36,7 +36,12 @@ export function MobileContextProvider({ children, sheet: Sheet = MobileActionShe
     focusContext();
     if (!source) {
       const target = [...entries.current.values()].filter(item => item.route === route).sort((a, b) => b.priority - a.priority).find(item => item.onOpen);
-      if (target?.onOpen) { target.onOpen(); return; }
+      if (target?.onOpen) {
+        // Information replaces an existing actions sheet; it must not leave
+        // that sheet mounted underneath to reappear on dismissal.
+        setOpened(null); setNotice('');
+        target.onOpen(); return;
+      }
     }
     setOpened({ identity, source }); setHint(false); setNotice('');
     try { localStorage.setItem(hintKey, '1'); } catch { /* Convenience only. */ }
