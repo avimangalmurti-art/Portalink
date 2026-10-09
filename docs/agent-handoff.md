@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE screen action ellipsis, unpublished
+
+Branch codex/screen-actions-dots from main197b493. Screen-level MobileContextButton has transparent surface, no border/shadow/blur in normal/open/pressed modes. Preserve existing geometry and keyboard focus indication. App high-contrast setting adds2px text-color border; system contrast/forced-colors also supported. Styling scoped to existing screen action slots; content-row menus and WEB unchanged.
+
+46 focused actions tests and diff check pass. Disposable CSS fixture420x912 confirms standard44px and Studio48px touch targets, transparent backgrounds/border0/shadow none; app high contrast border2px. Evidence docs/evidence/screen-actions-dots/normal-high-contrast.jpg. Fixture is not authenticated app or physical-phone proof. Preview stopped/tab closed/viewport reset. No SQL, data writes or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.
