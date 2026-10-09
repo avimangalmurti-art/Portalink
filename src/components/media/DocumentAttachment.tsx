@@ -279,7 +279,7 @@ export function DocumentAttachment({
               }}
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : verticalReading ? 'h-auto w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: readingMode || verticalReading ? 'auto' : `${zoom * 100}%`, flexShrink: readingMode || verticalReading ? 0 : undefined } : undefined}
-            /> : <PdfPage source={attachment.sourceUrl ?? ''} loadDocument={loadFallbackDocument} onReady={() => { setPaintedReaderPage(`${attachment.id}:${page.sourceUrl}:${index+1}`); if (isMobile && focusedPageIndex === index) restoreFocusedScroll(); }} pageNumber={page.withinDocumentIndex} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} className="w-full aspect-[800/1035]" />}
+            /> : <div className="shrink-0" style={{ width: focusedPageIndex === index ? `${zoom * 100}%` : '100%' }}><PdfPage source={attachment.sourceUrl ?? ''} loadDocument={loadFallbackDocument} onReady={() => { setPaintedReaderPage(`${attachment.id}:${page.sourceUrl}:${index+1}`); if (isMobile && focusedPageIndex === index) restoreFocusedScroll(); }} pageNumber={page.withinDocumentIndex} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} className="w-full aspect-[800/1035]" /></div>}
             {showMediaInteractions && !isMobile && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
               attachmentId: attachment.id,

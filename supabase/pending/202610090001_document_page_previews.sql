@@ -79,4 +79,3 @@ end $$;
 revoke all on function public.set_document_page_previews(text,integer,jsonb,jsonb,integer) from public,anon;
 grant execute on function public.set_document_page_previews(text,integer,jsonb,jsonb,integer) to authenticated,service_role;
 commit;
-
