@@ -1,3 +1,9 @@
+## 2026-10-09 — Visitor video and signup interaction correction
+
+Owned logs/info-popup-dismiss, codex/visitor-video-auth-fix from github/main e6e552c. Public portfolio enables existing muted inline video previews and first-video attachment fallback; documents retain bitmap-only grid policy. Visitor reader suppresses duplicate floating screen actions through an explicit presentation prop (defaults preserve all other screens). Bottom reader dots open information publicly; guest engagement clears info before signup. Main-app shared/invitation entry skips Appearance and starts Create your profile, matching visitor entry. No authentication/data permissions changed, SQL or publish.
+
+43 focused tests pass; typecheck/build/configured main+visitor graph guard pass; lint0errors/111existing warnings. Diff checked. Actual video playback and physical iPhone/interactive signup remain unverified; no live account/content writes. Review before publication; Sites361 unchanged.
+
 ## 2026-10-09 - MOBILE active Home grey
 
 Owned logs/info-popup-dismiss, codex/home-active-grey from github/main5151636. Home header button with aria-current=page now uses navigation-surface/foreground, the same material tokens as the bottom dock. Adjacent shortcuts retain existing light surface, selected outline retained; mobile-only, WEB unchanged. Selector and diff verified, no real-phone visual claim. No SQL or publish. Other review branches preserved.

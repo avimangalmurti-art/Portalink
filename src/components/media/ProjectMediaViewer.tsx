@@ -296,7 +296,7 @@ export function ProjectMediaViewer({
   const pageAttachment = active?.kind === 'image' && currentPage !== null ? imagePages[currentPage] : active;
   const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
-  const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp') : undefined;
+  const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   const mobileActions = useMobileActions();
@@ -677,7 +677,7 @@ export function ProjectMediaViewer({
         <nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
 
-          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => { if (requireSharedAccount) requireSharedAccount(); else setMobilePopup('description'); }}>
+          <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobilePopup('description')}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>

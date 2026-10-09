@@ -36,6 +36,9 @@ function firstAttachmentCover(attachments: ProjectAttachment[] | undefined) {
     if (attachment.kind === 'image' && attachment.sourceUrl) {
       return { source: attachment.sourceUrl, kind: undefined, previewSource: undefined, aspectRatio: attachment.metadata?.aspectRatio, document: false };
     }
+    if (attachment.kind === 'video' && attachment.sourceUrl) {
+      return { source: attachment.sourceUrl, kind: 'video' as const, previewSource: undefined, aspectRatio: attachment.metadata?.aspectRatio, document: false };
+    }
     if (attachment.kind !== 'document') continue;
     const firstPage = attachment.metadata?.renderedPages?.find(page =>
       page.attachmentId === attachment.id && page.withinDocumentIndex === 1 && page.sourceUrl);

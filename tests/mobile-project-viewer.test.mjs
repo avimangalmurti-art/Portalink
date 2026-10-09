@@ -363,6 +363,12 @@ test('shared mobile guest comments and engagement open Create account without re
   let tree = h.render();
   button(tree, 'Show comments').props.onClick();
   button(tree, 'Show project engagement').props.onClick();
+  tree = h.render();
+  assert.equal(h.gates.length, 1);
+  const info = nodes(tree).find(node => node.type === FollowContentInfoPopup);
+  assert.ok(info);
+  info.props.onRequireAccount();
+  assert.equal(nodes(h.render()).some(node => node.type === FollowContentInfoPopup), false);
   nodes(tree).find(node => node.type === EngagementBar).props.onRequireAccount();
   tree = h.render();
   assert.equal(h.gates.length, 3);
