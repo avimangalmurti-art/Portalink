@@ -18,6 +18,6 @@ explain(analyze,buffers,format json)
 select project_id from public.project_attachments
 where citation_id='9ae4b24a-446d-41b8-b3a9-1a035ed14fc7';
 explain(analyze,buffers,format json)
-select attachment_id,page_number from public.project_pages
+select attachment_id,source_page_number from public.project_pages
 where id='1b5e9529-f180-4632-a9fd-c87428472e5a';
 rollback;
