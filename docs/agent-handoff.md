@@ -1,3 +1,7 @@
+## 2026-10-09 - MOBILE popup close alignment
+
+Owned logs/info-popup-dismiss, codex/popup-close-alignment from github/main 5151636. Project popup creator header right inset changed 20px to12px, moving the44px close target8px right to match the description menu44px target and12px right inset. Left/avatar/name inset unchanged; mobile-only stylesheet, WEB unchanged. CSS geometry inspected; diff check passes. No physical-phone visual claim, SQL or publish. Other pending PRs preserved.
+
 ## 2026-10-09 - Shared portfolio mobile entry and reader controls
 
 Owned logs/info-popup-dismiss checkout, codex/shared-portfolio-mobile from github/main 5151636. Shared non-persistent profile selection starts Portfolio, still allows Journey; member preferences unchanged. Mobile public drawer opener unmounts when open and is disabled with edge gestures on project/settings/portal-popup screens. Mobile drawer header no longer duplicates toggle; outside dismissal remains. Public signup opts into initial profile step, Back dismisses to content; ordinary signup/WEB unchanged. Reader action bar offset removed, bottom inset lowered to safe-area+8px, symmetric page stage inset and no reserved scrollbar gutter.
