@@ -59,7 +59,7 @@ export function ApplicationBootstrap() {
     if (!isWelcomeInvite || auth.isInitializing || auth.isAuthenticated || invitePresented.current) return;
     invitePresented.current = true;
     auth.requestAuth('signUp');
-  }, [isWelcomeInvite, auth.isInitializing, auth.isAuthenticated, auth.requestAuth]);
+  }, [isWelcomeInvite, auth]);
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
   const [landingPath] = useState(() => presentation === 'mobile'
