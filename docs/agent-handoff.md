@@ -1,3 +1,21 @@
+## 2026-10-09 - MOBILE project popup footer and engagement alignment
+
+Continuation on codex/info-popup-dismiss / PR33, logs/info-popup-dismiss.
+The grid project's engagement details were inside the scrolling description;
+short descriptions left a large blank area below them. Details now form a footer
+sibling of the flexing/scrolling description, with original bottom padding and
+an overflow bound for expanded participant lists. Only this mobile sheet changes.
+The engagement grid creates equal columns for the actual button count (no empty
+fourth slot), and comments/save/repost all use row flex centering and identical
+line-height. Existing actions/count data are preserved; WEB unaffected.
+
+18 popup/description focused tests pass; typecheck passes. Browser disposable
+layout fixture with actual mobile popup CSS at420x912: all three button tops and
+icon/count centers equal; footer sits at panel bottom for short descriptions.
+Long description scroll height3103/client431 with engagement visible at bottom.
+Evidence ignored logs/footer-short.png, footer-long.png. Fixture has explicitly
+synthetic text/icons/counts; no live/physical-phone claim. No SQL or publish.
+
 ## 2026-10-09 - MOBILE info-popup dismissal fix, unpublished
 
 Task branch codex/info-popup-dismiss from github/main5151636; isolated
