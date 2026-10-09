@@ -5055,3 +5055,14 @@ body:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-float
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'].mobile-context-scrim::after { background: var(--surface-raised); }
 }
+
+/* Invitation entry stays compact above the composer when the keyboard opens. */
+#root .codex-shell[data-presentation='mobile'] [data-message-introduction='invitation'] {
+  margin-top: 12px; padding: 16px; width: 100%; box-sizing: border-box;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within {
+  border-color: transparent !important; box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within::before {
+  border-color: var(--hairline);
+}

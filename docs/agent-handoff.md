@@ -17,6 +17,9 @@ Branch codex/messages-sheet-surface from main197b493. Extend the context sheet m
 ## 2026-10-08 — MOBILE new-message navigation, unpublished
 
 Branch codex/message-picker-navigation from main197b493. Messages marks the recipient picker from existing isMobileNewChat state. Existing conversation navigation suppression and dock-clearance rule now also covers that picker, only in the active mobile screen. Back/recipient selection clears the state and restores normal navigation. WEB and inbox unchanged. 32 focused messaging/navigation checks pass; browser/physical-phone verification pending. No production data changes or publish.
+## 2026-10-08 — MOBILE invitation composer, unpublished
+
+Branch codex/invitation-composer from main197b493. Invitation textarea autofocuses on mount and receives focus rather than thread region on entry. Mobile invitation guidance is a compact paragraph without duplicated recipient title; WEB EmptyState retained. Remove sharp focused shell ring, retain rounded neutral hairline. 29 focused messaging tests, typecheck and diff check pass; targeted lint zero errors/one existing warning. Physical-iPhone automatic keyboard opening remains unverified and subject to Safari focus restrictions. No invitation sent, production writes, SQL or publish.
 
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
