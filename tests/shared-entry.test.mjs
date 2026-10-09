@@ -252,5 +252,5 @@ test('shared preboot chooses neutral first paint before the body and leaves othe
   assert.match(html, /html\[data-shared-view\] #portalink-preboot::after\s*\{[^}]*Opening shared content/);
   const app = read('../src/App.tsx');
   assert.doesNotMatch(app, /isSharedRoute && <SharedSignInBar/);
-  assert.match(app, /<AuthDialog showWelcomeMedia=\{!isSharedRoute\}/);
+  assert.match(app, /<AuthDialog[^>]*showWelcomeMedia=\{!isSharedRoute\}/);
 });
