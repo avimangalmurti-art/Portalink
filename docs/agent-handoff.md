@@ -1,3 +1,7 @@
+## 2026-10-08 — MOBILE Messages divider clearance, unpublished
+
+Task branch codex/messages-divider-spacing from main197b493. Inbox scroller now adds 28px after its sticky-header compensation, matching Profile arrival clearance. Mobile inbox only; WEB and open conversations retain their selectors and spacing. Reviewed CSS cascade and scroll/header markup; git diff check passed. Browser and physical-phone verification not performed. No SQL, production writes or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.

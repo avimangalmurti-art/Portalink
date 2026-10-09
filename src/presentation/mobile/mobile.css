@@ -4591,7 +4591,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 #root .codex-shell[data-presentation='mobile'] .account-search-results { overflow: visible; flex: none; }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-mobile-scroll-end] {
   margin-top: calc(-1 * var(--scroll-header-height, 0px));
-  padding-top: var(--scroll-header-height, 0px);
+  padding-top: calc(var(--scroll-header-height, 0px) + 28px);
 }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] > [data-messages-body] {
   margin-top: calc(-1 * var(--scroll-header-height, 0px));
