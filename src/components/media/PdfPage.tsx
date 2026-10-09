@@ -191,8 +191,8 @@ export function PdfPage({
     void renderTask.promise.then(() => {
       if (!cancelled) {
         setStatus('ready');
-        readyCallback.current?.();
         markRumPdf(viewToken);
+        readyCallback.current?.();
       }
     }).catch((error: unknown) => {
       if (!cancelled && !(error instanceof Error && error.name === 'RenderingCancelledException')) {

@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { documentPageSlots } from '../src/features/media/documentPages.mjs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const nodes = tree => React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
@@ -40,6 +41,7 @@ test('single-column rendered documents retain vertical reading and the existing 
   vm.runInNewContext(ts.transpileModule(read('../src/components/media/DocumentAttachment.tsx'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, performance: { now: () => now }, require(name) {
+    if (name.endsWith('/documentPages.mjs')) return { documentPageSlots };
     if (name === 'react') return react;
     if (name === './useSinglePageZoom') return { useSinglePageZoom: () => 1 };
     if (name === './useDocumentReadingScroll') return { useDocumentReadingScroll() {} };
