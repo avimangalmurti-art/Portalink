@@ -5037,3 +5037,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
+/* Profile editing owns Back/Save; shell actions must not overlap Save. */
+body:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
+[data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }

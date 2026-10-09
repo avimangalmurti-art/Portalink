@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { usePresentation } from '../../presentation/usePresentation';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
 import { GripVerticalIcon, HandshakeIcon, InfoIcon, MessagesSquareIcon, LinkIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from 'lucide-react';
-import { getCategoryIcon, profileLinkIconOptions, type ProfileLinkIconOption } from '../../components/profile/categoryIcons';
+import { getCategoryIcon, getPortalIconLabel, portalIconNames, profileLinkIconOptions, type ProfileLinkIconOption } from '../../components/profile/categoryIcons';
+import { PortalIconLibrary } from '../../components/profile/PortalIconLibrary';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import type { EditableProfileLink, ProfileLinkFieldError } from './useProfileEditor';
 import { inferProfileLinkIconName, isProfileLinkAction, MAX_PROFILE_LINKS } from './profileLinks';
@@ -176,6 +177,18 @@ export function ProfileLinksEditor({
   const [iconQuery, setIconQuery] = useState('');
   const [draftIconName, setDraftIconName] = useState('globe');
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const addedLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = addedLinkRef.current;
+    if (!compact || !id || !links.some(link => link.id === id)) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`profile-link-details-${id}`)?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start'
+      });
+      addedLinkRef.current = null;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [links, expandedIds, compact]);
 
   useEffect(() => {
     if (!compact) return;
@@ -204,12 +217,13 @@ export function ProfileLinksEditor({
 
   const selected = links.find((link) => link.id === selectedId) ?? null;
   const DraftIcon = getCategoryIcon(draftIconName);
-  const draftIconOption = profileLinkIconOptions.find((option) => option.name === draftIconName) ?? null;
+  const draftIconOption = profileLinkIconOptions.find((option) => option.name === draftIconName) ?? (presentation === 'mobile' && portalIconNames.includes(draftIconName) ? { name: draftIconName, label: getPortalIconLabel(draftIconName), isBrand: false } : null);
   const filteredIconOptions = useMemo(() => {
     const normalized = iconQuery.trim().toLowerCase();
-    if (!normalized) return profileLinkIconOptions;
-    return profileLinkIconOptions.filter((option) => `${option.label} ${option.name}`.toLowerCase().includes(normalized));
-  }, [iconQuery]);
+    const options = presentation === 'mobile' ? profileLinkIconOptions.filter(option => option.isBrand) : profileLinkIconOptions;
+    if (!normalized) return options;
+    return options.filter((option) => `${option.label} ${option.name}`.toLowerCase().includes(normalized));
+  }, [iconQuery, presentation]);
 
   const tabbableIconName = filteredIconOptions.find(option => option.name === draftIconName)?.name ?? filteredIconOptions[0]?.name;
 
@@ -233,7 +247,10 @@ export function ProfileLinksEditor({
   }
 
   function addLink() {
-    const id = onAdd();
+    if (compact && addedLinkRef.current) return;
+    const blank = compact ? visibleLinks.find(link => !link.label.trim() && !link.href.trim()) : undefined;
+    const id = blank?.id ?? onAdd();
+    if (compact && id) addedLinkRef.current = id;
     if (id) {
       setSelectedId(id);
       if (compact) setExpandedIds((current) => [...current, id]);
@@ -305,7 +322,7 @@ export function ProfileLinksEditor({
             </label>
 
             </div>
-            <div data-link-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
+            <div data-link-icon-scroll="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
             <div role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
@@ -315,7 +332,8 @@ export function ProfileLinksEditor({
                 </button>;
               })}
             </div>
-            {filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
+            {presentation === 'mobile' && <PortalIconLibrary selected={draftIconName} onSelect={setDraftIconName} searchQuery={iconQuery} label="More link icons" />}
+            {presentation !== 'mobile' && filteredIconOptions.length === 0 ? <p className="py-8 text-center text-[12px] text-[var(--text-secondary)]">No matching icons</p> : null}
             </div>
           </div>
 
