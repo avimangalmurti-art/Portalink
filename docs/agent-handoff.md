@@ -25,6 +25,15 @@ Branch codex/invitation-composer from main197b493. Invitation textarea autofocus
 Branch codex/main-screen-divider-spacing from main197b493. Shared mobile-only divider clearance28px above/below for Profile, Explore, inbox and Studio; existing Profile/Explore/inbox inset hairline retained. Studio gains matching inset line below pills and removes duplicate workbench scroll border. Inbox retains sticky-header compensation. This supersedes PR20's narrower inbox-only clearance when integrated; do not double-apply it. WEB selectors unaffected.
 
 49 focused navigation/context tests and diff check pass. Isolated CSS fixture420x912 measures28px each side on all four; WEB1280x800 new padding rules inactive. Evidence docs/evidence/main-screen-divider-spacing/mobile-layout.jpg. Fixture contains disposable layout placeholders, not real app data; authenticated/physical-phone verification pending. Preview stopped, owned tab closed and viewport reset. No SQL, production writes or publish.
+## 2026-10-08 — MOBILE share text bounded by avatar, PR25 revision
+
+Same codex/share-preview-counts branch. Group name/location/counts in a76px column matching the existing avatar, with compact line heights and3px gaps; remove row margins. Long name/location truncate visually with full text retained in DOM/title. Counts stay on one neutral row.4focused share tests pass; exact name assertion updated for grouped markup without weakening it. Actual component fixture420x912 measured avatar/copy both y117.8–193.8; every text line inside,390px check also inside with no count overflow. Updated screenshot docs/evidence/share-preview-counts/mobile-preview.jpg. WEB share branch unchanged. No publish or live writes; fixture tab closed/server stopped/viewport reset.
+
+## 2026-10-08 — MOBILE share identity counts, unpublished
+
+Branch codex/share-preview-counts from main197b493. Mobile main share identity preview (and its loading/recovery component) replaces Portfolio/Journey labels with existing dynamic project/portal counts beside the photo. Remove duplicated lower stats row; neutral text without accent underline. Desktop share markup and actual public-profile navigation unchanged.
+
+4 focused share tests and diff check pass. Real preview component in disposable local fixture420x912 verifies counts in column2, no tab elements, border0/text-decoration:none. Evidence docs/evidence/share-preview-counts/mobile-preview.jpg. Fixture placeholders are not production data; full authenticated/physical-phone check pending. Preview stopped, owned tab closed and viewport reset. No SQL, account writes or publish.
 
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
