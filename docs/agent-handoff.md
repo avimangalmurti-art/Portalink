@@ -34,6 +34,11 @@ Same codex/share-preview-counts branch. Group name/location/counts in a76px colu
 Branch codex/share-preview-counts from main197b493. Mobile main share identity preview (and its loading/recovery component) replaces Portfolio/Journey labels with existing dynamic project/portal counts beside the photo. Remove duplicated lower stats row; neutral text without accent underline. Desktop share markup and actual public-profile navigation unchanged.
 
 4 focused share tests and diff check pass. Real preview component in disposable local fixture420x912 verifies counts in column2, no tab elements, border0/text-decoration:none. Evidence docs/evidence/share-preview-counts/mobile-preview.jpg. Fixture placeholders are not production data; full authenticated/physical-phone check pending. Preview stopped, owned tab closed and viewport reset. No SQL, account writes or publish.
+## 2026-10-08 — MOBILE screen action ellipsis, unpublished
+
+Branch codex/screen-actions-dots from main197b493. Screen-level MobileContextButton has transparent surface, no border/shadow/blur in normal/open/pressed modes. Preserve existing geometry and keyboard focus indication. App high-contrast setting adds2px text-color border; system contrast/forced-colors also supported. Styling scoped to existing screen action slots; content-row menus and WEB unchanged.
+
+46 focused actions tests and diff check pass. Disposable CSS fixture420x912 confirms standard44px and Studio48px touch targets, transparent backgrounds/border0/shadow none; app high contrast border2px. Evidence docs/evidence/screen-actions-dots/normal-high-contrast.jpg. Fixture is not authenticated app or physical-phone proof. Preview stopped/tab closed/viewport reset. No SQL, data writes or publish.
 
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 

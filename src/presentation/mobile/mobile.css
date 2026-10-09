@@ -5133,3 +5133,19 @@ body:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-float
   margin: 0; gap: 12px; flex-wrap: nowrap; white-space: nowrap;
   font-size: 13px; line-height: 20px;
 }
+
+/* Screen actions show the ellipsis only; retain the existing touch geometry. */
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"],
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"]:is(:hover, :active, [aria-expanded='true']) {
+  background: transparent !important; color: var(--text-primary) !important;
+  border: 0 !important; box-shadow: none !important;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'].high-contrast :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
+  border: 2px solid var(--text-primary) !important;
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
+    border: 2px solid currentColor !important;
+  }
+}
