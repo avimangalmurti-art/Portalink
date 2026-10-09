@@ -12,7 +12,7 @@ const panel = tree => nodes(tree).find(node => node.props.className === 'mobile-
 const opener = tree => nodes(tree).find(node => node.props['data-shared-drawer-opener'] !== undefined);
 const scrim = tree => nodes(tree).find(node => node.props.className === 'mobile-shared-drawer-scrim');
 
-function harness({ reducedMotion = false, inert = false, width = 312, onEscape } = {}) {
+function harness({ reducedMotion = false, inert = false, width = 312, onEscape, enabled = true } = {}) {
   const slots = [], pendingEffects = [], animations = [], closed = [], captures = [], focused = [], frames = [], inertWrites = [];
   const listeners = new Map();
   let cursor = 0, tree, outsideBinding, location = { pathname: '/share/creator', search: '' };
@@ -84,11 +84,11 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape }
     if (name.endsWith('/useModalFocus')) return { useModalFocus: (open, ref, close) => { outsideBinding = { open, ref, close }; } };
     throw new Error(`Unexpected drawer import: ${name}`);
   } });
-  const props = { name: 'Creator', onClose: () => closed.push('closed'), onEscape, children: close => React.createElement('button', { onClick: close }, 'Close from navigation') };
+  const props = { enabled, name: 'Creator', onClose: () => closed.push('closed'), onEscape, children: close => React.createElement('button', { onClick: close }, 'Close from navigation') };
   const render = () => {
     cursor = 0; tree = exports.PublicProfileDrawer(props);
     tree.ref.current = surface; panel(tree).ref.current = panelElement;
-    if (opener(tree).ref) opener(tree).ref.current = openerElement;
+    if (opener(tree)?.ref) opener(tree).ref.current = openerElement;
     pendingEffects.splice(0).forEach(effect => effect());
     frames.splice(0).forEach(callback => callback());
     return tree;
@@ -251,14 +251,24 @@ test('pathname and query changes cancel active dragging and close immediately; u
   }
 });
 
-test('the same viewport toggle opens and closes profile navigation', () => {
+test('viewport opener disappears while navigation is open and returns after outside dismissal', () => {
   const h = harness();
   assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
   h.open();
-  const button = opener(h.render());
-  assert.equal(button.props['aria-label'], 'Close profile navigation');
-  assert.notEqual(button.props.tabIndex, -1);
-  button.props.onClick();
+  assert.equal(opener(h.render()), undefined);
+  h.outsideBinding.close();
   assert.equal(h.finish().props['data-visible'], false);
+  assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
+  h.unmount();
+});
+
+test('reader and settings entries have no sidebar opener or opening gesture', () => {
+  const h = harness({enabled:false});
+  assert.equal(opener(h.render()), undefined);
+  const event = h.event(0);
+  h.fire('onPointerDownCapture', event);
+  h.fire('onPointerMoveCapture', h.event(180,100,30));
+  assert.equal(h.render().props['data-visible'], false);
+  assert.equal(h.render().props.children.some(child => child?.props?.className === 'mobile-shared-drawer-edge'), false);
   h.unmount();
 });

@@ -15,8 +15,9 @@ function sharedDrawerRelease(progress: number, distance: number, velocity: numbe
 }
 
 /** An independent foreground layer. No drag or open state changes page layout. */
-export function PublicProfileDrawer({ name, children }: {
+export function PublicProfileDrawer({ name, children, enabled = true }: {
   name: string;
+  enabled?: boolean;
   children: (close: () => void) => React.ReactNode;
 
 }) {
@@ -56,7 +57,7 @@ export function PublicProfileDrawer({ name, children }: {
   useEffect(() => {
     drag.current = null;
     settle(false, true);
-  }, [pathname, search, settle]);
+  }, [pathname, search, enabled, settle]);
   useEffect(() => () => animation.current?.stop(), []);
 
   function cancel() {
@@ -66,6 +67,7 @@ export function PublicProfileDrawer({ name, children }: {
   }
   const gestures = {
     onPointerDownCapture(event: React.PointerEvent<HTMLElement>) {
+      if (!enabled) return;
       if (!event.isPrimary) { cancel(); return; }
       cancel();
       suppressClick.current = false;
@@ -114,10 +116,10 @@ export function PublicProfileDrawer({ name, children }: {
   };
 
   return <div ref={layerRef} tabIndex={-1} className="mobile-shared-drawer-layer" data-visible={visible} {...gestures}>
-    <div className="mobile-shared-drawer-edge" aria-hidden="true" />
-    <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-compact"
+    {enabled && <div className="mobile-shared-drawer-edge" aria-hidden="true" />}
+    {enabled && !visible && <button ref={openerRef} type="button" data-shared-drawer-opener="" className="mobile-shared-drawer-opener shape-compact"
       aria-label={visible ? 'Close profile navigation' : 'Open profile navigation'} aria-expanded={visible} aria-controls="mobile-shared-profile-navigation"
-      onClick={() => visible ? close() : settle(true)}>{visible ? <PanelLeftCloseIcon size={22} aria-hidden="true" /> : <PanelLeftOpenIcon size={22} aria-hidden="true" />}</button>
+      onClick={() => visible ? close() : settle(true)}>{visible ? <PanelLeftCloseIcon size={22} aria-hidden="true" /> : <PanelLeftOpenIcon size={22} aria-hidden="true" />}</button>}
     <motion.div aria-hidden="true" className="mobile-shared-drawer-scrim" style={{ opacity }} onClick={close} />
     <motion.div ref={panelRef} id="mobile-shared-profile-navigation" role="dialog" aria-modal={visible || undefined} aria-label={`${name} navigation`}
       aria-hidden={!visible} tabIndex={-1}

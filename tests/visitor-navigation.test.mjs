@@ -339,7 +339,7 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
   assert.equal(one(h.render(), 'ProjectMediaViewer').props.pageCount, 12);
 });
 
-test('shared links default to Journey and keep Portfolio one tap away', () => {
+test('shared links always start on Portfolio and keep Journey one tap away', () => {
   const saved = new Map([['viewer:creator', 'journey']]);
   const create = () => {
     const h = hooks();
@@ -352,12 +352,12 @@ test('shared links default to Journey and keep Portfolio one tap away', () => {
     return (profile = 'creator', remember = false) => h.render(() => useJourneySelection(profile, 'viewer', remember));
   };
   const render = create();
-  assert.equal(render().view, 'journey');
+  assert.equal(render().view, 'portfolio');
   render().select('journey'); assert.equal(render().view, 'journey');
   render().select('portfolio'); assert.equal(render().view, 'portfolio');
   assert.equal(saved.get('viewer:creator'), 'journey');
-  assert.equal(create()().view, 'journey');
-  assert.equal(render('another').view, 'journey');
+  assert.equal(create()().view, 'portfolio');
+  assert.equal(render('another').view, 'portfolio');
   assert.equal(create()('creator', true).view, 'journey');
 });
 

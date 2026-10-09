@@ -1,3 +1,9 @@
+## 2026-10-09 - Shared portfolio mobile entry and reader controls
+
+Owned logs/info-popup-dismiss checkout, codex/shared-portfolio-mobile from github/main 5151636. Shared non-persistent profile selection starts Portfolio, still allows Journey; member preferences unchanged. Mobile public drawer opener unmounts when open and is disabled with edge gestures on project/settings/portal-popup screens. Mobile drawer header no longer duplicates toggle; outside dismissal remains. Public signup opts into initial profile step, Back dismisses to content; ordinary signup/WEB unchanged. Reader action bar offset removed, bottom inset lowered to safe-area+8px, symmetric page stage inset and no reserved scrollbar gutter.
+
+49 focused navigation/drawer/design/Journey/signup checks pass; typecheck passes; targeted lint zero errors/one existing appearance callback warning. Actual phone/Safari spacing and keyboard verification remain unperformed; no browser screenshot claimed. No SQL, merge or publish. PR33 popup and PR34 invite changes remain separate.
+
 ## 2026-10-09 - Create-account invitation
 
 Owned logs/info-popup-dismiss checkout, codex/create-account-invite from github/main 5151636. Share and Copy invite use PUBLIC_ORIGIN rather than the preview host; /?welcome=1 opens signUp once after auth initialization. Signed-in, callback and recovery visits preserve their flow. Six focused invite checks pass. No SQL or publish. Popup fixes remain separately on PR33.
