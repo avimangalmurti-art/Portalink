@@ -1,3 +1,7 @@
+## 2026-10-09 - MOBILE popup close alignment
+
+Owned logs/info-popup-dismiss, codex/popup-close-alignment from github/main 5151636. Project popup creator header right inset changed 20px to12px, moving the44px close target8px right to match the description menu44px target and12px right inset. Left/avatar/name inset unchanged; mobile-only stylesheet, WEB unchanged. CSS geometry inspected; diff check passes. No physical-phone visual claim, SQL or publish. Other pending PRs preserved.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.
