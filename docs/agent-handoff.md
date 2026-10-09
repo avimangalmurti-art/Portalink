@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE four main-screen divider spacing, unpublished
+
+Branch codex/main-screen-divider-spacing from main197b493. Shared mobile-only divider clearance28px above/below for Profile, Explore, inbox and Studio; existing Profile/Explore/inbox inset hairline retained. Studio gains matching inset line below pills and removes duplicate workbench scroll border. Inbox retains sticky-header compensation. This supersedes PR20's narrower inbox-only clearance when integrated; do not double-apply it. WEB selectors unaffected.
+
+49 focused navigation/context tests and diff check pass. Isolated CSS fixture420x912 measures28px each side on all four; WEB1280x800 new padding rules inactive. Evidence docs/evidence/main-screen-divider-spacing/mobile-layout.jpg. Fixture contains disposable layout placeholders, not real app data; authenticated/physical-phone verification pending. Preview stopped, owned tab closed and viewport reset. No SQL, production writes or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.
