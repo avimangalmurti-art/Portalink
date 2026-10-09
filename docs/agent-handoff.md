@@ -1,3 +1,7 @@
+## 2026-10-08 — MOBILE new-message navigation, unpublished
+
+Branch codex/message-picker-navigation from main197b493. Messages marks the recipient picker from existing isMobileNewChat state. Existing conversation navigation suppression and dock-clearance rule now also covers that picker, only in the active mobile screen. Back/recipient selection clears the state and restores normal navigation. WEB and inbox unchanged. 32 focused messaging/navigation checks pass; browser/physical-phone verification pending. No production data changes or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.
