@@ -1,3 +1,7 @@
+## 2026-10-09 - MOBILE active Home grey
+
+Owned logs/info-popup-dismiss, codex/home-active-grey from github/main5151636. Home header button with aria-current=page now uses navigation-surface/foreground, the same material tokens as the bottom dock. Adjacent shortcuts retain existing light surface, selected outline retained; mobile-only, WEB unchanged. Selector and diff verified, no real-phone visual claim. No SQL or publish. Other review branches preserved.
+
 ## 2026-10-09 - MOBILE popup close alignment
 
 Owned logs/info-popup-dismiss, codex/popup-close-alignment from github/main 5151636. Project popup creator header right inset changed 20px to12px, moving the44px close target8px right to match the description menu44px target and12px right inset. Left/avatar/name inset unchanged; mobile-only stylesheet, WEB unchanged. CSS geometry inspected; diff check passes. No physical-phone visual claim, SQL or publish. Other pending PRs preserved.
