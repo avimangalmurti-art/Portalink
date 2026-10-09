@@ -5149,3 +5149,19 @@ body:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-float
     border: 2px solid currentColor !important;
   }
 }
+
+/* Every Studio state anchors its actions to the same shell-header corner. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: absolute !important;
+  top: var(--mobile-screen-action-top); right: var(--mobile-screen-action-right);
+  width: 48px; height: 48px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) {
+  padding-right: 60px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header {
+  display: contents;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback .studio-hub-heading {
+  display: contents;
+}
