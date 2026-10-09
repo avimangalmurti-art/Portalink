@@ -1,3 +1,9 @@
+## 2026-10-09 — Sites361 publication receipt
+
+Approved fixes PR33–37 integrated through green release PR38 and published from main e6e552cc1270f6067f6ebdf6421d351a469e6cb8. Sites361 deployment appgdep_6ac95a894ff88191b846e66c864c958a succeeded; existing public audience/runtime revision2 preserved. Production .env.local hardlinked to existing ignored config; main/visitor host/key guard, build/typecheck passed; lint zero errors/111 existing warnings. Full local Windows suite 1632 passed, zero failures/skips; hosted Linux/Windows/web/PDF/video green. No SQL, Storage or runtime configuration changes.
+
+Live / and /portalite and representative image/page /cite routes200; creator UUID share301 to /portalite. Mobile browser fresh entry Portfolio selected; info popup hides reader controls; Home selected material differs from adjacent buttons. Evidence ignored logs/sites361-home.png and release-live-http.json. Direct /studio404 reproduced before and after release; signed-in Studio/physical iPhone unverified. Visitor info Content options currently opens Share/Copy link actions in live smoke, so that specific entry was not verified to open signup; no extra source fix included. Inert SDK localhost default/hostname-validation strings remain, configured production endpoint verified. Receipt-only branch, no further publication needed.
+
 ## 2026-10-09 - MOBILE active Home grey
 
 Owned logs/info-popup-dismiss, codex/home-active-grey from github/main5151636. Home header button with aria-current=page now uses navigation-surface/foreground, the same material tokens as the bottom dock. Adjacent shortcuts retain existing light surface, selected outline retained; mobile-only, WEB unchanged. Selector and diff verified, no real-phone visual claim. No SQL or publish. Other review branches preserved.
