@@ -5172,3 +5172,9 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   gap: var(--inbox-filter-space);
   padding-bottom: var(--inbox-filter-space);
 }
+
+/* Home alone uses the dock material; adjacent shortcuts retain their light surface. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-header-button[aria-current='page'] {
+  background: var(--navigation-surface, var(--surface-selected));
+  color: var(--navigation-foreground, var(--text-primary));
+}

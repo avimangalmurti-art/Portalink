@@ -14,6 +14,7 @@ import { PublicProfileDrawer } from '../../visitor/mobile/PublicProfileDrawer';
 
 type SharedProfileSidebarProps = {
   profile: Profile;
+  mobileNavigationEnabled?: boolean;
   activeCategoryId: string | null;
   theme: AppearanceTheme;
   onThemeChange: (theme: AppearanceTheme) => void;
@@ -29,6 +30,7 @@ type SharedProfileSidebarProps = {
  */
 export function SharedProfileSidebar({
   profile,
+  mobileNavigationEnabled = true,
   activeCategoryId,
   theme,
   onThemeChange,
@@ -61,9 +63,9 @@ export function SharedProfileSidebar({
           {!isCollapsed ? <Link onClick={closeDrawer} to={buildPath('sharedProfile', { profileId: profile.id })} data-shared-profile-home="" aria-label={`Return to ${profile.name}'s profile landing page`} aria-current={activeCategoryId ? undefined : 'page'} className="group flex h-10 min-w-0 flex-1 items-center rounded-[10px] bg-transparent text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <span className={`cdx-dense-label min-w-0 flex-1 truncate text-[14px] font-semibold transition-colors duration-150 group-hover:text-[var(--accent-text)] group-focus-visible:text-[var(--accent-text)] group-active:text-[var(--accent-text)] ${activeCategoryId ? 'text-[var(--text-primary)]' : 'text-[var(--accent-text)]'}`}>{profile.name}</span>
           </Link> : null}
-          <button type="button" onClick={() => { if (closeDrawer) closeDrawer(); else compactNavigation.toggle(); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+          {!isMobile && <button type="button" onClick={() => { if (closeDrawer) closeDrawer(); else compactNavigation.toggle(); }} aria-label={toggleLabel} title={toggleLabel} aria-expanded={!isCollapsed} aria-controls="shared-profile-portals" data-sidebar-toggle="" data-structural-toggle="" className="side-panel-header-control side-panel-header-icon shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             <InterfaceIcon icon={isCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -105,5 +107,5 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <PublicProfileDrawer name={profile.name}>{close => renderSidebar(close)}</PublicProfileDrawer> : renderSidebar();
+  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled}>{close => renderSidebar(close)}</PublicProfileDrawer> : renderSidebar();
 }

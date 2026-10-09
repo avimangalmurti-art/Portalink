@@ -16,8 +16,8 @@ function invite({ profileHref, share, clipboardFails = false } = {}) {
   const handler = source.slice(source.indexOf('  async function inviteFriend()'), source.indexOf('  async function handleSignOut()'));
   const exports = {}, copied = [], statuses = [];
   vm.runInNewContext(transpile(handler.replace('async function inviteFriend', 'export async function inviteFriend').replace('async function copyInvite', 'export async function copyInvite')), {
-    exports, URL, DOMException, profileHref, buildPath: routes.buildPath,
-    window: { location: { origin: 'https://portalink.example' } },
+    exports, URL, DOMException, profileHref, PUBLIC_ORIGIN: 'https://portalink.example', buildPath: routes.buildPath,
+    window: { location: { origin: 'http://127.0.0.1:5193' } },
     navigator: { share, clipboard: { async writeText(value) { if (clipboardFails) throw Error('Unavailable'); copied.push(value); } } },
     setInviteStatus(value) { statuses.push(value); },
   });
@@ -75,5 +75,15 @@ test('the sidebar gear directly opens Settings without a menu in either sidebar 
     await h.copy();
     assert.deepEqual(h.copied, clipboardFails ? [] : ['https://portalink.example/?welcome=1']);
     assert.deepEqual(h.statuses, ['idle', clipboardFails ? 'failed' : 'copied']);
+  }
+});
+test('invite entry opens create account once and protects signed-in and recovery visits', () => {
+  const source = read('../src/app/ApplicationBootstrap.tsx');
+  const block = source.slice(source.indexOf('  const invitePresented'), source.indexOf('  // Only the opening mobile visit'));
+  for (const [isWelcomeInvite, initializing, authenticated, expected] of [[true,false,false,1],[false,false,false,0],[true,true,false,0],[true,false,true,0]]) {
+    const calls = []; let effect;
+    vm.runInNewContext(transpile(block), { useRef: () => ({current:false}), useEffect: callback => {effect=callback;}, isWelcomeInvite, auth: {isInitializing:initializing,isAuthenticated:authenticated,requestAuth:view=>calls.push(view)} });
+    effect(); effect();
+    assert.deepEqual(calls, expected ? ['signUp'] : []);
   }
 });

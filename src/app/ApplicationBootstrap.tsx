@@ -1,5 +1,5 @@
 import { handleFromPath } from '../features/sharing/shareModel';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
@@ -54,6 +54,12 @@ export function ApplicationBootstrap() {
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const isWelcomeInvite = pathname === '/' && new URLSearchParams(search).get('welcome') === '1' && !isAuthCallback && !isRecovery;
+  const invitePresented = useRef(false);
+  useEffect(() => {
+    if (!isWelcomeInvite || auth.isInitializing || auth.isAuthenticated || invitePresented.current) return;
+    invitePresented.current = true;
+    auth.requestAuth('signUp');
+  }, [isWelcomeInvite, auth]);
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
   const [landingPath] = useState(() => presentation === 'mobile'

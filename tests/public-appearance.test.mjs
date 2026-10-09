@@ -187,7 +187,7 @@ test('failed website saves stay retryable and prevent a successful pre-copy flus
 
 test('public bootstrap honors a newly opened creator link while retaining guest read-only routing', () => {
   const storage = new Map([['portalink.sharedViewerProfileId', 'old']]);
-  const fakeReact = { createElement: (type, props) => ({ type, props }), useState: () => [true, () => {}], useEffect: fn => fn(), useCallback: fn => fn };
+  const fakeReact = { createElement: (type, props) => ({ type, props }), useState: () => [true, () => {}], useRef: initial => ({ current: initial }), useEffect: fn => fn(), useCallback: fn => fn };
   const routes = { sharedCollaboration: {path:'/share/:profileId/collaboration'}, controlCenter: {path:'/settings'}, sharedProfile: { path: '/share/:profileId' }, sharedProfileCategory: { path: '/share/:profileId/c/:categoryId' }, sharedProject: { path: '/share/:profileId/c/:categoryId/:projectId' } };
   const router = { useLocation: () => ({ pathname: '/share/new' }), Navigate: 'redirect', matchPath: (path, pathname) => path === '/share/:profileId' ? { params: { profileId: pathname.split('/')[2] } } : null };
   const api = compile('../src/app/ApplicationBootstrap.tsx', {
