@@ -30,19 +30,19 @@ const mobileSignupTitles: Record<MobileSignupStep, string> = {
   appearance: 'Choose appearance', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
 };
 
-export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean }) {
+export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean; initialSignupStep?: MobileSignupStep }) {
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const [signupStep, setSignupStep] = useState<MobileSignupStep>('appearance');
-  useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep('appearance'); }, [auth.pendingView]);
+  const [signupStep, setSignupStep] = useState<MobileSignupStep>(props.initialSignupStep ?? 'appearance');
+  useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep(props.initialSignupStep ?? 'appearance'); }, [auth.pendingView, props.initialSignupStep]);
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
   const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} onStepBack={mobileSignup && (signupStep === 'account' || signupStep === 'profile') ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} onStepBack={mobileSignup && (signupStep === 'account' || (signupStep === 'profile' && props.initialSignupStep !== 'profile')) ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...props} {...formProps} step={signupStep} onStepChange={setSignupStep} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}

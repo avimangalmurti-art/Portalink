@@ -1,3 +1,9 @@
+## 2026-10-09 - Shared portfolio mobile entry and reader controls
+
+Owned logs/info-popup-dismiss checkout, codex/shared-portfolio-mobile from github/main 5151636. Shared non-persistent profile selection starts Portfolio, still allows Journey; member preferences unchanged. Mobile public drawer opener unmounts when open and is disabled with edge gestures on project/settings/portal-popup screens. Mobile drawer header no longer duplicates toggle; outside dismissal remains. Public signup opts into initial profile step, Back dismisses to content; ordinary signup/WEB unchanged. Reader action bar offset removed, bottom inset lowered to safe-area+8px, symmetric page stage inset and no reserved scrollbar gutter.
+
+49 focused navigation/drawer/design/Journey/signup checks pass; typecheck passes; targeted lint zero errors/one existing appearance callback warning. Actual phone/Safari spacing and keyboard verification remain unperformed; no browser screenshot claimed. No SQL, merge or publish. PR33 popup and PR34 invite changes remain separate.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.

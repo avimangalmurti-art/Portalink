@@ -2346,10 +2346,10 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
   --public-reader-toggle-offset: calc((var(--public-reader-toggle-size) + var(--mobile-control-group-gap)) / 2);
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) [data-mobile-combined-rail] > [data-project-response-rail][data-mobile-engagement-open] {
-  left: calc(50% + var(--public-reader-toggle-offset));
+  left: 50%;
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) [data-mobile-engagement-content] {
-  left: calc(50% - var(--public-reader-toggle-offset));
+  left: 50%;
   right: auto;
   transform: translateX(-50%);
 }
@@ -2520,4 +2520,15 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] > .mobile-project-back,
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-view] [data-document-reader-header] {
   top: var(--reader-controls-top);
+}
+
+/* Shared reader controls occupy the viewport center without a sidebar slot. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) {
+  --mobile-project-actions-bottom: max(8px, var(--safe-area-bottom));
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-project-reader] [data-project-stage] {
+  padding-inline: max(4px, env(safe-area-inset-left), env(safe-area-inset-right));
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-project-reader] :is([data-project-work-column], [data-media-frame], [data-media-frame-body], [data-document-attachment], ol.scrollbar-overlay) {
+  scrollbar-gutter: auto;
 }
