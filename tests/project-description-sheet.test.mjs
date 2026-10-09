@@ -249,3 +249,19 @@ test('owner controls are hidden until the description three-dot menu opens', () 
   h.click('Description options');
   assert.equal(h.button('Edit title'), undefined);
 });
+
+test('project engagement is a footer sibling, outside the scrolling description', () => {
+ const engagement=React.createElement('div',{'data-test-engagement':''},'Real engagement slot');
+ const tree=harness(false,{details:engagement}).render();
+ const body=nodes(tree).find(n=>n.props.className==='project-description-body scrollbar-overlay');
+ const footer=nodes(tree).find(n=>n.props.className==='project-description-details project-description-footer');
+ assert.ok(body);assert.ok(footer);
+ assert.equal(nodes(body).some(n=>'data-test-engagement' in n.props),false);
+ assert.equal(nodes(footer).filter(n=>'data-test-engagement' in n.props).length,1);
+ const panel=nodes(tree).find(n=>n.type==='section');
+ const reading=React.Children.toArray(panel.props.children).find(n=>React.isValidElement(n)&&n.type===React.Fragment);
+ assert.ok(reading);
+ const siblings=React.Children.toArray(reading.props.children);
+ assert.equal(siblings.filter(n=>n.props.className==='project-description-details project-description-footer').length,1);
+ assert.equal(siblings.filter(n=>n.props.className==='project-description-body scrollbar-overlay').length,1);
+});
