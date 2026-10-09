@@ -7,7 +7,7 @@ const module=sourceModule('src/features/sharing/PortfolioSharePreview.tsx',{reac
 const profile={name:'Actual creator',location:'Actual location',avatar:'existing.png',projects:[{},{}],categories:[{}],showJourney:true};
 test('loading and ready previews preserve the same structure and actual identity',()=>{
  const ready=module.PortfolioSharePreview({profile});const loading=module.PortfolioSharePreview({profile,loading:true});
- assert.equal(ready.children.length,loading.children.length);assert.equal(loading.props['aria-busy'],true);assert.equal(loading.props['data-loading'],true);assert.equal(ready.children[1].children[0],profile.name);assert.equal(ready.children[0].props.avatar,profile.avatar);
+ assert.equal(ready.children.length,loading.children.length);assert.equal(loading.props['aria-busy'],true);assert.equal(loading.props['data-loading'],true);assert.equal(ready.children[1].children[0].children[0],profile.name);assert.equal(ready.children[0].props.avatar,profile.avatar);
 });
 test('preview failure stays inside the preview and retry restores the original child',()=>{
  const boundary=new module.PortfolioPreviewBoundary({profile,children:'working preview'});assert.equal(boundary.render(),'working preview');boundary.state=module.PortfolioPreviewBoundary.getDerivedStateFromError();const failed=boundary.render();assert.equal(failed.props.className,'share-preview-recovery');const button=failed.children[1].children[1];assert.equal(button.children[0],'Retry preview');button.props.onClick();assert.equal(boundary.render(),'working preview');

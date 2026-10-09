@@ -8,8 +8,8 @@ type Props = {profile: Profile; counts?: {followers: string | null; following: s
 export function PortfolioSharePreview({profile, loading = false}: Props) {
   return <section className="share-profile-preview" data-loading={loading || undefined} aria-label="Public portfolio preview" aria-busy={loading}>
     {loading ? <span className="share-profile-avatar"/> : <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />}
-    <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
-    <div className="share-preview-counts"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span></div>
+    <div className="share-profile-copy"><strong title={profile.name}>{profile.name}</strong>{profile.location && <p title={profile.location}>{profile.location}</p>}
+    <div className="share-preview-counts"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span></div></div>
   </section>;
 }
 export class PortfolioPreviewBoundary extends React.Component<Props & {children: React.ReactNode}, {failed: boolean}> {

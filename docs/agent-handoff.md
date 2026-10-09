@@ -1,3 +1,7 @@
+## 2026-10-08 — MOBILE share text bounded by avatar, PR25 revision
+
+Same codex/share-preview-counts branch. Group name/location/counts in a76px column matching the existing avatar, with compact line heights and3px gaps; remove row margins. Long name/location truncate visually with full text retained in DOM/title. Counts stay on one neutral row.4focused share tests pass; exact name assertion updated for grouped markup without weakening it. Actual component fixture420x912 measured avatar/copy both y117.8–193.8; every text line inside,390px check also inside with no count overflow. Updated screenshot docs/evidence/share-preview-counts/mobile-preview.jpg. WEB share branch unchanged. No publish or live writes; fixture tab closed/server stopped/viewport reset.
+
 ## 2026-10-08 — MOBILE share identity counts, unpublished
 
 Branch codex/share-preview-counts from main197b493. Mobile main share identity preview (and its loading/recovery component) replaces Portfolio/Journey labels with existing dynamic project/portal counts beside the photo. Remove duplicated lower stats row; neutral text without accent underline. Desktop share markup and actual public-profile navigation unchanged.
