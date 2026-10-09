@@ -1,3 +1,9 @@
+## 2026-10-08 — MOBILE share identity counts, unpublished
+
+Branch codex/share-preview-counts from main197b493. Mobile main share identity preview (and its loading/recovery component) replaces Portfolio/Journey labels with existing dynamic project/portal counts beside the photo. Remove duplicated lower stats row; neutral text without accent underline. Desktop share markup and actual public-profile navigation unchanged.
+
+4 focused share tests and diff check pass. Real preview component in disposable local fixture420x912 verifies counts in column2, no tab elements, border0/text-decoration:none. Evidence docs/evidence/share-preview-counts/mobile-preview.jpg. Fixture placeholders are not production data; full authenticated/physical-phone check pending. Preview stopped, owned tab closed and viewport reset. No SQL, account writes or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.

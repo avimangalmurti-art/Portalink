@@ -9,8 +9,7 @@ export function PortfolioSharePreview({profile, loading = false}: Props) {
   return <section className="share-profile-preview" data-loading={loading || undefined} aria-label="Public portfolio preview" aria-busy={loading}>
     {loading ? <span className="share-profile-avatar"/> : <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />}
     <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
-    <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Journey</span>}</div>
-    <div className="share-preview-stats"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span></div>
+    <div className="share-preview-counts"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span></div>
   </section>;
 }
 export class PortfolioPreviewBoundary extends React.Component<Props & {children: React.ReactNode}, {failed: boolean}> {

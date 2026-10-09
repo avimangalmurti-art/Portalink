@@ -5037,3 +5037,13 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
+
+/* Share identity shows work counts, without navigation tabs or accent styling. */
+[data-presentation='mobile'] .share-profile-preview .share-preview-counts {
+  grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px 18px;
+  margin-top: 12px; color: var(--text-secondary); font-size: 14px;
+  line-height: 1.5; border: 0; text-decoration: none;
+}
+[data-presentation='mobile'] .share-profile-preview .share-preview-counts b {
+  color: inherit; font-weight: 400;
+}
