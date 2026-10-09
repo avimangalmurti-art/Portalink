@@ -16,7 +16,7 @@ type Context = { register: (id: string, value: Registration | null) => void; ope
 const MobileActions = createContext<Context | null>(null);
 const hintKey = 'portalink.contextActions.discovered';
 const shape = (value: Registration) => JSON.stringify([value.route, value.priority, value.model.viewer, value.model.title, value.model.primary.map(a => [a.id, a.label]), value.model.groups.map(g => g.map(a => [a.id, a.label]))]);
-export function MobileContextProvider({ children, sheet: Sheet = MobileActionSheet }: { children: React.ReactNode; sheet?: React.ComponentType<React.ComponentProps<typeof MobileActionSheet>> }) {
+export function MobileContextProvider({ children, showFloatingButton = true, sheet: Sheet = MobileActionSheet }: { children: React.ReactNode; showFloatingButton?: boolean; sheet?: React.ComponentType<React.ComponentProps<typeof MobileActionSheet>> }) {
   const { pathname, search } = useLocation(), route = pathname + search, mobile = usePresentation() === 'mobile';
   const auth = useAuth();
   const identity = `${route}:${auth.user?.id ?? 'guest'}:${mobile}`;
@@ -65,7 +65,7 @@ export function MobileContextProvider({ children, sheet: Sheet = MobileActionShe
     catch (error) { setNotice(error instanceof Error ? error.message : 'This action could not be completed.'); }
   };
   void revision;
-  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && currentScreen() && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message">×</button></div>}</MobileActions.Provider>;
+  return <MobileActions.Provider value={{ register, open, refresh, opened: Boolean(model), button, hint }}>{children}{mobile && currentScreen() && showFloatingButton && <MobileContextButton floating />}{mobile && model && <Sheet model={model} onClose={close} onAction={run} />}{mobile && notice && <div className="mobile-context-notice" role="alert">{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss action message">×</button></div>}</MobileActions.Provider>;
 }
 export function useMobileScreenActions(model: ContextActions | null, priority = 10, onOpen?: () => void) {
   const context = useContext(MobileActions), id = useId(), { pathname, search } = useLocation(), mobile = usePresentation() === 'mobile';

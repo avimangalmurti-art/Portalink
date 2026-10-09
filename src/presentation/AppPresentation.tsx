@@ -20,12 +20,12 @@ export function AppPresentationProvider({ children }: { children: React.ReactNod
 }
 
 /** Keep one host and stable children as the presentation changes. */
-export function AppPresentation({ children, actionSheet, ...props }: React.ComponentPropsWithoutRef<'div'> & { actionSheet?: React.ComponentProps<typeof MobileContextProvider>['sheet'] }) {
+export function AppPresentation({ children, actionSheet, showFloatingActions = true, ...props }: React.ComponentPropsWithoutRef<'div'> & { showFloatingActions?: boolean; actionSheet?: React.ComponentProps<typeof MobileContextProvider>['sheet'] }) {
   const presentation = usePresentation();
   const frameRef = useMobileBrowserSurface(presentation, props.style);
   useMobileViewportFrame(presentation, frameRef);
   const { pathname } = useLocation();
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
-  return <div {...props} ref={frameRef} data-presentation={presentation}><InternalContentShareProvider><MobileContextProvider sheet={actionSheet}>{children}</MobileContextProvider></InternalContentShareProvider></div>;
+  return <div {...props} ref={frameRef} data-presentation={presentation}><InternalContentShareProvider><MobileContextProvider sheet={actionSheet} showFloatingButton={showFloatingActions}>{children}</MobileContextProvider></InternalContentShareProvider></div>;
 }

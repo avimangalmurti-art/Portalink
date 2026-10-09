@@ -37,7 +37,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const items = projects.map(project => ({ key: project.id, ratio: getProjectAspectRatio(project), content:
     <ProjectPreviewCard project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
-      priority="viewport" allowPdfFallback={false} allowVideoFallback={false} sharedCoverFallback /> }));
+      priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
   return <div data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
