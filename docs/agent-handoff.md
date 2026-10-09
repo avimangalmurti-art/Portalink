@@ -1,3 +1,7 @@
+## 2026-10-09 - MOBILE active Home grey
+
+Owned logs/info-popup-dismiss, codex/home-active-grey from github/main5151636. Home header button with aria-current=page now uses navigation-surface/foreground, the same material tokens as the bottom dock. Adjacent shortcuts retain existing light surface, selected outline retained; mobile-only, WEB unchanged. Selector and diff verified, no real-phone visual claim. No SQL or publish. Other review branches preserved.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.
