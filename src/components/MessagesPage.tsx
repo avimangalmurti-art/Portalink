@@ -143,8 +143,11 @@ export function MessagesPage({
     setHasNewBelow(false);
     isAtBottomRef.current = true;
     preserveScrollRef.current = false;
-    if (activeId) document.getElementById('messages-thread-panel')?.focus();
-  }, [activeId]);
+    if (activeId) {
+      if (isMobile && isMessageRequest) textareaRef.current?.focus({ preventScroll: true });
+      else document.getElementById('messages-thread-panel')?.focus();
+    }
+  }, [activeId, isMobile, isMessageRequest]);
 
   useEffect(() => {
     const markVisible = () => { if (isAtBottomRef.current) markReadRef.current(); };
@@ -304,7 +307,7 @@ export function MessagesPage({
   const isMobileNewChat = isMobile && isNewChatOpen;
   useUnderHeaderScroll(conversationViewport, isMobile && !isMobileNewChat, showList ? 'inbox' : 'chat');
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
-  return <section ref={conversationViewport} data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section ref={conversationViewport} data-messages-page="" data-mobile-new-message={isMobileNewChat || undefined} data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>
@@ -419,7 +422,7 @@ export function MessagesPage({
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}
-                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]"><EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} /></div> : null}
+                {!messaging.isLoadingThread && messaging.messages.length === 0 ? <div data-message-introduction={isMessageRequest ? "invitation" : undefined} className="mx-auto mt-10 max-w-[360px]">{isMobile && isMessageRequest ? <p className="text-[14px] leading-6 text-[var(--text-secondary)]">Send one text-only invitation to chat. You can send more messages and attachments after they accept.</p> : <EmptyState title={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? `Request to message ${messaging.activeConversation.participant.name}` : `Message ${messaging.activeConversation.participant.name}`} description={messaging.activeConversation.isDraft && messaging.activeConversation.status === 'request' ? 'Send one text-only invitation to chat. You can send more messages and attachments after they accept.' : 'Only you and this creator can access this conversation in Portalink.'} />}</div> : null}
                 <MessageList key={activeId} messages={messaging.messages} viewerProfileId={auth.viewerProfileId} canInteract={!isMessageRequest && !messaging.activeConversation.participant.isDeleted} participantReadAt={isMessageRequest ? null : messaging.activeConversation.participantReadAt ?? null} pendingMessageId={messaging.pendingMessageId} onRetry={messaging.retryMessage} onEdit={messaging.editMessage} onDelete={messaging.deleteMessage} onReact={messaging.toggleReaction} />
                 {hasNewBelow ? <button type="button" onClick={scrollToLatest} className="sticky bottom-2 mx-auto mt-3 flex items-center gap-2 rounded-full bg-[var(--surface-raised)] px-3 py-2 text-[12px] font-semibold text-[var(--accent-text)] shadow-lg ring-1 ring-[var(--hairline)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowDownIcon} />New messages</button> : null}
               </div>
@@ -452,7 +455,7 @@ export function MessagesPage({
                       event.currentTarget.value = '';
                     }} />
                   </label> : null}
-                  <textarea ref={textareaRef} value={draft} onChange={(event) => updateDraft(event.target.value)} onKeyDown={(event) => {
+                  <textarea ref={textareaRef} autoFocus={isMobile && isMessageRequest && messaging.activeConversation.isDraft} value={draft} onChange={(event) => updateDraft(event.target.value)} onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                       event.preventDefault();
                       event.currentTarget.form?.requestSubmit();

@@ -148,7 +148,7 @@ export const profileLinkIconOptions: ProfileLinkIconOption[] = [
   }))
 ];
 
-export const profileLinkIconNames = profileLinkIconOptions.map((option) => option.name);
+export const profileLinkIconNames = [...new Set([...profileLinkIconOptions.map((option) => option.name), ...portalIconNames])];
 
 export function getCategoryIcon(iconName: string): CategoryIconComponent {
   if (Object.prototype.hasOwnProperty.call(profileBrandIcons, iconName)) return profileBrandIcons[iconName];

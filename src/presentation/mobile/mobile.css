@@ -3745,8 +3745,8 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* The conversation owns its header, visible viewport and bottom composer. */
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .mobile-navigation-layer { display: none; }
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .codex-workspace {
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-chat], [data-mobile-new-message])) .mobile-navigation-layer { display: none; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-chat], [data-mobile-new-message])) .codex-workspace {
   --mobile-dock-clearance: 0px;
   --mobile-content-safe-bottom: var(--safe-area-bottom);
 }
@@ -5037,3 +5037,131 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
+/* Profile editing owns Back/Save; shell actions must not overlap Save. */
+#root .codex-shell[data-presentation='mobile']:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
+[data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }
+
+/* Paint below the visible-viewport sheet too: iOS can leave a bottom inset
+   while its browser chrome changes height. This is material, not extra content. */
+#root .codex-shell [data-presentation='mobile'].mobile-context-scrim { overflow: visible; }
+#root .codex-shell [data-presentation='mobile'].mobile-context-scrim::after {
+  content: ''; position: absolute; top: 100%;
+  width: min(100%, 480px); height: 100dvh;
+  background: var(--material-regular); pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'].reduce-translucency [data-presentation='mobile'].mobile-context-scrim::after {
+  background: var(--surface-raised);
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell [data-presentation='mobile'].mobile-context-scrim::after { background: var(--surface-raised); }
+}
+
+/* Invitation entry stays compact above the composer when the keyboard opens. */
+#root .codex-shell[data-presentation='mobile'] [data-message-introduction='invitation'] {
+  margin-top: 12px; padding: 16px; width: 100%; box-sizing: border-box;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within {
+  border-color: transparent !important; box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within::before {
+  border-color: var(--hairline);
+}
+
+/* Main-screen arrival clearance: equal space on both sides of the hairline. */
+#root .codex-shell[data-presentation='mobile'] {
+  --main-screen-divider-space: 28px;
+}
+#root .codex-shell[data-presentation='mobile'] :is(.profile-navigation-header, .mobile-home-search-header, [data-mobile-inbox] [data-inbox-controls]) {
+  padding-bottom: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-mobile-scroll-end] {
+  padding-top: calc(var(--scroll-header-height, 0px) + var(--main-screen-divider-space));
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] .mobile-home-search-header {
+  margin-bottom: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content:not(.mobile-profile-workspace-content),
+#root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content > .mobile-profile-wall {
+  padding-top: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
+  padding-bottom: var(--main-screen-divider-space);
+  background-image: linear-gradient(var(--hairline), var(--hairline));
+  background-size: calc(100% - 32px) 1px;
+  background-position: center bottom;
+  background-repeat: no-repeat;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills + * {
+  padding-top: var(--main-screen-divider-space);
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-workbench-scroll {
+  border-top: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench .studio-workbench-scroll {
+  padding-top: 0;
+}
+
+/* Share identity shows work counts, without navigation tabs or accent styling. */
+[data-presentation='mobile'] .share-profile-preview .share-preview-counts {
+  grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px 18px;
+  margin-top: 12px; color: var(--text-secondary); font-size: 14px;
+  line-height: 1.5; border: 0; text-decoration: none;
+}
+[data-presentation='mobile'] .share-profile-preview .share-preview-counts b {
+  color: inherit; font-weight: 400;
+}
+
+/* The three identity lines stay within the existing 76px avatar height. */
+[data-presentation='mobile'] .portfolio-share-dialog[data-share-main] .share-profile-avatar {
+  grid-row: 1; align-self: center;
+}
+[data-presentation='mobile'] .share-profile-preview .share-profile-copy {
+  grid-column: 2; min-width: 0; height: 76px;
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+}
+[data-presentation='mobile'] .share-profile-copy > strong {
+  font-size: 20px; line-height: 24px; font-weight: 650;
+}
+[data-presentation='mobile'] .share-profile-copy > p {
+  color: var(--text-secondary); font-size: 14px; line-height: 20px;
+}
+[data-presentation='mobile'] .share-profile-copy > :is(strong, p) {
+  display: block; margin: 0; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+[data-presentation='mobile'] .share-profile-preview .share-profile-copy .share-preview-counts {
+  margin: 0; gap: 12px; flex-wrap: nowrap; white-space: nowrap;
+  font-size: 13px; line-height: 20px;
+}
+
+/* Screen actions show the ellipsis only; retain the existing touch geometry. */
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"],
+#root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"]:is(:hover, :active, [aria-expanded='true']) {
+  background: transparent !important; color: var(--text-primary) !important;
+  border: 0 !important; box-shadow: none !important;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+#root .codex-shell[data-presentation='mobile'].high-contrast :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
+  border: 2px solid var(--text-primary) !important;
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  #root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* Every Studio state anchors its actions to the same shell-header corner. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: absolute !important;
+  top: var(--mobile-screen-action-top); right: var(--mobile-screen-action-right);
+  width: 48px; height: 48px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) {
+  padding-right: 60px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header {
+  display: contents;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback .studio-hub-heading {
+  display: contents;
+}

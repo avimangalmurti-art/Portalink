@@ -25,7 +25,7 @@ test('mobile landing overview is the first tab, with reference-style fallback he
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts','published'/);
  assert.match(source,/collection\?\?\(mobile\?'overview':'all'\)/);
- assert.match(source,/collection==='overview'/);
+ assert.match(source,/mobile&&!collectionHeader&&<div className="studio-mobile-header-fallback"/);
  assert.match(source,/aria-label="Back from Studio"/);
  assert.match(source,/className="studio-text-control" aria-label="Select items" disabled>Select/);
  assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
