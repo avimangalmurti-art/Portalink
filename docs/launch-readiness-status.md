@@ -1,3 +1,22 @@
+## October 8 review revision - supersedes earlier candidate status below
+
+Both numbered SQL files remain pending; no SQL or publish performed. 0001 now
+requires equality with an existing valid pageCount. Owner visits trigger lazy
+preparation after private-to-public changes, with visibility guards, capped
+complete-preview skips and concurrent-request deduplication.
+0002 now defaults through BEFORE INSERT to requested_at+48 hours with an exact
+check; indexed account/profile fences plus legacy project GIN resolution replace
+all-job Storage scans. Existing account partial unique index is reused.
+PGlite deletion checks 14/14; focused preview/deletion tests 7/7; full local
+Windows suite 1642/1642, zero failures (main baseline 1627/0). Typecheck/build/env
+and both bundle guards pass; lint 0 errors/111 existing warnings; visitor gzip
+339979 bytes. Revised hosted Linux/Windows run still to follow this push.
+Staging config remains absent; direct_messages before/after INSERT latency is
+unmeasured. Staging-only rollback benchmark prepared, not executed. Deletion
+production gates remain off. PostgREST/no Supavisor and UptimeRobot five-minute
+checks accepted. CI stages exact checksummed bytes; manual production approval
+verifies the downloaded artifact against production configuration, no rebuild.
+
 # Mass-launch blockers - review status
 
 PR: https://github.com/avimangalmurti-art/Portalink/pull/32

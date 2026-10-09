@@ -23,3 +23,10 @@ for(const enabled of [false,true])test(`publish page preparation capability ${en
  assert.equal(renders,enabled?1:0);assert.equal(uploads,enabled?1:0);
  if(enabled){assert.deepEqual(JSON.parse(JSON.stringify(calls[1])),['is_citation_project_public',{p_id:'project'}]);assert.equal(calls[2][0],'set_document_page_previews');assert.equal(calls[2][1].p_backfill_from,61);assert.match(result,/need backfill/);}else assert.equal(result,undefined);
 });
+
+test('owner project visits prepare deferred private-to-public documents without visitor writes',()=>{
+ const viewer=readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx',import.meta.url),'utf8');
+ assert.match(viewer,/if \(isOwner && !readOnlyShare\) void prepareProjectDocumentPages\(projectId\)/);
+ assert.match(source,/if \(project.data.is_hidden\) return undefined/);
+ assert.match(source,/metadata.renderedPages.length >= preparedCount/);
+});

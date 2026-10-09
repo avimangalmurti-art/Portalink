@@ -15,6 +15,7 @@ test('pending previews migration validates owned public document paths, objects 
  create table projects(id uuid primary key,profile_id uuid,category_id uuid,is_hidden boolean default false);
  create table project_attachments(id text primary key,citation_id uuid,project_id uuid,kind text,metadata jsonb);
  create table storage.objects(bucket_id text,name text);
+ create function attachment_page_count(metadata jsonb) returns integer language sql immutable as $$select case when metadata->>'pageCount' ~ '^[0-9]{1,9}$' then least((metadata->>'pageCount')::integer,5000) else 0 end$$;
  create function storage_path_uuid(path text,n integer) returns uuid language sql as $$select split_part(path,'/',n)::uuid$$;
  create function owns_profile(profile uuid) returns boolean language sql security definer as $$select exists(select 1 from profiles where id=profile and account_id=auth.uid())$$;
  create function is_citation_project_public(project uuid) returns boolean language sql security definer as $$select exists(select 1 from projects p join profiles u on u.id=p.profile_id join portfolio_categories c on c.id=p.category_id where p.id=project and not p.is_hidden and not u.is_private and not c.is_hidden)$$;
@@ -30,6 +31,9 @@ test('pending previews migration validates owned public document paths, objects 
  await db.exec(`select set_config('request.jwt.claim.sub','${id(2)}',false);select set_config('request.jwt.claim.role','authenticated',false);set role authenticated`);
  await db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args);
  await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',[...args.slice(0,1),5001,...args.slice(2)]),/Invalid pages/);
+ await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',['document',2,'[]','[]',1]),/Page count mismatch/);
+ await db.exec(`reset role;update project_attachments set metadata='{"pageCount":"12 pages"}';set role authenticated`);
+ await db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args);
  await db.exec(`select set_config('request.jwt.claim.sub','${id(9)}',false)`);
  await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args),/Not owner/);
  await db.exec(`reset role;update projects set is_hidden=true;select set_config('request.jwt.claim.sub','${id(2)}',false);set role authenticated`);

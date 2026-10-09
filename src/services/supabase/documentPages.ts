@@ -1,7 +1,16 @@
 import { requireSupabase } from './client';
 
+const running = new Map<string, Promise<string | undefined>>();
+export function prepareProjectDocumentPages(projectId: string): Promise<string | undefined> {
+  const current = running.get(projectId);
+  if (current) return current;
+  const task = preparePages(projectId).finally(() => running.delete(projectId));
+  running.set(projectId, task);
+  return task;
+}
+
 /** Capability RPC prevents uploads before the separately approved Storage rollout. */
-export async function prepareProjectDocumentPages(projectId: string): Promise<string | undefined> {
+async function preparePages(projectId: string): Promise<string | undefined> {
   const client = requireSupabase();
   const capability = await client.rpc('document_page_prerender_enabled');
   if (capability.error || capability.data !== true) return undefined;
@@ -15,6 +24,14 @@ export async function prepareProjectDocumentPages(projectId: string): Promise<st
   const { generateDocumentPages } = await import('../../features/media/documentPageRenderer');
   let incomplete = false;
   for (const attachment of result.data ?? []) {
+    // Owner visits retry unprepared documents, not complete previews or the
+    // deliberately deferred >60-page tail reserved for the local backfill.
+    const metadata = attachment.metadata;
+    const count = Number(metadata?.pageCount);
+    const preparedCount = Math.min(count, 60);
+    if (Number.isInteger(count) && count > 0 && Array.isArray(metadata?.renderedPages)
+      && metadata.renderedPages.length >= preparedCount
+      && !metadata?.pageRenderFailures?.length) continue;
     let sourceUrl: string;
     try {
       if (attachment.metadata?.multipart) {

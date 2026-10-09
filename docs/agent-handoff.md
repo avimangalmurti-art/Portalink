@@ -1,3 +1,20 @@
+## Mass-launch review amendments - October 8
+
+Owner: Codex; isolated logs/mass-launch-blockers, codex/mass-launch-blockers,
+draft PR32. Both 202610090001 and 202610090002 remain in supabase/pending;
+no apply/deploy/publish. 0001 pageCount equality plus next-owner-visit rendering
+implemented. 0002 48-hour default/check, scoped Storage owner lookup and partial
+profile/account indexes (existing unique account reused), legacy project GIN.
+Verification script now tests numbered candidate, not historical unnumbered SQL.
+PGlite 14/14, focused 7/7, full Windows 1642/0; typecheck/build/env graph guard
+pass; lint 0 errors/111 pre-existing warnings; visitor gzip339979. Hosted rerun
+pending push. Staging .env.staging.local absent: INSERT latency not measured;
+rollback-only staging benchmark prepared. Both production deletion gates off.
+CI exact artifact promotion replaces rebuild; manifests/checksums preserved and
+production configuration verified without compiling. PostgREST/no Supavisor and
+five-minute UptimeRobot interval documented as approved. No external rows/files
+created or deleted. Original historical candidate retained unchanged.
+
 ## 2026-10-08 - Final code CI and read-only production evidence
 
 Application source95fe34f: hosted Linux1641/0, Windows1641/0, web/type/lint/build/config guards green; PDF9/9 and video18/18. Quality run37889857473. Visitor gzip Linux339934/Windows339933/local339949, below350000. Main baseline1627/0. Local sequential1641/0 and focused fallback zoom3/3. PR32 remains draft, no merge or publish. This receipt only changes documentation and fixes the read-only catalog query column to source_page_number; app source unchanged.

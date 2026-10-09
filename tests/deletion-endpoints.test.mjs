@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {createDeletionEndpoints} from '../supabase/pending/deletion-endpoints.mjs';
-test('numbered deletion proposal preserves the reviewed candidate body byte for byte, with gates off',()=>{
- const original=readFileSync(new URL('../supabase/pending/account_deletion_safety.sql',import.meta.url),'utf8');
+test('numbered deletion proposal preserves release gates while enforcing the reviewed grace and indexed owner fences',()=>{
  const numbered=readFileSync(new URL('../supabase/pending/202610090002_account_deletion_safety.sql',import.meta.url),'utf8');
- assert.ok(numbered.endsWith(original));
- assert.match(original,/requests_enabled boolean not null default false/);
- assert.match(original,/worker_enabled boolean not null default false/);
+ assert.match(numbered,/check\(delete_after = requested_at \+ interval '48 hours'\)/);
+ assert.match(numbered,/new.delete_after:=new.requested_at\+interval '48 hours'/);
+ assert.match(numbered,/pending_deletion_profiles on deletion_private.jobs\(profile_id\) where status <> 'cancelled'/);
+ assert.equal((numbered.match(/where account_id=owner_account and status <> 'cancelled' loop/g)||[]).length,3);
+ assert.match(numbered,/requests_enabled boolean not null default false/);
+ assert.match(numbered,/worker_enabled boolean not null default false/);
 });
 test('candidate request and worker endpoints are off without constructing an admin client',async()=>{
  let calls=0;

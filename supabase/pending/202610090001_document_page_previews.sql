@@ -44,6 +44,9 @@ begin
    or jsonb_typeof(p_pages) is distinct from 'array' or jsonb_typeof(p_failed) is distinct from 'array'
    or jsonb_array_length(p_pages)>p_page_count
    or (p_backfill_from is not null and p_backfill_from not between 1 and p_page_count) then raise exception 'Invalid pages'; end if;
+ if coalesce(a.metadata->>'pageCount','') ~ '^[0-9]{1,9}$'
+   and (a.metadata->>'pageCount')::integer between 1 and 5000
+   and p_page_count<>public.attachment_page_count(a.metadata) then raise exception 'Page count mismatch'; end if;
  prefix:=work.profile_id::text||'/'||work.id::text||'/'||a.citation_id::text||'/';
  for page in select value from jsonb_array_elements(p_pages) loop
    if coalesce(page->>'number','') !~ '^[0-9]{1,4}$' then raise exception 'Invalid page'; end if;

@@ -114,8 +114,7 @@ Supabase reachability), with a five-second upstream timeout and no content or
 provider error disclosure. It is not deployed yet. Disable that monitor until
 the approved release. Use email recovery alerts as well as downtime alerts.
 
-UptimeRobot free checks every **5 minutes**; one-minute monitoring requires its
-paid plan. This does not meet the original minute-level target. Owner chose
+Owner approved UptimeRobot free **5-minute** checks. Owner chose
 UptimeRobot and will create the account; no account/monitor has been created here.
 [Provider interval documentation](https://help.uptimerobot.com/en/articles/11360876-what-is-a-monitoring-interval-in-uptimerobot).
 HetrixTools is a free minute-level alternative if the owner changes that choice.
@@ -145,19 +144,42 @@ never a credentials file. Configure required reviewers on `production`, disallow
 self-approval and restrict deployment branches to `main`. Server service keys
 must stay in the Site/worker secret manager, never `VITE_*` or artifacts.
 
-**Headless Sites deployment is unresolved:** the installed Sites interface
-publishes through authenticated native connector calls and issues a temporary
-source-write credential; it does not document a GitHub Actions deployment token
-or standalone publish API. That source credential is not a deploy secret. Do
-not invent a `SITES_API_KEY`, copy browser sessions into Actions, use an OpenAI
-API key as a Sites token, or auto-deploy production through another host.
-Automatic staging and the manually approved production publishing job need a
-supported headless Sites integration before they can be honestly implemented.
-The PR prepares validation/artifact production only; no automatic Site publish
-is claimed. Existing D1 data/bindings and audience must be preserved at release.
+CI builds/tests/gates and uploads a staging artifact. Production publication
+is manual after approval using those exact bytes, without rebuilding. The
+production approval job downloads the staging artifact and verifies SOURCE_COMMIT
+and SHA256SUMS. Preserve worker/D1 bindings. No headless Sites API is assumed.
+Server paths (Sites worker, separate MCP branch, backfill) use supabase-js over
+HTTPS/PostgREST, not direct PostgreSQL. Skip Supavisor: PostgREST owns its pool,
+whose ceiling scales with compute. Browser configuration remains unchanged.
+No application code assumes Nano limits.
 
 ## Video
 
 `videoProcessingCapability` defaults false. Status reads and retry classification
 skip `video_processing_jobs` entirely while disabled; native videos continue to
 play. Enable only after the separate video schema/worker rollout is verified.
+
+## Review amendments
+
+0001 refuses a changed existing valid 1-5000 pageCount. Owner project visits
+retry preparation after private-to-public changes; public/profile/portal guards
+run before uploads. Complete capped previews are skipped; concurrent requests
+share one promise. The next visit renders pages without requiring republishing.
+
+Numbered 0002 supersedes the historical unnumbered candidate. BEFORE INSERT
+supplies delete_after=requested_at+48 hours (column defaults cannot reference
+sibling columns); a check enforces it. Partial account/profile indexes serve
+pending checks; a GIN index resolves legacy paths after project removal. Storage
+fences query only the resolved account, including after Auth/profile deletion.
+
+Staging INSERT latency remains unmeasured: designated staging configuration is
+absent while the owner creates the project. Use the staging-only rollback
+benchmark in supabase/pending/staging_message_insert_benchmark.sql before/after
+on the same disposable fixture, role, job cardinality and compute. Do not use
+the onboarding sandbox. No SQL was applied; production gates remain off.
+
+The staging artifact must be built with the intended production public backend
+configuration to be promoted unchanged. Production approval checks both entry
+graphs against production secrets and rejects a staging-backend mismatch. No
+service-role credentials enter either build. Hidden build manifests are retained
+in the artifact so checksum and entry-graph verification remain reproducible.
