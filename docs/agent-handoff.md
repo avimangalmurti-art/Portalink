@@ -1,3 +1,21 @@
+## 2026-10-09 - MOBILE info-popup dismissal fix, unpublished
+
+Task branch codex/info-popup-dismiss from github/main5151636; isolated
+logs/info-popup-dismiss. MobileContextProvider previously retained an opened
+options sheet when delegating the screen action to the info popup. It now clears
+that sheet before opening information. ProjectMediaViewer now closes information
+before an intentional three-dot handoff to project options. Normal dismissal
+never opens options; selected content/page memory is preserved. Owner options
+remain available deliberately; WEB viewer and backend behavior unchanged.
+
+Regression tests on original source: 75 passed, 2 failed (stale-sheet state and
+three-dot handoff). After correction: 80 focused viewer/context/info tests pass;
+typecheck passes; targeted lint 0 errors/4 existing refresh warnings; diff check
+passes. Runtime component/state tests, not real-phone/live authenticated proof.
+No SQL, data mutation, merge or publish. Existing launch-readiness PR32 preserved.
+Dependencies reused through a junction to the compatible existing installation
+after the isolated installer stalled; partial installation retained in ignored logs.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.
