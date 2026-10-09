@@ -1,3 +1,7 @@
+## 2026-10-09 - Create-account invitation
+
+Owned logs/info-popup-dismiss checkout, codex/create-account-invite from github/main 5151636. Share and Copy invite use PUBLIC_ORIGIN rather than the preview host; /?welcome=1 opens signUp once after auth initialization. Signed-in, callback and recovery visits preserve their flow. Six focused invite checks pass. No SQL or publish. Popup fixes remain separately on PR33.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.

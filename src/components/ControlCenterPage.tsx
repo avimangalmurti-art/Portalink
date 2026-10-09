@@ -8,6 +8,7 @@ import { useRouteNavigator } from '../app/useAppRoute';
 import { buildPath } from '../app/routes';
 import { DeleteAccountDialog } from '../features/auth/DeleteAccountDialog';
 import type { AppearanceTheme, StoredAppearanceMode } from '../utils/appearancePreferences';
+import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import './settings/settings-page.css';
 
 type ControlCenterPageProps = {
@@ -61,7 +62,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
   }
 
   async function inviteFriend() {
-    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, window.location.origin).toString();
+    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, PUBLIC_ORIGIN).toString();
     setInviteStatus('idle');
     if (navigator.share) {
       try {
@@ -75,7 +76,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
   }
 
   async function copyInvite(resetStatus = true) {
-    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, window.location.origin).toString();
+    const inviteUrl = new URL(`${buildPath('home')}?welcome=1`, PUBLIC_ORIGIN).toString();
     if (resetStatus) setInviteStatus('idle');
     try { await navigator.clipboard.writeText(inviteUrl); setInviteStatus('copied'); }
     catch { setInviteStatus('failed'); }
