@@ -1,3 +1,4 @@
+import { prepareProjectDocumentPages } from '../../services/supabase/documentPages';
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
@@ -297,6 +298,11 @@ export function ProjectMediaViewer({
   const pageTarget = currentPage !== null && pageAttachment ? { projectId, attachmentId: pageAttachment.id, pageIndex: currentPage, label: `Page ${currentPage + 1}`, shared: readOnlyShare } : null;
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp') : undefined;
+  // A private publish cannot upload public previews. Recheck on the next
+  // owner visit; the service validates project/profile/portal visibility.
+  useEffect(() => {
+    if (isOwner && !readOnlyShare) void prepareProjectDocumentPages(projectId).catch(() => undefined);
+  }, [isOwner, readOnlyShare, projectId]);
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   const mobileActions = useMobileActions();

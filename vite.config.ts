@@ -1,5 +1,6 @@
 import { requireBuildEnvironment } from './scripts/build-environment.mjs'
 import { handleCitation, citationLicenseResponse } from './src/server/citation'
+import { handleHealth } from './src/server/health'
 import { readPortfolioCard } from './src/server/sharedPreview'
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
@@ -27,6 +28,7 @@ export default defineConfig(({ command, mode }) => {
         const origin = `http://${request.headers.host || '127.0.0.1:5178'}`;
         const url = new URL(request.url ?? '/', origin);
         const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
+        if (url.pathname === '/healthz') { const result=await handleHealth(new Request(url,{method:request.method}),config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         if (url.pathname === '/sitemap.xml') { const result=await publicSitemap(new Request(url,{method:request.method}),config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         const license = citationLicenseResponse(url.pathname);
         if (license) { response.statusCode=license.status; response.setHeader('Content-Type',license.headers.get('content-type')!); response.end(await license.text()); return; }

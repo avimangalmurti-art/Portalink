@@ -1,0 +1,96 @@
+name: Guarded release candidate
+on:
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Reviewed main commit of the existing staging artifact
+        required: true
+      run_id:
+        description: Successful staging-build workflow run containing the exact artifact
+        required: true
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: release-candidate-${{ github.event_name }}
+  cancel-in-progress: false
+jobs:
+  staging-build:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - name: Build with environment secrets, never a credentials file
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+      - run: node scripts/visitor-size-gate.mjs
+      - name: Record exact built bytes
+        run: |
+          find dist -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          printf '%s\n' "${{ github.event.workflow_run.head_sha }}" > SOURCE_COMMIT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: staging-candidate-${{ github.event.workflow_run.head_sha }}
+          path: |
+            dist/
+            SHA256SUMS
+            SOURCE_COMMIT
+          retention-days: 7
+          include-hidden-files: true
+      # Sites requires native connector publishing. No unsupported deploy API.
+  production-artifact-review:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Restrict artifact source to main history
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+        run: |
+          [[ "$RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$RELEASE_COMMIT" origin/main
+      - uses: actions/download-artifact@v4
+        with:
+          name: staging-candidate-${{ inputs.commit }}
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+          path: candidate
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Verify source and exact staging bytes, without rebuilding
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+        run: |
+          cd candidate
+          test "$(cat SOURCE_COMMIT)" = "$RELEASE_COMMIT"
+          sha256sum --check SHA256SUMS
+      - name: Verify both entry graphs against production secrets without rebuilding
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          node --input-type=module -e "import {readFileSync} from 'node:fs'; import {requireBuildEnvironment} from './scripts/build-environment.mjs'; import {verifyClientEntries} from './scripts/verify-production-bundles.mjs'; const root='candidate/dist/client/'; verifyClientEntries(JSON.parse(readFileSync(root+'.vite/manifest.json','utf8')),file=>readFileSync(root+file,'utf8'),requireBuildEnvironment(process.env));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: approved-production-candidate-${{ inputs.commit }}
+          path: candidate/
+          retention-days: 7
+          include-hidden-files: true
+      # Manual Sites publish only, using these exact bytes and preserved D1 bindings.

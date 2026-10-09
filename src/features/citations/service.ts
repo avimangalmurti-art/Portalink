@@ -9,7 +9,7 @@ export async function resolveCitationItem(id: string, documentPreview = false): 
   const { data,error } = await client.rpc('resolve_citation_item', {p_item_id:id,p_require_citable:false});
   if(error) throw new Error('Citation could not be loaded.');
   const item=data as CitationItem | null;
-  if(item?.storagePath) { const urls=await signedMediaUrls('project-media',[item.storagePath]);item.sourceUrl=urls.get(item.storagePath)??undefined; }
+  if(item?.storagePath) { const publicUrl=publicCoverUrl(item.storagePath); if(publicUrl) item.sourceUrl=publicUrl; else { const urls=await signedMediaUrls('project-media',[item.storagePath]);item.sourceUrl=urls.get(item.storagePath)??undefined; } }
   if (item?.kind === 'page' && !item.sourceUrl) {
     const { data: attachment } = await client.from('project_attachments').select('storage_path,metadata,file_name,mime_type').eq('id', item.attachmentId).maybeSingle();
     const original = item.documentStoragePath ?? attachment?.storage_path;

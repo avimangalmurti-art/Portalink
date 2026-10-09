@@ -35,12 +35,25 @@ try {
  alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
  `);
  for(const f of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) {
+   if(f==='202610070001_citation_foundation.sql') await db.exec(readFileSync('supabase/pending/profile_journey.sql','utf8'));
    const sql=readFileSync(`supabase/migrations/${f}`,'utf8').replace(/create extension if not exists pgcrypto;/i,'');
    try{await db.exec(sql);}catch(error){throw new Error(`Baseline ${f}: ${error.message}`);}
  }
  await check('candidate applies atomically to the full existing migration history',async()=>{
-   try { await db.exec(readFileSync('supabase/pending/account_deletion_safety.sql','utf8')); }
+   try { await db.exec(readFileSync('supabase/pending/202610090002_account_deletion_safety.sql','utf8')); }
    catch(error) { throw new Error(`Candidate: ${error.message}; position ${error.position}`); }
+ });
+ await check('owner fences use partial account/profile indexes and legacy project GIN lookup',async()=>{
+   const indexes=(await db.query("select indexdef from pg_indexes where schemaname='deletion_private' and tablename='jobs'")).rows.map(r=>r.indexdef).join('\n');
+   assert.match(indexes,/UNIQUE INDEX one_account_deletion.*\(account_id\).*cancelled/);
+   assert.match(indexes,/pending_deletion_profiles.*\(profile_id\).*cancelled/);
+   assert.match(indexes,/pending_deletion_projects.*gin.*project_ids/);
+   await db.exec('set enable_seqscan=off');
+   for(const [column,value] of [['account_id',id(1)],['profile_id',id(11)]]) {
+     const plan=(await db.query(`explain select 1 from deletion_private.jobs where ${column}=$1 and status<>'cancelled'`,[value])).rows.map(r=>r['QUERY PLAN']).join('\n');
+     assert.match(plan,/Index/);assert.doesNotMatch(plan,/Seq Scan/);
+   }
+   await db.exec('reset enable_seqscan');
  });
  await system();
  for(const n of [1,2,3]){
@@ -106,7 +119,11 @@ try {
    job=await scalar('select request_account_deletion($1)',[id(1)]);
  });
  let claim, keys;
- await check('immediate deletion is due without waiting; expired leases resume and stale checkpoints fail',async()=>{
+ await check('new jobs cannot be claimed before 48 hours; expired leases resume and stale checkpoints fail',async()=>{
+   assert.equal(await scalar('select claim_account_deletion()'),null);
+   assert.equal(await scalar("select delete_after=requested_at+interval '48 hours' from deletion_private.jobs where id=$1",[job.id]),true);
+   await assert.rejects(db.query("update deletion_private.jobs set delete_after=requested_at+interval '47 hours' where id=$1",[job.id]),/check constraint/);
+   await db.query("update deletion_private.jobs set requested_at=now()-interval '49 hours',delete_after=now()-interval '1 hour' where id=$1",[job.id]);
 
    claim=await scalar('select claim_account_deletion()');
    assert.ok(claim.lease_token); assert.equal(await scalar('select claim_account_deletion()'),null);

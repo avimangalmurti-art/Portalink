@@ -1,3 +1,38 @@
+## Mass-launch review amendments - October 8
+
+Owner: Codex; isolated logs/mass-launch-blockers, codex/mass-launch-blockers,
+draft PR32. Both 202610090001 and 202610090002 remain in supabase/pending;
+no apply/deploy/publish. 0001 pageCount equality plus next-owner-visit rendering
+implemented. 0002 48-hour default/check, scoped Storage owner lookup and partial
+profile/account indexes (existing unique account reused), legacy project GIN.
+Verification script now tests numbered candidate, not historical unnumbered SQL.
+PGlite 14/14, focused 7/7, full Windows 1642/0; typecheck/build/env graph guard
+pass; lint 0 errors/111 pre-existing warnings; visitor gzip339979. Hosted rerun
+pending push. Staging .env.staging.local absent: INSERT latency not measured;
+rollback-only staging benchmark prepared. Both production deletion gates off.
+CI exact artifact promotion replaces rebuild; manifests/checksums preserved and
+production configuration verified without compiling. PostgREST/no Supavisor and
+five-minute UptimeRobot interval documented as approved. No external rows/files
+created or deleted. Original historical candidate retained unchanged.
+
+## 2026-10-08 - Final code CI and read-only production evidence
+
+Application source95fe34f: hosted Linux1641/0, Windows1641/0, web/type/lint/build/config guards green; PDF9/9 and video18/18. Quality run37889857473. Visitor gzip Linux339934/Windows339933/local339949, below350000. Main baseline1627/0. Local sequential1641/0 and focused fallback zoom3/3. PR32 remains draft, no merge or publish. This receipt only changes documentation and fixes the read-only catalog query column to source_page_number; app source unchanged.
+
+Selected read-only production SQL editor queries ran: document citation resolver EXPLAIN103.510ms/1385 shared hits; image25.815ms/1362 shared hits; both zero shared reads/writes. These function Result plans do not reveal internal security-definer nodes or establish browser loading speed. Inventory11 document attachments/zero rendered-page arrays; current database connections13/max60. No migration/Storage/account/application data write. Saved logs/cite-explain-live.png and readiness-inventory-live.png. Temporary SQL editor tab closed; dashboard may retain its private query snippet. Full saved catalog batch/direct identity plans not run. docs/launch-readiness-status.md includes evidence and every unresolved rollout requirement; staging identity/config still missing, no integration environment substitution. Both production deletion gates off. Two pending proposals remain pending for user review. No fabricated after metrics or provider verification.
+
+## 2026-10-08 - PR32 review receipt, rollout blocked; no publish
+
+Draft PR32 https://github.com/avimangalmurti-art/Portalink/pull/32; source6bb1180 hosted Linux and Windows1641pass0fail versus main5151636 baseline1627/0. Local sequential full suite1641/0, typecheck passes, lint0errors/111existingwarnings. Hosted PDF9/9, video18/18, web/build/production main-visitor config guards pass. Initial visitor gzip local339950/hosted339934, gate350000. Final PDF fallback zoom adjustment has3 passing focused tests and is included in this receipt commit for repeated CI. No assertions removed/loosened. Reviewed deletion body retains its existing whitespace byte for byte; pending preview SQL separately requires Storage approval. Synthetic full-history deletion13/13 and preview database guard check pass; not actual provider integration.
+
+Changes/report in docs/launch-readiness-status.md and scaling.md. Pending202610090001 previews and202610090002 deletion remain unapplied. No deploy, publish, production account/file/storage/config writes, monitor creation, or gate enablement. Rows created/removed:zero. Browser verification tabs and owned preview5195 closed; user Studio tab preserved. Real baseline before screenshot logs/cite-before.png; no after waterfall/EXPLAIN evidence fabricated. Staging root.env.staging.local still absent; signed-in dashboard shows only production Portalink Networks and existing Portalink Onboarding Sandbox, not requested portalink-staging. Await staging URL/config, do not substitute environments or create a backend. Owner keeps service role shell-only. Numbered fresh-history replay needs legacy Journey prerequisite before citation0001/0002; not all pending SQL approved. Real Storage/TUS/PDF/Auth deletion/re-register/concurrency/D1 and live before/after/zero-video-request evidence remain. Supavisor routing is unresolved for existing HTTPS APIs; headless Sites CI deploy integration unresolved; UptimeRobot free5min falls short of1min. Branch is prepared review work, not mass-launch clearance.
+
+## 2026-10-08 - Mass-launch blockers, implementation in progress; no deploy
+
+Owned logs/mass-launch-blockers on codex/mass-launch-blockers from main5151636; root and MCP PR6 preserved. Browser PDF publish cap60 plus owner-run Node backfill; public preview guard pending202610090001 requires separate Storage review. Numbered deletion pending202610090002 keeps reviewed body and both gates false. No SQL/Storage/account writes or deployments. Partial previews keep page numbering and shared lazy PDF fallback. Local health actual resolver200/statusok; video capability off. Visitor350KB gzip gate/release artifacts prepared, headless Sites deployment unresolved. Existing HTTPS clients use PostgREST, not raw PostgreSQL; no unsafe pooler URI substitution.
+
+Staging owner reports ready; root.env.staging.local not found at last check, service role only operator shell. Await dashboard URL/PostgreSQL access: service-role REST key cannot apply SQL. Legacy profile_journey prerequisite before citation0001/0002 is needed in fresh replay; synthetic deletion13 checks pass with it. Real provider/TUS/PDF/Auth/concurrency/D1 checks pending. Owner creates UptimeRobot monitors; free interval5min falls short of1min. docs/scaling.md records blockers and settings. Windows suite before final viewer changes1638pass0fail; latest validation and PR receipt pending. One sandbox run blocked disposable Git configs, escalated rerun without assertion changes. Baseline Paper Pens original metadata72,529,436bytes/renderedPages0/resolver450ms is not a browser waterfall. After metrics need approved migration/backfill/release. No publish.
+
 ## 2026-10-08 — MOBILE Messages filter spacing, unpublished
 
 Branch codex/messages-filter-spacing from github/main bcdcaa0, isolated logs/studio-header-fix/logs/messages-filter-spacing. Requested equal spacing above/below Chats/Unread/Requests without moving the grey divider. Mobile-only inbox control rule averages the existing dense gap and divider clearance, using that average for both row gap and bottom padding. Total header space is preserved; search, divider, content arrival, sticky geometry and WEB rules remain unchanged. No TS/state/API change.

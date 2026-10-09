@@ -36,6 +36,7 @@ function harness({ sessionError = null, importFailure = false } = {}) {
   class UploadServiceError extends Error { constructor(value) { super(value.message); Object.assign(this, value); } }
   const exports = {};
   vm.runInNewContext(source, { exports, URL, Blob, Error, crypto: { randomUUID: () => `id-${++sequence}` }, require(name) {
+    if (name === '../../features/media/processingCapabilities') return { videoProcessingCapability: false };
     if (name === '../../types/publishing') return { UploadServiceError, ProcessingServiceError: Error };
     if (name === './client') return { requireSupabase: () => client, requireSupabaseProjectUrl: () => 'https://test.supabase.co' };
     if (name === './contentServices') return { PROJECT_MEDIA_BUCKET: 'project-media' };

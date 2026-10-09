@@ -12,6 +12,7 @@ import { MAX_PAGES_PER_ROW, MIN_PAGES_PER_ROW } from '../../features/projects/pa
 import { deriveProjectRelevance } from '../../domain/discovery/ranking';
 import { requireSupabase } from './client';
 import { signedMediaUrls } from './mediaUrlCache';
+import { publicCoverUrl } from '../../features/media/publicMediaUrl';
 import { coverThumbnailWithUrls, readCoverThumbnail } from './coverThumbnailReads';
 import { readSharedProfileBundle } from './sharedProfileBundle';
 import { normalizeProjectCoverFrame } from '../../utils/coverFrame';
@@ -142,7 +143,7 @@ function renderedPagePaths(value: unknown): string[] {
   return pages.flatMap((page) => {
     if (!page || typeof page !== 'object' || Array.isArray(page)) return [];
     const path = (page as { storagePath?: unknown }).storagePath;
-    return typeof path === 'string' && path ? [path] : [];
+    return typeof path === 'string' && path && !publicCoverUrl(path) ? [path] : [];
   });
 }
 
@@ -195,7 +196,7 @@ function asMetadata(value: unknown, urls: Map<string, string>): ProjectAttachmen
         withinDocumentIndex: item.withinDocumentIndex,
         attachmentId: item.attachmentId,
         storagePath: item.storagePath,
-        sourceUrl: urls.get(item.storagePath) ?? null,
+        sourceUrl: publicCoverUrl(item.storagePath) || urls.get(item.storagePath) || null,
         width: item.width,
         height: item.height,
         aspectRatio: item.aspectRatio,

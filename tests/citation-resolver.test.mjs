@@ -18,9 +18,16 @@ test('public Cited-in component uses the strict projection, not owner-readable c
 });
 test('full-size citation media uses existing signed project-media pipeline, not resized covers',async()=>{
  let signedPaths;let signedBucket;
- const service=load('src/features/citations/service.ts',name=>name.includes('mediaUrlCache')?{signedMediaUrls:async(bucket,paths)=>{signedBucket=bucket;signedPaths=paths;return new Map([[paths[0],'https://signed.test/full-page']]);}}:name.includes('client')?{requireSupabase:()=>({rpc:async()=>({data:{...item,kind:'page',storagePath:'posts/project/pages/page-7.webp'},error:null})})}:{});
+ const service=load('src/features/citations/service.ts',name=>name.includes('publicMediaUrl')?{publicCoverUrl:()=>''}:name.includes('mediaUrlCache')?{signedMediaUrls:async(bucket,paths)=>{signedBucket=bucket;signedPaths=paths;return new Map([[paths[0],'https://signed.test/full-page']]);}}:name.includes('client')?{requireSupabase:()=>({rpc:async()=>({data:{...item,kind:'page',storagePath:'posts/project/pages/page-7.webp'},error:null})})}:{});
  const resolved=await service.resolveCitationItem('page-id');
  assert.equal(signedBucket,'project-media');assert.equal(signedPaths[0],'posts/project/pages/page-7.webp');assert.equal(resolved.sourceUrl,'https://signed.test/full-page');
+});
+
+test('prerendered public citation pages use the cached media proxy without signing the public object',async()=>{
+ const path='public-preview-page.webp';let signed=0;
+ const service=load('src/features/citations/service.ts',name=>name.includes('publicMediaUrl')?{publicCoverUrl:value=>value===path?'/media/covers/public-preview-page.webp':''}:name.includes('mediaUrlCache')?{signedMediaUrls:async()=>{signed++;throw Error('Must not sign public pages');}}:name.includes('client')?{requireSupabase:()=>({rpc:async()=>({data:{...item,kind:'page',storagePath:path},error:null})})}:{});
+ assert.equal((await service.resolveCitationItem('page-id')).sourceUrl,'/media/covers/public-preview-page.webp');
+ assert.equal(signed,0);
 });
 test('public Journey consumes bundled citation events without additional queries',()=>{
  let events;let reads=0;

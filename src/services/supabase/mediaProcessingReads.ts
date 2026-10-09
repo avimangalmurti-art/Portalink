@@ -1,6 +1,7 @@
 import type { MediaService } from '../interfaces';
 import { ProcessingServiceError } from '../../types/publishing';
 import { requireSupabase } from './client';
+import { videoProcessingCapability } from '../../features/media/processingCapabilities';
 
 type PdfJobRow = {
   attachment_id: string;
@@ -56,8 +57,8 @@ async getProcessingStatus(objectIds) {
     const [documents, videos] = await Promise.all([requireSupabase()
       .from('pdf_processing_jobs')
       .select('attachment_id,status,processed_pages,page_count,error_code,error_message,is_retryable,updated_at')
-      .in('attachment_id', objectIds), requireSupabase().from('video_processing_jobs')
-      .select('attachment_id,status,error_message,is_retryable,updated_at').in('attachment_id', objectIds)]);
+      .in('attachment_id', objectIds), videoProcessingCapability ? requireSupabase().from('video_processing_jobs')
+      .select('attachment_id,status,error_message,is_retryable,updated_at').in('attachment_id', objectIds) : Promise.resolve({ data: [], error: null })]);
     // PDF status may be restricted to signed-in viewers. Public videos must
     // remain independent, including during staged migration deployment.
     if (documents.error && !['42P01', 'PGRST205', '42501'].includes(documents.error.code)) {

@@ -1,3 +1,5 @@
+import { prepareProjectDocumentPages } from './documentPages';
+import { publicCoverUrl } from '../../features/media/publicMediaUrl';
 import { validContactEmail } from '../../features/employer/employer';
 import { profileSharing } from './profileSharing';
 import { mergeProjectDesign, saveProjectCreationDetails, saveProjectJourneyDetails } from './projectCreationDetails';
@@ -585,6 +587,9 @@ export const supabaseProjectService: ProjectService = {
       try { coverMessage = await refreshProjectCoverThumbnail(projectId, () => this.getProject(projectId)); }
       catch { coverMessage = 'Published. The cover preview could not be prepared; save the cover again to retry.'; }
     }
+    try {
+      coverMessage = (await prepareProjectDocumentPages(projectId)) ?? coverMessage;
+    } catch { coverMessage = 'Published. Document pages need backfill; PDF viewing remains available.'; }
     return { projectId, mediaPersisted: true, sessionOnly: false, message: coverMessage, creationDetailsPending };
   },
 
@@ -648,7 +653,7 @@ export const supabaseProjectService: ProjectService = {
     const paths = stored.flatMap((item) => [
       item.storagePath,
       item.metadata?.playbackVideo?.storagePath,
-      ...(item.metadata?.renderedPages ?? []).map((page) => page.storagePath),
+      ...(item.metadata?.renderedPages ?? []).map((page) => page.storagePath).filter((path) => !publicCoverUrl(path)),
     ]).filter((path): path is string => Boolean(path));
     let storageDeleted = paths.length === 0;
     if (paths.length > 0) {

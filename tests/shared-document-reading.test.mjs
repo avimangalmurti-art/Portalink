@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
+import { documentPageSlots } from '../src/features/media/documentPages.mjs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const nodes = tree => React.isValidElement(tree) ? [tree, ...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
@@ -30,7 +31,7 @@ test('MOBILE uses its explicit local density while WEB keeps authored density', 
 });
 
 test('single-column rendered documents retain vertical reading and the existing double-tap focus', () => {
-  let cursor = 0, now = 1000; const state = [], writes = [];
+  let cursor = 0, now = 1000, zoom = 1; const state = [], writes = [];
   const react = { ...React, useEffect() { /* No asynchronous document reads in this fixture. */ }, useLayoutEffect() { /* No DOM layout in this fixture. */ }, useCallback: fn => fn,
     useRef(initial) { const i = cursor++; return state[i] ??= { current: initial }; },
     useState(initial) { const i = cursor++; if (!(i in state)) state[i] = typeof initial === 'function' ? initial() : initial;
@@ -40,12 +41,14 @@ test('single-column rendered documents retain vertical reading and the existing 
   vm.runInNewContext(ts.transpileModule(read('../src/components/media/DocumentAttachment.tsx'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, performance: { now: () => now }, require(name) {
+    if (name.endsWith('/documentPages.mjs')) return { documentPageSlots };
     if (name === 'react') return react;
-    if (name === './useSinglePageZoom') return { useSinglePageZoom: () => 1 };
+    if (name === './useSinglePageZoom') return { useSinglePageZoom: () => zoom };
     if (name === './useDocumentReadingScroll') return { useDocumentReadingScroll() {} };
     if (name === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: true, swipeStyle: {}, swipeHandlers: {} }) };
     if (name === './viewerMemory') return { readViewerMemory: () => ({focusedPageNumber: 1}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 };
+    if (name === './PdfPage') return { PdfPage: 'fallback-page' };
     if (name === './PdfImageDocument') return { PdfImageDocument: 'live-pdf' };
     return new Proxy({}, { get: () => 'control' });
   } });
@@ -73,6 +76,13 @@ test('single-column rendered documents retain vertical reading and the existing 
   const live = nodes(render({ attachment: { ...attachment, metadata: {} } })).find(node => node.type === 'live-pdf');
   assert.equal(live.props.columns, 1);
   assert.equal(live.props.verticalReading, true);
+  state.length = 0; zoom = 2;
+  const partial = nodes(render({ verticalReading: false, attachment: { ...attachment, metadata: { pageCount: 65, renderedPages: [attachment.metadata.renderedPages[0]] } } }));
+  const fallback = partial.find(node => node.type === 'fallback-page');
+  assert.equal(fallback.props.pageNumber, 2, 'Focused missing preview retains original page number');
+  assert.equal(fallback.props.source, 'report.pdf');
+  assert.equal(partial.find(node => node.type === 'li').props['data-project-page-total'], 65);
+  assert.equal(partial.find(node => node.type === 'div' && node.props.children?.type === 'fallback-page').props.style.width, '200%', 'PDF fallback retains focused zoom');
 });
 
 test('live PDF overview fits width even when the page is taller than the viewport', () => {

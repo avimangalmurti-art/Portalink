@@ -35,7 +35,9 @@ export function pdfSourceOptions(source: string, previewOnly = false) {
 
 type PdfPageProps = {
   source: string;
+  loadDocument?: () => Promise<PdfDocument>;
   onRenderFailure?: () => void;
+  onReady?: () => void;
   label: string;
   pageNumber?: number;
   onPageCountChange?: (pageCount: number) => void;
@@ -51,7 +53,7 @@ type PdfPageProps = {
  * grid does not download every document just to prepare off-screen covers.
  */
 export function PdfPage({
-  source, onRenderFailure,
+  source, onRenderFailure, loadDocument, onReady,
   label,
   pageNumber = 1,
   onPageCountChange,
@@ -59,6 +61,8 @@ export function PdfPage({
   fit = 'contain',
   objectPosition
 }: PdfPageProps) {
+  const readyCallback = useRef(onReady);
+  readyCallback.current = onReady;
   const hostRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [shouldRender, setShouldRender] = useState(false);
@@ -99,8 +103,7 @@ export function PdfPage({
       if (cancelled) {
         return;
       }
-      loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true));
-      const document = await loadingTask.promise;
+      const document = loadDocument ? await loadDocument() : await (loadingTask = pdfjs.getDocument(pdfSourceOptions(source, true))).promise;
       onPageCountChange?.(document.numPages);
       const nextPage = await document.getPage(Math.min(pageNumber, document.numPages));
       if (!cancelled) {
@@ -116,7 +119,7 @@ export function PdfPage({
       cancelled = true;
       void loadingTask?.destroy();
     };
-  }, [onPageCountChange, pageNumber, shouldRender, source]);
+  }, [onPageCountChange, pageNumber, shouldRender, source, loadDocument]);
 
   useEffect(() => {
     if (!shouldRender) {
@@ -189,6 +192,7 @@ export function PdfPage({
       if (!cancelled) {
         setStatus('ready');
         markRumPdf(viewToken);
+        readyCallback.current?.();
       }
     }).catch((error: unknown) => {
       if (!cancelled && !(error instanceof Error && error.name === 'RenderingCancelledException')) {

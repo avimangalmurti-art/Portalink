@@ -1,10 +1,12 @@
+import { documentPageSlots } from '../../features/media/documentPages.mjs';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { GenericFileCard } from './GenericFileCard';
 import { PdfImageDocument } from './PdfImageDocument';
-import type { PdfDocument } from './PdfPage';
+import { PdfPage, loadPdfJs, pdfSourceOptions } from './PdfPage';
+import type { PdfDocument, PdfLoadingTask } from './PdfPage';
 import { useSinglePageZoom } from './useSinglePageZoom';
 import { useFocusedPageSwipe } from './useFocusedPageSwipe';
 import type { ProjectAttachment } from '../../types/domain';
@@ -73,12 +75,32 @@ export function DocumentAttachment({
   useLayoutEffect(() => { viewTokenRef.current = rumViewToken(); });
   const memoryKey = `${memoryScope}:document:${projectId}:${attachment.id}:rendered`;
   const liveDocumentMemoryKey = `${memoryScope}:document:${projectId}:${attachment.id}:live`;
-  const renderedPages = (attachment.metadata?.renderedPages ?? [])
+  const availablePages = (attachment.metadata?.renderedPages ?? [])
     .filter((page): page is typeof page & { sourceUrl: string } => Boolean(page.sourceUrl));
-  const knownPageCount = Math.max(
-    renderedPages.length,
-    attachment.metadata?.pageCount ?? 0
-  );
+  const rawPageCount = Number(attachment.metadata?.pageCount);
+  const knownPageCount = Math.max(availablePages.length, Number.isInteger(rawPageCount) && rawPageCount > 0 && rawPageCount <= 5000 ? rawPageCount : 0);
+  const renderedPages = documentPageSlots(availablePages, knownPageCount, attachment.id);
+  const pdfGenerationRef = useRef(0);
+  const pdfTaskRef = useRef<PdfLoadingTask | null>(null);
+  const pdfPromiseRef = useRef<Promise<PdfDocument> | null>(null);
+  const loadFallbackDocument = useCallback(() => {
+    const generation = pdfGenerationRef.current;
+    if (!pdfPromiseRef.current) pdfPromiseRef.current = loadPdfJs().then(pdfjs => {
+      if (generation !== pdfGenerationRef.current) throw new Error('Document source changed');
+      const task = pdfjs.getDocument(pdfSourceOptions(attachment.sourceUrl ?? '', true));
+      pdfTaskRef.current = task;
+      return task.promise;
+    });
+    return pdfPromiseRef.current;
+  }, [attachment.sourceUrl]);
+  useEffect(() => () => {
+    pdfGenerationRef.current++;
+    void pdfTaskRef.current?.destroy();
+    pdfTaskRef.current = null;
+    pdfPromiseRef.current = null;
+  }, [attachment.sourceUrl]);
+  const [failedPreviewPages, setFailedPreviewPages] = useState<Set<number>>(() => new Set());
+  useEffect(() => { setFailedPreviewPages(new Set()); }, [attachment.id]);
   const [hasFailed, setHasFailed] = useState(false);
   const [focusedPageIndex, setFocusedPageIndex] = useState<number | null>(() => verticalReading ? null : deepLinkedDocumentPage(attachment.id)
     ?? readViewerMemory(memoryKey).focusedPageNumber
@@ -217,7 +239,7 @@ export function DocumentAttachment({
             <FocusedPageCounter current={focusedPageIndex + 1} total={renderedPages.length} showMediaInteractions={showMediaInteractions} />
           </> : null}
         <ol aria-label={`${attachment.displayName} pages`} className={`${focusedPageIndex === null ? 'max-w-[2048px] items-start' : 'h-full max-w-full items-center'} mx-auto grid w-full gap-[2px]`} style={{ gridTemplateColumns: `repeat(${focusedPageIndex === null ? columnCount : 1}, minmax(0, 1fr))` }}>
-          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : page.storagePath} data-project-page-number={index + 1} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
+          {displayedPages.map(({ page, index }) => <li key={isMobile && focusedPageIndex !== null ? 'focused' : `${attachment.id}:${page.withinDocumentIndex}`} data-project-page-number={index + 1} data-reach-attachment={attachment.id} data-project-page-ready={isMobile && focusedPageIndex !== null ? paintedReaderPage === `${attachment.id}:${page.sourceUrl}:${index+1}` : undefined} data-project-page-total={renderedPages.length} role={focusedPageIndex === index ? undefined : 'button'} tabIndex={focusedPageIndex === index ? undefined : 0} aria-pressed={focusedPageIndex === index ? undefined : false} aria-label={`${attachment.displayName}, page ${page.withinDocumentIndex}. ${focusedPageIndex === index ? readingMode ? 'Reading mode. Swipe left or right to turn the page. Pinch to zoom' : 'Single-page view. Scroll to return to all pages. Pinch or Control plus wheel to zoom' : 'Pinch or Control plus wheel to zoom into single-page view. Double-click or double-tap also opens it'}`} onDoubleClick={focusedPageIndex === index ? undefined : (event) => {
             event.preventDefault();
             if (performance.now() - lastTouchToggleAtRef.current < 500) return;
             focusPage(index);
@@ -239,7 +261,7 @@ export function DocumentAttachment({
               focusPage(index);
             }
           }} data-focused-page-scroll={focusedPageIndex === index ? '' : undefined} onScroll={isMobile && focusedPageIndex === index ? (event) => updateViewerMemory(`${memoryKey}:page:${index}`, { scrollTop: event.currentTarget.scrollTop, scrollLeft: event.currentTarget.scrollLeft }) : undefined} className={`${focusedPageIndex === index ? 'h-full min-h-0 items-start justify-start overflow-auto overscroll-contain' : 'touch-manipulation justify-center'} group/media relative flex w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]`}>
-            <img
+            {page.sourceUrl && !failedPreviewPages.has(page.withinDocumentIndex) ? <img
               data-media-page-surface=""
               src={page.sourceUrl}
               alt={`${attachment.displayName}, page ${page.withinDocumentIndex}`}
@@ -248,7 +270,7 @@ export function DocumentAttachment({
               loading={(isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'eager' : 'lazy'}
               {...{ fetchpriority: (isMobile && focusedPageIndex === index) || page.withinDocumentIndex <= columnCount ? 'high' : 'auto' }}
               decoding="async"
-              onError={event => event.currentTarget.closest('[data-project-page-number]')?.setAttribute('data-project-page-ready','false')}
+              onError={() => setFailedPreviewPages(previous => new Set(previous).add(page.withinDocumentIndex))}
               onLoad={(event) => {
                 event.currentTarget.closest('[data-project-page-number]')?.setAttribute('data-project-page-ready','true');
                 setPaintedReaderPage(`${attachment.id}:${page.sourceUrl}:${index+1}`);
@@ -257,7 +279,7 @@ export function DocumentAttachment({
               }}
               className={`${focusedPageIndex === index ? 'premium-focused-media m-auto max-h-none max-w-none' : verticalReading ? 'h-auto w-full' : 'h-auto max-h-full max-w-full'} bg-white object-contain`}
               style={focusedPageIndex === index ? { width: `${zoom * 100}%`, height: readingMode || verticalReading ? 'auto' : `${zoom * 100}%`, flexShrink: readingMode || verticalReading ? 0 : undefined } : undefined}
-            />
+            /> : <div className="shrink-0" style={{ width: focusedPageIndex === index ? `${zoom * 100}%` : '100%' }}><PdfPage source={attachment.sourceUrl ?? ''} loadDocument={loadFallbackDocument} onReady={() => { setPaintedReaderPage(`${attachment.id}:${page.sourceUrl}:${index+1}`); if (isMobile && focusedPageIndex === index) restoreFocusedScroll(); }} pageNumber={page.withinDocumentIndex} label={`${attachment.displayName}, page ${page.withinDocumentIndex}`} className="w-full aspect-[800/1035]" /></div>}
             {showMediaInteractions && !isMobile && <MediaInteractionBar placement={focusedPageIndex === index ? 'focused' : 'page'} pageCount={renderedPages.length} isOwner={isOwner} target={{
               projectId,
               attachmentId: attachment.id,
