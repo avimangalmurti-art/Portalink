@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+const {PGlite}=await import(process.env.PGLITE_MODULE_PATH?pathToFileURL(process.env.PGLITE_MODULE_PATH).href:'@electric-sql/pglite');
+const id=n=>`00000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
+test('pending previews migration validates owned public document paths, objects and page limits',async()=>{
+ const db=new PGlite();try{
+ await db.exec(`create role anon;create role authenticated;create role service_role;
+ create schema auth;create schema storage;
+ create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+ create function auth.role() returns text language sql as $$select current_setting('request.jwt.claim.role',true)$$;
+ create table profiles(id uuid primary key,account_id uuid,is_private boolean default false);
+ create table portfolio_categories(id uuid primary key,profile_id uuid,is_hidden boolean default false);
+ create table projects(id uuid primary key,profile_id uuid,category_id uuid,is_hidden boolean default false);
+ create table project_attachments(id text primary key,citation_id uuid,project_id uuid,kind text,metadata jsonb);
+ create table storage.objects(bucket_id text,name text);
+ create function storage_path_uuid(path text,n integer) returns uuid language sql as $$select split_part(path,'/',n)::uuid$$;
+ create function owns_profile(profile uuid) returns boolean language sql security definer as $$select exists(select 1 from profiles where id=profile and account_id=auth.uid())$$;
+ create function is_citation_project_public(project uuid) returns boolean language sql security definer as $$select exists(select 1 from projects p join profiles u on u.id=p.profile_id join portfolio_categories c on c.id=p.category_id where p.id=project and not p.is_hidden and not u.is_private and not c.is_hidden)$$;
+ grant usage on schema public,auth,storage to anon,authenticated,service_role;
+ insert into profiles values('${id(1)}','${id(2)}',false);
+ insert into portfolio_categories values('${id(3)}','${id(1)}',false);
+ insert into projects values('${id(4)}','${id(1)}','${id(3)}',false);
+ insert into project_attachments values('document','${id(5)}','${id(4)}','document','{}');`);
+ await db.exec(readFileSync(new URL('../supabase/pending/202610090001_document_page_previews.sql',import.meta.url),'utf8'));
+ const variants=[800,1600].map(size=>({size,width:size,height:size,storagePath:`${id(1)}/${id(4)}/${id(5)}/1-${'a'.repeat(64)}-${size}.webp`}));
+ for(const v of variants)await db.query('insert into storage.objects values($1,$2)',['project-covers',v.storagePath]);
+ const args=['document',1,JSON.stringify([{number:1,variants}]),'[]',null];
+ await db.exec(`select set_config('request.jwt.claim.sub','${id(2)}',false);select set_config('request.jwt.claim.role','authenticated',false);set role authenticated`);
+ await db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args);
+ await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',[...args.slice(0,1),5001,...args.slice(2)]),/Invalid pages/);
+ await db.exec(`select set_config('request.jwt.claim.sub','${id(9)}',false)`);
+ await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args),/Not owner/);
+ await db.exec(`reset role;update projects set is_hidden=true;select set_config('request.jwt.claim.sub','${id(2)}',false);set role authenticated`);
+ await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args),/Public document required/);
+ await db.exec('reset role;set role anon');
+ await assert.rejects(db.query('select set_document_page_previews($1,$2,$3,$4,$5)',args),/permission denied/);
+ }finally{await db.close();}
+});

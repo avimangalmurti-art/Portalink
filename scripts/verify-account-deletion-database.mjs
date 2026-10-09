@@ -35,6 +35,7 @@ try {
  alter default privileges in schema public grant all on tables to anon,authenticated,service_role;
  `);
  for(const f of readdirSync('supabase/migrations').filter(f=>f.endsWith('.sql')).sort()) {
+   if(f==='202610070001_citation_foundation.sql') await db.exec(readFileSync('supabase/pending/profile_journey.sql','utf8'));
    const sql=readFileSync(`supabase/migrations/${f}`,'utf8').replace(/create extension if not exists pgcrypto;/i,'');
    try{await db.exec(sql);}catch(error){throw new Error(`Baseline ${f}: ${error.message}`);}
  }

@@ -29,6 +29,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run build
+      - name: Visitor entry gzip budget (350 KB)
+        run: node scripts/visitor-size-gate.mjs
 
   pdf-worker:
     if: ${{ !startsWith(github.head_ref, 'autosave/') && !startsWith(github.ref, 'refs/heads/autosave/') }}
@@ -63,6 +65,8 @@ jobs:
         run: npm install --prefix "${{ runner.temp }}/portalink-db-tools" --no-save --package-lock=false @electric-sql/pglite@0.5.8
       - name: Build artifacts for visitor-entry regressions
         run: npm run build
+      - name: Visitor entry gzip budget (350 KB)
+        run: node scripts/visitor-size-gate.mjs
       - name: Run Node and database regressions
         run: node scripts/run-node-tests.mjs
         env:

@@ -7,7 +7,7 @@ import ts from 'typescript';
 const source = ts.transpileModule(readFileSync(new URL('../src/services/supabase/mediaProcessingReads.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-function harness(rows = {}) {
+function harness(rows = {}, videoEnabled = true) {
   const calls = [], imports = [];
   const client = { from(table) {
     const call = { table };
@@ -21,6 +21,7 @@ function harness(rows = {}) {
   vm.runInNewContext(source, { exports, require(name) {
     imports.push(name);
     if (name === './client') return { requireSupabase: () => client };
+    if (name === '../../features/media/processingCapabilities') return { videoProcessingCapability: videoEnabled };
     if (name === '../../types/publishing') return { ProcessingServiceError };
     throw new Error(`A processing read must not import ${name}`);
   } });
@@ -35,7 +36,14 @@ test('processing capability and empty status reads need no uploader, mutations o
   assert.equal(capability.refreshIntervalSeconds, 3);
   assert.equal((await h.service.getProcessingStatus([])).length, 0);
   assert.deepEqual(h.calls, []);
-  assert.deepEqual(h.imports, ['../../types/publishing', './client']);
+  assert.deepEqual(h.imports, ['../../types/publishing', './client', '../../features/media/processingCapabilities']);
+});
+
+test('disabled video capability performs zero video requests even for video IDs', async () => {
+  assert.match(readFileSync(new URL('../src/features/media/processingCapabilities.ts', import.meta.url), 'utf8'), /videoProcessingCapability = false/);
+  const h = harness({ video_processing_jobs: { error: { code: 'PGRST205' }, data: null } }, false);
+  assert.equal((await h.service.getProcessingStatus(['video'])).length, 0);
+  assert.deepEqual(h.calls.map(call => call.table), ['pdf_processing_jobs']);
 });
 
 test('the shared processing reader preserves document/video states and queries only requested attachments', async () => {

@@ -1,4 +1,5 @@
 import { handleCitation, citationLicenseResponse } from './server/citation';
+import { handleHealth } from './server/health';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './server/shareAddress';
@@ -373,6 +374,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    if (url.pathname === '/healthz') return handleHealth(request, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});

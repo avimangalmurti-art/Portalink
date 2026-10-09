@@ -1,5 +1,15 @@
 # Account deletion: immediate-deletion candidate, disabled
 
+October 8 launch-readiness preparation: the byte-identical reviewed SQL body is
+also staged as `supabase/pending/202610090002_account_deletion_safety.sql` for a
+numbered rollout. Apply one candidate once, never both files. Both database
+gates remain false. `supabase/pending/deletion-endpoints.mjs` adds a no-startup
+request/status/cancel/internal-tick adapter with both runtime gates off.
+Production endpoint/client remain hard-disabled. Disposable portalink-staging
+is being created by the owner; provider checks have not run there yet. See
+[scaling readiness](scaling.md) for remaining rollout and evidence gates.
+No production deletion, SQL, endpoint deployment or scheduler is enabled.
+
 ## October 4 immediate-deletion revision
 
 The user explicitly requested no 48-hour waiting period and immediate reuse of the email after confirmed deletion. This supersedes the old grace-period product decision described in the historical review below. The pending schema now makes a request due immediately. The candidate handler can run a bounded deletion tick for only the verified caller and returns completed/isDeleted only after Auth absence and Storage reconciliation are confirmed. Large or failed jobs return processing and require a durable retry worker; they do not promise that the email is free yet. Cancellation remains possible only before a worker claims the job, with no guaranteed cancellation window.

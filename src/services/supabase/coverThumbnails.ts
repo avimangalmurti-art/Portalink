@@ -87,7 +87,7 @@ export async function removePublicProjectCovers(profileId: string, projectId: st
     if (listed.error) throw new Error(listed.error.message);
     if (!listed.data?.length) break;
     for (const folder of listed.data) {
-      if (!HASH.test(folder.name)) {
+      if (!HASH.test(folder.name) && !(bucketName === 'project-covers' && UUID.test(folder.name))) {
         if (bucketName === 'project-covers') throw new Error('Unrecognized cover path; cleanup stopped.');
         continue;
       }
@@ -96,15 +96,23 @@ export async function removePublicProjectCovers(profileId: string, projectId: st
     if (listed.data.length < 100) break;
   }
   for (const hash of hashes) {
-      const files = await bucket.list(`${prefix}/${hash}`, { limit: 100 });
-      if (files.error) throw new Error(files.error.message);
-      const paths = (files.data ?? []).map(file => {
-        if (!/^(200|400|800|social)\.webp$/.test(file.name)) throw new Error('Unrecognized cover variant; cleanup stopped.');
-        return `${prefix}/${hash}/${file.name}`;
-      });
+      const paths: string[] = [];
+      for (let offset = 0; ; offset += 100) {
+        const files = await bucket.list(`${prefix}/${hash}`, { limit: 100, offset });
+        if (files.error) throw new Error(files.error.message);
+        for (const file of files.data ?? []) {
+          const valid = HASH.test(hash) ? /^(200|400|800|social)\.webp$/.test(file.name)
+            : /^[1-9][0-9]{0,3}-[a-f0-9]{64}-(800|1600)\.webp$/.test(file.name);
+          if (!valid) throw new Error('Unrecognized cover variant; cleanup stopped.');
+          paths.push(`${prefix}/${hash}/${file.name}`);
+        }
+        if ((files.data?.length ?? 0) < 100) break;
+      }
       if (!paths.length) throw new Error('Cover directory could not be cleared.');
-      const removed = await bucket.remove(paths);
-      if (removed.error) throw new Error(removed.error.message);
+      for (let index = 0; index < paths.length; index += 100) {
+        const removed = await bucket.remove(paths.slice(index, index + 100));
+        if (removed.error) throw new Error(removed.error.message);
+      }
   }
 }
 

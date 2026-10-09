@@ -1,5 +1,6 @@
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}';
 const COVER_PATH = new RegExp(`^${UUID}/${UUID}/[a-f0-9]{64}/(?:200|400|800|social)\\.webp$`, 'i');
+const PAGE_PATH = new RegExp(`^${UUID}/${UUID}/${UUID}/[1-9][0-9]{0,3}-[a-f0-9]{64}-(?:800|1600)\\.webp$`, 'i');
 const AVATAR_PATH = new RegExp(`^${UUID}/[a-zA-Z0-9._-]+$`, 'i');
 const VERSIONED_AVATAR = new RegExp(`^${UUID}/(?:${UUID}-.+|registration-${UUID}-[a-f0-9]{64})$`, 'i');
 
@@ -8,11 +9,11 @@ export type PublicMediaBucket = 'project-covers' | 'avatars';
 /** Public objects only; reject encoded separators, traversal and query strings. */
 export function validPublicMediaPath(bucket: PublicMediaBucket, path: string): boolean {
   if (path.length > 1_024 || path.split('/').some(segment => !segment || segment === '.' || segment === '..')) return false;
-  return bucket === 'project-covers' ? COVER_PATH.test(path) : AVATAR_PATH.test(path);
+  return bucket === 'project-covers' ? COVER_PATH.test(path) || PAGE_PATH.test(path) : AVATAR_PATH.test(path);
 }
 
 export function immutablePublicMediaPath(bucket: PublicMediaBucket, path: string): boolean {
-  return bucket === 'project-covers' ? COVER_PATH.test(path) : VERSIONED_AVATAR.test(path);
+  return bucket === 'project-covers' ? COVER_PATH.test(path) || PAGE_PATH.test(path) : VERSIONED_AVATAR.test(path);
 }
 
 export function publicCoverUrl(path: string): string {

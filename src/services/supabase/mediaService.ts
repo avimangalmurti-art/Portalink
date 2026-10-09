@@ -1,4 +1,5 @@
 import { supabaseMediaProcessingReadService } from './mediaProcessingReads';
+import { videoProcessingCapability } from '../../features/media/processingCapabilities';
 import type { MediaService } from '../interfaces';
 import type {
   PersistedMedia,
@@ -340,7 +341,7 @@ export const supabaseMediaService: MediaService = {
   },
 
   async retryProcessing(objectId) {
-    const video = await requireSupabase().from('video_processing_jobs').select('id').eq('attachment_id', objectId).maybeSingle();
+    const video = videoProcessingCapability ? await requireSupabase().from('video_processing_jobs').select('id').eq('attachment_id', objectId).maybeSingle() : { data: null, error: null };
     if (video.error && !['42P01', 'PGRST205'].includes(video.error.code)) throw new ProcessingServiceError('network', video.error.message);
     const { data, error } = await requireSupabase().rpc(video.data ? 'retry_video_processing' : 'retry_pdf_processing', {
       p_attachment_id: objectId,
