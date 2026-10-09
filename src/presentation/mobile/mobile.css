@@ -5037,3 +5037,14 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
+
+/* Invitation entry stays compact above the composer when the keyboard opens. */
+#root .codex-shell[data-presentation='mobile'] [data-message-introduction='invitation'] {
+  margin-top: 12px; padding: 16px; width: 100%; box-sizing: border-box;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within {
+  border-color: transparent !important; box-shadow: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-invitation-composer]:focus-within::before {
+  border-color: var(--hairline);
+}

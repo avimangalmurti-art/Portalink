@@ -1,3 +1,7 @@
+## 2026-10-08 — MOBILE invitation composer, unpublished
+
+Branch codex/invitation-composer from main197b493. Invitation textarea autofocuses on mount and receives focus rather than thread region on entry. Mobile invitation guidance is a compact paragraph without duplicated recipient title; WEB EmptyState retained. Remove sharp focused shell ring, retain rounded neutral hairline. 29 focused messaging tests, typecheck and diff check pass; targeted lint zero errors/one existing warning. Physical-iPhone automatic keyboard opening remains unverified and subject to Safari focus restrictions. No invitation sent, production writes, SQL or publish.
+
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 
 Task branch codex/studio-landing from github/main e53e69d, isolated logs/studio-header-fix/logs/studio-landing, PR16. Current user steering supersedes the earlier no-Back request: Back restored. Mobile Studio opens on its first Overview tab (existing Needs attention landing), followed by existing collections. Consistent header: circular chevron Back left; pill Select/Done and circular actions right; same surface/border/height48px. Select is disabled in Overview/References/Cited because those views have no bulk selection. Collection selection callbacks retained. WEB original controls/navigation preserved.
