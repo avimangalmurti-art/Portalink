@@ -218,6 +218,9 @@ test('provider re-resolves capabilities and restores context focus before handin
  tree=render();tree.props.value.open();tree=render();
  assert.equal(calls.at(-1),'project-popup');assert.equal(nodes(tree).some(n=>n.type==='sheet'),false);
  tree.props.value.open(object);tree=render();assert.equal(nodes(tree).some(n=>n.type==='sheet'),true,'Explicit project options remain available');
+ tree.props.value.open();tree=render();
+ assert.equal(calls.at(-1),'project-popup');
+ assert.equal(nodes(tree).some(n=>n.type==='sheet'),false,'Opening information clears the prior options sheet instead of hiding it underneath');
 
 });
 

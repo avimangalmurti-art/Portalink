@@ -105,3 +105,18 @@
 [data-presentation='mobile'] .project-popup-identity > .project-popup-creator:active {
   background: var(--control-rest-surface);
 }
+
+/* Keep project engagement anchored while only the description scrolls. */
+[data-presentation='mobile'] [data-centered-project] .project-description-footer {
+  flex: none; margin-top: 0; margin-inline: 20px;
+  padding-bottom: 24px; max-height: 45%; overflow-y: auto;
+}
+[data-presentation='mobile'] .project-popup-engagement [role='group'],
+[data-presentation='mobile'] .project-popup-engagement[data-has-comments] [role='group'] {
+  grid-template-columns: none; grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+[data-presentation='mobile'] .project-popup-engagement [role='group'] > button {
+  display: flex; flex-direction: row; align-items: center; justify-content: center;
+  line-height: 1;
+}
