@@ -25,7 +25,7 @@ test('mobile Drafts restores Back while WEB retains its existing navigation', ()
   '../../components/ui/ModalPortal':{ModalPortal:'modal'},
   '../../components/publishing/ProjectFormDialog':{ProjectDiscardConfirmation:'confirmation'},
   '../../presentation/mobile/MobileContextActions':{MobileContextButton:'actions',useMobileScreenActions(){}},
-  '../../presentation/mobile/contextActions':{contextActions:()=>null},
+  '../../presentation/mobile/contextActions':{contextActions:kind=>({kind})},
  });
  const props={drafts:[],onBack(){},onResume(){},onDiscard:async()=>{},onBookmarks(){},onReads(){}};
  const mobile = nodes(StudioDraftsList({...props,hideBack:true}));
@@ -36,7 +36,8 @@ test('mobile Drafts restores Back while WEB retains its existing navigation', ()
 });
 
 test('mobile Studio starts on Overview, and selecting Drafts switches the content with consistent header controls', () => {
- let params=new URLSearchParams(), mobile=true;
+ let params=new URLSearchParams(), mobile=true, registered;
+ let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
  const react={...React,useEffect(){},useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
   react,'react-router-dom':{useNavigate:()=>()=>{},useSearchParams:()=>[params,next=>{params=new URLSearchParams(next);}]},
@@ -47,8 +48,8 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',user:{id:'account'},isAuthenticated:true})},
   '../../contexts/ServicesContext':{useServices:()=>({})},
   '../../presentation/mobile/MobileBackNavigation':{ScreenBack:'screen-back'},
-  '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(){}},
-  '../../presentation/mobile/contextActions':{contextActions:()=>null},
+  '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(model){registered=model;}},
+  '../../presentation/mobile/contextActions':{contextActions:kind=>({kind})},
   '../../components/ui/StateViews':{},
   '../projects/ProjectEditorDialog':{ProjectEditorDialog:'editor'},
   '../projects/useProjectManagement':{useProjectManagement:()=>({editor:{result:null}})},
@@ -57,7 +58,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   './StudioBookmarksList':{StudioPage:'collection'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
   './StudioActionSheet':{},'./StudioWorkbenchView':{StudioWorkbenchHeader:'header',StudioWorkbenchView:'overview'},
   './workbenchModel':{attentionRows:()=>[],newestDraft:()=>null,weeklyReads:()=>null},
-  './useWorkbench':{useWorkbench:()=>({data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}})},
+  './useWorkbench':{useWorkbench:()=>workbench},
   './studio-workbench.css':{},
  };
  const {StudioPage}=sourceModule('src/features/studio/StudioPage.tsx',imports);
@@ -77,4 +78,19 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  tree=nodes(StudioPage(props));
  assert.equal(tree.filter(n=>n.props['data-studio-pill'])[0].props.children,'Drafts');
  assert.equal(tree.some(n=>n.props['data-studio-pill']==='overview'),false);
+ mobile=true;
+ for(const collection of ['overview','drafts','published','bookmarks','references','cited','activity','all']) {
+  params=new URLSearchParams({collection});
+  workbench={data:{profile:{projects:[]},drafts:[],material:[]},retry(){}};
+  const emptyTree=nodes(StudioPage(props));
+  assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,1,`${collection}: empty Studio retains one header fallback`);
+  assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,1,`${collection}: fallback contains screen actions header`);
+  assert.equal(registered.kind,'studio',`${collection}: empty view keeps actionable screen model`);
+ }
+ for(const state of [{loading:true},{error:'Unavailable'},{data:{draftsUnavailable:true}}]) {
+  params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};
+  const unavailableTree=nodes(StudioPage(props));
+  assert.equal(unavailableTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,1,'Unavailable Drafts retains fallback');
+  assert.equal(registered.kind,'studio');
+ }
 });
