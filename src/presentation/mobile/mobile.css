@@ -3745,8 +3745,8 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* The conversation owns its header, visible viewport and bottom composer. */
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .mobile-navigation-layer { display: none; }
-#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) [data-mobile-chat]) .codex-workspace {
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-chat], [data-mobile-new-message])) .mobile-navigation-layer { display: none; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) :is([data-mobile-chat], [data-mobile-new-message])) .codex-workspace {
   --mobile-dock-clearance: 0px;
   --mobile-content-safe-bottom: var(--safe-area-bottom);
 }

@@ -14,6 +14,9 @@ Task branch codex/profile-link-reveal from github/main197b493, isolated logs/stu
 ## 2026-10-08 — MOBILE actions sheet bottom material, unpublished
 
 Branch codex/messages-sheet-surface from main197b493. Extend the context sheet material below its visible viewport with a noninteractive pseudo-element, covering the white bottom inset during iOS browser chrome changes. Match reduced-transparency surface too. Sheet height, controls and safe-area content padding unchanged. 49 focused viewport/actions tests pass; CSS/diff reviewed; browser and physical-iPhone verification pending. No SQL or publish.
+## 2026-10-08 — MOBILE new-message navigation, unpublished
+
+Branch codex/message-picker-navigation from main197b493. Messages marks the recipient picker from existing isMobileNewChat state. Existing conversation navigation suppression and dock-clearance rule now also covers that picker, only in the active mobile screen. Back/recipient selection clears the state and restores normal navigation. WEB and inbox unchanged. 32 focused messaging/navigation checks pass; browser/physical-phone verification pending. No production data changes or publish.
 
 ## 2026-10-08 — MOBILE Studio landing and reference header, unpublished
 

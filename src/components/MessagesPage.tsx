@@ -304,7 +304,7 @@ export function MessagesPage({
   const isMobileNewChat = isMobile && isNewChatOpen;
   useUnderHeaderScroll(conversationViewport, isMobile && !isMobileNewChat, showList ? 'inbox' : 'chat');
   const hideMobileListHeader = isMobile && showList && !isMobileNewChat;
-  return <section ref={conversationViewport} data-messages-page="" data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
+  return <section ref={conversationViewport} data-messages-page="" data-mobile-new-message={isMobileNewChat || undefined} data-mobile-chat={isMobile && !showList && Boolean(messaging.activeConversation) || undefined} data-mobile-inbox={hideMobileListHeader || undefined} aria-labelledby="messages-heading" style={{ ['--messages-sidebar-width' as string]: `${conversationListWidth.width}px` }} className="relative flex h-full w-full flex-col overflow-hidden bg-[var(--surface-canvas)] text-[var(--text-primary)]">
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>
