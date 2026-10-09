@@ -5165,3 +5165,10 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback .studio-hub-heading {
   display: contents;
 }
+
+/* Balance the inbox filter row within its existing search-to-divider space. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls] {
+  --inbox-filter-space: calc((var(--cdx-dense-gap) + var(--main-screen-divider-space)) / 2);
+  gap: var(--inbox-filter-space);
+  padding-bottom: var(--inbox-filter-space);
+}
