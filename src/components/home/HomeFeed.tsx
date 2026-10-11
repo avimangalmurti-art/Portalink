@@ -18,6 +18,8 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
 import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
+import { useProjectManagement } from '../../features/projects/useProjectManagement';
+import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
 
 type HomeFeedProps = {
   /** Retained as part of the shell contract; the grid measures its real width. */
@@ -89,6 +91,7 @@ export function HomeFeed({
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const { viewerProfileId, isAuthenticated } = useAuth();
+  const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
   const [homeColumns, setHomeColumns] = useState(3);
@@ -127,6 +130,7 @@ export function HomeFeed({
     key: view.project.id,
     content: <ProjectFeedCard
       view={view}
+      management={isAuthenticated && viewerProfileId === view.creator.id ? management : undefined}
       onOpenProject={onOpenProject}
       onOpenCreator={onOpenCreator}
       onWarmCreator={onWarmCreator}
@@ -258,5 +262,9 @@ export function HomeFeed({
           </section>
         </div>
       </div>
+      {isAuthenticated && viewerProfileId && <ProjectEditorDialog management={management} />}
+      {isAuthenticated && viewerProfileId && management.deletion.projectId && <DeleteProjectDialog management={management}
+        projectTitle={projects.find(view => view.project.id === management.deletion.projectId)?.project.title ?? 'Project'}
+        onDeleted={management.deletion.cancel} />}
     </div>;
 }

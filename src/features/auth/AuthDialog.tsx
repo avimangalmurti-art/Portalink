@@ -7,6 +7,7 @@ import type { AuthView } from '../../contexts/AuthContext';
 import { AuthField } from '../../components/auth/AuthField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
+import { PortalinkSplashLoader } from '../../components/ui/PortalinkSplashLoader';
 import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { ProfileField } from '../../components/profile/ProfileField';
 import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
@@ -30,17 +31,27 @@ const mobileSignupTitles: Record<MobileSignupStep, string> = {
   appearance: 'Choose appearance', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
 };
 
-export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean; initialSignupStep?: MobileSignupStep }) {
+export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean; initialSignupStep?: MobileSignupStep; welcomeBeforeSignup?: boolean }) {
   const auth = useAuth();
   const isMobile = usePresentation() === 'mobile';
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [welcomeCompleted, setWelcomeCompleted] = useState(false);
+  useEffect(() => { if (!auth.pendingView) setWelcomeCompleted(false); }, [auth.pendingView]);
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const [signupStep, setSignupStep] = useState<MobileSignupStep>(props.initialSignupStep ?? 'appearance');
   useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep(props.initialSignupStep ?? 'appearance'); }, [auth.pendingView, props.initialSignupStep]);
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
   const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
+  if (props.welcomeBeforeSignup && (auth.pendingView === 'signUp' || auth.pendingView === 'signIn') && !welcomeCompleted) return <PortalinkSplashLoader landing={{
+    ready: !auth.isInitializing,
+    onCreateAccount: () => { setWelcomeCompleted(true); auth.requestAuth('signUp'); },
+    onSignIn: () => { setWelcomeCompleted(true); auth.requestAuth('signIn'); },
+    onForgotPassword: () => auth.requestAuth('forgotPassword'),
+    onContinue: auth.closeAuth,
+    continueLabel: 'Continue as guest',
+  }} />;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
   return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} onStepBack={mobileSignup && (signupStep === 'account' || (signupStep === 'profile' && props.initialSignupStep !== 'profile')) ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
