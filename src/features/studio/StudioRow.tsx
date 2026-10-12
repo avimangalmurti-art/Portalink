@@ -1,4 +1,5 @@
 import { FormattedText } from '../../components/text/FormattedText';
+import { StudioReferenceChip } from './StudioReferenceChip';
 import React, { useId, useRef } from 'react';
 import { ChevronRightIcon, MoreHorizontalIcon } from 'lucide-react';
 import { InterfaceIcon, type InterfaceIconSource } from '../../components/ui/InterfaceIcon';
@@ -19,6 +20,8 @@ export type StudioRowProps = {
   secondary?: string;
   actionLabel?: string;
   date?: string;
+  referenceCount?: number;
+  onOpenReferences?: () => void;
   leading?: React.ReactNode;
   unread?: boolean;
   selecting: boolean;
@@ -32,7 +35,7 @@ export type StudioRowProps = {
 };
 
 /** Every swipe action also has a visible menu entry and a full-sized touch target. */
-export function StudioRow({ id, title, secondary, actionLabel, date, leading, unread, selecting, selected, pending = false, onSelect, onOpen, actions, primaryAction, onMenu }: StudioRowProps) {
+export function StudioRow({ id, title, secondary, actionLabel, date, referenceCount, onOpenReferences, leading, unread, selecting, selected, pending = false, onSelect, onOpen, actions, primaryAction, onMenu }: StudioRowProps) {
   const menuRef = useRef<HTMLButtonElement>(null);
   const secondaryId = useId();
   const visibleActions = actions.slice(0, 3);
@@ -69,6 +72,7 @@ export function StudioRow({ id, title, secondary, actionLabel, date, leading, un
         </span>
         {!selecting ? <span className="flex shrink-0 flex-col items-end gap-1 text-[var(--text-tertiary)]">{date ? <span className="max-w-[68px] truncate text-[11px]">{date}</span> : null}<InterfaceIcon icon={ChevronRightIcon} size="xs" mirroredInRtl /></span> : null}
       </button>
+      {!selecting && referenceCount !== undefined && referenceCount > 0 && onOpenReferences ? <StudioReferenceChip count={referenceCount} disabled={pending} onOpen={() => { gesture.close(); onOpenReferences(); }} /> : null}
       {!selecting ? <button ref={menuRef} data-studio-row-control="" type="button" aria-label={`Options for ${title}`} aria-haspopup="dialog" disabled={pending} onClick={() => { gesture.close(); openMenu(); }} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50"><InterfaceIcon icon={MoreHorizontalIcon} /></button> : null}
     </div>
   </li>;
