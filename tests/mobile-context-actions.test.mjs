@@ -12,7 +12,7 @@ const compile = (path, dependencies = {}, globals = {}) => {
 };
 const { contextActions, mergeContextActions } = compile('../src/presentation/mobile/contextActions.ts');
 const ids = model => [...model.primary, ...model.groups.flat()].map(action => action.id);
-const all = ['deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
+const all = ['viewAsVisitor','projectInfo','deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
  home:['search','explore','viewProfile','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
@@ -24,7 +24,7 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  test(`${kind}: capabilities and cap for ${JSON.stringify(viewer)}`, () => {
    const model = contextActions(kind, viewer, {handlers});
    const actions = [...model.primary,...model.groups.flat()];
-   assert.ok(actions.length <= (kind === 'profile' && viewer.owner ? 9 : 8)); assert.ok(model.primary.length <= 3);
+   assert.ok(actions.length <= (viewer.owner ? (kind === 'profile' ? 10 : kind === 'project' ? 11 : 8) : 8)); assert.ok(model.primary.length <= 3);
    assert.ok(actions.every(action => typeof action.run === 'function' && !('disabled' in action)));
    if (!viewer.signedIn) for (const id of ['follow','saveCreator','edit','delete','mute']) assert.ok(!ids(model).includes(id));
    if (!viewer.owner) for (const id of ['editProfile','insights','reorder','edit','cover','visibility','delete']) assert.ok(!ids(model).includes(id));
@@ -33,8 +33,8 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  });
 }
 test('owner maps preserve requested order; unavailable callbacks are absent', () => {
- assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','reorder','insights','bookmarks','copy','settings']);
- assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','pageIndex','copy','visibility','delete']);
+ assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','viewAsVisitor','reorder','insights','bookmarks','copy','settings']);
+ assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','list','projectInfo','viewProfile','pageIndex','copy','visibility','delete']);
  assert.deepEqual(Array.from(ids(contextActions('home',{signedIn:true},{handlers:{newProject:handlers.newProject,explore:handlers.explore}}))),['explore']);
 });
 test('shared visitor actions offer auth and preserve the existing return destination', () => {
@@ -43,9 +43,9 @@ test('shared visitor actions offer auth and preserve the existing return destina
  assert.match(source,/readSharedReturnPath\(pathname \+ search\)/); assert.match(source,/requestAuthenticatedDestination\(\{ kind: 'route', path/);
 });
 
-test('owner project includes both curation actions and deletion within the eight-action sheet',()=>{
+test('owner project includes both curation actions and deletion with the relocated reader controls',()=>{
  const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}});
- assert.deepEqual(Array.from(ids(owner)),['edit','cover','startHere','thenNow','pageIndex','visibility','delete']);
+ assert.deepEqual(Array.from(ids(owner)),['edit','cover','list','projectInfo','viewProfile','startHere','thenNow','pageIndex','visibility','delete']);
  for(const viewer of [{signedIn:false},{signedIn:true,owner:false}])assert.ok(!ids(contextActions('project',viewer,{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}})).includes('startHere'));
 });
 
