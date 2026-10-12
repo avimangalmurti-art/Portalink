@@ -8,7 +8,7 @@ import type {
 } from '../../types/auth';
 import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
-import { readRegistrationDraft, readRegistrationProfile } from '../../features/auth/registration';
+import { readRegistrationProfile } from '../../features/auth/registration';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -122,13 +122,10 @@ async function mapAuthSession(session: Session, generation: number): Promise<Aut
       user = fresh.data.user;
       registration = readRegistrationProfile(user.user_metadata?.portalink_registration);
     }
-    if (!registration && user.email) {
-      const saved = await readRegistrationDraft(user.email).catch(() => null);
-      registration = saved?.registration;
-    }
+
   }
   const email = user.email ?? '';
-  const displayName = identity.displayName || textMetadata(user, 'display_name') || textMetadata(user, 'full_name') || email.split('@')[0] || 'Creator';
+  const displayName = identity.displayName || registration?.name || textMetadata(user, 'display_name') || textMetadata(user, 'full_name') || email.split('@')[0] || 'Creator';
   const mapped: AuthUser = {
     id: user.id,
     email,
@@ -137,6 +134,7 @@ async function mapAuthSession(session: Session, generation: number): Promise<Aut
     initials: initialsFor(displayName),
     isEmailVerified: Boolean(user.email_confirmed_at),
     registration,
+    ...(['appearance', 'project', 'complete'].includes(user.user_metadata?.portalink_onboarding_step) ? { onboardingStep: user.user_metadata.portalink_onboarding_step } : {}),
   };
 
   await assertCurrentAccount(user.id, generation);
@@ -268,6 +266,21 @@ export const supabaseAuthService: AuthService = {
     return mapped;
   },
 
+  async signInWithProvider(provider) {
+    if (provider !== 'google' && provider !== 'apple') throw new AuthServiceError('unsupported', 'This sign-in method is unavailable.');
+    const { error } = await requireSupabase().auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin } });
+    if (error) throw authFailure(error, 'This sign-in method is unavailable. Please continue with email.');
+  },
+
+  async updateOnboardingStep(step) {
+    if (step !== 'project' && step !== 'complete') throw new AuthServiceError('unknown', 'Invalid setup step.');
+    const client = requireSupabase();
+    const { data: identity, error: identityError } = await client.auth.getUser();
+    if (identityError || !identity.user) throw new AuthServiceError('invalid_credentials', 'Sign in to continue setup.');
+    const { error } = await client.auth.updateUser({ data: { portalink_onboarding_step: step } });
+    if (error) throw authFailure(error, 'Your setup could not be saved. Please try again.');
+  },
+
   async signUp(input) {
     const client = requireSupabase();
     const email = input.email.trim().toLowerCase();
@@ -279,7 +292,7 @@ export const supabaseAuthService: AuthService = {
       email,
       password: input.password,
       options: { emailRedirectTo: window.location.origin,
-        data: registration || input.legalVersions?.length ? { ...(registration ? { portalink_registration: registration } : {}),
+        data: registration || input.legalVersions?.length ? { ...(registration ? { portalink_registration: registration, display_name: registration.name, portalink_onboarding_step: 'appearance' } : {}),
           ...(input.legalVersions?.length ? { portalink_legal_versions: input.legalVersions } : {}) } : undefined },
     });
     if (error) {

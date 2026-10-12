@@ -15,7 +15,7 @@ test('reader information opens publicly and guest engagement closes it before si
  assert.match(viewer, /onClick=\{\(\) => setMobilePopup\('description'\)\}/);
  assert.match(viewer, /\? \(\) => \{ closeMobilePopup\(\); journeyAuth.requestAuthenticatedDestination/);
 });
-test('shared and invitation signup use the default appearance-first onboarding', () => {
+test('shared and invitation signup use the email account form before verified onboarding', () => {
  for (const path of ['App.tsx','visitor/VisitorApp.tsx']) assert.doesNotMatch(source(path), /initialSignupStep=/);
- assert.match(source('features/auth/AuthDialog.tsx'), /props.initialSignupStep \?\? 'appearance'/);
+ assert.match(source('features/auth/AuthDialog.tsx'), /useState<MobileSignupStep>\('account'\)/);
 });

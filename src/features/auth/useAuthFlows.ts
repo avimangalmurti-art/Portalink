@@ -2,9 +2,7 @@ import { useCallback, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useAuth } from '../../contexts/AuthContext';
-import { useSignupTerms } from '../legal/signupTermsContext';
-import { saveRegistrationDraft, markRegistrationVerification, type RegistrationProfile } from './registration';
-import type { PreparedAvatar } from '../../types/profile';
+import { type RegistrationProfile } from './registration';
 import { toAuthError } from '../../types/auth';
 import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUpResult } from '../../types/auth';
 
@@ -18,34 +16,21 @@ import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUp
  */
 
 export function useSignUp() {
-  const terms = useSignupTerms();
   const session = useAuth();
   const {
     auth
   } = useServices();
   const [result, setResult] = useState<SignUpResult | null>(null);
   const [error, setError] = useState<AuthError | null>(null);
-  const action = useAsyncAction(async (email: string, password: string, registration?: RegistrationProfile, avatar: PreparedAvatar | null = null) => {
+  const action = useAsyncAction(async (email: string, password: string, registration?: RegistrationProfile) => {
     setError(null);
     try {
-      const legalVersions = await terms.requestConsent(email);
-      if (legalVersions === null) return;
-      if (registration) {
-        try { await saveRegistrationDraft(registration, email, avatar); }
-        catch { throw new Error('Your signup details could not be saved for email confirmation. Please try again before continuing.'); }
-      }
       const next = await auth.signUp({
         email,
         password,
-        registration,
-        ...(legalVersions.length ? { legalVersions } : {})
+        registration
       });
       setResult(next);
-      if (registration && next.requiresEmailVerification) {
-        // The complete draft was committed before signup. A status-cache failure
-        // must not turn an accepted signup into a second account request.
-        await markRegistrationVerification(registration.id).catch(() => undefined);
-      }
       if (next.session) await session.refreshSession(next.session.user.id);
     } catch (caught) {
       setError(toAuthError(caught));
@@ -57,7 +42,7 @@ export function useSignUp() {
     error,
     status: action.status,
     isLoading: action.isLoading,
-    submit: (email: string, password: string, registration?: RegistrationProfile, avatar?: PreparedAvatar | null) => action.run(email, password, registration, avatar),
+    submit: (email: string, password: string, registration?: RegistrationProfile) => action.run(email, password, registration),
     retry: action.retry,
     reset: useCallback(() => {
       setResult(null);

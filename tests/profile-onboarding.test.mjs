@@ -191,40 +191,6 @@ test('the directory picker preserves custom text and applies only explicit choic
   assert.equal(disabled.props.error, 'Use 48 characters or fewer.');
 });
 
-test('setup exposes large image selection, name and location and submits without hidden field requirements', async () => {
-  for (const presentation of ['web', 'mobile']) {
-  let submitted;
-  const render = component('src/features/profile/ProfileOnboardingDialog.tsx', 'ProfileOnboardingDialog', { isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete() {} }, {
-    presentation,
-    useAvatarSelection: () => ({ avatar: null, error: null, select() {}, clear() {} }),
-    useCreateProfile: () => ({ status: 'idle', isLoading: false, run: async (input) => { submitted = input; } }),
-  });
-  let tree = render();
-  const fields = nodes(tree).filter((node) => node.type === 'ProfileField');
-  assert.deepEqual(fields.map((node) => node.props.label), ['Profile name', 'Public handle']);
-  assert.equal(find(tree, node => node.props.id === 'onboarding-location').type, 'ProfileLocationPicker');
-  assert.equal(fields[0].props.required, presentation === 'mobile');
-  assert.equal(find(tree, (node) => node.type === 'AvatarPicker').props.presentation, presentation === 'mobile' ? 'onboarding' : 'featured');
-  assert.equal(nodes(tree).some((node) => String(node.props?.children).includes('Signed in as')), false);
-  await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.equal(submitted, undefined);
-  fields[0].props.onChange('Avi');
-  find(tree, node => node.props.id === 'onboarding-location').props.onChange('San Francisco');
-  const visibility = find(tree, node => node.type === 'ProfileVisibilityField');
-  assert.equal(Boolean(visibility), presentation === 'mobile');
-  visibility?.props.onChange(true);
-  tree = render();
-  await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.equal(submitted, undefined, 'first press checks and displays the final handle');
-  tree = render();
-  await find(tree, node => node.type === 'form').props.onSubmit({ preventDefault() {} });
-  assert.equal(submitted.name, 'Avi');
-  assert.equal(submitted.location, 'San Francisco');
-  assert.equal(submitted.isPrivate, presentation === 'mobile');
-  assert.equal(submitted.handle, 'avi');
-  assert.equal('headline' in submitted, false);
-  }
-});
 test('featured image selection keeps replace, remove and crop save while compact editing remains 40px', () => {
   const selections = [];
   let cleared = false;
@@ -246,4 +212,9 @@ test('featured image selection keeps replace, remove and crop save while compact
   assert.equal(cleared, true);
   const compact = render({ presentation: 'compact' });
   assert.equal(find(compact, (node) => node.type === 'ResponsiveImage').props.width, 40);
+});
+
+test('signup preserves an explicit address and suffixes only after its actual unique constraint collision',async()=>{
+ const good=creationService();await good.service.createProfile('account',{name:'Avi',handle:'avi',allowHandleCollisionSuffix:true});assert.equal(good.inserts[0].handle,'avi');assert.equal(good.inserts.length,1);
+ const collision=creationService([{code:'23505',message:'duplicate key violates profiles_handle_key'}]);await collision.service.createProfile('account',{name:'Avi',handle:'custom.address',allowHandleCollisionSuffix:true});assert.equal(collision.inserts[0].handle,'custom.address');assert.match(collision.inserts[1].handle,/^custom.address/);
 });

@@ -32,7 +32,7 @@ const session = value => ({ user: value, access_token: 'synthetic-test-access-to
 function serviceHarness() {
   const state = {
     current: session(user()), fresh: user(), profile: null, recovery: false, getUserError: null, draftError: null,
-    signup: [], profileReads: [], localReads: [], freshReads: 0, profileWrites: 0, savedByEmail: new Map(), callback: null,
+    oauth: [], updates: [], signup: [], profileReads: [], localReads: [], freshReads: 0, profileWrites: 0, savedByEmail: new Map(), callback: null,
   };
   const client = {
     from(table) {
@@ -48,6 +48,8 @@ function serviceHarness() {
       };
     },
     auth: {
+      async signInWithOAuth(input){state.oauth.push(copy(input));return{data:{},error:null};},
+      async updateUser(input){state.updates.push(copy(input));state.current.user.user_metadata={...state.current.user.user_metadata,...input.data};state.fresh=state.current.user;return{data:{user:state.fresh},error:null};},
       async getSession() { return { data: { session: copy(state.current) }, error: null }; },
       async getUser() {
         state.freshReads++;
@@ -129,35 +131,15 @@ test('a stale session obtains current registration only from the same provider a
   h.state.fresh = user('account-b', { portalink_registration: draft({ name: 'Other account' }) });
   const switched = await h.newService().getSession();
   assert.equal(switched.user.id, 'account-a'); assert.equal(switched.user.email, 'account-a@example.test');
-  assert.equal(switched.user.registration.name, 'Older local name');
+  assert.equal(switched.user.registration, undefined);
   assert.equal(switched.user.isEmailVerified, false, 'A different provider user cannot verify the original account.');
-  assert.deepEqual(h.state.localReads, ['account-a@example.test']);
+  assert.deepEqual(h.state.localReads, []);
   assert.equal(h.state.profileWrites, 0);
 });
 
-test('local fallback is bound to session email and requires missing profile, metadata and recovery state', async () => {
-  for (const mode of ['missing', 'other-email', 'profile', 'metadata', 'recovery']) {
-    const h = serviceHarness();
-    h.saveLocal(mode === 'other-email' ? 'account-b@example.test' : 'account-a@example.test', draft({ name: 'Local draft' }));
-    if (mode === 'profile') h.state.profile = { id: 'existing-profile', name: 'Existing profile' };
-    if (mode === 'metadata') h.state.current.user.user_metadata.portalink_registration = draft({ name: 'Provider draft' });
-    if (mode === 'recovery') {
-      h.state.recovery = true;
-      h.state.current.user.user_metadata.portalink_registration = draft({ name: 'Recovery must ignore metadata too' });
-    }
-    const mapped = await h.auth.getSession();
-    if (mode === 'missing') assert.equal(mapped.user.registration.name, 'Local draft');
-    else if (mode === 'metadata') assert.equal(mapped.user.registration.name, 'Provider draft');
-    else assert.equal(mapped.user.registration, undefined, mode);
-    assert.deepEqual(h.state.localReads, mode === 'missing' || mode === 'other-email' ? ['account-a@example.test'] : [], mode);
-    assert.equal(h.state.freshReads, mode === 'missing' || mode === 'other-email' ? 1 : 0, mode);
-    if (mode === 'profile') {
-      assert.equal(mapped.user.profileId, 'existing-profile'); assert.equal(mapped.user.displayName, 'Existing profile');
-    }
-    assert.equal(h.state.profileWrites, 0, mode);
-  }
+test('session restoration never restores signup from browser drafts',async()=>{
+ const h=serviceHarness();h.saveLocal('account-a@example.test');const mapped=await h.auth.getSession();assert.equal(mapped.user.registration,undefined);assert.deepEqual(h.state.localReads,[]);assert.equal(h.state.profileWrites,0);
 });
-
 test('existing profiles suppress both saved metadata and local drafts during repeated session events', async () => {
   const h = serviceHarness();
   h.state.profile = { id: 'existing-profile', name: 'Established name' };
@@ -180,11 +162,11 @@ test('existing profiles suppress both saved metadata and local drafts during rep
   assert.equal(h.state.freshReads, 0); assert.deepEqual(h.state.localReads, []); assert.equal(h.state.profileWrites, 0);
 });
 
-test('unavailable fresh-user or local storage reads do not discard an otherwise valid session', async () => {
+test('unavailable fresh-user reads do not discard an otherwise valid session', async () => {
   const h = serviceHarness();
   h.state.getUserError = new Error('Synthetic offline response');
   h.saveLocal('account-a@example.test');
-  assert.equal((await h.auth.getSession()).user.registration.id, registrationId);
+  assert.equal((await h.auth.getSession()).user.registration, undefined);
   h.state.draftError = new Error('Synthetic unavailable storage');
   const mapped = await h.auth.getSession();
   assert.equal(mapped.user.id, 'account-a'); assert.equal(mapped.user.registration, undefined);
@@ -193,4 +175,11 @@ test('unavailable fresh-user or local storage reads do not discard an otherwise 
   assert.equal(await h.auth.getSession(), null);
   assert.equal(h.state.profileReads.length, reads);
   assert.equal(h.state.profileWrites, 0);
+});
+
+test('Google and Apple use the same Supabase OAuth callback and persist only the setup preference',async()=>{
+ const h=serviceHarness();for(const provider of ['google','apple'])await h.auth.signInWithProvider(provider);
+ assert.deepEqual(h.state.oauth.map(row=>row.provider),['google','apple']);for(const row of h.state.oauth)assert.equal(row.options.redirectTo,'https://portalink.example.test');
+ await h.auth.updateOnboardingStep('project');assert.deepEqual(h.state.updates,[{data:{portalink_onboarding_step:'project'}}]);assert.equal((await h.auth.getSession()).user.onboardingStep,'project');
+ await assert.rejects(h.auth.signInWithProvider('other'),/unavailable/);assert.equal(h.state.oauth.length,2);
 });

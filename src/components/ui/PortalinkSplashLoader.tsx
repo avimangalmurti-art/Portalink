@@ -18,7 +18,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   timedIntro?: boolean;
   /** Reuse the looping Hello World media inside the sign-in form, without a launch overlay. */
   welcomeMedia?: boolean;
-  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
+  landing?: { onGoogle?: () => void; onApple?: () => void; error?: string | null; ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
@@ -294,12 +294,14 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         </div>
       </div>
       {landing && <div className="mobile-share-landing-actions" aria-busy={!landing.ready}>
-        <button type="button" className="mobile-share-create" disabled={!landing.ready} onClick={landing.onCreateAccount}>Create account</button>
+        <button type="button" className="mobile-share-create" disabled={!landing.ready || !landing.onGoogle} onClick={landing.onGoogle}>Continue with Google</button>
+        <button type="button" className="mobile-share-create" disabled={!landing.ready || !landing.onApple} onClick={landing.onApple}>Continue with Apple</button>
+        <button type="button" className="mobile-share-create" disabled={!landing.ready} onClick={landing.onCreateAccount}>Continue with email</button>
         <div className="mobile-share-secondary">
           <button type="button" className="mobile-share-signin" disabled={!landing.ready} onClick={landing.onSignIn}>Sign in</button>
-          <button type="button" className="mobile-share-forgot" disabled={!landing.ready} onClick={landing.onForgotPassword}>Forgot password?</button>
           <button type="button" className="mobile-share-guest" disabled={!landing.ready} onClick={landing.onContinue}>{landing.continueLabel}</button>
         </div>
+        {landing.error && <p role="alert">{landing.error}</p>}
         {!landing.ready && <span role="status" className="sr-only">Opening Portalink…</span>}
       </div>}
     </motion.div>

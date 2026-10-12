@@ -1,0 +1,10 @@
+/* Desktop host for the unchanged shared appearance controls. Phone styling
+   continues to come exclusively from the existing onboarding stylesheet. */
+[data-presentation='web'] .first-signin .mobile-onboarding-appearance { display:flex; flex-direction:column; gap:16px; }
+[data-presentation='web'] .first-signin .mobile-onboarding-preview { padding:16px; border:1px solid var(--hairline); border-radius:14px; background:var(--nav-button-fill); }
+[data-presentation='web'] .first-signin .mobile-onboarding-brand { font-size:32px; line-height:1.05; font-weight:700; text-align:center; }
+[data-presentation='web'] .first-signin legend { margin-bottom:6px; }
+[data-presentation='web'] .first-signin .mobile-onboarding-swatches { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:6px; }
+[data-presentation='web'] .first-signin .mobile-onboarding-swatches button { min-height:44px; padding:3px; }
+[data-presentation='web'] .first-signin .mobile-onboarding-swatches span { display:grid; place-items:center; width:100%; height:40px; border-radius:10px; }
+[data-presentation='web'] .first-signin .mobile-onboarding-switch { display:flex; justify-content:space-between; align-items:center; min-height:44px; }

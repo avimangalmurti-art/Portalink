@@ -42,6 +42,8 @@ export interface AuthService {
   signIn(input: SignInInput): Promise<AuthSession>;
   /** Never returns a session when the address must be confirmed first. */
   signUp(input: SignUpInput): Promise<SignUpResult>;
+  signInWithProvider?(provider: 'google' | 'apple'): Promise<void>;
+  updateOnboardingStep?(step: 'project' | 'complete'): Promise<void>;
   signOut(scope?: 'local' | 'global'): Promise<void>;
   /** Ends every other session while keeping this browser signed in. */
   signOutOtherSessions(accountId: Id): Promise<void>;

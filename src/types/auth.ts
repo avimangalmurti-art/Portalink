@@ -24,6 +24,7 @@ export type AuthUser = {
   isEmailVerified: boolean;
   /** Validated registration input to finish after email confirmation. */
   registration?: import('../features/auth/registration').RegistrationProfile;
+  onboardingStep?: 'appearance' | 'project' | 'complete';
 };
 
 /**
