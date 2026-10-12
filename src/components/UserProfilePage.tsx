@@ -48,7 +48,7 @@ import { useProfileConnections } from '../features/follows/useProfileConnections
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 import { ProfileBioSheet } from '../features/profile/ProfileBioSheet';
 import './profile/profile-header.css';
-const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
+const JourneyView = lazy(() => import('../features/journey/OwnerJourneyView').then(m => ({ default: m.OwnerJourneyView })));
 const ThenNowDialog = lazy(() => import('../features/journey/ThenNowDialog').then(m => ({ default: m.ThenNowDialog })));
 const StartHereDialog = lazy(() => import('../features/employer/StartHereDialog').then(m => ({default:m.StartHereDialog})));
 const ProfileShareDialog = lazy(() => import('../features/sharing/ProfileShareDialog').then(m => ({ default: m.ProfileShareDialog })));

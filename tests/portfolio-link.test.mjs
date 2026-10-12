@@ -90,7 +90,7 @@ test('worker handle and UUID routes use canonical internal assets without leakin
   .replaceAll('import.meta.env.VITE_SUPABASE_URL',"'https://test.supabase.co'")
   .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY',"'public'");
  const exports={},assetPaths=[];
- const imports={'./features/sharing/shareModel':model,'./server/shareAddress':server,'./server/sharedPreview':{prefersHtml:()=>true},'./server/publicMedia':{isPublicMediaRoute:()=>false},'./server/rum':{},'./server/rumOwner':{},'./server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':{}};
+ const imports={'./features/sharing/shareModel':model,'./server/shareAddress':server,'./server/sharedPreview':{prefersHtml:()=>true},'./server/publicMedia':{isPublicMediaRoute:()=>false},'./server/rum':{},'./server/rumOwner':{},'./server/referenceResolver':{},'./server/portfolioExport':{},'./server/journeyInsights':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':{}};
  vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports,URL,Headers,Request,Response,require:name=>{assert.ok(name in imports);return imports[name];}});
  const request=(path,method='GET')=>exports.default.fetch(new Request('https://site.test'+path,{method,headers:{accept:'text/html','user-agent':'Browser'}}),{ASSETS:{fetch:async req=>{
   const path=new URL(req.url).pathname;assetPaths.push(path);
