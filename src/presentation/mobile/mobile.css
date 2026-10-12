@@ -5257,3 +5257,26 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions]:is(:hover, :has(button:active)) {
   background: var(--surface-hover);
 }
+
+/* Insights keeps its grey action surface centered on the ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
