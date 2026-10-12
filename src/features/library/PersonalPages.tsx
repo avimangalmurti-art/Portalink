@@ -39,7 +39,7 @@ export function SavedPage({ onBack, onOpenProject }: { onBack: () => void; onOpe
   const selectedTab = params.get('tab');
   const tab = selectedTab === 'creators' || selectedTab === 'pages' ? selectedTab : 'projects';
   if (!auth.isAuthenticated) return null;
-  return <section aria-label="Saved library">
+  return <section data-library-actions="" aria-label="Saved library">
     <PersonalHeader title="Saved" onBack={onBack} />
     <div className="px-[var(--content-gutter)] py-6">
       <p className="text-[13px] text-[var(--text-secondary)]">Your private library. Saving a creator does not follow them.</p>
@@ -117,5 +117,5 @@ export function InsightsPage({ onBack }: { onBack: () => void }) {
 
 export function ActivityPage({ onBack }: { onBack: () => void }) {
   const { user } = useAuth();
-  return <section aria-label="Activity"><PersonalHeader title="Activity" onBack={onBack} /><InboxPanel key={user?.id} /></section>;
+  return <section data-library-actions="" aria-label="Activity"><PersonalHeader title="Activity" onBack={onBack} /><InboxPanel key={user?.id} /></section>;
 }

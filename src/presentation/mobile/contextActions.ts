@@ -2,7 +2,7 @@ import { BookmarkIcon, ChartNoAxesColumnIcon, CheckIcon, CopyIcon, EyeIcon, Glob
 import type { InterfaceIconSource } from '../../components/ui/InterfaceIcon';
 
 export type ContextKind = 'home' | 'profile' | 'project' | 'studio' | 'messages' | 'conversation' | 'explore' | 'shared' | 'message' | 'settings';
-const icons = { cite: QuoteIcon, search: SearchIcon, explore: Globe2Icon, newProject: PlusIcon, refresh: RefreshCwIcon, settings: SettingsIcon,
+const icons = { viewAsVisitor: EyeIcon, projectInfo: ListIcon, cite: QuoteIcon, search: SearchIcon, explore: Globe2Icon, newProject: PlusIcon, refresh: RefreshCwIcon, settings: SettingsIcon,
   editProfile: PencilIcon, share: ShareIcon, reorder: Grid2X2Icon, insights: ChartNoAxesColumnIcon, copy: CopyIcon,
   follow: UserPlusIcon, message: MessageCircleIcon, saveCreator: BookmarkIcon, report: FlagIcon,
   saveProject: BookmarkIcon, savePage: MapPinIcon, comment: MessageCircleIcon, pageIndex: ListIcon,
@@ -15,16 +15,16 @@ export type ContextAction = { id: string; label: string; icon: InterfaceIconSour
 export type ContextActions = { title: string; primary: ContextAction[]; groups: ContextAction[][]; kind?: ContextKind; viewer?: ContextViewer; target?: ContextTarget };
 export type ContextViewer = { signedIn: boolean; owner?: boolean };
 export type ContextTarget = { title?: string; handlers: Partial<Record<ContextActionId, ContextAction['run']>>; labels?: Partial<Record<ContextActionId, string>> };
-const labels: Record<ContextActionId, string> = { cite:'Cite', search:'Search', explore:'Explore', newProject:'New project', refresh:'Refresh feed', settings:'Settings', editProfile:'Edit profile', share:'Share', reorder:'Reorder projects', insights:'Insights', copy:'Copy link', follow:'Follow', message:'Message', saveCreator:'Save creator', report:'Report', saveProject:'Save project', savePage:'Save this page', comment:'Comment on this page', pageIndex:'Page index', reads:'Reads', startHere:'Use as Start here', thenNow:'Use in Then/Now', edit:'Edit', cover:'Change cover', visibility:'Visibility', delete:'Delete project', select:'Select', list:'List view', drafts:'Drafts', bookmarks:'Bookmarks', categories:'Categories view', newMessage:'New message', blocked:'Blocked people', viewProfile:'View profile', mute:'Mute', block:'Block', yourWorld:'Your world', myCity:'My city', reset:'Reset view', signIn:'Sign in', createAccount:'Create account', react:'React', editMessage:'Edit message', unsend:'Unsend message', deleteChat:'Delete chat', leaveLive:'Leave live session' };
+const labels: Record<ContextActionId, string> = { viewAsVisitor:'View as visitor', projectInfo:'Project information', cite:'Cite', search:'Search', explore:'Explore', newProject:'New project', refresh:'Refresh feed', settings:'Settings', editProfile:'Edit profile', share:'Share', reorder:'Reorder projects', insights:'Insights', copy:'Copy link', follow:'Follow', message:'Message', saveCreator:'Save creator', report:'Report', saveProject:'Save project', savePage:'Save this page', comment:'Comment on this page', pageIndex:'Page index', reads:'Reads', startHere:'Use as Start here', thenNow:'Use in Then/Now', edit:'Edit', cover:'Change cover', visibility:'Visibility', delete:'Delete project', select:'Select', list:'List view', drafts:'Drafts', bookmarks:'Bookmarks', categories:'Categories view', newMessage:'New message', blocked:'Blocked people', viewProfile:'View profile', mute:'Mute', block:'Block', yourWorld:'Your world', myCity:'My city', reset:'Reset view', signIn:'Sign in', createAccount:'Create account', react:'React', editMessage:'Edit message', unsend:'Unsend message', deleteChat:'Delete chat', leaveLive:'Leave live session' };
 const accountActions = new Set<ContextActionId>(['drafts','bookmarks','newProject','editProfile','reorder','insights','follow','message','saveCreator','startHere','thenNow','edit','cover','visibility','delete','select','newMessage','blocked','deleteChat','mute','block','react','editMessage','unsend']);
-const ownerActions = new Set<ContextActionId>(['reads','editProfile','reorder','insights','startHere','thenNow','edit','cover','visibility','delete']);
+const ownerActions = new Set<ContextActionId>(['viewAsVisitor','projectInfo','reads','editProfile','reorder','insights','startHere','thenNow','edit','cover','visibility','delete']);
 type Layout = { title: string; primary: ContextActionId[]; groups: ContextActionId[][] };
 /** Route order and capability filtering live together; missing callbacks never become placeholders. */
 export function contextActions(kind: ContextKind, viewer: ContextViewer, target: ContextTarget): ContextActions {
   const map: Record<ContextKind, Layout> = {
-    home:{title:'Home',primary:['search','explore'],groups:[['refresh','settings'],['leaveLive']]},
-    profile:viewer.owner ? {title:'Your profile',primary:['newProject','editProfile','share'],groups:[['thenNow','reorder','insights','bookmarks','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
-    project:viewer.owner ? {title:'Your project',primary:['edit','cover'],groups:[['startHere','thenNow',...(target.handlers.reads ? ['reads'] as ContextActionId[] : ['pageIndex'] as ContextActionId[]),...(target.handlers.reads || target.handlers.startHere && target.handlers.thenNow ? [] : ['copy'] as ContextActionId[]),'visibility'],['delete']]} : {title:'Project',primary:[target.handlers.savePage ? 'savePage' : 'saveProject','cite','share'],groups:[['comment','pageIndex','copy'],['report']]},
+    home:{title:'Home',primary:['search','explore','viewProfile'],groups:[['refresh','settings'],['leaveLive']]},
+    profile:viewer.owner ? {title:'Your profile',primary:['newProject','editProfile','share'],groups:[['viewAsVisitor','thenNow','reorder','insights','bookmarks','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
+    project:viewer.owner ? {title:'Your project',primary:['edit','cover'],groups:[['list','projectInfo','viewProfile'],['startHere','thenNow',...(target.handlers.reads ? ['reads'] as ContextActionId[] : ['pageIndex'] as ContextActionId[]),...(target.handlers.reads || target.handlers.startHere && target.handlers.thenNow ? [] : ['copy'] as ContextActionId[]),'visibility'],['delete']]} : {title:'Project',primary:[target.handlers.savePage ? 'savePage' : 'saveProject','cite','share'],groups:[['comment','pageIndex','copy'],['report']]},
     studio:{title:'Studio',primary:['drafts','bookmarks'],groups:[['select']]},
     messages:{title:'Messages',primary:['newMessage','search'],groups:[['blocked']]},
     conversation:{title:'Conversation',primary:['viewProfile','share','mute'],groups:[['deleteChat','block','report']]},
@@ -36,7 +36,7 @@ export function contextActions(kind: ContextKind, viewer: ContextViewer, target:
   let count = 0;
   const take = (ids: ContextActionId[]) => ids.flatMap(id => {
     const run = target.handlers[id];
-    if (!run || count >= (kind === 'profile' && viewer.owner ? 9 : 8) || (accountActions.has(id) && !viewer.signedIn) || (ownerActions.has(id) && !viewer.owner) || (viewer.signedIn && (id === 'signIn' || id === 'createAccount'))) return [];
+    if (!run || count >= (kind === 'profile' && viewer.owner ? 10 : kind === 'project' && viewer.owner ? 11 : 8) || (accountActions.has(id) && !viewer.signedIn) || (ownerActions.has(id) && !viewer.owner) || (viewer.signedIn && (id === 'signIn' || id === 'createAccount'))) return [];
     count++;
     return [{id, label:target.labels?.[id] ?? labels[id], icon:icons[id], run, destructive:['delete','deleteChat','report','block','unsend'].includes(id)}];
   });

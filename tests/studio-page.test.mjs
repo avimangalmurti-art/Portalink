@@ -21,7 +21,7 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false, citations = [] } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
   const currentRows = [...rows];
@@ -39,7 +39,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   };
   const deps = {
     '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
-    '../citations/service': {listCitations:async()=>[],resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
+    '../citations/service': {listCitations:async()=>citations,resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
     '../../components/text/textFormatting': {plainFormattedText:s=>s},
     '../../presentation/mobile/MobileContextActions': { useMobileScreenActions() {} },
@@ -154,4 +154,8 @@ test('mobile Studio retains Back, Select and Done together in the header', () =>
  assert.ok(page.button('Exit selection'));
  page.button('Exit selection').props.onClick();
  assert.ok(page.button('Select items'));
+});
+
+test('Published references live within row metadata, hide zero, and keep the reference link', async()=>{
+ for(const count of [0,2]){const page=pageHarness({initialSearch:'collection=published',citations:Array.from({length:count},()=>({citing_project_id:'p1'}))});page.nodes;for(let i=0;i<10;i++)await Promise.resolve();const row=page.nodes.find(n=>n.type==='studio-row');assert.equal(row.props.referenceCount,count);assert.equal(page.nodes.some(n=>n.type==='li'&&nodes(n).some(c=>c.props.children===`${count} references`)),false);row.props.onOpenReferences();assert.equal(page.history.at(-1).path,'/p/me/c/c1/p1#references');}
 });

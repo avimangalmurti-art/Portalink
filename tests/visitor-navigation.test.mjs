@@ -37,6 +37,8 @@ test('failed handle lookup cannot trap Back navigation to a UUID project', async
     if (name === 'react-router-dom') return { useLocation: () => location, useNavigate: () => navigate };
     if (name === '../contexts/ServicesContext') return { useServices: () => ({ profiles }) };
     if (name === '../features/sharing/shareModel') return shareModel;
+    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
+    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
     throw new Error(name);
   }, { window: {} });
   h.render(() => useHandleRoute({ kind: 'unknown' }));
@@ -138,9 +140,12 @@ function appHarness({ firstVisit = false } = {}) {
   const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name === '../components/ui/RouteError') return {RouteError: 'RouteError', routeErrorKind: () => 'network'};
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
     if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
     if (name === '../features/sharing/shareModel') return shareModel;
+    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
+    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
     if (name === './useHandleRoute') return {useHandleRoute:route=>({route,pending:false,error:'',retry(){}})};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
@@ -258,7 +263,8 @@ test('invalid shared URLs render not-found without reads, retries or an HTML rel
     h.state.route = route; h.state.location = { pathname, search: '', hash: '', state: null };
     const tree = h.render();
     assert.equal(h.queryCalls.at(-1)[0], null);
-    assert.equal(nodes(tree).find(node => node.props?.role === 'alert').props.children, 'This shared page could not be found.');
+    assert.equal(one(tree, 'RouteError').props.kind, 'not-found');
+    assert.equal(one(tree, 'AppPresentation').props.showFloatingActions, false);
     assert.equal(button(tree, 'Try again'), undefined);
   }
   assert.deepEqual(h.replaced, []);
@@ -339,8 +345,8 @@ test('document catalog callbacks resolve truthful aggregate page counts without 
   assert.equal(one(h.render(), 'ProjectMediaViewer').props.pageCount, 12);
 });
 
-test('shared links always start on Portfolio and keep Journey one tap away', () => {
-  const saved = new Map([['viewer:creator', 'journey']]);
+test('shared links start on Journey and keep Portfolio one tap away', () => {
+  const saved = new Map([['viewer:creator', 'portfolio']]);
   const create = () => {
     const h = hooks();
     const { useJourneySelection } = load('features/journey/useJourneySelection.ts', name => {
@@ -352,13 +358,13 @@ test('shared links always start on Portfolio and keep Journey one tap away', () 
     return (profile = 'creator', remember = false) => h.render(() => useJourneySelection(profile, 'viewer', remember));
   };
   const render = create();
-  assert.equal(render().view, 'portfolio');
+  assert.equal(render().view, 'journey');
   render().select('journey'); assert.equal(render().view, 'journey');
   render().select('portfolio'); assert.equal(render().view, 'portfolio');
-  assert.equal(saved.get('viewer:creator'), 'journey');
-  assert.equal(create()().view, 'portfolio');
-  assert.equal(render('another').view, 'portfolio');
-  assert.equal(create()('creator', true).view, 'journey');
+  assert.equal(saved.get('viewer:creator'), 'portfolio');
+  assert.equal(create()().view, 'journey');
+  assert.equal(render('another').view, 'journey');
+  assert.equal(create()('creator', true).view, 'portfolio');
 });
 
 function visitorProfileHarness({ presentation = 'web', showJourney = false } = {}) {
@@ -514,6 +520,8 @@ test('handle project navigation resolves the complete target and preserves it th
       if (name === 'react-router-dom') return {useLocation: () => location, useNavigate: () => navigate};
       if (name === '../contexts/ServicesContext') return {useServices: () => ({profiles})};
       if (name === '../features/sharing/shareModel') return shareModel;
+    if (name === '../features/profile/visitorPreview') return load('features/profile/visitorPreview.ts', () => routes);
+    if (name === '../features/profile/VisitorPreviewBar') return named('VisitorPreviewBar');
       throw new Error(name);
     }, {window: {}});
     h.render(() => useHandleRoute({kind: 'unknown'}));
@@ -543,4 +551,16 @@ test('visitor silently respects creator branding, system theme and an explicit v
  one(tree,'SharedProfileSidebar').props.onThemeChange('light');assert.ok(h.render().props.className.includes('theme-light'));
  const other=appHarness();other.state.query.profile={...other.state.query.profile,publicAppearance:{mode:'auto',accentColor:'#34c759',systemGray:'gray3'}};
  assert.ok(other.render().props.className.includes('theme-light'));
+});
+
+test('View as visitor uses public appearance and public query, with Done returning to the owner app', () => {
+ const h=appHarness();h.signedIn({viewerProfileId:profileId});h.state.location.search='?visitorPreview=1';
+ h.state.query.profile={...profile,publicAppearance:{mode:'light',accentColor:'#34c759',systemGray:'gray'}};
+ const tree=h.render(),bar=one(tree,'VisitorPreviewBar');assert.ok(bar);
+ assert.match(tree.props.className,/theme-light/);assert.equal(tree.props['data-public-portfolio'],'');
+ assert.equal(h.queryCalls.at(-1)[0],profileId);
+ h.state.location.search='';assert.ok(one(h.render(),'VisitorPreviewBar'),'Preview survives internal creator links without copying its query');
+ bar.props.onDone();assert.equal(h.assigned.at(-1),routes.buildPath('profile',{profileId}));
+ const normal=appHarness();normal.signedIn({viewerProfileId:profileId});assert.equal(one(normal.render(),'VisitorPreviewBar'),undefined);
+ const other=appHarness();other.signedIn();other.state.location.search='?visitorPreview=1';assert.equal(one(other.render(),'VisitorPreviewBar'),undefined);
 });

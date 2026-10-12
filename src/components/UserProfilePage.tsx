@@ -1,4 +1,5 @@
 import { rememberAccount } from '../features/follows/recentAccounts';
+import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
 import { useProfileSwipeReturn } from '../presentation/mobile/useProfileSwipeReturn';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
@@ -408,7 +409,7 @@ export function UserProfilePage({
   const [searchParams, setSearchParams] = useSearchParams();
   const showsOwnerTools = canAuthor(viewerRole) && !isSharedView;
   const auth = useAuth();
-  const journey = useJourneySelection(profile.id, auth.viewerProfileId);
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
   const canSeeJourney = journeyAllowed(profile, showsOwnerTools);
   const [pairSelection, setPairSelection] = useState<string | null>(null);
   const startHereId = showsOwnerTools ? searchParams.get('startHere') : null;
@@ -551,6 +552,7 @@ export function UserProfilePage({
     return address?.handle ? new URL(portfolioPath(profile.id, address.handle), window.location.origin).href : publicProfileUrl;
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
+    viewAsVisitor: showsOwnerTools && !isSharedView ? () => window.location.assign(visitorPreviewPath(profile.id)) : undefined,
     editProfile: onEditProfile, newProject: onPublishProject,
     thenNow: showsOwnerTools && isJourney ? () => setPairSelection('') : undefined,
     share: !profile.isPrivate ? openShare : undefined,
@@ -713,7 +715,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : isMobile ? (<div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : isMobile ? (!showsOwnerTools && <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
