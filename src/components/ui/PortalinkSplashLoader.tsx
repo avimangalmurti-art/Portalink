@@ -25,7 +25,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const viewportPresentation = useViewportPresentation();
   // Finish the opening animation if the phone rotates during its short run.
   const [presentation] = useState(viewportPresentation);
-  const isMobile = presentation === 'mobile' || welcomeMedia;
+  const isMobile = presentation === 'mobile' || welcomeMedia || Boolean(landing);
   const loopLanding = isMobile && Boolean(landing);
   const fixedMobileIntro = isMobile && timedIntro && !loopLanding && !stillOnly;
   const playbackHidden = isMobile && hidden;

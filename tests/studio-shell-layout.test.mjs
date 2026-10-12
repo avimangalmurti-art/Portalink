@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 test('Studio rail follows the safe-area header and selected pills never scroll vertically',()=>{
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.ok(source.indexOf('className="studio-mobile-shell-header"')<source.indexOf('className="studio-citation-pills"'));
- assert.match(source,/hideHeader=\{mobile\}/);assert.match(source,/rail\.scrollLeft=/);assert.doesNotMatch(source,/scrollIntoView/);
+ assert.match(source,/<StudioOverview profile=\{profile!\}/);assert.match(source,/rail\.scrollLeft=/);assert.doesNotMatch(source,/scrollIntoView/);
  const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
  const scoped=css.slice(css.indexOf('/* Studio: one stationary safe-area header'));
  assert.match(scoped,/data-presentation='mobile'/);assert.match(scoped,/padding-top: var\(--mobile-screen-action-top\)/);

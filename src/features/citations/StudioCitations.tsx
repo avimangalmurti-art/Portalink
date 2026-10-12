@@ -4,8 +4,12 @@ import {StudioRow} from '../studio/StudioRow';
 import {StudioActionSheet} from '../studio/StudioActionSheet';
 import {citationProject,citingProjectPath,listCitations,removeCitation,resolveCitationItem,type CitingProject} from './service';
 import {citationPath,type CitationItem,type CitationRecord} from './model';
+import {ReferencesTab} from '../references/ReferencesTab';
 export type StudioCitationRow={citation:CitationRecord;item:CitationItem|null;project:CitingProject|null};
 export function StudioCitations({mode}:{mode:'cited'|'references'}) {
+ return mode==='references'?<ReferencesTab/>:<PortalinkCitations mode={mode}/>;
+}
+function PortalinkCitations({mode}:{mode:'cited'|'references'}) {
  const auth=useAuth(),[rows,setRows]=useState<StudioCitationRow[]>([]),[phase,setPhase]=useState('loading'),[revision,setRevision]=useState(0),[error,setError]=useState(''),[busy,setBusy]=useState(''),[menu,setMenu]=useState<StudioCitationRow|null>(null);
  useEffect(()=>{if(!auth.viewerProfileId)return;let live=true;setPhase('loading');listCitations(mode==='cited'?{incoming:auth.viewerProfileId}:{outgoing:auth.viewerProfileId}).then(records=>Promise.all(records.map(async citation=>({citation,item:await resolveCitationItem(citation.cited_item_id),project:await citationProject(citation.citing_project_id)})))).then(data=>{if(live){setRows(data);setPhase('ready');}}).catch(()=>{if(live)setPhase('error');});return()=>{live=false;};},[mode,auth.viewerProfileId,revision]);
  const grouped=mode==='references'?[...new Map(rows.map(row=>[row.citation.citing_project_id,rows.filter(r=>r.citation.citing_project_id===row.citation.citing_project_id)])).values()]:[rows];

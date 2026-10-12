@@ -39,7 +39,7 @@ export function publishedStudioRows(profile: Profile | null | undefined): Studio
   return [...profile.projects].sort((a, b) => (Date.parse(b.publishedAt ?? '') || 0) - (Date.parse(a.publishedAt ?? '') || 0)).map(project => ({
     kind: 'published', id: `published:${project.id}`, title: project.title,
     secondary: project.summary || profile.categories.find(category => category.id === project.categoryId)?.label || 'Published project',
-    date: realDate(project.publishedAt), href: projectHref(project, profile), project, creator: profile,
+    date: realDate(project.madeOn), href: projectHref(project, profile), project, creator: profile,
   }));
 }
 
