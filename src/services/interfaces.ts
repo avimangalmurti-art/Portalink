@@ -1,4 +1,5 @@
 import type { ShareAddress, HandleResolution, PortfolioCard } from '../features/sharing/shareModel';
+import type {ReferencesService} from '../features/references/useReferences';
 /**
  * The engineering boundary.
  *
@@ -522,6 +523,7 @@ export interface GeographyService {
 
 /** The single registry components resolve services from. */
 export type Services = {
+  references?: ReferencesService;
   reads?: import('../features/reads/readSignal').ReadSignalService;
   // `auth` is the only authority on who is signed in.
   auth: AuthService;

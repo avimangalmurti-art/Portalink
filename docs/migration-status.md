@@ -4,6 +4,16 @@
 <!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
 # Migration status register
 
+## Pending review — external references (2026-10-12)
+
+`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
+separate reference table, project/date index, owner CRUD and existing-project
+visibility reads, with server-stamped immutable creation dates. Disposable
+PGlite ownership/public/private-role checks pass. It does not write citations or
+notifications. Apply only this file after explicit approval; no migration ledger
+repair or unrelated migration execution is authorized. See
+[the task review package](references-and-exports.md).
+
 ## September 30, 2026 — Sites279 live; edge cache verified
 
 ### Sites279 publication and verified edge reuse
