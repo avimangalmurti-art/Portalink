@@ -18,3 +18,4 @@ Typecheck and production client/worker build pass, including configured main/vis
 
 Draft review only: no merge, SQL, Sites publication or worker deployment. Current live source includes separate pending review changes (including PR42); release integration must retain those changes rather than publishing this branch alone over the current live version. Existing design-system part 1 remains a separate PR49.
 
+Draft PR: https://github.com/avimangalmurti-art/Portalink/pull/50. Implementation commit: `582532c`. All five GitHub CI jobs on this implementation were blocked before starting by account billing/spending limits; local checks above passed. No CI configuration or protection was bypassed.
