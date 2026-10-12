@@ -144,6 +144,15 @@ export const prototypeAuthService: AuthService = {
     publish();
     return currentSession;
   },
+  async signInWithProvider() {
+    throw new AuthServiceError('unsupported', 'Provider sign-in is unavailable in this prototype. Continue with email.');
+  },
+  async updateOnboardingStep(step) {
+    if (!currentSession) throw new AuthServiceError('invalid_credentials', 'Sign in to continue setup.');
+    const user = {...currentSession.user, onboardingStep: step};
+    const account = accounts.get(user.email); if (account) accounts.set(user.email, {...account, user});
+    currentSession = {...currentSession, user}; for (const listener of listeners) listener(currentSession);
+  },
   async signUp({
     email,
     password,

@@ -192,7 +192,7 @@ test('public bootstrap honors a newly opened creator link while retaining guest 
   const router = { useLocation: () => ({ pathname: '/share/new' }), Navigate: 'redirect', matchPath: (path, pathname) => path === '/share/:profileId' ? { params: { profileId: pathname.split('/')[2] } } : null };
   const api = compile('../src/app/ApplicationBootstrap.tsx', {
     window: { sessionStorage: { getItem: k => storage.get(k), setItem: (k,v) => storage.set(k,v) }, setTimeout: () => 1 },
-    require: name => name.endsWith('/shareModel') ? shareModel : name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
+    require: name => name.endsWith('/shareModel') ? shareModel : name === 'react' ? fakeReact : name === 'react-router-dom' ? router : name.includes('ServicesContext') ? {useServices:()=>({auth:{}})} : name.includes('AuthContext') ? { useAuth: () => ({ isAuthenticated: false, isInitializing: false }) }
       : name.includes('useViewportPresentation') ? { useViewportPresentation: () => 'web' }
       : name === './routes' ? { routes, buildPath: (_, params) => `/share/${params.profileId}` } : {},
   });

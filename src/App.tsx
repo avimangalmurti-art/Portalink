@@ -51,7 +51,8 @@ import { beginProjectContinuity, isProjectContinuityActive } from './utils/proje
 import { canAccessProfile } from './domain/contentPlacement';
 import { PANEL_LAYOUT_RESET_EVENT } from './utils/panelLayoutDefaults';
 import { useCreatorAppearance } from './features/profile/useCreatorAppearance';
-import { canResumeRegistration, readSharedReturnPath } from './features/auth/registration';
+import { firstSignInStep } from './features/auth/firstSignIn';
+import { readSharedReturnPath } from './features/auth/registration';
 import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
 import { usePresentation } from './presentation/usePresentation';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
@@ -488,8 +489,10 @@ function AppContent() {
       return;
     }
     const id = auth.user?.registration?.id;
-    if (!id || resumedRegistration.current === id || !canResumeRegistration(auth.session, auth.pendingView)) return;
-    resumedRegistration.current = id;
+    if (!firstSignInStep(auth.session) || auth.pendingView === 'resetPassword' || auth.pendingView === 'forgotPassword') return;
+    const setupKey = id ?? auth.user?.id;
+    if (resumedRegistration.current === setupKey) return;
+    resumedRegistration.current = setupKey ?? null;
     const returnPath = readSharedReturnPath(auth.user?.registration?.returnPath);
     deferredIntentRef.current = auth.consumePendingIntent() ?? (returnPath ? { kind: 'route', path: returnPath, label: 'view shared content' } : deferredIntentRef.current);
     setIsOnboardingOpen(true);
@@ -1393,25 +1396,15 @@ function AppContent() {
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
-      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
+      {(isOnboardingOpen || firstSignInStep(auth.session)) && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={Boolean(isOnboardingOpen || firstSignInStep(auth.session))} onAddProject={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; requestGlobalPublish(); }} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
         setIsOnboardingOpen(false);
         // Abandoning onboarding abandons the journey it interrupted.
         deferredIntentRef.current = null;
       }} onComplete={(profileId) => {
         setIsOnboardingOpen(false);
-        // Mobile account setup enters discovery; publishing starts only when chosen.
-        // WEB retains its existing deferred destination behavior.
-        const deferred = deferredIntentRef.current;
         deferredIntentRef.current = null;
-        if (presentation === 'mobile' && auth.user?.id) {
-          nav.home(true);
-          return;
-        }
-        if (deferred && deferred.kind !== 'my-profile' && deferred.kind !== 'interaction') {
-          fulfilIntent(deferred);
-          return;
-        }
-        openProfile(profileId);
+        auth.consumePendingIntent();
+        nav.portalink();
       }} /></DeferredSurface>}
 
       </MobileBackProvider>

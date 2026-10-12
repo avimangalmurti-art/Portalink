@@ -4,6 +4,8 @@ This task adds only the Terms sheet, its agreement readers, one Settings Terms r
 
 ## Consent and identity
 
+The streamlined signup task supersedes the original pre-signup ordering below: new accounts first sign in/confirm, then Make it yours, then Terms, then the first-project prompt. Signup no longer stages new consent versions or restores browser drafts. Existing staged consent remains readable for prior pending accounts.
+
 Submitting Create account opens the required reader before calling Supabase signup. Disagree makes no signup call and returns to welcome; an existing signed-in account is signed out locally before returning. No account is deleted. Agree carries the exact four versions in signup metadata. Where confirmation is required, acceptance rows are written on first confirmed sign-in before mounting profile/onboarding flows. The database records that authenticated insertion time, rather than claiming the initial unverified tap was an authenticated acceptance.
 
 Existing accounts are checked at entry and on foreground/focus, with a one-minute foreground interval. An effective version bump blocks further app interaction until reviewed and accepted. Back, Escape and outside taps do not dismiss required consent. Rechecking the same versions does not redisplay the sheet. The read-only Settings sheet lists accepted versions and timestamps and has Done instead of Agree/Disagree.

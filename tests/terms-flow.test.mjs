@@ -7,18 +7,10 @@ const model=sourceModule('src/features/legal/model.ts');
 const docs=model.LEGAL_KEYS.map(key=>({key,version:'1.0',title:key,markdown_body:'[DRAFT — not yet reviewed by counsel]',effective_at:'2026-10-12T00:00:00Z'}));
 const versions=docs.map(({key,version})=>({key,version}));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-test('Create account waits for terms; Disagree creates no account/session and Agree carries the correct versions',async()=>{
-  for(const choice of [null,versions]){
-    const consent=deferred(),calls=[];
-    const auth={signUp:async input=>{calls.push(input);return{email:input.email,requiresEmailVerification:true,session:null};}};
-    const h=hookHarness(new URL('../src/features/auth/useAuthFlows.ts',import.meta.url),'useSignUp',{auth},{refreshSession:()=>assert.fail('Unconfirmed signup must not establish a session')},{},undefined,{
-      '../legal/signupTermsContext':{useSignupTerms:()=>({requestConsent:()=>consent.promise})},'./registration':{},
-    });
-    const pending=h.value.submit('owner@example.test','synthetic-password');await tick();assert.equal(calls.length,0);
-    consent.resolve(choice);await pending;await h.flush();assert.equal(calls.length,choice===null?0:1);
-    if(choice)assert.equal(JSON.stringify(calls[0].legalVersions),JSON.stringify(versions));
-    h.dispose();
-  }
+test('signup requests the account without prior consent and waits for email confirmation',async()=>{
+ const calls=[];
+ const h=hookHarness(new URL('../src/features/auth/useAuthFlows.ts',import.meta.url),'useSignUp',{auth:{signUp:async input=>{calls.push(input);return {email:input.email,requiresEmailVerification:true,session:null};}}},{refreshSession:()=>assert.fail('Unconfirmed signup cannot establish a session')});
+ await h.value.submit('owner@example.test','synthetic-password');await h.flush();assert.equal(calls.length,1);assert.equal(calls[0].legalVersions,undefined);h.dispose();
 });
 function coordinator(){
   const slots=[],effects=[];let cursor=0;
@@ -32,10 +24,11 @@ function coordinator(){
     useLayoutEffect(fn,deps){return react.useEffect(fn,deps);},
   };
   const state={account:null,documents:structuredClone(docs),history:[],writes:[],staged:null,signouts:[],paths:[],location:{pathname:'/',search:''},fail:false};
-  const auth={get user(){return state.account?{id:state.account}:null;},get isAuthenticated(){return Boolean(state.account);},async signOut(scope){state.signouts.push(scope);state.account=null;return true;}};
+  const auth={get session(){return state.account?{user:{id:state.account,profileId:state.setup?'':'existing',isEmailVerified:true,onboardingStep:state.setup},isPrototype:true}:null;},get user(){return state.account?{id:state.account}:null;},get isAuthenticated(){return Boolean(state.account);},async signOut(scope){state.signouts.push(scope);state.account=null;return true;}};
   const legal={documents:async()=>state.documents,acceptances:async()=>state.history,signupConsent:async()=>state.staged,
     async accept(accountId,input){if(state.fail)throw Error('Write failed');state.writes.push({accountId,input});state.history=input.map(row=>({...row,accepted_at:'2026-10-12T00:00:00Z'}));},sendEmail:async()=> 'Sent'};
   const {TermsProvider}=sourceModule('src/features/legal/TermsContext.tsx',{
+    '../auth/firstSignIn':sourceModule('src/features/auth/firstSignIn.ts'),
     './useRequiredTermsBackGuard':{useRequiredTermsBackGuard:()=>async()=>{}},
     react,'react-router-dom':{useLocation:()=>state.location,useNavigate:()=>()=>{}},'../../contexts/AuthContext':{useAuth:()=>auth},'../../contexts/ServicesContext':{useServices:()=>({legal})},'./model':model,'./TermsSheet':{TermsSheet:'sheet'},'./signupTermsContext':{SignupTermsContext:React.createContext(null)},'../../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'existing-loader'},
   },{Error,document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},window:{setInterval(){return 1;},clearInterval(){},addEventListener(){},removeEventListener(){},location:{assign:path=>state.paths.push(path)}}});
@@ -70,4 +63,13 @@ test('effective version selection ignores future documents and orders numeric ve
 test('an account change cancels a pending signup review without carrying its consent to another account',async()=>{
   const h=coordinator();const pending=h.render().props.value.requestConsent('first@example.test');await h.flush();
   h.state.account='different-account';await h.flush();assert.equal(await pending,null);assert.equal(h.state.writes.length,0);
+});
+
+test('first verified sign-in shows Appearance before Terms; continuing opens Terms before the app is released',async()=>{
+ const h=coordinator();h.state.account='new-account';h.state.setup='appearance';await h.flush();assert.equal(h.sheet(),undefined);assert.equal(h.state.writes.length,0);
+ h.state.setup='project';await h.flush();assert.ok(h.sheet());assert.equal(h.state.writes.length,0);h.sheet().props.onAgree();await h.flush();assert.equal(h.state.writes.length,1);assert.equal(h.sheet(),undefined);
+});
+
+test('Disagree after first verified sign-in ends the local session and returns to welcome without deleting the account',async()=>{
+ const h=coordinator();h.state.account='new-account';h.state.setup='project';await h.flush();assert.ok(h.sheet());h.sheet().props.onDisagree();await h.flush();assert.deepEqual(h.state.signouts,['local']);assert.equal(h.state.account,null);assert.deepEqual(h.state.paths,['/?welcome=1']);assert.equal(h.state.writes.length,0);
 });

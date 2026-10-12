@@ -37,7 +37,7 @@ function harness() {
     isGlobalCreatePending: false, isPublishOpen: false, publishTargetCategoryId: null, isOnboardingOpen: false,
     globalCreateAccountId: null, publishAccountId: null, publishingAccountRef: { current: null }, publishConfirmation: null,
     deferredIntentRef: { current: null }, wasAuthenticatedRef: { current: false }, interactiveSignInRef: { current: false },
-    resumedRegistration: { current: null }, canResumeRegistration: () => true, readSharedReturnPath: () => null,
+    resumedRegistration: { current: null }, firstSignInStep: () => 'appearance', readSharedReturnPath: () => null,
     signedOutOfProtectedRef: { current: false }, mainContentRef: { current: null }, PROTECTED_ROUTE_KINDS: new Set(['messages', 'profileEditor']),
     requestAnimationFrame: fn => { fn(); },
     nav: { profile: id => calls.push(['profile', id]), home: () => calls.push(['home']), portalink: () => calls.push(['world']) },
@@ -55,20 +55,21 @@ function harness() {
   const progressEffect = evaluate(effectSource('if (!isGlobalCreatePending'), context);
   const progress = async () => { context.isGlobalCreatePending = evaluate(initializer('isGlobalCreatePending'), context); progressEffect(); await new Promise(resolve=>setImmediate(resolve)); };
   const resetAccount = evaluate(effectSource('publishingAccountRef.current === accountId'), context);
-  const resumeRegistration = evaluate(effectSource('resumedRegistration.current === id'), context);
+  const resumeRegistration = evaluate(effectSource('resumedRegistration.current === setupKey'), context);
   const signInTransition = evaluate(effectSource('const justSignedIn'), context);
-  const completeOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onComplete'), context);
+  const completeOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onAddProject'), context);
+  const skipOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onComplete'), context);
   const dismissOnboarding = evaluate(expression('ProfileOnboardingDialog', 'onDismiss'), context);
   const homeAction = () => evaluate(expression('HomeFeed', 'emptyAction'), context);
   const browseAction = () => evaluate(expression('HomeFeed', 'emptySecondaryAction'), context);
-  return { context, calls, progress, signInTransition, resetAccount, resumeRegistration, completeOnboarding, dismissOnboarding, homeAction, browseAction,
+  return { context, calls, progress, signInTransition, resetAccount, resumeRegistration, completeOnboarding, skipOnboarding, dismissOnboarding, homeAction, browseAction,
     canShowPublisher: () => evaluate(initializer('canShowPublisher'), context),
     authenticate(profileId = 'owner') { Object.assign(context.auth, { phase: 'authenticated', isAuthenticated: true, viewerProfileId: profileId, user: { id: 'account' } }); },
     ownerProfile(categories = [{ id: 'work' }]) { context.isOwnerMode = true; context.viewedProfile = { id: 'owner', categories, projects: [] }; context.onboardingStatus = 'ready'; },
   };
 }
 
-test('guest Home action resumes first publication after sign-in and completed profile onboarding', async () => {
+test('guest Home action waits for explicit Add after verified profile setup', async () => {
   const h = harness();
   assert.equal(h.homeAction().label, 'Create your portfolio');
   h.homeAction().onClick();
@@ -78,7 +79,7 @@ test('guest Home action resumes first publication after sign-in and completed pr
   h.authenticate(null); h.signInTransition();
   assert.equal(h.context.isOnboardingOpen, true);
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
-  h.authenticate(); h.completeOnboarding('owner');
+  h.authenticate(); h.context.onboardingStatus = 'ready'; h.resetAccount(); h.completeOnboarding('owner');
   assert.equal(h.context.isOnboardingOpen, false);
   assert.equal(h.context.deferredIntentRef.current, null);
   assert.equal(h.context.isPublishOpen, false, 'The owner portfolio must be resolved before opening its publisher.');
@@ -92,7 +93,7 @@ test('cancelled onboarding abandons publication and browse does not require an a
   const h = harness(); h.authenticate(null);
   h.homeAction().onClick();
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
-  h.dismissOnboarding(); h.authenticate(); h.ownerProfile(); h.completeOnboarding('owner'); await h.progress();
+  h.dismissOnboarding(); h.authenticate(); h.ownerProfile(); h.skipOnboarding('owner'); await h.progress();
   assert.equal(h.context.isPublishOpen, false); assert.equal(h.context.deferredIntentRef.current, null);
   const guest = harness();
   assert.equal(guest.browseAction().label, 'Explore the world'); guest.browseAction().onClick();
@@ -107,7 +108,7 @@ test('registration resumption retains the guest create intent through the first 
   h.resumeRegistration(); h.resetAccount(); h.signInTransition();
   assert.equal(h.context.deferredIntentRef.current.kind, 'create-project');
   assert.equal(h.context.isOnboardingOpen, true);
-  h.authenticate(); h.completeOnboarding('owner'); h.ownerProfile(); await h.progress();
+  h.authenticate(); h.context.onboardingStatus = 'ready'; h.resetAccount(); h.completeOnboarding('owner'); h.ownerProfile(); await h.progress();
   assert.equal(h.canShowPublisher(), true); assert.equal(h.context.publishTargetCategoryId, 'work');
 });
 

@@ -411,6 +411,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     'react-router-dom': { Navigate: 'redirect', matchPath: () => null, useLocation: () => location },
     '../App': { App: 'app' }, '../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'splash' },
     '../components/ui/StateViews': { LoadingState: 'loading' },
+    '../contexts/ServicesContext':{useServices:()=>({auth:{}})},
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
@@ -462,6 +463,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     'react-router-dom':{Navigate:'redirect',matchPath,useLocation:()=>location},
     '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
     '../components/ui/StateViews':{LoadingState:'loading'},
+    '../contexts/ServicesContext':{useServices:()=>({auth:{}})},
     '../contexts/AuthContext':{useAuth:()=>auth},
     './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
@@ -632,7 +634,7 @@ test('ordinary root fragments keep welcome while authentication fragments bypass
   }
 });
 
-const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
+const welcome = {ready:true,onGoogle(){},onApple(){},onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
 
 test('mobile welcome loops without the splash deadline and keeps all entry actions available', () => {
   const h=loader({presentation:'mobile',landing:welcome});
@@ -640,9 +642,11 @@ test('mobile welcome loops without the splash deadline and keeps all entry actio
   const actions=tree.props.children[1];
   assert.equal(actions.props['aria-busy'],false);
   assert.equal(actions.props.children[0].props.disabled,false);
-  assert.equal(actions.props.children[0].props.children,'Create account');
-  assert.equal(actions.props.children[1].props.children[0].props.children,'Sign in');
-  assert.equal(actions.props.children[1].props.children[1].props.children,'Forgot password?');
+  assert.equal(actions.props.children[0].props.children,'Continue with Google');
+  assert.equal(actions.props.children[1].props.children,'Continue with Apple');
+  assert.equal(actions.props.children[2].props.children,'Continue with email');
+  assert.equal(actions.props.children[3].props.children[0].props.children,'Sign in');
+  assert.equal(actions.props.children[3].props.children[1].props.children,'View shared content');
   h.start(); h.paint(); assert.equal(h.completed,1);
   assert.equal(h.timers.size,0,'no 2200ms deadline interrupts healthy playback');
   for(let cycle=0;cycle<5;cycle++) {
@@ -720,7 +724,7 @@ test('mobile welcome can disable its actions until its caller marks them ready',
   let {tree}=h.render();
   assert.equal(tree.props.children[1].props.style,undefined,'do not hide the action row and look like an old splash');
   assert.equal(tree.props.children[1].props['aria-busy'],true);
-  assert.equal(controls(tree).length,4); controls(tree).forEach(button=>assert.equal(button.props.disabled,true));
+  assert.equal(controls(tree).length,5); controls(tree).forEach(button=>assert.equal(button.props.disabled,true));
   pending.ready=true; tree=h.render().tree;
   assert.equal(tree.props.children[1].props['aria-busy'],false);
   controls(tree).forEach(button=>assert.equal(button.props.disabled,false));

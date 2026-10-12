@@ -5,6 +5,7 @@ import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
 import { PortalinkSplashLoader } from '../components/ui/PortalinkSplashLoader';
 import { LoadingState } from '../components/ui/StateViews';
+import { useServices } from '../contexts/ServicesContext';
 import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
 import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
@@ -42,6 +43,14 @@ function readSharedViewerProfileId(): string | null {
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
+  const { auth: authService } = useServices();
+  const [providerBusy, setProviderBusy] = useState(false), [providerError, setProviderError] = useState<string | null>(null);
+  async function continueWithProvider(provider: 'google' | 'apple') {
+    if (providerBusy) return; setProviderBusy(true); setProviderError(null);
+    try { if (!authService.signInWithProvider) throw new Error('This sign-in method is unavailable. Please continue with email.'); await authService.signInWithProvider(provider); }
+    catch (error) { setProviderError(error instanceof Error ? error.message : 'Please continue with email.'); }
+    finally { setProviderBusy(false); }
+  }
   const { pathname, search = '', hash = '' } = useLocation();
   const isHandleView = Boolean(handleFromPath(pathname));
   const isSharedView = isHandleView || /^\/share(?:\/|$)/i.test(pathname);
@@ -124,7 +133,8 @@ export function ApplicationBootstrap() {
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
           hidden={Boolean(landingPath && (auth.pendingView || (auth.isAuthenticated && hasPresentedLanding) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
           landing={holdLanding ? {
-            ready: !auth.isInitializing,
+            ready: !auth.isInitializing && !providerBusy,
+            onGoogle: () => void continueWithProvider('google'), onApple: () => void continueWithProvider('apple'), error: providerError,
             onCreateAccount: () => startAccount('signUp'),
             onSignIn: () => startAccount('signIn'),
             onForgotPassword: () => startAccount('forgotPassword'),

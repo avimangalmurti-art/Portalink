@@ -8,19 +8,14 @@ import { AuthField } from '../../components/auth/AuthField';
 import { Button } from '../../components/ui/Button';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { PortalinkSplashLoader } from '../../components/ui/PortalinkSplashLoader';
-import { AvatarPicker } from '../../components/profile/AvatarPicker';
 import { ProfileField } from '../../components/profile/ProfileField';
-import { ProfileVisibilityField } from '../../components/profile/ProfileVisibilityField';
-import { ProfileLocationPicker } from '../../components/profile/ProfileLocationPicker';
-import { useAvatarSelection } from '../profile/useProfileOnboarding';
-import { validateProfileName, validateLocation, NAME_MAX_LENGTH, LOCATION_MAX_LENGTH } from '../profile/validation';
+import { validateProfileName, NAME_MAX_LENGTH } from '../profile/validation';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
 import { usePasswordReset, usePasswordUpdate, useSignUp } from './useAuthFlows';
 import { validateEmail, validateNewPassword, validatePasswordConfirmation, validateRequiredPassword } from './validation';
-import { MobileOnboardingAction, MobileOnboardingAppearance, type MobileSignupStep } from '../../components/auth/MobileOnboarding';
+import { MobileOnboardingAction, type MobileSignupStep } from '../../components/auth/MobileOnboarding';
 import { usePresentation } from '../../presentation/usePresentation';
-import { readRegistrationDraft, readSharedReturnPath } from './registration';
-import type { SignUpResult } from '../../types/auth';
+import { readSharedReturnPath } from './registration';
 
 const titles: Record<AuthView, string> = {
   signIn: 'Sign in', signUp: 'Create your account',
@@ -28,7 +23,7 @@ const titles: Record<AuthView, string> = {
 };
 
 const mobileSignupTitles: Record<MobileSignupStep, string> = {
-  appearance: 'Choose appearance', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
+  appearance: 'Make it yours', account: 'Create account', profile: 'Create your profile', verification: 'Check your email',
 };
 
 export function AuthDialog(props: AccountAppearanceProps & { registrationReturnPath?: string; showWelcomeMedia?: boolean; initialSignupStep?: MobileSignupStep; welcomeBeforeSignup?: boolean }) {
@@ -37,15 +32,24 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [welcomeCompleted, setWelcomeCompleted] = useState(false);
+  const { auth: authService } = useServices();
+  const [providerError, setProviderError] = useState<string | null>(null);
+  const continueWithProvider = async (provider: 'google' | 'apple') => {
+    if (busy) return; setBusy(true); setProviderError(null);
+    try { if (!authService.signInWithProvider) throw new Error('This sign-in method is unavailable. Please continue with email.'); await authService.signInWithProvider(provider); }
+    catch (error) { setProviderError(error instanceof Error ? error.message : 'Please continue with email.'); }
+    finally { setBusy(false); }
+  };
   useEffect(() => { if (!auth.pendingView) setWelcomeCompleted(false); }, [auth.pendingView]);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const [signupStep, setSignupStep] = useState<MobileSignupStep>(props.initialSignupStep ?? 'appearance');
-  useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep(props.initialSignupStep ?? 'appearance'); }, [auth.pendingView, props.initialSignupStep]);
+  const [signupStep, setSignupStep] = useState<MobileSignupStep>('account');
+  useEffect(() => { if (auth.pendingView !== 'signUp') setSignupStep('account'); }, [auth.pendingView, props.initialSignupStep]);
   const mobileSignup = isMobile && auth.pendingView === 'signUp';
   const signIn = auth.pendingView === 'signIn';
   if (!auth.pendingView) return null;
   if (props.welcomeBeforeSignup && (auth.pendingView === 'signUp' || auth.pendingView === 'signIn') && !welcomeCompleted) return <PortalinkSplashLoader landing={{
-    ready: !auth.isInitializing,
+    ready: !auth.isInitializing && !busy,
+    onGoogle: () => void continueWithProvider('google'), onApple: () => void continueWithProvider('apple'), error: providerError,
     onCreateAccount: () => { setWelcomeCompleted(true); auth.requestAuth('signUp'); },
     onSignIn: () => { setWelcomeCompleted(true); auth.requestAuth('signIn'); },
     onForgotPassword: () => auth.requestAuth('forgotPassword'),
@@ -53,7 +57,7 @@ export function AuthDialog(props: AccountAppearanceProps & { registrationReturnP
     continueLabel: 'Continue as guest',
   }} />;
   const formProps = { firstFieldRef, onBusyChange: setBusy, onDirtyChange: setDirty };
-  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} onStepBack={mobileSignup && (signupStep === 'account' || (signupStep === 'profile' && props.initialSignupStep !== 'profile')) ? () => setSignupStep(signupStep === 'account' ? 'profile' : 'appearance') : undefined} showAppearance={!mobileSignup && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
+  return <AccountWelcomeSurface {...props} mobileOnboarding={mobileSignup} signIn={signIn} showAppearance={auth.pendingView !== 'signUp' && !signIn && (!isMobile || (auth.pendingView !== 'forgotPassword' && auth.pendingView !== 'resetPassword'))} title={mobileSignup ? mobileSignupTitles[signupStep] : titles[auth.pendingView]} busy={busy || auth.phase === 'authenticating'} dirty={dirty} onDismiss={auth.closeAuth}>
     {requestLeave => <>{auth.pendingView === 'signIn' && <SignInForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
     {auth.pendingView === 'signUp' && <SignUpForm {...props} {...formProps} step={signupStep} onStepChange={setSignupStep} onViewChange={view => requestLeave(() => auth.requestAuth(view))} accentColor={props.accentColor} />}
     {auth.pendingView === 'forgotPassword' && <ForgotPasswordForm {...formProps} onViewChange={view => requestLeave(() => auth.requestAuth(view))} />}
@@ -179,189 +183,44 @@ function SignInForm(props: FormProps) {
     </form>;
 }
 function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSignupStep; onStepChange: (step: MobileSignupStep) => void; registrationReturnPath?: string }) {
-  const { firstFieldRef, onStepChange } = props;
+  const auth = useAuth(), signUp = useSignUp(), { profiles } = useServices();
   const isMobile = usePresentation() === 'mobile';
-  const auth = useAuth();
-  const signUp = useSignUp();
-  const avatar = useAvatarSelection();
-  const registrationId = useRef<string>(crypto.randomUUID());
-  const [registrationReturnPath, setRegistrationReturnPath] = useState(() => {
-    const intent = auth.peekPendingIntent();
-    return readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath);
-  });
-  const submittingRef = useRef(false);
-  const [name, setName] = useState('');
-  const { profiles } = useServices();
-  const [requestedHandle, setRequestedHandle] = useState<string | null>(null);
-  const [preparedHandle, setPreparedHandle] = useState<string | null>(null);
-  const [checkingHandle, setCheckingHandle] = useState(false);
-  const handle = requestedHandle ?? createProfileHandle(name);
-
-  const [location, setLocation] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [email, setEmail] = useState(auth.rememberedEmail);
-  const [password, setPassword] = useState('');
-  const [confirmation, setConfirmation] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({});
-  const [draftLoading, setDraftLoading] = useState(true);
-  const [draftError, setDraftError] = useState<string | null>(null);
-  const [restoreAttempt, setRestoreAttempt] = useState(0);
-  const [restoredResult, setRestoredResult] = useState<SignUpResult | null>(null);
-  const result = signUp.result ?? restoredResult;
-  const passwordsMismatch = confirmation.length > 0 && password !== confirmation;
-  const mismatchMessage = passwordsMismatch ? 'Passwords don’t match' : null;
-  const selectAvatar = avatar.select;
-  const initialEmail = useRef(auth.rememberedEmail);
-  const restoreActions = useRef({ selectAvatar, onStepChange, onAccentColorChange: props.onAccentColorChange, onSystemGrayChange: props.onSystemGrayChange });
-  restoreActions.current = { selectAvatar, onStepChange, onAccentColorChange: props.onAccentColorChange, onSystemGrayChange: props.onSystemGrayChange };
-
-  useEffect(() => {
-    let current = true;
-    setDraftLoading(true);
-    setDraftError(null);
-    void readRegistrationDraft(initialEmail.current || undefined).then(saved => {
-      if (!current || !saved) return;
-      registrationId.current = saved.registration.id;
-      setName(saved.registration.name);
-      setRequestedHandle(saved.registration.handle ?? null);
-      setLocation(saved.registration.location);
-      setIsPrivate(saved.registration.isPrivate === true);
-      setEmail(saved.email);
-      setRegistrationReturnPath(path => path ?? saved.registration.returnPath);
-      if (saved.registration.hasAvatar && !saved.avatar && !saved.requiresEmailVerification) {
-        setDraftError('Your saved profile picture could not be restored. Please try again before continuing. Your other details are still saved.');
-        return;
-      }
-      if (saved.avatar) restoreActions.current.selectAvatar(saved.avatar.file, { originalSource: saved.avatar.originalSource, crop: saved.avatar.crop });
-      restoreActions.current.onAccentColorChange(saved.registration.accentColor);
-      if (saved.registration.systemGray) restoreActions.current.onSystemGrayChange?.(saved.registration.systemGray);
-      if (saved.requiresEmailVerification) setRestoredResult({ email: saved.email, requiresEmailVerification: true, session: null });
-      // Restore unfinished form values without skipping the appearance step.
-    }).catch(() => {
-      if (current) setDraftError('Your saved signup could not be restored. Please try again.');
-    }).finally(() => { if (current) setDraftLoading(false); });
-    return () => { current = false; };
-  }, [restoreAttempt]);
-
-  useFormActivity(signUp.isLoading || draftLoading, props, !result && Boolean(name || location || isPrivate || avatar.avatar || password));
-
-  useEffect(() => {
-    if (result?.requiresEmailVerification) onStepChange('verification');
-  }, [result?.requiresEmailVerification, onStepChange]);
-
-  if (draftLoading) return <p role="status">Restoring signup…</p>;
-  if (draftError) return <FormError message={draftError} onRetry={() => setRestoreAttempt(value => value + 1)} />;
-
-  // Confirmation and an immediate session are distinct provider outcomes.
-  if (result) {
-    return <div className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
-        <FormSuccess title={result.requiresEmailVerification ? "Check your email" : "Finishing setup"} description={result.requiresEmailVerification ? `Open the confirmation link sent to ${result.email} to finish creating your account and profile. Your profile details are saved.` : "Your account is ready. We’re finishing your profile."} />
-        {result.requiresEmailVerification && <>
-          <Button variant="secondary" size="lg" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>
-          <ViewLink label="Use a different email" onSelect={() => {
-            // Start another attempt without deleting the first pending account's
-            // draft or letting its confirmation pick up a different photo.
-            registrationId.current = crypto.randomUUID();
-            setRestoredResult(null); signUp.reset(); setEmail('');
-            setPassword(''); setConfirmation(''); setFieldErrors({});
-            onStepChange('account');
-          }} />
-        </>}
-      </div>;
-  }
-  async function confirmHandle() {
-    if (checkingHandle) return false;
-    if (preparedHandle !== handle) {
-      setCheckingHandle(true);
-      try {
-        const finalHandle = await prepareProfileHandle(handle, profiles.checkPublicHandle ?? (() => Promise.resolve('unavailable')));
-        setRequestedHandle(finalHandle); setPreparedHandle(finalHandle);
-        setFieldErrors(current => ({ ...current, handle: null }));
-      } catch (error) { setFieldErrors(current => ({ ...current, handle: error instanceof Error ? error.message : 'Could not check this handle.' })); if (isMobile) props.onStepChange('profile'); }
-      finally { setCheckingHandle(false); }
-      return false; // Show the exact final address before the user confirms.
-    }
-    return true;
-  }
+  const [email, setEmail] = useState(auth.rememberedEmail), [password, setPassword] = useState(''), [name, setName] = useState('');
+  const [requestedHandle, setRequestedHandle] = useState<string | null>(null), [editHandle, setEditHandle] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | null>>({}), [checking, setChecking] = useState(false);
+  const handle = requestedHandle ?? createProfileHandle(name), submitting = useRef(false);
+  const id = useRef(crypto.randomUUID());
+  useFormActivity(signUp.isLoading || checking, props, Boolean(name || password));
+  useEffect(() => { if (signUp.result?.requiresEmailVerification) props.onStepChange('verification'); }, [signUp.result?.requiresEmailVerification, props.onStepChange]);
+  if (signUp.result) return <div className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
+    <FormSuccess title={signUp.result.requiresEmailVerification ? 'Check your email' : 'Finishing setup'} description={signUp.result.requiresEmailVerification ? `Open the confirmation link sent to ${signUp.result.email}. Then make Portalink yours and review the Terms.` : 'Your account is ready.'}/>
+    {signUp.result.requiresEmailVerification && <Button variant="secondary" fullWidth onClick={() => props.onViewChange('signIn')}>Back to sign in</Button>}
+  </div>;
   async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (signUp.isLoading || draftLoading || draftError || submittingRef.current) {
-      return;
-    }
-    if (isMobile && props.step === 'appearance') { props.onStepChange('profile'); return; }
-    if (isMobile && props.step === 'profile') {
-      const profileErrors = { name: validateProfileName(name), location: validateLocation(location) };
-      setFieldErrors(profileErrors);
-      if (!Object.values(profileErrors).some(Boolean) && !avatar.error && await confirmHandle()) props.onStepChange('account');
-      return;
-    }
-    const nextErrors = {
-      name: validateProfileName(name),
-      location: validateLocation(location),
-      email: validateEmail(email),
-      password: validateNewPassword(password),
-      confirmation: mismatchMessage ?? validatePasswordConfirmation(password, confirmation)
-    };
-    setFieldErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean) || avatar.error) {
-      if (isMobile && (nextErrors.name || nextErrors.location || avatar.error)) props.onStepChange('profile');
-      return;
-    }
-    if (!await confirmHandle() || submittingRef.current) return;
-    submittingRef.current = true;
+    event.preventDefault(); if (submitting.current || signUp.isLoading || checking) return;
+    const errors = { email: validateEmail(email), password: validateNewPassword(password), name: validateProfileName(name) };
+    setFieldErrors(errors); if (Object.values(errors).some(Boolean)) return;
+    submitting.current = true; setChecking(true);
     try {
-      await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), handle: preparedHandle ?? handle, location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
-        ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);
-    } finally { submittingRef.current = false; }
+      const confirmedHandle = await prepareProfileHandle(handle, profiles.checkPublicHandle ?? (() => Promise.resolve('unavailable')));
+      if (confirmedHandle !== handle) { setRequestedHandle(confirmedHandle); setFieldErrors({handle: 'That address is already taken. This available address is ready; choose Create account to confirm.'}); return; }
+      const intent = auth.peekPendingIntent(), returnPath = readSharedReturnPath(intent?.kind === 'route' ? intent.path : props.registrationReturnPath);
+      await signUp.submit(email, password, { version: 1, id: id.current, name: name.trim(), handle: confirmedHandle, location: '', accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: false, ...(returnPath ? {returnPath} : {}) });
+    } catch (error) { setFieldErrors(current => ({...current, handle: error instanceof Error ? error.message : 'Could not check your address.'})); }
+    finally { submitting.current = false; setChecking(false); }
   }
-  return <form onSubmit={submit} noValidate data-onboarding-step={isMobile ? props.step : undefined} className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
-      <div className={isMobile ? 'mobile-onboarding-fields' : 'contents'}>
-      {signUp.error && <FormError message={signUp.error.message} />}
-      {isMobile && props.step === 'appearance' && <MobileOnboardingAppearance {...props} />}
-      {(!isMobile || props.step === 'profile') && <>
-      <AvatarPicker presentation={isMobile ? 'onboarding' : 'featured'} labelId="registration-avatar" pending={avatar.avatar} error={avatar.error} disabled={signUp.isLoading} onSelect={avatar.select} onClear={avatar.clear} />
-      <ProfileField id="auth-signup-name" label="Profile name" required={isMobile} requiredIndicator="asterisk" value={name} autoComplete="name" placeholder="Your name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading} onChange={value => { setName(value); setFieldErrors(current => ({ ...current, name: null })); }} />
-      <ProfileField id="auth-signup-handle" label="Public handle" value={handle} error={fieldErrors.handle} disabled={signUp.isLoading || checkingHandle} onChange={value => { setRequestedHandle(value); setPreparedHandle(null); }} />
-      {isMobile ? <ProfileLocationPicker focusedScreen id="auth-signup-location" value={location} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} /> : <ProfileField id="auth-signup-location" label="Where are you from?" optional value={location} autoComplete="address-level2" placeholder="City" maxLength={LOCATION_MAX_LENGTH} error={fieldErrors.location} disabled={signUp.isLoading} onChange={value => { setLocation(value); setFieldErrors(current => ({ ...current, location: null })); }} />}
-      {isMobile && <ProfileVisibilityField id="auth-signup-visibility" collapsible isPrivate={isPrivate} onChange={setIsPrivate} disabled={signUp.isLoading} />}
-      </>}
-      {(!isMobile || props.step === 'account') && <>
-      <AuthField compact={isMobile} ref={firstFieldRef} id="auth-signup-email" label="Email" type="email" value={email} autoComplete="email" placeholder="name@example.com" error={fieldErrors.email} disabled={signUp.isLoading} onChange={(value) => {
-      // Even an uncertain request may have sent a confirmation. Another email
-      // must not replace that pending account's saved picture under the same ID.
-      if (value.trim().toLowerCase() !== email.trim().toLowerCase()) registrationId.current = crypto.randomUUID();
-      setEmail(value);
-      auth.rememberEmail(value);
-      setFieldErrors((current) => ({
-        ...current,
-        email: null
-      }));
-    }} />
-      <AuthField compact={isMobile} revealPassword id="auth-signup-password" label="Password" type="password" value={password} autoComplete="new-password" hint="At least 8 characters." error={fieldErrors.password} disabled={signUp.isLoading} onChange={(value) => {
-      setPassword(value);
-      setFieldErrors((current) => ({
-        ...current,
-        password: null,
-        confirmation: null
-      }));
-    }} />
-      <AuthField compact={isMobile} revealPassword liveError id="auth-signup-confirmation" label="Confirm password" type="password" value={confirmation} autoComplete="new-password" error={mismatchMessage ?? (confirmation ? null : fieldErrors.confirmation)} disabled={signUp.isLoading} onChange={(value) => {
-      setConfirmation(value);
-      setFieldErrors((current) => ({
-        ...current,
-        confirmation: null
-      }));
-    }} />
-      </>}
-      {preparedHandle === handle && <p role="status">Your public handle will be @{preparedHandle}. Continue to confirm.</p>}
-      {checkingHandle && <p role="status">Checking your handle…</p>}
-      </div>
-      {isMobile ? <MobileOnboardingAction busy={signUp.isLoading}>{signUp.isLoading ? 'Creating account…' : props.step === 'account' ? 'Create account' : 'Continue'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading}>
-        {signUp.isLoading ? 'Creating account…' : 'Create account'}
-      </Button>}
-      {!isMobile && <ViewLink disabled={signUp.isLoading} label="Already have an account? Sign in" onSelect={() => props.onViewChange('signIn')} />}
-    </form>;
+  return <form onSubmit={submit} noValidate data-onboarding-step="account" className={isMobile ? 'mobile-onboarding-form' : 'flex flex-col gap-4'}>
+    <div className={isMobile ? 'mobile-onboarding-fields' : 'contents'}>
+      {signUp.error && <FormError message={signUp.error.message}/>}
+      <AuthField compact={isMobile} ref={props.firstFieldRef} id="auth-signup-email" label="Email" type="email" value={email} autoComplete="email" error={fieldErrors.email} disabled={signUp.isLoading || checking} onChange={value => {setEmail(value); auth.rememberEmail(value); setFieldErrors({});}}/>
+      <AuthField compact={isMobile} revealPassword id="auth-signup-password" label="Password" type="password" value={password} autoComplete="new-password" hint="At least 8 characters." error={fieldErrors.password} disabled={signUp.isLoading || checking} onChange={value => {setPassword(value); setFieldErrors({});}}/>
+      <ProfileField id="auth-signup-name" label="Name" value={name} autoComplete="name" maxLength={NAME_MAX_LENGTH} error={fieldErrors.name} disabled={signUp.isLoading || checking} onChange={value => {setName(value); setFieldErrors({});}}/>
+      <p className="text-sm text-[var(--text-secondary)]">portalink…/{handle} · <button type="button" className="underline min-h-11" onClick={() => setEditHandle(value => !value)} disabled={signUp.isLoading || checking}>change</button></p>
+      {editHandle && <ProfileField id="auth-signup-handle" label="Handle" value={handle} disabled={signUp.isLoading || checking} onChange={setRequestedHandle}/>}
+      {fieldErrors.handle && <p role="alert">{fieldErrors.handle}</p>}
+    </div>
+    {isMobile ? <MobileOnboardingAction busy={signUp.isLoading || checking}>{checking ? 'Checking your address…' : signUp.isLoading ? 'Creating account…' : 'Create account'}</MobileOnboardingAction> : <Button type="submit" variant="primary" size="lg" fullWidth isLoading={signUp.isLoading || checking}>Create account</Button>}
+  </form>;
 }
 function ForgotPasswordForm(props: FormProps) {
   const { firstFieldRef } = props;

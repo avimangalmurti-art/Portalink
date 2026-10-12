@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { firstSignInStep } from '../auth/firstSignIn';
 import { useAuth } from '../../contexts/AuthContext';
 import { useServices } from '../../contexts/ServicesContext';
 import { needsTermsAcceptance, type LegalDocument, type LegalVersion, type TermsAcceptance } from './model';
@@ -9,7 +10,8 @@ import { useRequiredTermsBackGuard } from './useRequiredTermsBackGuard';
 const AgreementCheckLoader=React.lazy(()=>import('../../components/ui/PortalinkSplashLoader').then(module=>({default:module.PortalinkSplashLoader})));
 export function TermsProvider({children}:{children:React.ReactNode}){
   const auth=useAuth(),{legal}=useServices(),location=useLocation(),navigate=useNavigate();
-  const accountId=auth.user?.id??null;
+  const awaitingAppearance=firstSignInStep(auth.session)==='appearance'&&!auth.session?.isPasswordRecovery;
+  const accountId=awaitingAppearance?null:auth.user?.id??null;
   const [documents,setDocuments]=useState<LegalDocument[]>([]),[accepted,setAccepted]=useState<TermsAcceptance[]>([]);
   const [checkedAccount,setCheckedAccount]=useState<string|null>(null),[loading,setLoading]=useState(false),[error,setError]=useState<string|null>(null),[busy,setBusy]=useState(false);
   const [releasedAccount,setReleasedAccount]=useState<string|null>(null);

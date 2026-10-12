@@ -110,8 +110,8 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async createProfile(accountId, input): Promise<CreateProfileResult> {
-    const automaticHandle = input.handle === undefined;
-    let handle = automaticHandle ? createProfileHandle(input.name) : normalizeHandle(input.handle ?? '');
+    const automaticHandle = input.handle === undefined || input.allowHandleCollisionSuffix === true;
+    let handle = input.handle === undefined ? createProfileHandle(input.name) : normalizeHandle(input.handle);
     if (!handle || !input.name.trim()) {
       throw new ProfileServiceError('invalid_input', 'Enter a profile name before continuing.');
     }
@@ -133,7 +133,7 @@ export const supabaseProfileService: ProfileService = {
         .select('id')
         .single();
       if (error?.code === '23505' && automaticHandle && error.message.includes('profiles_handle_key') && attempt < 2) {
-        handle = createProfileHandle(input.name, true);
+        handle = createProfileHandle(input.handle ?? input.name, true);
         continue;
       }
       if (error?.code === '23505' && error.message.includes('profiles_account_id_key')) {
