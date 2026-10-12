@@ -5356,3 +5356,18 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating:is(:hover, :has(button:active)) {
   background: var(--surface-hover);
 }
+
+/* Conversation options paints its grey surface inside the centered touch frame. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options'] {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
+  background: var(--surface-hover) !important;
+}
