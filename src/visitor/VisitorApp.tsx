@@ -1,4 +1,6 @@
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
+import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
+import { isOwnVisitorPreview, visitorPreviewReturn } from '../features/profile/visitorPreview';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -57,6 +59,10 @@ export function VisitorApp() {
   const settings = route.kind === 'controlCenter' && Boolean(settingsReturn && lastSharedRoute.current);
   const readingRoute = shared ? route as SharedRoute : settings ? lastSharedRoute.current : null;
   const profileId = readingRoute?.profileId ?? null;
+  const previewOwner = useRef<string | null>(null);
+  if (isOwnVisitorPreview(location.search, profileId, auth.viewerProfileId)) previewOwner.current = profileId;
+  const visitorPreview = Boolean(profileId && previewOwner.current === profileId && auth.viewerProfileId === profileId);
+  const previewSuffix = visitorPreview ? '?visitorPreview=1' : '';
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
@@ -75,7 +81,7 @@ export function VisitorApp() {
   const project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
-    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : ''));
+    if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : '') + previewSuffix);
   };
   useEffect(() => {
     if (presentation === 'mobile' && route.kind === 'sharedCategory' && profileId) {
@@ -144,7 +150,7 @@ export function VisitorApp() {
   const style = useMemo(() => ({ '--accent-color': accentColor, ...resolveAccentTokens(accentColor, theme),
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
-  const openProject = (category: string, id: string) => { if (profileId) navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname))); };
+  const openProject = (category: string, id: string) => { if (profileId) navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix); };
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
   return <AppPresentation showFloatingActions={!projectId} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
@@ -152,6 +158,7 @@ export function VisitorApp() {
         onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
         onSettingsOpen={() => { if (!settings && sharedPath) navigate(buildPath('controlCenter'), { state: { settingsReturn: sharedPath } }); }} />}
       <div className="codex-workspace flex min-w-0 flex-1 basis-0 flex-col">
+        {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
             <main tabIndex={-1} aria-label={settings ? 'Settings' : profile ? `${profile.name} shared portfolio` : 'Shared portfolio'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
