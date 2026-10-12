@@ -21,7 +21,7 @@ function harness(presentation = 'mobile', props = {}) {
   let userSearchVisits = 0;
   const density = { columns: 5, setColumns(value) { density.columns = value; }, saveError: null };
   const ownerProfile = { profile: { id: 'owner', projectGridColumns: 5 }, status: 'ready' };
-  const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' } }, { project: { id: 'second' } }], isEmpty: false,
+  const feed = { status: 'success', featured: null, projects: [{ project: { id: 'first' }, creator:{id:'owner'} }, { project: { id: 'second' }, creator:{id:'other'} }], isEmpty: false,
     isRefreshing: false, refreshError: null, retry() { reloads++; } };
   const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useLayoutEffect(effect) { layoutEffects.push(effect); },
     useRef(value) { const index = cursor++; return slots[index] ??= { current: value }; },
