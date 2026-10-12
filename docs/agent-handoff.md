@@ -1,3 +1,7 @@
+## 2026-10-12 — Approved PR54 Explore publication in preparation
+
+Owned logs/explore-release / codex/explore-release, combines PR54 with exact Sites381 reader controls. Conflict at CSS file end resolved by retaining both independent scoped rules. No pending header/motion/Terms/features, SQL or backend changes. Verification and publication receipt follows.
+
 ## 2026-10-12 — Reader bottom controls restoration
 
 Owned codex/reader-bottom-actions in logs/reader-bottom-actions, based on exact live Sites380 source2bd1128; excludes PR54–56 and pending features. Restore existing mobile bottom portal / dots / creator pill for owners; hide duplicate reader top-right Actions for all app readers. WEB and public visitor components unchanged. Six focused checks pass; typecheck and client/worker build/config guards pass. Browser420 real components/synthetic services verifies bottom pill y856–900, project information, portal list and creator navigation. Physical iPhone unverified. Publishing explicitly approved. No SQL/backend changes. Final receipt follows.

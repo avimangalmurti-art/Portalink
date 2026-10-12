@@ -1,9 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {sourceModule} from './helpers/source-module.mjs';
-const {homeGridColumns}=sourceModule('src/components/home/homeGrid.ts',{'../../utils/projectGridDensity':sourceModule('src/utils/projectGridDensity.ts')});
-for(const width of [375,390,430])test(`Home at ${width}px preserves 16px gutters and falls back to two readable columns`,()=>{const content=width-32;for(const saved of [2,3,5,13])assert.equal(homeGridColumns(saved,content),2);assert.ok((content-4)/2>=150);});
-test('saved density is respected whenever it fits; an unavailable measurement stays at two',()=>{assert.equal(homeGridColumns(3,458),3);assert.equal(homeGridColumns(3,457),2);assert.equal(homeGridColumns(4,612),4);assert.equal(homeGridColumns(13,2000),13);assert.equal(homeGridColumns(3,0),2);});
 function pull({enabled=true,busy=false}={}){
  const listeners=new Map(),refs=[],scroll={scrollTop:0};let label='',calls=0,cleanup;
  const react={useRef(value){const ref={current:value};refs.push(ref);return ref;},useState:()=>[label,next=>{label=next;}],useEffect:fn=>{cleanup=fn();}};

@@ -5391,3 +5391,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 
 /* Content navigation stays in its established bottom pill, including owner readers. */
 #root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating { display: none; }
+/* Explore/Home has restored its own safe-area header. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
+  padding-top: 0;
+}
