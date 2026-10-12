@@ -19,7 +19,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
 import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
-import { DeleteProjectDialog, ProjectEditorDialog } from '../../features/projects/ProjectEditorDialog';
+import { DeferredDialog } from '../ui/DeferredDialog';
+
+const ProjectEditorDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.ProjectEditorDialog })));
+const DeleteProjectDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.DeleteProjectDialog })));
 
 type HomeFeedProps = {
   /** Retained as part of the shell contract; the grid measures its real width. */
@@ -262,9 +265,9 @@ export function HomeFeed({
           </section>
         </div>
       </div>
-      {isAuthenticated && viewerProfileId && <ProjectEditorDialog management={management} />}
-      {isAuthenticated && viewerProfileId && management.deletion.projectId && <DeleteProjectDialog management={management}
+      {isAuthenticated && viewerProfileId && <DeferredDialog active={Boolean(management.editor.projectId)} onClose={management.editor.close}><ProjectEditorDialog management={management} /></DeferredDialog>}
+      {isAuthenticated && viewerProfileId && management.deletion.projectId && <DeferredDialog active onClose={management.deletion.cancel}><DeleteProjectDialog management={management}
         projectTitle={projects.find(view => view.project.id === management.deletion.projectId)?.project.title ?? 'Project'}
-        onDeleted={management.deletion.cancel} />}
+        onDeleted={management.deletion.cancel} /></DeferredDialog>}
     </div>;
 }
