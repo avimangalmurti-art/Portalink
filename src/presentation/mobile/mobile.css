@@ -5196,3 +5196,21 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   position: static;
   width: 100%;
 }
+
+/* Home's grey hover/press surface uses the same frame as its ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
