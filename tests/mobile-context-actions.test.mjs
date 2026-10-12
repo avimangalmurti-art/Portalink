@@ -15,7 +15,7 @@ const ids = model => [...model.primary, ...model.groups.flat()].map(action => ac
 const all = ['deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
- home:['search','explore','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
+ home:['search','explore','viewProfile','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
  project:['savePage','share','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
  messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','deleteChat','block','report'], explore:['search','yourWorld','myCity','reset'],
  shared:['savePage','share','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],

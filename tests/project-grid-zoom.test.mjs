@@ -40,9 +40,9 @@ function harness() {
     addEventListener(type, fn) { assert.equal(listeners.has(type), false); listeners.set(type, fn); },
     removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
   };
-  const render = (base = 4, enabled = true, resetKey, onColumnsChange = value => commits.push(value)) => {
+  const render = (base = 4, enabled = true, resetKey, onColumnsChange = value => commits.push(value), projectColumns) => {
     cursor = 0; effects = [];
-    const result = useContentZoom(base, enabled, resetKey, onColumnsChange);
+    const result = useContentZoom(base, enabled, resetKey, onColumnsChange, projectColumns);
     result.ref.current = element;
     effects.forEach(fn => fn());
     return result;
@@ -176,4 +176,11 @@ test('Home uses one project per track at every density, preserving project order
     assert.deepEqual(cells.map(cell => cell.props.cellKey), items.map(item => item.key));
     cells.forEach((cell, i) => { assert.equal(cell.props.span, 1); assert.equal(cell.props.children, items[i].content); });
   }
+});
+
+test('Home fit bounds gestures without saving its responsive fallback; default profiles retain thirteen',()=>{
+ const h=harness(),fit=value=>value<=2?value:2;const view=h.render(13,true,13,undefined,fit);
+ assert.equal(view.columns,2);for(let n=0;n<5;n++)h.wheel(1);
+ assert.equal(h.render(13,true,13,undefined,fit).columns,2);h.flush(220);h.cleanup();assert.deepEqual(h.commits,[]);
+ const plain=harness();assert.equal(plain.render(13).columns,13);
 });
