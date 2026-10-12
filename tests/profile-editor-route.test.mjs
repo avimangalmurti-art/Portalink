@@ -257,8 +257,10 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   assert.equal(page.props.onSaved, close);
   assert.equal(page.props.isOpen, undefined);
   assert.equal(screen.props['data-screen-scroll'], 'nested');
-  const sidebar = findNode(node => ts.isJsxExpression(node) && node.expression?.getText(parsed).startsWith('!isProfileEditorRoute && (isSharedRoute')).expression.getText(parsed);
+  const sidebar = findNode(node => ts.isJsxExpression(node) && node.expression?.getText(parsed).startsWith('!isProfileEditorRoute &&') && node.expression?.getText(parsed).includes('<Sidebar')).expression.getText(parsed);
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: true }), false);
+  const RouteError = () => null;
+  assert.equal(evaluate(sidebar, { isProfileEditorRoute: false, routeStateView: {type: RouteError}, RouteError, auth: {isAuthenticated: false} }), false, 'Signed-out error screens have no dock');
   assert.match(app, /snapshot=\{\{[^}]*content: screenContent/);
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });

@@ -1,3 +1,4 @@
+import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { handleFromPath, isPublicSharePath, portfolioPath, portfolioProjectPath } from '../features/sharing/shareModel';
 import { useHandleRoute } from './useHandleRoute';
@@ -35,7 +36,7 @@ const isProfileId = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 /** Public reading starts alongside session restoration, never behind it. */
 export function VisitorApp() {
   const originalRoute = useAppRoute();
-  const { route, pending: handlePending, error: handleError, retry: retryHandle } = useHandleRoute(originalRoute);
+  const { route, pending: handlePending, error: handleError } = useHandleRoute(originalRoute);
   const location = useLocation(), navigate = useNavigate(), auth = useAuth();
   const presentation = usePresentation();
   const pageScroll = useRef(new Map<string, number>());
@@ -75,6 +76,7 @@ export function VisitorApp() {
   const project = profile?.projects.find(item => item.id === projectId && item.categoryId === categoryId);
   const back = () => {
     if (settings && settingsReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(settingsReturn, { replace: true }); return; }
+    if (!profileId || !profile || invalidShared || handleError) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else window.location.assign('/'); return; }
     if (profileId) navigate(portfolioPath(profileId, handleFromPath(location.pathname)) + (projectId && presentation !== 'mobile' && categoryId ? `/c/${encodeURIComponent(categoryId)}` : ''));
   };
   useEffect(() => {
@@ -146,7 +148,7 @@ export function VisitorApp() {
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
   const openProject = (category: string, id: string) => { if (profileId) navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname))); };
   const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
-  return <AppPresentation showFloatingActions={!projectId} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation showFloatingActions={!projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}
         onOpenCategory={id => { if (presentation === 'mobile') setPortalPopupId(id); else navigate(portfolioPath(profile.id, handleFromPath(location.pathname)) + `/c/${encodeURIComponent(id)}`); }}
@@ -164,12 +166,13 @@ export function VisitorApp() {
                       highContrast={highContrast} onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })}
                       reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
                       onBack={back} onOpenProfile={openOwnProfile} />
-                      : handleError ? <div className="p-5"><p role="alert">{handleError}</p><button type="button" onClick={retryHandle}>Try again</button></div> : handlePending ? pending : invalidShared ? <p role="alert" className="p-5">This shared page could not be found.</p>
-                      : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <div className="p-5"><p role="alert">{query.error || 'This portfolio could not be found.'}</p>{query.status === 'error' && <button type="button" onClick={query.retry}>Try again</button>}</div>
+                      : handleError ? <RouteError kind={routeErrorKind(handleError)} onBack={back} onHome={() => window.location.assign('/')} /> : handlePending ? pending
+                      : invalidShared ? <RouteError kind="not-found" onBack={back} onHome={() => window.location.assign('/')} />
+                      : query.status === 'loading' || query.status === 'idle' ? pending : !profile ? <RouteError kind={query.status === 'error' ? routeErrorKind(query.error) : 'not-found'} onBack={back} onHome={() => window.location.assign('/')} />
                       : projectId ? project ? <VisitorProjectPage key={project.id} profile={profile} project={project} onBack={back}
-                        onBackToProfile={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <p className="p-5">This project could not be found.</p>
+                        onBackToProfile={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} onSelect={id => openProject(project.categoryId, id)} /> : <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : route.kind === 'sharedCollaboration' ? <CollaborationPage profile={profile} onBack={back} />
-                      : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <p className="p-5">This portal could not be found.</p>
+                      : presentation !== 'mobile' && categoryId && !profile.categories.some(item => item.id === categoryId) ? <RouteError kind="not-found" creatorHandle={profile.handle} onBack={back} onHome={() => window.location.assign('/')} onCreator={() => navigate(portfolioPath(profile.id, handleFromPath(location.pathname)))} />
                       : <VisitorProfileGrid key={`${profile.id}/${categoryId ?? ''}`} profile={profile} categoryId={presentation === 'mobile' ? null : categoryId} onOpen={openProject} onBack={back} onMessage={openMessages}
                         onCollaboration={() => presentation === 'mobile' ? navigate(buildPath('sharedCollaboration', { profileId: profile.id })) : openMessages()} />}
                   </Suspense>
