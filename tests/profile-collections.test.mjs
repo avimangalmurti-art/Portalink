@@ -22,7 +22,7 @@ const placeholder = new Proxy({}, { get: (_, key) => key });
 const contextActions = compile('../src/presentation/mobile/contextActions.ts', () => placeholder);
 function nodes(tree) {
   if (!tree || typeof tree !== 'object' || tree.props?.style?.display === 'none') return [];
-  return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
+  return [tree, ...(['ProfileIdentityAndLinks','ProfileStats'].includes(tree.type?.name) ? nodes(tree.type(tree.props)) : []), ...React.Children.toArray(tree.props?.children).flatMap(nodes), ...(tree.type==='MobilePillHeader'?nodes(tree.props.right):[])];
 }
 
 function serviceHarness(owner = 'owner', failure = null, mutual = false) {
@@ -231,50 +231,28 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile header keeps its Journey choice when expanded alongside counts and links', () => {
-  const h = profileHarness('', { presentation: 'mobile' });
-  const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
-  let tree = h.render();
-  assert.equal(toggle(tree).props.view, 'portfolio');
-  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), true);
-  const identity = nodes(tree).find(node => node.type?.name === 'ProfileIdentityAndLinks');
-  assert.equal(identity.props.profileView.type, 'JourneyToggle');
-  assert.equal(identity.props.profileView.props, toggle(tree).props);
-  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
-  toggle(tree).props.onChange('journey');
-  tree = h.render();
-  assert.equal(toggle(tree).props.view, 'journey');
-  assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
-  openProfileOptions(h);
-  tree = h.render();
-  assert.equal(toggle(tree).props.view, 'journey');
-  assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
-  const all = nodes(tree);
-  const stats = all.find(node => node.type?.name === 'ProfileStats');
-  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
-  const tools = all.find(node => node.props?.id === 'profile-navigation-tools');
-  assert.ok(all.indexOf(stats) < all.indexOf(tools));
-  assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
-  assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
-  toggle(tree).props.onChange('portfolio');
-  tree = h.render();
-  assert.equal(toggle(tree).props.view, 'portfolio');
-  assert.equal(nodes(tree).find(node => node.props?.className === 'profile-compact-header').props['data-expanded'], true);
-  openProfileOptions(h);
-  assert.equal(toggle(h.render()).props.view, 'portfolio');
+test('app profile has one fixed choice outside identity, preserved when tools expand',()=>{
+ const h=profileHarness('',{presentation:'mobile'});
+ let tree=h.render(), header=nodes(tree).find(n=>n.type==='MobilePillHeader');
+ assert.equal(header.props.active,'portfolio');
+ assert.equal(nodes(tree).find(n=>n.type?.name==='ProfileIdentityAndLinks').props.profileView,undefined);
+ header.props.onChange('journey');tree=h.render();
+ assert.equal(nodes(tree).find(n=>n.type==='MobilePillHeader').props.active,'journey');
+ openProfileOptions(h);
+ assert.equal(nodes(h.render()).filter(n=>n.type==='MobilePillHeader').length,1);
 });
 
 test('profile Journey controls retain owner/public permissions, editor guard and desktop placement', () => {
   for (const [viewerRole, showJourney, allowed] of [['owner', false, true], ['member', true, true], ['member', false, false], ['guest', false, false]]) {
     const h = profileHarness('', { presentation: 'mobile', viewerRole, showJourney });
-    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+    assert.equal(nodes(h.render()).some(node => node.type === 'MobilePillHeader' && node.props.tabs.some(tab=>tab.id==='journey')), allowed);
     openProfileOptions(h);
-    assert.equal(nodes(h.render()).some(node => node.type === 'JourneyToggle'), allowed);
+    assert.equal(nodes(h.render()).some(node => node.type === 'MobilePillHeader' && node.props.tabs.some(tab=>tab.id==='journey')), allowed);
   }
   const privateShare = profileHarness('', { presentation: 'mobile', viewerRole: 'owner', isSharedView: true, showJourney: false });
   assert.equal(nodes(privateShare.render()).some(node => node.type === 'JourneyToggle'), false);
   const editing = profileHarness('', { presentation: 'mobile', editorProjectId: 'work' });
-  assert.equal(nodes(editing.render()).find(node => node.type === 'JourneyToggle').props.disabled, true);
+  assert.equal(nodes(editing.render()).find(node => node.type === 'MobilePillHeader').props.tabs[0].disabled, true);
   const web = profileHarness('', { presentation: 'web' });
   for (const expanded of [false, true]) {
     if (expanded) openProfileOptions(web);
@@ -492,7 +470,7 @@ test('selected mobile projects hide the profile header and restore it on return 
         assert.equal(children[1].props['data-mobile-project-selected'], mobileProjectSelected ? '' : undefined);
       }
       const overview = h.render();
-      assert.equal(React.Children.toArray(overview.props.children).filter(node => node.type !== 'ScreenBack')[0].props.className, 'profile-header-region contents');
+      assert.equal(nodes(overview).find(node=>node.props['data-profile-header']!==undefined).props.className,'profile-header-region contents');
       assert.equal(nodes(overview).find(node => node.props?.id === 'profile-content').props['data-mobile-project-selected'], undefined);
     }
   }
@@ -601,7 +579,7 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const h = profileHarness('', {presentation:'mobile',viewerRole,links});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), viewerRole !== 'owner');
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), true);
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);

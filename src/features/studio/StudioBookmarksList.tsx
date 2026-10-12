@@ -1,3 +1,5 @@
+import { usePresentation } from '../../presentation/usePresentation';
+import { StudioEmptyState } from './StudioEmptyState';
 import { resolveCitationItem,resolvePageId,resolveImageId,listCitations,citationProject } from '../citations/service';
 import { CiteSheet } from '../citations/CiteSheet';
 import type { CitationItem } from '../citations/model';
@@ -49,6 +51,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const [citationLabels,setCitationLabels]=useState<Record<string,string>>({});
   const sendContent = useInternalContentShare();
   const auth = useAuth();
+  const mobile = usePresentation() === 'mobile';
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const location = readStudioLocation(params, savedRoute);
@@ -110,7 +113,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
 
   function chooseTab(next: StudioBookmarkTab) {
     if (busy.current) return;
-    setParams({collection:'bookmarks',tab:next}, { replace: true });
+    setParams({collection:'bookmarks',tab:next}, { replace: true, state: window.history?.state?.usr });
   }
   function toggleRow(id: string) {
     if (busy.current) return;
@@ -202,7 +205,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   function renderRow(row: StudioItem) {
     const actions = actionsFor(row);
     const leftIds = row.kind === 'published' ? ['share', 'edit'] : row.kind === 'activity' ? ['open', 'mark-read'] : ['open', 'unsave'];
-    return <React.Fragment key={row.id}><StudioRow key={row.id} id={row.id} title={row.title} secondary={row.secondary} date={studioDate(row.date)} referenceCount={row.kind === 'published' ? Number(citationLabels[row.id]?.split(' ')[0]) || 0 : undefined} onOpenReferences={row.kind === 'published' && row.href ? () => navigate(row.href + '#references') : undefined} leading={<RowPreview row={row} />} unread={row.kind === 'activity' && row.notification.isUnread} selecting={selecting} selected={selectedIds.has(row.id)} pending={data.pendingIds.has(row.id) || bulkPending || isRefreshing} onSelect={() => toggleRow(row.id)} onOpen={actions.some(action => action.id === 'open') ? () => openRow(row) : undefined} actions={leftIds.flatMap(id => actions.filter(action => action.id === id))} primaryAction={actions.find(action => action.id === 'open')} onMenu={() => setSheet({ row })} />{row.kind !== 'published' && citationLabels[row.id]&&<li><button className="studio-text-control" onClick={()=>row.kind==='published'&&row.href?navigate(row.href+'#references'):setSheet({row})}>{citationLabels[row.id]}</button></li>}</React.Fragment>;
+    return <React.Fragment key={row.id}><StudioRow key={row.id} id={row.id} title={row.title} secondary={row.secondary} date={studioDate(row.date)} referenceCount={row.kind === 'published' ? Number(citationLabels[row.id]?.split(' ')[0]) || 0 : undefined} leading={<RowPreview row={row} />} unread={row.kind === 'activity' && row.notification.isUnread} selecting={selecting} selected={selectedIds.has(row.id)} pending={data.pendingIds.has(row.id) || bulkPending || isRefreshing} onSelect={() => toggleRow(row.id)} onOpen={actions.some(action => action.id === 'open') ? () => openRow(row) : undefined} actions={leftIds.flatMap(id => actions.filter(action => action.id === id))} primaryAction={actions.find(action => action.id === 'open')} onMenu={() => setSheet({ row })} />{row.kind !== 'published' && citationLabels[row.id]&&<li><button className="studio-text-control" onClick={()=>row.kind==='published'&&row.href?navigate(row.href+'#references'):setSheet({row})}>{citationLabels[row.id]}</button></li>}</React.Fragment>;
   }
 
   useMobileScreenActions(contextActions('studio', { signedIn: auth.isAuthenticated, owner: true }, { handlers: {
@@ -211,35 +214,37 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     reads: () => navigate('/insights'),
     drafts: () => setParams({collection:'drafts'},{replace:true}),
     bookmarks: () => setParams({collection:'bookmarks'},{replace:true}),
-  } }));
+  } }), 10, () => setSheet({ view: true }));
   const viewActions: StudioRowAction[] = [{ id: 'refresh', label: 'Refresh', icon: RefreshCwIcon, disabled: data.status === 'loading', onAction: data.refresh }];
   const statusLine = data.status === 'loading' ? 'Updating…' : data.updatedAt ? `Updated ${new Date(data.updatedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : 'Your private workspace';
 
   const navigation = <div className="studio-bookmarks-navigation">
         <button type="button" className="studio-bookmarks-back" aria-label={`Back from ${collectionTitle}`} disabled={bulkPending} onClick={back}>{headerHost?<ChevronLeftIcon aria-hidden="true" />:<><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span>Back</span></>}</button>
         <div className="studio-bookmarks-controls">
-          <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>
+          {(canSelect || selecting) && <button ref={selectButton} type="button" className="studio-text-control" disabled={!selecting && !canSelect || bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button>}
           <div data-inline-screen-actions=""><button type="button" className="mobile-context-button studio-round-control" data-keep-color="" aria-label={`${collectionTitle} options`} aria-haspopup="dialog" disabled={bulkPending} onClick={() => setSheet({ view: true })}><InterfaceIcon icon={EllipsisIcon} /></button></div>
         </div>
       </div>;
   return <section className="mobile-studio" data-mobile-studio="" data-studio-selecting={selecting ? 'true' : 'false'} aria-label="Studio">
     <ScreenBack action={back}>{null}</ScreenBack>
     <header className="studio-header">
-      {headerHost ? createPortal(navigation, headerHost) : navigation}
+      {headerHost ? createPortal((canSelect || selecting) ? <button ref={selectButton} type="button" className="studio-text-control" disabled={bulkPending} aria-label={selecting ? 'Exit selection' : 'Select items'} aria-pressed={selecting} onClick={() => selecting ? closeSelection() : setSelecting(true)}>{selecting ? 'Done' : 'Select'}</button> : null, headerHost) : !mobile ? navigation : null}
+      {!mobile ? <>
       <div className="studio-heading">
         <h1 ref={heading} tabIndex={-1} className="studio-title">{collectionTitle}</h1>
         <p className="studio-status">{statusLine}</p>
       </div>
+      </> : <h1 ref={heading} tabIndex={-1} className="sr-only">{collectionTitle}</h1>}
+    </header>
+    <div ref={scroller} className="studio-content" data-studio-scroll="" aria-busy={data.status === 'loading'}>
       <label className="studio-search"><InterfaceIcon icon={SearchIcon} /><input type="search" aria-label="Search Studio" placeholder={`Search ${collectionTitle.toLowerCase()}`} value={query} disabled={bulkPending} onChange={event => { setQuery(event.target.value); setSelected(new Set()); }} /></label>
       {category === 'bookmarks' && <div className="studio-bookmark-tabs" role="group" aria-label="Saved collection">{STUDIO_BOOKMARK_TABS.map(kind => <button key={kind} type="button" aria-pressed={tab === kind} disabled={bulkPending} onClick={() => chooseTab(kind)}>{kind === 'projects' ? 'Projects' : kind === 'pages' ? 'Pages' : 'Creators'}</button>)}</div>}
       {selecting && <div className="studio-selection-summary"><span role="status">{selectedRows.length} selected</span><button type="button" disabled={!canSelect} onClick={() => setSelected(selectedRows.length === visibleRows.length ? new Set() : new Set(visibleRows.map(row => row.id)))}>{selectedRows.length === visibleRows.length ? 'Deselect all' : 'Select all shown'}</button></div>}
-    </header>
-    <div ref={scroller} className="studio-content" data-studio-scroll="" aria-busy={data.status === 'loading'}>
       {notice && <p role="status" className="studio-feedback">{notice}</p>}
       {(localError || data.mutationError) && <p role="alert" className="studio-feedback text-[var(--status-danger)]">{localError || data.mutationError}</p>}
       {data.status === 'loading' && !data.rows.length ? <LoadingState label="Loading Studio" /> : null}
       {data.error && <ErrorState title="Some of Studio could not load" description={data.error} onRetry={data.refresh} />}
-      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'bookmarks' ? 'No bookmarks yet' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No items yet'} description={query ? 'Try another search, or clear this one.' : category === 'bookmarks' ? 'Keep projects, pages and creators here using their bookmark action.' : category === 'published' ? 'Your published projects appear here.' : category === 'activity' ? 'Your updates appear here.' : 'Your work, bookmarks and updates appear here.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
+      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? (query ? <EmptyState title="No matching items" description="Try another search, or clear this one." action={{label:'Clear search',onClick:()=>setQuery('')}} /> : category === 'activity' ? <EmptyState title="No activity yet" description="Your updates appear here." /> : <StudioEmptyState kind={category === 'published' ? 'published' : category === 'bookmarks' ? 'bookmarks' : 'all'} action={category === 'published' && onNewProject ? {label:'Add work',onClick:onNewProject} : undefined} />) : null}
       {data.loadMoreError && <ErrorState title="More saved pages could not load" description={data.loadMoreError} onRetry={() => { void data.loadMore(); }} />}
       {data.hasMore && <div className="studio-load-more"><p>Search and selection cover the pages loaded so far.</p><button type="button" className="studio-text-control" disabled={data.loadingMore || bulkPending} onClick={() => { void data.loadMore(); }}>{data.loadingMore ? 'Loading…' : 'Load more saved pages'}</button></div>}
     </div>

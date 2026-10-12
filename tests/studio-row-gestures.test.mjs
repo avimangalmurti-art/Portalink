@@ -142,6 +142,7 @@ function nodes(node) { return React.isValidElement(node) ? [node, ...React.Child
 test('selection presents real checkboxes, explicit options remain accessible, and destructive actions cannot become full swipe', () => {
   let hookOptions;
   const { StudioRow } = compile('../src/features/studio/StudioRow.tsx', {
+    '../../components/text/textFormatting':{plainFormattedText:s=>s},
     react: { ...React, useId: () => 'studio-row-description', useRef: () => ({ current: { focus() {} } }) },
     './useStudioRowGesture': { useStudioRowGesture(options) { hookOptions = options; return { offset: 0, dragging: false, close() {}, handlers: {} }; } },
   });
@@ -149,12 +150,12 @@ test('selection presents real checkboxes, explicit options remain accessible, an
   const props = { id: 'item', title: 'Project', secondary: 'Creator', selecting: false, selected: false, onSelect() { calls.push('select'); }, onOpen() { calls.push('open'); }, onMenu() { calls.push('menu'); }, actions: [{ id: 'remove', label: 'Unsave', onAction() {} }], primaryAction: { id: 'delete', label: 'Delete', destructive: true, onAction() { assert.fail('Destructive full swipe'); } } };
   let tree = StudioRow(props);
   assert.equal(hookOptions.hasPrimary, false); hookOptions.onPrimary();
-  const options = nodes(tree).find(node => node.props['aria-label'] === 'Options for Project');
-  assert.equal(options.props['aria-haspopup'], 'dialog'); assert.match(options.props.className, /h-11 w-11/);
-  options.props.onClick(); assert.deepEqual(calls, ['menu']);
-  const open = nodes(tree).find(node => node.props['aria-label'] === 'Open Project');
-  assert.equal(open.props['aria-describedby'], 'studio-row-description');
-  assert.equal(nodes(tree).find(node => node.props.id === 'studio-row-description').props.children.props.text, 'Creator');
+  assert.equal(nodes(tree).some(node => node.props['aria-label'] === 'Options for Project'),false);
+  const open=nodes(tree).find(node=>node.props['aria-label']==='Open Project');
+  open.props.onKeyDown({key:'F10',shiftKey:true,preventDefault(){}});
+  assert.deepEqual(calls,['menu']);
+  assert.equal(open.props['aria-describedby'],'studio-row-description');
+  assert.equal(nodes(tree).find(node=>node.props.id==='studio-row-description').props.children,'Creator');
   assert.ok(nodes(StudioRow({ ...props, unread: true })).some(node => node.props['aria-label'] === 'Open Project, unread'));
   tree = StudioRow({ ...props, selecting: true, selected: true });
   assert.equal(hookOptions.enabled, false);
