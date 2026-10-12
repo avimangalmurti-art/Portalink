@@ -534,12 +534,14 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   }
   splash.props.landing.onContinue(); assert.equal(h.render(),null);
   assert.equal(h.render(),null,'the welcome marker cannot reopen a dismissed landing');
+  const desktop=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web'}); desktop.auth.isInitializing=false;
+  assert.equal(desktop.render().props.landing.ready,true);
   const reopened=sharedBootstrap({path:'/',search:'?welcome=1'}); reopened.auth.isInitializing=false;
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
 });
 
-test('invitation marker does not override signed-in, WEB, recovery or authentication callback flows', () => {
-  for (const options of [{authenticated:true},{presentation:'web'},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
+test('invitation marker does not override signed-in, recovery or authentication callback flows', () => {
+  for (const options of [{authenticated:true},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
     const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator',...options});
     h.render(); h.auth.isInitializing=false;
     assert.equal(h.render().props.landing,undefined);

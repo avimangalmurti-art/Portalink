@@ -15,6 +15,7 @@ test('reader information opens publicly and guest engagement closes it before si
  assert.match(viewer, /onClick=\{\(\) => setMobilePopup\('description'\)\}/);
  assert.match(viewer, /\? \(\) => \{ closeMobilePopup\(\); journeyAuth.requestAuthenticatedDestination/);
 });
-test('shared and invitation signup in the main entry skips appearance', () => {
- assert.match(source('App.tsx'), /initialSignupStep=\{isSharedRoute \|\| new URLSearchParams\(search\).get\('welcome'\) === '1' \? 'profile' : undefined\}/);
+test('shared and invitation signup use the default appearance-first onboarding', () => {
+ for (const path of ['App.tsx','visitor/VisitorApp.tsx']) assert.doesNotMatch(source(path), /initialSignupStep=/);
+ assert.match(source('features/auth/AuthDialog.tsx'), /props.initialSignupStep \?\? 'appearance'/);
 });

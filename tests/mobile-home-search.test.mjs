@@ -42,6 +42,7 @@ function harness(presentation = 'mobile', props = {}) {
     if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions() {}, MobileContextButton: 'context-button' };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: 'owner' }) };
+    if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ ...ownerProfile, layout: ownerProfile.profile }) };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
     if (name.endsWith('/useFeed')) return { useFeed(locationId) {

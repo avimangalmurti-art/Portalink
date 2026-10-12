@@ -155,6 +155,7 @@ export type SignUpInput = {
   email: string;
   password: string;
   registration?: import('../features/auth/registration').RegistrationProfile;
+  legalVersions?: import('../features/legal/model').LegalVersion[];
 };
 
 /**
@@ -347,3 +348,13 @@ export type AccountSecurityState = {
   /** False for an identity with no password (e.g. a future OAuth-only account). */
   hasPassword: boolean;
 };
+
+export type AccountDeviceSession = {
+  id: string;
+  userAgent: string | null;
+  createdAt: string;
+  refreshedAt: string | null;
+  isCurrent: boolean;
+};
+export type AccountSessionCursor = { createdAt: string; id: string };
+export type AccountSessionPage = { sessions: AccountDeviceSession[]; nextCursor: AccountSessionCursor | null };

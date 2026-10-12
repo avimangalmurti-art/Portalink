@@ -40,6 +40,7 @@ function registry() {
       case './deferredService': return deferred;
       case './supabase/profileSharing': return { profileSharing: {} };
       case './supabase/authService': return { supabaseAuthService: auth };
+      case './supabase/legalService': return { supabaseLegalService: {} };
       case './supabase/contentReaders': return { supabaseProfileReadService: {
         async getSharedProfile(id) { calls.push(['shared', id]); return { id, isPrivate: false, projects: [] }; },
         async getProjectGridLayout(id) { return { id, projectGridColumns: 2 }; },

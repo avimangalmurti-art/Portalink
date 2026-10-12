@@ -1,4 +1,5 @@
 import { handleCitation, citationLicenseResponse } from './server/citation';
+import { handleLegalPage, handleLegalSend } from './server/legal';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './server/shareAddress';
@@ -32,6 +33,8 @@ interface SitesEnvironment {
   ASSETS: StaticAssets
   DB?: D1Database
   RUM_OWNER_PROFILE_ID?: string
+  RESEND_API_KEY?: string
+  RESEND_FROM?: string
 }
 
 type EngagementKind = 'like' | 'save' | 'repost'
@@ -375,6 +378,8 @@ const worker = {
     const url = new URL(request.url)
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
+    if (/^\/legal\/(terms|privacy|content-licence|ai-access)\/?$/.test(url.pathname)) return handleLegalPage(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if (url.pathname === '/api/legal/send') return handleLegalSend(request,environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY},authenticatedUser);
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
     if (url.pathname === '/api/studio/attention') return handleStudioAttention(request,environment.DB,reachConfig)

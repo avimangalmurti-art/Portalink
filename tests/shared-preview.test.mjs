@@ -98,7 +98,7 @@ function setup() {
   const reachCore=compile('../src/features/reads/readSignal.ts');
   const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
   const worker = compile('../src/sites-worker.ts', { './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
-    './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
+    './server/legal': {}, './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
   }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');
   const request = (path, extraHeaders = {}, method = 'GET') => {

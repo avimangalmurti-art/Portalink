@@ -11,6 +11,7 @@ import { ApplicationBootstrap } from "./app/ApplicationBootstrap";
 import { services } from "./services";
 import { initializeRum } from './features/performance/rum';
 import { RumPageView } from './features/performance/RumPageView';
+import { TermsProvider } from './features/legal/TermsContext';
 
 initializeRum(__APP_VERSION__, import.meta.env.VITE_RUNTIME_MODE !== 'prototype' && import.meta.env.PROD);
 
@@ -26,6 +27,7 @@ if (rootEl) {
       <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
+          <TermsProvider>
           <ProfileDataProvider>
             {/* Engagement is one record per project for the whole app, so a like
                in the viewer is the same fact as the one on its feed card. */}
@@ -33,6 +35,7 @@ if (rootEl) {
               <ApplicationBootstrap />
             </EngagementProvider>
           </ProfileDataProvider>
+          </TermsProvider>
         </AuthProvider>
       </ServicesProvider>
     </BrowserRouter>);

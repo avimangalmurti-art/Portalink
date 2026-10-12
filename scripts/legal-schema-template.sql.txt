@@ -1,0 +1,53 @@
+-- Prepared for review. Apply only legal_documents_and_acceptances.sql after approval.
+begin;
+create table public.legal_documents (
+  key text not null check(key in ('terms','privacy','content-licence','ai-access')),
+  version text not null check(version ~ '^\d+\.\d+(\.\d+)?$'),
+  title text not null,
+  markdown_body text not null,
+  effective_at timestamptz not null,
+  primary key(key,version)
+);
+create table public.terms_acceptances (
+  account_id uuid not null references auth.users(id),
+  document_key text not null,
+  version text not null,
+  accepted_at timestamptz not null default now(),
+  ip_hash text,
+  user_agent text,
+  primary key(account_id,document_key,version),
+  foreign key(document_key,version) references public.legal_documents(key,version)
+);
+alter table public.legal_documents enable row level security;
+alter table public.terms_acceptances enable row level security;
+revoke all on public.legal_documents, public.terms_acceptances from public, anon, authenticated;
+grant select on public.legal_documents to anon, authenticated;
+grant select,insert on public.terms_acceptances to authenticated;
+create policy effective_documents_read on public.legal_documents for select to anon, authenticated using(effective_at <= now());
+create policy own_acceptances_read on public.terms_acceptances for select to authenticated using(account_id=(select auth.uid()));
+create policy own_acceptances_insert on public.terms_acceptances for insert to authenticated with check(account_id=(select auth.uid()));
+
+create function public.stamp_terms_acceptance()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare latest_version text; headers jsonb; address text;
+begin
+  select version into latest_version from public.legal_documents
+  where key=new.document_key and effective_at<=now()
+  order by split_part(version,'.',1)::int desc, split_part(version,'.',2)::int desc,
+    coalesce(nullif(split_part(version,'.',3),''),'0')::int desc limit 1;
+  if latest_version is null or new.version<>latest_version then
+    raise exception 'An agreement changed. Review the latest versions before continuing.' using errcode='23514';
+  end if;
+  headers := coalesce(nullif(current_setting('request.headers',true),'')::jsonb,'{}'::jsonb);
+  new.accepted_at := now();
+  new.user_agent := left(headers->>'user-agent',512);
+  address := nullif(split_part(headers->>'x-forwarded-for',',',1),'');
+  -- Fresh server-only randomness prevents IP dictionary matching. No raw IP or
+  -- reusable hashing secret is stored. This is an audit hint, not identity proof.
+  new.ip_hash := case when address is null then null else
+    encode(extensions.digest(gen_random_uuid()::text || address,'sha256'),'hex') end;
+  return new;
+end;
+$$;
+revoke all on function public.stamp_terms_acceptance() from public,anon,authenticated;
+create trigger stamp_terms_acceptance before insert on public.terms_acceptances for each row execute function public.stamp_terms_acceptance();

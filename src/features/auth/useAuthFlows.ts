@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSignupTerms } from '../legal/signupTermsContext';
 import { saveRegistrationDraft, markRegistrationVerification, type RegistrationProfile } from './registration';
 import type { PreparedAvatar } from '../../types/profile';
 import { toAuthError } from '../../types/auth';
@@ -17,6 +18,7 @@ import type { AuthError, AuthRecoverySession, PasswordResetRequestResult, SignUp
  */
 
 export function useSignUp() {
+  const terms = useSignupTerms();
   const session = useAuth();
   const {
     auth
@@ -26,6 +28,8 @@ export function useSignUp() {
   const action = useAsyncAction(async (email: string, password: string, registration?: RegistrationProfile, avatar: PreparedAvatar | null = null) => {
     setError(null);
     try {
+      const legalVersions = await terms.requestConsent(email);
+      if (legalVersions === null) return;
       if (registration) {
         try { await saveRegistrationDraft(registration, email, avatar); }
         catch { throw new Error('Your signup details could not be saved for email confirmation. Please try again before continuing.'); }
@@ -33,7 +37,8 @@ export function useSignUp() {
       const next = await auth.signUp({
         email,
         password,
-        registration
+        registration,
+        ...(legalVersions.length ? { legalVersions } : {})
       });
       setResult(next);
       if (registration && next.requiresEmailVerification) {

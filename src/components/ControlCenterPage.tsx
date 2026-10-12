@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { ArrowLeftIcon, ChevronDownIcon } from 'lucide-react';
 import { NavigationButtonsPanel } from './settings/NavigationButtonsPanel';
 import { InterfaceIcon } from './ui/InterfaceIcon';
@@ -7,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouteNavigator } from '../app/useAppRoute';
 import { buildPath } from '../app/routes';
 import { DeleteAccountDialog } from '../features/auth/DeleteAccountDialog';
+import { AccountSecurityPage } from '../features/auth/AccountSecurityPage';
 import type { AppearanceTheme, StoredAppearanceMode } from '../utils/appearancePreferences';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import './settings/settings-page.css';
@@ -47,6 +49,8 @@ function SettingsSection({ id, title, subtitle, children }: {
 export function ControlCenterPage(props: ControlCenterPageProps) {
   const auth = useAuth();
   const nav = useRouteNavigator();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
@@ -90,6 +94,13 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
     finally { setSigningOut(false); }
   }
 
+  if (searchParams.get('security') === '1') return <AccountSecurityPage key={auth.user?.id ?? 'guest'} onBack={() => {
+    if (location.state?.accountSecurityReturn && window.history.state?.idx > 0) { nav.back(); return; }
+    const next = new URLSearchParams(searchParams);
+    next.delete('security');
+    setSearchParams(next, { replace: true, state: location.state });
+  }} />;
+
   return <div className="settings-page">
     <header className="settings-page-header">
       <button type="button" onClick={props.onBack} aria-label="Back" className="settings-back"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
@@ -100,10 +111,11 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
         {props.appearanceError ? <p role="alert">{props.appearanceError} <button type="button" onClick={props.onRetryAppearance} className="settings-text-action">Try again</button></p> : props.appearanceSaving ? <p role="status" className="settings-appearance-saving">Saving website colors…</p> : null}
         <NavigationButtonsPanel {...props} />
       </SettingsSection>
-      <SettingsSection id="account" title="Account" subtitle="Profile, log out, delete account">
+      <SettingsSection id="account" title="Account" subtitle="Profile, security, log out, delete account">
         {auth.isAuthenticated ? <>
           <Button variant="secondary" onClick={props.onOpenProfile}><span className="settings-action-label">View profile</span></Button>
           {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}><span className="settings-action-label">Edit profile</span></Button>}
+          <Button variant="secondary" onClick={() => { const next = new URLSearchParams(searchParams); next.set('security', '1'); setSearchParams(next, { state: { ...location.state, accountSecurityReturn: true } }); }}><span className="settings-action-label">Account security</span></Button>
           <Button variant="secondary" disabled={signingOut || auth.phase === 'signing-out'} onClick={() => void handleSignOut()}><span className="settings-action-label">{signingOut ? 'Logging out…' : 'Log out'}</span></Button>
           <Button variant="secondary" onClick={() => setDeletingAccount(true)}><span className="settings-action-label">Delete account…</span></Button>
           {signOutError && <p role="alert">Unable to log out. Please try again.</p>}
@@ -126,6 +138,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
         <p>Portalink is currently available in English.</p>
       </SettingsSection>
       <SettingsSection id="about" title="About" subtitle="Version, legal and more">
+        <Button variant="secondary" onClick={() => { const next = new URLSearchParams(searchParams); next.set('terms', '1'); setSearchParams(next); }}><span className="settings-action-label">Terms</span></Button>
         <p>Portalink Networks</p><p>Web app</p>
       </SettingsSection>
     </div>

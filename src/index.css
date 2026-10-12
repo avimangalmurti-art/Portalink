@@ -5469,7 +5469,7 @@ html[data-project-continuity]::view-transition-new(root) {
 /* The profile-picture preview is an identity composition, not a modal card.
    Its figure stays completely clear so the image and label sit directly on
    the single full-screen translucent backdrop. */
-#root > .app-shell > [data-avatar-preview-scrim] > [data-avatar-preview] {
+:is(#root, #root > [data-terms-content]) > .app-shell > [data-avatar-preview-scrim] > [data-avatar-preview] {
   overflow: visible !important;
   padding: 0 !important;
   border: 0 !important;
@@ -5483,7 +5483,7 @@ html[data-project-continuity]::view-transition-new(root) {
 /* The identity preview uses a neutral smoke scrim instead of the light-mode
    surface overlay. Content remains visible through it without turning the
    full viewport milky white behind the floating avatar and creator name. */
-#root > .app-shell > [data-avatar-preview-scrim] {
+:is(#root, #root > [data-terms-content]) > .app-shell > [data-avatar-preview-scrim] {
   position: fixed !important;
   inset: 0 !important;
   z-index: 1000 !important;

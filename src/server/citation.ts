@@ -17,6 +17,5 @@ export async function handleCitation(request:Request,assets:{fetch(request:Reque
 }
 export function citationLicenseResponse(path:string):Response|null{
  if(!['/licenses/citable-v1','/licenses/view-only-v1'].includes(path))return null;
- const text=path.endsWith('citable-v1')?"Portalink citable permission v1. Others' AI tools may retrieve and reproduce individual pages or images with the creator's name and a link to the original Portalink item. Permission applies only while the creator marks the project citable. No ownership transfer or permission to remove attribution.":'Portalink view-only terms v1. Public viewing is permitted. AI retrieval and reproduction permission is not granted by public visibility. Human attribution and citation do not grant reproduction rights.';
- return new Response(text,{headers:{'content-type':'text/plain; charset=utf-8','cache-control':'public, max-age=3600'}});
+ return new Response(null,{status:308,headers:{location:`/legal/content-licence?version=1.0#${path.endsWith('citable-v1')?'citable':'public'}`,'cache-control':'no-store'}});
 }
