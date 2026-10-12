@@ -9,6 +9,7 @@ import { toAuthError } from '../../types/auth';
 import { useAccountSecurity } from './useAccountSecurity';
 import type { PasswordFieldKey } from './useAccountSecurity';
 import './account-security.css';
+import { AccountDeviceSessions } from './AccountDeviceSessions';
 
 type SessionAction = 'local' | 'others' | 'global';
 const sessionLabels: Record<SessionAction, string> = {
@@ -23,10 +24,12 @@ export function AccountSecurityPage({ onBack }: { onBack: () => void }) {
   const emailRef = useRef<HTMLInputElement>(null);
   const [sessionAction, setSessionAction] = useState<SessionAction | null>(null);
   const [sessionBusy, setSessionBusy] = useState(false);
+  const [deviceBusy, setDeviceBusy] = useState(false);
+  const [sessionRefreshKey, setSessionRefreshKey] = useState(0);
   const sessionLock = useRef(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sessionMessage, setSessionMessage] = useState<string | null>(null);
-  const busy = security.password.isSubmitting || security.email.isSubmitting || security.verification.isSending || sessionBusy;
+  const busy = security.password.isSubmitting || security.email.isSubmitting || security.verification.isSending || sessionBusy || deviceBusy;
   const ready = Boolean(security.capability && security.state && !security.isLoadingCapability && !security.isLoadingState);
 
   async function submitPassword(event: React.FormEvent) {
@@ -50,6 +53,7 @@ export function AccountSecurityPage({ onBack }: { onBack: () => void }) {
     try {
       if (sessionAction === 'others') {
         await service.signOutOtherSessions(auth.user.id);
+        setSessionRefreshKey(key => key + 1);
         setSessionMessage('Other sessions have been signed out. This session stays signed in. Existing access can continue until its current access token expires.');
       } else if (!await auth.signOut(sessionAction)) {
         throw new Error('Unable to sign out. Please try again.');
@@ -107,7 +111,8 @@ export function AccountSecurityPage({ onBack }: { onBack: () => void }) {
       <section className="security-card" aria-labelledby="security-sessions-title">
         <h2 id="security-sessions-title">Signed-in sessions</h2>
         <p>This browser session is signed in. You can end this session, every other session, or all sessions.</p>
-        <p>Other sessions may retain access until their current access tokens expire. A device-by-device session list is currently unavailable.</p>
+        <p>Other sessions may retain access until their current access tokens expire.</p>
+        {!auth.session?.isPrototype && <AccountDeviceSessions disabled={busy} onBusyChange={setDeviceBusy} refreshKey={sessionRefreshKey} />}
         {auth.session?.isPrototype ? <p>Session controls require a connected account. This prototype has no other sessions.</p> : <div className="security-session-actions">
           {(Object.keys(sessionLabels) as SessionAction[]).map(action => <Button key={action} disabled={busy} onClick={() => { setSessionAction(action); setSessionError(null); setSessionMessage(null); }}>{sessionLabels[action]}</Button>)}
         </div>}

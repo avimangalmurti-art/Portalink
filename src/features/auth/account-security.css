@@ -11,3 +11,7 @@
 .security-session-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .account-security-page input { min-height: 44px; font-size: 16px; }
 .security-card [role='alert'] { color: var(--text-primary); }
+.security-devices { display: flex; flex-direction: column; gap: 12px; }
+.security-device-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.security-device-list h3 { margin: 0; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.security-current-session { display: inline-block; margin-inline-start: 8px; font-size: 12px; color: var(--text-secondary); }

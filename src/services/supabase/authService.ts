@@ -434,6 +434,33 @@ export const supabaseAuthService: AuthService = {
     if (result.error) throw authFailure(result.error, 'Other sessions could not be signed out.');
   },
 
+  async listAccountSessions(accountId, cursor) {
+    const generation = sessionGeneration;
+    await assertCurrentAccount(accountId, generation);
+    const { data, error } = await requireSupabase().rpc('list_my_account_sessions', {
+      p_before: cursor?.createdAt ?? null, p_before_id: cursor?.id ?? null,
+    });
+    await assertCurrentAccount(accountId, generation);
+    if (error) {
+      if (error.code === 'PGRST202' || error.code === '42883') throw new AuthServiceError('unsupported', 'The device list is not available yet. You can still use the session sign-out controls below.');
+      throw authFailure(error, 'Your signed-in sessions could not be loaded.');
+    }
+    const rows = (data ?? []) as { id: string; user_agent: string | null; created_at: string; refreshed_at: string | null; is_current: boolean }[];
+    const sessions = rows.slice(0, 50).map(row => ({ id: row.id, userAgent: row.user_agent, createdAt: row.created_at, refreshedAt: row.refreshed_at, isCurrent: row.is_current }));
+    const last = sessions.at(-1);
+    return { sessions, nextCursor: rows.length > 50 && last ? { createdAt: last.createdAt, id: last.id } : null };
+  },
+
+  async revokeAccountSession(accountId, sessionId) {
+    const generation = sessionGeneration;
+    await assertCurrentAccount(accountId, generation);
+    const { data, error } = await requireSupabase().rpc('revoke_my_account_session', { p_session_id: sessionId });
+    await assertCurrentAccount(accountId, generation);
+    if (error) throw authFailure(error, 'This session could not be signed out.');
+    if (typeof data !== 'boolean') throw new AuthServiceError('unknown', 'The session sign-out could not be confirmed. Refresh the list before trying again.');
+    return data;
+  },
+
   async getAccountSecurityState(): Promise<AccountSecurityState> {
     const user = await currentProviderUser();
     const providerUser = user as User & { new_email?: string; email_change_sent_at?: string };

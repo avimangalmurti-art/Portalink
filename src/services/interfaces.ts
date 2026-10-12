@@ -45,6 +45,9 @@ export interface AuthService {
   signOut(scope?: 'local' | 'global'): Promise<void>;
   /** Ends every other session while keeping this browser signed in. */
   signOutOtherSessions(accountId: Id): Promise<void>;
+  listAccountSessions(accountId: Id, cursor?: import('../types/auth').AccountSessionCursor): Promise<import('../types/auth').AccountSessionPage>;
+  /** Only a different session owned by this account; this session uses local logout. */
+  revokeAccountSession(accountId: Id, sessionId: Id): Promise<boolean>;
   requestPasswordReset(input: PasswordResetRequestInput): Promise<PasswordResetRequestResult>;
   /** The context a recovery link establishes, or null if it is missing/expired. */
   getRecoverySession(): Promise<AuthRecoverySession | null>;

@@ -18,8 +18,12 @@ const types = load('../src/types/auth.ts');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 function serviceHarness() {
   const user = { id: 'a', email: 'old@example.test', email_confirmed_at: '2026-10-12' };
-  const state = { user, current: { user, access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }, writes: [], revocations: [], verifies: [], events: null, verifyError: null, writeError: null, switchOnVerify: false, switchOnBind: false };
-  const client = { auth: {
+  const state = { user, current: { user, access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }, writes: [], revocations: [], verifies: [], events: null, verifyError: null, writeError: null, switchOnVerify: false, switchOnBind: false, rpcCalls: [], rpcRows: [], rpcResult: true, rpcError: null, switchOnRpc: false };
+  const client = { async rpc(name, input) {
+    state.rpcCalls.push({ name, input });
+    if (state.switchOnRpc) state.current = { ...state.current, user: { id: 'b' } };
+    return { data: name === 'list_my_account_sessions' ? state.rpcRows : state.rpcResult, error: state.rpcError };
+  }, auth: {
     getUser: async () => ({ data: { user: state.user }, error: null }),
     getSession: async () => ({ data: { session: state.current }, error: null }),
     onAuthStateChange(callback) { state.events = callback; return { data: { subscription: { unsubscribe() {} } } }; },
@@ -107,6 +111,27 @@ test('other-session sign out rejects account mismatch and identity changes', asy
 test('local and global sign out use their explicit scopes; legacy default stays global', async () => {
   const { auth, state } = serviceHarness(); await auth.signOut('local'); await auth.signOut('global'); await auth.signOut();
   assert.deepEqual(state.revocations, [['main', 'local'], ['main', 'global'], ['main', 'global']]);
+});
+
+test('device list maps only display fields and paginates with an opaque server cursor', async () => {
+  const {auth,state}=serviceHarness();
+  state.rpcRows=Array.from({length:51},(_,i)=>({id:`s-${i}`,user_agent:'Safari iPhone',created_at:'2026-10-12T00:00:00Z',refreshed_at:null,is_current:i===0}));
+  const page=await auth.listAccountSessions('a');assert.equal(page.sessions.length,50);assert.equal(page.sessions[0].isCurrent,true);assert.equal(page.nextCursor.id,'s-49');
+  await auth.listAccountSessions('a',page.nextCursor);
+  assert.equal(state.rpcCalls[1].input.p_before_id,'s-49');assert.equal('accountId' in state.rpcCalls[1].input,false);
+});
+test('device list rejects stale identity and missing migration without claiming an empty list', async () => {
+  const {auth,state}=serviceHarness();state.rpcError={code:'PGRST202',message:'Missing function'};
+  await assert.rejects(auth.listAccountSessions('a'),error=>error.code==='unsupported');
+  state.rpcError=null;state.switchOnRpc=true;
+  await assert.rejects(auth.listAccountSessions('a'),error=>error.code==='reauthentication_required');
+});
+test('individual revocation confirms boolean outcome and does not accept guessed success', async () => {
+  const {auth,state}=serviceHarness();assert.equal(await auth.revokeAccountSession('a','target'),true);
+  assert.equal(state.rpcCalls[0].input.p_session_id,'target');state.rpcResult=false;
+  assert.equal(await auth.revokeAccountSession('a','target'),false);state.rpcResult=null;
+  await assert.rejects(auth.revokeAccountSession('a','target'));state.rpcResult=true;state.switchOnRpc=true;
+  await assert.rejects(auth.revokeAccountSession('a','target'),error=>error.code==='reauthentication_required');
 });
 
 function hookRuntime() {
