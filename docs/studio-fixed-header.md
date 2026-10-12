@@ -1,6 +1,6 @@
 # Fixed mobile app headers
 
-Task branch: `codex/studio-fixed-header`. Based on current `github/main` and fast-forwarded to the existing live-source PR53 (`f81f0342cc9d42c90cbf12aefa642ff97b0b3621`). This review is stacked on PR53; it excludes the unpublished Explore-density PR54 and all other pending feature tasks. Main/CI billing and publication remain separate.
+Task branch: `codex/studio-fixed-header`. [Draft PR55](https://github.com/avimangalmurti-art/Portalink/pull/55), verified app source `a530f2b844c482cffde36aabaa2760e003d3ff15`. Based on current `github/main` and fast-forwarded to the existing live-source PR53 (`f81f0342cc9d42c90cbf12aefa642ff97b0b3621`). This review is stacked on PR53; it excludes the unpublished Explore-density PR54 and all other pending feature tasks. Main/CI billing and publication remain separate.
 
 One shared, active-screen-only fixed pill header is used by mobile Studio, the Messages inbox, and signed-in app profiles. It is portalled to the stable app shell to avoid transformed/scrolling ancestors, uses the dock material, centres the selected pill horizontally, and keeps one Actions button. Dock state controls Back and survives list/thread navigation. Desktop layouts and public visitor profiles/readers retain their existing presentation.
 
