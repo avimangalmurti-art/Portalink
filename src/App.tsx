@@ -1305,6 +1305,7 @@ function AppContent() {
       {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
         bookmarks: () => nav.to('/saved'),
         search: () => nav.search(''), explore: openPortalink, newProject: requestMobilePublish,
+        ...(route.kind === 'home' ? { viewProfile: openOwnProfile } : {}),
         settings: nav.controlCenter, insights: () => nav.to(buildPath('insights')),
         ...(liveShow ? { leaveLive: live.leave } : {}),
       } })} />}

@@ -5371,3 +5371,20 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
   background: var(--surface-hover) !important;
 }
+
+/* Home conformance: measured, inset artwork; other feed/profile surfaces retain their spacing. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .feed-edge-fade {
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
+  padding-top: var(--mobile-content-safe-top);
+  min-width: 0;
+}
+
+/* Cancel only the artwork's inherited half-rem inset, then use fixed pixel gutters.
+   This week's existing scroller spacing remains unchanged, including larger text. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-home-grid] {
+  margin-inline: -0.5rem;
+  width: calc(100% + 1rem);
+  padding-inline: 16px;
+}
