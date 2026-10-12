@@ -1,3 +1,4 @@
+import { ExportSheet } from '../../features/references/ExportSheet';
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
 import { useInternalContentShare } from '../../features/sharing/InternalContentShare';
@@ -299,6 +300,12 @@ export function ProjectMediaViewer({
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
+  const [exportOpen,setExportOpen]=useState(false);
+  const [ownCopyStatus,setOwnCopyStatus]=useState('');
+  const copyScope=useRef<string|null>(null);
+  copyScope.current=`${projectId}:${journeyAuth.user?.id??''}:${pageAttachment?.id??''}:${currentPage??''}`;
+  useEffect(()=>()=>{copyScope.current=null;},[]);
+  useEffect(()=>{setExportOpen(false);setOwnCopyStatus('');},[projectId,journeyAuth.user?.id]);
   const mobileActions = useMobileActions();
   const ownerReader = isOwner && !readOnlyShare;
   const creatorProfileId = creator?.id;
@@ -312,6 +319,8 @@ export function ProjectMediaViewer({
     startHere: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?startHere=${encodeURIComponent(projectId)}`) : undefined,
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
+    ...(isOwner&&!readOnlyShare&&!isImmersive&&active?.kind==='image'&&pageAttachment&&currentPage!==null&&journeyAuth.viewerProfileId?{copyCitation:async()=>{const scope=copyScope.current;try{const module=await import('../../features/references/ownCitation');const text=await module.ownPageCitation(journeyAuth.viewerProfileId!,projectId,pageAttachment.id,currentPage);if(copyScope.current!==scope)return;await navigator.clipboard.writeText(text);setOwnCopyStatus('Citation copied.');}catch(caught){if(copyScope.current===scope)setOwnCopyStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}}:{}),
+    export: creator?.id ? ()=>setExportOpen(true) : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
   }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
   useMobileScreenActions(projectActionModel, 20, ownerReader ? undefined : () => setMobilePopup('description'));
@@ -615,6 +624,8 @@ export function ProjectMediaViewer({
            so and offers the query again rather than a retry of the work. It stays
            with the work, because that is what it is about. */}
         <CitationReferences projectId={projectId} owner={isOwner} />
+        {ownCopyStatus&&<p role="status">{ownCopyStatus}</p>}
+        {exportOpen&&creator?.id&&<ExportSheet profileId={creator.id} projectId={projectId} onClose={()=>setExportOpen(false)}/>}
         {processing.error && <div role="alert" className="flex shrink-0 items-center gap-2.5 border-t border-[var(--hairline)] px-4 py-2 text-[13px] text-[var(--text-secondary)]">
             <span className="min-w-0 flex-1">{processing.error}</span>
             <button type="button" onClick={processing.refresh} className="shrink-0 font-semibold text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Check again</button>

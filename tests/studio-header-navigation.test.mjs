@@ -62,6 +62,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   '../projects/useProjectManagement':{useProjectManagement:()=>({editor:{result:null}})},
   '../publishing/PublishProjectDialog':{},'./discardStudioDraft':{},'../publishing/firstProjectDraft':{},
   '../sharing/shareModel':{},'../../utils/copyPublicLink':{},
+  './StudioOverview':{StudioOverview:'overview'},
   './StudioBookmarksList':{StudioPage:'collection'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
   './StudioActionSheet':{},'./StudioWorkbenchView':{StudioWorkbenchHeader:'header',StudioWorkbenchView:'overview'},
   './workbenchModel':{attentionRows:()=>[],newestDraft:()=>null,weeklyReads:()=>null},

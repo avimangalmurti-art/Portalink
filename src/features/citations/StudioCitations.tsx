@@ -1,3 +1,4 @@
+import {ReferencesTab} from '../references/ReferencesTab';
 import React,{useEffect,useMemo,useState} from 'react';
 import {createPortal} from 'react-dom';
 import {useAuth} from '../../contexts/AuthContext';
@@ -11,7 +12,8 @@ import {StudioActionSheet} from '../studio/StudioActionSheet';
 import {citationProject,citingProjectPath,listCitations,removeCitation,resolveCitationItem,type CitingProject} from './service';
 import {citationPath,type CitationItem,type CitationRecord} from './model';
 export type StudioCitationRow={citation:CitationRecord;item:CitationItem|null;project:CitingProject|null;madeOn?:string};
-export function StudioCitations({mode,headerHost}:{mode:'cited'|'references';headerHost?:HTMLElement|null}) {
+export function StudioCitations(props:{mode:'cited'|'references';headerHost?:HTMLElement|null}) { return props.mode==='references'?<ReferencesTab headerHost={props.headerHost}/>:<CitationList {...props}/>; }
+function CitationList({mode,headerHost}:{mode:'cited'|'references';headerHost?:HTMLElement|null}) {
  const auth=useAuth(),services=useServices(),[rows,setRows]=useState<StudioCitationRow[]>([]),[phase,setPhase]=useState('loading'),[revision,setRevision]=useState(0),[error,setError]=useState(''),[busy,setBusy]=useState(''),[menu,setMenu]=useState<StudioCitationRow|'view'|null>(null);
  const [query,setQuery]=useState(''),[selecting,setSelecting]=useState(false),[selected,setSelected]=useState<Set<string>>(new Set());
  useEffect(()=>{setQuery('');setSelecting(false);setSelected(new Set());setMenu(null);},[mode]);

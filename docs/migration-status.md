@@ -5,6 +5,16 @@
 <!-- 2026-10-12: immediate_account_session_revocation.sql is pending explicit approval. No SQL applied; adds active-session functions, guarded Data API pre-request hook and restrictive policies on31 inventoried RLS tables. See docs/immediate-session-revocation.md. -->
 # Migration status register
 
+## Pending review — external references (2026-10-12)
+
+`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
+separate reference table, project/date index, owner CRUD and existing-project
+visibility reads, with server-stamped immutable creation dates. Disposable
+PGlite ownership/public/private-role checks pass. It does not write citations or
+notifications. Apply only this file after explicit approval; no migration ledger
+repair or unrelated migration execution is authorized. See
+[the task review package](references-and-exports.md).
+
 ## September 30, 2026 — Sites279 live; edge cache verified
 
 ### Sites279 publication and verified edge reuse

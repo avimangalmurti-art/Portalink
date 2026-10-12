@@ -40,6 +40,8 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   const deps = {
     '../../presentation/usePresentation': {usePresentation:()=>headerHost?'mobile':'web'},
     './StudioEmptyState': {StudioEmptyState:'studio-empty'},
+    '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
+    '../references/ExportSheet':{ExportSheet:'export-sheet'},
     '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
     '../citations/service': {listCitations:async()=>citations,resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
@@ -96,6 +98,18 @@ test('retained bookmark list exposes Open and Unsave without inventory categorie
  assert.deepEqual(Array.from(entries[0].props.actions,action=>action.id),['open','unsave']);
  assert.equal(entries[0].props.primaryAction.id,'open');
  assert.equal(page.nodes.some(node=>node.props.className==='studio-category'),false);
+});
+test('Published rows suppress the zero-reference pill and retain project Export in their actions',async()=>{
+ const page=pageHarness({initialSearch:'collection=published'});page.nodes;
+ for(let i=0;i<20;i++)await Promise.resolve();
+ assert.equal(page.nodes.some(node=>node.type==='button'&&String(node.props.children).includes('0 references')),false);
+ const row=page.nodes.find(node=>node.type==='studio-row');assert.ok(row);
+ row.props.onMenu();const sheet=page.nodes.find(node=>node.type==='sheet');assert.ok(sheet.props.actions.some(action=>action.id==='export'));
+});
+test('made-on calendar dates retain their day/year while other Studio date formatting stays unchanged',()=>{
+ assert.equal(view.studioMadeOnDate('2024-06-15'),new Date(2024,5,15,12).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}));
+ assert.equal(view.studioMadeOnDate('not-a-date'),undefined);
+ assert.equal(view.studioDate('2026-06-15T12:00:00Z'),new Date('2026-06-15T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric'}));
 });
 test('share links use public canonical destinations and retain exact saved-page target', () => {
   assert.equal(view.studioSharePath(rows[0]), '/share/me/c/c1/p1');

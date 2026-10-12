@@ -15,6 +15,7 @@ import { usePresentation } from '../../presentation/usePresentation';
 import type { MobileReorderList as MobileReorderListType, MobileReorderActivator, MobileReorderActions } from '../../presentation/mobile/MobileReorderList';
 import { ProjectCover } from '../media/ProjectCover';
 import { getProjectCoverPreview } from '../../utils/projectPresentation';
+const ProjectExportSheet=lazy(()=>import('../../features/references/ExportSheet').then(module=>({default:module.ExportSheet})));
 const MobileReorderList = lazy(() => import('../../presentation/mobile/MobileReorderList').then(module => ({ default: module.MobileReorderList }))) as unknown as typeof MobileReorderListType;
 type ProjectIndexListProps = {
   profileId?: string;
@@ -305,6 +306,7 @@ function ProjectRow({
   const dragControls = useDragControls();
   const press = useMobileProjectContext(project, profileId, { edit: onEdit, cover: onChangeCover, delete: onDelete, visibility: contextDisabled ? undefined : onToggleHidden }, Boolean(reorderActivator));
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [exportOpen,setExportOpen]=useState(false),[citationStatus,setCitationStatus]=useState('');
   const [popupOpen, setPopupOpen] = useState(false);
   const rowRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -350,6 +352,8 @@ function ProjectRow({
         </div>
       </div>
 
+      {isActive&&exportOpen&&profileId&&<Suspense fallback={null}><ProjectExportSheet profileId={profileId} projectId={project.id} onClose={()=>setExportOpen(false)}/></Suspense>}
+      {isActive&&citationStatus&&<span role="status">{citationStatus}</span>}
       {isMobile && popupOpen && <MobileProjectPopup project={project} creatorId={profileId} contextHandlers={{ edit: onEdit, delete: onDelete }} onClose={() => setPopupOpen(false)} onOptions={() => setIsMenuOpen(true)} />}
       {createPortal(<AnimatePresence>
         {isMenuOpen && <motion.div ref={menuRef} tabIndex={-1} style={position ?? { visibility: 'hidden' }} role="menu" initial={{
@@ -388,6 +392,8 @@ function ProjectRow({
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
             </button>
+            {isActive&&profileId&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);setExportOpen(true);}}>Export</button>}
+            {isActive&&profileId&&onEdit&&project.attachments?.some(attachment=>attachment.kind==='image'||attachment.kind==='document')&&<button type="button" role="menuitem" className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px]" onClick={()=>{setIsMenuOpen(false);const attachment=project.attachments?.find(item=>item.kind==='image'||item.kind==='document');if(attachment)void import('../../features/references/ownCitation').then(module=>module.ownPageCitation(profileId,project.id,attachment.id,0)).then(text=>navigator.clipboard.writeText(text)).then(()=>setCitationStatus('Citation copied.')).catch(()=>setCitationStatus('Citation could not be copied.'));}}>Copy citation</button>}
             {/* These act on the published record itself, through the project
              management boundary — not on a local copy of it. */}
             {onDelete && <button type="button" data-keep-color="" role="menuitem" onClick={() => {

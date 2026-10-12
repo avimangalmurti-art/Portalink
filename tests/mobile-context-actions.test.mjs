@@ -12,6 +12,15 @@ const compile = (path, dependencies = {}, globals = {}) => {
   return exports;
 };
 const { contextActions, mergeContextActions } = compile('../src/presentation/mobile/contextActions.ts');
+test('project exports add only the requested actions and do not reveal previously capped visitor controls',()=>{
+ const old=['savePage','cite','share','signIn','createAccount','comment','copy','categories','settings','report'];
+ const handlers=Object.fromEntries(old.map(id=>[id,()=>{}])),before=contextActions('shared',{signedIn:false},{handlers});
+ const after=contextActions('shared',{signedIn:false},{handlers:{...handlers,export(){}}});
+ const flat=model=>[...model.primary,...model.groups.flat()].map(action=>action.id);
+ assert.deepEqual(Array.from(flat(after)),[...flat(before),'export']);
+ const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{edit(){},cover(){},startHere(){},thenNow(){},reads(){},visibility(){},delete(){},copyCitation(){},export(){}}});
+ assert.ok(flat(owner).includes('delete'));assert.ok(flat(owner).includes('copyCitation'));assert.ok(flat(owner).includes('export'));
+});
 const ids = model => [...model.primary, ...model.groups.flat()].map(action => action.id);
 const all = ['viewAsVisitor','projectInfo','deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
