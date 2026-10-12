@@ -66,7 +66,7 @@ function compile(path, imports, globals) {
   }).outputText, { exports, URLSearchParams, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
   const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [];
@@ -101,7 +101,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const onComplete = () => completed++;
   return { ...h,
     render() {
-      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, hidden: surfaceHidden }));
+      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
       const [poster, media] = tree.props.children[0].props.children.props.children;
@@ -733,7 +733,7 @@ test('sign in or resizing to WEB ends the opening landing permanently', () => {
     const splash=h.render();
     if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
     else h.setPresentation('web');
-    assert.equal(h.render().props.hidden,true);assert.equal(h.render(),null);
+    const handoff=h.render();assert.equal(handoff.props.hidden,action==='resize');if(action==='signin')assert.equal(handoff.props.welcomeHandoff,true);assert.equal(h.render(),null);
     h.auth.isAuthenticated=false;h.setPresentation('mobile');assert.equal(h.render(),null);
   }
 });
@@ -750,4 +750,11 @@ test('shared visitors can open Settings while the public-view boundary remains i
   h.auth.isInitializing=false;h.render();
   assert.equal(h.app.type,'redirect');
   assert.equal(h.app.props.to,'/share/creator');
+});
+
+test('leaving Hello World cross-fades for exactly250ms, respecting reduced motion and other startup timings',()=>{
+ const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'Continue as guest'};
+ for(const options of [{presentation:'mobile',landing:welcome},{presentation:'mobile',welcomeHandoff:true}]){const h=loader(options),view=h.render();assert.equal(view.tree.props.transition.duration,.25);assert.equal(view.tree.props.exit.opacity,0);h.unmount();}
+ const reduce=loader({presentation:'mobile',landing:welcome,reduced:true});reduce.render();assert.equal(reduce.exitDuration,0);reduce.unmount();
+ const normal=loader();normal.render();assert.equal(normal.exitDuration,.32);normal.unmount();
 });

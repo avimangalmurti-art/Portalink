@@ -122,7 +122,8 @@ export function ApplicationBootstrap() {
       }}>
         {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
-          hidden={Boolean(landingPath && (auth.pendingView || (auth.isAuthenticated && hasPresentedLanding) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
+          welcomeHandoff={hasPresentedLanding && auth.isAuthenticated}
+          hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             onCreateAccount: () => startAccount('signUp'),

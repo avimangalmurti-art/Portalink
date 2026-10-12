@@ -22,3 +22,4 @@ test('mobile account search avoids credential input classification while preserv
  const web=accountsHarness(()=>Promise.resolve([]));assert.ok(nodes(web.render()).find(n=>n.type==='input'&&n.props.type==='search'));
  h.dispose();web.dispose();
 });
+ test('Search keeps only account search and uses the requested empty-state copy',()=>{const h=accountsHarness(async()=>[]),tree=h.render();assert.equal(nodes(tree).find(n=>n.type==='h1').props.children,'Search');assert.ok(nodes(tree).some(n=>n.type==='p'&&n.props.children==='Search by name or handle.'));assert.equal(tree.props['aria-label'],'Search');h.dispose();});

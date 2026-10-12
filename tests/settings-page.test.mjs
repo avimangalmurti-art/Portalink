@@ -1,102 +1,38 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import ts from 'typescript';
-
-const source = readFileSync(new URL('../src/components/ControlCenterPage.tsx', import.meta.url), 'utf8');
-const code = ts.transpileModule(source, { compilerOptions: {module:ts.ModuleKind.CommonJS, jsx:ts.JsxEmit.React, esModuleInterop:true} }).outputText;
-function load(auth, nav, react = React, routing = {}) {
-  const exports = {};
-  vm.runInNewContext(code, { exports, URL, URLSearchParams, DOMException, window: { history: { state: { idx: routing.index ?? 0 } } }, require(name) {
-    if(name === 'react') return react;
-    if(name === 'react-router-dom') return { useLocation:()=>({state:routing.state}), useSearchParams:()=>[new URLSearchParams(routing.search), routing.setSearch ?? (()=>{})] };
-    if(name.endsWith('/AuthContext')) return {useAuth:()=>auth};
-    if(name.endsWith('/useAppRoute')) return {useRouteNavigator:()=>nav};
-    if(name.endsWith('/routes')) return {buildPath:name=>`/${name}`};
-    if(name.endsWith('.css')) return {};
-    if(name.endsWith('/Button')) return {Button:'button'};
-    if(name.endsWith('/NavigationButtonsPanel')) return {NavigationButtonsPanel:'appearance-panel'};
-    if(name.endsWith('/DeleteAccountDialog')) return {DeleteAccountDialog:'delete-dialog'};
-    if(name.endsWith('/AccountSecurityPage')) return {AccountSecurityPage:'security-page'};
-    if(name.endsWith('/InterfaceIcon')) return {InterfaceIcon:()=>null};
-    return {};
-  }});
-  return exports.ControlCenterPage;
+import {renderToStaticMarkup} from 'react-dom/server';
+import {sourceModule} from './helpers/source-module.mjs';
+const sections=sourceModule('src/components/settings/settingsSections.ts');
+const props={theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#0a84ff',highContrast:false,reduceTranslucency:false,onBack(){},onOpenProfile(){}};
+const all=node=>React.isValidElement(node)?[node,...React.Children.toArray(node.props.children).flatMap(all)]:[];
+function expand(node){if(!React.isValidElement(node))return node;if(node.type.name==='SettingsSection')return expand(node.type(node.props));return React.cloneElement(node,{},...React.Children.toArray(node.props.children).map(expand));}
+const action=(tree,label)=>all(tree).find(n=>n.type==='button'&&typeof n.props.onClick==='function'&&(n.props['aria-label']===label||all(n).some(c=>c.props.children===label)));
+function harness(auth={},query='',routeState=null){let params=new URLSearchParams(query),state=routeState,cursor=0,idx=1;const slots=[],calls=[],stack=[];const location={pathname:'/settings',search:query?'?'+query:'',state};
+ const react={...React,useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];}};
+ const nav={back:()=>calls.push(['back']),to:path=>calls.push(['to',path]),profileEditor:()=>calls.push(['edit'])};
+ const {ControlCenterPage}=sourceModule('src/components/ControlCenterPage.tsx',{react,'lucide-react':{ArrowLeftIcon:'back',ChevronRightIcon:'right'},'react-router-dom':{useLocation:()=>location,useNavigate:()=>value=>{calls.push(['navigate',value]);if(value===-1){const prev=stack.pop();params=prev.params;location.search=prev.search;state=location.state=prev.state;idx--; }},useSearchParams:()=>[params,(next,options={})=>{calls.push(['params',next.toString(),options]);if(!options.replace){stack.push({params,search:location.search,state});idx++;}params=next;location.search=next.toString()?'?'+next:'';state=location.state=options.state;}]},'./settings/settingsSections':sections,'./settings/NavigationButtonsPanel':{NavigationButtonsPanel:'appearance-panel'},'./ui/InterfaceIcon':{InterfaceIcon:()=>null},'./ui/Button':{Button:'button'},'../contexts/AuthContext':{useAuth:()=>auth},'../app/useAppRoute':{useRouteNavigator:()=>nav},'../app/routes':{buildPath:name=>'/'+name},'../features/auth/AccountSecurityPage':{AccountSecurityPage:'security-page'},'../features/auth/DeleteAccountDialog':{DeleteAccountDialog:'delete-dialog'},'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.test'},'./settings/settings-page.css':{}},{window:{history:{get state(){return{idx};}}},DOMException});
+ return{calls,location,render(overrides={}){cursor=0;return expand(ControlCenterPage({...props,...overrides}));},get section(){return params.get('section');}};
 }
-const action = (tree,label) => all(tree).find(n => n.type === 'button' && typeof n.props.onClick === 'function' && all(n).some(child=>child.props.children===label));
-const props = {theme:'dark',appearanceMode:'dark',systemGray:'gray',accentColor:'#ff375f',highContrast:false,reduceTranslucency:false,language:'auto',onBack(){},onOpenProfile(){}};
-const all = node => React.isValidElement(node) ? [node,...React.Children.toArray(node.props.children).flatMap(all)] : [];
-test('Settings is a page with visible Back, seven collapsed sections and no modal on first paint', () => {
-  for(const isAuthenticated of [false,true]) {
-    const Page=load({isAuthenticated,viewerProfileId:isAuthenticated?'owner':null},{});
-    const html=renderToStaticMarkup(React.createElement(Page,props));
-    assert.match(html,/<h1>Settings<\/h1>/);
-    assert.match(html,/aria-label="Back"/);
-    assert.equal((html.match(/aria-expanded="false"/g)||[]).length,7);
-    for(const name of ['Appearance','Account','Invite a friend','Privacy','Notifications','Language','About']) assert.ok(html.includes(name));
-    assert.doesNotMatch(html,/role="dialog"|aria-modal|settings-section-content|appearance-panel|delete-dialog/);
-  }
+test('Settings starts with seven navigation rows and right chevrons, never accordions',()=>{
+ for(const isAuthenticated of [false,true]){const h=harness({isAuthenticated}),html=renderToStaticMarkup(h.render());assert.match(html,/<h1>Settings<\/h1>/);assert.equal((html.match(/settings-section-trigger/g)||[]).length,7);assert.doesNotMatch(html,/aria-expanded|aria-controls|role="dialog"|appearance-panel|settings-section-content/);for(const title of ['Appearance','Account','Invite a friend','Privacy','Notifications','Language','About'])assert.ok(html.includes(title));}
+});
+test('every section has a URL, mounts only its own content, and Back restores Settings and caller state',()=>{
+ for(const [id,title]of [['appearance','Appearance'],['account','Account'],['invite','Invite a friend'],['privacy','Privacy'],['notifications','Notifications'],['language','Language'],['about','About']]){const state={settingsReturn:'/share/creator'};const h=harness({isAuthenticated:false},'source=profile',state);action(h.render(),title).props.onClick();assert.equal(h.section,id);assert.equal(h.location.state.settingsReturn,state.settingsReturn);const html=renderToStaticMarkup(h.render());assert.match(html,new RegExp('<h1>'+title+'</h1>'));assert.equal((html.match(/settings-section-content/g)||[]).length,1);assert.doesNotMatch(html,/settings-section-trigger|aria-expanded/);action(h.render(),'Back to Settings').props.onClick();assert.equal(h.section,null);assert.equal(h.location.search,'?source=profile');assert.equal(h.location.state.settingsReturn,state.settingsReturn);assert.equal(h.calls.at(-1)[1],-1);}
+});
+test('direct sub-screen links return to Settings instead of leaving the app; unknown sections fail to the list',()=>{
+ const h=harness({},'section=about');action(h.render(),'Back to Settings').props.onClick();assert.equal(h.section,null);assert.equal(h.calls.at(-1)[2].replace,true);const invalid=harness({},'section=not-a-screen');assert.match(renderToStaticMarkup(invalid.render()),/<h1>Settings<\/h1>/);
+});
+test('guest private destinations retain their auth gate in routed sub-screens',()=>{
+ const calls=[];for(const [section,label,path]of [['privacy','Open messages','/messages'],['notifications','View notifications','/notifications']]){const h=harness({isAuthenticated:false,requestAuthenticatedDestination:intent=>calls.push(intent)},'section='+section);action(h.render(),label).props.onClick();assert.equal(calls.at(-1).path,path);assert.equal(calls.at(-1).kind,'route');assert.equal(h.calls.length,0);}
+});
+test('Account retains guest sign-in/signup and owner profile/edit actions',()=>{
+ const calls=[];const guest=harness({isAuthenticated:false,requestAuth:view=>calls.push(view),requestAuthenticatedDestination:(_intent,view)=>calls.push(view)},'section=account');action(guest.render(),'Sign in').props.onClick();action(guest.render(),'Create account').props.onClick();assert.deepEqual(calls,['signIn','signUp']);const owner=harness({isAuthenticated:true,viewerProfileId:'owner'},'section=account');action(owner.render({onOpenProfile:()=>calls.push('profile')}),'View profile').props.onClick();action(owner.render(),'Edit profile').props.onClick();assert.equal(calls.at(-1),'profile');assert.equal(owner.calls.at(-1)[0],'edit');
 });
 
-test('Account security preserves Settings return state and Back uses the entry history', () => {
-  const react={...React,useState:value=>[value,()=>{}]};
-  const state={settingsReturn:'/studio'};
-  let pushed;
-  let Page=load({isAuthenticated:true,viewerProfileId:'owner'}, {}, react, {state,setSearch:(query,options)=>{pushed={query:query.toString(),options};}});
-  action(Page(props),'Account security').props.onClick();
-  assert.equal(pushed.query,'security=1');
-  assert.equal(pushed.options.state.settingsReturn,'/studio');
-  assert.equal(pushed.options.state.accountSecurityReturn,true);
-  let backed=false;
-  Page=load({isAuthenticated:true,user:{id:'owner'}},{back:()=>{backed=true;}},react,{search:'security=1',state:pushed.options.state,index:1});
-  const security=Page(props); assert.equal(security.type,'security-page');
-  security.props.onBack(); assert.equal(backed,true);
+test('nested Appearance rows route to controls and Back traverses both levels without losing caller state',()=>{
+ for(const panel of ['system-grey','appearance']){const h=harness({},'',{settingsReturn:'/share/creator'});action(h.render(),'Appearance').props.onClick();all(h.render()).find(n=>n.type==='appearance-panel').props.onSectionOpen(panel);assert.ok(h.location.search.includes('panel='+panel));assert.equal(all(h.render()).find(n=>n.type==='appearance-panel').props.selectedSection,panel);action(h.render(),'Back to Appearance').props.onClick();assert.equal(h.location.search,'?section=appearance');assert.equal(h.location.state.settingsReturn,'/share/creator');action(h.render(),'Back to Settings').props.onClick();assert.equal(h.location.search,'');}
+ const direct=harness({},'section=appearance&panel=system-grey');action(direct.render(),'Back to Appearance').props.onClick();assert.equal(direct.location.search,'?section=appearance');action(direct.render(),'Back to Settings').props.onClick();assert.equal(direct.location.search,'');
 });
 
-test('a direct security link returns to Settings without leaving the app', () => {
-  const react={...React,useState:value=>[value,()=>{}]};
-  let replacement;
-  const Page=load({isAuthenticated:false}, {}, react, {search:'security=1&keep=1',setSearch:(query,options)=>{replacement={query:query.toString(),options};}});
-  Page(props).props.onBack();
-  assert.equal(replacement.query,'keep=1'); assert.equal(replacement.options.replace,true);
-});
-
-test('guest private destinations request authentication before leaving Settings', () => {
-  const calls=[];
-  const react={...React,useState:value=>[value,()=>{}]};
-  const Page=load({isAuthenticated:false,requestAuthenticatedDestination:intent=>calls.push(intent)},
-    {to(){assert.fail('A shared visitor must not be redirected before sign-in');}},react);
-  for(const title of ['Open messages','View notifications']) action(Page(props),title).props.onClick();
-  assert.deepEqual(calls.map(c=>c.path),['/messages','/notifications']);
-  assert.ok(calls.every(c=>c.kind==='route'));
-});
-test('section expansion mounts content and collapse removes its reserved space', () => {
-  let state=false;
-  const react={...React,useState:()=>[state,fn=>{state=fn(state);} ]};
-  const Page=load({isAuthenticated:false},{},react);
-  const section=all(Page(props)).find(n=>n.props.id==='account');
-  let tree=section.type(section.props);
-  assert.equal(all(tree).some(n=>n.props.className==='settings-section-content'),false);
-  all(tree).find(n=>n.type==='button').props.onClick();
-  tree=section.type(section.props);
-  assert.equal(all(tree).some(n=>n.props.className==='settings-section-content'),true);
-  all(tree).find(n=>n.type==='button').props.onClick();
-  assert.equal(all(section.type(section.props)).some(n=>n.props.className==='settings-section-content'),false);
-});
-test('Account reuses sign-in/signup for guests and owner profile navigation for authenticated users', () => {
-  const calls=[];
-  const react={...React,useState:value=>[value,()=>{}]};
-  let Page=load({isAuthenticated:false,requestAuth:view=>calls.push(view),requestAuthenticatedDestination:(intent,view)=>{assert.equal(intent.kind,'my-profile');calls.push(view);}},{},react);
-  let account=all(Page(props)).find(n=>n.props.id==='account');
-  action(account,'Sign in').props.onClick();
-  action(account,'Create account').props.onClick();
-  assert.deepEqual(calls,['signIn','signUp']);
-  Page=load({isAuthenticated:true,viewerProfileId:'owner'},{profileEditor:()=>calls.push('edit')},react);
-  account=all(Page({...props,onOpenProfile:()=>calls.push('profile')})).find(n=>n.props.id==='account');
-  action(account,'View profile').props.onClick();
-  action(account,'Edit profile').props.onClick();
-  assert.deepEqual(calls.slice(-2),['profile','edit']);
-});
+test('Account security remains reachable and Back preserves the Account sub-screen',()=>{const h=harness({isAuthenticated:true,viewerProfileId:'owner'},'section=account',{settingsReturn:'/studio'});action(h.render(),'Account security').props.onClick();assert.equal(h.location.search,'?section=account&security=1');assert.equal(h.location.state.settingsReturn,'/studio');const security=all(h.render()).find(n=>n.type==='security-page');assert.ok(security);security.props.onBack();assert.equal(h.calls.at(-1)[0],'back');const direct=harness({},'section=account&security=1');all(direct.render()).find(n=>n.type==='security-page').props.onBack();assert.equal(direct.location.search,'?section=account');});

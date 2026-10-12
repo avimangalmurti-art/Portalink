@@ -52,13 +52,14 @@ export function SearchAccountsPage({ query, onQueryChange, onOpenCreator, onWarm
       if (request.current === version) setResult(value => ({ ...value, status: 'error' }));
     } finally { if (request.current === version) busy.current = false; }
   }
-  return <section data-account-search className="flex h-full min-h-0 flex-col px-5 py-5" aria-label="Account search">
+  return <section data-account-search className="flex h-full min-h-0 flex-col px-5 py-5" aria-label="Search">
     <header className="account-search-header contents">
     {onBack ? <ScreenBack visibleOnMobile action={onBack}><button type="button" aria-label="Back" className="account-search-back mb-3 flex h-11 w-11 shrink-0 items-center justify-center self-start" onClick={onBack}><ArrowLeftIcon aria-hidden="true" size={24} /></button></ScreenBack> : null}
-    <h1 className="mb-4 text-xl font-semibold">{mobile ? 'Account search' : 'Search accounts'}</h1>
+    <h1 className="mb-4 text-xl font-semibold">Search</h1>
     <label className="mb-4 block"><span className="sr-only">Search accounts</span><SearchField {...(mobile ? { rows: 1, wrap: 'off', role: 'searchbox' } : { type: 'search' })} name="account-search-query" autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} enterKeyHint="search" value={query} onChange={(event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onQueryChange(mobile ? event.target.value.replace(/[\r\n]+/g, ' ') : event.target.value)} onKeyDown={event => { if (mobile && event.key === 'Enter' && !event.nativeEvent.isComposing) event.preventDefault(); }} placeholder={mobile ? 'Search accounts' : 'Search by name or handle'} className={`min-h-11 w-full rounded-xl border border-[var(--hairline)] bg-[var(--surface-sunken)] px-3 py-2 text-base text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]${mobile ? ' block h-11 resize-none overflow-x-auto whitespace-nowrap' : ''}`} maxLength={80} /></label>
     </header>
     <div className="account-search-results min-h-0 flex-1 overflow-y-auto pb-24">
+      {!term && !recent.length && <p className="py-5 text-sm text-[var(--text-secondary)]">Search by name or handle.</p>}
 
       {loading ? <LoadingState label="Searching accounts…" /> : null}
       {current && result.status === 'error' ? <ErrorState title="Accounts could not be searched" description="Check your connection and try again." onRetry={() => setAttempt(value => value + 1)} /> : null}
