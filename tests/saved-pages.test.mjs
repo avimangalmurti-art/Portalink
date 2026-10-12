@@ -52,6 +52,7 @@ function database() {
 function workerFor(db) {
   const worker = load('../src/sites-worker.ts', {}, {
     fetch: async (url, init) => {
+      if (new URL(url).pathname === '/rest/v1/rpc/require_active_account_session') return new Response(null, { status: 204 });
       if (new URL(url).pathname === '/rest/v1/projects') {
         return Response.json([{ id: 'project', category: { id: 'portal' }, attachments: [
           { id: 'original/file.pdf', kind: 'document', position: 0, page_count: 8 },

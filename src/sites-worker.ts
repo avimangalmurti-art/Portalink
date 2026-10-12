@@ -116,6 +116,19 @@ async function authenticatedUser(request: Request, required: boolean): Promise<A
   if (!user || typeof user.id !== 'string' || !user.id) {
     throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   }
+  // Auth's JWT verification alone does not establish that its session row is
+  // still active. D1 requests use the same uncached check as the Data API.
+  let sessionCheck: Response
+  try {
+    sessionCheck = await fetch(`${SUPABASE_URL}/rest/v1/rpc/require_active_account_session`, {
+      method: 'POST', headers: { authorization, apikey: SUPABASE_KEY, 'content-type': 'application/json' },
+      body: '{}', signal: AbortSignal.timeout(8_000),
+    })
+  } catch { throw json({ error: 'Account verification is temporarily unavailable.' }, 503) }
+  if (sessionCheck.status === 401 || sessionCheck.status === 403) {
+    throw json({ error: 'Your session has ended. Sign in again to continue.' }, 401)
+  }
+  if (!sessionCheck.ok) throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   return user
 }
 

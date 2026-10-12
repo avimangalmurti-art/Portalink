@@ -57,7 +57,7 @@ export function AccountDeviceSessions({ disabled, onBusyChange, refreshKey }: { 
         const removed = await service.revokeAccountSession(accountId, selected.id);
         if (request !== generation.current) return;
         setSessions(previous => previous.filter(row => row.id !== selected.id));
-        setMessage(removed ? 'This session has been signed out. Its existing access may continue until its access token expires.' : 'This session has already ended.');
+        setMessage(removed ? 'This session has been signed out. Further account requests from that session are blocked.' : 'This session has already ended.');
       }
       if (request === generation.current) setSelected(null);
     } catch (caught) {
