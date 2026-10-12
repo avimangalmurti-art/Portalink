@@ -33,9 +33,10 @@ test('Studio sorts own published work by publication time and keeps collection i
   const saved = model.savedProjectStudioRows([{ project: oldProject, creator }])[0];
   assert.equal(saved.id, 'saved-project:old');
   assert.notEqual(saved.id, own[1].id);
-  assert.equal(saved.date, undefined);
+  assert.equal(saved.date, oldProject.publishedAt);
   assert.equal(model.savedCreatorStudioRows([{ id: creator.id, profile: creator }])[0].date, undefined);
-  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, target.savedAt);
+  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, undefined);
+  assert.equal(model.publishedStudioRows({...creator,projects:[{...oldProject,madeOn:'2025-10-06'}]})[0].date,'2025-10-06');
 });
 
 test('Studio All retains every saved kind and an explicit unavailable Drafts explanation', () => {

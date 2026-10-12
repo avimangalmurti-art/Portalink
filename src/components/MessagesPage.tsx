@@ -1,3 +1,4 @@
+import { MobilePillHeader } from '../presentation/mobile/MobilePillHeader';
 import { useUnderHeaderScroll } from '../presentation/mobile/useUnderHeaderScroll';
 import { MessageBody } from './messages/MessageBody';
 import { ConfirmationDialog } from './ui/ConfirmationDialog';
@@ -7,7 +8,7 @@ import { useMenuFocus } from '../hooks/useMenuFocus';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { usePresentation } from '../presentation/usePresentation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowDownIcon, ArrowLeftIcon, BanIcon, CheckIcon, FileTextIcon, FlagIcon, MessageSquarePlusIcon, MoreHorizontalIcon, PaperclipIcon, PencilIcon, PlusIcon, SearchIcon, SendIcon, SettingsIcon, Trash2Icon, Volume2Icon, VolumeXIcon, XIcon } from 'lucide-react';
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
@@ -64,6 +65,7 @@ export function MessagesPage({
   onConversationChange,
 }: MessagesPageProps) {
   const navigate = useNavigate();
+  const pageLocation = useLocation();
   const searchInput = useRef<HTMLInputElement>(null);
   const conversationListWidth = useResizablePanelWidth({
     id: 'messages-conversations',
@@ -311,6 +313,7 @@ export function MessagesPage({
       {hideMobileListHeader ? <>
         <ScreenBack action={goBackFromMessages}>{null}</ScreenBack>
         <h1 id="messages-heading" className="sr-only">Messages</h1>
+        <MobilePillHeader label="Messages" tabs={[{id:'all',label:'Chats'},{id:'unread',label:'Unread'},{id:'requests',label:'Requests'}]} active={conversationFilter} onChange={id=>setConversationFilter(id as 'all'|'unread'|'requests')} onBack={pageLocation?.state?.dockEntry==='messages'?undefined:goBackFromMessages} right={<MobileContextButton/>}/>
       </> : <header data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-20 shrink-0 !gap-0">
         <div className={`${showList ? 'flex' : 'hidden'} side-panel-content-inset h-full min-w-0 w-full shrink-0 items-center gap-[var(--side-panel-row-gap)] lg:flex lg:w-[min(var(--messages-sidebar-width),46%)] lg:border-r lg:border-[var(--hairline)]`}>
         <ScreenBack action={goBackFromMessages}><button data-ui-control="icon" data-control-size="md" data-control-variant="ghost" type="button" onClick={isMobile ? goBackFromMessages : onBack} aria-label={isMobileNewChat ? 'Back to messages' : 'Go back'} className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] lg:hidden">
@@ -361,21 +364,37 @@ export function MessagesPage({
               onDismissError={messaging.dismissError}
               onSelectCreator={(profileId) => { void messaging.startConversation(profileId); }}
             /> : <>
+              {!isMobile && <>
               <div data-inbox-controls="" className="side-panel-control-stack side-panel-content-inset shrink-0">
-                <div className={isMobile ? "mobile-screen-action-row" : undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+                <div className={undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
                   <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
                   <span className="sr-only">Search conversations</span>
                   <input ref={searchInput} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
                 </label>
-                {isMobile && <div data-inline-screen-actions=""><MobileContextButton /></div>}</div>
+                </div>
+                {!isMobile && <>
                 <div className="side-panel-filter-grid" role="group" aria-label="Conversation filter">
                   <FilterChip label="Chats" isActive={conversationFilter === 'all'} onSelect={() => setConversationFilter('all')} />
                   <FilterChip label="Unread" isActive={conversationFilter === 'unread'} onSelect={() => setConversationFilter('unread')} />
                   <FilterChip label={`Requests${messaging.requestCount ? ` ${messaging.requestCount}` : ''}`} isActive={conversationFilter === 'requests'} onSelect={() => setConversationFilter('requests')} />
-                </div>
+                </div>                </>}
+
               </div>
 
+              </>}
               <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
+                {isMobile && <>
+              <div data-inbox-controls="" className="side-panel-control-stack side-panel-content-inset shrink-0">
+                <div className={undefined}><label className="text-control-shell side-panel-primary-control group flex items-center gap-2.5 px-3">
+                  <InterfaceIcon icon={SearchIcon} className="text-[var(--text-tertiary)] group-focus-within:text-[var(--accent-text)]" />
+                  <span className="sr-only">Search conversations</span>
+                  <input ref={searchInput} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none" />
+                </label>
+                </div>
+
+              </div>
+
+                </>}
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}<button type="button" className="ml-2 min-h-11 underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div> : null}
                 {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}

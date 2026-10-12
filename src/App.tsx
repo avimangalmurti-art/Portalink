@@ -1041,7 +1041,7 @@ function AppContent() {
    * rather than floating above it. It needs an account, so a guest is sent
    * through the gate first.
    */
-  function openMessages(recipientProfileId?: string) {
+  function openMessages(recipientProfileId?: string, fromDock = false) {
     const intent: AuthIntent = { kind: 'messages', ...(recipientProfileId ? { recipientProfileId } : {}) };
     if (!auth.isAuthenticated) {
       auth.requestAuthenticatedDestination(isSharedRoute ? interactionIntent('message this creator', pathname + search) : intent);
@@ -1052,7 +1052,8 @@ function AppContent() {
       setIsOnboardingOpen(true);
       return;
     }
-    nav.messages(undefined, false, recipientProfileId);
+    if (fromDock) nav.messages(undefined, false, recipientProfileId, {dockEntry:'messages'});
+    else nav.messages(undefined, false, recipientProfileId);
   }
   function navigateTo(destination: NavigationDestination) {
     // A record label is an editorial destination, not a creator profile: it never

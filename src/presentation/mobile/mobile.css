@@ -5395,3 +5395,38 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
   padding-top: 0;
 }
+/* Fixed Studio/Messages/Profile tab bars own the top inset in the app. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell[data-studio-fixed-header] {
+  height: var(--mobile-viewport-height, 100dvh); padding-top: var(--mobile-pill-header-height); overflow: hidden; display:flex; flex-direction:column;
+}
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] > .mobile-studio { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-header { padding: 0; margin: 0; flex:none; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-workbench-header { padding:0; flex:none; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] :is(.studio-content,.studio-workbench-scroll) {
+  flex: 1; min-height: 0; overflow-y: auto !important; padding: 12px 16px calc(var(--mobile-dock-size, 56px) + var(--safe-area-bottom, 0px) + 16px); scroll-padding-bottom: calc(var(--mobile-dock-size, 56px) + var(--safe-area-bottom, 0px) + 16px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-search { margin:0 0 12px; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-search input { min-width:0; width:100%; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-bookmark-tabs { display:flex; gap:6px; border:0; padding:0 0 12px; background:transparent; }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-bookmark-tabs button { min-height:36px; border:1px solid var(--hairline); border-radius:999px; padding:6px 12px; background:transparent; color:var(--text-secondary); }
+#root .codex-shell[data-presentation='mobile'] [data-studio-fixed-header] .studio-bookmark-tabs button[aria-pressed='true'] { border-color:var(--text-primary); color:var(--text-primary); background:transparent; box-shadow:none; }
+#root .codex-shell[data-presentation='mobile'] .studio-row-summary { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; white-space:normal; overflow-wrap:anywhere; line-height:1.4; }
+#root .codex-shell[data-presentation='mobile'] .studio-row-metadata { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--text-tertiary); font-size:11px; margin-top:4px; }
+#root .codex-shell[data-presentation='mobile'] .studio-reference-metadata { border:1px solid var(--hairline); border-radius:6px; padding:1px 5px; background:var(--surface-sunken); }
+#root .codex-shell[data-presentation='mobile'] .studio-empty-state { padding:24px 0; }
+#root .codex-shell[data-presentation='mobile'] .studio-empty-state p { font-size:14px; font-weight:400; line-height:1.5; color:var(--text-secondary); margin:0 0 8px; }
+#root .codex-shell[data-presentation='mobile'] .studio-empty-state .studio-empty-title { color:var(--text-primary); }
+#root .codex-shell[data-presentation='mobile'] .studio-empty-state button { min-height:44px; padding:8px 16px; border-radius:999px; border:1px solid var(--hairline); background:var(--surface-raised); font-size:14px; }
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top:var(--mobile-pill-header-height); }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls] { position:static; padding:12px 16px; border:0; background:none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls]::before { display:none; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls] > div { display:block; }
+#root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls] label { width:100%; }
+#root .codex-shell[data-presentation='mobile'] [data-profile-pill-header] { padding-top:var(--mobile-pill-header-height); }
+#root .codex-shell[data-presentation='mobile'] [data-profile-pill-header] .profile-compact-header { position:static; }
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] svg { color:var(--accent-text) !important; stroke:currentColor; }
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-exit [data-mobile-pill-header] { visibility:hidden; }
+
+#root .codex-shell[data-presentation='mobile'] .mobile-pill-header-right :is(.studio-text-control,.studio-drafts-control) { height:36px; min-height:36px; min-width:0; width:auto; margin:0; padding:6px 12px; background:transparent; border:1px solid var(--hairline); font-size:13px; font-weight:400; text-decoration:none; box-shadow:none; }
+
+#root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] [data-mobile-scroll-end] { margin-top:0; padding-top:0; }
