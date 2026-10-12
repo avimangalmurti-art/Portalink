@@ -181,7 +181,7 @@ export function VisitorApp() {
       </div>
       {profile && portalPopupId && presentation === 'mobile' && <SharedPortalPopup profile={profile} categoryId={portalPopupId} onClose={() => setPortalPopupId(null)} onSelect={openProject} />}
       <DeferredDialog active={Boolean(auth.pendingView) && (!onboardingOpen || auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery))} onClose={auth.closeAuth}>
-        <AuthDialog welcomeBeforeSignup initialSignupStep="profile" showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
+        <AuthDialog welcomeBeforeSignup showWelcomeMedia={false} registrationReturnPath={sharedPath} theme={theme} systemGray={systemGray}
           onSystemGrayChange={value => appearance.chooseAppearance({ systemGray: value })} accentColor={accentColor}
           onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
           onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}

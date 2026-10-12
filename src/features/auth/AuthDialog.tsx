@@ -236,7 +236,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       restoreActions.current.onAccentColorChange(saved.registration.accentColor);
       if (saved.registration.systemGray) restoreActions.current.onSystemGrayChange?.(saved.registration.systemGray);
       if (saved.requiresEmailVerification) setRestoredResult({ email: saved.email, requiresEmailVerification: true, session: null });
-      else restoreActions.current.onStepChange('account');
+      // Restore unfinished form values without skipping the appearance step.
     }).catch(() => {
       if (current) setDraftError('Your saved signup could not be restored. Please try again.');
     }).finally(() => { if (current) setDraftLoading(false); });
