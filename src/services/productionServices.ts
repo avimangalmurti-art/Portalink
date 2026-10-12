@@ -8,12 +8,14 @@ import { supabaseCreatorSaveService } from './supabase/creatorSaveService';
 import { unavailableLiveService } from './unavailable';
 import { localGeographyService } from './local';
 import type { Services } from './interfaces';
+import { supabaseLegalService } from './supabase/legalService';
 
 const processingReads = deferredService(() => import('./supabase/mediaProcessingReads').then(module => module.supabaseMediaProcessingReadService));
 
 // Importing the connected services retains client.ts's fail-closed production
 // configuration checks. This entry has no prototype implementation or seed data.
 export const services: Services = {
+  legal: supabaseLegalService,
   auth: supabaseAuthService,
   profiles: supabaseProfileService,
   projects: supabaseProjectService,

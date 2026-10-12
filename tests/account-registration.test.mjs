@@ -180,6 +180,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
   };
   const asyncAction = load('src/hooks/useAsyncAction.ts', { react: hooks.react });
   const authFlows = load('src/features/auth/useAuthFlows.ts', {
+    '../legal/signupTermsContext': {useSignupTerms: () => ({requestConsent: async () => []})},
     react: hooks.react, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,
     '../../contexts/AuthContext': { useAuth: () => authContext }, './registration': draftApi,
     '../../contexts/ServicesContext': { useServices: () => ({ auth: { async signUp(input) {
@@ -412,6 +413,7 @@ test('signup saves the complete draft before requesting an account and handles v
     const hooks = hookRuntime(), calls = [];
     const asyncAction = load('src/hooks/useAsyncAction.ts', {react: hooks.react});
     const {useSignUp} = load('src/features/auth/useAuthFlows.ts', {
+      '../legal/signupTermsContext': {useSignupTerms: () => ({requestConsent: async () => []})},
       react: hooks.react, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,
       '../../contexts/ServicesContext': {useServices: () => ({auth: {async signUp(input) {
         calls.push('signup'); assert.equal(input.registration.name, draft.name);

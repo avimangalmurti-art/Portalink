@@ -1,0 +1,15 @@
+diff --git a/src/server/mcp.ts b/src/server/mcp.ts
+--- a/src/server/mcp.ts
++++ b/src/server/mcp.ts
+@@ -6,1 +6,1 @@
+-import { citationLicenseResponse } from './citation';
++import { readLegalLicenseText } from './legal';
+@@ -67,1 +67,1 @@
+-async function licenseText(uri:string){const response=citationLicenseResponse('/licenses/'+uri.split('/').at(-1));if(!response)throw new McpFailure(404,'Not found.');return response.text();}
++async function licenseText(uri:string,config:McpConfig,fetcher:typeof fetch){return readLegalLicenseText(uri,config,fetcher);}
+@@ -104,1 +104,1 @@
+-   value={contents:[{uri:resource.uri,mimeType:'text/plain',text:await licenseText(resource.uri)}]};
++   value={contents:[{uri:resource.uri,mimeType:'text/plain',text:await licenseText(resource.uri,config,fetcher)}]};
+@@ -108,1 +108,1 @@
+-   if(name==='license')value=result(await Promise.all(resources.map(async r=>({uri:r.uri,text:await licenseText(r.uri)}))));
++   if(name==='license')value=result(await Promise.all(resources.map(async r=>({uri:r.uri,text:await licenseText(r.uri,config,fetcher)}))));

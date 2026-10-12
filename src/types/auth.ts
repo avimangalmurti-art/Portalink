@@ -155,6 +155,7 @@ export type SignUpInput = {
   email: string;
   password: string;
   registration?: import('../features/auth/registration').RegistrationProfile;
+  legalVersions?: import('../features/legal/model').LegalVersion[];
 };
 
 /**

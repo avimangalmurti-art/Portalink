@@ -54,6 +54,7 @@ function setup() {
   const owner = load('src/server/rumOwner.ts', {}, { fetch });
   const rum = load('src/server/rum.ts');
   const worker = load('src/sites-worker.ts', {
+    './server/legal': {},
     './features/sharing/shareModel': load('src/features/sharing/shareModel.ts'),
     './server/shareAddress': {}, './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
     './server/sharedPreview': {}, './server/publicMedia': { isPublicMediaRoute: () => false },

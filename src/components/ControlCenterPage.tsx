@@ -138,6 +138,7 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
         <p>Portalink is currently available in English.</p>
       </SettingsSection>
       <SettingsSection id="about" title="About" subtitle="Version, legal and more">
+        <Button variant="secondary" onClick={() => { const next = new URLSearchParams(searchParams); next.set('terms', '1'); setSearchParams(next); }}><span className="settings-action-label">Terms</span></Button>
         <p>Portalink Networks</p><p>Web app</p>
       </SettingsSection>
     </div>

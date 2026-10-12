@@ -212,6 +212,7 @@ test('recovery lookup runs once across rerenders, settles, and allows a new pass
   const auth = { getRecoverySession() { lookups++; return new Promise((done) => { resolve = done; }); }, async updatePassword() { updates++; } };
   const asyncAction = load('../src/hooks/useAsyncAction.ts', { react: hooks.react });
   const { usePasswordUpdate } = load('../src/features/auth/useAuthFlows.ts', {
+    '../legal/signupTermsContext': {},
     './registration': { saveRegistrationAvatar() { throw new Error('Recovery must not save registration data'); } },
     '../../contexts/AuthContext': { useAuth: () => ({ refreshSession: async () => { refreshes++; return false; } }) },
     react: hooks.react, '../../contexts/ServicesContext': { useServices: () => ({ auth }) }, '../../hooks/useAsyncAction': asyncAction, '../../types/auth': authTypes,

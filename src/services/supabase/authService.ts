@@ -279,7 +279,8 @@ export const supabaseAuthService: AuthService = {
       email,
       password: input.password,
       options: { emailRedirectTo: window.location.origin,
-        data: registration ? { portalink_registration: registration } : undefined },
+        data: registration || input.legalVersions?.length ? { ...(registration ? { portalink_registration: registration } : {}),
+          ...(input.legalVersions?.length ? { portalink_legal_versions: input.legalVersions } : {}) } : undefined },
     });
     if (error) {
       throw authFailure(error, 'Account creation failed.');

@@ -1,5 +1,6 @@
 import { requireBuildEnvironment } from './scripts/build-environment.mjs'
 import { handleCitation, citationLicenseResponse } from './src/server/citation'
+import { handleLegalPage } from './src/server/legal'
 import { readPortfolioCard } from './src/server/sharedPreview'
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
@@ -29,7 +30,8 @@ export default defineConfig(({ command, mode }) => {
         const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
         if (url.pathname === '/sitemap.xml') { const result=await publicSitemap(new Request(url,{method:request.method}),config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         const license = citationLicenseResponse(url.pathname);
-        if (license) { response.statusCode=license.status; response.setHeader('Content-Type',license.headers.get('content-type')!); response.end(await license.text()); return; }
+        if (license) { response.statusCode=license.status; license.headers.forEach((value,key)=>response.setHeader(key,value)); response.end(await license.text()); return; }
+        if (/^\/legal\/(terms|privacy|content-licence|ai-access)\/?$/.test(url.pathname)) { const result=await handleLegalPage(new Request(url,{method:request.method}),config); response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         if ((request.method === 'GET' || request.method === 'HEAD') && url.pathname.startsWith('/cite/')) {
           const result=await handleCitation(new Request(url,{method:request.method}),{fetch:async()=>new Response(await server.transformIndexHtml('/cite.html',await readFile('cite.html','utf8')))},config);
           response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return;

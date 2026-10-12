@@ -1,5 +1,6 @@
 import { profileSharing } from './supabase/profileSharing';
 import type { Services } from './interfaces';
+import type { LegalService } from '../features/legal/model';
 import { supabaseAuthService } from './supabase/authService';
 import { supabaseProfileReadService } from './supabase/contentReaders';
 import { deferredService, unavailableVisitorService } from './deferredService';
@@ -10,6 +11,7 @@ const processingReads = deferredService(() => import('./supabase/mediaProcessing
 /** Public entry: canonical reads now, account actions only when requested.
  * The full registry, mock data, uploads and messaging never initialize here. */
 export const visitorServices: Services = {
+  legal: deferredService<LegalService>(() => import('./supabase/legalService').then(module => module.supabaseLegalService)),
   auth: supabaseAuthService,
   profiles: deferredService(() => import('./supabase/contentServices').then(module => module.supabaseProfileService), {
     resolvePublicHandle: profileSharing.resolvePublicHandle,

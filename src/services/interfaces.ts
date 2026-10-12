@@ -522,6 +522,7 @@ export interface GeographyService {
 
 /** The single registry components resolve services from. */
 export type Services = {
+  legal?: import('../features/legal/model').LegalService;
   reads?: import('../features/reads/readSignal').ReadSignalService;
   // `auth` is the only authority on who is signed in.
   auth: AuthService;
