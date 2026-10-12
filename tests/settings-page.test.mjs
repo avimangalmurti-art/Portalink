@@ -8,10 +8,11 @@ import ts from 'typescript';
 
 const source = readFileSync(new URL('../src/components/ControlCenterPage.tsx', import.meta.url), 'utf8');
 const code = ts.transpileModule(source, { compilerOptions: {module:ts.ModuleKind.CommonJS, jsx:ts.JsxEmit.React, esModuleInterop:true} }).outputText;
-function load(auth, nav, react = React) {
+function load(auth, nav, react = React, routing = {}) {
   const exports = {};
-  vm.runInNewContext(code, { exports, URL, DOMException, require(name) {
+  vm.runInNewContext(code, { exports, URL, URLSearchParams, DOMException, window: { history: { state: { idx: routing.index ?? 0 } } }, require(name) {
     if(name === 'react') return react;
+    if(name === 'react-router-dom') return { useLocation:()=>({state:routing.state}), useSearchParams:()=>[new URLSearchParams(routing.search), routing.setSearch ?? (()=>{})] };
     if(name.endsWith('/AuthContext')) return {useAuth:()=>auth};
     if(name.endsWith('/useAppRoute')) return {useRouteNavigator:()=>nav};
     if(name.endsWith('/routes')) return {buildPath:name=>`/${name}`};
@@ -19,6 +20,7 @@ function load(auth, nav, react = React) {
     if(name.endsWith('/Button')) return {Button:'button'};
     if(name.endsWith('/NavigationButtonsPanel')) return {NavigationButtonsPanel:'appearance-panel'};
     if(name.endsWith('/DeleteAccountDialog')) return {DeleteAccountDialog:'delete-dialog'};
+    if(name.endsWith('/AccountSecurityPage')) return {AccountSecurityPage:'security-page'};
     if(name.endsWith('/InterfaceIcon')) return {InterfaceIcon:()=>null};
     return {};
   }});
@@ -37,6 +39,29 @@ test('Settings is a page with visible Back, seven collapsed sections and no moda
     for(const name of ['Appearance','Account','Invite a friend','Privacy','Notifications','Language','About']) assert.ok(html.includes(name));
     assert.doesNotMatch(html,/role="dialog"|aria-modal|settings-section-content|appearance-panel|delete-dialog/);
   }
+});
+
+test('Account security preserves Settings return state and Back uses the entry history', () => {
+  const react={...React,useState:value=>[value,()=>{}]};
+  const state={settingsReturn:'/studio'};
+  let pushed;
+  let Page=load({isAuthenticated:true,viewerProfileId:'owner'}, {}, react, {state,setSearch:(query,options)=>{pushed={query:query.toString(),options};}});
+  action(Page(props),'Account security').props.onClick();
+  assert.equal(pushed.query,'security=1');
+  assert.equal(pushed.options.state.settingsReturn,'/studio');
+  assert.equal(pushed.options.state.accountSecurityReturn,true);
+  let backed=false;
+  Page=load({isAuthenticated:true,user:{id:'owner'}},{back:()=>{backed=true;}},react,{search:'security=1',state:pushed.options.state,index:1});
+  const security=Page(props); assert.equal(security.type,'security-page');
+  security.props.onBack(); assert.equal(backed,true);
+});
+
+test('a direct security link returns to Settings without leaving the app', () => {
+  const react={...React,useState:value=>[value,()=>{}]};
+  let replacement;
+  const Page=load({isAuthenticated:false}, {}, react, {search:'security=1&keep=1',setSearch:(query,options)=>{replacement={query:query.toString(),options};}});
+  Page(props).props.onBack();
+  assert.equal(replacement.query,'keep=1'); assert.equal(replacement.options.replace,true);
 });
 
 test('guest private destinations request authentication before leaving Settings', () => {

@@ -291,8 +291,8 @@ export const supabaseAuthService: AuthService = {
     };
   },
 
-  async signOut() {
-    const { error } = await requireSupabase().auth.signOut();
+  async signOut(scope = 'global') {
+    const { error } = await requireSupabase().auth.signOut({ scope });
     if (error) throw authFailure(error, 'Sign out failed.');
   },
 
@@ -415,6 +415,25 @@ export const supabaseAuthService: AuthService = {
     };
   },
 
+  async signOutOtherSessions(accountId) {
+    const client = requireSupabase();
+    const generation = sessionGeneration;
+    const { data, error } = await client.auth.getSession();
+    if (error) throw authFailure(error, 'Your session could not be checked.');
+    if (!data.session || data.session.user.id !== accountId) {
+      throw new AuthServiceError('reauthentication_required', 'Sign in again to manage your sessions.');
+    }
+    await assertCurrentAccount(accountId, generation);
+    // Bind revocation to the captured account even if another tab changes identity.
+    const bound = createPasswordRecoveryClient();
+    const established = await bound.setSession({ access_token: data.session.access_token, refresh_token: data.session.refresh_token });
+    if (established.error) throw authFailure(established.error, 'Your session could not be checked.');
+    if (established.data.session?.user.id !== accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again to manage your sessions.');
+    await assertCurrentAccount(accountId, generation);
+    const result = await bound.signOut({ scope: 'others' });
+    if (result.error) throw authFailure(result.error, 'Other sessions could not be signed out.');
+  },
+
   async getAccountSecurityState(): Promise<AccountSecurityState> {
     const user = await currentProviderUser();
     const providerUser = user as User & { new_email?: string; email_change_sent_at?: string };
@@ -433,18 +452,26 @@ export const supabaseAuthService: AuthService = {
   },
 
   async changePassword(input) {
-    const client = requireSupabase();
+    const generation = sessionGeneration;
     const user = await currentProviderUser();
     if (user.id !== input.accountId || !user.email) {
       throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your password.');
     }
-    const verified = await client.auth.signInWithPassword({
+    const verifier = createPasswordRecoveryClient();
+    const verified = await verifier.signInWithPassword({
       email: user.email,
       password: input.currentPassword,
     });
     if (verified.error) throw authFailure(verified.error, 'The current password is incorrect.');
-    const { error } = await client.auth.updateUser({ password: input.newPassword });
-    if (error) throw authFailure(error, 'The password could not be changed.');
+    try {
+      if (verified.data.user?.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your password.');
+      await assertCurrentAccount(input.accountId, generation);
+      const { error } = await verifier.updateUser({ password: input.newPassword });
+      if (error) throw authFailure(error, 'The password could not be changed.');
+    } finally {
+      // This temporary verification session never replaces the app's session.
+      await verifier.signOut({ scope: 'local' }).catch(() => undefined);
+    }
     return {
       isChanged: true,
       message: 'Your password has been changed.',
@@ -453,12 +480,22 @@ export const supabaseAuthService: AuthService = {
   },
 
   async requestEmailChange(input) {
+    const generation = sessionGeneration;
     const user = await currentProviderUser();
     if (user.id !== input.accountId) {
       throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
     }
     const email = input.newEmail.trim().toLowerCase();
-    const { error } = await requireSupabase().auth.updateUser({ email });
+    if (email === user.email?.toLowerCase()) throw new AuthServiceError('invalid_email', 'That is already the address on this account.');
+    const current = await requireSupabase().auth.getSession();
+    if (current.error) throw authFailure(current.error, 'Your session could not be checked.');
+    if (!current.data.session || current.data.session.user.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
+    const bound = createPasswordRecoveryClient();
+    const established = await bound.setSession({ access_token: current.data.session.access_token, refresh_token: current.data.session.refresh_token });
+    if (established.error) throw authFailure(established.error, 'Your session could not be checked.');
+    if (established.data.session?.user.id !== input.accountId) throw new AuthServiceError('reauthentication_required', 'Sign in again before changing your email address.');
+    await assertCurrentAccount(input.accountId, generation);
+    const { error } = await bound.updateUser({ email }, { emailRedirectTo: window.location.origin });
     if (error) throw authFailure(error, 'The email change could not be requested.');
     return {
       status: 'pending',

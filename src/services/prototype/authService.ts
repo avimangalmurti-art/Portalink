@@ -103,6 +103,9 @@ function normalise(email: string) {
   return email.trim().toLowerCase();
 }
 export const prototypeAuthService: AuthService = {
+  async signOutOtherSessions() {
+    throw new AuthServiceError('unsupported', 'This prototype has no other signed-in sessions.');
+  },
   async getSession(): Promise<AuthSession | null> {
     // Nothing is restored from storage: the prototype starts signed out.
     return settle(currentSession, 300);
