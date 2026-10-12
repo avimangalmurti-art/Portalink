@@ -178,7 +178,7 @@ test('Home uses one project per track at every density, preserving project order
   }
 });
 
-test('Home fit bounds gestures without saving its responsive fallback; default profiles retain thirteen',()=>{
+test('An optional fit bounds gestures without saving its fallback; ordinary galleries retain thirteen',()=>{
  const h=harness(),fit=value=>value<=2?value:2;const view=h.render(13,true,13,undefined,fit);
  assert.equal(view.columns,2);for(let n=0;n<5;n++)h.wheel(1);
  assert.equal(h.render(13,true,13,undefined,fit).columns,2);h.flush(220);h.cleanup();assert.deepEqual(h.commits,[]);
