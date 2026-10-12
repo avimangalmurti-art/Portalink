@@ -5318,3 +5318,22 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating:is(:hover, :has(button:active)) {
   background: var(--surface-hover);
 }
+
+/* Saved/Activity library screens keep their grey floating surface on the ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
