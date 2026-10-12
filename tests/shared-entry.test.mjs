@@ -177,10 +177,11 @@ test('shared sign-in explicitly suppresses welcome media but preserves its acces
 
 test('shared-entry media preference reaches the existing auth surface only when an auth view was requested', () => {
   for (const presentation of ['mobile', 'web']) {
-    const auth = { pendingView: null, phase: 'anonymous', closeAuth() {} };
+    const actions = [];
+    const auth = { pendingView: null, phase: 'anonymous', closeAuth() { actions.push('close'); }, requestAuth(view) { actions.push(view); } };
     const { AuthDialog } = load('../src/features/auth/AuthDialog.tsx', {
       react: inertReact, 'lucide-react': {}, '../../contexts/AuthContext': { useAuth: () => auth },
-      '../../components/auth/AuthField': {}, '../../components/ui/Button': {}, '../../components/ui/InterfaceIcon': {},
+      '../../components/auth/AuthField': {}, '../../components/ui/Button': {}, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': { PortalinkSplashLoader: 'hello-world' },
       '../../components/profile/AvatarPicker': {}, '../../components/profile/ProfileField': {}, '../../components/profile/ProfileVisibilityField': {},
       '../../components/profile/ProfileLocationPicker': {}, '../profile/useProfileOnboarding': {}, '../profile/validation': {},
       '../../components/auth/AccountWelcomeSurface': { AccountWelcomeSurface: 'account-surface' },
@@ -190,6 +191,17 @@ test('shared-entry media preference reaches the existing auth surface only when 
     assert.equal(AuthDialog({ showWelcomeMedia: false }), null);
     auth.pendingView = 'signIn';
     const requested = AuthDialog({ showWelcomeMedia: false });
+    for (const view of ['signUp', 'signIn']) {
+      auth.pendingView = view;
+      const welcome = AuthDialog({ welcomeBeforeSignup: true });
+      assert.equal(welcome.type, 'hello-world');
+      assert.equal(welcome.props.landing.continueLabel, 'Continue as guest');
+      welcome.props.landing.onCreateAccount();
+      welcome.props.landing.onSignIn();
+      welcome.props.landing.onForgotPassword();
+      welcome.props.landing.onContinue();
+      assert.deepEqual(actions.splice(0), ['signUp', 'signIn', 'forgotPassword', 'close']);
+    }
     assert.equal(requested.type, 'account-surface'); assert.equal(requested.props.showWelcomeMedia, false); assert.equal(requested.props.title, 'Sign in');
   }
 });

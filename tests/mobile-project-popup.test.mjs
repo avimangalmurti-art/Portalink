@@ -49,3 +49,10 @@ test('owner actions invoke the existing editor and confirmation callbacks after 
  const unavailable=OwnerActions({onClose(){}});
  assert.equal(nodes(unavailable).filter(n=>n.type==='button').length,0);
 });
+
+test('only Home opts into the centered owner dropdown', () => {
+ const home = render(false).tree;
+ const shared = render(true).tree;
+ assert.equal(home.props.centeredOwnerMenu, true);
+ assert.equal(shared.props.centeredOwnerMenu, false);
+});

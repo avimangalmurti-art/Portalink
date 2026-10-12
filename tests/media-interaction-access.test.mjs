@@ -25,6 +25,7 @@ function setup() {
   ]);
   let accessFailure;
   let authFailure;
+  let sessionFailure;
   const binding = {
     prepare(sql) { let values = []; return {
       bind(...args) { values = args; return this; },
@@ -60,6 +61,10 @@ function setup() {
         if (authFailure) return authFailure();
         return account === 'expired' ? Response.json({}, { status: 401 }) : Response.json({ id: account, user_metadata: { name: account } });
       }
+      if (parsed.pathname === '/rest/v1/rpc/require_active_account_session') {
+        assert.equal(init.method, 'POST'); assert.equal(init.body, '{}');
+        return sessionFailure ? sessionFailure() : new Response(null, { status: 204 });
+      }
       assert.equal(parsed.pathname, '/rest/v1/projects');
       assert.equal(init.method, undefined);
       assert.match(parsed.searchParams.get('select'), /^(?:profile_id,category_id,title,profile:profiles!projects_profile_id_fkey!inner\(account_id\),)?id,category:portfolio_categories!inner\(id\),attachments:project_attachments\(id,kind,position,page_count:metadata->pageCount\)$/);
@@ -92,7 +97,7 @@ function setup() {
   const seedComment = (id, account, value = target()) => sqlite.prepare('INSERT INTO media_comments(id,account_id,project_id,attachment_id,page_index,author_name,body) VALUES (?,?,?,?,?,?,?)')
     .run(id, account, value.projectId, value.attachmentId, value.pageIndex, account, `Private body ${id}`);
   return { sqlite, projects, calls, executions, request, readTarget, batch, engage, comment, removeComment, seedSave, seedComment,
-    failAccess(value) { accessFailure = value; }, failAuth(value) { authFailure = value; },
+    failAccess(value) { accessFailure = value; }, failAuth(value) { authFailure = value; }, failSession(value) { sessionFailure = value; },
     clear() { calls.length = 0; executions.length = 0; }, close() { sqlite.close(); } };
 }
 
@@ -193,7 +198,7 @@ test('a batch authorizes once, deduplicates targets, and denies the whole read i
     assert.equal(response.status, 200);
     const { items } = await response.json();
     assert.equal(items.length, 19); assert.equal(items[0].record.counts.save, 2); assert.equal(items[0].record.engaged.save, true);
-    assert.equal(s.calls.length, 2); assert.equal(s.executions.length, 2);
+    assert.equal(s.calls.length, 3); assert.equal(s.executions.length, 2);
     s.clear();
     assert.equal((await s.batch([target(), target('private', 'private-pdf')], 'bob')).status, 404);
     assert.equal(s.executions.length, 0);
@@ -250,7 +255,27 @@ test('saved lists and unsave remain private and usable after content access is r
     const response = await s.request(`${base}/saved`, { account: 'carol', method: 'DELETE', body: { ...value, account_id: 'alice' } });
     assert.equal(response.status, 200); assert.deepEqual(await response.json(), { removed: true });
     assert.deepEqual(s.sqlite.prepare('SELECT account_id FROM media_engagements').all().map(row => row.account_id), ['alice']);
-    assert.ok(s.calls.every(call => call.url.pathname === '/auth/v1/user'));
+    assert.ok(s.calls.every(call => ['/auth/v1/user', '/rest/v1/rpc/require_active_account_session'].includes(call.url.pathname)));
+  } finally { s.close(); }
+});
+
+test('a revoked JWT or unavailable session checker never reaches D1 even when Auth still accepts the user', async () => {
+  const s = setup();
+  try {
+    for (const [failure, status] of [
+      [() => Response.json({ code: 'PT401' }, { status: 401 }), 401],
+      [() => new Response(null, { status: 403 }), 401],
+      [() => new Response(null, { status: 500 }), 503],
+      [() => new Response(null, { status: 404 }), 503],
+      [() => { throw new Error('offline'); }, 503],
+    ]) {
+      s.failSession(failure); s.clear();
+      for (const action of [() => s.engage(), () => s.comment(), () => s.request(`${base}/saved`, { account: 'alice' })]) {
+        assert.equal((await action()).status, status);
+      }
+      assert.equal(s.executions.length, 0);
+      assert.ok(s.calls.every(call => ['/auth/v1/user', '/rest/v1/rpc/require_active_account_session'].includes(call.url.pathname)));
+    }
   } finally { s.close(); }
 });
 

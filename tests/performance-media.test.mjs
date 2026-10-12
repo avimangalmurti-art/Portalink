@@ -42,6 +42,7 @@ function setup() {
     batch(items) { return Promise.all(items.map((item) => item.run())); },
   };
   const worker = load('../src/sites-worker.ts', {}, { fetch: async (url, init) => {
+    if (new URL(url).pathname === '/rest/v1/rpc/require_active_account_session') return new Response(null, {status:204});
     if (new URL(url).pathname === '/rest/v1/projects') {
       accessChecks++;
       return Response.json([{ id: 'p', category: { id: 'portal' }, attachments: [{ id: 'doc', kind: 'document', position: 0, page_count: 30 }] }]);
