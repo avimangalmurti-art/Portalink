@@ -1,0 +1,3 @@
+export type WorkInsight={projectId:string;reads:number|null;medianPageReached:number|null;medianSeconds:number|null;citations:number|null;references:number|null;daysSinceMade:number|null;weeks:Array<{week:string;reads:number|null}>};
+export type JourneyInsights={profileId:string;generatedAt:string;months:Array<{month:string;works:number;citations:number}>;fields:Array<{year:number;portals:Array<{portalId:string;works:number;share:number}>}>;quarters:Array<{quarter:string;works:number;references:number}>;projects:WorkInsight[]};
+export function insightNumber(value:number|null|undefined):string{return value===null||value===undefined?'—':new Intl.NumberFormat(undefined,{maximumFractionDigits:1}).format(value);}

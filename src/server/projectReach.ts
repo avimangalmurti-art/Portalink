@@ -199,6 +199,14 @@ export async function ingestReach(request: Request, db: ReachDatabase | undefine
         const [project] = await projectRows(config, payload.project_id);
         if (!project || !publicProject(project))
             return reachJson({ error: 'Project not available.' }, 404);
+        // Known signed-in creators cannot add their own visits, even if a
+        // client bypasses its existing owner-side collector guard. Anonymous
+        // requests still forward no identity and retain their privacy contract.
+        if (request.headers.get('authorization')) {
+            const viewer = await config.authenticate(request, false);
+            if (viewer?.id === project.profile.account_id)
+                return reachJson({ accepted: false, reason: 'owner' });
+        }
         const pages = pageMap(project, payload.page_count);
         if (!pages.length || pages.length !== payload.page_count)
             return reachJson({ error: 'Page count is unavailable or has changed.' }, 409);

@@ -1,3 +1,4 @@
+import {handleJourneyInsights} from './server/journeyInsights';
 import {handleReferenceResolve} from './server/referenceResolver';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
@@ -378,6 +379,10 @@ const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if(url.pathname==='/api/insights'){
+      let ownerCache:Cache|undefined;try{ownerCache=await caches.open('portalink-owner-journey-insights-v1');}catch{ /* Cache failure cannot widen access or prevent an authorized read. */ }
+      return handleJourneyInsights(request,environment.DB,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},{cache:ownerCache});
+    }
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
     if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});

@@ -1,0 +1,3 @@
+import React from 'react';
+import {insightNumber,type WorkInsight} from './insightsModel';
+export function InsightMetrics({work}:{work:WorkInsight|undefined}){return <dl className="journey-insight-numbers"><div><dt>Reads</dt><dd>{insightNumber(work?.reads)}</dd></div><div><dt>Read depth</dt><dd>{insightNumber(work?.medianPageReached)} pages · {insightNumber(work?.medianSeconds)} s</dd></div><div><dt>Citations</dt><dd>{insightNumber(work?.citations)}</dd></div><div><dt>References used</dt><dd>{insightNumber(work?.references)}</dd></div><div><dt>Days since made</dt><dd>{insightNumber(work?.daysSinceMade)}</dd></div></dl>;}
