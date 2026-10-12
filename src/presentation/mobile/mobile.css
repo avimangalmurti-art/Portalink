@@ -5178,3 +5178,196 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   background: var(--navigation-surface, var(--surface-selected));
   color: var(--navigation-foreground, var(--text-primary));
 }
+
+/* Keep Profile's hover surface and ellipsis in the same screen-action frame. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-options {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  left: auto;
+  width: var(--explore-action-width);
+  height: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options .mobile-context-slot {
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+
+/* Home's grey hover/press surface uses the same frame as its ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Studio's grey action surface follows the ellipsis across header states. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: fixed !important;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Messages paints its grey action surface in the ellipsis button's own frame. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Insights keeps its grey action surface centered on the ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Account Explore/Search keeps the floating ellipsis and grey surface together. */
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Settings keeps the grey action surface and floating ellipsis in one frame. */
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Saved/Activity library screens keep their grey floating surface on the ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Project reader screen actions keep the grey surface on the floating ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Conversation options paints its grey surface inside the centered touch frame. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options'] {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
+  background: var(--surface-hover) !important;
+}

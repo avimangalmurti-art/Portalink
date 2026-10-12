@@ -83,7 +83,7 @@ test('the production startup graph excludes mock identities, seed imagery and un
   assert.deepEqual(paths.filter(path => /\/services\/(mocks|prototype)\/|\/data\/(profiles|sourceImages)\.ts$/.test(path)), []);
   for (const path of ['features/auth/AuthDialog.tsx', 'features/publishing/PublishProjectDialog.tsx',
     'features/profile/ProfileOnboardingDialog.tsx', 'features/profile/ProfileEditorDialog.tsx',
-    'features/profile/PortalsPage.tsx', 'components/AppDetailPage.tsx', 'components/profile/IconPickerPage.tsx']) {
+    'features/profile/PortalsPage.tsx', 'components/AppDetailPage.tsx', 'components/profile/IconPickerPage.tsx', 'features/projects/ProjectEditorDialog.tsx']) {
     assert.ok(!paths.includes(`src/${path}`), `${path} must wait until requested`);
   }
 });
