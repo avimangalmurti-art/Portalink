@@ -5214,3 +5214,24 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
   background: var(--surface-hover);
 }
+
+/* Studio's grey action surface follows the ellipsis across header states. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: fixed !important;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
