@@ -138,6 +138,7 @@ function appHarness({ firstVisit = false } = {}) {
   const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if (name === '../components/ui/RouteError') return {RouteError: 'RouteError', routeErrorKind: () => 'network'};
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
     if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
     if (name === '../features/sharing/shareModel') return shareModel;
@@ -258,7 +259,8 @@ test('invalid shared URLs render not-found without reads, retries or an HTML rel
     h.state.route = route; h.state.location = { pathname, search: '', hash: '', state: null };
     const tree = h.render();
     assert.equal(h.queryCalls.at(-1)[0], null);
-    assert.equal(nodes(tree).find(node => node.props?.role === 'alert').props.children, 'This shared page could not be found.');
+    assert.equal(one(tree, 'RouteError').props.kind, 'not-found');
+    assert.equal(one(tree, 'AppPresentation').props.showFloatingActions, false);
     assert.equal(button(tree, 'Try again'), undefined);
   }
   assert.deepEqual(h.replaced, []);
