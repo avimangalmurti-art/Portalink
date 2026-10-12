@@ -6,7 +6,7 @@ import test from 'node:test';
 const modulePath = process.env.PGLITE_MODULE_PATH;
 if (!modulePath) throw new Error('PGLITE_MODULE_PATH is required for session-isolation database checks.');
 const { PGlite } = await import(pathToFileURL(modulePath).href);
-const migration = readFileSync(new URL('../supabase/pending/account_session_devices.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../supabase/migrations/202610120001_account_session_devices.sql', import.meta.url), 'utf8');
 const owner = '00000000-0000-0000-0000-000000000001';
 const other = '00000000-0000-0000-0000-000000000002';
 const current = '10000000-0000-0000-0000-000000000001';

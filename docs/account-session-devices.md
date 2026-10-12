@@ -6,9 +6,11 @@ until Auth cleans it up; sign-in and last-refresh times do not establish recent
 human activity. No IP, location, credentials, refresh/access tokens, MFA secrets,
 or user IDs are returned. Lists page through 50 rows using creation time and ID.
 
-## Pending activation
+## Applied activation — 2026-10-12
 
-`supabase/pending/account_session_devices.sql` is **unapplied**. It creates only
+The explicitly approved `account_session_devices.sql` was applied once through
+the existing Portalink production SQL Editor on October 12, 2026. The unchanged
+file is now `supabase/migrations/202610120001_account_session_devices.sql`. It creates only
 `public.list_my_account_sessions(timestamptz, uuid)` and
 `public.revoke_my_account_session(uuid)` with empty search paths. Anonymous/PUBLIC
 execute permissions are revoked; authenticated callers can only operate on their
@@ -22,14 +24,17 @@ from `auth.sessions`, allowing its existing foreign-key cascades to remove its
 refresh-token chain. Existing access tokens can remain usable until expiry;
 the screen states that limitation. The migration itself does not sign anyone out.
 
-Before applying: obtain explicit approval for this one SQL file, inspect the live
+Completed preflight: obtained explicit approval for this one SQL file, inspected the live
 `auth.sessions` columns/ownership and refresh-token FK cascade, confirm no function
-name collision, and retain the current backup. Do not apply any unrelated pending
-or historical migrations or repair the CLI ledger. Apply once through the existing
-production SQL workflow. Record the receipt and move the unchanged file into the
-migration inventory only after success. Check anonymous denial and authenticated
-listing; do not revoke a real user's sessions during verification without a
-specific disposable target. Publish the matching reviewed source after activation.
+name collision, and retained the October 11 10:48:57 UTC backup. No unrelated pending
+or historical migrations were applied; the absent CLI ledger was not repaired.
+Both authenticated grants and anonymous denials matched expectations, with
+security-definer functions using empty search paths. Live rollback-only checks
+validated current-session marking, foreign-account isolation, selected-session
+revocation, refresh-token cascade, current-session protection, anonymous denial
+and revoked-caller denial. Synthetic session/token records existed only inside
+the rolled-back transaction; real sessions were not revoked. Publish the matching
+reviewed source after activation. Evidence is in ignored logs/account-security-qa.
 
 Rollback disables these endpoints by revoking their authenticated execute grants
 or dropping only these two functions, then restoring the previous published UI.
