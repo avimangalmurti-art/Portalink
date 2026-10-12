@@ -132,3 +132,19 @@
   box-sizing: border-box;
   z-index: 1;
 }
+
+/* Reader and description ellipses paint hover/press grey inside their touch frame. */
+[data-presentation='mobile'] .project-description-menu {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-presentation='mobile'] :is(.project-description-menu > button, [data-premium-project-viewer] .mobile-project-engagement-toggle) {
+  position: static;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+[data-presentation='mobile'] :is(.project-description-menu > button, [data-premium-project-viewer] .mobile-project-engagement-toggle):is(:hover, :active) {
+  background: var(--surface-hover);
+}
