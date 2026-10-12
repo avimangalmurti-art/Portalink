@@ -22,7 +22,7 @@ type Layout = { title: string; primary: ContextActionId[]; groups: ContextAction
 /** Route order and capability filtering live together; missing callbacks never become placeholders. */
 export function contextActions(kind: ContextKind, viewer: ContextViewer, target: ContextTarget): ContextActions {
   const map: Record<ContextKind, Layout> = {
-    home:{title:'Home',primary:['search','explore'],groups:[['refresh','settings'],['leaveLive']]},
+    home:{title:'Home',primary:['search','explore','viewProfile'],groups:[['refresh','settings'],['leaveLive']]},
     profile:viewer.owner ? {title:'Your profile',primary:['newProject','editProfile','share'],groups:[['thenNow','reorder','insights','bookmarks','copy'],['settings']]} : {title:'Profile',primary:['follow','message','saveCreator'],groups:[['share','copy'],['report']]},
     project:viewer.owner ? {title:'Your project',primary:['edit','cover'],groups:[['startHere','thenNow',...(target.handlers.reads ? ['reads'] as ContextActionId[] : ['pageIndex'] as ContextActionId[]),...(target.handlers.reads || target.handlers.startHere && target.handlers.thenNow ? [] : ['copy'] as ContextActionId[]),'visibility'],['delete']]} : {title:'Project',primary:[target.handlers.savePage ? 'savePage' : 'saveProject','cite','share'],groups:[['comment','pageIndex','copy'],['report']]},
     studio:{title:'Studio',primary:['drafts','bookmarks'],groups:[['select']]},

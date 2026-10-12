@@ -1,7 +1,7 @@
-import { useNavigate } from 'react-router-dom';
-import { buildPath } from '../../app/routes';
+import { homeGridColumns } from './homeGrid';
+import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
-import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
@@ -13,8 +13,6 @@ import { usePresentation } from '../../presentation/usePresentation';
 import { getProjectAspectRatio } from '../../utils/projectPresentation';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 import type { Id, ProjectLocation } from '../../types/domain';
-import { Globe2Icon, HomeIcon, CircleUserRoundIcon, RotateCwIcon } from 'lucide-react';
-import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProfileGridLayout } from '../../features/profile/useProfileGridLayout';
 import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
@@ -31,7 +29,7 @@ type HomeFeedProps = {
   scrollMemoryKey?: string;
   /** Present only for a Portalink city surface; switches to location placement. */
   locationId?: Id;
-  /** Shows the mobile Home discovery and refresh entry. */
+  /** Marks Home for its contextual navigation and pull-to-refresh. */
   showSearchPlaceholder?: boolean;
   onExploreWorld?: () => void;
   onSearchUsers?: () => void;
@@ -85,13 +83,11 @@ export function HomeFeed({
   emptyDescription = 'Public work from creators across Portalink will appear here.',
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
-  const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const { viewerProfileId, isAuthenticated } = useAuth();
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
-  const [homeColumns, setHomeColumns] = useState(3);
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const [hasReloaded, setHasReloaded] = useState(false);
@@ -101,8 +97,7 @@ export function HomeFeed({
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
   const persistFrameRef = useRef(0);
 
-  // City feeds keep their existing responsive reading size. Only Home/Profile
-  // use the creator's exact saved density; a city pinch remains local.
+  // City keeps its existing measured responsive baseline. Home fits in the wall itself.
   useLayoutEffect(() => {
     if (!isMobile || !locationId) return;
     const content = autoScrollRef.current?.querySelector<HTMLElement>('[data-feed-scroll-content]');
@@ -186,9 +181,13 @@ export function HomeFeed({
     writeFeedScroll(scrollMemoryKey, latestScrollTopRef.current);
   }, [scrollMemoryKey]);
 
+  const {isRefreshing,status:feedStatus,retry}=feed;
+  const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retry();},[isRefreshing,feedStatus,retry]);
+  const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
   useMobileScreenActions(showSearchPlaceholder ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
-    refresh: !feed.isRefreshing && feed.status !== 'loading' ? () => { setHasReloaded(true); feed.retry(); } : undefined,
-  } }) : null, 5);
+    explore:onExploreWorld,search:onSearchUsers,
+    refresh: !feed.isRefreshing && feed.status !== 'loading' ? refreshHome : undefined,
+  },labels:{search:'Search accounts',explore:'Explore the world'} }) : null, 5);
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
@@ -197,16 +196,12 @@ export function HomeFeed({
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div data-feed-scroll-content="" className="relative pt-3">
-          {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
-              {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
-              <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
-              {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
-              <button type="button" aria-label="Reload Home content" aria-pressed={feed.isRefreshing} className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={() => { if (feed.isRefreshing || feed.status === 'loading') return; setHasReloaded(true); feed.retry(); }}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
-              <div data-inline-screen-actions=""><MobileContextButton /></div></div>
-            <p role="status" className={hasReloaded && feed.refreshError ? 'mt-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
+          {showMobileSearch && <>
+            {pullLabel && <p data-home-pull-feedback="" role="status" className="py-2 text-center text-[13px] text-[var(--text-secondary)]">{pullLabel}</p>}
+            <p role="status" className={hasReloaded && (feed.isRefreshing || feed.refreshError) ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
-          </header>}
+          </>}
           {!locationId && <WeeklyReadNote />}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
@@ -235,17 +230,29 @@ export function HomeFeed({
             {layoutReady && projects.length > 0 ? isMobile
               // Consecutive rows share Profile's sizing and preserve reading
               // order without repacking measured cards when this screen mounts.
-              ? <JustifiedImageWall
+              ? locationId ? <JustifiedImageWall
                   label="Home projects"
                   key={viewerProfileId ?? 'guest'}
-                  columns={locationId ? locationColumns : homeColumns}
-                  onColumnsChange={locationId ? setLocationGridChoice : columns => { setHomeColumns(columns); density.setColumns(columns); }}
+                  columns={locationId ? locationColumns : density.columns}
+                  fitColumns={locationId ? undefined : homeGridColumns}
+                  onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
                     ratio: getProjectAspectRatio(projects[index].project),
                     content: cell.content,
                   }))}
-                />
+                /> : <div data-home-grid="" className="min-w-0 px-2"><JustifiedImageWall
+                  label="Home projects"
+                  key={viewerProfileId ?? 'guest'}
+                  columns={locationId ? locationColumns : density.columns}
+                  fitColumns={locationId ? undefined : homeGridColumns}
+                  onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
+                  items={cells.map((cell, index) => ({
+                    key: cell.key,
+                    ratio: getProjectAspectRatio(projects[index].project),
+                    content: cell.content,
+                  }))}
+                /></div>
               : <BentoFeedGrid key={viewerProfileId ?? 'guest'} items={cells} columns={locationId ? undefined : density.columns} onColumnsChange={locationId ? undefined : density.setColumns} />
               : null}
             {feed.nextCursor && <div className="flex flex-col items-center gap-2 py-5">
