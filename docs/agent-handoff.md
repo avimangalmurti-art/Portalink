@@ -1,6 +1,6 @@
 ## 2026-10-12 — All four conformance parts integrated for approved publication
 
-Owned logs/design-conformance-release / codex/design-conformance-release from exact Sites379 live49b967b; conformance PRs49–52 combined. Security/session/autofill/shared entry preserved; no unrelated pending feature or SQL included. Typecheck/lint/build/config guards and109 focused integration tests pass; full regression running. Combined real-component synthetic mobile/WEB checks and screenshots pass; physical iPhone unverified. See docs/combined-conformance-release.md. GitHub main merge remains separate.
+Owned logs/design-conformance-release / codex/design-conformance-release from exact Sites379 live49b967b; conformance PRs49–52 combined. Security/session/autofill/shared entry preserved; no unrelated pending feature or SQL included. Typecheck/lint/build/config guards and109 focused integration tests pass; full regression1709/1709 passes. Combined real-component synthetic mobile/WEB checks and screenshots pass; physical iPhone unverified. See docs/combined-conformance-release.md. GitHub main merge remains separate.
 
 ## 2026-10-12 — Approved session SQL applied; preparing publication
 
