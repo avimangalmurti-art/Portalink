@@ -18,6 +18,8 @@ Real app browser checks include copy plain text/BibTeX, Cite open/close and rest
 
 See [screenshots](evidence/citation-cards-20261012/README.md). Most use synthetic services, not the user's account. No physical iPhone testing, real authentication mutation or citation submission is claimed.
 
+GitHub CI did not start any of its five jobs: the account is blocked by failed payments or its spending limit, according to check-run annotations. No remote test success is claimed. Restore GitHub Actions eligibility and rerun required checks before merge.
+
 ## Release boundary
 
 No database change is needed. No SQL, Auth configuration, worker, Sites deployment or merge is authorized or performed. Review the draft PR and screenshots before approving release. Existing unapplied migrations and unpublished tasks remain separate. Before publishing from reviewed main, retain the separately reviewed fixes currently live from PR42; this source branch must not be used to roll those back.
