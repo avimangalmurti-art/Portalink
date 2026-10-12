@@ -1,0 +1,15 @@
+.owner-record ul { list-style: none; padding: 0; margin: 0; }
+.studio-overview > .owner-record { min-width: 0; }
+.owner-record li { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 0; border-bottom: 1px solid var(--hairline); }
+.owner-record .record-target { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex: 1; min-width: 0; min-height: 44px; width: 100%; text-align: left; }
+.studio-overview .owner-record .record-target { background: none; border: 0; border-radius: 0; padding: 0; font-size: 13px; }
+.record-target span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.owner-record h3 { font-size: 13px; margin: 16px 0 6px; }
+.owner-record .record-muted { color: var(--text-tertiary); opacity: .65; }
+.record-memory { display: flex; flex-shrink: 0; gap: 8px; }
+.record-memory button { min-height: 44px; padding: 0 8px; font-size: 12px; }
+.studio-overview .owner-record .record-memory button { background: none; border: 0; border-radius: 0; padding: 0 4px; font-size: 11px; color: var(--text-secondary); }
+.owner-record-line { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.owner-record-line button { min-height: 44px; text-decoration: underline; }
+.owner-record-chip { font-size: 12px; color: var(--text-secondary); padding: 4px 8px; border: 1px solid var(--hairline); border-radius: 12px; max-width: 100%; text-align: left; }
+[data-owner-record-chip] { margin: 4px 0 10px; }

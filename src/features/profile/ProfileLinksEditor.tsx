@@ -177,6 +177,8 @@ export function ProfileLinksEditor({
   const [iconQuery, setIconQuery] = useState('');
   const [draftIconName, setDraftIconName] = useState('globe');
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const recordLinkFocus=useRef('');
+  useEffect(()=>{const search=window.location?.search;if(!search)return;const query=new URLSearchParams(search);if(query.get('record')!=='link')return;const row=links.find(link=>link.href===query.get('url'));if(row&&recordLinkFocus.current!==row.id+':'+row.href){recordLinkFocus.current=row.id+':'+row.href;setExpandedIds(current=>current.includes(row.id)?current:[...current,row.id]);const frame=requestAnimationFrame(()=>document.getElementById('profile-link-url-'+row.id)?.focus());return()=>cancelAnimationFrame(frame);}},[links]);
   const addedLinkRef = useRef<string | null>(null);
   useEffect(() => {
     const id = addedLinkRef.current;

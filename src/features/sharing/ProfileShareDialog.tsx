@@ -24,7 +24,7 @@ import './sharing.css';
 export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, automatic = false, counts }: { counts?: { followers: string | null; following: string | null }; profile: Profile; owner: boolean; automatic?: boolean; onClose: () => void; onBeforeShare?: () => Promise<void> }) {
   const { profiles } = useServices(), presentation = usePresentation(), dialog = useRef<HTMLDivElement>(null), viewport = useDialogViewport(), heading = useId(), qr = useRef<HTMLCanvasElement>(null);
 
-  const [address, setAddress] = useState<ShareAddress | null>(null), [screen, setScreen] = useState<'share'|'handle'|'send'|'qr'>('share');
+  const [address, setAddress] = useState<ShareAddress | null>(null), [screen, setScreen] = useState<'share'|'handle'|'send'|'qr'>(()=>owner&&new URLSearchParams(window.location.search).get('record')==='handle'?'handle':'share');
   const [handle, setHandle] = useState(handleSuggestions(profile.name)[0]), [availability, setAvailability] = useState('');
   const [card, setCard] = useState<PortfolioCard | null>(null), [previewError, setPreviewError] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false), [notice, setNotice] = useState('');
   const [audience, setAudience] = useState<Audience>('friend'), [to, setTo] = useState(''), [note, setNote] = useState(audienceNote('friend',profile.name));
@@ -65,9 +65,9 @@ export function ProfileShareDialog({ profile, owner, onClose, onBeforeShare, aut
   useEffect(()=>{if(presentation === 'web' && screen === 'qr')setScreen('share');},[presentation,screen]);
   useEffect(()=>{if(profile.isPrivate)closeRef.current();},[profile.isPrivate]);
   const prepare = async () => { if(profile.isPrivate)throw new Error('Make your portfolio public before sharing.'); await onBeforeShare?.(); if(owner&&address?.handle)await profiles.markHandleShared?.(profile.id,address.handle); };
-  const complete = () => { if(owner){dismissLivePortfolio(profile.id);window.dispatchEvent(new CustomEvent('portalink:portfolio-shared',{detail:{profileId:profile.id}}));} };
+  const complete = (kind?:string) => { if(owner){dismissLivePortfolio(profile.id);window.dispatchEvent(new CustomEvent('portalink:portfolio-shared',{detail:{profileId:profile.id,kind}}));} };
   const run = async (action:()=>Promise<void>, kind: 'copy'|'address'|'qr'|'mail' = 'mail') => { if(operationLock.current)return;operationLock.current=true;setBusy(true);setOperation(kind);setError('');try{await action();}catch(e){if(!(e instanceof DOMException&&e.name==='AbortError')){setError(e instanceof Error?e.message:'Please try again.');if(kind === 'address')setValidationRetry(value=>value+1);}}finally{operationLock.current=false;setBusy(false);setOperation(null);} };
-  const copy = () => run(async()=>{await prepare();await copyPublicLink(url);complete();setCopied(true);}, 'copy');
+  const copy = () => run(async()=>{await prepare();await copyPublicLink(url);complete('copy');setCopied(true);}, 'copy');
   const send = () => { setNotice('');setError('');setPersonalNote(false);setScreen('send'); };
   useEffect(()=>{setCopied(false);},[url]);
   useEffect(()=>{if(!copied)return;const timer=setTimeout(()=>setCopied(false),2500);return()=>clearTimeout(timer);},[copied]);
