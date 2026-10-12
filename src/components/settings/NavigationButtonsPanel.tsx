@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { CheckIcon, ChevronDownIcon, RotateCcwIcon } from 'lucide-react';
+import { CheckIcon, ChevronRightIcon, RotateCcwIcon } from 'lucide-react';
 import { findNavAccent, findSystemGray, isLightSurface, navAccents, systemGrays } from '../../data/navButtonTokens';
 import type { AppearanceTheme, StoredAppearanceMode } from '../../utils/appearancePreferences';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -10,6 +10,8 @@ import { AppearanceSwitch } from '../ui/AppearanceSwitch';
 import { resetResizablePanelLayout } from '../ui/ResizablePanelHandle';
 
 type NavigationButtonsPanelProps = {
+  selectedSection?: AppearanceSection | null;
+  onSectionOpen?: (section: AppearanceSection) => void;
   theme: AppearanceTheme;
   appearanceMode: StoredAppearanceMode;
   onAppearanceModeChange: (mode: StoredAppearanceMode) => void;
@@ -42,6 +44,8 @@ function swatchSurface(color: string): React.CSSProperties {
 }
 
 export function NavigationButtonsPanel({
+  selectedSection = null,
+  onSectionOpen,
   theme,
   appearanceMode,
   onAppearanceModeChange,
@@ -55,7 +59,6 @@ export function NavigationButtonsPanel({
   onReduceTranslucencyChange
 }: NavigationButtonsPanelProps) {
   const [layoutWasReset, setLayoutWasReset] = useState(false);
-  const [openSection, setOpenSection] = useState<AppearanceSection | null>(null);
   const shouldReduceMotion = useReducedMotion();
   const activeAccent = findNavAccent(accentColor);
   const activeAppearance = appearanceOptions.find((option) => option.mode === appearanceMode)?.label ?? 'System';
@@ -83,12 +86,12 @@ export function NavigationButtonsPanel({
       </p>
 
       <div className="mt-6 space-y-4">
-        <AccordionSection
+        <AppearanceNavigationSection
           id="system-grey-settings"
           title="System grey"
           summary={`${activeSystemGray.label.replace('Gray', 'Grey')} · ${theme} mode`}
-          isOpen={openSection === 'system-grey'}
-          onToggle={() => setOpenSection((current) => (current === 'system-grey' ? null : 'system-grey'))}
+          active={selectedSection} section='system-grey'
+          onOpen={() => onSectionOpen?.('system-grey')}
         >
           <SettingsGroup title="Grey intensity">
             <div
@@ -147,14 +150,14 @@ export function NavigationButtonsPanel({
               {activeSystemGray.label.replace('Gray', 'Grey')}, shown as it resolves in {theme} appearance.
             </p>
           </SettingsGroup>
-        </AccordionSection>
+        </AppearanceNavigationSection>
 
-        <AccordionSection
+        <AppearanceNavigationSection
           id="appearance-settings"
           title="Appearance"
           summary={`${activeAppearance} · ${activeAccent.label}${highContrast ? ' · High contrast' : ''}`}
-          isOpen={openSection === 'appearance'}
-          onToggle={() => setOpenSection((current) => (current === 'appearance' ? null : 'appearance'))}
+          active={selectedSection} section='appearance'
+          onOpen={() => onSectionOpen?.('appearance')}
         >
           <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
             <SettingsGroup title="Interface appearance">
@@ -249,9 +252,9 @@ export function NavigationButtonsPanel({
               </div>
             </SettingsGroup>
           </div>
-        </AccordionSection>
+        </AppearanceNavigationSection>
 
-        <div className="flex items-center">
+        {!selectedSection && <div className="flex items-center">
               <button
                 type="button"
                 onClick={() => {
@@ -264,64 +267,23 @@ export function NavigationButtonsPanel({
                 Reset layout
               </button>
           <span role="status" aria-live="polite" className="sr-only">{layoutWasReset ? 'Layout reset.' : ''}</span>
-        </div>
+        </div>}
       </div>
     </section>
   );
 }
 
-function AccordionSection({
-  id,
-  title,
-  summary,
-  isOpen,
-  onToggle,
-  children
-}: {
-  id: string;
-  title: string;
-  summary: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
+function AppearanceNavigationSection({id, title, summary, active, section, onOpen, children}: {
+  id: string; title: string; summary: string; active: AppearanceSection | null; section: AppearanceSection; onOpen: () => void; children: React.ReactNode;
 }) {
-  const contentId = `${id}-content`;
-
-  return (
-    <section
-      className={`overflow-hidden rounded-[12px] border transition-[border-color,background-color] duration-150 ${
-        isOpen
-          ? 'border-[var(--hairline)] bg-[var(--surface-inset)]'
-          : 'border-transparent bg-[var(--surface-inset)]'
-      }`}
-    >
-      <button
-        type="button"
-        aria-expanded={isOpen}
-        aria-controls={contentId}
-        onClick={onToggle}
-        className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-medium text-[var(--text-primary)]">{title}</span>
-          <span className="mt-0.5 block truncate text-[12px] text-[var(--text-tertiary)]">{summary}</span>
-        </span>
-        <InterfaceIcon
-          icon={ChevronDownIcon}
-          size="sm"
-          weight="regular"
-          className={`shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {isOpen && (
-        <div id={contentId} className="p-2 sm:p-3">
-          {children}
-        </div>
-      )}
-    </section>
-  );
+  if (active) return active === section ? <section className="overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--surface-inset)]"><div id={`${id}-content`} className="p-2 sm:p-3">{children}</div></section> : null;
+  return <section className="overflow-hidden rounded-[12px] border border-transparent bg-[var(--surface-inset)]">
+    <button type="button" onClick={onOpen} className="side-panel-control-row side-panel-content-inset min-h-16 w-full py-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+      <span className="min-w-0 flex-1"><span className="block text-[14px] font-medium text-[var(--text-primary)]">{title}</span><span className="mt-0.5 block truncate text-[12px] text-[var(--text-tertiary)]">{summary}</span></span>
+      <InterfaceIcon icon={ChevronRightIcon} size="sm" weight="regular" mirroredInRtl className="shrink-0" />
+    </button>
+  </section>;
 }
-
 function SettingsGroup({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="min-w-0 p-3">

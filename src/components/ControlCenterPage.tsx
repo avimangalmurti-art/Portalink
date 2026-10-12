@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowLeftIcon, ChevronDownIcon } from 'lucide-react';
+import { ArrowLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { readSettingsSection, settingsSectionParams, type SettingsSectionId } from './settings/settingsSections';
 import { NavigationButtonsPanel } from './settings/NavigationButtonsPanel';
 import { InterfaceIcon } from './ui/InterfaceIcon';
 import { Button } from './ui/Button';
@@ -30,16 +32,16 @@ type ControlCenterPageProps = {
   onRetryAppearance?: () => void;
 };
 
-function SettingsSection({ id, title, subtitle, children }: {
-  id: string; title: string; subtitle: string; children: React.ReactNode;
+function SettingsSection({ id, title, subtitle, children, active, onOpen }: {
+  id: SettingsSectionId; title: string; subtitle: string; children: React.ReactNode;
+  active: SettingsSectionId | null; onOpen: (id: SettingsSectionId) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  if (active) return active === id ? <section className="settings-section settings-subscreen-card"><div className="settings-section-content">{children}</div></section> : null;
   return <section className="settings-section">
-    <h2><button type="button" className="settings-section-trigger" aria-expanded={open} aria-controls={`settings-${id}`} onClick={() => setOpen(value => !value)}>
+    <h2><button type="button" className="settings-section-trigger" onClick={() => onOpen(id)}>
       <span className="settings-section-label"><span className="settings-section-title">{title}</span><span className="settings-section-subtitle">{subtitle}</span></span>
-      <InterfaceIcon icon={ChevronDownIcon} className={open ? 'settings-chevron is-open' : 'settings-chevron'} />
+      <InterfaceIcon icon={ChevronRightIcon} className="settings-chevron" mirroredInRtl />
     </button></h2>
-    {open && <div id={`settings-${id}`} className="settings-section-content">{children}</div>}
   </section>;
 }
 
@@ -47,6 +49,26 @@ function SettingsSection({ id, title, subtitle, children }: {
 export function ControlCenterPage(props: ControlCenterPageProps) {
   const auth = useAuth();
   const nav = useRouteNavigator();
+  const location = useLocation(), navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const section = readSettingsSection(params.get('section'));
+  const requestedPanel = params.get('panel');
+  const appearancePanel = section === 'appearance' && (requestedPanel === 'system-grey' || requestedPanel === 'appearance') ? requestedPanel : null;
+  const sectionTitles: Record<SettingsSectionId, string> = { appearance: 'Appearance', account: 'Account', invite: 'Invite a friend', privacy: 'Privacy', notifications: 'Notifications', language: 'Language', about: 'About' };
+  const openSection = (id: SettingsSectionId) => setParams(settingsSectionParams(params, id), { state: { ...location.state, settingsSectionFrom: location.pathname + location.search } });
+  const openAppearancePanel = (id: 'system-grey' | 'appearance') => {
+    const next = new URLSearchParams(params); next.set('panel', id);
+    setParams(next, { state: { ...location.state, settingsSectionFrom: location.pathname + location.search } });
+  };
+  const goBack = () => {
+    if (!section) { props.onBack(); return; }
+    const previousParams = appearancePanel ? new URLSearchParams(params) : settingsSectionParams(params, null);
+    if (appearancePanel) previousParams.delete('panel');
+    const indexParams = previousParams.toString();
+    const indexPath = location.pathname + (indexParams ? `?${indexParams}` : '');
+    if (location.state?.settingsSectionFrom === indexPath && window.history.state?.idx > 0) navigate(-1);
+    else setParams(previousParams, { replace: true, state: location.state });
+  };
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
@@ -90,17 +112,17 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
     finally { setSigningOut(false); }
   }
 
-  return <div className="settings-page">
+  return <div className="settings-page" data-settings-section={section ?? undefined}>
     <header className="settings-page-header">
-      <button type="button" onClick={props.onBack} aria-label="Back" className="settings-back"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
-      <h1>Settings</h1>
+      <button type="button" onClick={goBack} aria-label={appearancePanel ? 'Back to Appearance' : section ? 'Back to Settings' : 'Back'} className="settings-back"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button>
+      <h1>{appearancePanel === 'system-grey' ? 'System grey' : section ? sectionTitles[section] : 'Settings'}</h1>
     </header>
     <div className="settings-page-sections">
-      <SettingsSection id="appearance" title="Appearance" subtitle="Theme, accent colour, layout">
+      <SettingsSection active={section} onOpen={openSection} id="appearance" title="Appearance" subtitle="Theme, accent colour, layout">
         {props.appearanceError ? <p role="alert">{props.appearanceError} <button type="button" onClick={props.onRetryAppearance} className="settings-text-action">Try again</button></p> : props.appearanceSaving ? <p role="status" className="settings-appearance-saving">Saving website colors…</p> : null}
-        <NavigationButtonsPanel {...props} />
+        <NavigationButtonsPanel {...props} selectedSection={appearancePanel} onSectionOpen={openAppearancePanel} />
       </SettingsSection>
-      <SettingsSection id="account" title="Account" subtitle="Profile, log out, delete account">
+      <SettingsSection active={section} onOpen={openSection} id="account" title="Account" subtitle="Profile, log out, delete account">
         {auth.isAuthenticated ? <>
           <Button variant="secondary" onClick={props.onOpenProfile}><span className="settings-action-label">View profile</span></Button>
           {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}><span className="settings-action-label">Edit profile</span></Button>}
@@ -109,23 +131,23 @@ export function ControlCenterPage(props: ControlCenterPageProps) {
           {signOutError && <p role="alert">Unable to log out. Please try again.</p>}
         </> : <><Button onClick={() => auth.requestAuthenticatedDestination({ kind: 'my-profile' }, 'signIn')}><span className="settings-action-label">Sign in</span></Button><Button variant="secondary" onClick={() => auth.requestAuth('signUp')}><span className="settings-action-label">Create account</span></Button></>}
       </SettingsSection>
-      <SettingsSection id="invite" title="Invite a friend" subtitle="Share Portalink with others">
+      <SettingsSection active={section} onOpen={openSection} id="invite" title="Invite a friend" subtitle="Share Portalink with others">
         <Button variant="secondary" onClick={() => void inviteFriend()}><span className="settings-action-label">Share invite link</span></Button>
         <Button variant="secondary" onClick={() => void copyInvite()}><span className="settings-action-label">Copy invite link</span></Button>
         {inviteStatus !== 'idle' && <p role="status">{inviteStatus === 'copied' ? 'Invite link copied.' : 'Unable to share the invite link. Please try again.'}</p>}
       </SettingsSection>
-      <SettingsSection id="privacy" title="Privacy" subtitle="Data, permissions, visibility">
+      <SettingsSection active={section} onOpen={openSection} id="privacy" title="Privacy" subtitle="Data, permissions, visibility">
         <p>Manage your account visibility in Edit profile and who can message you in Message settings.</p>
         {auth.viewerProfileId && <Button variant="secondary" onClick={nav.profileEditor}><span className="settings-action-label">Account visibility</span></Button>}
         <Button variant="secondary" onClick={() => openAccountRoute('messages')}><span className="settings-action-label">Open messages</span></Button>
       </SettingsSection>
-      <SettingsSection id="notifications" title="Notifications" subtitle="Messages, requests, updates">
+      <SettingsSection active={section} onOpen={openSection} id="notifications" title="Notifications" subtitle="Messages, requests, updates">
         <Button variant="secondary" onClick={() => openAccountRoute('notifications')}><span className="settings-action-label">View notifications</span></Button>
       </SettingsSection>
-      <SettingsSection id="language" title="Language" subtitle="App language and region">
+      <SettingsSection active={section} onOpen={openSection} id="language" title="Language" subtitle="App language and region">
         <p>Portalink is currently available in English.</p>
       </SettingsSection>
-      <SettingsSection id="about" title="About" subtitle="Version, legal and more">
+      <SettingsSection active={section} onOpen={openSection} id="about" title="About" subtitle="Version, legal and more">
         <p>Portalink Networks</p><p>Web app</p>
       </SettingsSection>
     </div>

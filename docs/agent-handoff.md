@@ -1,3 +1,7 @@
+## 2026-10-12 — Final conformance ready; combined publication authorized
+
+Owned logs/final-design-conformance / codex/final-design-conformance from github/main5c3f7f2. Routed Settings including nested Appearance; Published count chip/zero hiding; Search copy; 250ms welcome handoff. 79 focused/typecheck/lint/build/config guards pass; final full run interrupted, rerun for integration. Actual-component synthetic screenshots captured; no physical-phone proof. User authorizes all four conformance parts. Preserve Sites379 live49b967b security/session/autofill changes during integration; no SQL or unrelated pending features. See docs/final-design-conformance.md.
+
 ## 2026-10-09 — Visitor video and signup interaction correction
 
 Owned logs/info-popup-dismiss, codex/visitor-video-auth-fix from github/main e6e552c. Public portfolio enables existing muted inline video previews and first-video attachment fallback; documents retain bitmap-only grid policy. Visitor reader suppresses duplicate floating screen actions through an explicit presentation prop (defaults preserve all other screens). Bottom reader dots open information publicly; guest engagement clears info before signup. Main-app shared/invitation entry skips Appearance and starts Create your profile, matching visitor entry. No authentication/data permissions changed, SQL or publish.
