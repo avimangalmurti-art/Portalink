@@ -5178,3 +5178,21 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   background: var(--navigation-surface, var(--surface-selected));
   color: var(--navigation-foreground, var(--text-primary));
 }
+
+/* Keep Profile's hover surface and ellipsis in the same screen-action frame. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-options {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  left: auto;
+  width: var(--explore-action-width);
+  height: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options .mobile-context-slot {
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
