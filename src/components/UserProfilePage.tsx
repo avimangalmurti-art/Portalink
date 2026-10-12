@@ -1,3 +1,4 @@
+import { MobilePillHeader } from '../presentation/mobile/MobilePillHeader';
 import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
@@ -503,13 +504,13 @@ export function UserProfilePage({
   const connectionList = searchParams.get('connectionList');
   const showConnectionBack = isMobile && Boolean(connectionOrigin) && (connectionList === 'followers' || connectionList === 'following');
   const backToConnections = () => {
-    if ((window.history.state?.idx ?? 0) > 0) navigate(-1);
+    if ((window.history?.state?.idx ?? 0) > 0) navigate(-1);
     else if (connectionOrigin) navigate(`${buildPath(isSharedView ? 'sharedProfile' : 'profile', { profileId: connectionOrigin })}?view=${connectionList}`, { replace: true });
   };
   const canDismissProfile = isMobile && !isSharedView && !mobileContent && !isReorderingProjects && !(showsOwnerTools && profileLocation.state?.profileFromDock === true) && (Boolean(searchReturn) || showConnectionBack || !showsOwnerTools);
   const dismissProfile = () => {
     if (showConnectionBack) backToConnections();
-    else if (searchReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }
+    else if (searchReturn) { if ((window.history?.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }
     else onBack();
   };
   useProfileSwipeReturn(profilePageRef, canDismissProfile, dismissProfile);
@@ -700,7 +701,8 @@ export function UserProfilePage({
   // Mobile keeps one body scroller when the profile identity is hidden;
   // the display-contents wrapper preserves the desktop document flow.
   if (mobileShareOpen && !profile.isPrivate) return <Suspense fallback={<PortfolioShareLoading profile={profile} counts={{followers, following}} onClose={closeShare}/>}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>;
-  return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+  return <div ref={profilePageRef} data-saved-change-scope="" data-profile-page={isWebWorkspace ? undefined : ''} data-profile-pill-header={isMobile && auth.isAuthenticated && !isSharedView && !mobileContent || undefined} data-profile-nested={isMobile && (nestedMobileContent || isMobileWall) ? '' : undefined} className={isWebWorkspace ? 'contents' : 'user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]'}>
+      {isMobile && auth.isAuthenticated && !isSharedView && !mobileContent && <MobilePillHeader label="Profile" tabs={[{id:'portfolio',label:'Portfolio',disabled:isReorderingProjects || projectManagement.editor.projectId !== null},...(canSeeJourney?[{id:'journey',label:'Journey',disabled:isReorderingProjects || projectManagement.editor.projectId !== null}]:[])]} active={isJourney?'journey':'portfolio'} onChange={id=>{journey.select(id as 'portfolio'|'journey');setActiveView('projects');}} onBack={!profileLocation.state?.profileFromDock && (window.history?.state?.idx??0)>0 ? dismissProfile : undefined} right={<MobileContextButton/>}/>}
       {canDismissProfile && <ScreenBack action={dismissProfile}><span /></ScreenBack>}
       {startHereSelection && <Suspense fallback={null}><StartHereDialog profile={profile} project={startHereSelection} onClose={closeStartHere} /></Suspense>}
       {shareOpen && <Suspense fallback={null}><ProfileShareDialog profile={profile} counts={{ followers, following }} owner={showsOwnerTools} automatic={shareAuto} onBeforeShare={onBeforeShare} onClose={closeShare} /></Suspense>}
@@ -710,12 +712,12 @@ export function UserProfilePage({
       {canDismissProfile && <button type="button" className="profile-return-handle" aria-label="Swipe down to return to previous screen" onClick={event => { if (event.detail === 0) dismissProfile(); }}><span /></button>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
-          profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
+          profileView={isMobile && (isSharedView || Boolean(mobileContent) || !auth.isAuthenticated) && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
           summaryCounts={isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools || (!isSharedView && connections.counts.canViewConnections === true), activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : isMobile ? (!showsOwnerTools && <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : isMobile ? (!showsOwnerTools && (isSharedView || Boolean(mobileContent) || !auth.isAuthenticated) && <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}

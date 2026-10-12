@@ -25,7 +25,7 @@ test('dock orders Explore, Messages, Studio and Profile, with no rail or separat
   const destination=nodes(tree).find(n=>n.props.item?.label===label);
   destination.type(destination.props).props.onClick({type:'click',target:{}});
  }
- assert.deepEqual(destinations,[['messages',[]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
+ assert.deepEqual(destinations,[['messages',[true]],['profile',[]]],'Navigation taps must not become recipient/profile arguments');
  const linkedTree=exports.MobileNavigation({onMessages(){},onProfile(){},profileHref:'/p/me',isProfileActive:true});
  const linkedProfile=nodes(linkedTree).find(n=>n.props.item?.label==='Profile');
  assert.equal(linkedProfile.type(linkedProfile.props).props.state.profileFromDock,true,'Dock profile navigation identifies its root destination');

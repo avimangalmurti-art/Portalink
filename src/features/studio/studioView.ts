@@ -40,5 +40,5 @@ export function studioBulkTargets(rows: StudioRow[]) {
 
 export function studioDate(value?: string): string | undefined {
   if (!value || Number.isNaN(Date.parse(value))) return undefined;
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', ...(/^\d{4}-\d{2}-\d{2}$/.test(value) ? { timeZone: 'UTC' } : {}) });
 }
