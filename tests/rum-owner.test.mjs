@@ -41,6 +41,7 @@ function setup() {
       // An attacker can write this metadata. It must have no authorization effect.
       return Response.json({ id, user_metadata: { profile_id: OWNER_PROFILE, role: 'owner' } });
     }
+    if (url.pathname === '/rest/v1/rpc/require_active_account_session') return new Response(null, { status: 204 });
     assert.equal(url.pathname, '/rest/v1/profiles');
     assert.equal(url.searchParams.get('select'), 'id,account_id');
     assert.equal(url.searchParams.get('id'), `eq.${OWNER_PROFILE}`);
@@ -89,7 +90,7 @@ test('non-owner and self-assigned owner metadata cannot read timings', async () 
   const response = await s.request('other');
   assert.equal(response.status, 403);
   assert.equal(response.headers.get('x-portalink-rum-owner'), null);
-  assert.equal(s.calls.length, 2, 'Verify session, then its real profile/account relation under RLS');
+  assert.equal(s.calls.length, 3, 'Verify user and active session, then its real profile/account relation under RLS');
   assert.equal(s.databaseReads.length, 0);
   assert.equal(s.calls[1].headers.get('authorization'), 'Bearer other');
 });
@@ -165,7 +166,7 @@ test('redirected owner lookup never follows Location or grants access to D1', as
     assert.equal(response.status, 503);
     assert.equal(response.headers.get('x-portalink-rum-owner'), null);
     assert.equal(s.databaseReads.length, 0);
-    assert.equal(s.calls.length, 2, 'Only session verification and one profile lookup');
+    assert.equal(s.calls.length, 3, 'User verification, active-session check and one profile lookup');
   }
 });
 
