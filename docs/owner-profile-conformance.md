@@ -19,3 +19,5 @@ View as visitor is an owner-only profile Actions row. It loads the existing publ
 ## Release boundary
 
 No SQL, Supabase/Auth changes, worker/D1 changes, merge, Sites publication or deployment. Preserve separate pending tasks/PRs and current live PR42 source during eventual reviewed integration. Do not publish this branch alone over the live site. Mobile dock/reader control changes stay mobile; Journey default and public preview rendering use the shared core on both presentations.
+
+Draft PR: https://github.com/avimangalmurti-art/Portalink/pull/51. Implementation commit: `735a561`. All five GitHub CI jobs on this source were blocked before starting by account billing/spending limits. Local checks above passed; no CI configuration/protection was bypassed.
