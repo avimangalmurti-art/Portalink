@@ -1,7 +1,10 @@
-import { homeGridColumns } from './homeGrid';
+import { useNavigate } from 'react-router-dom';
+import { buildPath } from '../../app/routes';
+import { Globe2Icon, HomeIcon, CircleUserRoundIcon, RotateCwIcon } from 'lucide-react';
+import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
-import { useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
+import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
@@ -88,6 +91,7 @@ export function HomeFeed({
   emptyDescription = 'Public work from creators across Portalink will appear here.',
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
+  const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
   const { viewerProfileId, isAuthenticated } = useAuth();
@@ -203,12 +207,17 @@ export function HomeFeed({
         className="feed-edge-fade scrollbar-hidden relative z-10 min-h-0 flex-1 overflow-y-auto px-2 pb-7"
       >
         <div data-feed-scroll-content="" className="relative pt-3">
-          {showMobileSearch && <>
+          {showMobileSearch && <header className="mobile-home-search-header"><div className="mobile-screen-action-row">
+              {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
+              <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
+              {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
+              <button type="button" aria-label="Reload Home content" aria-pressed={feed.isRefreshing} className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={refreshHome}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
+              <div data-inline-screen-actions=""><MobileContextButton /></div></div>
             {pullLabel && <p data-home-pull-feedback="" role="status" className="py-2 text-center text-[13px] text-[var(--text-secondary)]">{pullLabel}</p>}
             <p role="status" className={hasReloaded && (feed.isRefreshing || feed.refreshError) ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
-          </>}
+          </header>}
           {!locationId && <WeeklyReadNote />}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
@@ -241,7 +250,6 @@ export function HomeFeed({
                   label="Home projects"
                   key={viewerProfileId ?? 'guest'}
                   columns={locationId ? locationColumns : density.columns}
-                  fitColumns={locationId ? undefined : homeGridColumns}
                   onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
                   items={cells.map((cell, index) => ({
                     key: cell.key,
@@ -252,7 +260,6 @@ export function HomeFeed({
                   label="Home projects"
                   key={viewerProfileId ?? 'guest'}
                   columns={locationId ? locationColumns : density.columns}
-                  fitColumns={locationId ? undefined : homeGridColumns}
                   onColumnsChange={locationId ? setLocationGridChoice : density.setColumns}
                   items={cells.map((cell, index) => ({
                     key: cell.key,

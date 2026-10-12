@@ -5388,3 +5388,8 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   width: calc(100% + 1rem);
   padding-inline: 16px;
 }
+
+/* Explore/Home has restored its own safe-area header. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
+  padding-top: 0;
+}

@@ -182,7 +182,6 @@ function homeHarness(presentation, feed, props) {
   const stateViews = compile('src/components/ui/StateViews.tsx', name => name === 'react' ? React : placeholder);
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
     if(name.endsWith('/useHomePullRefresh'))return {useHomePullRefresh:()=>''};
-    if(name.endsWith('/homeGrid'))return {homeGridColumns:()=>2};
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
