@@ -1,9 +1,11 @@
+import {RecordActionSheet} from './features/record/RecordActionSheet';
+import {OwnerRecordProvider} from './features/record/OwnerRecordProvider';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
 import { SharedContextActions } from './presentation/mobile/SharedContextActions';
 import { contextActions } from './presentation/mobile/contextActions';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import type { ProductDetailState } from './components/AppDetailPage';
 import type { FeatureCardApp } from './components/FeatureCard';
@@ -130,8 +132,9 @@ function toDetailView(view: ProjectView): FeatureCardApp {
 // no stand-in identity: an id that does not resolve to a real profile record
 // opens no profile page at all, rather than a page assembled from a display name
 // and sample content.
+const RecordProjectTools=lazy(()=>import('./features/record/RecordProjectTools').then(module=>({default:module.RecordProjectTools})));
 export function App() {
-  return <AppPresentationProvider><AppContent /></AppPresentationProvider>;
+  return <AppPresentationProvider><OwnerRecordProvider><AppContent /></OwnerRecordProvider></AppPresentationProvider>;
 }
 
 function AppContent() {
@@ -807,6 +810,8 @@ function AppContent() {
   const activeCategory = isProfileRouteReady && viewedProfile ? viewedProfile.categories.find((category) => category.id === activeCategoryId) ?? null : null;
   // A category id in the URL that this profile does not hold is reported rather
   // than quietly replaced with another category.
+  const recordCategoryId=activeCategory?.id;
+  useEffect(()=>{if(!isOwnerMode||!recordCategoryId||isSharedRoute)return;const field=new URLSearchParams(search).get('record');if(field==='icon')setIconPickerCategoryId(recordCategoryId);if(field==='portal-project'){setPublishTargetCategoryId(recordCategoryId);setPublishAccountId(auth.user?.id??null);setIsPublishOpen(true);}},[isOwnerMode,recordCategoryId,isSharedRoute,auth.user?.id,search]);
   const isCategoryRouteMissing = isProfileRouteReady && activeCategoryId !== null && activeCategory === null;
   /**
    * Whether an account is required to be HERE. Reading a public profile, category,
@@ -1314,7 +1319,7 @@ function AppContent() {
    * that could not follow the appearance setting; `--mac-label-primary` does,
    * inverting with `.theme-dark` on this same element.
    */
-  return <AppPresentation data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation actionSheet={RecordActionSheet} data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
       {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
         bookmarks: () => nav.to('/saved'),
         search: () => nav.search(''), explore: openPortalink, newProject: requestMobilePublish,
@@ -1390,7 +1395,7 @@ function AppContent() {
         }
         requestAnimationFrame(() => mainContentRef.current?.focus({ preventScroll: true }));
       }} /></DeferredDialog>
-      <PublishConfirmation message={publishConfirmation?.message ?? null} />
+      {isOwnerMode&&activeProjectId&&<Suspense fallback={null}><RecordProjectTools profileId={viewedProfileId} projectId={activeProjectId} owner={isOwnerMode}/></Suspense>}<PublishConfirmation message={publishConfirmation?.message ?? null} projectId={publishConfirmation?.projectId} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
       {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {

@@ -39,7 +39,7 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
   };
   const deps = {
     '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
-    '../references/ExportSheet':{ExportSheet:'export-sheet'},
+    '../record/RecordBlock':{RecordBlock:()=>null},'../references/ExportSheet':{ExportSheet:'export-sheet'},
     '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
     '../citations/service': {listCitations:async()=>[],resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},

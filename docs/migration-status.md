@@ -4,6 +4,10 @@
 <!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
 # Migration status register
 
+## Pending review — Your record (2026-10-12)
+
+`supabase/pending/studio_record.sql` and `supabase/pending/studio_record_link_schedule.sql` are **unapplied**. The first adds private owner memory/status and link observations, depending on References PR45; the second separately activates the bounded daily-due link-check job through the existing Supabase Cron/pg_net/Vault path after reviewed configuration. No extensions, secrets, job, migration ledger, live rows or deployed worker were changed. School + city is deferred and MCP is not live: ten steps are available. See [the review and activation notes](studio-record.md). Explicit user approval is required before either SQL application or deployment.
+
 ## Pending review — external references (2026-10-12)
 
 `supabase/pending/external_references.sql` is **unapplied**. It adds the requested

@@ -48,6 +48,7 @@ import { useProfileConnections } from '../features/follows/useProfileConnections
 import { ProfileCollectionGrid } from './profile/ProfileCollectionGrid';
 import { ProfileBioSheet } from '../features/profile/ProfileBioSheet';
 import './profile/profile-header.css';
+const RecordBioSheet=lazy(()=>import('../features/record/RecordBioSheet').then(module=>({default:module.RecordBioSheet})));
 const JourneyView = lazy(() => import('../features/journey/JourneyView').then(m => ({ default: m.JourneyView })));
 const ThenNowDialog = lazy(() => import('../features/journey/ThenNowDialog').then(m => ({ default: m.ThenNowDialog })));
 const StartHereDialog = lazy(() => import('../features/employer/StartHereDialog').then(m => ({default:m.StartHereDialog})));
@@ -529,6 +530,7 @@ export function UserProfilePage({
     shareReturn.current = true;
     setSearchParams(previous => { const next = new URLSearchParams(previous); next.set('share', 'portfolio'); return next; });
   };
+  useEffect(()=>{if(!showsOwnerTools||isSharedView)return;const field=searchParams.get('record');if(field==='headline')setIsBioOpen(true);if(field==='share'||field==='handle')setShareOpen(true);},[showsOwnerTools,isSharedView,searchParams]);
   const closeShare = () => {
     setShareOpen(false); setShareAuto(false);
     if (searchParams.get('share') !== 'portfolio') return;
@@ -554,7 +556,7 @@ export function UserProfilePage({
     editProfile: onEditProfile, newProject: onPublishProject,
     thenNow: showsOwnerTools && isJourney ? () => setPairSelection('') : undefined,
     share: !profile.isPrivate ? openShare : undefined,
-    copy: !profile.isPrivate ? async () => copyPublicLink(await prepareProfileLink()) : undefined,
+    copy: !profile.isPrivate ? async () => {await copyPublicLink(await prepareProfileLink());if(showsOwnerTools)window.dispatchEvent(new CustomEvent('portalink:portfolio-shared',{detail:{profileId:profile.id,kind:'copy'}}));} : undefined,
     reorder: showsMobileReorder && canReorderProjects ? startReordering : undefined,
     insights: () => navigate(buildPath('insights')), settings: () => navigate(buildPath('controlCenter')),
     follow: follow && !follow.isResolving && !follow.isPending && !follow.resolveError ? follow.onToggle : undefined,
@@ -811,8 +813,8 @@ export function UserProfilePage({
       </header>}
 
       </div>
-      {isBioOpen && <ProfileBioSheet key={profile.id} profileId={profile.id} bio={profile.headline}
-        canEdit={showsOwnerTools && !isSharedView} onClose={() => setIsBioOpen(false)} />}
+      {isBioOpen && (showsOwnerTools&&!isSharedView&&searchParams.get('record')==='headline'?<Suspense fallback={null}><RecordBioSheet profileId={profile.id} bio={profile.headline} onClose={()=>setIsBioOpen(false)}/></Suspense>:<ProfileBioSheet key={profile.id} profileId={profile.id} bio={profile.headline}
+        canEdit={showsOwnerTools && !isSharedView} onClose={() => setIsBioOpen(false)} />)}
       {!isMobile && isReorderingProjects && showsOwnerTools && !isSharedView ? <section aria-label="Reorder projects" className="mx-2 mt-3 flex flex-wrap items-center gap-3 rounded-[12px] bg-[var(--surface-raised)] px-3 py-2.5 shadow-[var(--shadow-pop)] ring-1 ring-inset ring-[var(--hairline)]">
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[var(--accent-soft)] text-[var(--accent-text)]">
             <InterfaceIcon icon={GripVerticalIcon} size="sm" weight="medium" />

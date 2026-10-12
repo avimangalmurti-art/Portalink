@@ -1,3 +1,4 @@
+import {RecordSingleLine} from '../record/RecordBlock';
 import React,{useCallback,useState} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServices } from '../../contexts/ServicesContext';
@@ -15,5 +16,5 @@ export function WeeklyReadNote(){
   const load=useCallback(()=>reads?reads.list():Promise.resolve([]),[reads]);const state=useAccountQuery(load);
   const rows=state.data?.filter(row=>row.weekly.opened>0)??[],opened=rows.reduce((sum,row)=>sum+row.weekly.opened,0),finished=rows.reduce((sum,row)=>sum+row.weekly.finished,0);
   if(!auth.user||dismissed||!opened)return null;
-  return <aside className="reads-weekly" aria-label="This week"><small>This week</small><h2>{opened} project opens. {finished} reads reached the end.</h2><p>Your work is being read. These are anonymous tab counts, not identified people.</p><div><Button onClick={()=>navigate(rows.length===1?`/insights?project=${rows[0].projectId}`:'/insights')}>See reads</Button><Button variant="secondary" onClick={()=>{try{localStorage.setItem(key,'yes');}catch{/* Optional local preference. */}setDismissedKey(key);}}>Dismiss</Button></div></aside>;
+  return <aside className="reads-weekly" aria-label="This week"><small>This week</small><h2>{opened} project opens. {finished} reads reached the end.</h2><p>Your work is being read. These are anonymous tab counts, not identified people.</p><RecordSingleLine scope="home"/><div><Button onClick={()=>navigate(rows.length===1?`/insights?project=${rows[0].projectId}`:'/insights')}>See reads</Button><Button variant="secondary" onClick={()=>{try{localStorage.setItem(key,'yes');}catch{/* Optional local preference. */}setDismissedKey(key);}}>Dismiss</Button></div></aside>;
 }

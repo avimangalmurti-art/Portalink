@@ -1,3 +1,4 @@
+import {handleStudioRecord,handleStudioRecordLinkJob} from './server/studioRecord';
 import {handleReferenceResolve} from './server/referenceResolver';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
@@ -35,6 +36,8 @@ interface SitesEnvironment {
   DB?: D1Database
   PORTFOLIO_PDF_WORKER_URL?: string
   PORTFOLIO_PDF_WORKER_SECRET?: string
+  STUDIO_RECORD_CHECK_TOKEN?: string
+  STUDIO_RECORD_CHECK_SERVICE_KEY?: string
   RUM_OWNER_PROFILE_ID?: string
 }
 
@@ -378,6 +381,8 @@ const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if(url.pathname==='/api/studio/record/check-links')return handleStudioRecordLinkJob(request,{supabaseUrl:SUPABASE_URL,serviceKey:environment.STUDIO_RECORD_CHECK_SERVICE_KEY,jobToken:environment.STUDIO_RECORD_CHECK_TOKEN});
+    if(url.pathname==='/api/studio/record')return handleStudioRecord(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser,cache:typeof caches==='undefined'?undefined:await caches.open('portalink-studio-record')});
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
     if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});

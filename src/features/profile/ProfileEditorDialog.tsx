@@ -49,6 +49,7 @@ export function ProfileEditorPage({
       errorRef.current?.focus();
     }
   }, [editor.phase]);
+  useEffect(()=>{if(editor.phase!=='editing')return;const field=new URLSearchParams(window.location.search).get('record');if(field==='identity')firstFieldRef.current?.focus();if(field==='photo')document.querySelector<HTMLElement>('.mobile-profile-avatar button')?.focus();},[editor.phase]);
   const hasSaved = editor.phase === 'saved';
   useEffect(() => {
     if (!hasSaved) {
