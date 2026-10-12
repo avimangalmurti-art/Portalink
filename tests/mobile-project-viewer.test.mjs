@@ -24,7 +24,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
-  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
@@ -46,7 +46,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     if (name.endsWith('/app/routes')) return { buildPath: (kind, {profileId}) => `${kind}:${profileId}` };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ isAuthenticated: signedIn, requestAuthenticatedDestination: (intent,view) => gates.push({intent,view}), isInitializing: false, viewerProfileId: null }) };
     if (name.endsWith('/MobilePageContext')) return { MobilePageContext: { Provider: 'mobile-page-context' } };
-    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions() {} };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileActions: () => ({ open(model) { optionCalls.push(model); } }), useMobileScreenActions(model, priority, onOpen) { screenActions.push({model,priority,onOpen}); } };
     if (name.endsWith('/MediaInteractionBar')) return { MediaInteractionBar: 'media-interaction-bar' };
     if (name.endsWith('/AttachmentRenderer')) return { AttachmentRenderer };
     if (name.endsWith('/MobileVideoSequence')) return { MobileVideoSequence };
@@ -78,7 +78,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
+  return { gates, attachments, optionCalls, screenActions, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -885,4 +885,21 @@ test('information dismissal never opens options; intentional three-dot handoff c
  assert.equal(h.optionCalls.length,1);
  assert.equal(h.optionCalls[0].title,'Work');
  assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
+});
+
+test('owner reader replaces its bottom controls with actionable sheet rows; visitor controls remain', () => {
+ const h=harness({mediaKind:'image'});
+ const props={isOwner:true,creator:{id:'creator-id',name:'Creator',avatar:''}};
+ let tree=h.render(props);
+ assert.equal(nodes(tree).some(n=>n.props.className==='mobile-content-action-bar'),false);
+ const screen=h.screenActions.at(-1); assert.equal(screen.onOpen,undefined);
+ const actions=[...screen.model.primary,...screen.model.groups.flat()];
+ for(const id of ['list','projectInfo','viewProfile'])assert.ok(actions.some(a=>a.id===id));
+ actions.find(a=>a.id==='list').run();assert.ok(withProp(h.render(props),'data-project-index-panel'));
+ const info=harness({mediaKind:'image'});info.render(props);info.screenActions.at(-1).model.groups.flat().find(a=>a.id==='projectInfo').run();
+ assert.ok(nodes(info.render(props)).some(n=>n.type===FollowContentInfoPopup));
+ actions.find(a=>a.id==='viewProfile').run();assert.equal(h.navigationCalls.at(-1),'profile:creator-id');
+ const visitor=harness({mediaKind:'image',readOnlyShare:true});const publicTree=visitor.render(props);
+ assert.ok(nodes(publicTree).some(n=>n.props.className==='mobile-content-action-bar'));
+ assert.equal(typeof visitor.screenActions.at(-1).onOpen,'function');
 });

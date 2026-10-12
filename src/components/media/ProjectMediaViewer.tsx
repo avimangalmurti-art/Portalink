@@ -300,7 +300,12 @@ export function ProjectMediaViewer({
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
   const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   const mobileActions = useMobileActions();
+  const ownerReader = isOwner && !readOnlyShare;
+  const creatorProfileId = creator?.id;
   const projectActionModel = contextActions(readOnlyShare ? 'shared' : 'project', { signedIn: engagement.canEngage, owner: isOwner }, { title: projectTitle, handlers: {
+    list: ownerReader ? mobileNavigation?.onOpenIndex : undefined,
+    projectInfo: ownerReader ? () => setMobilePopup('description') : undefined,
+    viewProfile: ownerReader && creatorProfileId ? () => journeyNavigate(buildPath('profile', { profileId: creatorProfileId })) : undefined,
     edit: isOwner && !readOnlyShare && descriptionEditor ? () => { closeMobilePopup(); descriptionEditor.open(projectId); } : undefined,
     delete: isOwner && !readOnlyShare && onDeleteProject ? () => { closeMobilePopup(); onDeleteProject(); } : undefined,
     reads: isOwner ? () => journeyNavigate(`/insights?project=${encodeURIComponent(projectId)}`) : undefined,
@@ -308,8 +313,8 @@ export function ProjectMediaViewer({
     thenNow: isOwner && journeyAuth.viewerProfileId ? () => journeyNavigate(`/p/${journeyAuth.viewerProfileId}?journeyPair=${encodeURIComponent(projectId)}`) : undefined,
     saveProject: !engagement.isResolving && !engagement.isPending('save') && !engagement.resolveError ? () => engagement.toggle('save') : undefined,
     share: shareProject, copy: () => copyPublicLink(publicUrl),
-  }, labels: { saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
-  useMobileScreenActions(projectActionModel, 20, () => setMobilePopup('description'));
+  }, labels: { list: 'Open portal', projectInfo: 'Project information', saveProject: engagement.isEngaged('save') ? 'Unsave project' : 'Save project' } });
+  useMobileScreenActions(projectActionModel, 20, ownerReader ? undefined : () => setMobilePopup('description'));
   const [previewPdf, setPreviewPdf] = useState<{ scope: string; document: PdfDocument | null } | null>(null);
   const handlePreviewDocument = useCallback((document: PdfDocument | null) => {
     setPreviewPdf({ scope: previewScope, document });
@@ -674,14 +679,14 @@ export function ProjectMediaViewer({
           </button>
         </div>}
         </div>
-        <nav className="mobile-content-action-bar" aria-label="Content controls">
+        {!ownerReader && <nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
 
           <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobilePopup('description')}>
           <InterfaceIcon icon={mobileEngagementOpen ? XIcon : EllipsisIcon} size="lg" weight="regular" />
         </button>
           <button type="button" aria-label={`View ${creator?.name ?? 'creator'} profile`} disabled={!creator?.id} onClick={() => { if (creator?.id) journeyNavigate(buildPath(readOnlyShare ? 'sharedProfile' : 'profile', { profileId: creator.id })); }}><InterfaceIcon icon={UserRoundIcon} size="lg" /></button>
-        </nav>
+        </nav>}
       </aside> : readOnlyShare ? <aside data-resizable-panel="" data-project-response-rail="" data-rail-expanded={isRailOpen} style={{ width: `${responseRailWidth.width}px` }} aria-label={`Project details and verification for ${projectTitle}`} className={`ps-panel relative flex shrink-0 flex-col overflow-y-auto border-t border-[var(--hairline)] bg-transparent transition-[width,opacity] duration-200 ease-out motion-reduce:transition-none flex-none border-l border-t-0`}>
           <div data-shared-navigation-header="" className={`ps-panel-toolbar global-control-header relative shrink-0 ${isRailOpen ? 'side-panel-control-row side-panel-content-inset' : 'justify-center px-1.5'}`}>
             <button type="button" data-structural-toggle="" onClick={() => onRailOpenChange(!isRailOpen)} aria-expanded={isRailOpen} aria-label={isRailOpen ? 'Hide project details' : 'Show project details'} className={`${isRailOpen ? 'side-panel-header-control side-panel-header-icon' : 'sidebar-rail-slot shape-compact'} flex shrink-0 items-center justify-center rounded-[8px] text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--control-hover-surface)] hover:text-[var(--control-hover-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
