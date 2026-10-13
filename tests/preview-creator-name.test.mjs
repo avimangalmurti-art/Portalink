@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -30,6 +31,7 @@ function harness() {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/profile/PreviewCreatorName.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return react;
     if (name === 'framer-motion') return { useReducedMotion: () => reducedMotion };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -63,7 +65,7 @@ test('overflow starts revealing immediately and stops exactly at the end of the 
   assert.equal(frames[0].transform, 'translateX(0)');
   assert.equal(frames.at(-1).transform, 'translateX(-80px)');
   assert.equal(options.delay, undefined);
-  assert.equal(options.duration, 80 / 22 * 1000 + 1200);
+  assert.equal(options.duration, 260);
   assert.equal(options.direction, 'alternate');
   assert.deepEqual(h.observers[0].targets, [h.viewport, h.text]);
   h.observers[0].callback();

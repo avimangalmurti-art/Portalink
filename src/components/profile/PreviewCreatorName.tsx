@@ -1,3 +1,4 @@
+import { motionMs, motionEase } from '../../presentation/motion/motion';
 import React, { useLayoutEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -31,7 +32,7 @@ export function PreviewCreatorName({ name, active }: { name: string; active: boo
         { transform: 'translateX(0)' },
         { transform: end, offset: travelTime / (travelTime + 1200) },
         { transform: end },
-      ], { duration: travelTime + 1200, iterations: Infinity, direction: 'alternate', easing: 'linear' });
+      ], { duration: motionMs('slow'), iterations: Infinity, direction: 'alternate', easing: motionEase() });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);

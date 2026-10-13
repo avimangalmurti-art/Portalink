@@ -1,3 +1,4 @@
+import {sheetMotionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -11,11 +12,20 @@ const compile = (path, dependencies = {}, globals = {}) => {
   return exports;
 };
 const { contextActions, mergeContextActions } = compile('../src/presentation/mobile/contextActions.ts');
+test('project exports add only the requested actions and do not reveal previously capped visitor controls',()=>{
+ const old=['savePage','cite','share','signIn','createAccount','comment','copy','categories','settings','report'];
+ const handlers=Object.fromEntries(old.map(id=>[id,()=>{}])),before=contextActions('shared',{signedIn:false},{handlers});
+ const after=contextActions('shared',{signedIn:false},{handlers:{...handlers,export(){}}});
+ const flat=model=>[...model.primary,...model.groups.flat()].map(action=>action.id);
+ assert.deepEqual(Array.from(flat(after)),[...flat(before),'export']);
+ const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{edit(){},cover(){},startHere(){},thenNow(){},reads(){},visibility(){},delete(){},copyCitation(){},export(){}}});
+ assert.ok(flat(owner).includes('delete'));assert.ok(flat(owner).includes('copyCitation'));assert.ok(flat(owner).includes('export'));
+});
 const ids = model => [...model.primary, ...model.groups.flat()].map(action => action.id);
-const all = ['deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
+const all = ['viewAsVisitor','projectInfo','deleteChat','newProject','search','explore','refresh','settings','editProfile','share','reorder','insights','copy','follow','message','saveCreator','report','saveProject','savePage','comment','pageIndex','edit','cover','visibility','delete','select','drafts','bookmarks','list','categories','newMessage','blocked','viewProfile','mute','block','yourWorld','myCity','reset','signIn','createAccount','react','editMessage','unsend','leaveLive'];
 const handlers = Object.fromEntries(all.map(id => [id, () => id]));
 const expected = {
- home:['search','explore','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
+ home:['search','explore','viewProfile','refresh','settings','leaveLive'], profile:['follow','message','saveCreator','share','copy','report'],
  project:['savePage','share','comment','pageIndex','copy','report'], studio:['drafts','bookmarks','select'],
  messages:['newMessage','search','blocked'], conversation:['viewProfile','share','mute','deleteChat','block','report'], explore:['search','yourWorld','myCity','reset'],
  shared:['savePage','share','comment','copy','categories','settings','report'], message:['react','editMessage','unsend'], settings:[],
@@ -24,7 +34,7 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  test(`${kind}: capabilities and cap for ${JSON.stringify(viewer)}`, () => {
    const model = contextActions(kind, viewer, {handlers});
    const actions = [...model.primary,...model.groups.flat()];
-   assert.ok(actions.length <= (kind === 'profile' && viewer.owner ? 9 : 8)); assert.ok(model.primary.length <= 3);
+   assert.ok(actions.length <= (viewer.owner ? (kind === 'profile' ? 10 : kind === 'project' ? 11 : 8) : 8)); assert.ok(model.primary.length <= 3);
    assert.ok(actions.every(action => typeof action.run === 'function' && !('disabled' in action)));
    if (!viewer.signedIn) for (const id of ['follow','saveCreator','edit','delete','mute']) assert.ok(!ids(model).includes(id));
    if (!viewer.owner) for (const id of ['editProfile','insights','reorder','edit','cover','visibility','delete']) assert.ok(!ids(model).includes(id));
@@ -33,8 +43,8 @@ for (const kind of Object.keys(expected)) for (const viewer of [{signedIn:false}
  });
 }
 test('owner maps preserve requested order; unavailable callbacks are absent', () => {
- assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','reorder','insights','bookmarks','copy','settings']);
- assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','pageIndex','copy','visibility','delete']);
+ assert.deepEqual(Array.from(ids(contextActions('profile',{signedIn:true,owner:true},{handlers}))),['newProject','editProfile','share','viewAsVisitor','reorder','insights','bookmarks','copy','settings']);
+ assert.deepEqual(Array.from(ids(contextActions('project',{signedIn:true,owner:true},{handlers}))),['edit','cover','list','projectInfo','viewProfile','pageIndex','copy','visibility','delete']);
  assert.deepEqual(Array.from(ids(contextActions('home',{signedIn:true},{handlers:{newProject:handlers.newProject,explore:handlers.explore}}))),['explore']);
 });
 test('shared visitor actions offer auth and preserve the existing return destination', () => {
@@ -43,9 +53,9 @@ test('shared visitor actions offer auth and preserve the existing return destina
  assert.match(source,/readSharedReturnPath\(pathname \+ search\)/); assert.match(source,/requestAuthenticatedDestination\(\{ kind: 'route', path/);
 });
 
-test('owner project includes both curation actions and deletion within the eight-action sheet',()=>{
+test('owner project includes both curation actions and deletion with the relocated reader controls',()=>{
  const owner=contextActions('project',{signedIn:true,owner:true},{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}});
- assert.deepEqual(Array.from(ids(owner)),['edit','cover','startHere','thenNow','pageIndex','visibility','delete']);
+ assert.deepEqual(Array.from(ids(owner)),['edit','cover','list','projectInfo','viewProfile','startHere','thenNow','pageIndex','visibility','delete']);
  for(const viewer of [{signedIn:false},{signedIn:true,owner:false}])assert.ok(!ids(contextActions('project',viewer,{handlers:{...handlers,startHere:()=>{},thenNow:()=>{}}})).includes('startHere'));
 });
 
@@ -94,6 +104,7 @@ function sheetHarness() {
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
+  '../../presentation/motion/useSheetMotion':sheetMotionFixture,
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
  },{Element:ElementStub});
@@ -156,7 +167,7 @@ test('vertical dragging resizes within the viewport, expands, collapses and supp
  assert.ok(h.dialog().props.style.height<=800,'The dragged sheet stays inside its viewport');
  h.pointer('onPointerUp',{clientY:450});
  assert.equal(h.resize.hasPointerCapture(1),false);
- assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props.style.height,undefined);
  assert.equal(h.dialog().props['data-expanded'],true);
  h.clickResize();assert.equal(h.dialog().props['data-expanded'],true,'The drag-generated click does not undo expansion');
  assert.deepEqual(h.calls,[]);
@@ -174,19 +185,19 @@ test('simple resize taps remain clicks; cancelled, horizontal and unrelated poin
  h.clickResize(0);
  for(const ignored of [{isPrimary:false},{button:2},{target:h.close}]){
   h.pointer('onPointerDown',ignored);h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
-  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  }
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerMove',{pointerId:2,clientY:450});h.pointer('onPointerUp',{pointerId:2,clientY:450});
- assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props.style.height,undefined);
  h.pointer('onPointerMove',{clientX:180,clientY:450});h.pointer('onPointerUp',{clientX:180,clientY:450});
  h.clickResize();
- assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerUp',{clientX:180});h.clickResize();
  assert.equal(h.dialog().props['data-expanded'],false,'Horizontal handle drags cannot become toggle clicks, even without a move event');
  for(const cancel of ['onPointerCancel','onLostPointerCapture']){
   h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});assert.ok(h.dialog().props.style.height>440);
   h.pointer(cancel);h.pointer('onPointerUp',{clientY:450});
-  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  }
  assert.deepEqual(h.calls,[]);
 });
