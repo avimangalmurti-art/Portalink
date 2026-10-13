@@ -243,7 +243,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     <div ref={scroller} className="studio-content" data-studio-scroll="" aria-busy={data.status === 'loading'}>
       {notice && <p role="status" className="studio-feedback">{notice}</p>}
       {(localError || data.mutationError) && <p role="alert" className="studio-feedback text-[var(--status-danger)]">{localError || data.mutationError}</p>}
-      {data.status === 'loading' && !data.rows.length ? <LoadingState label="Loading Studio" /> : null}
+      {data.status === 'loading' && !data.rows.length ? <LoadingState kind="studio" label="Loading Studio" /> : null}
       {data.error && <ErrorState title="Some of Studio could not load" description={data.error} onRetry={data.refresh} />}
       {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'bookmarks' ? 'No bookmarks yet' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No items yet'} description={query ? 'Try another search, or clear this one.' : category === 'bookmarks' ? 'Keep projects, pages and creators here using their bookmark action.' : category === 'published' ? 'Your published projects appear here.' : category === 'activity' ? 'Your updates appear here.' : 'Your work, bookmarks and updates appear here.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
       {data.loadMoreError && <ErrorState title="More saved pages could not load" description={data.loadMoreError} onRetry={() => { void data.loadMore(); }} />}

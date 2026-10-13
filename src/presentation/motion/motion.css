@@ -62,3 +62,6 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 ::view-transition { pointer-events:none; }
 ::view-transition-old(*) { animation-duration:var(--m-slow);animation-timing-function:var(--m-exit); }
 ::view-transition-new(*) { animation-duration:var(--m-slow);animation-timing-function:var(--m-enter); }
+
+.screen-loading-shapes {display:none;}
+.legacy-loading-shapes {display:contents;}

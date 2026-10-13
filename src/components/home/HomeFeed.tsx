@@ -227,9 +227,9 @@ export function HomeFeed({
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
             {!layoutReady && (ownerLayout.status === 'error'
               ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
-              : <LoadingState label="Loading your Home layout" />)}
+              : <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" />)}
             {feed.status === 'loading' && projects.length === 0
-              ? <LoadingState label="Loading your Home feed" />
+              ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home feed" />
               : null}
             {feed.status === 'error'
               ? <ErrorState
