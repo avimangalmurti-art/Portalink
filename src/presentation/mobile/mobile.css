@@ -1,3 +1,4 @@
+@import '../../components/profile/icon-create-mobile.css';
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
 /* The startup layer exists before the app host and carries the same scope. */
@@ -4632,16 +4633,16 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* Mobile portal creation is a screen; only its icon catalog scrolls. */
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) {
   padding: 0; z-index: 100; background: var(--surface-canvas);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen-form {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) .new-portal-screen-form {
   width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
   border-radius: 0; box-shadow: none; background: var(--surface-canvas);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen [data-portal-icon-scroll] {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) [data-portal-icon-scroll] {
   overscroll-behavior-y: contain;
 }
 #root .codex-shell[data-presentation='mobile'] .new-portal-pinned-controls {
