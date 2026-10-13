@@ -34,4 +34,6 @@ end;
 $$;
 revoke all on function public.stamp_external_reference() from public,anon,authenticated;
 create trigger stamp_external_reference before insert or update on public.external_references for each row execute function public.stamp_external_reference();
+-- Keep the active-session restriction used by the current production app.
+create policy account_session_active on public.external_references as restrictive for all to authenticated using ((select public.is_account_session_active())) with check ((select public.is_account_session_active()));
 commit;

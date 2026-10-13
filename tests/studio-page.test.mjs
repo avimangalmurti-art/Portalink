@@ -109,7 +109,7 @@ test('Published rows suppress the zero-reference pill and retain project Export 
 test('made-on calendar dates retain their day/year while other Studio date formatting stays unchanged',()=>{
  assert.equal(view.studioMadeOnDate('2024-06-15'),new Date(2024,5,15,12).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}));
  assert.equal(view.studioMadeOnDate('not-a-date'),undefined);
- assert.equal(view.studioDate('2026-06-15T12:00:00Z'),new Date('2026-06-15T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric'}));
+ assert.equal(view.studioDate('2026-06-15T12:00:00Z'),new Date('2026-06-15T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}));
 });
 test('share links use public canonical destinations and retain exact saved-page target', () => {
   assert.equal(view.studioSharePath(rows[0]), '/share/me/c/c1/p1');

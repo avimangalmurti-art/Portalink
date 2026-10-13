@@ -28,3 +28,13 @@ test('project visitors read mixed references without edit/delete controls; owner
 test('own-page Copy citation reuses the exact /cite block without creating a citation row',async()=>{
  const item={id:'page-9',creatorId:'owner',projectId:'project',creator:'Creator',projectTitle:'Work',kind:'page',number:9,madeOn:'2024-01-02'};const source=sourceModule('src/features/references/ownCitation.ts',{'../citations/service':{resolveImageId:async()=>null,resolvePageId:async(id,index)=>{assert.equal(index,8);return'page-9';},resolveCitationItem:async()=>item},'../citations/model':citation,'../citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.example'}});assert.equal(await source.ownPageCitation('owner','project','attachment',8),citation.plainCitation(item,'https://portalink.example'));await assert.rejects(source.ownPageCitation('other','project','attachment',8),/unavailable/);
 });
+
+test('References retains header selection and lets owners edit a free-text row without a URL',async()=>{
+ const row={id:'text-ref',project_id:'project',owner_profile_id:'owner',kind:'text',raw_input:'Notes',resolved:{title:'Notes',verified:false},created_at:'2026-10-12'};
+ const service={externalReferences:async()=>[row],deleteExternalReference:async()=>{}};
+ const h=component('src/features/references/ReferencesTab.tsx','ReferencesTab',{
+ 'react-dom':{createPortal:n=>n},'../studio/StudioEmptyState':{StudioEmptyState:'empty'},'../../components/ui/StateViews':{LoadingSkeleton:'loading'},
+ '../../presentation/mobile/MobileContextActions':{useMobileScreenActions(){}},'../../presentation/mobile/contextActions':{contextActions:()=>({})},'../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',isAuthenticated:true})},'../studio/StudioRow':{StudioRow:'row'},'../studio/StudioActionSheet':{StudioActionSheet:'actions'},'../citations/service':{listCitations:async()=>[],citationProject:async()=>({title:'Work'})},'../citations/model':citation,'./useReferences':{useReferences:()=>service},'./model':model,'./AddReferenceSheet':{AddReferenceSheet:'editor'},'./ExportSheet':{ExportSheet:'export'}
+ },{headerHost:{}});await h.flush();assert.equal(nodes(h.tree).some(n=>n.type==='h2'),false);assert.equal(nodes(h.tree).find(n=>n.type==='input').props.type,'search');assert.ok(h.button('Select'));
+ const reference=nodes(h.tree).find(n=>n.type==='row');assert.equal(typeof reference.props.onOpen,'function');reference.props.onOpen();nodes(h.tree).find(n=>n.type==='actions').props.actions.find(a=>a.id==='edit-reference').onAction();assert.equal(nodes(h.tree).find(n=>n.type==='editor').props.initial.id,'text-ref');h.dispose();
+});

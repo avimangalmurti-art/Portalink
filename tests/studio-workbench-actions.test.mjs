@@ -8,15 +8,15 @@ const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.chil
 function harness(status='ready',drafts=[draft]){
  const calls=[];let registered;
  const fake={...React,useEffect(){},useState:v=>[typeof v==='function'?v():v,value=>calls.push(['state',value])]};
- const dependencies={
-  react:fake,'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(),value=>calls.push(['collection',value.collection])]},
+ const dependencies={'../../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
+  react:fake,'react-router-dom':{useLocation:()=>({state:null}),useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(),value=>calls.push(['collection',value.collection])]},
   'lucide-react':{ChevronLeftIcon:'chevron'},
   '../../presentation/usePresentation':{usePresentation:()=> 'mobile'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
   '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',user:{id:'account'},isAuthenticated:true})},
   '../../contexts/ServicesContext':{useServices:()=>({})},
   '../../presentation/mobile/MobileBackNavigation':{ScreenBack:'back'},
-  '../../presentation/mobile/MobileContextActions':{useMobileScreenActions:value=>{registered=value;}},
+  '../../presentation/mobile/MobileContextActions':{MobileContextButton:'context-button',useMobileScreenActions:value=>{registered=value;}},
   '../../presentation/mobile/contextActions':{contextActions:(_kind,_viewer,target)=>target},
   '../../components/ui/StateViews':{LoadingState:'loading',ErrorState:'error'},
   '../publishing/PublishProjectDialog':{PublishProjectDialog:'publish-dialog'},
@@ -25,7 +25,7 @@ function harness(status='ready',drafts=[draft]){
   './workbenchModel':model,'./useWorkbench':{useWorkbench:()=>({loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[]},drafts,material:[]},retry(){}})},
   './studio-workbench.css':{},
  };
- const Page=sourceModule('src/features/studio/StudioPage.tsx',dependencies).StudioPage;
+ const Page=sourceModule('src/features/studio/StudioPage.tsx',dependencies,{window:{history:{state:{idx:0}}}}).StudioPage;
  const tree=Page({onBack(){},onOpenProject(){},onNewProject:()=>calls.push(['create'])});
  return{calls,registered,tree};
 }
