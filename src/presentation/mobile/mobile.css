@@ -5464,3 +5464,5 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-cover {width:92px;height:92px;}
 #root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-date {width:76px;margin-bottom:12px;}
 #root [data-presentation='mobile'] [data-loading-layout] .loading-year {width:70px;height:24px;}
+
+#root [data-presentation='mobile'] [data-loading-layout='journey'] {padding-top:0;}
