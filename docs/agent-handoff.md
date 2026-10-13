@@ -1,3 +1,7 @@
+## 2026-10-12 — Approved fixed-header/motion release verification
+
+Owned logs/headers-motion-release / codex/headers-motion-release from exact Sites382 b4e0724. Integrated PR55a530f2b and PR56a8bb8c3; retained both live Explore top controls/density and bottom reader pill. Only CSS end and historical handoff conflict; resolved retaining all independent scoped CSS. Typecheck/lint0errors112existingwarnings/clientworkerbuild/config guards pass. Real component synthetic420 Studio/Messages/Profile/dock/tab/push/back/Actions checked;375430 fixedheader top0/nooverflow; reader bottom y856–900/topright hidden, CLS0, reader timings157.2ms under load and82.5ms warm. Physical iPhone unverified; no universal100ms guarantee claimed. Full suite running. No SQL/backend/account/billing changes, pending features excluded. Publication explicitly approved, not yet deployed.
+
 ## 2026-10-12 — Approved PR54 Explore publication in preparation
 
 Owned logs/explore-release / codex/explore-release, combines PR54 with exact Sites381 reader controls. Conflict at CSS file end resolved by retaining both independent scoped rules. No pending header/motion/Terms/features, SQL or backend changes. Verification and publication receipt follows.
