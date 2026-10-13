@@ -14,7 +14,7 @@ function execute(path, require) {
   }).outputText, { exports, require });
   return exports;
 }
-const { LoadingState } = execute('ui/StateViews.tsx', name => name === 'react' ? React : new Proxy({}, { get: () => () => null }));
+const { LoadingSkeleton } = execute('ui/StateViews.tsx', name => name === 'react' ? React : new Proxy({}, { get: () => () => null }));
 function harness() {
   const loaded = [];
   const components = Object.fromEntries(['MediaFrame', 'ImageAttachment', 'GenericFileCard', 'ProcessingNotice',
@@ -24,7 +24,7 @@ function harness() {
   deferredPaths.set('../profile/PdfViewer', 'PdfViewer');
   const { AttachmentRenderer } = execute('media/AttachmentRenderer.tsx', name => {
     if (name === 'react') return { ...React, lazy: load => Object.assign(() => null, { load }) };
-    if (name === '../ui/StateViews') return { LoadingState };
+    if (name === '../ui/StateViews') return { LoadingSkeleton };
     if (deferredPaths.has(name)) {
       loaded.push(name);
       const component = deferredPaths.get(name);
@@ -107,8 +107,8 @@ test('each real media kind requests only its renderer and retains a polite loadi
     assert.equal(fallback.props['data-page-loading'], kind === 'document' ? '' : undefined);
     assert.equal(fallback.props['data-initial-page-loading'], kind === 'document' ? '' : undefined,
       'only the document page boundary opts into the initial reader loading surface');
-    assert.equal(loading.type, LoadingState);
-    const status = LoadingState(loading.props);
+    assert.equal(loading.type, LoadingSkeleton);
+    const status = LoadingSkeleton(loading.props);
     assert.equal(status.props.role, 'status');
     assert.equal(status.props['aria-live'], 'polite');
     assert.match(loading.props.label, /Selected work/);

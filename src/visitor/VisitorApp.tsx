@@ -1,3 +1,5 @@
+import { LoadingSkeleton } from '../components/ui/StateViews';
+import { beginProjectContinuity } from '../utils/projectContinuity';
 import { RouteError, routeErrorKind } from '../components/ui/RouteError';
 import { SharedPortalPopup } from './mobile/SharedPortalPopup';
 import { VisitorPreviewBar } from '../features/profile/VisitorPreviewBar';
@@ -152,8 +154,8 @@ export function VisitorApp() {
   const style = useMemo(() => ({ '--accent-color': accentColor, ...resolveAccentTokens(accentColor, theme),
     ...resolveNavButtonTokens(theme, accentColor, highContrast, reduceTranslucency, systemGray), ...resolveMacTokens(accentColor, theme),
   }) as React.CSSProperties, [accentColor, theme, highContrast, reduceTranslucency, systemGray]);
-  const openProject = (category: string, id: string) => { if (profileId) navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix); };
-  const pending = <p role="status" className="p-5 text-[var(--text-secondary)]">Opening shared content…</p>;
+  const openProject = (category: string, id: string) => { if (profileId) { beginProjectContinuity(id); navigate(portfolioProjectPath(profileId, category, id, handleFromPath(location.pathname)) + previewSuffix); } };
+  const pending = <LoadingSkeleton kind={projectId ? 'reader' : 'profile'} projectId={projectId ?? undefined} label="Opening shared content…"/>;
   return <AppPresentation showFloatingActions={!projectId && !handleError && !invalidShared && Boolean(profile) && query.status === 'ready'} actionSheet={PublicActionSheet} data-public-portfolio="" data-layout-mode="adaptive" style={style} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui shared-portalink-shell theme-${theme} ${highContrast ? 'high-contrast' : ''} ${reduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
     <MobileBackProvider onBack={back}>
       {profile && <SharedProfileSidebar mobileNavigationEnabled={!projectId && !settings && !portalPopupId} profile={profile} activeCategoryId={categoryId} theme={theme} onThemeChange={choosePublicMode}

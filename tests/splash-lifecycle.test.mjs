@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
 import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
@@ -63,7 +64,7 @@ function compile(path, imports, globals) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
+  }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false } = {}) {
@@ -224,7 +225,7 @@ test('WEB starts its short presentation budget on the first frame, not during bu
   const h = loader(); h.render();
   assert.equal([...h.timers.values()].some(t => t.delay === 880), false);
   h.start(); h.paint();
-  assert.equal(h.exitDuration, 0.32); h.timer(880);
+  assert.equal(h.exitDuration, 0.26); h.timer(880);
   assert.equal(h.completed, 1);
   assert.equal(h.render().media.props.style.opacity, 1);
   h.unmount();
@@ -752,9 +753,9 @@ test('shared visitors can open Settings while the public-view boundary remains i
   assert.equal(h.app.props.to,'/share/creator');
 });
 
-test('leaving Hello World cross-fades for exactly250ms, respecting reduced motion and other startup timings',()=>{
+test('leaving Hello World cross-fades for the base motion token, respecting reduced motion and other startup timings',()=>{
  const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'Continue as guest'};
- for(const options of [{presentation:'mobile',landing:welcome},{presentation:'mobile',welcomeHandoff:true}]){const h=loader(options),view=h.render();assert.equal(view.tree.props.transition.duration,.25);assert.equal(view.tree.props.exit.opacity,0);h.unmount();}
+ for(const options of [{presentation:'mobile',landing:welcome},{presentation:'mobile',welcomeHandoff:true}]){const h=loader(options),view=h.render();assert.equal(view.tree.props.transition.duration,.18);assert.equal(view.tree.props.exit.opacity,0);h.unmount();}
  const reduce=loader({presentation:'mobile',landing:welcome,reduced:true});reduce.render();assert.equal(reduce.exitDuration,0);reduce.unmount();
- const normal=loader();normal.render();assert.equal(normal.exitDuration,.32);normal.unmount();
+ const normal=loader();normal.render();assert.equal(normal.exitDuration,.26);normal.unmount();
 });

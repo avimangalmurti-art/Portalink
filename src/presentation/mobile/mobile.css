@@ -708,7 +708,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] * {
@@ -717,20 +717,20 @@
 
 /* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -787,7 +787,7 @@
   color: var(--text-primary) !important;
   box-shadow: var(--mobile-navigation-item-shadow, none) !important;
   transform: none !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter), box-shadow var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
@@ -1103,7 +1103,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -1599,8 +1599,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 /* Override generic floating-dialog paint and all-corner rounding only here. */
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
@@ -2738,7 +2738,7 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: transform var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -3164,7 +3164,7 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter);
 }
 /* Override the shared soft-selected toggle rule for Mail-style categories. */
 #root .codex-shell[data-presentation='mobile'] .studio-category[aria-pressed='true'] { background: var(--accent-primary) !important; color: var(--accent-foreground) !important; }
@@ -3348,7 +3348,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   pointer-events: none;
-  animation: premium-media-spin 800ms linear infinite;
+  animation: premium-media-spin var(--m-slow) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -4021,7 +4021,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-handle-validation span { flex: 1; }
 [data-presentation='mobile'] .share-qr-skeleton { width: 82%; height: 82%; background: #ededed; border-radius: 8px; }
 [data-presentation='mobile'] .share-note-field textarea { resize: none; }
-[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
+[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color var(--m-fast) var(--m-enter), background-color var(--m-fast) var(--m-enter); }
 @media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }
 
 /* Compact relationship controls match the mobile profile reference. */
@@ -4619,7 +4619,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) {
-  transition: transform 180ms ease-out;
+  transition: transform var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-pulling] {
   transform: translate3d(0, var(--profile-pull-offset, 0px), 0);

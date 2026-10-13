@@ -93,7 +93,7 @@ const appExpressions = Object.fromEntries(appBoundaries.map(name => [name, appIn
 function profileRender(overrides = {}) {
   const profile = { id: 'owner', name: 'Owner', projectGridColumns: 2 };
   const context = vm.createContext({
-    React, LoadingState: 'loading', EmptyState: 'empty', ErrorState: 'error', RouteError: 'route-error', routeErrorKind: () => 'network',
+    React, LoadingSkeleton: 'loading', openingProjectId:null, LoadingState: 'loading', EmptyState: 'empty', ErrorState: 'error', RouteError: 'route-error', routeErrorKind: () => 'network',
     presentation: 'mobile', route: { kind: 'profile' }, pathname: '/p/owner', routeProfileId: 'owner', viewedProfileId: 'owner',
     auth: { user: { id: 'account' }, viewerProfileId: 'owner', isAuthenticated: true, phase: 'authenticated' },
     viewedProfile: profile, viewedProfileQuery: { profile, status: 'ready', error: null, retry() {} },

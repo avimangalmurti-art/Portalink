@@ -21,5 +21,5 @@ function Interaction({item,onClose}:{item:CitationItem;onClose:()=>void}) {
  return <>{!auth.pendingView&&sheetOpen&&<CiteSheet item={item} onClose={()=>setSheetOpen(false)}/>} {auth.pendingView&&<Suspense fallback={null}><AuthDialog accentColor="#ff2d64" onAccentColorChange={()=>undefined} highContrast={false} onHighContrastChange={()=>undefined} reduceTranslucency={false} onReduceTranslucencyChange={()=>undefined} registrationReturnPath={location.pathname+location.search}/></Suspense>}</>;
 }
 export default function CitationInteraction(props:{item:CitationItem;onClose:()=>void}) {
- return <BrowserRouter><ServicesProvider services={visitorServices}><AuthProvider><AppPresentationProvider><Interaction {...props}/></AppPresentationProvider></AuthProvider></ServicesProvider></BrowserRouter>;
+ return <BrowserRouter useTransitions={false}><ServicesProvider services={visitorServices}><AuthProvider><AppPresentationProvider><Interaction {...props}/></AppPresentationProvider></AuthProvider></ServicesProvider></BrowserRouter>;
 }

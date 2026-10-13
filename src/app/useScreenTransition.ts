@@ -1,3 +1,4 @@
+import { motionMs } from '../presentation/motion/motion';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 export type ScreenPhase = 'screen-active' | 'screen-next' | 'screen-exit';
@@ -9,7 +10,6 @@ export type ScreenTransitionLayer<T> = {
   snapshot: T;
 };
 
-const TRANSITION_DURATION_MS = 240;
 
 /**
  * Route-only screen state controller.
@@ -25,6 +25,7 @@ export function useScreenTransition<T>(
   reduceMotion: boolean,
   skipLayerTransition = false
 ): ScreenTransitionLayer<T>[] {
+  const motionUpdating = typeof document !== 'undefined' && document.documentElement?.dataset.motionUpdating === 'true';
   const nextIdRef = useRef(1);
   const committedKeyRef = useRef(screenKey);
   const committedSnapshotRef = useRef(snapshot);
@@ -55,7 +56,7 @@ export function useScreenTransition<T>(
     committedKeyRef.current = screenKey;
     committedSnapshotRef.current = incomingSnapshot;
 
-    if (reduceMotion || skipLayerTransition) {
+    if (reduceMotion || skipLayerTransition || motionUpdating) {
       setLayers([{
         id: incomingId,
         screenKey,
@@ -92,7 +93,7 @@ export function useScreenTransition<T>(
         } : layer));
         cleanupTimer = window.setTimeout(() => {
           setLayers((current) => current.filter((layer) => layer.id === incomingId));
-        }, TRANSITION_DURATION_MS);
+        }, motionMs('base'));
       });
     });
 
@@ -101,11 +102,11 @@ export function useScreenTransition<T>(
       cancelAnimationFrame(secondFrame);
       window.clearTimeout(cleanupTimer);
     };
-  }, [reduceMotion, screenKey, skipLayerTransition]);
+  }, [reduceMotion, screenKey, skipLayerTransition, motionUpdating]);
 
   // Same-route data updates replace only the active snapshot. They do not start
   // a navigation transition or remount the layer that owns the current screen.
-  if (skipLayerTransition && screenKey !== committedKeyRef.current) {
+  if ((skipLayerTransition || motionUpdating) && screenKey !== committedKeyRef.current) {
     return [{
       id: nextIdRef.current,
       screenKey,

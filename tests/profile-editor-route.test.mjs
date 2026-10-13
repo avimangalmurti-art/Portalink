@@ -246,7 +246,7 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   const screen = evaluate(initializer('screenContent'), {
     isProfileEditorRoute: true, routeStateView: null,
     auth: { isAuthenticated: true, viewerProfileId: 'owned-profile' },
-    ProfileEditorPage, closeProfileEditor: close, LoadingState: () => null,
+    ProfileEditorPage, closeProfileEditor: close, LoadingSkeleton: () => null, openingProjectId:null, isMobileStudioOpen:false,
     DeferredSurfaceBoundary: 'DeferredSurfaceBoundary', screenTransitionKey: 'profile-editor-owned-profile',
   });
   assert.equal(screen.props.children.type, 'DeferredSurfaceBoundary');
@@ -261,7 +261,13 @@ test('the editor is mounted in the routed screen, with one shared Back/Save call
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: true }), false);
   const RouteError = () => null;
   assert.equal(evaluate(sidebar, { isProfileEditorRoute: false, routeStateView: {type: RouteError}, RouteError, auth: {isAuthenticated: false} }), false, 'Signed-out error screens have no dock');
-  assert.match(app, /snapshot=\{\{[^}]*content: screenContent/);
+  const snapshot=findNode(node=>ts.isJsxAttribute(node)&&node.name.getText(parsed)==='snapshot').initializer.expression.getText(parsed);
+  const values={screenMainClassName:'main',screenAriaLabel:'editor',isSharedRoute:false,projectNavigation:{resolution:{state:'ready'}},routeItemId:null,screenContent:screen};
+  assert.equal(evaluate(snapshot,values).content,screen,'The routed editor remains the active screen content');
+  const LoadingSkeleton=()=>null;
+  const pending=evaluate(snapshot,{...values,projectNavigation:{resolution:{state:'loading',projectId:'work'}},LoadingSkeleton});
+  assert.equal(pending.content.type,LoadingSkeleton);assert.equal(pending.content.props.projectId,'work');
+  assert.equal(evaluate(snapshot,{...values,isSharedRoute:true,projectNavigation:{resolution:{state:'loading'}}}).content,screen,'Visitor routes keep their existing read boundary');
   assert.doesNotMatch(app, /isProfileEditorOpen|setIsProfileEditorOpen|<ProfileEditorDialog\b/);
 });
 
