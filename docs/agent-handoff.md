@@ -1,3 +1,7 @@
+## 2026-10-12 — Sites382 PR54 Explore published
+
+Published sourceb4e07244fd809eb6a95d044609e93fcb0f035fda, deployment appgdep_6acd8b7980c8819184113288168fd766 succeeded2026-10-13T01:38:16.751540Z; existing public site/env2/D1. Owned logs/explore-release / codex/explore-release integrates approved PR54 onto Sites381, preserving bottom reader controls. Integration PR58 https://github.com/avimangalmurti-art/Portalink/pull/58 stacked on PR57; GitHub main remains unmerged/billing deferred. Restored mobile top globe/Home/search/refresh/dots and Profile2–13 density (existing signed-in preference/guest local state).37 focused tests/typecheck/lint0errors112existingwarnings/build/configured graphs pass. Real-component synthetic420 density2to3to4/search/Actions,375fit/WEB1280preserved, live420 header confirmed; screenshots docs/evidence/explore-release. Physical iPhone unverified. No real preference writes, SQL/backend/accounts or pending PR55–56/features. Owned preview5208 stopped, verification tab closed, viewport reset. Windows packaging command failure recovered via same prepare-site-build helper/native tar; migrations0000–0003 retained. Receipt docs separate from deployed source.
+
 ## 2026-10-12 — Approved PR54 Explore publication in preparation
 
 Owned logs/explore-release / codex/explore-release, combines PR54 with exact Sites381 reader controls. Conflict at CSS file end resolved by retaining both independent scoped rules. No pending header/motion/Terms/features, SQL or backend changes. Verification and publication receipt follows.
