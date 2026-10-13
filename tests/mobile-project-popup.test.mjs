@@ -5,16 +5,16 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-function render(shared=false) {
+function render(shared=false, owner=false) {
  const calls=[]; const exports={};
  const engagement={};
  const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
  const mocks={react,'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:shared?'/share/creator':'/home',search:''})},
  '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
- '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:!shared,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
+ '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:!shared,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
  './ProjectPopupEngagement':{ProjectPopupEngagement:'engagement'},'../profile/CreatorAvatar':{CreatorAvatar:'avatar'},
- './MobileProjectDescriptionSheet':{MobileProjectDescriptionSheet:'dialog'},
+ './FollowContentInfoPopup':{FollowContentInfoPopup:'dialog'},
  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>calls.push(['share',target])},
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){}})},
  '../../presentation/mobile/contextActions':{contextActions:()=>({})},
@@ -26,15 +26,15 @@ function render(shared=false) {
 }
 test('project popup preserves description, canonical engagement and creator order and navigation',()=>{
  const {tree,calls,engagement}=render();assert.equal(tree.props.description,'Description');
- const details=nodes(tree.props.details);const bar=details.find(n=>n.type==='engagement');
+ const details=nodes(tree.props.engagementContent);const bar=details.find(n=>n.type==='engagement');
  const identity=nodes(tree.props.creatorHeader);const creator=identity.find(n=>n.props.className==='project-popup-creator');
  assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.projectId,'work');
- assert.ok(creator);assert.equal(identity.find(n=>n.type==='avatar').props.shape,'squircle');assert.equal(tree.props.projectTitle,'Work');
+ assert.ok(creator);assert.equal(identity.find(n=>n.type==='avatar').props.shape,'squircle');assert.equal(tree.props.title,'Work');
  bar.props.onOpenComments();assert.deepEqual(calls.slice(-2),[['close'],['comments']]);
  creator.props.onClick();assert.deepEqual(calls.slice(-2),[['close'],['navigate','/profile/creator']]);
 });
 test('shared project popup gates guest engagement without inventing counts',()=>{
- const {tree,calls}=render(true);const bar=nodes(tree.props.details).find(n=>n.type==='engagement');
+ const {tree,calls}=render(true);const bar=nodes(tree.props.engagementContent).find(n=>n.type==='engagement');
  bar.props.onRequireAccount();assert.equal(calls.at(-1)[0],'account');assert.equal(bar.props.projectId,'work');
 });
 
@@ -50,9 +50,14 @@ test('owner actions invoke the existing editor and confirmation callbacks after 
  assert.equal(nodes(unavailable).filter(n=>n.type==='button').length,0);
 });
 
-test('only Home opts into the centered owner dropdown', () => {
- const home = render(false).tree;
- const shared = render(true).tree;
- assert.equal(home.props.centeredOwnerMenu, true);
- assert.equal(shared.props.centeredOwnerMenu, false);
+test('cover details use the reader card without the old sheet', () => {
+ for (const shared of [false,true]) assert.equal(render(shared).tree.type,'dialog');
+ const source=readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx',import.meta.url),'utf8');
+ assert.ok(source.includes('FollowContentInfoPopup'));
+ assert.ok(!source.includes('MobileProjectDescriptionSheet'));
+});
+test('owner commands stay available through the reader card options slot',()=>{
+ const {tree,OwnerActions}=render(false,true);
+ assert.equal(tree.props.optionsContent.type,OwnerActions);
+ assert.equal(tree.props.engagementContent.type,React.Fragment);
 });
