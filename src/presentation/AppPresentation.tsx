@@ -1,3 +1,5 @@
+import './mobile/header-material-mobile.css';
+import { useMobileHeaderMaterial } from './mobile/useMobileHeaderMaterial';
 import { InternalContentShareProvider } from '../features/sharing/InternalContentShare';
 import '../components/media/mobile-project-popup.css';
 import React from 'react';
@@ -27,6 +29,7 @@ export function AppPresentation({ children, actionSheet, showFloatingActions = t
   useMobileViewportFrame(presentation, frameRef);
   const { pathname } = useLocation();
   useProjectScrollActivity(presentation === 'mobile', pathname, frameRef);
+  useMobileHeaderMaterial(presentation === 'mobile', pathname, frameRef);
   useAppZoomBoundary();
   return <div {...props} ref={frameRef} data-presentation={presentation}><InternalContentShareProvider><MobileContextProvider sheet={actionSheet} showFloatingButton={showFloatingActions}>{children}</MobileContextProvider></InternalContentShareProvider></div>;
 }

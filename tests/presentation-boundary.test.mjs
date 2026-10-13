@@ -91,6 +91,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
     if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './mobile/useMobileHeaderMaterial') return { useMobileHeaderMaterial() {} };
     if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
