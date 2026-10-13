@@ -887,11 +887,11 @@ test('information dismissal never opens options; intentional three-dot handoff c
  assert.equal(nodes(tree).find(node=>node.type===AttachmentRenderer).props.attachment.id,'second');
 });
 
-test('owner reader replaces its bottom controls with actionable sheet rows; visitor controls remain', () => {
+test('owner and visitor readers retain bottom portal, information and creator controls', () => {
  const h=harness({mediaKind:'image'});
  const props={isOwner:true,creator:{id:'creator-id',name:'Creator',avatar:''}};
  let tree=h.render(props);
- assert.equal(nodes(tree).some(n=>n.props.className==='mobile-content-action-bar'),false);
+ const controls=nodes(tree).find(n=>n.props.className==='mobile-content-action-bar'); assert.ok(controls); assert.equal(nodes(controls).filter(n=>n.type==='button').length,3);
  const screen=h.screenActions.at(-1); assert.equal(screen.onOpen,undefined);
  const actions=[...screen.model.primary,...screen.model.groups.flat()];
  for(const id of ['list','projectInfo','viewProfile'])assert.ok(actions.some(a=>a.id===id));
