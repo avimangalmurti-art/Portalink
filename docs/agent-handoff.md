@@ -1,3 +1,7 @@
+## 2026-10-12 — Portfolio default correction verified
+
+Owned logs/profile-portfolio-default / codex/profile-portfolio-default from live Sites383d2d83b4. Both app and shared profiles use nonremembering hook; change initial/reset fromJourney toPortfolio, retain currentvisit Journey selection.18focused/typecheck/build/config guards pass; syntheticmobile420 ownerselectJourney/reloadPortfolio/sharedguestPortfolio and priorWEB1280Portfolio verified; physicalPhoneunverified. No layout/SQL/backend/preferenceswrites; currentExplore/headers/motion/readercontrols retained. Publication preparation via existingSites workflow.
+
 ## 2026-10-12 — Approved fixed-header/motion release verification
 
 Owned logs/headers-motion-release / codex/headers-motion-release from exact Sites382 b4e0724. Integrated PR55a530f2b and PR56a8bb8c3; retained both live Explore top controls/density and bottom reader pill. Only CSS end and historical handoff conflict; resolved retaining all independent scoped CSS. Typecheck/lint0errors112existingwarnings/clientworkerbuild/config guards pass. Real component synthetic420 Studio/Messages/Profile/dock/tab/push/back/Actions checked;375430 fixedheader top0/nooverflow; reader bottom y856–900/topright hidden, CLS0, reader timings157.2ms under load and82.5ms warm. Physical iPhone unverified; no universal100ms guarantee claimed. Full suite running. No SQL/backend/account/billing changes, pending features excluded. Publication explicitly approved, not yet deployed.
