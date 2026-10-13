@@ -100,7 +100,7 @@ export function NewCategoryDialog({
           <h2 id="new-category-heading" className="text-medium font-semibold text-[var(--text-primary)]">New {itemName}</h2>
         </div>
 
-        <div data-icon-create-body="" ref={contentRef} data-portal-icon-scroll="" className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
+        <div data-icon-create-body="" ref={presentation === 'web' ? contentRef : undefined} className="min-h-0 flex-1 overflow-y-auto px-6 pb-2">
           <div className="new-portal-pinned-controls contents">
           {/* The choice, shown as the thing being made: the selected mark at the
              size it will be recognised at. */}
@@ -127,7 +127,9 @@ export function NewCategoryDialog({
           {error && <p role="alert" className="mt-2 text-[13px] text-[var(--text-primary)]">{error}</p>}
 
           </div>
+          <div ref={presentation === 'mobile' ? contentRef : undefined} data-portal-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents overflow-y-auto"}>
           <PortalIconLibrary selected={iconName} onSelect={name => { setIconName(name); if (isIconSearch) returnToTitle(); }} searchQuery={isIconSearch ? iconQuery : ''} disabled={isSaving} compact label={`${itemName === 'portal' ? 'Portal' : 'Category'} icon`} />
+          </div>
         </div>
 
         <div data-icon-create-footer="" className="flex shrink-0 items-center gap-3 border-t border-[var(--hairline)] px-6 py-4">

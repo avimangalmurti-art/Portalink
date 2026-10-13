@@ -300,6 +300,7 @@ test('New portal keeps its title through search and selection without creating p
   const scrollContainer = all(tree).find(node => 'data-portal-icon-scroll' in node.props);
   assert.ok(scrollContainer?.props.className.includes('overflow-y-auto'));
   assert.ok(all(scrollContainer).some(node => node.type === h.library(tree).type), 'library observes the existing dialog scroll region');
+  assert.ok(!all(scrollContainer).some(node => 'data-icon-create-preview' in node.props), 'selected preview stays outside the scrolling catalog');
   search(tree).props.onChange({ target: { value: '  Astronomy  ' } });
   tree = h.render(); toggle(tree).props.onClick(); tree = h.render();
   assert.equal(search(tree).props.type, 'search');

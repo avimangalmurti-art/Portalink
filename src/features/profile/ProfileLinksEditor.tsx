@@ -308,7 +308,7 @@ export function ProfileLinksEditor({
             <h2 id="profile-link-icon-heading" className="text-medium font-semibold">Choose link icon</h2>
           </div>
 
-          <div data-icon-create-body="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
+          <div data-icon-create-body="" className={presentation === 'mobile' ? "min-h-0 flex flex-1 flex-col overflow-hidden px-6 pb-4" : "min-h-0 flex-1 overflow-y-auto px-6 pb-4"}>
             <div data-link-icon-pinned="" className={presentation === 'mobile' ? "shrink-0" : "contents"}>
             <div data-icon-create-preview-row="" className="flex justify-center pt-4">
               <span data-icon-create-preview="" aria-hidden="true" className="flex h-[88px] w-[88px] items-center justify-center rounded-full bg-[var(--accent-primary)] text-[var(--accent-foreground)]">
@@ -326,7 +326,7 @@ export function ProfileLinksEditor({
             </label>{presentation==='mobile'&&<button type="button" aria-label="Search link icons" onClick={()=>iconDialogRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus()}><InterfaceIcon icon={SearchIcon} size="lg"/></button>}</div>
 
             </div>
-            <div data-link-icon-scroll="" className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
+            <div data-link-icon-scroll="" data-portal-icon-scroll={presentation === 'mobile' ? '' : undefined} className={presentation === 'mobile' ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "contents"}>
             <div data-link-brand-icons="" role="radiogroup" onKeyDown={handleRadioGroupKeyDown} aria-label="Profile link icon" className="mt-5 grid grid-cols-5 gap-2.5 pb-2 sm:grid-cols-7">
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
