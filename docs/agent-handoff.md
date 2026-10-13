@@ -1,3 +1,9 @@
+## 2026-10-13 - Mobile Home pull refresh loading indicator
+
+Owned logs/mobile-refresh-indicator, codex/mobile-refresh-indicator, exactliveSites392 basee12bdaf. Requested replacement of visible Release to refresh popup with dynamic content-page loading icon. HomeFeed alone now renders existing premium-media-loading-mark in feedback during pull and refresh; label is sr-only, busy state continues indicator. Existing gesture hook/threshold/callback, error messages, desktop, Studio and all other UI unchanged. No CSS/animation additions: uses content-page ring and its reduced-motion rule.
+
+16 focused Home/search/discovery tests pass, including retained cards/busy refresh prevention and existing loader assertion. Typecheck/lint0errors114existingwarnings/client+workerbuild/configuredSupabasegraphs pass. Browser420synthetic Home light/dark confirms animated ring and visuallyhidden text; WEB1280 disabledgesture/nofeedback. Auth bootstrap splash was allowed to finish before dark screenshot. Evidence ignored logs/qa/pull-feedback.png andpull-dark.png. Gesture visual preview used authoredQA TouchEvents, not physicaliPhone proof; native gesture hook unchanged. No SQL/backend/realaccountwrites. Mainmerge/CIbilling remain deferred. Publication receipt to follow.
+
 ## 2026-10-13 - Mobile icon picker correction
 
 Owner codex/mobile-icon-correction in logs/mobile-icon-correction based on exact live Sites391 source4ca72aa. User reported mixed white/dark surfaces on real phone and asks preview stay visible. Mobile opt-in CSS now applies independently of presentation-host nesting, sets dark local surfaces/text, and uses catalog-only scrolling with correct observer root. NewCategoryDialog desktop scroll ref retained. ProfileLinksEditor uses same stationary preview/search/footer. Only these two mobile screens change; no SQL/backend/data changes.

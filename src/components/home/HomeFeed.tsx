@@ -213,7 +213,10 @@ export function HomeFeed({
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
               <button type="button" aria-label="Reload Home content" aria-pressed={feed.isRefreshing} className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={refreshHome}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
               <div data-inline-screen-actions=""><MobileContextButton /></div></div>
-            {pullLabel && <p data-home-pull-feedback="" role="status" className="py-2 text-center text-[13px] text-[var(--text-secondary)]">{pullLabel}</p>}
+            {(pullLabel || feed.isRefreshing) && <p data-home-pull-feedback="" role="status" className="flex items-center justify-center py-2 text-[13px] text-[var(--text-secondary)]">
+              <span className="premium-media-loading-mark" aria-hidden="true" />
+              <span className="sr-only">{feed.isRefreshing ? 'Refreshing Home content.' : pullLabel}</span>
+            </p>}
             <p role="status" className={hasReloaded && (feed.isRefreshing || feed.refreshError) ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
