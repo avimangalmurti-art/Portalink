@@ -1,7 +1,19 @@
+<!-- 2026-10-12: Explicitly approved account_session_devices.sql applied once via existing production SQL Editor. Unchanged file recorded as 202610120001_account_session_devices.sql; no ledger repair. Schema/FK preflight, grants and rollback-only account isolation/selected revocation/cascade checks passed; real sessions untouched. Source publication tracked in agent-handoff. -->
 <!-- 2026-10-07: 0003 applied once via approved production SQL Editor; citation/notification cascade lifecycle verified and test rows deleted. File moved unchanged to migrations; CLI ledger untouched. No publish; Studio acceptance issue remains. -->
 <!-- 2026-10-07: 202610070001 and 202610070002 applied manually through production SQL Editor in order with explicit approval; October 6 backup selected. Files moved to migrations. CLI ledger unchanged. App acceptance incomplete; no publish. See agent-handoff.md. -->
 <!-- October 1, 2026: 202610010001_profile_connection_counts.sql applied separately with explicit user approval. Existing Supabase project; transaction success, aggregate totals/execute grants/inaccessible-profile null and public REST RPC verified. No user rows or ledger changed; frontend remains unpublished. See agent-handoff.md. -->
+<!-- 2026-10-12: immediate_account_session_revocation.sql is pending explicit approval. No SQL applied; adds active-session functions, guarded Data API pre-request hook and restrictive policies on31 inventoried RLS tables. See docs/immediate-session-revocation.md. -->
 # Migration status register
+
+## Pending review — external references (2026-10-12)
+
+`supabase/pending/external_references.sql` is **unapplied**. It adds the requested
+separate reference table, project/date index, owner CRUD and existing-project
+visibility reads, with server-stamped immutable creation dates. Disposable
+PGlite ownership/public/private-role checks pass. It does not write citations or
+notifications. Apply only this file after explicit approval; no migration ledger
+repair or unrelated migration execution is authorized. See
+[the task review package](references-and-exports.md).
 
 ## September 30, 2026 — Sites279 live; edge cache verified
 
@@ -203,3 +215,5 @@ select version from supabase_migrations.schema_migrations order by version;
 Record future verification results here without storing secrets or user data. Until that inspection occurs, the unknown and historically recorded statuses above remain deliberately unresolved.
 
 2026-10-05: Prepared 202610050001_mutual_profile_connections.sql for owner/accepted-mutual list access. UNAPPLIED; requires explicit database deployment authorization and real permission validation before claiming live support.
+
+2026-10-12: explicitly approved immediate session revocation SQL applied once to existing production Supabase project; inventoried202610120002_immediate_account_session_revocation.sql. Catalog31restrictive policies/hook and rollback-only live/session isolation checks pass;zero test residue. No unrelated migration/history repair. See immediate-session-revocation.md and release handoff.

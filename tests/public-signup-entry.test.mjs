@@ -21,3 +21,11 @@ test('public mobile signup starts at profile and Back dismisses to content; ordi
   tree.props.onDismiss();assert.equal(closed,1);
  }
 });
+
+test('restoring unfinished signup values does not skip appearance; verification still resumes', () => {
+ const source=readFileSync(new URL('../src/features/auth/AuthDialog.tsx',import.meta.url),'utf8');
+ const restore=source.slice(source.indexOf('void readRegistrationDraft'),source.indexOf('}, [restoreAttempt]'));
+ assert.doesNotMatch(restore,/onStepChange\('account'\)/);
+ assert.match(restore,/setName\(saved.registration.name\)/);
+ assert.match(restore,/saved.requiresEmailVerification\) setRestoredResult/);
+});
