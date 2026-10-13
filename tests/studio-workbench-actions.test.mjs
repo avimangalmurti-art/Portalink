@@ -8,7 +8,7 @@ const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.chil
 function harness(status='ready',drafts=[draft]){
  const calls=[];let registered;
  const fake={...React,useEffect(){},useState:v=>[typeof v==='function'?v():v,value=>calls.push(['state',value])]};
- const dependencies={'../../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
+ const dependencies={'./MobileLibraryLayout':{MobileLibraryLayout:'mobile-layout'},'../../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
   react:fake,'react-router-dom':{useLocation:()=>({state:null}),useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(),value=>calls.push(['collection',value.collection])]},
   'lucide-react':{ChevronLeftIcon:'chevron'},
   '../../presentation/usePresentation':{usePresentation:()=> 'mobile'},

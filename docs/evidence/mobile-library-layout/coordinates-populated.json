@@ -1,0 +1,128 @@
+[
+  {
+    "section": "Overview",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "Drafts",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "Published",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "Bookmarks",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "References",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "Cited",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  },
+  {
+    "section": "All",
+    "back": 32,
+    "content": [
+      188,
+      912
+    ],
+    "dots": 32,
+    "header": [
+      0,
+      80
+    ],
+    "navigation": [
+      80,
+      160
+    ],
+    "select": 32
+  }
+]

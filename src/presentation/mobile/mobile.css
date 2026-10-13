@@ -4965,52 +4965,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 }
 
 /* Studio: one stationary safe-area header and collection rail, one content scroller. */
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell {
-  height: var(--mobile-viewport-height, 100dvh); overflow: hidden;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header {
-  display: block; flex: none; z-index: 30;
-  background: var(--surface-canvas);
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-workbench-header {
-  position: relative; padding-top: var(--mobile-screen-action-top);
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
-  position: relative; flex: none; z-index: 30; margin-right: 0;
-  padding-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
-  background: var(--surface-canvas); overflow-x: auto; overflow-y: hidden;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench > .studio-workbench-header:has(.studio-hub-heading) {
-  display: none;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-studio {
-  overflow: hidden; flex: 1; min-height: 0;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-studio > :is(.studio-header, .studio-workbench-header) {
-  padding-top: 8px;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-workbench-scroll {
-  overflow-y: auto; flex: 1; min-height: 0; overscroll-behavior-y: contain;
-}
-
-#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(> .studio-citation-shell) {
-  padding-block: 0; overflow: hidden;
-}
-
 /* Studio collection controls share the top safe-area header, above the pills. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header {
-  position: relative;
-  padding: var(--mobile-screen-action-top) var(--mobile-screen-action-right) 16px var(--mobile-navigation-inset-start);
-  min-height: calc(var(--mobile-screen-action-top) + 60px);
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-workbench-header { padding: 0; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header h1 { display: none; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback { display: flex; align-items: center; min-height: 44px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > button { display: grid; place-items: center; width: 44px; height: 44px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin: 0; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-bookmarks-controls { display: flex; align-items: center; gap: 12px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { margin-right: calc(var(--mobile-screen-action-size, 48px) + 12px); }
-
 /* Collection controls use the same light/dark surfaces as the Studio header. */
 #root .codex-shell[data-presentation='mobile'] .studio-citation-pills button {
   background: var(--surface-raised); color: var(--text-primary);
@@ -5029,14 +4984,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 
 
 /* Studio header reference: circular Back/actions, pill Select/Done on one row. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: space-between; gap: 12px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); margin: 0 auto 0 0; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back) span { display: none; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) svg { width: 24px; height: 24px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) { height: 48px; min-width: 100px; padding: 0 20px; margin: 0; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); box-shadow: var(--navigation-shadow); font-size: 16px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] { position: static !important; inset: auto; flex: 0 0 48px; width: 48px; height: 48px; }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
 /* Profile editing owns Back/Save; shell actions must not overlap Save. */
 #root .codex-shell[data-presentation='mobile']:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
 [data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }
@@ -5084,23 +5031,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(> .profile-header-region) > #profile-content > .mobile-profile-wall {
   padding-top: var(--main-screen-divider-space);
 }
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills {
-  padding-bottom: var(--main-screen-divider-space);
-  background-image: linear-gradient(var(--hairline), var(--hairline));
-  background-size: calc(100% - 32px) 1px;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills + * {
-  padding-top: var(--main-screen-divider-space);
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .studio-workbench-scroll {
-  border-top: 0;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-workbench .studio-workbench-scroll {
-  padding-top: 0;
-}
-
 /* Share identity shows work counts, without navigation tabs or accent styling. */
 [data-presentation='mobile'] .share-profile-preview .share-preview-counts {
   grid-column: 2; display: flex; flex-wrap: wrap; gap: 8px 18px;
@@ -5151,21 +5081,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 }
 
 /* Every Studio state anchors its actions to the same shell-header corner. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
-  position: absolute !important;
-  top: var(--mobile-screen-action-top); right: var(--mobile-screen-action-right);
-  width: 48px; height: 48px;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) {
-  padding-right: 60px;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header {
-  display: contents;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback .studio-hub-heading {
-  display: contents;
-}
-
 /* Balance the inbox filter row within its existing search-to-divider space. */
 #root .codex-shell[data-presentation='mobile'] [data-mobile-inbox] [data-inbox-controls] {
   --inbox-filter-space: calc((var(--cdx-dense-gap) + var(--main-screen-divider-space)) / 2);
@@ -5216,26 +5131,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 }
 
 /* Studio's grey action surface follows the ellipsis across header states. */
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
-  position: fixed !important;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  -webkit-tap-highlight-color: transparent;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
-  width: 100%;
-  height: 48px;
-  -webkit-tap-highlight-color: transparent;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
-  position: static;
-  width: 100%;
-}
-#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
-  background: var(--surface-hover);
-}
-
 /* Messages paints its grey action surface in the ellipsis button's own frame. */
 #root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] {
   display: grid;
