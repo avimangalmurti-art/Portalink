@@ -205,3 +205,5 @@ select version from supabase_migrations.schema_migrations order by version;
 Record future verification results here without storing secrets or user data. Until that inspection occurs, the unknown and historically recorded statuses above remain deliberately unresolved.
 
 2026-10-05: Prepared 202610050001_mutual_profile_connections.sql for owner/accepted-mutual list access. UNAPPLIED; requires explicit database deployment authorization and real permission validation before claiming live support.
+
+2026-10-12: explicitly approved immediate session revocation SQL applied once to existing production Supabase project; inventoried202610120002_immediate_account_session_revocation.sql. Catalog31restrictive policies/hook and rollback-only live/session isolation checks pass;zero test residue. No unrelated migration/history repair. See immediate-session-revocation.md and release handoff.

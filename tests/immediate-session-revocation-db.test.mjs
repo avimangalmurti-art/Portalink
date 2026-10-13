@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 if (!process.env.PGLITE_MODULE_PATH) throw new Error('PGLITE_MODULE_PATH is required.');
 const { PGlite } = await import(pathToFileURL(process.env.PGLITE_MODULE_PATH).href);
-const migration = readFileSync(new URL('../supabase/pending/immediate_account_session_revocation.sql', import.meta.url), 'utf8');
+const migration = readFileSync(new URL('../supabase/migrations/202610120002_immediate_account_session_revocation.sql', import.meta.url), 'utf8');
 const tables = [...migration.matchAll(/'(public\.[a-z_]+|storage\.objects|realtime\.messages)'/g)].map(match => match[1]).filter(name => !name.includes('account_session'));
 const owner = '00000000-0000-0000-0000-000000000001';
 const session = '10000000-0000-0000-0000-000000000001';

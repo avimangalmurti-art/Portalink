@@ -61,3 +61,5 @@ restores the prior access-token-expiry limitation.
 References: [API request checks](https://supabase.com/docs/guides/api/securing-your-api),
 [sessions](https://supabase.com/docs/guides/auth/sessions), and
 [Realtime authorization cache](https://supabase.com/docs/guides/realtime/authorization).
+
+Activation2026-10-12: the approved single file was applied once to the existing production project after preflight. It is now inventoried byte-identically as supabase/migrations/202610120002_immediate_account_session_revocation.sql. Live rollback verification passed; publication receipt follows. Historical pending instructions above describe pre-activation scope.
