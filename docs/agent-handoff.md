@@ -1,3 +1,7 @@
+## 2026-10-12 — Sites384 Portfolio default published
+
+Source18a060950b05ed3a18a0c8906d6653244d64deeb deployment appgdep_6acd9e201f7c81919b806328d75dfed3 succeeded2026-10-13T02:57:48.522781Z, existingpublicSite/env2/D1. Owned logs/profile-portfolio-default/codex/profile-portfolio-default PR60 stackedPR59. Narrow hook default/reset Portfolio for app/shared profile load; Journey selectablecurrentvisit, savedJourneyignored.18focused/typecheck/build/configguard pass; browser420 ownerJourney→reloadPortfolio/sharedguestPortfolio andWEBPortfolio verified withsyntheticservices, no realwrites orphysicalPhoneproof. PriorExplore/fixedheaders/motion/bottomreader preserved. NoSQL/backend/billing/mainmerge; preview5210stopped/tabclosed/viewportreset. Windowspackagefallback verified fourunchangedD1migrations. Receiptdocs separate fromdeployedsource.
+
 ## 2026-10-12 — Portfolio default correction verified
 
 Owned logs/profile-portfolio-default / codex/profile-portfolio-default from live Sites383d2d83b4. Both app and shared profiles use nonremembering hook; change initial/reset fromJourney toPortfolio, retain currentvisit Journey selection.18focused/typecheck/build/config guards pass; syntheticmobile420 ownerselectJourney/reloadPortfolio/sharedguestPortfolio and priorWEB1280Portfolio verified; physicalPhoneunverified. No layout/SQL/backend/preferenceswrites; currentExplore/headers/motion/readercontrols retained. Publication preparation via existingSites workflow.
