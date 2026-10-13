@@ -49,3 +49,7 @@ After source approval, separately approve applying the **single** pending SQL fi
 The test package exercises DOI/ISBN/web resolution, deadline/body caps, fallback, SSRF/redirect checks, mixed bibliography, owner RLS and public/private visitor reads in real disposable PGlite, confirmation-before-save, both Overview states, zero counts, calendar dates, exact own citation blocks and public-only 16-project snapshots. Existing Python tests render a real 16-project PDF (eight pages); first/last pages were inspected. Local authenticated HTTP export succeeds and missing auth is rejected.
 
 Browser evidence renders the actual app root/components with **synthetic services and transport**, avoiding production account/reference writes. It verifies mobile 420×912, public project desktop 1280×900, menus, resolution/edit previews, copy and download behavior. It does not establish physical-iPhone behavior, applied production RLS or hosted-worker availability. Live read-only DOI, ISBN and URL API lookups were additionally verified. Screenshots and the synthetic PDF are in [the evidence gallery](evidence/references-20261012/README.md).
+
+## Activation receipt — October 12, 2026
+
+The single external_references.sql migration was explicitly approved and applied to the existing production project. Live rollback-only owner, public-read, immutable-timestamp and revoked-session checks passed. Do not reapply this file. PDF hosting details remain outstanding; PDF service configuration and Sites publication have not occurred. Publication approval is recorded.
