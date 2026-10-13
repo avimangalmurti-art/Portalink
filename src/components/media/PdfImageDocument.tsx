@@ -347,7 +347,7 @@ function PdfImagePage({
       data-media-page-surface=""
       ref={canvasRef}
       aria-hidden="true"
-      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-200 ${status === 'ready' || (retainCanvasWhileLoading && paintedPageNumber !== null) ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
+      className={`block ${isFocused ? 'premium-focused-media m-auto max-w-none' : 'max-w-full'} bg-white transition-opacity duration-[var(--m-base)] ${status === 'ready' || (retainCanvasWhileLoading && paintedPageNumber !== null) ? 'premium-media-ready opacity-100' : 'opacity-0'}`}
       style={baseCanvasSize ? {
         width: `${baseCanvasSize.width * (isFocused ? zoom : 1)}px`,
         height: `${baseCanvasSize.height * (isFocused ? zoom : 1)}px`

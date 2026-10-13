@@ -1,16 +1,16 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
 import { useModalFocus } from '../../hooks/useModalFocus';
 
-const SPLASH_EXIT_SECONDS = 0.32;
 const FIRST_FRAME_TIMEOUT_MS = 600;
 const SPLASH_TIMEOUT_MS = 2200;
 const WEB_PLAYBACK_MS = 880;
 const MOBILE_RETURNING_SPLASH_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
-export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing, welcomeMedia = false }: {
+export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = false, timedIntro = false, landing, welcomeMedia = false, welcomeHandoff = false }: {
   onComplete?: () => void;
   stillOnly?: boolean;
   hidden?: boolean;
@@ -18,6 +18,8 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   timedIntro?: boolean;
   /** Reuse the looping Hello World media inside the sign-in form, without a launch overlay. */
   welcomeMedia?: boolean;
+  /** Leaving the white welcome scene for the app, including a completed sign-in. */
+  welcomeHandoff?: boolean;
   landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
@@ -25,7 +27,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const viewportPresentation = useViewportPresentation();
   // Finish the opening animation if the phone rotates during its short run.
   const [presentation] = useState(viewportPresentation);
-  const isMobile = presentation === 'mobile' || welcomeMedia;
+  const isMobile = presentation === 'mobile' || welcomeMedia || Boolean(landing);
   const loopLanding = isMobile && Boolean(landing);
   const fixedMobileIntro = isMobile && timedIntro && !loopLanding && !stillOnly;
   const playbackHidden = isMobile && hidden;
@@ -43,6 +45,10 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const [failed, setFailed] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
   const landingRef = useRef<HTMLDivElement>(null);
+  const lastLanding = useRef(landing);
+  if (landing) lastLanding.current = landing;
+  // Keep the exact white scene geometry while a completed sign-in fades it out.
+  const sceneLanding = landing ?? (welcomeHandoff ? lastLanding.current : undefined);
   useModalFocus(Boolean(landing) && !hidden, landingRef, () => landing?.onContinue());
   const complete = useCallback(() => {
     if (reported.current) return;
@@ -271,18 +277,19 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       ref={landingRef}
       data-portalink-splash={welcomeMedia ? undefined : 'true'}
       data-presentation={presentation}
-      data-share-landing={landing ? 'true' : undefined}
+      data-share-landing={sceneLanding ? 'true' : undefined}
+      data-welcome-handoff={welcomeHandoff || undefined}
       role={welcomeMedia ? 'img' : landing ? 'dialog' : 'status'}
       aria-modal={landing && !hidden ? true : undefined}
       aria-live={landing || welcomeMedia ? undefined : 'polite'}
       aria-label={welcomeMedia ? 'Hello World — Portalink' : landing ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
       aria-hidden={hidden || undefined}
       tabIndex={landing ? -1 : undefined}
-      style={hidden ? { display: 'none' } : undefined}
+      style={hidden ? { display: 'none' } : welcomeHandoff ? { pointerEvents: 'none' } : undefined}
       className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
       exit={{ opacity: 0 }}
-      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : landing || welcomeHandoff ? motionSeconds('base') : motionSeconds('slow'), ease: motionCurve() }}
     >
       <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">
@@ -293,14 +300,14 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
             style={{ opacity: showVideo ? 1 : 0 }} />}
         </div>
       </div>
-      {landing && <div className="mobile-share-landing-actions" aria-busy={!landing.ready}>
-        <button type="button" className="mobile-share-create" disabled={!landing.ready} onClick={landing.onCreateAccount}>Create account</button>
+      {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
+        <button type="button" className="mobile-share-create" disabled={!sceneLanding.ready} onClick={sceneLanding.onCreateAccount}>Create account</button>
         <div className="mobile-share-secondary">
-          <button type="button" className="mobile-share-signin" disabled={!landing.ready} onClick={landing.onSignIn}>Sign in</button>
-          <button type="button" className="mobile-share-forgot" disabled={!landing.ready} onClick={landing.onForgotPassword}>Forgot password?</button>
-          <button type="button" className="mobile-share-guest" disabled={!landing.ready} onClick={landing.onContinue}>{landing.continueLabel}</button>
+          <button type="button" className="mobile-share-signin" disabled={!sceneLanding.ready} onClick={sceneLanding.onSignIn}>Sign in</button>
+          <button type="button" className="mobile-share-forgot" disabled={!sceneLanding.ready} onClick={sceneLanding.onForgotPassword}>Forgot password?</button>
+          <button type="button" className="mobile-share-guest" disabled={!sceneLanding.ready} onClick={sceneLanding.onContinue}>{sceneLanding.continueLabel}</button>
         </div>
-        {!landing.ready && <span role="status" className="sr-only">Opening Portalink…</span>}
+        {!sceneLanding.ready && <span role="status" className="sr-only">Opening Portalink…</span>}
       </div>}
     </motion.div>
   );
