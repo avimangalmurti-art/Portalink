@@ -1,0 +1,33 @@
+/* One mobile Library geometry contract; colours and shapes use existing app styles. */
+#root .codex-shell[data-presentation='mobile'] [data-library-layout] {
+ --library-header-height:80px;
+ --library-navigation-height:80px;
+ --library-horizontal-padding:16px;
+ --library-control-size:48px;
+ --library-select-width:100px;
+ --library-control-gap:12px;
+ --library-header-inset:8px;
+ --library-tab-height:44px;
+ --library-content-spacing:var(--main-screen-divider-space,28px);
+ height:var(--mobile-viewport-height,100dvh);min-height:0;overflow:hidden;
+ display:grid;grid-template-rows:var(--safe-area-top,env(safe-area-inset-top,0px)) var(--library-header-height) var(--library-navigation-height) var(--library-content-spacing) minmax(0,1fr);
+}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] {display:block;position:relative;height:var(--library-header-height);min-height:0;padding:var(--library-header-inset) var(--library-horizontal-padding) 0;margin:0;overflow:hidden;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-mobile-header-controls,.library-header-fallback) {height:var(--library-control-size);display:grid;grid-template-columns:var(--library-control-size) minmax(0,1fr) var(--library-select-width) var(--library-control-gap) var(--library-control-size);align-items:center;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] .studio-mobile-header-controls:empty {display:none;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] .studio-mobile-header-controls:not(:empty)+.library-header-fallback {display:none;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-bookmarks-navigation,.studio-bookmarks-controls,.studio-drafts-heading,.studio-mobile-header-fallback,.studio-workbench-header,.studio-hub-heading) {display:contents;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] h1 {display:none;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-bookmarks-back,.studio-drafts-back,.studio-header-back) {grid-column:1;grid-row:1;display:grid;place-items:center;width:var(--library-control-size);height:var(--library-control-size);min-height:0;margin:0;padding:0;border:1px solid var(--hairline);border-radius:999px;background:var(--surface-raised);color:var(--text-primary);box-shadow:var(--navigation-shadow);}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-bookmarks-back,.studio-drafts-back) span {display:none;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-bookmarks-back,.studio-drafts-back,.studio-header-back) svg {width:24px;height:24px;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] :is(.studio-text-control,.studio-drafts-control) {grid-column:3;grid-row:1;width:var(--library-select-width);height:var(--library-control-size);min-height:0;min-width:0;margin:0;padding:0 20px;border:1px solid var(--hairline);border-radius:999px;background:var(--surface-raised);color:var(--text-primary);box-shadow:var(--navigation-shadow);font-size:16px;font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] [data-inline-screen-actions] {grid-column:5;grid-row:1;position:static!important;inset:auto;display:grid;place-items:center;flex:none;width:var(--library-control-size);height:var(--library-control-size);border-radius:999px;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] [data-inline-screen-actions] :is(.mobile-context-slot,button.mobile-context-button) {position:static;width:var(--library-control-size);height:var(--library-control-size);min-width:0;min-height:0;}
+#root .codex-shell[data-presentation='mobile'] [data-library-header] button.mobile-context-button {border:1px solid var(--hairline);border-radius:999px;background:var(--surface-raised)!important;color:var(--text-primary)!important;box-shadow:var(--navigation-shadow);}
+#root .codex-shell[data-presentation='mobile'] [data-library-tabs] {position:relative;height:var(--library-navigation-height);min-height:0;display:flex;align-items:flex-start;gap:8px;padding:var(--library-header-inset) var(--library-horizontal-padding) 0;margin:0;overflow-x:auto;overflow-y:hidden;background:var(--surface-canvas);background-image:linear-gradient(var(--hairline),var(--hairline));background-size:calc(100% - 2 * var(--library-horizontal-padding)) 1px;background-position:center bottom;background-repeat:no-repeat;}
+#root .codex-shell[data-presentation='mobile'] [data-library-tabs] button {height:var(--library-tab-height);min-height:0;flex:none;white-space:nowrap;}
+#root .codex-shell[data-presentation='mobile'] [data-library-content] {min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;padding:0 var(--library-horizontal-padding) calc(var(--mobile-dock-size,56px) + var(--safe-area-bottom,env(safe-area-inset-bottom,0px)) + var(--library-content-spacing));scroll-padding-bottom:calc(var(--mobile-dock-size,56px) + var(--safe-area-bottom,0px) + var(--library-content-spacing));}
+#root .codex-shell[data-presentation='mobile'] [data-library-content] :is(.mobile-studio,.studio-content,.studio-workbench-scroll) {height:auto;min-height:0;overflow:visible;flex:none;padding:0;}
+#root .codex-shell[data-presentation='mobile'] [data-library-content] .studio-overview {padding:0;}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer>main:has(>[data-library-layout]) {padding-block:0;overflow:hidden;}
