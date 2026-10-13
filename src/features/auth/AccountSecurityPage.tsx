@@ -54,7 +54,7 @@ export function AccountSecurityPage({ onBack }: { onBack: () => void }) {
       if (sessionAction === 'others') {
         await service.signOutOtherSessions(auth.user.id);
         setSessionRefreshKey(key => key + 1);
-        setSessionMessage('Other sessions have been signed out. This session stays signed in. Existing access can continue until its current access token expires.');
+        setSessionMessage('Other sessions have been signed out. Further account requests from those sessions are blocked. This session stays signed in.');
       } else if (!await auth.signOut(sessionAction)) {
         throw new Error('Unable to sign out. Please try again.');
       }
@@ -111,7 +111,7 @@ export function AccountSecurityPage({ onBack }: { onBack: () => void }) {
       <section className="security-card" aria-labelledby="security-sessions-title">
         <h2 id="security-sessions-title">Signed-in sessions</h2>
         <p>This browser session is signed in. You can end this session, every other session, or all sessions.</p>
-        <p>Other sessions may retain access until their current access tokens expire.</p>
+        <p>Signing out blocks further account requests immediately. A device may briefly show already loaded content; previously issued media links can remain valid until they expire.</p>
         {!auth.session?.isPrototype && <AccountDeviceSessions disabled={busy} onBusyChange={setDeviceBusy} refreshKey={sessionRefreshKey} />}
         {auth.session?.isPrototype ? <p>Session controls require a connected account. This prototype has no other sessions.</p> : <div className="security-session-actions">
           {(Object.keys(sessionLabels) as SessionAction[]).map(action => <Button key={action} disabled={busy} onClick={() => { setSessionAction(action); setSessionError(null); setSessionMessage(null); }}>{sessionLabels[action]}</Button>)}
