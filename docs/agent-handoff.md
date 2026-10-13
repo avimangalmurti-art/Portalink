@@ -1,3 +1,7 @@
+## 2026-10-12 — Reader bottom controls restoration
+
+Owned codex/reader-bottom-actions in logs/reader-bottom-actions, based on exact live Sites380 source2bd1128; excludes PR54–56 and pending features. Restore existing mobile bottom portal / dots / creator pill for owners; hide duplicate reader top-right Actions for all app readers. WEB and public visitor components unchanged. Six focused checks pass; typecheck and client/worker build/config guards pass. Browser420 real components/synthetic services verifies bottom pill y856–900, project information, portal list and creator navigation. Physical iPhone unverified. Publishing explicitly approved. No SQL/backend changes. Final receipt follows.
+
 ## 2026-10-12 — All four conformance parts integrated for approved publication
 
 Owned logs/design-conformance-release / codex/design-conformance-release from exact Sites379 live49b967b; conformance PRs49–52 combined. Security/session/autofill/shared entry preserved; no unrelated pending feature or SQL included. Typecheck/lint/build/config guards and109 focused integration tests pass; full regression1709/1709 passes. Combined real-component synthetic mobile/WEB checks and screenshots pass; physical iPhone unverified. See docs/combined-conformance-release.md. GitHub main merge remains separate.

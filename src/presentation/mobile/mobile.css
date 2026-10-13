@@ -5388,3 +5388,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   width: calc(100% + 1rem);
   padding-inline: 16px;
 }
+
+/* Content navigation stays in its established bottom pill, including owner readers. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating { display: none; }

@@ -679,7 +679,7 @@ export function ProjectMediaViewer({
           </button>
         </div>}
         </div>
-        {!ownerReader && <nav className="mobile-content-action-bar" aria-label="Content controls">
+        {<nav className="mobile-content-action-bar" aria-label="Content controls">
           <button ref={mobileNavigation?.indexOpener} type="button" aria-label="Open portal" onClick={mobileNavigation?.onOpenIndex}><InterfaceIcon icon={ListIcon} size="lg" /></button>
 
           <button ref={mobileEngagementToggleRef} type="button" className="mobile-project-engagement-toggle" aria-label={mobileEngagementOpen ? 'Hide project engagement' : 'Show project engagement'} aria-expanded={mobileEngagementOpen} aria-controls="mobile-project-engagement-actions" onClick={() => setMobilePopup('description')}>
