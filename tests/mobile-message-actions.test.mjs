@@ -53,7 +53,6 @@ function listHarness(presentation = 'mobile', overrides = {}, runEffects = false
     onReact: async (id, emoji) => { calls.push(['react', id, emoji]); return true; }, ...overrides };
   const api = compile('../src/components/MessagesPage.tsx', {
     react: state.react,
-    '../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
     '../presentation/usePresentation': { usePresentation: () => presentation },
     './messages/MobileMessageActions': { MobileMessageActions },
     './ui/ConfirmationDialog': { ConfirmationDialog: 'confirmation-dialog' },
@@ -287,7 +286,6 @@ function conversationHarness(presentation = 'mobile') {
   const api = compile('../src/components/MessagesPage.tsx', {
     react: state.react,
     '../hooks/useMenuFocus': { useMenuFocus: () => ({}) },
-    '../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
     '../presentation/usePresentation': { usePresentation: () => presentation },
     '../contexts/AuthContext': { useAuth: () => ({ viewerProfileId: 'me' }) },
     '../features/messages/useMessaging': { useMessaging: () => ({ messages: [], conversations: [], activeConversation: null, status: 'success', closeConversation() {} }) },
@@ -299,7 +297,7 @@ function conversationHarness(presentation = 'mobile') {
   return { render, empty: () => nodes(render()).find(node => node.type === EmptyState),
     hasNewChat: () => nodes(render()).some(node => node.type === NewChatPanel),
     search(value) { nodes(render()).find(node => node.type === 'input' && node.props.type === 'search').props.onChange({ target: { value } }); },
-    unread() { if(presentation==='mobile')nodes(render()).find(node=>node.type==='pill-header').props.onChange('unread');else nodes(render()).find(node => node.props.label === 'Unread').props.onSelect(); } };
+    unread() { nodes(render()).find(node => node.props.label === 'Unread').props.onSelect(); } };
 }
 
 test('empty conversation search and filters have recovery actions on both presentations', () => {

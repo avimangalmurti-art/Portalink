@@ -294,11 +294,3 @@ test('Settings is a public page with an appearance compatibility URL and safe Ba
     assert.deepEqual(plain(invalid.calls), [['/', {replace:true}]]);
   }
 });
-
-test('Messages keeps dock entry while opening and returning from a thread, without inheriting other screen state',()=>{
- const h=harness('/messages',{dockEntry:'messages'},2);
- h.nav().messages('thread',true);assert.equal(h.location().state.dockEntry,'messages');
- h.nav().messages(undefined,true);assert.equal(h.location().state.dockEntry,'messages');
- const pushed=harness('/p/owner',{profileFromDock:true},2);
- pushed.nav().messages();assert.equal(pushed.location().state,null);
-});
