@@ -5396,3 +5396,22 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
   padding-top: 0;
 }
+
+/* Private analytics owns one viewport: safe header, then scrolling results. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page {
+  width:100%;min-width:0;
+  height:var(--mobile-viewport-height,100dvh);
+  max-height:var(--mobile-viewport-height,100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  box-sizing:border-box;
+  height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  min-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  max-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  padding-top:var(--mobile-screen-action-top);
+  padding-bottom:12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-scroll {
+  min-width:0;
+  padding-bottom:calc(var(--mobile-dock-clearance,88px) + var(--safe-area-bottom,env(safe-area-inset-bottom,0px)));
+}
