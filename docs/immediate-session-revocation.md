@@ -1,4 +1,4 @@
-# Immediate device-session revocation — pending activation
+# Immediate device-session revocation — active in Sites385
 
 Apply only `supabase/pending/immediate_account_session_revocation.sql`, after
 explicit approval. The existing session deletion RPC remains unchanged. After
@@ -63,3 +63,5 @@ References: [API request checks](https://supabase.com/docs/guides/api/securing-y
 [Realtime authorization cache](https://supabase.com/docs/guides/realtime/authorization).
 
 Activation2026-10-12: the approved single file was applied once to the existing production project after preflight. It is now inventoried byte-identically as supabase/migrations/202610120002_immediate_account_session_revocation.sql. Live rollback verification passed; publication receipt follows. Historical pending instructions above describe pre-activation scope.
+
+Published Sites385 from a5668bf after approved single SQL/live verification. See current handoff for exact receipt. The pre-activation instructions above are retained as rollout history; do not rerun the applied migration.
