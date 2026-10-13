@@ -338,3 +338,19 @@ test('search cancellation preserves the draft and saving locks both modes', () =
   form(tree).props.onSubmit({ preventDefault() {} });
   assert.equal(h.calls.length, 0);
 });
+
+test('link picker brands remain selectable and distinguish same-name outline icons', () => {
+  const h = harness('instagram', { presentation: 'mobile' });
+  h.props.additionalOptions = icons.profileLinkIconOptions;
+  h.props.searchQuery = 'instagram';
+  const options = radios(h.render());
+  assert.ok(options.some(node => node.props['aria-label'] === 'Instagram' && node.props['aria-checked']));
+  assert.ok(options.some(node => node.props['aria-label'] === 'Instagram (outline)'));
+  options.find(node => node.props['aria-label'] === 'Instagram (outline)').props.onClick();
+  assert.notEqual(h.props.selected, 'instagram');
+  h.props.searchQuery = 'youtube';
+  const brand = radios(h.render()).find(node => node.props['aria-label'] === 'YouTube');
+  assert.ok(brand);
+  brand.props.onClick();
+  assert.equal(h.props.selected, 'youtube');
+});
