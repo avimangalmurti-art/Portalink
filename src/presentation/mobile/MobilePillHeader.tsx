@@ -1,3 +1,4 @@
+import { motionUpdate } from '../motion/motion';
 import React, { useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useMobileScreenActive } from './MobileBackNavigation';
@@ -25,7 +26,7 @@ export function MobilePillHeader({ label, tabs, active, onChange, onBack, right 
   if(!activeScreen)return null;
   const header = <header data-mobile-pill-header={label} className="mobile-pill-header" aria-label={`${label} header`}>
     {onBack && <div className="mobile-pill-header-left"><button type="button" aria-label={`Back from ${label}`} onClick={onBack}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></div>}
-    <nav ref={rail} className="mobile-pill-header-rail scrollbar-hidden" aria-label={`${label} tabs`}><div className="mobile-pill-header-tabs">{tabs.map(tab => <button key={tab.id} data-header-pill={tab.id} type="button" aria-pressed={active === tab.id} disabled={tab.disabled} onClick={() => onChange(tab.id)}>{tab.label}</button>)}</div></nav>
+    <nav ref={rail} className="mobile-pill-header-rail scrollbar-hidden" aria-label={`${label} tabs`}><div className="mobile-pill-header-tabs">{tabs.map(tab => <button key={tab.id} data-header-pill={tab.id} type="button" aria-pressed={active === tab.id} disabled={tab.disabled} onClick={() => motionUpdate(()=>onChange(tab.id),'tabs')}>{tab.label}</button>)}</div></nav>
     <div className="mobile-pill-header-right" data-inline-screen-actions="">{right}</div>
   </header>;
   const host=typeof document==='undefined'?null:document.querySelector('.codex-shell');

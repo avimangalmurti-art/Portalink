@@ -64,10 +64,10 @@ export function NavigationButtonsPanel({
   const activeAppearance = appearanceOptions.find((option) => option.mode === appearanceMode)?.label ?? 'System';
   const activeSystemGray = findSystemGray(systemGray);
   const accent = theme === 'dark' ? activeAccent.dark : activeAccent.light;
-  const ease = 'cubic-bezier(0.25, 0.9, 0.35, 1)';
+  const ease = 'var(--m-enter)';
   const transition = shouldReduceMotion
     ? 'none'
-    : `background-color 160ms ${ease}, color 160ms ${ease}, border-color 160ms ${ease}, box-shadow 160ms ${ease}`;
+    : `background-color var(--m-fast) ${ease}, color var(--m-fast) ${ease}, border-color var(--m-fast) ${ease}, box-shadow var(--m-fast) ${ease}`;
 
   // Resolve swatches visually without saving a colour just because the viewer
   // changed platform/theme or opened settings. Only explicit choices save.

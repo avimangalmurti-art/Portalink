@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../presentation/motion/motion';
 import { SavedChangeNotice } from './ui/SavedChangeNotice';
 import { MobileNavigation } from '../presentation/mobile/MobileNavigation';
 import { usePresentation } from '../presentation/usePresentation';
@@ -248,7 +249,7 @@ function CategoryRowContent({
   return <div className={`side-panel-row group/row relative mb-[var(--side-panel-row-gap)] w-full ${isHidden ? 'opacity-50' : ''}`}>
       {/* A category is a destination inside the active product area, so its
          selected state is a quieter version of the primary nav's accent. */}
-      <button type="button" data-category-row="" onClick={onSelect} onKeyDown={onKeyDown} aria-current={isActive ? 'page' : undefined} aria-describedby={isDraggable ? 'portfolio-reorder-hint' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[180ms] ease-out focus:outline-none ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
+      <button type="button" data-category-row="" onClick={onSelect} onKeyDown={onKeyDown} aria-current={isActive ? 'page' : undefined} aria-describedby={isDraggable ? 'portfolio-reorder-hint' : undefined} className={`ps-list-btn sidebar-pill-row flex h-full w-full items-center gap-2.5 px-3 text-left text-[14px] transition-colors duration-[var(--m-base)]  ease-[var(--m-enter)] focus:outline-none ${isActive ? 'bg-[var(--surface-selected)] font-semibold text-[var(--accent-text)]' : 'font-medium text-[var(--text-primary)] hover:bg-[var(--surface-sunken)]'}`}>
         {/* Consistent icon column, secondary to the label. The glyph is never
            removed or dimmed away — selection recolours it, nothing more. */}
         <span aria-hidden="true" data-icon-tile="" onPointerDown={isDraggable ? onDragHandlePointerDown : undefined} className={`flex h-4 w-6 shrink-0 items-center justify-center ${isDraggable ? 'touch-none cursor-grab active:cursor-grabbing' : ''}`}>
@@ -335,8 +336,8 @@ function DraggableCategoryRow({
     }
   }
   return <Reorder.Item value={category.id} id={category.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-    duration: shouldReduceMotion ? 0 : 0.18,
-    ease: [0.22, 1, 0.36, 1]
+    duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+    ease: motionCurve()
   }} whileDrag={{
     zIndex: 30,
     boxShadow: '0 10px 24px rgba(0,0,0,0.16)'
@@ -614,7 +615,7 @@ export function Sidebar({
   }
   /* One system panel control in both states, matching the project and engagement
      sidebars instead of giving the main sidebar a separate globe metaphor. */
-  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-150 ease-out hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
+  const sidebarToggle = <button type="button" onClick={toggleCollapsed} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!isSidebarCollapsed} data-sidebar-toggle="" data-structural-toggle="" className={`shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] ease-[var(--m-enter)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSidebarCollapsed ? 'sidebar-rail-slot' : 'side-panel-header-control side-panel-header-icon'}`}>
       <InterfaceIcon icon={isSidebarCollapsed ? PanelLeftOpenIcon : PanelLeftCloseIcon} size="sm" weight="medium" />
     </button>;
   if (isMobile) return <MobileNavigation onMessages={fromDock=>onMessagesOpen(undefined,fromDock)}
@@ -627,7 +628,7 @@ export function Sidebar({
          the surface spans the full rail and its centre is the sidebar's. Each
          responsive width now follows Apple Notes-style three-pane proportions,
          leaving room for full labels while keeping the content dominant. */}
-      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-150 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
+      <aside data-saved-change-scope="" data-resizable-panel="" style={isSidebarCollapsed ? undefined : { width: `${mainSidebarWidth.width}px` }} className={`sidebar-starfield relative h-full shrink-0 transition-[width] duration-[var(--m-fast)] [transition-timing-function:var(--m-enter)] ${isSidebarCollapsed ? 'w-[48px] py-0 sm:w-[52px]' : 'p-0'}`} aria-label="Portalink navigation">
         {/* Flat application region: one hairline divider, no floating card.
            It sits above the starfield layers behind it. */}
         {/* Collapsed, the surface carries no side padding: a 40px rail tile does
@@ -740,7 +741,7 @@ export function Sidebar({
                     <h2 className="ps-heading portals-heading flex h-full min-w-0 flex-1 items-center pl-2 pr-10 text-left text-[14px] font-semibold text-[var(--text-tertiary)]">
                       {portalsHeading}
                     </h2>
-                    {isOwnerMode && <button type="button" onClick={() => setIsAddingPortal(true)} aria-label="Add portal" title="Add portal" aria-haspopup="dialog" className="shape-compact pointer-events-none absolute right-2 flex h-6 w-6 items-center justify-center opacity-0 text-[var(--text-tertiary)] transition-[opacity,color,background-color] duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] group-hover/portals-heading:pointer-events-auto group-hover/portals-heading:opacity-100 group-focus-within/portals-heading:pointer-events-auto group-focus-within/portals-heading:opacity-100">
+                    {isOwnerMode && <button type="button" onClick={() => setIsAddingPortal(true)} aria-label="Add portal" title="Add portal" aria-haspopup="dialog" className="shape-compact pointer-events-none absolute right-2 flex h-6 w-6 items-center justify-center opacity-0 text-[var(--text-tertiary)] transition-[opacity,color,background-color] duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] group-hover/portals-heading:pointer-events-auto group-hover/portals-heading:opacity-100 group-focus-within/portals-heading:pointer-events-auto group-focus-within/portals-heading:opacity-100">
                         <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
                       </button>}
                   </div>
@@ -796,13 +797,13 @@ export function Sidebar({
             {isSidebarCollapsed ? <>
               <SettingsTrigger collapsed onOpen={onControlCenterOpen} />
               {isAuthenticated && <PersonalFooterLinks collapsed activityActive={isActivityActive} insightsActive={isInsightsActive} />}
-              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-rail-slot shape-compact flex items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
               </button>
             </> : <div className="sidebar-network-grid h-12 w-full min-w-0 items-center">
                 <SettingsTrigger collapsed={false} onOpen={onControlCenterOpen} />
                 {isAuthenticated && <PersonalFooterLinks collapsed={false} activityActive={isActivityActive} insightsActive={isInsightsActive} />}
-                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+                <button type="button" onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')} aria-label={theme === 'dark' ? 'Switch to light appearance' : 'Switch to dark appearance'} title={theme === 'dark' ? 'Light appearance' : 'Dark appearance'} data-system-color="" className="nav-button sidebar-primary-control shape-compact mx-auto flex shrink-0 items-center justify-center bg-transparent text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                   {theme === 'dark' ? <InterfaceIcon icon={SunIcon} size="sm" weight="medium" /> : <InterfaceIcon icon={MoonIcon} size="sm" weight="medium" />}
                 </button>
               </div>}

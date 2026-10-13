@@ -1,3 +1,4 @@
+import {sheetMotionFixture,motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,7 @@ function compile(path, dependencies, extra = '', globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, {
     exports, React: dependencies.react, sessionStorage: { getItem: () => null }, ...globals,
-    require(name) { return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); },
+    require(name) { if(name.endsWith('/useSheetMotion'))return sheetMotionFixture;if(name.endsWith('/motion/motion'))return motionFixture; return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); },
   });
   return exports;
 }

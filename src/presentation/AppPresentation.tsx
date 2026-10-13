@@ -1,6 +1,7 @@
 import { InternalContentShareProvider } from '../features/sharing/InternalContentShare';
 import '../components/media/mobile-project-popup.css';
 import React from 'react';
+import { MotionNavigation } from './motion/MotionNavigation';
 import { useLocation } from 'react-router-dom';
 import { PresentationContext, usePresentation } from './usePresentation';
 import { useViewportPresentation } from './useViewportPresentation';
@@ -16,7 +17,7 @@ import './controls.css';
 /** One presentation choice also covers the shell's appearance state. */
 export function AppPresentationProvider({ children }: { children: React.ReactNode }) {
   const presentation = useViewportPresentation();
-  return <PresentationContext.Provider value={presentation}>{children}</PresentationContext.Provider>;
+  return <PresentationContext.Provider value={presentation}><MotionNavigation>{children}</MotionNavigation></PresentationContext.Provider>;
 }
 
 /** Keep one host and stable children as the presentation changes. */

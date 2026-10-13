@@ -1,3 +1,4 @@
+import { motionSeconds } from '../../presentation/motion/motion';
 import { MobileProjectPopup } from '../media/MobileProjectPopup';
 import { useMobileProjectContext } from '../../presentation/mobile/useMobileProjectContext';
 import { useMenuFocus } from '../../hooks/useMenuFocus';
@@ -256,7 +257,7 @@ function ProjectLink({
 }: {profileId?: string;contextDisabled?: boolean;project: ProjectEntry;typefaceStack?: string;isActive: boolean;isHidden?: boolean;sharedReadOnly?: boolean;onSelect: () => void;}) {
   const isMobile = usePresentation() === 'mobile';
   const press = useMobileProjectContext(project, profileId);
-  return <div {...press} className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+  return <div {...press} className={`side-panel-row project-index-row ps-list-item group relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
       <button data-preview-open="" type="button" onClick={onSelect} aria-current={isActive ? 'true' : undefined} title={project.title} className={`flex h-full min-w-0 flex-1 cursor-pointer items-center rounded-[8px] px-2 py-1 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] ${isHidden ? 'opacity-45' : ''}`}>
         {isMobile ? <MobileProjectLabel project={project} isActive={isActive} sharedReadOnly={sharedReadOnly} /> : <span data-font-preview="" style={{
         fontFamily: typefaceStack
@@ -330,7 +331,7 @@ function ProjectRow({
   }, [isMenuOpen, positionMenu]);
 
   const body = <div ref={rowRef} {...press} className="relative">
-      <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-150 ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
+      <div className={`side-panel-row project-index-row ps-list-item group/row relative overflow-hidden rounded-[8px] transition-colors duration-[var(--m-fast)] ${isActive ? 'active bg-[var(--surface-selected)] hover:bg-[var(--surface-pressed)]' : 'hover:bg-[var(--control-hover-surface)]'}`}>
         {isDraggable && <span aria-hidden="true" data-project-drag-handle="" onPointerDown={(event) => { if (!dragDisabled) dragControls.start(event); }} className="ml-1 flex h-full w-3 shrink-0 touch-none cursor-grab items-center justify-center text-[var(--text-tertiary)] active:cursor-grabbing">
             <GripVerticalIcon className="h-3 w-3" />
           </span>}
@@ -342,7 +343,7 @@ function ProjectRow({
 
         {/* Matches the portal-row control: hidden until hover/focus, round hit
             surface, and held visible while its menu is open. */}
-        <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-150 ease-out motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
+        <div data-project-row-actions="" className={`absolute inset-y-0 right-2 flex items-center transition-opacity duration-[var(--m-fast)] ease-[var(--m-enter)] motion-reduce:transition-none ${isMobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
           <button ref={triggerRef} onKeyDown={menuFocus.onTriggerKeyDown} type="button" data-static-icon="" data-row-menu="" onClick={() => isMobile ? setPopupOpen(true) : setIsMenuOpen((open) => !open)} aria-haspopup={isMobile ? "dialog" : "menu"} aria-expanded={isMobile ? popupOpen : isMenuOpen} aria-label={`Options for ${project.title}`} className={`flex ${isMobile ? 'h-11 w-11' : 'h-6 w-6'} items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]`}>
             <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
           </button>
@@ -361,14 +362,14 @@ function ProjectRow({
         opacity: 0,
         y: -4
       }} transition={{
-        duration: 0.14
+        duration: motionSeconds('fast')
       }} className="fixed z-[45] w-48 max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline)] bg-[var(--surface-raised)] p-1 shadow-[0_10px_26px_rgba(0,0,0,0.22)]">
             {[[reorderActions?.moveUp, 'Move up'], [reorderActions?.moveDown, 'Move down']].map(([action, label]) => typeof action === 'function' && <button key={String(label)} type="button" role="menuitem" onClick={() => { setIsMenuOpen(false); action(); }} className="flex min-h-11 w-full items-center rounded-lg px-2 text-left text-sm hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">{String(label)}</button>)}
             {onEdit && <button type="button" role="menuitem" onClick={() => {
           triggerRef.current?.focus();
           onEdit();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                 Edit project…
               </button>}
@@ -376,14 +377,14 @@ function ProjectRow({
             <button type="button" role="menuitem" onClick={() => {
           onTogglePinned();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isPinned ? <PinOffIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <PinIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isPinned ? 'Unpin' : 'Pin'}
             </button>
             <button type="button" role="menuitem" onClick={() => {
           onToggleHidden();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
               {isHidden ? <EyeIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <EyeOffIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               {isHidden ? 'Make visible' : 'Hide'}
             </button>
@@ -393,7 +394,7 @@ function ProjectRow({
           triggerRef.current?.focus();
           onDelete();
           setIsMenuOpen(false);
-        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        }} className="side-panel-primary-control side-panel-control-row w-full px-2 text-left text-[13px] font-medium text-[var(--status-danger)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={Trash2Icon} size="sm" weight="medium" />
                 Delete project…
               </button>}

@@ -57,7 +57,7 @@ export function StudioRow({ id, title, secondary, actionLabel, date, referenceCo
   return <li data-studio-row={id} data-selected={selected || undefined} className="relative overflow-hidden border-b border-[var(--hairline)]">
     {!selecting && gesture.offset > 0 && safePrimary ? <div className="absolute inset-y-0 left-0 flex" aria-label={`Quick action for ${title}`}>{revealAction(safePrimary)}</div> : null}
     {!selecting && gesture.offset < 0 ? <div className="absolute inset-y-0 right-0 flex" role="group" aria-label={`Actions for ${title}`}>{visibleActions.map(revealAction)}</div> : null}
-    <div {...gesture.handlers} data-studio-row-surface="" className={`relative flex min-h-[80px] items-center bg-[var(--surface-raised)] motion-reduce:transition-none ${gesture.dragging ? '' : 'transition-transform duration-150'}`} style={{ transform: `translateX(${gesture.offset}px)`, touchAction: selecting ? 'auto' : 'pan-y pinch-zoom' }}>
+    <div {...gesture.handlers} data-studio-row-surface="" className={`relative flex min-h-[80px] items-center bg-[var(--surface-raised)] motion-reduce:transition-none ${gesture.dragging ? '' : 'transition-transform duration-[var(--m-fast)] '}`} style={{ transform: `translateX(${gesture.offset}px)`, touchAction: selecting ? 'auto' : 'pan-y pinch-zoom' }}>
       {selecting ? <label data-studio-row-control="" className="flex h-11 w-11 shrink-0 items-center justify-center">
         <input type="checkbox" checked={selected} disabled={pending} onChange={onSelect} aria-label={`Select ${title}`} className="h-5 w-5 accent-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]" />
       </label> : null}

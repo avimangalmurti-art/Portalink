@@ -1,3 +1,4 @@
+import {sheetMotionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -94,6 +95,7 @@ function sheetHarness() {
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
+  '../../presentation/motion/useSheetMotion':sheetMotionFixture,
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
  },{Element:ElementStub});
@@ -156,7 +158,7 @@ test('vertical dragging resizes within the viewport, expands, collapses and supp
  assert.ok(h.dialog().props.style.height<=800,'The dragged sheet stays inside its viewport');
  h.pointer('onPointerUp',{clientY:450});
  assert.equal(h.resize.hasPointerCapture(1),false);
- assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props.style.height,undefined);
  assert.equal(h.dialog().props['data-expanded'],true);
  h.clickResize();assert.equal(h.dialog().props['data-expanded'],true,'The drag-generated click does not undo expansion');
  assert.deepEqual(h.calls,[]);
@@ -174,19 +176,19 @@ test('simple resize taps remain clicks; cancelled, horizontal and unrelated poin
  h.clickResize(0);
  for(const ignored of [{isPrimary:false},{button:2},{target:h.close}]){
   h.pointer('onPointerDown',ignored);h.pointer('onPointerMove',{clientY:450});h.pointer('onPointerUp',{clientY:450});
-  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  }
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerMove',{pointerId:2,clientY:450});h.pointer('onPointerUp',{pointerId:2,clientY:450});
- assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props.style.height,undefined);
  h.pointer('onPointerMove',{clientX:180,clientY:450});h.pointer('onPointerUp',{clientX:180,clientY:450});
  h.clickResize();
- assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+ assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerUp',{clientX:180});h.clickResize();
  assert.equal(h.dialog().props['data-expanded'],false,'Horizontal handle drags cannot become toggle clicks, even without a move event');
  for(const cancel of ['onPointerCancel','onLostPointerCapture']){
   h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});assert.ok(h.dialog().props.style.height>440);
   h.pointer(cancel);h.pointer('onPointerUp',{clientY:450});
-  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style,undefined);
+  assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
  }
  assert.deepEqual(h.calls,[]);
 });

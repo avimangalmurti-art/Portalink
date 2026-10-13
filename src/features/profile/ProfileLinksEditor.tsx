@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
@@ -75,8 +76,8 @@ function ReorderableProfileLinkRow({
 
   if (compact) {
     return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-      duration: shouldReduceMotion ? 0 : 0.16,
-      ease: [0.22, 1, 0.36, 1]
+      duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+      ease: motionCurve()
     }} whileDrag={{
       zIndex: 120,
       scale: 1.015,
@@ -125,8 +126,8 @@ function ReorderableProfileLinkRow({
   }
 
   return <Reorder.Item value={link.id} dragListener={false} dragControls={dragControls} layout="position" transition={{
-    duration: shouldReduceMotion ? 0 : 0.16,
-    ease: [0.22, 1, 0.36, 1]
+    duration: shouldReduceMotion ? 0 : motionSeconds('base'),
+    ease: motionCurve()
   }} whileDrag={{
     zIndex: 120,
     scale: 1.015,
@@ -327,7 +328,7 @@ export function ProfileLinksEditor({
               {filteredIconOptions.map((option) => {
                 const Icon = getCategoryIcon(option.name);
                 const isSelected = option.name === draftIconName;
-                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                return <button key={option.name} type="button" role="radio" aria-checked={isSelected} tabIndex={option.name === tabbableIconName ? 0 : -1} aria-label={option.label} title={option.label} onClick={() => setDraftIconName(option.name)} className={`flex aspect-square items-center justify-center rounded-full transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] ${isSelected ? 'bg-[var(--surface-selected)] text-[var(--accent-text)] ring-2 ring-[var(--focus-ring)]' : 'bg-[var(--surface-sunken)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                   <Icon className="h-[19px] w-[19px]" aria-hidden="true" />
                 </button>;
               })}
