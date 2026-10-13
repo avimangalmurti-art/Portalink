@@ -1,3 +1,4 @@
+import { projectContinuityStyle } from '../../utils/projectContinuity';
 import React from 'react';
 import { AlertTriangleIcon, Loader2Icon } from 'lucide-react';
 import { Button } from './Button';
@@ -34,17 +35,12 @@ export function EmptyState({
     </div>;
 }
 
-/** Announced politely, so a slow request is not silent for screen readers. */
-export function LoadingState({
-  label = 'Loading'
-
-
-}: {label?: string;}) {
-  return <div role="status" aria-live="polite" className="flex min-h-[200px] flex-col items-center justify-center gap-2 px-6 py-8 text-center">
-      <InterfaceIcon icon={Loader2Icon} effect="rotate" effectActive className="text-[var(--text-tertiary)]" />
-      <p className="type-body text-[var(--text-secondary)]">{label}</p>
-    </div>;
+/** Reserved final-layout bones share one loading paint and keep their labels accessible. */
+export function LoadingSkeleton({label='Loading',kind='rows',projectId}:{label?:string;kind?:'rows'|'reader'|'studio'|'profile';projectId?:string}) {
+ if(kind==='reader')return <div role="status" aria-label={label} aria-live="polite" data-reader-frame="" data-premium-project-viewer="" data-mobile-page-reader="" className="motion-reader-skeleton"><span className="motion-skeleton motion-reader-counter"/><div className="motion-reader-page motion-skeleton" data-project-continuity-surface="" data-project-continuity-id={projectId} style={projectId ? projectContinuityStyle(projectId) : undefined}/></div>;
+ return <div role="status" aria-label={label} aria-live="polite" data-loading-layout={kind} className={kind==='profile'?'motion-profile-skeleton':undefined}>{kind==='profile'&&<div className="motion-profile-identity motion-skeleton"/>}<div className="motion-list-skeleton">{[0,1,2,3].map(i=><span key={i} className="motion-skeleton"/>)}</div></div>;
 }
+export function LoadingState({label='Loading'}:{label?:string}) {return <LoadingSkeleton label={label}/>;}
 
 /** Failure is never colour-only: it carries an icon, a message, and a way out. */
 export function ErrorState({

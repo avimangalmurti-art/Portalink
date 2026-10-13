@@ -1,10 +1,9 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
 import { useModalFocus } from '../../hooks/useModalFocus';
 
-const SPLASH_EXIT_SECONDS = 0.32;
-const WELCOME_EXIT_SECONDS = 0.25;
 const FIRST_FRAME_TIMEOUT_MS = 600;
 const SPLASH_TIMEOUT_MS = 2200;
 const WEB_PLAYBACK_MS = 880;
@@ -290,7 +289,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
       exit={{ opacity: 0 }}
-      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : landing || welcomeHandoff ? WELCOME_EXIT_SECONDS : SPLASH_EXIT_SECONDS, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : landing || welcomeHandoff ? motionSeconds('base') : motionSeconds('slow'), ease: motionCurve() }}
     >
       <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">

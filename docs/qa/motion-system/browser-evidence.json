@@ -1,0 +1,119 @@
+{
+  "record": {
+    "native": [
+      {
+        "mode": "dock",
+        "at": 33824.799999952316
+      },
+      {
+        "mode": "dock",
+        "at": 35088.5
+      },
+      {
+        "mode": "dock",
+        "at": 37241
+      },
+      {
+        "mode": "dock",
+        "at": 38240
+      },
+      {
+        "mode": "dock",
+        "at": 39476
+      },
+      {
+        "mode": "tabs",
+        "at": 40624.69999998808
+      },
+      {
+        "mode": "tabs",
+        "at": 41665
+      },
+      {
+        "mode": "tabs",
+        "at": 42627.799999952316
+      },
+      {
+        "mode": "tabs",
+        "at": 43617.19999998808
+      },
+      {
+        "mode": "tabs",
+        "at": 44704.09999996424
+      },
+      {
+        "mode": "tabs",
+        "at": 45677.39999997616
+      },
+      {
+        "mode": "tabs",
+        "at": 46624.89999997616
+      },
+      {
+        "mode": "tabs",
+        "at": 47698.59999996424
+      },
+      {
+        "mode": "push",
+        "at": 49243.799999952316
+      },
+      {
+        "mode": "back",
+        "at": 52172.69999998808
+      }
+    ],
+    "reader": [
+      73.5
+    ],
+    "cls": 0,
+    "animations": 1
+  },
+  "viewports": [
+    {
+      "width": 375,
+      "metrics": {
+        "native": [
+          {
+            "mode": "tabs",
+            "at": 167061.59999996424
+          }
+        ],
+        "reader": [],
+        "cls": 0,
+        "animations": 31
+      },
+      "geometry": {
+        "headerTop": 0,
+        "scrollWidth": 375,
+        "width": 375
+      }
+    },
+    {
+      "width": 430,
+      "metrics": {
+        "native": [
+          {
+            "mode": "tabs",
+            "at": 167061.59999996424
+          },
+          {
+            "mode": "tabs",
+            "at": 389418.59999996424
+          },
+          {
+            "mode": "tabs",
+            "at": 390114.89999997616
+          }
+        ],
+        "reader": [],
+        "cls": 0,
+        "animations": 31
+      },
+      "geometry": {
+        "headerTop": 0,
+        "scrollWidth": 430,
+        "width": 430
+      }
+    }
+  ]
+}

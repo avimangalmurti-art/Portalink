@@ -21,7 +21,7 @@ import { ActivityPage, SavedPage, InsightsPage } from './features/library/Person
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
 import { useLocation } from 'react-router-dom';
-import { EmptyState, LoadingState } from './components/ui/StateViews';
+import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
 import { interactionIntent } from './features/auth/interactionIntent';
@@ -1169,6 +1169,7 @@ function AppContent() {
    * is preserved, an unknown address is reported, and an id that resolves to
    * nothing produces a not-found rather than somebody else's work.
    */
+  const openingProjectId = route.kind === 'project' || route.kind === 'sharedProject' ? route.projectId : activeProjectId;
   const routeStateView = isProfileEditorRoute && (auth.isInitializing || auth.phase === 'authenticating' || auth.phase === 'signing-out') ? <LoadingState label="Opening profile editor…" /> : isRouteBlocked ? <EmptyState title="Sign in required" description={`Sign in to ${describeRoute(route)}. This page will reopen after sign-in.`} action={{
     label: 'Sign in',
     onClick: () => auth.requestAuth('signIn')
@@ -1183,7 +1184,7 @@ function AppContent() {
   : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" />
   : routeItemId && routeItemResolution?.state === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeItemId && routeItemResolution?.state === 'error' ? <RouteError kind="network" onBack={nav.back} onHome={nav.home} />
-  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingState label="Opening profile…" />
+  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />
   : routeProfileId && viewedProfileQuery.status === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
   : routeProfileId && viewedProfileQuery.status === 'error' ? <RouteError kind={routeErrorKind(viewedProfileQuery.error)} onBack={nav.back} onHome={nav.home} />
   : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" />
@@ -1265,7 +1266,7 @@ function AppContent() {
           setAttemptedIconName(null);
           setIconPickerCategoryId(null);
         } else nav.back();
-      }}><React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
+      }}><React.Suspense fallback={<LoadingSkeleton kind={openingProjectId ? 'reader' : isMobileStudioOpen ? 'studio' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening" />}>
       {routeStateView ? <div className={routeStateView.type === RouteError ? "min-h-full" : "px-[var(--content-gutter)] py-10"}>{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
@@ -1339,7 +1340,7 @@ function AppContent() {
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
           <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss">×</button>
         </div>}
-        <AppScreenLayers screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
+        <AppScreenLayers screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
       </div>
 

@@ -140,6 +140,8 @@ function appHarness({ firstVisit = false } = {}) {
   const window = { scrollY: 0, scrollTo() {}, addEventListener() {}, removeEventListener() {}, history: { state: { idx: 1 } }, location: { assign: path => assigned.push(path), replace: path => replaced.push(path) } };
   const document = { documentElement: { dataset: {}, style: {} }, body: { classList: { toggle() {} } }, querySelector: () => null };
   const { VisitorApp } = load('visitor/VisitorApp.tsx', name => {
+    if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
+    if(name.endsWith('/projectContinuity'))return {beginProjectContinuity(){}};
     if (name === '../components/ui/RouteError') return {RouteError: 'RouteError', routeErrorKind: () => 'network'};
     if (name === './mobile/PublicActionSheet') return { PublicActionSheet: 'PublicActionSheet' };
     if (name === './mobile/publicWelcome') return { ...load('visitor/mobile/publicWelcome.ts'), publicWelcomeCompleted: () => !firstVisit, completePublicWelcome() {} };
@@ -371,6 +373,7 @@ function visitorProfileHarness({ presentation = 'web', showJourney = false } = {
   const h = hooks(), followed = [], state = { own: true, signedIn: true, resolveError: null, search: new URLSearchParams(), categoryId: null, view: 'portfolio' };
   const bioProfile = { ...profile, headline: 'Jolly Good\nWorking across media.', portfolioHeadline: 'Independent designer', location: 'London', showJourney };
   const { VisitorProfileGrid } = load('visitor/VisitorProfileGrid.tsx', name => {
+    if(name.endsWith('/StateViews'))return {LoadingSkeleton:'loading'};
     if (name === 'react') return h.react;
     if (name.endsWith('.css')) return {};
     if (name === 'lucide-react') return { MoreHorizontalIcon: 'MoreHorizontalIcon' };
