@@ -47,3 +47,9 @@ body:has([data-follow-info-layer]) #root .codex-shell[data-presentation='mobile'
 
 [data-follow-info-layer] .follow-info-panel:focus-visible { outline: none !important; box-shadow: 0 20px 64px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 16%); }
 
+
+/* Cover-page owner commands retain their existing callbacks in the shared card. */
+[data-follow-info-layer] .follow-info-header {position:relative;}
+[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:52px;right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
+[data-follow-info-layer] .project-popup-owner-actions {display:flex;flex-direction:column;}
+[data-follow-info-layer] .project-popup-owner-button {min-height:44px;padding:8px 12px;text-align:left;border-radius:10px;}
