@@ -45,10 +45,10 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
           <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
-            {!isJourney && <ProfileAvatar name={profile.name} avatar={profile.avatar} size="profile" priority="viewport" />}
+            <ProfileAvatar name={profile.name} avatar={profile.avatar} size="profile" priority="viewport" />
             <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
-              {!isJourney && <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>}
-              {!isJourney && profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
+              <h1 className="cdx-panel-title min-w-0 truncate font-semibold" title={profile.name}>{profile.name}</h1>
+              {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]">{profile.location}</p>}
               {isMobile && profile.showJourney === true && <div className="profile-identity-view"><JourneyToggle view={!categoryId && !portalsView ? journey.view : 'portfolio'} onChange={view => {
                 journey.select(view);
                 if (categoryId) onBack?.();
