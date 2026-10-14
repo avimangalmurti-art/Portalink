@@ -309,6 +309,7 @@ function ProfileIdentityAndLinks({
   links,
   showLinks = true,
   avatarPriority = false,
+  hideIdentity = false,
   onOpenBio,
   profileView,
   summaryCounts
@@ -318,18 +319,19 @@ function ProfileIdentityAndLinks({
   links: ProfileLink[];
   showLinks?: boolean;
   avatarPriority?: boolean;
+  hideIdentity?: boolean;
   onOpenBio?: () => void;
   profileView?: React.ReactNode;
   summaryCounts?: { projectCount: number; portalCount: number; followers: string | null; following: string | null; expanded: boolean; canViewConnections: boolean; activeView: ProfileContentView; onSelect: (view: ProfileContentView) => void; disabled: boolean };
 }) {
   return <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
       <div className="profile-identity-main flex min-w-0 max-w-full items-center gap-2.5">
-        <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" priority={avatarPriority} />
+        {!hideIdentity && <ProfileAvatar key={profile.id} name={displayName} avatar={profile.avatar} size="profile" priority={avatarPriority} />}
         <div className="profile-identity-copy flex min-w-0 flex-col justify-center">
-          <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
+          {!hideIdentity && <h1 className="cdx-panel-title min-w-0 truncate font-semibold text-[var(--text-primary)]" title={displayName}>
             {displayName}
-          </h1>
-          {profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
+          </h1>}
+          {!hideIdentity && profile.location && <p className="mt-0.5 truncate text-[12px] font-medium leading-[1.2] text-[var(--text-secondary)]" title={profile.location}>{profile.location}</p>}
           {profileView && <div className="profile-identity-view">{profileView}</div>}
           {summaryCounts && <ProfileStats {...summaryCounts} compact={!summaryCounts.expanded} />}
         </div>
@@ -709,7 +711,7 @@ export function UserProfilePage({
       {showConnectionBack && !canDismissProfile && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
       {canDismissProfile && <button type="button" className="profile-return-handle" aria-label="Swipe down to return to previous screen" onClick={event => { if (event.detail === 0) dismissProfile(); }}><span /></button>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
-        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
+        <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView} hideIdentity={isJourney}
           profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}
           summaryCounts={isJourney || isSharedView || (isMobile && !mobileContent && !isMobileToolsOpen) ? undefined : { projectCount, portalCount: profile.categories.length, followers, following, expanded: isMobileToolsOpen, canViewConnections: showsOwnerTools || (!isSharedView && connections.counts.canViewConnections === true), activeView: mobileProjectIndexOpen ? 'portals' : activeView, onSelect: setActiveView, disabled: isReorderingProjects || projectManagement.editor.projectId !== null }} />
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
