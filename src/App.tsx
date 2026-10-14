@@ -43,7 +43,8 @@ import { FeatureInDesignPage } from './components/FeatureInDesignPage';
 import { useProfileOnboardingStatus } from './features/profile/useProfileOnboarding';
 import { DeferredDialog, DeferredSurface, DeferredSurfaceBoundary } from './components/ui/DeferredDialog';
 import { PublishConfirmation } from './features/publishing/PublishConfirmation';
-import { useProfileData, useProfileQuery } from './contexts/ProfileDataContext';
+import { useProfileData } from './contexts/ProfileDataContext';
+import { useProfileProjectQuery } from './features/profile/useProfileProjectQuery';
 import { useSharedProfileQuery } from './features/profile/useSharedProfileQuery';
 import { AppScreenLayers } from './presentation/AppScreenLayers';
 import './app/screenTransitions.css';
@@ -59,10 +60,14 @@ import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
-const MessagesPage = React.lazy(() => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage })));
-const StudioPage = React.lazy(() => import('./features/studio/StudioPage').then((module) => ({ default: module.StudioPage })));
-const SearchBrowsePage = React.lazy(() => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage })));
-const ControlCenterPage = React.lazy(() => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage })));
+const loadMessagesPage = () => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage }));
+const loadStudioPage = () => import('./features/studio/StudioPage').then((module) => ({ default: module.StudioPage }));
+const loadSearchPage = () => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage }));
+const loadSettingsPage = () => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage }));
+const MessagesPage = React.lazy(loadMessagesPage);
+const StudioPage = React.lazy(loadStudioPage);
+const SearchBrowsePage = React.lazy(loadSearchPage);
+const ControlCenterPage = React.lazy(loadSettingsPage);
 const AppDetailPage = React.lazy(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
 const IconPickerPage = React.lazy(() => import('./components/profile/IconPickerPage').then(module => ({ default: module.IconPickerPage })));
 const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
@@ -443,7 +448,7 @@ function AppContent() {
    * whichever record a fallback would have handed back.
    */
   const { fetchProfile } = useProfileData();
-  const ordinaryProfileQuery = useProfileQuery(isSharedRoute ? null : viewedProfileId);
+  const ordinaryProfileQuery = useProfileProjectQuery(isSharedRoute ? null : viewedProfileId, route.kind === 'project' ? route.projectId : null, routeCategoryId);
   const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
     route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
   const viewedProfileQuery = isSharedRoute ? sharedProfileQuery : ordinaryProfileQuery;
@@ -452,11 +457,40 @@ function AppContent() {
   // Warm the same canonical profile query the destination consumes so the
   // click does not start a duplicate request or flash an avoidable empty state.
   const warmCreator = useCallback((creatorId: Id) => {
-    void fetchProfile(creatorId).catch(() => {
+    void fetchProfile(creatorId, 'overview').catch(() => {
       // Prefetch is deliberately silent. If navigation follows, the route owns
       // the truthful error and retry presentation; if it does not, nothing nags.
     });
   }, [fetchProfile]);
+  useEffect(() => {
+    const warm = (event: Event) => {
+      const control = event.target instanceof Element ? event.target.closest('a,button') : null;
+      if (!control) return;
+      const href = control.getAttribute('href');
+      const path = href ? new URL(href, window.location.origin).pathname : '';
+      const label = control.getAttribute('aria-label') ?? '';
+      if (path.startsWith('/messages') || /^(Open messages|Messages)$/.test(label)) void loadMessagesPage().catch(() => undefined);
+      else if (path === '/studio' || path === '/saved') void loadStudioPage().catch(() => undefined);
+      else if (path === '/control-center' || /^(Open settings)$/.test(label)) void loadSettingsPage().catch(() => undefined);
+      else if (path.startsWith('/search') || label === 'Search accounts') void loadSearchPage().catch(() => undefined);
+      const profileId = /^\/p\/([^/]+)/.exec(path)?.[1];
+      if (profileId) { void loadProfilePage().catch(() => undefined); warmCreator(profileId); }
+    };
+    document.addEventListener('pointerover', warm, true);
+    document.addEventListener('focusin', warm, true);
+    document.addEventListener('touchstart', warm, { capture: true, passive: true });
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    // Warm common destinations after the first paint without charging slow/data-saving connections.
+    const timer = !connection?.saveData && !/^(slow-2g|2g)$/.test(connection?.effectiveType ?? '') ? window.setTimeout(() => {
+      void loadProfilePage().then(loadMessagesPage).then(loadStudioPage).catch(() => undefined);
+    }, 1200) : undefined;
+    return () => {
+      document.removeEventListener('pointerover', warm, true);
+      document.removeEventListener('focusin', warm, true);
+      document.removeEventListener('touchstart', warm, true);
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [warmCreator]);
   // The footer always represents the signed-in viewer, even while they browse
   // another creator. Reuse the current read when the viewed portal is their own;
   // only resolve a second record when those identities genuinely differ.

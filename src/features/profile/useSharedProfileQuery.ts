@@ -11,7 +11,7 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
   const accountId = useAuth().user?.id ?? null;
   const { revision } = useProfileData();
   const [attempt, setAttempt] = useState(0);
-  const scope = useMemo(() => ({ profileId, profiles, projects, accountId, revision, attempt, bundle: null as Promise<Profile> | null }),
+  const scope = useMemo(() => ({ profileId, profiles, projects, accountId, revision, attempt, bundle: null as Promise<Profile> | null, profile: null as Profile | null, views: new Map<string, Profile>() }),
     [profileId, profiles, projects, accountId, revision, attempt]);
   const currentScope = useRef(scope);
   currentScope.current = scope;
@@ -22,18 +22,25 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
   useEffect(() => {
     let cancelled = false;
     if (!profileId) return;
+    const cached = projectId ? scope.views.get(key) : scope.profile;
+    if (cached) { setState({ scope, key, profile: cached, status: 'ready', error: null }); return; }
     setState({ scope, key, profile: null, status: 'loading', error: null });
     if (!scope.bundle) scope.bundle = profiles.getSharedProfile
       ? profiles.getSharedProfile(profileId) : profiles.getProfile(profileId);
     void scope.bundle.then(async bundle => {
       if (cancelled || currentScope.current !== scope) return bundle;
       if (bundle.isPrivate) throw new Error('That creator profile could not be found.');
+      scope.profile = bundle;
       if (!projectId) return bundle;
       const selected = bundle.projects.find(project => project.id === projectId && project.categoryId === categoryId);
       if (!selected) return bundle; // Existing route handles truthful project-not-found.
       const view = await projects.getProjectView(projectId);
       if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.isPubliclyVisible === false || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
-      return { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? view.project : project) };
+      const detailed = { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? view.project : project) };
+      const oldest = scope.views.keys().next().value;
+      if (scope.views.size >= 16 && oldest !== undefined) scope.views.delete(oldest);
+      scope.views.set(key, detailed);
+      return detailed;
     }).then(profile => {
       if (!cancelled && currentScope.current === scope) setState({ scope, key, profile, status: 'ready', error: null });
     }, (error: unknown) => {
@@ -45,6 +52,7 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
     return () => { cancelled = true; };
   }, [scope, key, profileId, projectId, categoryId, profiles, projects]);
   const current = state.scope === scope && state.key === key;
-  return { profile: current ? state.profile : null, status: profileId ? current ? state.status : 'loading' : 'idle',
+  const cached = projectId ? scope.views.get(key) : scope.profile;
+  return { profile: current ? state.profile : cached ?? null, status: profileId ? current ? state.status : cached ? 'ready' : 'loading' : 'idle',
     error: current ? state.error : null, retry: () => setAttempt(value => value + 1) };
 }

@@ -552,15 +552,13 @@ test('invitation marker does not override signed-in, recovery or authentication 
   ordinary.render(); assert.equal(ordinary.app.type,'redirect','ordinary guest navigation keeps its existing shared-profile boundary');
 });
 
-test('restored MOBILE sessions keep a visible video-only intro until its timed completion', () => {
+test('restored MOBILE sessions release the intro immediately when authentication is ready', () => {
   const h=sharedBootstrap({path:'/',search:''}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
   assert.equal(splash.props.timedIntro,true); assert.equal(h.app,null);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
   splash=h.render(); splash=h.render();
-  assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
-  assert.equal(splash.props.timedIntro,true); assert.equal(h.app.type,'app');
-  splash.props.onComplete(); assert.equal(h.render(),null);
+  assert.equal(splash,null); assert.equal(h.app.type,'app');
   assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
   h.render(); h.location.pathname='/messages'; assert.equal(h.render(),null);
 });
@@ -573,12 +571,11 @@ test('a slow MOBILE session shows loading after the intro without extending vide
   assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
 });
 
-test('rotation does not cancel or hide the initial returning MOBILE intro', () => {
+test('rotation preserves the authentication wait and releases it as soon as the session is ready', () => {
   const h=sharedBootstrap({path:'/',search:''}); h.render(); h.setPresentation('web');
   let splash=h.render(); assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true; splash=h.render();
-  assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
-  splash.props.onComplete(); assert.equal(h.render(),null);
+  h.render(); assert.equal(h.render(),null);
 });
 
 test('root mobile landing waits for verified guest status, then stays behind account forms', () => {

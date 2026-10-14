@@ -62,6 +62,13 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
       if (name.endsWith('/AuthContext')) return { useAuth: () => auth };
       if (name.endsWith('/ProfileDataContext')) return { useProfileData: () => profileData };
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
+      if (name.endsWith('/accountQueryCache')) {
+        const nested = {};
+        vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../src/features/library/accountQueryCache.ts', import.meta.url), 'utf8'), {
+          compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+        }).outputText, { exports: nested });
+        return nested;
+      }
       if (name.endsWith('/useAsyncAction') || name.endsWith('/types/auth') || name.endsWith('/types/profile') || name.endsWith('/useSavedChangeHistory') || name === './validation') {
         const nested = {};
         const path = name === './validation' ? '../../src/features/profile/validation.ts' : name.endsWith('/useAsyncAction') ? '../../src/hooks/useAsyncAction.ts' : name.endsWith('/useSavedChangeHistory') ? '../../src/hooks/useSavedChangeHistory.ts' : name.endsWith('/types/profile') ? '../../src/types/profile.ts' : '../../src/types/auth.ts';

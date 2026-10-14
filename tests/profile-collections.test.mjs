@@ -200,6 +200,7 @@ function profileHarness(search = '', options = {}) {
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
+    if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
     if (name.endsWith('/useProfileSwipeReturn')) return { useProfileSwipeReturn() {} };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
@@ -231,7 +232,7 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile header keeps its Journey choice when expanded alongside counts and links', () => {
+test('mobile header keeps its Journey choice while hiding counts and links until Portfolio returns', () => {
   const h = profileHarness('', { presentation: 'mobile' });
   const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
   let tree = h.render();
@@ -244,22 +245,28 @@ test('mobile header keeps its Journey choice when expanded alongside counts and 
   toggle(tree).props.onChange('journey');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
+  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(nodes(tree).some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   openProfileOptions(h);
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
   assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
   const all = nodes(tree);
-  const stats = all.find(node => node.type?.name === 'ProfileStats');
-  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(all.some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(all.some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   const tools = all.find(node => node.props?.id === 'profile-navigation-tools');
-  assert.ok(all.indexOf(stats) < all.indexOf(tools));
   assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   toggle(tree).props.onChange('portfolio');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'portfolio');
   assert.equal(nodes(tree).find(node => node.props?.className === 'profile-compact-header').props['data-expanded'], true);
+  const restored = nodes(tree);
+  const stats = restored.find(node => node.type?.name === 'ProfileStats');
+  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(restored.some(node => node.props?.['data-mobile-profile-links'] !== undefined), true);
+  assert.ok(restored.indexOf(stats) < restored.indexOf(restored.find(node => node.props?.id === 'profile-navigation-tools')));
   openProfileOptions(h);
   assert.equal(toggle(h.render()).props.view, 'portfolio');
 });

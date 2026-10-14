@@ -19,7 +19,7 @@ const metrics = [
 ] as const;
 const sources = [['own-link', 'Your link'], ['messages', 'Messages'], ['linkedin', 'LinkedIn'], ['other', 'Other']] as const;
 type Metric = typeof metrics[number]['key'];
-type SavesState = { data?: SaveInsights; loading: boolean; error?: string; retry: () => void };
+type SavesState = { data?: SaveInsights; loading: boolean; refreshing?: boolean; error?: string; retry: () => void };
 
 export function MobileInsights({ saves }: { saves: SavesState }) {
   const { reads, projects } = useServices();
@@ -27,7 +27,7 @@ export function MobileInsights({ saves }: { saves: SavesState }) {
   const [period, setPeriod] = useState<ReadPeriod>('7d');
   const periodLabel = READ_PERIODS.find(item => item.key === period)?.label ?? '7 days';
   const query = useCallback(() => reads ? reads.list(period) : Promise.reject(new Error('Reads are not available yet.')), [reads, period]);
-  const state = useAccountQuery(query);
+  const state = useAccountQuery(query, reads ? { key: `reads:list:${period}`, scope: reads } : undefined);
   const coverQuery = useCallback(async () => {
     const ids = [...new Set((state.data ?? []).map(row => row.profileId))];
     return (await Promise.all(ids.map(id => projects.listProjects(id)))).flat();
@@ -45,7 +45,7 @@ export function MobileInsights({ saves }: { saves: SavesState }) {
   const openProject = (id: string) => navigate(`/insights?project=${encodeURIComponent(id)}&period=${period}`);
   const refresh = () => { state.retry(); covers.retry(); saves.retry(); };
   return <div className="mobile-insights-content">
-    <div className="mobile-insights-period"><select aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><button type="button" onClick={refresh} disabled={state.loading || saves.loading}>Refresh</button></div>
+    <div className="mobile-insights-period"><select aria-label="Insights period" value={period} onChange={event => setPeriod(event.target.value as ReadPeriod)}>{READ_PERIODS.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select><button type="button" onClick={refresh} disabled={state.loading || state.refreshing || saves.loading || saves.refreshing}>Refresh</button></div>
     {state.loading ? <LoadingState kind="insights" label="Loading insights" /> : state.error ? <ErrorState title="Unable to load reads" description={state.error} onRetry={state.retry} /> : <>
       <h2 className="mobile-insights-headline">{total.toLocaleString()} {metric === 'opened' ? 'project opens' : metric === 'finished' ? 'completed reads' : 'current page saves'}{metric !== 'saved' && ` · ${periodLabel}`}</h2>
       <div className="mobile-insights-metrics" role="group" aria-label="Insight metric">

@@ -36,11 +36,16 @@ test('shared grid → document → back reuses one compact bundle and resolves o
   assert.equal(f.h.value.profile.projects[1].attachments.length, 0);
   assert.equal(compact.projects[0].attachments.length, 0, 'Viewer hydration does not mutate the reusable grid bundle');
   f.h.options(['creator', null, null]);
+  assert.equal(f.h.value.status, 'ready', 'Returning to the confirmed grid is synchronous');
   await f.h.flush();
   assert.equal(f.h.value.profile, compact);
   assert.deepEqual(f.calls.bundle, ['creator']);
   assert.deepEqual(f.calls.viewer, ['report']);
   assert.equal(f.calls.ordinary, 0);
+  f.h.options(['creator', 'report', 'documents']);
+  assert.equal(f.h.value.status, 'ready', 'Reopening confirmed media in this account scope needs no loading flash');
+  await f.h.flush();
+  assert.deepEqual(f.calls.viewer, ['report']);
   f.h.dispose();
 });
 

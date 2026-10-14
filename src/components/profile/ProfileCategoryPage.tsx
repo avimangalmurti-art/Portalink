@@ -224,7 +224,7 @@ export function ProfileCategoryPage({
   const activeAttachments = useMemo(() => activeProject ? resolveProjectAttachments(activeProject, category) : [], [activeProject, category]);
   // Use the same authorized/visibility-filtered portal order as its index.
   // Scrolling never fetches another creator or exposes hidden projects.
-  const portalVideos = useMemo(() => isMobile ? projects.flatMap(project => resolveProjectAttachments(project, category)
+  const portalVideos = useMemo(() => isMobile ? projects.filter(project => Boolean(project.attachments?.length)).flatMap(project => resolveProjectAttachments(project, category)
     .filter(attachment => attachment.kind === 'video')
     .map(attachment => ({ projectId: project.id, projectTitle: project.title, attachment }))) : [], [isMobile, projects, category]);
   useEffect(() => {
@@ -234,6 +234,7 @@ export function ProfileCategoryPage({
       .filter((project): project is typeof activeProject => Boolean(project));
     const timer = window.setTimeout(() => {
       for (const project of adjacentProjects) {
+        if (!project.attachments?.length) continue;
         preloadProjectMedia(resolveProjectAttachments(project, category), 3);
       }
     }, 160);
