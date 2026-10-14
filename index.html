@@ -58,15 +58,15 @@
       }
 
       #portalink-preboot {
-        --portalink-splash-background: #f5eaf4;
-        --portalink-media-ratio: 1;
+        --portalink-splash-background: #fdffff;
+        --portalink-media-ratio: 0.7111111111;
         position: fixed;
         inset: 0;
         display: grid;
         min-height: 100dvh;
         place-items: center;
         overflow: hidden;
-        background-color: #f5eaf4;
+        background-color: #fdffff;
         background-image: none;
         color: #000000;
       }
@@ -125,7 +125,7 @@
         /* Match the visible launch layer even while the app mounts beneath it. */
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait),
         html:root:has(#portalink-preboot, [data-portalink-splash][data-presentation='mobile']:not([aria-hidden='true']), [data-presentation='mobile'].portalink-startup-wait) body {
-          background-color: #f8fdfc !important;
+          background-color: #fdffff !important;
         }
         /* Legacy iOS navigator.standalone is marked before the body is parsed. */
         html:root[data-standalone], html:root[data-standalone] body, html:root[data-standalone] #root {
@@ -138,7 +138,7 @@
           --mobile-viewport-height: 100vh;
           --mobile-fixed-offset: 0px;
         }
-        #portalink-preboot { background-color: #f8fdfc; --portalink-splash-background: #f8fdfc; --portalink-media-ratio: 0.7111111111; }
+        #portalink-preboot { background-color: #fdffff; --portalink-splash-background: #fdffff; --portalink-media-ratio: 0.7111111111; }
         #portalink-preboot { height: var(--mobile-launch-height); min-height: var(--mobile-launch-height); }
         #portalink-preboot .portalink-preboot-media {
           width: 100vw;
@@ -230,8 +230,8 @@
       <div id="portalink-preboot" role="status" aria-label="Portalink is loading">
         <div class="portalink-preboot-media">
         <picture>
-          <source media="(max-width: 639px)" srcset="/portalink-welcome-loop.webp?v=6dceb1fd" type="image/webp" />
-          <img src="/portalink-splash-poster.png" alt="" aria-hidden="true" width="576" height="576" />
+          <source media="(max-width: 639px)" srcset="/portalink-welcome-loop.webp?v=307bdea0" type="image/webp" />
+          <img src="/portalink-splash-poster.png?v=98f4e103" alt="" aria-hidden="true" width="512" height="720" />
         </picture>
         </div>
       </div>

@@ -60,10 +60,10 @@ test('mobile fallback contains the supplied clip as an infinite animation, not a
     if(kind==='ANMF'){frames++;duration+=asset.readUIntLE(data+12,3);}
     offset=data+size+(size%2);
   }
-  assert.equal(loops,0); assert.ok(frames>30); assert.ok(duration>=1490&&duration<=1510);
-  assert.equal(createHash('sha256').update(asset).digest('hex').slice(0,8),'6dceb1fd');
+  assert.equal(loops,0); assert.equal(frames,44); assert.ok(duration>=1460&&duration<=1480);
+  assert.equal(createHash('sha256').update(asset).digest('hex').slice(0,8),'307bdea0');
   const clip=readFileSync(new URL('../public/portalink-splash-mobile.mp4',import.meta.url));
-  assert.equal(createHash('sha256').update(clip).digest('hex').slice(0,8),'4d282896');
+  assert.equal(createHash('sha256').update(clip).digest('hex').slice(0,8),'9c1a9457');
 });
 function compile(path, imports, globals) {
   const exports = {};
@@ -149,8 +149,8 @@ test('embedded Hello World media uses the looping mobile clip on both platforms 
     assert.equal(tree.props['aria-modal'], undefined);
     assert.equal(tree.props.tabIndex, undefined);
     assert.equal(tree.props.children[1], undefined);
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
-    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=4d282896');
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
+    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=9c1a9457');
     assert.equal(media.props.poster, undefined);
     assert.equal(media.props.loop, true);
     assert.equal(media.props.controls, false);
@@ -171,7 +171,7 @@ test('embedded Hello World media uses the looping mobile clip on both platforms 
     assert.equal(media.props.style.opacity, 1);
     assert.equal(h.timers.size, 0);
     assert.equal(h.modalCalls.some(Boolean), false);
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
     h.unmount();
     assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0); assert.equal(h.windowListeners.size, 0);
   }
@@ -193,7 +193,7 @@ test('embedded welcome media keeps an animated fallback after blocked autoplay a
     assert.equal(media.props.poster, undefined);
     assert.equal(media.props.style.opacity, 0);
     assert.equal(poster.type, 'img');
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=6dceb1fd');
+    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
     assert.notEqual(poster.props.style?.visibility, 'hidden');
     assert.equal(h.modalCalls.some(Boolean), false);
     h.unmount(); assert.equal(h.frames.size, 0); assert.equal(h.timers.size, 0);
@@ -206,10 +206,10 @@ test('both platforms keep their fallback visible until a real video frame is rea
     assert.equal(poster.type, 'img');
     assert.equal(media.type, 'video');
     assert.equal(h.presentation, presentation);
-    assert.equal(media.props.src, mobile ? '/portalink-splash-mobile.mp4?v=4d282896' : '/portalink-splash.mp4');
-    assert.equal(media.props.poster, mobile ? undefined : '/portalink-splash-poster.png');
-    assert.equal(media.props.width, mobile ? 512 : 576);
-    assert.equal(media.props.height, mobile ? 720 : 576);
+    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=9c1a9457');
+    assert.equal(media.props.poster, mobile ? undefined : '/portalink-splash-poster.png?v=98f4e103');
+    assert.equal(media.props.width, 512);
+    assert.equal(media.props.height, 720);
     assert.equal(media.props.muted, true); assert.equal(media.props.playsInline, true);
     assert.equal(media.props.autoPlay, true); assert.equal(media.props['aria-hidden'], 'true');
     assert.equal(media.props.loop, mobile || undefined); assert.equal(media.props.controls, false);
@@ -220,31 +220,46 @@ test('both platforms keep their fallback visible until a real video frame is rea
     h.render(); assert.equal(h.plays, 1);
     h.start(); assert.equal(h.render().media.props.style.opacity, 0);
     h.paint(); assert.equal(h.render().media.props.style.opacity, 1);
-    h.emit('ended'); h.emit('ended'); assert.equal(h.completed, 1);
+    h.emit('ended'); h.emit('ended');
+    if (mobile) { assert.equal(h.completed, 0); h.timer(1500); }
+    assert.equal(h.completed, 1);
     assert.equal(h.render().media.props.style.opacity, 1, 'successful exit retains the final frame');
     h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0);
   }
 });
 
-test('WEB starts its short presentation budget on the first frame, not during buffering', () => {
+test('WEB shows the full supplied clip and starts its playback watchdog on the first frame', () => {
   const h = loader(); h.render();
-  assert.equal([...h.timers.values()].some(t => t.delay === 880), false);
+  const preplayDeadline=[...h.timers.entries()].find(([,timer])=>timer.delay===2200)[0];
+  assert.equal([...h.timers.values()].some(t => t.delay === 1500 || t.delay === 880), false);
   h.start(); h.paint();
-  assert.equal(h.exitDuration, 0.26); h.timer(880);
+  assert.equal(h.exitDuration, 0.26); assert.equal(h.completed,0);
+  assert.equal(h.timers.has(preplayDeadline),false,'Loading time is excluded from the playback watchdog');
+  assert.equal([...h.timers.values()].some(t=>t.delay===600),false);
+  h.emit('ended');
   assert.equal(h.completed, 1);
   assert.equal(h.render().media.props.style.opacity, 1);
+  assert.equal(h.timers.size,0);
   h.unmount();
 });
 
-test('returning MOBILE intro is video-only with one 1500ms budget and no extra exit fade', () => {
+test('WEB playback remains bounded when decoded video never reaches its ended event',()=>{
+  const h=loader();h.render();h.start();h.paint();
+  h.timer(2200);assert.equal(h.completed,1);
+  assert.equal(h.render().media.props.style.opacity,1);
+  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
+});
+
+test('returning MOBILE shows the complete clip after a late first frame, with no extra exit fade', () => {
   const h=loader({presentation:'mobile',timedIntro:true});
   let {tree,media}=h.render();
   assert.equal(tree.props.children[1],undefined);
   assert.equal(media.props.controls,false); assert.equal(media.props.loop,true);
   assert.equal(h.exitDuration,0);
-  assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
-  const timerId=[...h.timers.keys()][0];
-  h.start(); h.paint(); ({tree,media}=h.render());
+  assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false,'Loading cannot consume clip playback');
+  h.start(); assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false,'Decoded playback is not yet a painted frame');
+  h.paint(); ({tree,media}=h.render());
+  const timerId=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
   assert.equal(media.props.style.opacity,1); assert.equal(h.completed,0);
   h.emit('ended'); h.render();
   assert.equal(h.completed,0,'early media completion cannot shorten the intro');
@@ -253,21 +268,46 @@ test('returning MOBILE intro is video-only with one 1500ms budget and no extra e
   h.unmount(); assert.equal(h.timers.size,0); assert.equal(h.listeners.size,0);
 });
 
-test('returning MOBILE fallback stays bounded without native play controls or timing retries', async () => {
-  for (const options of [{blocked:true},{throws:true},{reduced:true},{play:()=>new Promise(()=>{})}]) {
+test('returning MOBILE autoplay rejection and missing first frames show a bounded full animated fallback', async () => {
+  for (const options of [{blocked:true},{throws:true},{play:()=>new Promise(()=>{})}]) {
     const h=loader({presentation:'mobile',timedIntro:true,...options});
     h.render(); await Promise.resolve(); h.render();
     assert.equal(h.completed,0);
+    if(options.play) {
+      assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false);
+      h.timer(2200);
+    }
     assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
     h.timer(1500); assert.equal(h.completed,1);
     assert.equal(h.exitDuration,0); h.unmount(); assert.equal(h.timers.size,0);
   }
 });
 
+test('a recovered MOBILE first frame replaces its fallback budget only once and cleans up callbacks', async()=>{
+  const h=loader({presentation:'mobile',timedIntro:true,play:n=>n===1?Promise.reject(Error('blocked')):Promise.resolve()});
+  h.render();await Promise.resolve();
+  const fallbackTimer=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
+  h.timer(800);h.start();h.paint();h.render();
+  assert.equal(h.timers.has(fallbackTimer),false,'A late recovered video receives its full playback time');
+  const videoTimer=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
+  h.emit('waiting');h.start();h.paint();h.render();
+  assert.ok(h.timers.has(videoTimer),'Later playback events cannot extend the intro indefinitely');
+  h.timer(1500);assert.equal(h.completed,1);
+  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);assert.equal(h.windowListeners.size,0);
+});
+
+test('ordinary MOBILE startup and reduced-motion startup both show the full clip before completion',()=>{
+  for(const options of [{},{timedIntro:true,reduced:true}]) {
+    const h=loader({presentation:'mobile',...options});h.render();h.start();h.paint();
+    assert.equal(h.completed,0);h.timer(1500);assert.equal(h.completed,1);
+    h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
 test('a verified guest switches pending MOBILE playback to the continuous welcome without a deadline', () => {
   const h=loader({presentation:'mobile',timedIntro:true});
   h.render(); h.start();
-  assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
+  assert.ok([...h.timers.values()].some(timer=>timer.delay===2200));
   h.setLanding(welcome); h.render(); h.start(); h.paint();
   assert.equal(h.render().media.props.loop,true);
   assert.equal(h.render().tree.props.children[1].props['aria-busy'],false);
@@ -300,7 +340,7 @@ test('MOBILE interruptions retain a looping video and animated fallback', () => 
     const h=loader({presentation:'mobile'}); h.render(); h.start(); h.paint();
     h.emit(event); const {poster,media}=h.render();
     assert.ok(media); assert.equal(media.props.loop,true);
-    assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=6dceb1fd');
+    assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=307bdea0');
     h.unmount(); assert.equal(h.timers.size,0);
   }
 });
@@ -344,7 +384,7 @@ test('WEB errors, rejected autoplay and playback failures retain its still fallb
       assert.equal(h.completed, 1);
       const { poster, media } = h.render();
       assert.equal(media, false); assert.equal(poster.type, 'img');
-      assert.equal(poster.props.src, presentation === 'mobile' ? '/portalink-welcome-loop.webp?v=6dceb1fd' : '/portalink-splash-poster.png');
+      assert.equal(poster.props.src, presentation === 'mobile' ? '/portalink-welcome-loop.webp?v=307bdea0' : '/portalink-splash-poster.png?v=98f4e103');
       assert.equal(h.timers.size, 0);
       h.emit('error'); h.emit('ended'); assert.equal(h.completed, 1);
       h.unmount();
@@ -380,8 +420,8 @@ test('WEB reduced motion and later session retries retain its still fallback', (
     for (const options of [{ reduced: true }, { stillOnly: true }]) {
       const h = loader({ presentation, ...options }), { poster, media } = h.render(), mobile = presentation === 'mobile';
       assert.equal(media, false); assert.equal(poster.type, 'img');
-      assert.equal(poster.props.src, mobile ? '/portalink-welcome-loop.webp?v=6dceb1fd' : '/portalink-splash-poster.png');
-      assert.equal(poster.props.width, mobile ? 512 : 576); assert.equal(poster.props.height, mobile ? 720 : 576);
+      assert.equal(poster.props.src, mobile ? '/portalink-welcome-loop.webp?v=307bdea0' : '/portalink-splash-poster.png?v=98f4e103');
+      assert.equal(poster.props.width, 512); assert.equal(poster.props.height, 720);
       assert.equal(h.plays, 0); assert.equal(h.completed, 1); assert.equal(h.timers.size, 0);
       if (options.reduced) assert.equal(h.exitDuration, 0);
       h.unmount();
@@ -389,7 +429,7 @@ test('WEB reduced motion and later session retries retain its still fallback', (
   }
 });
 
-test('preboot removes the obsolete MOBILE poster at the canonical boundary and preserves WEB', () => {
+test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const { MOBILE_PRESENTATION_QUERY } = compile('../src/presentation/useViewportPresentation.ts', { react: React });
   const preboot = html.match(/<div id="portalink-preboot"[\s\S]*?<\/div>/)?.[0];
@@ -397,14 +437,15 @@ test('preboot removes the obsolete MOBILE poster at the canonical boundary and p
   const source = preboot.match(/<source\s[^>]*>/)?.[0];
   assert.ok(source);
   assert.equal(source.match(/media="([^"]+)"/)?.[1], MOBILE_PRESENTATION_QUERY);
-  assert.match(source, /srcset="\/portalink-welcome-loop\.webp\?v=6dceb1fd"/);
+  assert.match(source, /srcset="\/portalink-welcome-loop\.webp\?v=307bdea0"/);
   assert.doesNotMatch(preboot, /portalink-splash-mobile-poster/);
   assert.doesNotMatch(preboot, /mobile-startup-status/);
-  assert.match(preboot, /<img src="\/portalink-splash-poster\.png"[^>]*width="576" height="576"/);
+  assert.match(preboot, /<img src="\/portalink-splash-poster\.png\?v=98f4e103"[^>]*width="512" height="720"/);
   assert.ok(html.includes(`@media ${MOBILE_PRESENTATION_QUERY}`));
   assert.doesNotMatch(html, /(?:^|\n)\s*#portalink-preboot picture\s*\{\s*display:\s*none;/,
     'normal startup retains its picture; shared entry may hide it with a scoped rule');
-  assert.match(html, /#portalink-preboot\s*\{[^}]*background-color:\s*#f5eaf4/);
+  assert.match(html, /#portalink-preboot\s*\{[^}]*background-color:\s*#fdffff/);
+  assert.match(html, /#portalink-preboot\s*\{[^}]*--portalink-media-ratio:\s*0\.7111111111/);
   assert.doesNotMatch(preboot, /<video/);
 });
 
@@ -732,7 +773,7 @@ test('welcome ignores stale playback failures after hide/resume and keeps reduce
   for(const options of [{blocked:true},{reduced:true}]) {
     const fallback=loader({presentation:'mobile',landing:welcome,...options}); fallback.render();
     await Promise.resolve();
-    const {media,tree,poster}=fallback.render(); assert.ok(media); assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=6dceb1fd');
+    const {media,tree,poster}=fallback.render(); assert.ok(media); assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=307bdea0');
     if(options.reduced) { fallback.start(); fallback.paint(); }
     assert.equal(fallback.completed,1);
     assert.equal(tree.props.children[1].props['aria-busy'],false); fallback.unmount();

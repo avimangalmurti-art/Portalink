@@ -2,11 +2,11 @@
 [data-presentation='mobile'].portalink-startup-wait {
   height: var(--mobile-launch-height, 100dvh);
   min-height: var(--mobile-launch-height, 100dvh);
-  background-color: #f8fdfc;
+  background-color: #fdffff;
   overflow: hidden;
 }
 [data-presentation='mobile'].portalink-splash {
-  background-color: #f8fdfc;
+  background-color: #fdffff;
   height: var(--mobile-launch-height, 100dvh);
   min-height: var(--mobile-launch-height, 100dvh);
   overscroll-behavior: none;
@@ -22,7 +22,7 @@
 /* A looping welcome above reachable account actions, on the same surface. */
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;
-  background: #f8fdfc !important;
+  background: #fdffff !important;
   height: var(--mobile-launch-height, 100dvh);
   min-height: 0;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -90,7 +90,7 @@
 /* A welcome is the same full-viewport scene even inside a themed visitor dialog. */
 html:has(.portalink-splash[data-presentation='mobile'][data-share-landing]) { overflow: hidden !important; }
 #root .portalink-splash[data-presentation='mobile'][data-share-landing] {
-  background: #f8fdfc !important;
+  background: #fdffff !important;
   width: 100vw;
   border: 0 !important;
   border-radius: 0 !important;

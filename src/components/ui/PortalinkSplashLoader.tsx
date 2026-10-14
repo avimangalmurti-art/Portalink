@@ -7,7 +7,6 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 
 const FIRST_FRAME_TIMEOUT_MS = 600;
 const SPLASH_TIMEOUT_MS = 2200;
-const WEB_PLAYBACK_MS = 880;
 const MOBILE_RETURNING_SPLASH_MS = 1500;
 
 /** Startup plays once; the mobile welcome screen loops until an action is chosen. */
@@ -30,14 +29,15 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const [presentation] = useState(viewportPresentation);
   const isMobile = presentation === 'mobile' || welcomeMedia || Boolean(landing);
   const loopLanding = isMobile && Boolean(landing);
-  const fixedMobileIntro = isMobile && timedIntro && !loopLanding && !stillOnly;
+  const mobileStartupIntro = isMobile && !loopLanding && !welcomeMedia && !stillOnly;
+  const fixedMobileIntro = mobileStartupIntro && timedIntro;
   const playbackHidden = isMobile && hidden;
   const playbackHiddenRef = useRef(playbackHidden);
   playbackHiddenRef.current = playbackHidden;
-  const videoSrc = isMobile ? '/portalink-splash-mobile.mp4?v=4d282896' : '/portalink-splash.mp4';
-  const posterSrc = isMobile ? '/portalink-welcome-loop.webp?v=6dceb1fd' : '/portalink-splash-poster.png';
-  const mediaWidth = isMobile ? 512 : 576;
-  const mediaHeight = isMobile ? 720 : 576;
+  const videoSrc = '/portalink-splash-mobile.mp4?v=9c1a9457';
+  const posterSrc = isMobile ? '/portalink-welcome-loop.webp?v=307bdea0' : '/portalink-splash-poster.png?v=98f4e103';
+  const mediaWidth = 512;
+  const mediaHeight = 720;
   const shouldReduceMotion = useReducedMotion();
   // MOBILE always uses the requested animation; motion preferences still remove the exit fade.
   const showStill = !isMobile && (shouldReduceMotion || stillOnly);
@@ -56,20 +56,17 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     reported.current = true;
     onComplete?.();
   }, [onComplete]);
-  // The returning-user surface lasts 1.5s in total, including loading. Neither
-  // playback events nor failures restart/shorten it, and there is no extra fade.
-  useEffect(() => {
-    if (!fixedMobileIntro) return;
-    const timer = window.setTimeout(complete, MOBILE_RETURNING_SPLASH_MS);
-    return () => window.clearTimeout(timer);
-  }, [fixedMobileIntro, complete]);
   const completePlayback = useCallback(() => {
-    if (!fixedMobileIntro) complete();
-  }, [fixedMobileIntro, complete]);
+    if (!mobileStartupIntro) complete();
+  }, [mobileStartupIntro, complete]);
   useEffect(() => {
     if (showStill || failed) { completePlayback(); return; }
     const video = videoRef.current;
-    if (!video) { completePlayback(); return; }
+    if (!video) {
+      if (!mobileStartupIntro) { completePlayback(); return; }
+      const timer = window.setTimeout(complete, MOBILE_RETURNING_SPLASH_MS);
+      return () => window.clearTimeout(timer);
+    }
     if (isMobile) {
       // Keep the same clip mounted through interruptions. The animated copy
       // underneath also works when Safari declines video autoplay.
@@ -80,6 +77,17 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       let frame: number | undefined;
       let watchdog: number | undefined;
       let retryTimer: number | undefined;
+      let introTimer: number | undefined;
+      let introMedia: 'fallback' | 'video' | undefined;
+      // Loading cannot consume the supplied clip's playback time. A blocked
+      // video gets one complete animated fallback cycle; its first recovered
+      // painted frame may replace that budget once, never on later retries.
+      const startIntro = (media: 'fallback' | 'video') => {
+        if (!mobileStartupIntro || introMedia === 'video' || introMedia === media) return;
+        window.clearTimeout(introTimer);
+        introMedia = media;
+        introTimer = window.setTimeout(complete, MOBILE_RETURNING_SPLASH_MS);
+      };
       const clearPending = () => {
         window.clearTimeout(watchdog);
         window.clearTimeout(retryTimer);
@@ -98,6 +106,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         if (!active || suspended) return;
         suspend();
         if (!canPlay()) return;
+        startIntro('fallback');
         completePlayback();
         // Bounded retries; further recovery waits for foreground, connectivity
         // or an actual gesture. Never spin on an autoplay policy rejection.
@@ -112,6 +121,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
           clearPending();
           retries = 0;
           setShowVideo(true);
+          startIntro('video');
           completePlayback();
         };
         if (video.requestVideoFrameCallback) frame = video.requestVideoFrameCallback(reveal);
@@ -181,6 +191,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         window.removeEventListener('pageshow', recover);
         window.removeEventListener('pagehide', suspend);
         window.removeEventListener('online', recover);
+        window.clearTimeout(introTimer);
         suspend();
       };
     }
@@ -189,11 +200,9 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     let revealed = false;
     let attempt = 0;
     let frame: number | undefined;
-    let playbackTimer: number | undefined;
     const clearPending = () => {
       window.clearTimeout(firstFrameTimer);
       window.clearTimeout(deadline);
-      window.clearTimeout(playbackTimer);
       if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
       frame = undefined;
     };
@@ -209,15 +218,18 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     const fail = () => finish(true);
     // While identity is unresolved, keep late frames available: a confirmed
     // guest may switch this same video into the looping welcome.
-    const firstFrameTimer = fixedMobileIntro ? undefined : window.setTimeout(fail, FIRST_FRAME_TIMEOUT_MS);
-    const deadline = fixedMobileIntro ? undefined : window.setTimeout(fail, SPLASH_TIMEOUT_MS);
+    const firstFrameTimer = window.setTimeout(fail, FIRST_FRAME_TIMEOUT_MS);
+    let deadline = window.setTimeout(fail, SPLASH_TIMEOUT_MS);
     const reveal = () => {
       frame = undefined;
       if (!active || settled || revealed || video.paused || video.readyState < 2) return;
       revealed = true;
       window.clearTimeout(firstFrameTimer);
       setShowVideo(true);
-      if (!isMobile) playbackTimer = window.setTimeout(() => finish(false), WEB_PLAYBACK_MS);
+      // Natural completion shows the full clip. The bounded watchdog starts
+      // at its first painted frame so buffering cannot shorten playback.
+      window.clearTimeout(deadline);
+      deadline = window.setTimeout(() => finish(false), SPLASH_TIMEOUT_MS);
     };
     const playing = () => {
       if (!active || settled || revealed || frame !== undefined) return;
@@ -271,7 +283,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       document.removeEventListener('visibilitychange', visibilityChanged);
       video.pause();
     };
-  }, [showStill, failed, complete, completePlayback, fixedMobileIntro, isMobile, loopLanding, playbackHidden]);
+  }, [showStill, failed, complete, completePlayback, mobileStartupIntro, fixedMobileIntro, isMobile, loopLanding, playbackHidden]);
 
   return (
     <motion.div
