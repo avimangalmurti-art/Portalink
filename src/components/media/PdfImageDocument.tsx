@@ -1,3 +1,4 @@
+import {queuePageRender, type PageRenderTask} from './pageRenderQueue';
 import { rememberPageHeading } from '../../features/reads/pageHeadings';
 import { useDocumentReadingScroll } from './useDocumentReadingScroll';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -91,7 +92,7 @@ function PdfImagePage({
   useEffect(() => {
     const host = hostRef.current;
     if (!retainCanvasWhileLoading || isFocused || !host) return;
-    const observer = new IntersectionObserver(([entry]) => setNearViewport(entry.isIntersecting), { rootMargin: '600px 0px' });
+    const observer = new IntersectionObserver(([entry]) => setNearViewport(entry.isIntersecting), { rootMargin: '120px 0px' });
     observer.observe(host);
     return () => observer.disconnect();
   }, [isFocused, retainCanvasWhileLoading]);
@@ -212,26 +213,21 @@ function PdfImagePage({
     let cancelled = false;
     let settled = false;
     const viewToken = rumViewToken();
-    let renderTask: ReturnType<PdfPageProxy['render']>;
-    try { renderTask = page.render({
-      canvas: renderCanvas,
-      viewport: renderViewport,
-      background: '#ffffff'
-    }); } catch {
-      if (renderCanvas !== canvas) { renderCanvas.width = 0; renderCanvas.height = 0; }
-      setStatus('failed');
-      onSettledRef.current(pageNumber);
-      return undefined;
+    let renderTask: PageRenderTask;
+    let renderTimeout: number | undefined;
+    const startRender = () => {
+      const task = page.render({canvas:renderCanvas,viewport:renderViewport,background:'#ffffff'});
+      renderTimeout = window.setTimeout(() => {
+        if (settled || cancelled) return;
+        settled = true; task.cancel(); setStatus('failed'); onSettledRef.current(pageNumber);
+      }, PAGE_RENDER_TIMEOUT_MS);
+      return task;
+    };
+    try {renderTask = retainCanvasWhileLoading && !isFocused ? queuePageRender(startRender) : startRender();}
+    catch {
+      if (renderCanvas !== canvas) {renderCanvas.width=0;renderCanvas.height=0;}
+      setStatus('failed');onSettledRef.current(pageNumber);return undefined;
     }
-    const renderTimeout = window.setTimeout(() => {
-      if (settled || cancelled) {
-        return;
-      }
-      settled = true;
-      renderTask.cancel();
-      setStatus('failed');
-      onSettledRef.current(pageNumber);
-    }, PAGE_RENDER_TIMEOUT_MS);
 
     void renderTask.promise.then(() => {
       if (!cancelled && !settled) {
@@ -253,10 +249,12 @@ function PdfImagePage({
         }
         settled = true;
         setPaintedPageNumber(pageNumber);
+        // Release decoded PDF artwork before background heading extraction.
+        if (retainCanvasWhileLoading && !isFocused) page.cleanup();
         void page.getTextContent().then(content => {
           const items=content.items.filter((item): item is Extract<typeof item,{str:string}> => 'str' in item && Boolean(item.str.trim()));
           const first=items[0];if(first)rememberPageHeading(attachmentId,pageNumber-1,items.filter(item=>Math.abs(item.transform[5]-first.transform[5])<3).map(item=>item.str).join(' '));
-        }).catch(()=>undefined);
+        }).catch(()=>undefined).finally(()=>{if(retainCanvasWhileLoading && !isFocused) page.cleanup();});
         setStatus('ready');
         markRumPdf(viewToken);
         onSettledRef.current(pageNumber);

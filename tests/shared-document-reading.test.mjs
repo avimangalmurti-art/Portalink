@@ -46,6 +46,7 @@ test('single-column rendered documents retain vertical reading and the existing 
     if (name === './useFocusedPageSwipe') return { useFocusedPageSwipe: () => ({ isMobile: true, swipeStyle: {}, swipeHandlers: {} }) };
     if (name === './viewerMemory') return { readViewerMemory: () => ({focusedPageNumber: 1}), updateViewerMemory: (key, patch) => writes.push({ key, patch }) };
     if (name.endsWith('/pageLayout')) return { normalizePagesPerRow: value => value, MAX_PAGES_PER_ROW: 7 };
+    if (name === './DocumentGridPreview') return {DocumentGridPreview:'document-grid-preview'};
     if (name === './PdfImageDocument') return { PdfImageDocument: 'live-pdf' };
     return new Proxy({}, { get: () => 'control' });
   } });
@@ -63,7 +64,7 @@ test('single-column rendered documents retain vertical reading and the existing 
   assert.ok(nodes(tree).some(node => /overflow-y-auto/.test(node.props.className ?? '')));
   const denser = render({ columns: 2 });
   assert.equal(nodes(denser).find(node => node.type === 'ol').props.style.gridTemplateColumns, 'repeat(2, minmax(0, 1fr))');
-  assert.equal(nodes(denser).filter(node => node.type === 'img').length, 3, 'explicit density keeps every page in vertical document flow');
+  assert.equal(nodes(denser).filter(node => node.type === 'document-grid-preview').length, 3, 'explicit density keeps every page in vertical document flow');
   const firstPage = nodes(list).find(node => node.type === 'li');
   const touch = { pointerType: 'touch', clientX: 90, clientY: 100, preventDefault() { /* Synthetic touch event. */ } };
   firstPage.props.onPointerUp(touch); now += 100; firstPage.props.onPointerUp(touch);
