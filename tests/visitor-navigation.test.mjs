@@ -59,19 +59,33 @@ const one = (tree, type) => nodes(tree).find(node => node.type === type);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && (node.props['aria-label'] === label || node.props.children === label));
 const json = value => JSON.parse(JSON.stringify(value));
 
-test('shared portal popup gives its published rows the mobile list sizing and keeps selection and dismissal', () => {
-  let closed = 0;
-  const selected = [];
-  const { SharedPortalPopup } = load('visitor/mobile/SharedPortalPopup.tsx', name => {
+function portalPopupFixture(presentation = 'mobile') {
+  const focusCalls = [];
+  const { PortalProjectPopup } = load('components/profile/PortalProjectPopup.tsx', name => {
     if (name === 'react') return { ...React, useRef: () => ({ current: null }) };
-    if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
-    if (name.endsWith('/typefaces')) return { getTypefaceStack: () => 'system-ui' };
+    if (name.endsWith('.css')) return {};
+    if (name.endsWith('/useModalFocus')) return { useModalFocus: (...args) => focusCalls.push(args) };
+    if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
+    if (name.endsWith('/typefaces')) return { getTypefaceStack: id => `stack:${id}` };
     const component = name.split('/').pop();
     if (component === 'MobileBackNavigation') return named('ScreenBack');
     return named(component);
   });
+  return { PortalProjectPopup, focusCalls };
+}
+
+test('shared portal popup gives its published rows the mobile list sizing and keeps selection and dismissal', () => {
+  let closed = 0;
+  const selected = [];
+  const { PortalProjectPopup } = portalPopupFixture();
+  const { SharedPortalPopup } = load('visitor/mobile/SharedPortalPopup.tsx', name => {
+    if (name === 'react') return React;
+    if (name.endsWith('/PortalProjectPopup')) return { PortalProjectPopup };
+    throw new Error(name);
+  });
   const profile = { id: 'owner', categories: [{ id: 'design', label: 'Product Design' }], projects: [{ id: 'paper', categoryId: 'design' }, { id: 'other', categoryId: 'other' }] };
-  const tree = SharedPortalPopup({ profile, categoryId: 'design', onClose: () => closed++, onSelect: (...args) => selected.push(args) });
+  const entry = SharedPortalPopup({ profile, categoryId: 'design', onClose: () => closed++, onSelect: (...args) => selected.push(args) });
+  const tree = entry.type(entry.props);
   const nav = one(tree, 'nav');
   assert.equal(nav.props['data-project-index-list'], '');
   assert.equal(nav.props['aria-label'], 'Product Design projects');
@@ -83,6 +97,44 @@ test('shared portal popup gives its published rows the mobile list sizing and ke
   assert.deepEqual(selected, [['design', 'paper']]);
   one(tree, 'MobilePortalProjectToolbar').props.onBack();
   assert.equal(closed, 2);
+});
+
+for (const presentation of ['mobile', 'web']) test(`${presentation} portal popup filters its own portal, preserves canonical row metadata, and shares every dismissal path`, () => {
+  const f = portalPopupFixture(presentation), calls = [];
+  const creator = { id: 'creator', categories: [{ id: 'design', label: 'Product Design' }], projects: [
+    { id: 'paper', categoryId: 'design', design: { typefaceId: 'serif' }, isPinned: true },
+    { id: 'other', categoryId: 'other' }, { id: 'next', categoryId: 'design' },
+  ] };
+  const onClose = () => calls.push(['close']), onSelect = (...args) => calls.push(['select', ...args]);
+  const tree = f.PortalProjectPopup({ profile: creator, categoryId: 'design', onClose, onSelect, backLabel: 'Back to Timeline' });
+  const dialog = nodes(tree).find(node => node.props.role === 'dialog');
+  assert.equal(dialog.props['aria-label'], 'Product Design');
+  assert.equal(dialog.props['aria-modal'], 'true');
+  assert.equal(dialog.props.tabIndex, -1);
+  const layer = nodes(tree).find(node => node.props['data-presentation']);
+  assert.equal(layer.props['data-presentation'], presentation);
+  const list = one(tree, 'ProjectIndexList');
+  assert.deepEqual(list.props.projects.map(project => project.id), ['paper', 'next']);
+  assert.equal(list.props.projects[0], creator.projects[0], 'Rows retain the canonical project rather than a synthetic timeline record.');
+  assert.equal(list.props.profileId, creator.id);
+  assert.deepEqual(Array.from(list.props.pinnedIds), ['paper']);
+  assert.deepEqual(json(list.props.typefaceStacks), { paper: 'stack:serif', next: 'stack:default' });
+  assert.equal(list.props.isOwner, false); assert.equal(list.props.sharedReadOnly, true);
+  assert.equal(one(tree, 'MobilePortalProjectToolbar').props.backLabel, 'Back to Timeline');
+  list.props.onSelect('other'); list.props.onSelect('missing');
+  assert.deepEqual(calls, [], 'Another portal or an injected nonexistent row cannot navigate or dismiss.');
+  list.props.onSelect('paper');
+  assert.deepEqual(calls, [['close'], ['select', 'design', 'paper']], 'The popup closes before canonical project navigation.');
+  const backdrop = {};
+  layer.props.onClick({ target: {}, currentTarget: backdrop });
+  assert.equal(calls.length, 2, 'Inside clicks do not dismiss.');
+  layer.props.onClick({ target: backdrop, currentTarget: backdrop });
+  one(tree, 'ScreenBack').props.action();
+  one(tree, 'MobilePortalProjectToolbar').props.onBack();
+  assert.equal(f.focusCalls[0][0], true); assert.equal(f.focusCalls[0][2], onClose); assert.equal(f.focusCalls[0][3], true);
+  f.focusCalls[0][2]();
+  assert.deepEqual(calls.slice(2), [['close'], ['close'], ['close'], ['close']], 'Backdrop, system Back, toolbar Back, and shared Escape all close the same local surface.');
+  assert.equal(f.PortalProjectPopup({ profile: creator, categoryId: 'missing', onClose, onSelect }), null);
 });
 
 // Executes the actual components with a deterministic hook lifecycle. Descendant

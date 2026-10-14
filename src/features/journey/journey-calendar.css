@@ -34,6 +34,7 @@
 .journey-calendar-copy { border-left: 4px solid var(--accent-primary); border-radius: 2px; padding-left: 12px; min-height: 64px; min-width: 0; }
 .journey-calendar-copy a, .journey-calendar-title { display: block; text-align: left; font-size: 18px; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
 .journey-calendar-portal { display: block; color: var(--text-secondary); font-size: 15px; line-height: 1.4; margin-top: 5px; }
+.journey-calendar-portal { min-height: 44px; text-align: left; overflow-wrap: anywhere; }
 .journey-calendar-summary { color: var(--text-secondary); font-size: 14px; line-height: 1.45; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .journey-calendar-options { display: grid; place-items: center; width: 44px; height: 44px; justify-self: end; }
 .journey-calendar-add { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; background: var(--surface-raised); min-height: 48px; padding: 10px 20px; margin-top: 24px; }

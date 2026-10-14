@@ -18,7 +18,7 @@ function componentHarness(file, name, initial, overrides = {}) {
   let cursor = 0, dirty = true, tree, props = initial, effects = [], lastRefs = [], frameId = 0, wrapperKey;
   const equal = (left, right) => left && right && left.length === right.length && left.every((value, index) => Object.is(value, right[index]));
   const react = { ...React,
-    lazy: () => 'month-calendar',
+    lazy: loader => loader.toString().includes('PortalProjectPopup') ? 'portal-project-popup' : 'month-calendar',
     useState(initialValue) { const index = cursor++; slots[index] ??= { value: typeof initialValue === 'function' ? initialValue() : initialValue }; return [slots[index].value, value => { const next = typeof value === 'function' ? value(slots[index].value) : value; if (!Object.is(next, slots[index].value)) { slots[index].value = next; dirty = true; } }]; },
     useRef(initialValue) { const index = cursor++; slots[index] ??= { current: initialValue }; return slots[index]; },
     useMemo(factory, deps) { const index = cursor++; if (!equal(slots[index]?.deps, deps)) slots[index] = { deps, value: factory() }; return slots[index].value; },
@@ -39,6 +39,7 @@ function componentHarness(file, name, initial, overrides = {}) {
     '../../components/ui/DeferredDialog': { DeferredDialog: 'dialog' },
     '../../components/media/MobileProjectPopup': { MobileProjectPopup: 'project-popup' },
     '../../components/media/ProjectCover': { ProjectCover: 'project-cover' },
+    '../../components/profile/PortalProjectPopup': { PortalProjectPopup: 'portal-project-popup' },
     '../../presentation/usePresentation': { usePresentation: () => props.presentation ?? 'mobile' },
     '../citations/useJourneyCitations': { useJourneyCitations: () => props.events ?? [] },
     '../citations/journeyCitations': timeline,
@@ -91,7 +92,10 @@ function componentHarness(file, name, initial, overrides = {}) {
     dispose() { slots.forEach(slot => slot?.cleanup?.()); lastRefs.forEach(ref => ref(null)); },
   };
 }
-const calendarHarness = (entries = sparse, extra = {}) => componentHarness('src/features/journey/JourneyCalendar.tsx', 'JourneyCalendar', { profile, owner: true, entries, onOpen() {}, onDetails() {}, ...extra });
+const calendarHarness = (entries = sparse, extra = {}) => componentHarness('src/features/journey/JourneyCalendar.tsx', 'JourneyCalendar', { profile, owner: true, entries, onOpen() {}, onOpenPortal() {}, onDetails() {}, ...extra });
+// FormattedText is a descendant boundary in this harness; its text prop is its
+// visible content, so descriptions cannot accidentally disappear from assertions.
+const text = tree => Array.isArray(tree) ? tree.map(text).join(' ') : React.isValidElement(tree) ? tree.type === 'formatted-text' ? tree.props.text : text(tree.props.children) : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : '';
 
 test('actual agenda renders posted dates only, retains all same-day and undated entries, and measures sticky header clearance', () => {
   const dated = [...sparse, entry('same-day', '2026-10-13'), entry('undated', 'invalid')];
@@ -174,6 +178,39 @@ test('toolbar focus scrolling cannot change the date before its click; real scro
   h.dispose();
 });
 
+test('portal activation and popup interaction preserve the calendar date until normal Timeline scrolling resumes', () => {
+  const h = calendarHarness();
+  h.nodes.find(node => node.type === 'input').props.onChange({ target: { value: '2024-02-29' } });
+  assert.equal(h.selected(), '2024-02-29');
+  const portalTarget = { closest: selector => selector.split(',').some(value => ['.journey-calendar-portal', '.journey-portal'].includes(value.trim())) ? {} : null };
+  // A portal can sit on an older row than the calendar's requested date. Its
+  // pointer or Space activation must not unlock focus-induced scroll tracking.
+  for (const [type, extra] of [['pointerdown', {}], ['keydown', { key: ' ' }]]) {
+    h.intent(type, { target: portalTarget, ...extra });
+    h.scroll('1990-01-01');
+    assert.equal(h.selected(), '2024-02-29');
+  }
+  h.update({ openPortalId: 'portal' });
+  for (const [type, extra] of [['pointerdown', {}], ['wheel', {}], ['touchmove', {}], ['keydown', { key: 'PageDown' }]]) {
+    h.intent(type, extra); h.scroll('2026-10-13');
+    assert.equal(h.selected(), '2024-02-29', `${type} inside an open popup cannot move its background calendar.`);
+  }
+  h.update({ openPortalId: null });
+  h.scroll('1990-01-01');
+  assert.equal(h.selected(), '2024-02-29', 'Closing the popup preserves the prior requested-date hold.');
+  h.intent('wheel'); h.scroll('1990-01-01');
+  assert.equal(h.selected(), '1990-01-01', 'A real wheel scroll after dismissal resumes Timeline tracking.');
+  // Also cover opening after a free scroll, when there is no requested-date
+  // hold: the popup itself must freeze tracking rather than rely on that hold.
+  h.update({ openPortalId: 'portal' });
+  h.intent('touchmove'); h.scroll('2026-10-13');
+  assert.equal(h.selected(), '1990-01-01');
+  h.update({ openPortalId: null });
+  h.intent('touchmove'); h.scroll('2026-10-13');
+  assert.equal(h.selected(), '2026-10-13', 'A real touch scroll after dismissal still follows posted work.');
+  h.dispose();
+});
+
 test('an undated-only Journey keeps the work and owner Add without date navigation or empty-day placeholders', () => {
   let adds = 0;
   const h = calendarHarness([entry('undated', 'invalid')], { onAdd: () => adds++ });
@@ -231,3 +268,108 @@ test('WEB month navigation keeps the year rail and jumps to its first same-day e
   assert.equal(h.target('2026-10-13').style.scrollMarginTop, '156px');
   h.dispose();
 });
+
+test('Timeline agenda shows the title and portal without a description and preserves its selected date when opening a portal', () => {
+  const opened = [], portals = [], details = [];
+  const works = [entry('early', '2024-02-29'), entry('recent', '2026-10-13')];
+  works[0].project.summary = 'The project description must not appear.';
+  works[0].project.creationDetails = { answers: { learned: 'The learned description must not appear.' } };
+  const h = calendarHarness(works, { onOpen: value => opened.push(value.id), onOpenPortal: value => portals.push(value), onDetails: value => details.push(value.id) });
+  h.button('Previous date with work').props.onClick();
+  const selected = h.selected(), rows = h.nodes.filter(node => node.type === 'li').map(node => node.key);
+  assert.equal(selected, '2024-02-29');
+  assert.doesNotMatch(text(h.tree), /description must not appear/);
+  const portal = h.nodes.find(node => node.type === 'button' && node.props.children === 'Work');
+  assert.ok(portal, 'The project portal is a keyboard-activatable button.');
+  assert.equal(portal.props.type, 'button');
+  assert.equal(portal.props['aria-haspopup'], 'dialog');
+  portal.props.onClick();
+  assert.deepEqual(portals, ['portal']);
+  assert.deepEqual(opened, [], 'A portal tap must not open a project or change the profile route.');
+  assert.deepEqual(details, []);
+  assert.equal(h.selected(), selected);
+  assert.deepEqual(h.nodes.filter(node => node.type === 'li').map(node => node.key), rows);
+  h.button('Open early').props.onClick();
+  h.nodes.find(node => node.type === 'button' && node.props.children === 'early').props.onClick();
+  h.button('Show details for early').props.onClick();
+  assert.deepEqual(opened, ['early', 'early'], 'Cover and title retain the canonical project opening behavior.');
+  assert.deepEqual(details, ['early']);
+  h.dispose();
+});
+
+test('a same-profile refresh removing the open portal releases the Timeline and restoring it does not reopen the popup', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const viewed = { ...profile, showJourney: true, projects: [project('work', '2026-10-13')] };
+    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen() {} });
+    const calendar = () => h.nodes.find(node => node.type === 'journey-calendar');
+    const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
+    if (presentation === 'mobile') calendar().props.onOpenPortal('portal');
+    else h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
+    assert.equal(popup().props.categoryId, 'portal');
+    const key = h.wrapperKey;
+    h.update({ profile: { ...viewed, categories: [] } });
+    assert.equal(h.wrapperKey, key, 'This refresh preserves the same Timeline component rather than remounting it.');
+    assert.equal(popup(), undefined);
+    if (presentation === 'mobile') assert.equal(calendar().props.openPortalId, null, 'A missing portal no longer freezes calendar tracking.');
+    h.update({ profile: { ...viewed, categories: [...viewed.categories] } });
+    assert.equal(popup(), undefined, 'Restoring a category cannot resurrect its obsolete open-popup request.');
+    if (presentation === 'mobile') assert.equal(calendar().props.openPortalId, null);
+    else assert.equal(h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props['aria-expanded'], false);
+    h.dispose();
+  }
+});
+
+for (const presentation of ['mobile', 'web']) {
+  test(`${presentation} Timeline portal popup stays local, returns to the same calendar state, and guards project selection`, () => {
+    const opened = [];
+    const published = project('early', '2024-02-29', { summary: 'Never display this summary.', thenNowCaption: 'Never display this caption.' });
+    const recent = project('recent', '2026-10-13', { creationDetails: { answers: { learned: 'Never display this learned line.' } } });
+    const hidden = project('hidden', '2026-10-14', { isPubliclyVisible: false });
+    const draft = project('draft', '2026-10-14', { sessionOnly: true });
+    const other = project('other', '2026-10-14', { categoryId: 'other' });
+    const viewed = { ...profile, showJourney: true, thenNow: { then: published.id, now: recent.id }, projects: [published, recent, hidden, draft, other] };
+    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen: value => opened.push(value.id) });
+    const calendar = () => h.nodes.find(node => node.type === 'journey-calendar');
+    const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
+    const openPortal = () => presentation === 'mobile' ? calendar().props.onOpenPortal('portal') : h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
+    assert.doesNotMatch(text(h.tree), /Never display this/);
+    const pair = h.nodes.find(node => node.props.className === 'journey-pair');
+    assert.ok(nodes(pair).some(node => node.type === 'button' && node.props.children === 'Work'), 'Then / Now includes the same portal action.');
+    nodes(pair).find(node => node.type === 'button' && node.props['aria-label'] === 'Open Then: early').props.onClick();
+    assert.deepEqual(opened, ['early']); opened.length = 0;
+    h.button('Open Timeline calendar for today').props.onClick();
+    h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29'); h.frames();
+    const key = h.wrapperKey, jump = calendar()?.props.jumpTo, calendarKey = calendar()?.key;
+    const datedRows = h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key);
+    openPortal();
+    assert.equal(popup().props.categoryId, 'portal');
+    assert.equal(popup().props.backLabel, 'Back to Timeline');
+    assert.equal(popup().props.profile.id, viewed.id);
+    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'other']);
+    assert.deepEqual(opened, [], 'Opening the Portal Popup does not invoke canonical project navigation.');
+    popup().props.onClose();
+    assert.equal(popup(), undefined);
+    assert.equal(h.wrapperKey, key);
+    assert.equal(calendar()?.key, calendarKey);
+    assert.equal(calendar()?.props.jumpTo, jump);
+    assert.deepEqual(h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key), datedRows);
+    openPortal();
+    for (const [categoryId, id] of [['portal', 'hidden'], ['portal', 'draft'], ['portal', 'missing'], ['other', 'early'], ['other', 'other']]) popup().props.onSelect(categoryId, id);
+    assert.deepEqual(opened, [], 'An injected row cannot select hidden, session-only, nonexistent, or another-portal work.');
+    popup().props.onSelect('portal', 'recent');
+    assert.deepEqual(opened, ['recent']);
+    assert.equal(popup(), undefined);
+    openPortal();
+    h.update({ profile: { ...viewed, id: 'another-profile' } });
+    assert.equal(popup(), undefined, 'Changing the viewed profile closes the old local popup.');
+    assert.equal(calendar()?.props.jumpTo, undefined);
+    openPortal();
+    h.update({ owner: true });
+    assert.equal(popup(), undefined, 'Changing the access mode closes the old local popup.');
+    openPortal();
+    assert.deepEqual(popup().props.profile.projects.map(value => value.id), ['early', 'recent', 'hidden', 'other']);
+    popup().props.onSelect('portal', 'hidden');
+    assert.deepEqual(opened, ['recent', 'hidden'], 'Owners retain their existing access to hidden published work.');
+    h.dispose();
+  });
+}

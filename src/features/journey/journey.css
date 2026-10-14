@@ -8,6 +8,8 @@
 [data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }
 
 .journey-portal{display:block;margin-top:5px;font-size:var(--type-footnote-size);line-height:1.45;color:var(--text-secondary)}
+.journey-portal { min-height: 44px; text-align: left; overflow-wrap: anywhere; }
+.journey-pair-grid .journey-portal { font-weight: 400; }
 
 /* Desktop Journey keeps its identity and switch above the scrolling year rail. */
 #root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region {

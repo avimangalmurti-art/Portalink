@@ -4,20 +4,21 @@ import type { Profile, Project } from '../../types/domain';
 import type { JourneyTimelineEntry } from '../citations/journeyCitations';
 import { adjacentWorkDay, calendarDay, calendarRecord, calendarWeek, localToday, workCalendarDay } from './calendar';
 import { JourneyCover } from './JourneyView';
-import { learnedLine } from './journey';
-import { FormattedText } from '../../components/text/FormattedText';
 import './journey-calendar.css';
 
 const formatDay = (day: string, options: Intl.DateTimeFormatOptions) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
 
-export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, onAdd, jumpTo, children }: {
+export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, onOpenPortal, openPortalId, onAdd, jumpTo, children }: {
   profile: Profile; owner: boolean; entries: JourneyTimelineEntry[];
   onOpen: (project: Project) => void; onDetails: (project: Project) => void; onAdd?: (year?: number) => void; jumpTo?: { day: string; request: number }; children?: React.ReactNode;
+  onOpenPortal: (categoryId: string) => void; openPortalId?: string | null;
 }) {
   const today = localToday();
   const [selected, setSelected] = useState(() => entries.map(entry => calendarDay(entry.date)).filter((day): day is string => Boolean(day)).sort().at(-1) ?? today);
   const pendingScroll = useRef<string | null>(selected);
   const heldSelection = useRef<string | null>(selected);
+  const activePortal = useRef(openPortalId);
+  activePortal.current = openPortalId;
   const root = useRef<HTMLElement>(null), header = useRef<HTMLElement>(null);
   const targets = useRef(new Map<string, HTMLElement>());
   const drag = useRef<{ x: number; y: number } | null>(null);
@@ -68,7 +69,7 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (heldSelection.current || !root.current || !header.current || root.current.closest('[aria-hidden="true"]')) return;
+        if (activePortal.current || heldSelection.current || !root.current || !header.current || root.current.closest('[aria-hidden="true"]')) return;
         const boundary = header.current.getBoundingClientRect().bottom + 20;
         let visible: string | undefined;
         for (const [day, target] of [...targets.current].sort(([a], [b]) => a.localeCompare(b))) {
@@ -79,6 +80,9 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
       });
     };
     const releaseSelection = (event: Event) => {
+      if (activePortal.current) return;
+      const fromPortal = Boolean((event.target as Element | null)?.closest?.('.journey-calendar-portal, .journey-portal'));
+      if (fromPortal && (event.type === 'pointerdown' || event.type === 'keydown')) return;
       const fromHeader = Boolean(event.target && header.current?.contains(event.target as Node));
       if (event.type === 'pointerdown' && fromHeader) return;
       if (event.type === 'keydown' && (fromHeader || !['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' '].includes((event as KeyboardEvent).key))) return;
@@ -106,8 +110,10 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
   </li> : <li key={`project:${entry.project.id}`} className="journey-calendar-entry">
     <button type="button" className="journey-calendar-cover" onClick={() => onOpen(entry.project)} aria-label={`Open ${entry.project.title}`}><JourneyCover project={entry.project} sizes="64px" /></button>
     <div className="journey-calendar-copy"><button type="button" className="journey-calendar-title" onClick={() => onOpen(entry.project)}>{entry.project.title}</button>
-      <span className="journey-calendar-portal">{profile.categories.find(portal => portal.id === entry.project.categoryId)?.label}</span>
-      <FormattedText className="journey-calendar-summary" text={learnedLine(entry.project)} />
+      {(() => {
+        const portal = profile.categories.find(category => category.id === entry.project.categoryId);
+        return portal ? <button type="button" className="journey-calendar-portal" aria-haspopup="dialog" aria-expanded={openPortalId === portal.id} onClick={() => onOpenPortal(portal.id)}>{portal.label}</button> : null;
+      })()}
     </div>
     <button type="button" className="journey-calendar-options" aria-label={`Show details for ${entry.project.title}`} aria-haspopup="dialog" onClick={() => onDetails(entry.project)}><MoreHorizontalIcon size={20} aria-hidden="true" /></button>
   </li>;
