@@ -8,6 +8,40 @@
 [data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }
 
 .journey-portal{display:block;margin-top:5px;font-size:var(--type-footnote-size);line-height:1.45;color:var(--text-secondary)}
+
+/* Desktop Journey keeps its identity and switch above the scrolling year rail. */
+#root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region {
+  display: block; position: sticky; top: 0; z-index: 30; flex-shrink: 0; isolation: isolate;
+}
+#root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+}
+#root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region[data-mobile-header-underlap='true']::before {
+  bottom: -20px;
+  background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
+  backdrop-filter: blur(20px) saturate(140%); -webkit-backdrop-filter: blur(20px) saturate(140%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+}
+#root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region > header { background: transparent; }
+/* Fade only the header background, never its avatar or controls. */
+#root .codex-shell[data-presentation='web'] :is(.scroll-edge-fade, .feed-edge-fade)[data-mobile-scroll-has-header='true']:has([data-profile-journey]) {
+  mask-image: none !important; -webkit-mask-image: none !important;
+}
+#root .codex-shell[data-presentation='web']:is(.reduce-translucency, .high-contrast) [data-profile-journey] > .profile-header-region::before {
+  bottom: 0; background: var(--surface-canvas, var(--codex-workspace-bg));
+  backdrop-filter: none; -webkit-backdrop-filter: none; mask-image: none; -webkit-mask-image: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region[data-mobile-header-underlap]::before {
+    bottom: 0; background: var(--surface-canvas, var(--codex-workspace-bg));
+    backdrop-filter: none; -webkit-backdrop-filter: none; mask-image: none; -webkit-mask-image: none;
+  }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region[data-mobile-header-underlap]::before { background: var(--surface-canvas, var(--codex-workspace-bg)); }
+}
 .journey-project-options{display:grid;place-items:center;width:44px;height:44px;margin-top:4px;border-radius:14px;background:var(--surface-sunken);color:var(--text-primary)}
 
 /* Mobile post date and options share the top row without covering the copy. */

@@ -2,7 +2,7 @@ import { LoadingSkeleton } from '../components/ui/StateViews';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { JourneyToggle } from '../features/journey/JourneyToggle';
 import { useJourneySelection } from '../features/journey/useJourneySelection';
-import React, { lazy, Suspense, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import type { Profile } from '../types/domain';
 import { ProfileAvatar } from '../components/profile/ProfileAvatar';
 import { PlatformGrid } from '../components/profile/PlatformGrid';
@@ -14,6 +14,7 @@ import { useProjectGridDensity } from '../features/profile/useProjectGridDensity
 import { buildPath } from '../app/routes';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresentation } from '../presentation/usePresentation';
+import { useMobileHeaderMaterial } from '../presentation/mobile/useMobileHeaderMaterial';
 import { useSearchParams } from 'react-router-dom';
 import '../components/profile/profile-header.css';
 
@@ -32,6 +33,8 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const [search, setSearch] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
   const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
+  const profilePageRef = useRef<HTMLDivElement>(null);
+  useMobileHeaderMaterial(!isMobile && isJourney, profile.id, profilePageRef, true);
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
@@ -40,7 +43,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
     <ProjectPreviewCard project={project} creator={profile} onOpen={() => onOpen(project.categoryId, project.id)}
       creatorHref={buildPath('sharedProfile', { profileId: profile.id })} showCreator={false} showEngagementMetrics={false}
       priority="viewport" allowPdfFallback={false} allowVideoFallback={true} sharedCoverFallback /> }));
-  return <div data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
+  return <div ref={profilePageRef} data-profile-journey={isJourney ? '' : undefined} data-profile-page="" data-public-portfolio-grid="" className="user-profile-canvas flex min-h-full w-full flex-col text-[var(--text-primary)]">
     <div data-profile-header="" className="profile-header-region contents">
       <header className="profile-compact-header" data-expanded>
         <div className="profile-identity-and-links flex w-full min-w-0 flex-wrap items-start gap-x-6 gap-y-3">
@@ -65,10 +68,11 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
             onMessage={onMessage} /></div>
         </div>
       </header>}
+      {!isMobile && isJourney && <JourneyToggle view="journey" onChange={journey.select} />}
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
-    {!isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
+    {!isMobile && profile.showJourney === true && !categoryId && !portalsView && !isJourney && <JourneyToggle view="portfolio" onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
       {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Journey…"/>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>

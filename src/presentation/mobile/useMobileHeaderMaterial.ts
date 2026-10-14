@@ -21,7 +21,9 @@ export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, sc
   if (!h.height || s.height <= 0 || s.width <= 0 || h.right <= s.left || h.left >= s.right || h.bottom <= s.top || h.top >= s.bottom) return false;
   const contentRoot = scroller.contains(scope) ? scope : scroller;
   const firstContent = Array.from(contentRoot.querySelectorAll<HTMLElement>('li, img, canvas, video, p, h1, h2, h3, input, textarea, [data-studio-row]')).find(node => {
-    if (header.contains(node) || node.closest('.sr-only, [hidden], [role="dialog"], [role="menu"]')) return false;
+    // Journey's calendar stays pinned below the profile header. Its month input
+    // is header foreground; the agenda determines when work reaches the glass.
+    if (header.contains(node) || node.closest('.sr-only, [hidden], [role="dialog"], [role="menu"], .journey-calendar-header')) return false;
     const rect = node.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   });
@@ -35,7 +37,7 @@ export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, sc
   return s.top < h.bottom && s.bottom > h.top;
 }
 
-export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: RefObject<HTMLElement | null>) {
+export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: RefObject<HTMLElement | null>, includeAncestorScrollers = false) {
   useLayoutEffect(() => {
     const root = ref.current;
     if (!enabled || !root) return;
@@ -45,8 +47,14 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
       frame = 0;
       const scrollers = Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).filter(node =>
         !node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]') && (/auto|scroll/.test(getComputedStyle(node).overflowY) || node.matches('[data-mobile-screen-underlay], [data-profile-pulling]')));
+      // A profile-only observer can sit inside WEB's existing page scroller.
+      if (includeAncestorScrollers) {
+        for (let ancestor = root.parentElement; ancestor; ancestor = ancestor.parentElement) {
+          if (/auto|scroll/.test(getComputedStyle(ancestor).overflowY) && !scrollers.includes(ancestor)) scrollers.push(ancestor);
+        }
+      }
       const documentScroller = document.scrollingElement as HTMLElement | null;
-      if (documentScroller && documentScroller.scrollHeight > documentScroller.clientHeight) scrollers.push(documentScroller);
+      if (documentScroller && documentScroller.scrollHeight > documentScroller.clientHeight && !scrollers.includes(documentScroller)) scrollers.push(documentScroller);
       const candidates = Array.from(root.querySelectorAll<HTMLElement>(HEADERS)).filter(node => {
         const retained = node.closest('[data-mobile-screen-retained]');
         if (retained && getComputedStyle(retained).display === 'none') return false;
@@ -103,5 +111,5 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
         delete node.dataset.mobileScrollHasHeader;
       }
     };
-  }, [enabled, path, ref]);
+  }, [enabled, path, ref, includeAncestorScrollers]);
 }

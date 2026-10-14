@@ -24,7 +24,7 @@
   -webkit-backdrop-filter: blur(32px);
 }
 /* Preserve Home/Profile's existing glass colour and soft background edge. */
-#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)[data-mobile-header-underlap='true']::before {
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header, .journey-calendar-header)[data-mobile-header-underlap='true']::before {
   bottom: -20px;
   background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);

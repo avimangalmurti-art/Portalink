@@ -72,3 +72,44 @@ test('scrolling the blank leading gap does not activate material before content 
  nested.querySelectorAll=()=>[];
  assert.equal(exports.headerHasUnderlap(header,nested,scope),false,'Empty spacing is not content');
 });
+
+test('Journey calendar foreground does not hide agenda underlap from the profile header',()=>{
+ const profileHeader={contains:()=>false,style:{position:'sticky',top:'0px'},getBoundingClientRect:()=>bounds(0,100)};
+ const calendarInput={closest:selector=>selector.includes('.journey-calendar-header')?{}:null,getBoundingClientRect:()=>bounds(100,156)};
+ const agendaRow={closest:()=>null,getBoundingClientRect:()=>bounds(270,330)};
+ const profileScope={contains:()=>true,querySelectorAll:()=>[calendarInput,agendaRow]};
+ const documentScroller={scrollTop:20,contains:()=>true,getBoundingClientRect:()=>bounds(0,912)};
+ assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),false,'Pinned calendar alone is not content under the identity');
+ agendaRow.getBoundingClientRect=()=>bounds(99,159);
+ assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),true,'Agenda crossing the profile edge activates glass despite the pinned calendar');
+ documentScroller.scrollTop=0;
+ assert.equal(exports.headerHasUnderlap(profileHeader,documentScroller,profileScope),false,'Returning to the top restores the solid header');
+});
+
+test('a profile-only observer can opt into its ancestor scroller and clear glass on window-captured scroll',()=>{
+ let installedEffect;
+ const localExports={},frames=[],windowListeners=new Map();
+ const ancestor={style:{overflowY:'auto',overflowX:'visible'},dataset:{},scrollTop:80,contains:()=>true,getBoundingClientRect:()=>bounds(0,912)};
+ const row={closest:()=>null,getBoundingClientRect:()=>bounds(40,180)};
+ const profileRoot={parentElement:ancestor,contains:()=>true,querySelectorAll:selector=>selector.startsWith('header, ')?[profileHeader]:selector.startsWith('li, ')?[row]:[],addEventListener:()=>{},removeEventListener:()=>{}};
+ const profileHeader={style:{position:'sticky',top:'0px'},dataset:{},contains:()=>false,matches:()=>true,closest:selector=>selector.startsWith('[data-profile-page]')?profileRoot:null,getBoundingClientRect:()=>bounds(0,100)};
+ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{
+  exports:localExports,require:()=>({useLayoutEffect:fn=>{installedEffect=fn;}}),getComputedStyle:node=>node.style,
+  document:{scrollingElement:null},window:{addEventListener:(event,callback)=>windowListeners.set(event,callback),removeEventListener:event=>windowListeners.delete(event)},
+  requestAnimationFrame:callback=>{frames.push(callback);return frames.length;},cancelAnimationFrame:()=>{},MutationObserver:class{observe(){}disconnect(){}},
+ });
+ localExports.useMobileHeaderMaterial(true,'/profile',{current:profileRoot});
+ const defaultCleanup=installedEffect();
+ assert.equal(profileHeader.dataset.mobileHeaderUnderlap,'false','Mobile default does not include ancestors');
+ defaultCleanup();
+ localExports.useMobileHeaderMaterial(true,'/profile',{current:profileRoot},true);
+ const cleanup=installedEffect();
+ assert.equal(profileHeader.dataset.mobileHeaderUnderlap,'true','Opt-in finds the existing page scroller');
+ assert.equal(ancestor.dataset.mobileScrollUnderlap,'true');
+ ancestor.scrollTop=0;
+ windowListeners.get('scroll')();frames.shift()();
+ assert.equal(profileHeader.dataset.mobileHeaderUnderlap,'false','Ancestor scroll events reset the material');
+ cleanup();
+ assert.equal(profileHeader.dataset.mobileHeaderUnderlap,undefined);
+ assert.equal(ancestor.dataset.mobileScrollUnderlap,undefined);
+});
