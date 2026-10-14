@@ -4,6 +4,7 @@ import React,{useContext,useLayoutEffect,useMemo,useRef} from 'react';
 import {UNSAFE_NavigationContext,useLocation} from 'react-router-dom';
 import {ImageMotion} from './ImageMotion';
 import {motionUpdate,motionMs,motionSeconds,motionCurve,type NavigationMotion} from './motion';
+import {handleFromPath} from '../../features/sharing/shareModel';
 /** One adapter preserves the router's URLs, history and permission decisions. */
 export function MotionNavigation({children}:{children:React.ReactNode}){
  const context=useContext(UNSAFE_NavigationContext);
@@ -23,9 +24,24 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
  const navigator=useMemo(()=>{
   const original=context.navigator;
   function before(direction:NavigationMotion='push'){if(document.documentElement)document.documentElement.dataset.mobileStackNavigation=direction;document.dispatchEvent?.(new Event('portalink-before-navigation'));}
+  function profileViewChange(destination:URL){
+   const current=latest.current;
+   if(destination.origin!==new URL(window.location.href).origin||destination.pathname!==current.pathname||destination.hash!==(current.hash??''))return false;
+   const profileRoot=/^\/(?:p|share)\/[^/]+\/?$/.test(current.pathname)||(/^\/[^/]+\/?$/.test(current.pathname)&&Boolean(handleFromPath(current.pathname)));
+   if(!profileRoot)return false;
+   const from=new URLSearchParams(current.search),to=new URLSearchParams(destination.search);
+   if(from.getAll('view').length>1||to.getAll('view').length>1)return false;
+   const views=['projects','portals','followers','following'];
+   return views.includes(from.get('view')??'projects')&&views.includes(to.get('view')??'projects')&&from.get('view')!==to.get('view');
+  }
   function mode(to:Parameters<typeof original.push>[0]):NavigationMotion{const destination=new URL(original.createHref(to),window.location.href);if(dock.current){dock.current=false;return 'dock';}return destination.pathname===latest.current.pathname&&new URLSearchParams(destination.search).has('collection')?'tabs':'push';}
-  return {...original,push:(...args:Parameters<typeof original.push>)=>{const direction=mode(args[0]);return motionUpdate(()=>{before(direction);original.push(...args);},direction);},replace:(...args:Parameters<typeof original.replace>)=>{
+  return {...original,push:(...args:Parameters<typeof original.push>)=>{
    const destination=new URL(original.createHref(args[0]),window.location.href);
+   if(profileViewChange(destination)){dock.current=false;before('tabs');return original.push(...args);}
+   const direction=mode(args[0]);return motionUpdate(()=>{before(direction);original.push(...args);},direction);
+  },replace:(...args:Parameters<typeof original.replace>)=>{
+   const destination=new URL(original.createHref(args[0]),window.location.href);
+   if(profileViewChange(destination)){dock.current=false;before('tabs');return original.replace(...args);}
    // Search typing and automatic route canonicalisation must stay immediate.
    if(!new URLSearchParams(destination.search).has('collection')&&!new URLSearchParams(destination.search).has('section')){before();return original.replace(...args);}
    const direction=mode(args[0]);motionUpdate(()=>{before(direction);original.replace(...args);},direction);
