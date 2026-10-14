@@ -64,7 +64,7 @@ function compile(path, imports, globals) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
+  }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false } = {}) {

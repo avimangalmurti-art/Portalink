@@ -1,3 +1,4 @@
+import './portalink-welcome-mobile.css';
 import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
