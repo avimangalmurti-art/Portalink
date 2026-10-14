@@ -1,24 +1,37 @@
+import { imageDimensions } from '../presentation/motion/imageDimensions';
+import { ImageMotion } from '../presentation/motion/ImageMotion';
+import { LoadingSkeleton } from '../components/ui/StateViews';
 import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
-import '../index.css';
-import { AppPresentationProvider } from '../presentation/AppPresentation';
 import React,{lazy,Suspense,useEffect,useState} from 'react';
 import {createRoot} from 'react-dom/client';
-import {BrowserRouter} from 'react-router-dom';
-import {ServicesProvider} from '../contexts/ServicesContext';
-import {AuthProvider,useAuth} from '../contexts/AuthContext';
-import {visitorServices} from '../services/visitorServices';
-import {resolveCitationItem} from '../features/citations/service';
-import {CiteSheet} from '../features/citations/CiteSheet';
-import {CitedIn} from '../features/citations/CitationReferences';
+import {readPublicCitation,readCitationAppearance,readCitedIn} from './publicRead';
 import {plainCitation,bibCitation,type CitationItem} from '../features/citations/model';
+import { CitationCards } from './CitationCards';
+import { RouteError, routeErrorKind, type RouteErrorKind } from '../components/ui/RouteError';
+import type { PublicAppearance } from '../types/domain';
 import '../features/citations/citations.css';
-const CitationPagePreview=lazy(()=>import('../features/citations/CitationPagePreview'));
-const AuthDialog=lazy(()=>import('../features/auth/AuthDialog').then(m=>({default:m.AuthDialog})));
-function CitationApp(){const auth=useAuth(),[item,setItem]=useState<CitationItem|null>(null),[phase,setPhase]=useState('loading'),[open,setOpen]=useState(false),[status,setStatus]=useState('');
- useEffect(()=>{let live=true;let id:string;try{id=decodeURIComponent(location.pathname.slice(6));}catch{setPhase('not-found');return;}
- resolveCitationItem(id,true).then(result=>{if(live){setItem(result);setPhase(result?'ready':'not-found');}}).catch(()=>{if(live)setPhase('error');});return()=>{live=false;};},[]);
- useEffect(()=>{if(item&&auth.isAuthenticated&&auth.viewerProfileId&&(sessionStorage.getItem('portalink:cite-intent')===item.id||new URLSearchParams(location.search).get('cite')==='1')){sessionStorage.removeItem('portalink:cite-intent');history.replaceState(null,'',location.pathname);setOpen(true);}},[item,auth.isAuthenticated,auth.viewerProfileId]);
+import './citation-entry.css';
+const CitationPagePreview=lazy(()=>import('./CitationDocument'));
+const CitationInteraction=lazy(()=>import('./CitationInteraction'));
+declare global { interface Window { __PORTALINK_CITATION_ERROR__?: 'not-found' | 'network'; } }
+function CitationApp(){
+ const [item,setItem]=useState<CitationItem|null>(null),[phase,setPhase]=useState<'loading'|'ready'|RouteErrorKind>('loading'),[open,setOpen]=useState(false),[status,setStatus]=useState('');
+ const [previewSize,setPreviewSize]=useState<{width:number;height:number}|null>(null);
+ const [appearance,setAppearance]=useState<PublicAppearance|null>(null);
+ useEffect(()=>{if(window.__PORTALINK_CITATION_ERROR__){setPhase(window.__PORTALINK_CITATION_ERROR__);return;}let live=true;let id:string;try{id=decodeURIComponent(location.pathname.slice(6));if(!id)throw Error();}catch{setPhase('not-found');return;}
+ readPublicCitation(id).then(async result=>{if(!live)return;if(!result){setPhase('not-found');return;}setItem(result);
+ const [style,size]=await Promise.all([readCitationAppearance(result.creatorId).catch(()=>null),result.sourceUrl?imageDimensions(result.sourceUrl):Promise.resolve(null)]);if(live){setPreviewSize(size);setAppearance(style);setPhase('ready');}
+ }).catch(error=>{if(live)setPhase(routeErrorKind(error instanceof Error ? error.message : null));});return()=>{live=false;};},[]);
+ const [systemDark,setSystemDark]=useState(()=>matchMedia('(prefers-color-scheme: dark)').matches);
+ useEffect(()=>{const media=matchMedia('(prefers-color-scheme: dark)'),update=()=>setSystemDark(media.matches);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
+ const theme=appearance?.mode==='auto' ? (systemDark?'dark':'light') : appearance?.mode??'dark';
+ useEffect(()=>{document.documentElement.style.colorScheme=theme;document.title=item?`${item.projectTitle} — Citation | Portalink`:'Citation | Portalink';},[theme,item]);
+ const [cited,setCited]=useState<Awaited<ReturnType<typeof readCitedIn>>>([]);
+ useEffect(()=>{if(!item)return;let live=true;void readCitedIn(item.id).then(rows=>{if(live)setCited(rows);}).catch(()=>undefined);if(new URLSearchParams(location.search).get('cite')==='1'||sessionStorage.getItem('portalink:cite-intent')===item.id){sessionStorage.removeItem('portalink:cite-intent');setOpen(true);}return()=>{live=false;};},[item]);
  const copy=async(bib:boolean)=>{if(!item)return;try{await navigator.clipboard.writeText(bib?bibCitation(item,PUBLIC_ORIGIN):plainCitation(item,PUBLIC_ORIGIN));setStatus('Citation copied.');}catch{setStatus('Citation could not be copied.');}};
- return <main className="app-shell citation-entry">{phase==='loading'?<p>Loading…</p>:phase==='not-found'?<h1>Not found</h1>:phase==='error'?<p role="alert">Citation could not be loaded.</p>:item&&<><h1>{item.projectTitle}</h1>{item.sourceUrl?<img src={item.sourceUrl} alt={`${item.projectTitle}, ${item.kind} ${item.number}`}/>:item.kind==='page'?<Suspense fallback={<p>Loading page…</p>}><CitationPagePreview item={item}/></Suspense>:<p>Image preview is not available.</p>}<blockquote>{plainCitation(item,PUBLIC_ORIGIN)}</blockquote>{!item.citable&&<p>View only. The creator has not permitted AI retrieval or reproduction.</p>}<div className="citation-entry-actions">{item.citable&&<><button onClick={()=>void copy(false)}>Copy citation — Plain text</button><button onClick={()=>void copy(true)}>Copy citation — BibTeX</button></>}{auth.viewerProfileId!==item.creatorId&&<button onClick={()=>setOpen(true)}>Cite</button>}<button onClick={()=>void navigator.share?.({url:location.href,title:item.projectTitle})}>Share</button></div>{status&&<p role="status">{status}</p>}<CitedIn itemId={item.id}/>{open&&<CiteSheet item={item} onClose={()=>setOpen(false)}/>}</>}{auth.pendingView&&<Suspense fallback={null}><AuthDialog accentColor="#ff2d64" onAccentColorChange={()=>undefined} highContrast={false} onHighContrastChange={()=>undefined} reduceTranslucency={false} onReduceTranslucencyChange={()=>undefined} registrationReturnPath={location.pathname+location.search} /></Suspense>}</main>;
+ const share=async()=>{if(!item)return;try{if(navigator.share)await navigator.share({url:location.href,title:item.projectTitle});else{await navigator.clipboard.writeText(location.href);setStatus('Link copied.');}}catch(error){if(!(error instanceof DOMException&&error.name==='AbortError'))setStatus('Link could not be shared.');}};
+ return <main className="app-shell citation-entry" data-theme={theme}><ImageMotion/>{phase==='loading'?<LoadingSkeleton label="Loading citation…"/>:phase!=='ready'?<RouteError kind={phase} onBack={()=>history.length>1?history.back():location.assign('/')} onHome={()=>location.assign('/')} />:item&&<><CitationCards item={item} onCopy={bib=>void copy(bib)} onCite={()=>setOpen(true)} onShare={()=>void share()} status={status}
+ preview={item.sourceUrl?<img src={item.sourceUrl} width={previewSize?.width} height={previewSize?.height} alt={`${item.projectTitle}, ${item.kind} ${item.number}`}/>:item.kind==='page'?<Suspense fallback={<LoadingSkeleton kind="reader" label="Loading page…"/>}><CitationPagePreview item={item}/></Suspense>:<p>Image preview is not available.</p>}
+ citedIn={cited.length>0?<section className="citation-cited-card"><h2>Cited in {cited.length} {cited.length===1?'project':'projects'}</h2><ul>{cited.map(row=><li key={row.id}><a href={`/share/${encodeURIComponent(row.project.profileId)}/c/${encodeURIComponent(row.project.categoryId)}/${encodeURIComponent(row.project.id)}`}>{row.project.title} · {row.project.creator}</a><time>{row.created_at.slice(0,10)}</time></li>)}</ul></section>:null}/>{open&&<Suspense fallback={<LoadingSkeleton label="Opening Cite…"/>}><CitationInteraction item={item} onClose={()=>setOpen(false)}/></Suspense>}</>}</main>;
 }
-const root=document.getElementById('root');if(root)createRoot(root).render(<BrowserRouter><ServicesProvider services={visitorServices}><AuthProvider><AppPresentationProvider><CitationApp/></AppPresentationProvider></AuthProvider></ServicesProvider></BrowserRouter>);
+const root=document.getElementById('root');if(root)createRoot(root).render(<CitationApp/>);
