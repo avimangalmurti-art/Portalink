@@ -1,3 +1,4 @@
+@import '../../components/profile/icon-create-mobile.css';
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
 /* The startup layer exists before the app host and carries the same scope. */
@@ -708,7 +709,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] * {
@@ -717,20 +718,20 @@
 
 /* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -787,7 +788,7 @@
   color: var(--text-primary) !important;
   box-shadow: var(--mobile-navigation-item-shadow, none) !important;
   transform: none !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter), box-shadow var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
@@ -1103,7 +1104,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -1599,8 +1600,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 /* Override generic floating-dialog paint and all-corner rounding only here. */
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
@@ -2738,7 +2739,7 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: transform var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -3164,7 +3165,7 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter);
 }
 /* Override the shared soft-selected toggle rule for Mail-style categories. */
 #root .codex-shell[data-presentation='mobile'] .studio-category[aria-pressed='true'] { background: var(--accent-primary) !important; color: var(--accent-foreground) !important; }
@@ -3348,7 +3349,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   pointer-events: none;
-  animation: premium-media-spin 800ms linear infinite;
+  animation: premium-media-spin var(--m-slow) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3719,6 +3720,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   text-overflow: clip;
 }
 
+/* Keep connection labels centered beneath their avatar; overflowing text starts at its beginning. */
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] { text-align: center; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] > span { margin-inline: auto; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-overflow] > span { margin-inline: 0; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion],
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion] > span { white-space: normal; }
+
 /* The headerless inbox still needs status-bar clearance for Search. */
 #root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
 
@@ -4021,7 +4029,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-handle-validation span { flex: 1; }
 [data-presentation='mobile'] .share-qr-skeleton { width: 82%; height: 82%; background: #ededed; border-radius: 8px; }
 [data-presentation='mobile'] .share-note-field textarea { resize: none; }
-[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
+[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color var(--m-fast) var(--m-enter), background-color var(--m-fast) var(--m-enter); }
 @media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }
 
 /* Compact relationship controls match the mobile profile reference. */
@@ -4619,7 +4627,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) {
-  transition: transform 180ms ease-out;
+  transition: transform var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-pulling] {
   transform: translate3d(0, var(--profile-pull-offset, 0px), 0);
@@ -4632,16 +4640,16 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* Mobile portal creation is a screen; only its icon catalog scrolls. */
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) {
   padding: 0; z-index: 100; background: var(--surface-canvas);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen-form {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) .new-portal-screen-form {
   width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
   border-radius: 0; box-shadow: none; background: var(--surface-canvas);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen [data-portal-icon-scroll] {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) [data-portal-icon-scroll] {
   overscroll-behavior-y: contain;
 }
 #root .codex-shell[data-presentation='mobile'] .new-portal-pinned-controls {
@@ -5038,7 +5046,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
 /* Profile editing owns Back/Save; shell actions must not overlap Save. */
-#root .codex-shell[data-presentation='mobile']:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
 [data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }
 
 /* Paint below the visible-viewport sheet too: iOS can leave a bottom inset
@@ -5178,3 +5186,290 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   background: var(--navigation-surface, var(--surface-selected));
   color: var(--navigation-foreground, var(--text-primary));
 }
+
+/* Keep Profile's hover surface and ellipsis in the same screen-action frame. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-options {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  left: auto;
+  width: var(--explore-action-width);
+  height: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options .mobile-context-slot {
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+
+/* Home's grey hover/press surface uses the same frame as its ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Studio's grey action surface follows the ellipsis across header states. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: fixed !important;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Messages paints its grey action surface in the ellipsis button's own frame. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Insights keeps its grey action surface centered on the ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Account Explore/Search keeps the floating ellipsis and grey surface together. */
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Settings keeps the grey action surface and floating ellipsis in one frame. */
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Saved/Activity library screens keep their grey floating surface on the ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Project reader screen actions keep the grey surface on the floating ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Conversation options paints its grey surface inside the centered touch frame. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options'] {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
+  background: var(--surface-hover) !important;
+}
+
+/* Home conformance: measured, inset artwork; other feed/profile surfaces retain their spacing. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .feed-edge-fade {
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
+  padding-top: var(--mobile-content-safe-top);
+  min-width: 0;
+}
+
+/* Cancel only the artwork's inherited half-rem inset, then use fixed pixel gutters.
+   This week's existing scroller spacing remains unchanged, including larger text. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-home-grid] {
+  margin-inline: -0.5rem;
+  width: calc(100% + 1rem);
+  padding-inline: 16px;
+}
+
+/* Content navigation stays in its established bottom pill, including owner readers. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating { display: none; }
+/* Explore/Home has restored its own safe-area header. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
+  padding-top: 0;
+}
+
+/* Private analytics owns one viewport: safe header, then scrolling results. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page {
+  width:100%;min-width:0;
+  height:var(--mobile-viewport-height,100dvh);
+  max-height:var(--mobile-viewport-height,100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  box-sizing:border-box;
+  height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  min-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  max-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  padding-top:var(--mobile-screen-action-top);
+  padding-bottom:12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-scroll {
+  min-width:0;
+  padding-bottom:calc(var(--mobile-dock-clearance,88px) + var(--safe-area-bottom,env(safe-area-inset-bottom,0px)));
+}
+
+/* Only loading surfaces: finished layouts and desktop geometry stay unchanged. */
+#root [data-presentation='mobile'] [data-loading-layout] {min-width:0;overflow:hidden;}
+#root [data-presentation='mobile'] [data-loading-layout] .legacy-loading-shapes {display:none;}
+#root [data-presentation='mobile'] [data-loading-layout] .screen-loading-shapes {display:block;padding:12px 16px calc(var(--mobile-content-safe-bottom,104px) + 16px);}
+#root [data-presentation='mobile'] [data-loading-layout='profile'] {padding-top:var(--safe-area-top,0px);}
+#root [data-presentation='mobile'] [data-loading-layout] .motion-skeleton {display:block;border-radius:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-title {width:64%;height:18px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-subtitle {width:80%;height:12px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metadata {width:40%;height:10px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity {display:flex;align-items:center;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-avatar {width:76px;height:76px;flex-shrink:0;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-inline-tabs {display:flex;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-tab {width:60px;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts {display:flex;gap:12px;margin:16px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts>span {flex:1;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links {display:flex;gap:10px;margin-bottom:20px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links>span {width:40px;height:40px;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-project-grid {display:grid;grid-template-columns:repeat(var(--loading-columns,2),minmax(0,1fr));gap:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-cover {width:100%;aspect-ratio:1;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-caption {width:70%;height:10px;margin:8px 0 12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-list {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row {display:flex;gap:12px;align-items:center;min-height:76px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-thumbnail {width:56px;height:68px;flex-shrink:0;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout='messages'] .loading-avatar {width:48px;height:48px;border-radius:50%;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview>div {padding:18px;border-radius:18px;border:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-action {width:112px;height:38px;border-radius:999px;margin-top:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills {display:flex;gap:8px;margin:20px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills>span {flex:1;height:44px;border-radius:999px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart {display:flex;gap:10px;height:210px;margin-bottom:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience>div {display:flex;align-items:center;justify-content:space-between;height:50px;gap:24px;border-bottom:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey {display:grid;gap:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey>div {display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-date {height:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-title {grid-column:2;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span {width:68%;height:56px;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span:nth-child(even) {justify-self:end;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-headline {width:90%;height:68px;margin:24px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart>span {flex:1;border-radius:4px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience .loading-subtitle {width:45%;margin:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-count {width:32px;height:22px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-cover {width:92px;height:92px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-date {width:76px;margin-bottom:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-year {width:70px;height:24px;}
+
+#root [data-presentation='mobile'] [data-loading-layout='journey'] {padding-top:0;}

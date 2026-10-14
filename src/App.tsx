@@ -1,3 +1,4 @@
+import { RouteError, routeErrorKind } from './components/ui/RouteError';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
 import { MobileScreenActions } from './presentation/mobile/MobileContextActions';
@@ -19,8 +20,8 @@ import { ActivityCollectionPage } from './components/profile/ActivityCollectionP
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
-import { useLocation } from 'react-router-dom';
-import { EmptyState, ErrorState, LoadingState } from './components/ui/StateViews';
+import { useLocation, useNavigationType } from 'react-router-dom';
+import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
 import { interactionIntent } from './features/auth/interactionIntent';
@@ -168,11 +169,9 @@ function AppContent() {
   const setNavSystemGray = (value: string) => { chooseAppearance({ systemGray: value }); creatorAppearance.choose({ systemGray: value }); };
   const setHighContrast = (value: boolean) => chooseAppearance({ highContrast: value });
   const setReduceTranslucency = (value: boolean) => chooseAppearance({ reduceTranslucency: value });
-  const {
-    pathname,
-    search,
-    state: navigationState
-  } = useLocation();
+  const screenLocation = useLocation();
+  const screenNavigationType = useNavigationType();
+  const { pathname, search, state: navigationState } = screenLocation;
   const settingsReturnPath = route.kind === 'controlCenter' && navigationState && typeof navigationState === 'object'
     && 'settingsReturn' in navigationState && typeof navigationState.settingsReturn === 'string'
     ? readSharedReturnPath(navigationState.settingsReturn) : undefined;
@@ -576,6 +575,7 @@ function AppContent() {
     let frame = 0;
     let attempts = 0;
     const apply = () => {
+      if (presentation === 'mobile' && mainContentRef.current?.closest('[data-mobile-screen-restored]')) return;
       if (presentation === 'mobile' && mainContentRef.current?.querySelector('.mobile-profile-wall, .feed-edge-fade, [data-mobile-page-reader]')) return;
       const element = presentation === 'mobile' ? document.scrollingElement : mainContentRef.current;
       if (element) {
@@ -1040,7 +1040,7 @@ function AppContent() {
    * rather than floating above it. It needs an account, so a guest is sent
    * through the gate first.
    */
-  function openMessages(recipientProfileId?: string) {
+  function openMessages(recipientProfileId?: string, fromDock = false) {
     const intent: AuthIntent = { kind: 'messages', ...(recipientProfileId ? { recipientProfileId } : {}) };
     if (!auth.isAuthenticated) {
       auth.requestAuthenticatedDestination(isSharedRoute ? interactionIntent('message this creator', pathname + search) : intent);
@@ -1051,7 +1051,8 @@ function AppContent() {
       setIsOnboardingOpen(true);
       return;
     }
-    nav.messages(undefined, false, recipientProfileId);
+    if (fromDock) nav.messages(undefined, false, recipientProfileId, {dockEntry:'messages'});
+    else nav.messages(undefined, false, recipientProfileId);
   }
   function navigateTo(destination: NavigationDestination) {
     // A record label is an editorial destination, not a creator profile: it never
@@ -1167,6 +1168,7 @@ function AppContent() {
    * is preserved, an unknown address is reported, and an id that resolves to
    * nothing produces a not-found rather than somebody else's work.
    */
+  const openingProjectId = route.kind === 'project' || route.kind === 'sharedProject' ? route.projectId : activeProjectId;
   const routeStateView = isProfileEditorRoute && (auth.isInitializing || auth.phase === 'authenticating' || auth.phase === 'signing-out') ? <LoadingState label="Opening profile editor…" /> : isRouteBlocked ? <EmptyState title="Sign in required" description={`Sign in to ${describeRoute(route)}. This page will reopen after sign-in.`} action={{
     label: 'Sign in',
     onClick: () => auth.requestAuth('signIn')
@@ -1177,30 +1179,16 @@ function AppContent() {
       deferredIntentRef.current = { kind: 'route', path: buildPath('profileEditor'), label: 'edit your profile' };
       setIsOnboardingOpen(true);
     }
-  }} /> : route.kind === 'unknown' ? <EmptyState title="Page not found" description="Check the address, or return home." action={{
-    label: 'Go home',
-    onClick: () => nav.home()
-  }} /> : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" /> : routeItemId && routeItemResolution?.state === 'not-found' ? <EmptyState title="Item not found" description="It may have been removed. Check the link, or return home." action={{
-    label: 'Go home',
-    onClick: () => nav.home()
-  }} /> : routeItemId && routeItemResolution?.state === 'error' ? <ErrorState title="Unable to open item" description="Check the connection, then try again." onRetry={projectNavigation.retry ?? undefined} /> : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingState label="Opening profile…" /> : routeProfileId && viewedProfileQuery.status === 'not-found' ? <EmptyState title="Profile not found" description={isSharedRoute ? 'This shared profile is unavailable or no longer public.' : 'It may have been removed. Return home to browse creators and work.'} action={isSharedRoute ? undefined : {
-    label: 'Go home',
-    onClick: () => nav.home()
-  }} /> : routeProfileId && viewedProfileQuery.status === 'error' ? <ErrorState title="Unable to open profile" description={viewedProfileQuery.error ?? 'Check the connection, then try again.'} onRetry={viewedProfileQuery.retry} /> : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" /> : isProfileAccessDenied ? <EmptyState title="Profile unavailable" description={isSharedRoute ? 'This profile is not published through a public link.' : 'This creator has limited their profile to approved followers.'} action={isSharedRoute ? undefined : {
-    label: 'Go home',
-    onClick: () => nav.home()
-  }} /> : isCategoryRouteMissing ? <EmptyState title={isSharedRoute ? 'Category not found' : 'Portal not found'} description="It may have been renamed or removed." action={{
-    label: viewedProfile ? `Back to ${viewedProfile.name}` : 'Back to the profile',
-    onClick: () => {
-      if (viewedProfileId) {
-        if (isSharedRoute) {
-          nav.sharedProfile(viewedProfileId);
-        } else {
-          nav.profile(viewedProfileId);
-        }
-      }
-    }
-  }} /> : null;
+  }} />  : route.kind === 'unknown' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
+  : routeItemId && !selectedApp && (!routeItemResolution || routeItemResolution.state === 'loading') ? <LoadingState label="Opening item…" />
+  : routeItemId && routeItemResolution?.state === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
+  : routeItemId && routeItemResolution?.state === 'error' ? <RouteError kind="network" onBack={nav.back} onHome={nav.home} />
+  : routeProfileId && viewedProfileQuery.status === 'loading' && !isOwnerProfileRefreshing ? <LoadingSkeleton kind={openingProjectId ? 'reader' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening profile…" />
+  : routeProfileId && viewedProfileQuery.status === 'not-found' ? <RouteError kind="not-found" onBack={nav.back} onHome={nav.home} />
+  : routeProfileId && viewedProfileQuery.status === 'error' ? <RouteError kind={routeErrorKind(viewedProfileQuery.error)} onBack={nav.back} onHome={nav.home} />
+  : isPrivateProfileAccessResolving ? <LoadingState label="Checking profile access…" />
+  : isProfileAccessDenied ? <RouteError kind="no-access" onBack={nav.back} onHome={nav.home} />
+  : isCategoryRouteMissing ? <RouteError kind="not-found" creatorHandle={viewedProfile?.handle} onBack={nav.back} onHome={nav.home} onCreator={() => {if(viewedProfileId){if(isSharedRoute)nav.sharedProfile(viewedProfileId);else nav.profile(viewedProfileId);}}} /> : null;
   /*
    * The discovery feed scrolls ITSELF, because its search field has to hold its
    * place on screen while the work moves under it. That only works if the page
@@ -1277,8 +1265,8 @@ function AppContent() {
           setAttemptedIconName(null);
           setIconPickerCategoryId(null);
         } else nav.back();
-      }}><React.Suspense fallback={<div className="flex h-full min-h-[280px] items-center justify-center"><LoadingState label="Opening" /></div>}>
-      {routeStateView ? <div className="px-[var(--content-gutter)] py-10">{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
+      }}><React.Suspense fallback={<LoadingSkeleton kind={openingProjectId ? 'reader' : isMobileStudioOpen ? 'studio' : 'profile'} projectId={openingProjectId ?? undefined} label="Opening" />}>
+      {routeStateView ? <div className={routeStateView.type === RouteError ? "min-h-full" : "px-[var(--content-gutter)] py-10"}>{routeStateView}</div> : isProfileEditorRoute && auth.isAuthenticated && auth.viewerProfileId ? <ProfileEditorPage key={auth.viewerProfileId} profileId={auth.viewerProfileId} onClose={closeProfileEditor} onSaved={closeProfileEditor} /> : isControlCenterOpen ? <ControlCenterPage onOpenProfile={openOwnProfile} appearanceSaving={creatorAppearance.saving} appearanceError={creatorAppearance.saveError ?? creatorAppearance.loadError} onRetryAppearance={() => { if (creatorAppearance.loadError) creatorAppearance.retryLoad(); else void creatorAppearance.flush().catch(() => undefined); }} theme={theme} appearanceMode={appearanceMode} onAppearanceModeChange={chooseAppearanceMode} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} onBack={nav.closeSettings} /> : iconPickerCategoryId ? <IconPickerPage categoryLabel={viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.label ?? 'Category'} currentIconName={management.categoryIcons[iconPickerCategoryId] ?? viewedProfile?.categories.find((category) => category.id === iconPickerCategoryId)?.iconName ?? ''} isSaving={management.pending?.kind === 'icon'} savingIconName={attemptedIconName} failureMessage={management.failure?.kind === 'icon' ? management.failure.message : null} onRetry={management.failure?.kind === 'icon' && attemptedIconName ? () => void chooseCategoryIcon(iconPickerCategoryId, attemptedIconName) : undefined} onDismissFailure={management.dismissFailure} onSelect={(iconName) => {
         // The picker remains an ordinary screen. Only this outer snapshot moves.
         void chooseCategoryIcon(iconPickerCategoryId, iconName);
       }} onBack={() => {
@@ -1314,15 +1302,16 @@ function AppContent() {
    * that could not follow the appearance setting; `--mac-label-primary` does,
    * inverting with `.theme-dark` on this same element.
    */
-  return <AppPresentation data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
+  return <AppPresentation showFloatingActions={!(routeStateView?.type === RouteError)} data-layout-mode="adaptive" style={rootTokenStyle} className={`app-shell codex-shell ps-platform-ui accent-theme monochrome-ui theme-${interfaceTheme} ${isSharedRoute ? 'shared-portalink-shell' : ''} ${interfaceHighContrast ? 'high-contrast' : ''} ${interfaceReduceTranslucency ? 'reduce-translucency' : ''} app-typeface flex h-screen min-h-0 w-full overflow-hidden bg-[var(--mac-window-bg)] text-[var(--mac-label-primary)] antialiased`}>
       {isSharedRoute ? <SharedContextActions title={viewedProfile?.name} /> : <MobileScreenActions model={contextActions(isSearchOpen ? 'explore' : isMessagesOpen ? 'messages' : isMobileStudioOpen ? 'studio' : activeProjectId ? 'project' : route.kind === 'profile' || route.kind === 'category' ? 'profile' : route.kind === 'home' ? 'home' : 'settings', { signedIn: auth.isAuthenticated, owner: isOwnerMode }, { handlers: {
         bookmarks: () => nav.to('/saved'),
         search: () => nav.search(''), explore: openPortalink, newProject: requestMobilePublish,
+        ...(route.kind === 'home' ? { viewProfile: openOwnProfile } : {}),
         settings: nav.controlCenter, insights: () => nav.to(buildPath('insights')),
         ...(liveShow ? { leaveLive: live.leave } : {}),
       } })} />}
       <MobileBackProvider onBack={isProfileEditorRoute ? closeProfileEditor : isCollaborationOpen && viewedProfileId ? () => nav.closeCollaboration(viewedProfileId, isSharedRoute) : nav.back}>
-      {!isProfileEditorRoute && (isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={chooseTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSettingsOpen={nav.controlCenter} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} onSearchOpen={() => nav.search('')} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />)}
+      {!isProfileEditorRoute && !(routeStateView?.type === RouteError && !auth.isAuthenticated) && (isSharedRoute ? viewedProfile && canReadViewedProfile ? <SharedProfileSidebar mobileNavigationEnabled={routeStateView?.type !== RouteError} profile={viewedProfile} activeCategoryId={activeCategoryId} theme={interfaceTheme} onThemeChange={chooseTheme} onOpenCategory={(categoryId) => nav.sharedCategory(viewedProfile.id, categoryId)} onSettingsOpen={nav.controlCenter} /> : <aside aria-label="Shared Portalink" className="shared-profile-sidebar sidebar-starfield h-full w-[208px] shrink-0 lg:w-[216px] 2xl:w-[224px]" /> : <Sidebar liveShow={liveShow} onLeaveShow={live.leave} isHomeActive={route.kind === 'home'} isSearchActive={route.kind === 'search'} onSearchOpen={() => nav.search('')} isPortalinkActive={route.kind === 'portalink'} isProfileActive={route.kind === 'profile' && route.profileId === auth.viewerProfileId} accentColor={accentColor} onControlCenterOpen={() => nav.controlCenter()} isAuthenticated={auth.isAuthenticated} isAuthActionPending={auth.phase === 'authenticating' || auth.phase === 'signing-out'} accountName={auth.user?.displayName} accountAvatar={viewedProfile?.id === auth.viewerProfileId ? viewedProfile.avatar : null} onSignIn={() => auth.requestAuth('signIn')} onSignOut={auth.signOut} management={management} onChangeCategoryIcon={setIconPickerCategoryId} isCollapsed={isSidebarCollapsed || isSignInExperienceOpen} onCollapsedChange={setIsSidebarCollapsed} onNavigate={navigateTo} onPortalinkOpen={openPortalink} addCategoryRequest={addCategoryRequest} onProfileOpen={openOwnProfile} profileHref={auth.viewerProfileId ? buildPath('profile', { profileId: auth.viewerProfileId }) : undefined} onMessagesOpen={openMessages} theme={theme} onThemeChange={chooseTheme} isMessagesActive={isMessagesOpen} isInsightsActive={isInsightsOpen} isActivityActive={isActivityOpen} isSavedActive={isSavedOpen} viewedProfile={viewedProfile} activeCategoryId={activeCategoryId} onCategorySelect={selectProfileCategory} isOwnerMode={isOwnerMode} />)}
 
       {/* Every surface renders in the interface face. Creator typography is
            carried by individual projects, not by the page around them, so the
@@ -1350,7 +1339,7 @@ function AppContent() {
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
           <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss">×</button>
         </div>}
-        <AppScreenLayers screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
+        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
       </div>
 
@@ -1359,7 +1348,7 @@ function AppContent() {
       </InteractionSafePresence></DeferredSurface>
 
       {/* The auth surface is application-level: any control can request it. */}
-      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog initialSignupStep={isSharedRoute || new URLSearchParams(search).get('welcome') === '1' ? 'profile' : undefined} showWelcomeMedia={!isSharedRoute} registrationReturnPath={isSharedRoute ? readSharedReturnPath(pathname + search) : presentation === 'mobile' ? settingsReturnPath : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
+      {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog welcomeBeforeSignup={isSharedRoute} showWelcomeMedia={!isSharedRoute} registrationReturnPath={isSharedRoute ? readSharedReturnPath(pathname + search) : presentation === 'mobile' ? settingsReturnPath : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}

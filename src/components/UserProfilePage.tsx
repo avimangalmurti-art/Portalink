@@ -1,4 +1,5 @@
 import { rememberAccount } from '../features/follows/recentAccounts';
+import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
 import { useProfileSwipeReturn } from '../presentation/mobile/useProfileSwipeReturn';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
@@ -25,7 +26,7 @@ import { buildPath } from '../app/routes';
 import { ArrowLeftIcon, CheckIcon, ClockIcon, GripVerticalIcon, Loader2Icon, MoreHorizontalIcon, MoveIcon, PencilIcon, UserPlusIcon } from 'lucide-react';
 import { useFollowRequests } from '../features/follows/useFollowRequests';
 import { useProfileVisibility } from '../features/profile/useProfileVisibility';
-import { EmptyState } from './ui/StateViews';
+import { LoadingSkeleton, EmptyState } from './ui/StateViews';
 import type { EngagementKind } from '../types/engagement';
 import { CreatorSaveButton } from '../features/library/CreatorSaveButton';
 import { PlatformGrid } from './profile/PlatformGrid';
@@ -285,15 +286,15 @@ function ProfileProjectTile({
                 {onReads && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onReads)}>Reads</button>}
                 {onUseAsStartHere && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onUseAsStartHere)}>Use as Start here</button>}
                 {onUseInThenNow && <button type="button" role="menuitem" className="h-10 px-2 text-left text-[13px]" onClick={() => runAction(onUseInThenNow)}>Use in Then/Now</button>}
-                {onRepositionPreview ? <button type="button" role="menuitem" onClick={() => runAction(onRepositionPreview)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                {onRepositionPreview ? <button type="button" role="menuitem" onClick={() => runAction(onRepositionPreview)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={MoveIcon} size="sm" weight="medium" />
                     Reposition preview…
                   </button> : null}
-                {onEditDescription ? <button type="button" role="menuitem" onClick={() => runAction(onEditDescription)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                {onEditDescription ? <button type="button" role="menuitem" onClick={() => runAction(onEditDescription)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                     Edit description…
                   </button> : null}
-                {onEditProject ? <button type="button" role="menuitem" onClick={() => runAction(onEditProject)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
+                {onEditProject ? <button type="button" role="menuitem" onClick={() => runAction(onEditProject)} className="flex h-9 w-full items-center gap-2.5 rounded-[6px] px-2 text-left text-[13px] font-medium text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)]">
                     <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" />
                     Edit project…
                   </button> : null}
@@ -408,7 +409,7 @@ export function UserProfilePage({
   const [searchParams, setSearchParams] = useSearchParams();
   const showsOwnerTools = canAuthor(viewerRole) && !isSharedView;
   const auth = useAuth();
-  const journey = useJourneySelection(profile.id, auth.viewerProfileId);
+  const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
   const canSeeJourney = journeyAllowed(profile, showsOwnerTools);
   const [pairSelection, setPairSelection] = useState<string | null>(null);
   const startHereId = showsOwnerTools ? searchParams.get('startHere') : null;
@@ -551,6 +552,7 @@ export function UserProfilePage({
     return address?.handle ? new URL(portfolioPath(profile.id, address.handle), window.location.origin).href : publicProfileUrl;
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
+    viewAsVisitor: showsOwnerTools && !isSharedView ? () => window.location.assign(visitorPreviewPath(profile.id)) : undefined,
     editProfile: onEditProfile, newProject: onPublishProject,
     thenNow: showsOwnerTools && isJourney ? () => setPairSelection('') : undefined,
     share: !profile.isPrivate ? openShare : undefined,
@@ -713,7 +715,7 @@ export function UserProfilePage({
         {isReorderingProjects && isMobile ? <div data-profile-reorder-controls="" className="mobile-profile-reorder-actions" aria-label="Project order">
           <button type="button" disabled={projectOrder.isSaving} aria-busy={projectOrder.isSaving || undefined} onClick={() => { void finishReordering(); }} className="text-[var(--accent-text)]">{projectOrder.isSaving ? 'Saving…' : 'Done'}</button>
           <button type="button" disabled={projectOrder.isSaving} onClick={cancelReordering}>Cancel</button>
-        </div> : isMobile ? (<div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
+        </div> : isMobile ? (!showsOwnerTools && <div data-inline-screen-actions="" className="profile-header-options"><MobileContextButton /></div>) : <button type="button" className="profile-header-options" aria-label="Profile options" aria-expanded={isMobileToolsOpen} aria-controls="profile-navigation-tools" onClick={() => setIsMobileToolsOpen(open => !open)}><InterfaceIcon icon={MoreHorizontalIcon} /></button>}
       </header>
       {showsOwnerTools && !isReorderingProjects && <SavedChangeNotice history={projectOrder.history} />}
       {showsFollow && isMobile && !isMobileToolsOpen && follow?.mutationError && <p role="alert" className="px-2 py-2 text-sm text-[var(--status-danger)]">{follow.mutationError}{follow.onRetry && <button type="button" onClick={follow.onRetry} className="ml-2 underline">Try again</button>}</p>}
@@ -725,7 +727,7 @@ export function UserProfilePage({
       {((isMobile && !showsOwnerTools && !isSharedView) || isMobileToolsOpen) && <header style={{ display: isMobileToolsOpen ? undefined : 'none' }} id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           {showsOwnerTools && visibility.isPrivate && followRequests.count > 0 && <div className="relative">
-              <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="side-panel-primary-control side-panel-control-row border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+              <button type="button" data-follow-requests-control="" data-system-color="" onClick={() => setIsRequestsOpen((open) => !open)} aria-expanded={isRequestsOpen} aria-haspopup="dialog" aria-label={`${followRequests.count} pending follow ${followRequests.count === 1 ? 'request' : 'requests'}`} className="side-panel-primary-control side-panel-control-row border border-[var(--social-unread)] px-3 text-[11px] font-semibold text-[var(--social-unread)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <UserPlusIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 <span className="tabular-nums">{followRequests.count}</span>
                 <span>{followRequests.count === 1 ? 'request' : 'requests'}</span>
@@ -748,10 +750,10 @@ export function UserProfilePage({
                         </span>
                         {/* Approving grants the follow, so it is the affirmative
                      action and carries the accent; declining is plain. */}
-                        <button type="button" onClick={() => followRequests.approve(request.profileId)} disabled={followRequests.pendingProfileId !== null} aria-label={`Approve ${request.name}'s follow request`} className="h-7 shrink-0 rounded-full bg-[var(--accent-primary)] px-2.5 text-[11px] font-semibold text-[var(--accent-foreground)] transition-opacity duration-150 hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
+                        <button type="button" onClick={() => followRequests.approve(request.profileId)} disabled={followRequests.pendingProfileId !== null} aria-label={`Approve ${request.name}'s follow request`} className="h-7 shrink-0 rounded-full bg-[var(--accent-primary)] px-2.5 text-[11px] font-semibold text-[var(--accent-foreground)] transition-opacity duration-[var(--m-fast)] hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                           {followRequests.pendingProfileId === request.profileId ? '…' : 'Approve'}
                         </button>
-                        <button type="button" onClick={() => followRequests.decline(request.profileId)} disabled={followRequests.pendingProfileId !== null} aria-label={`Decline ${request.name}'s follow request`} className="h-7 shrink-0 rounded-full px-2 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
+                        <button type="button" onClick={() => followRequests.decline(request.profileId)} disabled={followRequests.pendingProfileId !== null} aria-label={`Decline ${request.name}'s follow request`} className="h-7 shrink-0 rounded-full px-2 text-[11px] font-semibold text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60">
                           Decline
                         </button>
                       </li>)}
@@ -783,7 +785,7 @@ export function UserProfilePage({
                  rather than a granted one, so it stays neutral with a clock —
                  only a confirmed follow earns the accent — and pressing it
                  withdraws the request instead of asking a second time. */}
-                <button data-profile-follow="" type="button" onClick={follow.onToggle} disabled={follow.isResolving || follow.isPending} aria-pressed={follow.isFollowing || follow.isRequested} aria-busy={follow.isPending || undefined} aria-label={follow.isFollowing ? `Unfollow ${displayName}` : follow.isRequested ? `Withdraw your follow request to ${displayName}` : visibility.isPrivate ? `Request to follow ${displayName}` : `Follow ${displayName}`} className={`side-panel-primary-control side-panel-control-row px-3.5 text-[11px] font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 ${follow.isFollowing ? 'border border-transparent bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'}`}>
+                <button data-profile-follow="" type="button" onClick={follow.onToggle} disabled={follow.isResolving || follow.isPending} aria-pressed={follow.isFollowing || follow.isRequested} aria-busy={follow.isPending || undefined} aria-label={follow.isFollowing ? `Unfollow ${displayName}` : follow.isRequested ? `Withdraw your follow request to ${displayName}` : visibility.isPrivate ? `Request to follow ${displayName}` : `Follow ${displayName}`} className={`side-panel-primary-control side-panel-control-row px-3.5 text-[11px] font-semibold transition-colors duration-[var(--m-fast)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-60 ${follow.isFollowing ? 'border border-transparent bg-[var(--accent-primary)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)]' : 'border border-[var(--hairline-strong)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)]'}`}>
                   {follow.isRequested && !follow.isPending && <ClockIcon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
                   {follow.isPending ? 'Working…' : follow.isFollowing ? 'Following' : follow.isRequested ? 'Requested' : visibility.isPrivate ? 'Request' : 'Follow'}
                 </button>
@@ -792,11 +794,11 @@ export function UserProfilePage({
                     {follow.onRetry && <button type="button" onClick={follow.onRetry} className="font-semibold text-[var(--text-primary)] underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Try again</button>}
                   </span>}
               </span>}
-            {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="side-panel-primary-control flex items-center border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsSignInToFollow && onSignInRequest && <button type="button" onClick={onSignInRequest} className="side-panel-primary-control flex items-center border border-[var(--hairline-strong)] px-3.5 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 Sign in to follow
               </button>}
             {!showsOwnerTools && !isSharedView && <CreatorSaveButton profileId={profile.id} name={profile.name} />}
-            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            {showsOwnerTools && onEditProfile ? <button type="button" onClick={onEditProfile} aria-label="Edit profile" title={isMobile ? 'Edit profile' : undefined} className="profile-action-button side-panel-primary-control side-panel-control-row border border-[var(--hairline-strong)] px-3 text-[11px] font-semibold text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
                 <InterfaceIcon icon={PencilIcon} size="sm" weight="medium" opticalOffset={{ y: -0.25 }} />
                 <span className="sr-only">Edit profile</span>
               </button> : null}
@@ -850,7 +852,7 @@ export function UserProfilePage({
       {!mobileContent && activeView === 'projects' && <EmployerOverview profile={profile} onOpen={project => onOpenProject(project.id,project.categoryId)} onMessage={!isMobile && !isSharedView && !showsOwnerTools && auth.isAuthenticated ? onMessage : undefined} />}
       {!isMobile && canSeeJourney && !mobileContent && <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       <main id="profile-content" data-profile-empty-work={imageryCells.length === 0 && !showsOwnerTools && !isSharedView ? '' : undefined} data-mobile-project-selected={isMobileProject ? '' : undefined} className={isWebWorkspace ? 'contents' : nestedMobileContent || isMobileWall ? "mobile-profile-workspace-content" : "w-full flex-1 px-2 pb-8 pt-1"} aria-label={`${displayName} ${activeView}`}>
-        {isJourney ? <Suspense fallback={<p role="status">Opening Journey…</p>}><JourneyView profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall ? <>
+        {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Journey…"/>}><JourneyView profile={profile} owner={showsOwnerTools} onOpen={project => onOpenProject(project.id, project.categoryId)} onEdit={showsOwnerTools ? project => projectManagement.editor.open(project.id, isMobile ? undefined : 'journey') : undefined} onEditDescription={showsOwnerTools ? project => projectManagement.editor.open(project.id, 'description') : undefined} onDelete={showsOwnerTools ? project => projectManagement.deletion.request(project.id) : undefined} onAdd={showsOwnerTools ? onAddJourneyProject ?? (() => onPublishProject?.()) : undefined} onPair={showsOwnerTools ? () => setPairSelection('') : undefined} /></Suspense> : isMobileWall ? <>
           <div className="mobile-profile-wall scrollbar-overlay" aria-hidden={mobilePortalOverlay ? true : undefined} onScroll={event => {
             mobileWallScroll.current.top = event.currentTarget.scrollTop;
             mobileWallScrollMemory?.save(event.currentTarget.scrollTop);

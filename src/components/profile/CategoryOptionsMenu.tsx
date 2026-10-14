@@ -92,7 +92,7 @@ export function CategoryOptionsMenu({ category, isHidden = false, isBusy = false
     });
   }, [isMenuOpen, isConfirmingDelete, capability, mobile]);
 
-  return <div className={`${mobile ? 'mobile-portal-options flex shrink-0 items-center' : 'absolute inset-y-0 right-2 flex items-center'} transition-opacity duration-150 ease-out motion-reduce:transition-none ${mobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
+  return <div className={`${mobile ? 'mobile-portal-options flex shrink-0 items-center' : 'absolute inset-y-0 right-2 flex items-center'} transition-opacity duration-[var(--m-fast)] ease-[var(--m-enter)] motion-reduce:transition-none ${mobile || isMenuOpen ? 'opacity-100' : 'opacity-0 focus-within:opacity-100 group-hover/row:opacity-100'}`}>
           <button type="button" data-static-icon="" disabled={disabled || isBusy} aria-label={`Options for ${category.label}`} aria-haspopup="menu" aria-expanded={isMenuOpen} onClick={(event) => {
         event.stopPropagation();
         setIsMenuOpen((open) => !open);
