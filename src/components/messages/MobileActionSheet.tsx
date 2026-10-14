@@ -15,11 +15,12 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
   const [interacted,setInteracted]=useState(false);
   const dialogRef = useRef<HTMLDivElement>(null), viewportRef = useDialogViewport(), titleId = useId();
   const [expanded, setExpanded] = useState(false);
+  const dismiss = () => motion.close(onClose, viewportRef.current);
   const start = useRef<{x:number;y:number;id:number;rest:number;offset:number} | null>(null);
   const dragged = useRef(false);
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
-  useModalFocus(true, dialogRef, ()=>motion.close(), true);
-  return <ModalPortal><div data-presentation="mobile" ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)motion.close();}}>
+  useModalFocus(true, dialogRef, dismiss, true);
+  return <ModalPortal><div data-presentation="mobile" ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
     <div ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
         if(!e.isPrimary||e.button!==0||start.current)return;
@@ -55,7 +56,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
         if(Math.abs(delta)>8)dragged.current=true;
         if(delta>=40)setExpanded(true);
         else if(delta<=-40&&expanded)setExpanded(false);
-        else if(delta<-64){setDragY(Math.max(0,from.offset-delta)-from.rest);motion.close();}
+        else if(delta<-64){setDragY(Math.max(0,from.offset-delta)-from.rest);dismiss();}
       }} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}>
         <button type="button" className="mobile-context-resize" aria-label={expanded?'Collapse actions':'Expand actions'} aria-expanded={expanded} onClick={e=>{
           if(dragged.current&&e.detail!==0){dragged.current=false;return;}
@@ -63,7 +64,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
           setInteracted(true);
           setExpanded(value=>!value);
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>
-        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={()=>motion.close()} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
+        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={dismiss} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
       </header>
       <div className="mobile-context-body">
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}

@@ -1,4 +1,3 @@
-import {sheetMotionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -78,7 +77,7 @@ test('registration composition stays in the active route kind and keeps canonica
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
 function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
- const slots=[], calls=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
+ const slots=[], calls=[], motions=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
   closest(selector) {
@@ -106,7 +105,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
  }};
  const {MobileActionSheet}=compile('../src/components/messages/MobileActionSheet.tsx',{
   react,
-  '../../presentation/motion/useSheetMotion':sheetMotionFixture,
+  '../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close(after,scope){motions.push({immediate:typeof after==='function',scope});if(after)after();else onClose();}})},
   '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:viewport})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_ref,onClose,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=onClose;}},
  },{Element:ElementStub});
@@ -121,7 +120,7 @@ function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
   isPrimary:true,button:0,pointerId:1,clientX:100,clientY:600,target:header,currentTarget:header,...overrides,
  });
  const resizeButton=()=>find(node=>node.props.className==='mobile-context-resize');
- return {render,find,calls,measurements,escape:()=>escape(),pointer,header,resize,close,resizeButton,
+ return {render,find,calls,motions,viewport,measurements,escape:()=>escape(),pointer,header,resize,close,resizeButton,
   dialog:()=>find(node=>node.props.role==='dialog'),
   clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
  };
@@ -132,10 +131,12 @@ test('the common sheet supports close, backdrop, Escape, swipe and action delega
  const close=list.find(n=>n.props['aria-label']==='Close actions'),scrim=list.find(n=>n.props.className?.includes('mobile-context-scrim'));
  close.props.onClick();h.escape();const background={};scrim.props.onClick({target:background,currentTarget:background});
  assert.deepEqual(h.calls,['close','close','close']);
+ assert.ok(h.motions.every(motion=>motion.immediate&&motion.scope===h.viewport),'Ordinary Actions dismissals release the real sheet synchronously and give the decorative exit the viewport root');
  scrim.props.onClick({target:{},currentTarget:background});assert.equal(h.calls.length,3,'Clicks inside the sheet do not dismiss it');
  list.find(n=>n.type==='button'&&nodes(n).some(x=>x.type==='span'&&x.props.children==='Explore')).props.onClick();assert.equal(h.calls.at(-1),'explore');
  h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:690});
  assert.equal(h.calls.at(-1),'close');assert.equal(h.calls.length,5);
+ assert.deepEqual(h.motions.at(-1),{immediate:true,scope:h.viewport},'Swipe dismissal follows the same interruptible exit path');
  h.pointer('onPointerDown',{target:h.close});h.pointer('onPointerUp',{clientY:690});
  assert.equal(h.calls.length,5,'A close-button press cannot also trigger a drag');
  assert.ok(list.every(n=>n.type!=='button'||n.props.disabled===undefined));
@@ -259,17 +260,17 @@ test('fast swipe thresholds and cancelled expanded gestures preserve the settled
  assert.equal(h.dialog().props.style['--sheet-drag-y'],'65px','Exit starts at the released drag position');
 });
 
-test('public action sheets retain intrinsic geometry and route dismissal through slide motion',()=>{
+test('public action sheets retain intrinsic geometry and immediately release ordinary dismissals into decorative slide motion',()=>{
  const calls=[],root={},motion={closing:false,close(after,scope){calls.push(['motion',Boolean(after),scope]);if(after)after();else calls.push('close');}};
  let escape;
  const {PublicActionSheet}=compile('../src/visitor/mobile/PublicActionSheet.tsx',{
   react:{...React,useRef:()=>({current:null}),useId:()=> 'public-title'},
   '../../presentation/motion/useSheetMotion':{useSheetMotion:()=>motion},
-  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},
+  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:root})},
   '../../hooks/useModalFocus':{useModalFocus:(open,_dialog,close,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=close;}},
  });
  const model={title:'Public actions',primary:[{id:'share',label:'Share',run(){}}],groups:[]};
- const render=()=>PublicActionSheet({model,onClose(){},onAction:action=>calls.push(['action',action.id]),children:React.createElement('button',{id:'extra'},'Extra')});
+ const render=()=>PublicActionSheet({model,onClose:()=>calls.push('close'),onAction:action=>calls.push(['action',action.id]),children:React.createElement('button',{id:'extra'},'Extra')});
  const list=nodes(render()),sheet=list.find(node=>node.props.role==='dialog'),overlay=list.find(node=>node.props.className==='public-actions-overlay');
  assert.equal(sheet.props['data-motion-sheet'],'');assert.equal(overlay.props['data-motion-scrim'],'');
  assert.equal(sheet.props.style,undefined,'Public sizing remains intrinsic');assert.equal(sheet.props['aria-labelledby'],'public-title');
@@ -277,6 +278,7 @@ test('public action sheets retain intrinsic geometry and route dismissal through
  list.find(node=>node.props['aria-label']==='Close actions').props.onClick();escape();
  const target={};overlay.props.onClick({target,currentTarget:target});overlay.props.onClick({target:{},currentTarget:target});
  assert.equal(calls.filter(call=>call==='close').length,3,'Interior clicks do not dismiss');
+ assert.ok(calls.filter(Array.isArray).every(call=>call[0]==='motion'&&call[1]===true&&call[2]===root),'Close, Escape and backdrop all remove the active modal during their original handler');
  const share=list.find(node=>node.type==='button'&&nodes(node).some(child=>child.props.children==='Share'));
  share.props.onClick({currentTarget:{closest:selector=>{assert.equal(selector,'[data-motion-scrim]');return root;}}});
  assert.deepEqual(calls.slice(-2),[['motion',true,root],['action','share']],'Native actions run in the original activation without waiting for slide exit');
@@ -301,6 +303,10 @@ test('provider re-resolves capabilities and restores context focus before handin
  tree.props.value.register('home',{route:'/',priority:0,model:contextActions('home',{signedIn:true},{handlers:{refresh:()=>calls.push('new')}})});
  const sheet=nodes(tree).find(n=>n.type==='sheet');sheet.props.onAction(sheet.props.model.groups[0][0]);
  assert.deepEqual(calls,['focus','focus','new']); assert.equal(nodes(render()).some(n=>n.type==='sheet'),false);
+ tree=render();tree.props.value.open();tree=render();
+ nodes(tree).find(n=>n.type==='sheet').props.onClose();
+ assert.equal(nodes(render()).some(n=>n.type==='sheet'),false,'Ordinary Actions dismissal releases provider state before returning');
+ assert.equal(calls.at(-1),'focus','The contextual opener regains focus without an animation wait');
  let object=contextActions('project',{signedIn:true},{handlers:{saveProject:()=>{}},labels:{saveProject:'Save project'}});
  const source=()=>object; tree=render();tree.props.value.open(source);tree=render();
  object=contextActions('project',{signedIn:true},{handlers:{saveProject:()=>{}},labels:{saveProject:'Unsave project'}});

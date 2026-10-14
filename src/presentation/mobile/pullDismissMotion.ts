@@ -29,22 +29,22 @@ export function revealPullUnderlay() {
 export function finishPullDismiss() { delete document.documentElement.dataset.mobilePullDismiss; }
 
 /** Finish the one gesture animation before the native history pop; never reset then enter. */
-export function commitPullDismiss(surface: HTMLElement, offset: number, onBack: () => void) {
+export function commitPullDismiss(surface: HTMLElement, offset: number, onBack: () => void, isCurrent: () => boolean = () => true) {
   document.documentElement.dataset.mobilePullDismiss = 'committing';
   let committed = false;
-  const finish = () => { if (committed) return; committed = true; onBack(); };
+  const finish = () => { if (committed || !isCurrent()) return; committed = true; onBack(); };
   const height = window.innerHeight;
   const duration = motionMs('slow');
   if (!duration || typeof surface.animate !== 'function') { finish(); return; }
   const animation = surface.animate([{ transform: `translate3d(0, ${offset}px, 0)` }, { transform: `translate3d(0, ${height}px, 0)` }], { duration, easing: motionEase('exit'), fill: 'forwards' });
-  void animation.finished.then(finish, () => { finishPullDismiss(); });
+  void animation.finished.then(finish, () => { if (isCurrent()) finishPullDismiss(); });
   return animation;
 }
 
-export function cancelPullDismiss(surface: HTMLElement, offset: number, restore: () => void) {
+export function cancelPullDismiss(surface: HTMLElement, offset: number, restore: () => void, isCurrent: () => boolean = () => true) {
   const duration = motionMs('base');
-  if (!duration || typeof surface.animate !== 'function') { restore(); return; }
+  if (!duration || typeof surface.animate !== 'function') { if (isCurrent()) restore(); return; }
   const animation = surface.animate([{ transform: `translate3d(0, ${offset}px, 0)` }, { transform: 'translate3d(0, 0, 0)' }], { duration, easing: motionEase(), fill: 'forwards' });
-  void animation.finished.then(() => { restore(); animation.cancel(); }, restore);
+  void animation.finished.then(() => { if (!isCurrent()) return; restore(); animation.cancel(); }, () => { if (isCurrent()) restore(); });
   return animation;
 }

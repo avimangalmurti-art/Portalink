@@ -28,6 +28,39 @@ test('pull completion performs Back once only after its one exit animation, with
  commitPullDismiss(surface,90,()=>back++);assert.equal(back,0);assert.equal(root.dataset.mobilePullDismiss,'committing');assert.equal(options.fill,'forwards');resolve();await Promise.resolve();assert.equal(back,1);resolve();await Promise.resolve();assert.equal(back,1);
 });
 
+test('superseded exit completion or cancellation cannot commit Back or hide the new underlay', async () => {
+ for (const outcome of ['finish', 'cancel']) {
+  let resolve, reject, back = 0, current = true;
+  const root = { dataset: {} }, surface = { animate: () => ({ finished: new Promise((yes, no) => { resolve = yes; reject = no; }) }) };
+  const { commitPullDismiss } = sourceModule('src/presentation/mobile/pullDismissMotion.ts', { '../motion/motion': { motionMs: () => 260, motionEase: () => 'linear' } }, { document: { documentElement: root }, window: { innerHeight: 912 } });
+  commitPullDismiss(surface, 90, () => back++, () => current);
+  if (outcome === 'finish') resolve();
+  current = false; root.dataset.mobilePullDismiss = 'tracking';
+  if (outcome === 'cancel') reject(Error('Canceled'));
+  await Promise.resolve(); assert.equal(back, 0); assert.equal(root.dataset.mobilePullDismiss, 'tracking');
+ }
+});
+
+test('superseded snap-back cannot restore a frame now owned by another touch', async () => {
+ let resolve, current = true, restored = 0, canceled = 0;
+ const surface = { animate: () => ({ finished: new Promise(yes => { resolve = yes; }), cancel: () => canceled++ }) };
+ const { cancelPullDismiss } = sourceModule('src/presentation/mobile/pullDismissMotion.ts', { '../motion/motion': { motionMs: () => 180, motionEase: () => 'linear' } });
+ cancelPullDismiss(surface, 30, () => restored++, () => current);
+ resolve(); current = false; await Promise.resolve(); assert.equal(restored, 0); assert.equal(canceled, 0);
+});
+
+test('prepared pull stage restores ancestors, placeholder and popstate ownership only once', () => {
+ let interrupted = 0, removed = 0;
+ const events = new Map(), attrs = new Set(), parent = { scrollTop: 88, scrollLeft: 9, parentElement: null };
+ const placeholder = { style: {}, setAttribute() {}, remove: () => removed++ };
+ const frame = { parentElement: parent, scrollTop: 0, style: { removeProperty() {} }, before() {}, getBoundingClientRect: () => ({ height: 900 }), setAttribute: key => attrs.add(key), removeAttribute: key => attrs.delete(key) };
+ const surface = { closest: () => frame }, window = { addEventListener: (name, fn) => events.set(name, fn), removeEventListener: name => events.delete(name) };
+ const { preparePullSurface } = sourceModule('src/presentation/mobile/pullDismissMotion.ts', { '../motion/motion': { interruptNavigationMotion: () => interrupted++ } }, { document: { scrollingElement: parent, createElement: () => placeholder }, window });
+ const stage = preparePullSurface(surface); assert.equal(stage.surface, frame); assert.equal(interrupted, 1); assert.equal(frame.scrollTop, 88); assert.equal(placeholder.style.height, '900px');
+ parent.scrollTop = 0; parent.scrollLeft = 0; stage.restore(); stage.restore();
+ assert.equal(parent.scrollTop, 88); assert.equal(parent.scrollLeft, 9); assert.equal(frame.scrollTop, 0); assert.equal(removed, 1); assert.equal(attrs.size, 0); assert.equal(events.size, 0);
+});
+
 test('dock root navigation releases prior pushed screens without resetting the current root instance',()=>{
  let id=0;const alloc=()=>id++;let state=advance(null,{entryKey:'a',action:'POP',scope:'account'},'root',{},alloc);
  state=advance(state,{entryKey:'b',action:'PUSH',scope:'account'},'person',{},alloc);

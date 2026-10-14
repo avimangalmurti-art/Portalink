@@ -78,9 +78,9 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  timers.forEach(fn=>fn());navigator.push('/p/creator');assert.deepEqual(modes,['dock','push']);
 });
 
-function profileNavigation(initial='/p/creator'){
+function profileNavigation(initial='/p/creator',motion){
  const url=new URL(initial,'https://example.test'),location={pathname:url.pathname,search:url.search,hash:url.hash};
- const calls=[],modes=[],notifications=[],listeners=new Map(),timers=new Map();let timer=0;
+ const calls=[],modes=[],notifications=[],listeners=new Map(),timers=new Map();let timer=0,interruptions=0;
  const window={location:{href:url.href},setTimeout:(fn)=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
  const href=to=>typeof to==='string'?to:`${to.pathname??location.pathname}${to.search??''}${to.hash??''}`;
  const commit=(kind,...args)=>{calls.push([kind,...args]);const next=new URL(href(args[0]),window.location.href);Object.assign(location,{pathname:next.pathname,search:next.search,hash:next.hash});window.location.href=next.href;};
@@ -89,10 +89,10 @@ function profileNavigation(initial='/p/creator'){
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>location},
   './ImageMotion':{ImageMotion:'images'},'../../features/sharing/shareModel':sourceModule('src/features/sharing/shareModel.ts'),
-  './motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],motionUpdate:(fn,mode)=>{modes.push(mode);return fn();}},
+  './motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],interruptNavigationMotion:()=>{interruptions++;motion?.interruptNavigationMotion();},motionUpdate:(fn,mode)=>{modes.push(mode);return motion?motion.motionUpdate(fn,mode):fn();}},
  },{URL,URLSearchParams,Event:class{constructor(type){this.type=type;}},document:{documentElement:{dataset:{}},addEventListener(){return;},removeEventListener(){return;},dispatchEvent:event=>notifications.push(event.type)},window});
  const wrapper=MotionNavigation({children:'profile'}),tree=wrapper.type(wrapper.props);
- return {navigator:tree.props.value.navigator,calls,modes,notifications,location,pop:()=>listeners.get('popstate')?.()};
+ return {navigator:tree.props.value.navigator,calls,modes,notifications,location,get interruptions(){return interruptions;},pop:()=>listeners.get('popstate')?.()};
 }
 
 test('profile count views swap immediately for push and replace, including returning to default Projects',()=>{
@@ -102,17 +102,20 @@ test('profile count views swap immediately for push and replace, including retur
   assert.deepEqual(h.modes,[],`${action} ${path} must not start a native or fallback navigation animation`);
   assert.deepEqual(h.calls.map(call=>call[0]),Array(5).fill(action));
   assert.deepEqual(h.notifications,Array(5).fill('portalink-before-navigation'));
+  assert.equal(h.interruptions,5);
   assert.equal(h.location.search,'');
  }
 });
 
 test('an immediate profile view change preserves router arguments, URL data and fragment',()=>{
- const h=profileNavigation('/p/creator?view=portals&fromConnections=owner#profile');
- const destination={pathname:'/p/creator',search:'?view=followers&fromConnections=owner&connectionList=following',hash:'#profile'};
- const state={profileFromDock:true},options={viewTransition:false};
- h.navigator.push(destination,state,options);
- assert.deepEqual(h.modes,[]);assert.equal(h.calls[0][1],destination);assert.equal(h.calls[0][2],state);assert.equal(h.calls[0][3],options);
- assert.equal(h.location.search,destination.search);assert.equal(h.location.hash,destination.hash);
+ for(const action of ['push','replace']){
+  const h=profileNavigation('/p/creator?view=portals&fromConnections=owner#profile');
+  const destination={pathname:'/p/creator',search:'?view=followers&fromConnections=owner&connectionList=following',hash:'#profile'};
+  const state={profileFromDock:true},options={viewTransition:false};
+  h.navigator[action](destination,state,options);
+  assert.deepEqual(h.modes,[]);assert.equal(h.calls[0][0],action);assert.equal(h.calls[0][1],destination);assert.equal(h.calls[0][2],state);assert.equal(h.calls[0][3],options);
+  assert.equal(h.location.search,destination.search);assert.equal(h.location.hash,destination.hash);assert.equal(h.interruptions,1);assert.deepEqual(h.notifications,['portalink-before-navigation']);
+ }
 });
 
 test('real destinations and unrelated profile query changes retain their existing motion',()=>{
@@ -256,3 +259,164 @@ test('all browser router entries let the motion adapter commit synchronously',()
 test('a pull dismissal commits history without a second native or fallback entrance',()=>{const r=runtime();r.root.dataset.mobilePullDismiss='committing';r.api.motionUpdate(r.update,'back');assert.equal(r.updates,1);assert.equal(r.native,0);assert.equal(r.root.dataset.motionNavigation,undefined);assert.equal(r.root.dataset.mobilePullDismiss,'committing');});
 
 test('a direct gesture interrupts unfinished navigation instead of competing with its snapshot',()=>{const r=runtime();r.api.motionUpdate(r.update,'push');r.api.interruptNavigationMotion();assert.equal(r.root.dataset.motionUpdating,undefined);assert.equal(r.root.dataset.motionNavigation,undefined);assert.equal(r.native,1);});
+
+const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
+const settleMotion=()=>new Promise(resolve=>setImmediate(resolve));
+/** Controlled browser callbacks expose races without relying on animation timing. */
+function navigationRuntime({native=false,continuity=false}={}){
+ const root={dataset:{}},nodes=[],animations=[],nativeTransitions=[],frames=new Map(),timers=new Map(),notifications=[];
+ let frameId=0,timerId=0,reduce=false,destinations=0,clears=0;
+ class Surface{
+  dataset={};style={};inert=false;isConnected=true;
+  setAttribute(){}
+  append(){}
+  getBoundingClientRect(){return {top:16,left:0,width:420,height:896};}
+  cloneNode(){return new Surface();}
+  remove(){this.isConnected=false;const index=nodes.indexOf(this);if(index!==-1)nodes.splice(index,1);}
+  animate(keyframes,options){
+   const completion=deferred(),animation={keyframes,options,finished:completion.promise,canceled:0,finish:completion.resolve,cancel(){this.canceled++;completion.reject(Error('Animation canceled'));}};
+   animations.push(animation);return animation;
+  }
+ }
+ const main=new Surface(),host={append:node=>nodes.push(node)};
+ const document={documentElement:root,createElement:()=>new Surface(),dispatchEvent:event=>notifications.push(event.type),
+  querySelector:selector=>selector==='.codex-shell'?host:selector==='.app-screen-layer.screen-active > main'?main:null,
+  querySelectorAll:()=>nodes.filter(node=>'motionSnapshot' in node.dataset||'motionPendingReader' in node.dataset),
+ };
+ if(native)document.startViewTransition=callback=>{
+  const ready=deferred(),done=deferred(),finished=deferred();
+  const transition={ready:ready.promise,updateCallbackDone:done.promise,finished:finished.promise,skips:0,skipTransition(){this.skips++;}};
+  nativeTransitions.push({transition,ready,done,finished,commit(){const result=callback();void Promise.resolve(result).then(done.resolve,done.reject);return result;}});return transition;
+ };
+ const window={matchMedia:()=>({matches:reduce}),setTimeout:(fn,duration)=>{timers.set(++timerId,{fn,duration});return timerId;},clearTimeout:id=>timers.delete(id)};
+ const api=sourceModule('src/presentation/motion/motion.ts',{'react-dom':{flushSync:fn=>fn()},'../../utils/projectContinuity':{
+  beginProjectContinuity(){},isProjectContinuityActive:()=>continuity,markProjectContinuityDestination(){destinations++;},finishProjectContinuity(){clears++;},
+ }},{document,window,Event:class{constructor(type){this.type=type;}},requestAnimationFrame:fn=>{frames.set(++frameId,fn);return frameId;},cancelAnimationFrame:id=>frames.delete(id),
+  getComputedStyle:()=>({getPropertyValue:name=>({'--m-fast':'120ms','--m-base':'180ms','--m-slow':'260ms','--m-enter':'linear','--m-exit':'linear'}[name]||'')})});
+ const runFrame=()=>{const [id,fn]=frames.entries().next().value;frames.delete(id);fn();};
+ return {api,root,document,nodes,animations,nativeTransitions,frames,timers,notifications,runFrame,setReduced:value=>{reduce=value;},get destinations(){return destinations;},get clears(){return clears;}};
+}
+
+test('interrupting an async fallback prevents its late completion from restarting motion or continuity',async()=>{
+ const r=navigationRuntime(),operation=deferred();let updates=0;
+ r.api.motionUpdate(()=>{updates++;return operation.promise;},'back');assert.equal(r.nodes.length,1);
+ r.api.interruptNavigationMotion();assert.equal(r.nodes.length,0);assert.equal(r.root.dataset.motionUpdating,undefined);
+ operation.resolve();await settleMotion();
+ assert.equal(updates,1);assert.equal(r.animations.length,0);assert.equal(r.destinations,0);assert.equal(r.timers.size,0);
+ assert.deepEqual(r.notifications,['portalink-motion-finished']);
+});
+
+test('an async fallback superseded by a new route cannot animate or clear the new route',async()=>{
+ const r=navigationRuntime(),operation=deferred(),updates=[];
+ r.api.motionUpdate(()=>{updates.push('old');return operation.promise;},'dock');const old=r.nodes[0];
+ r.api.motionUpdate(()=>updates.push('new'),'push');await settleMotion();
+ assert.deepEqual(updates,['old','new']);assert.equal(old.isConnected,false);assert.equal(r.nodes.length,1);assert.equal(r.animations.length,2);
+ assert.equal(r.root.dataset.motionNavigation,'push');const marks=r.destinations;
+ operation.resolve();await settleMotion();assert.equal(r.animations.length,2);assert.equal(r.destinations,marks);assert.equal(r.nodes.length,1);assert.equal(r.root.dataset.motionNavigation,'push');
+ r.animations.at(-1).finish();await settleMotion();assert.equal(r.nodes.length,0);assert.equal(r.root.dataset.motionNavigation,undefined);
+});
+
+test('repeated fallback navigation cancels existing animations and snapshots before the next entry',async()=>{
+ const r=navigationRuntime(),updates=[];
+ r.api.motionUpdate(()=>updates.push('first'),'dock');await settleMotion();const old=r.nodes[0],first=r.animations.slice();
+ r.api.motionUpdate(()=>updates.push('second'),'push');assert.equal(old.isConnected,false);assert.ok(first.every(animation=>animation.canceled===1));
+ await settleMotion();assert.deepEqual(updates,['first','second']);assert.equal(r.nodes.length,1);assert.equal(r.animations.length,4);assert.equal(r.root.dataset.motionNavigation,'push');
+ r.api.interruptNavigationMotion();await settleMotion();assert.ok(r.animations.every(animation=>animation.canceled===1));assert.equal(r.nodes.length,0);assert.equal(r.root.dataset.motionUpdating,undefined);
+});
+
+test('a new request flushes a deferred reader commit in order and cancels its stale animation frames',async()=>{
+ const r=navigationRuntime({continuity:true}),updates=[];
+ r.api.motionUpdate(()=>updates.push('first'),'push');const staleFrame=[...r.frames.values()][0];assert.equal(updates.length,0);assert.equal(r.nodes.length,1);
+ r.api.motionUpdate(()=>updates.push('second'),'push');assert.deepEqual(updates,['first']);assert.equal(r.frames.size,1);assert.equal(r.nodes.length,1);
+ staleFrame();assert.deepEqual(updates,['first']);assert.equal(r.frames.size,1);
+ r.runFrame();r.runFrame();await settleMotion();assert.deepEqual(updates,['first','second']);assert.equal(r.frames.size,0);assert.equal(r.nodes.length,1);assert.equal(r.animations.length,2);
+ r.api.interruptNavigationMotion();await settleMotion();assert.equal(r.nodes.length,0);
+});
+
+test('a gesture interrupt commits a reserved route once without replaying its deferred entrance',async()=>{
+ const r=navigationRuntime({continuity:true});let updates=0;
+ r.api.motionUpdate(()=>updates++,'push');r.runFrame();const staleFrame=[...r.frames.values()][0];
+ r.api.interruptNavigationMotion();assert.equal(updates,1);assert.equal(r.frames.size,0);assert.equal(r.nodes.length,0);
+ staleFrame();await settleMotion();assert.equal(updates,1);assert.equal(r.animations.length,0);assert.equal(r.destinations,0);assert.equal(r.root.dataset.motionUpdating,undefined);
+});
+
+test('late native callbacks preserve requested history work exactly once after direct interruption',async()=>{
+ const r=navigationRuntime({native:true}),history=deferred(),calls=[];
+ r.api.motionUpdate(()=>{calls.push(-1);return history.promise;},'back');assert.deepEqual(calls,[]);
+ r.api.interruptNavigationMotion();assert.deepEqual(calls,[-1]);assert.equal(r.nativeTransitions[0].transition.skips,1);
+ const result=r.nativeTransitions[0].commit();assert.deepEqual(calls,[-1]);history.resolve();await result;
+ r.nativeTransitions[0].finished.resolve();await settleMotion();assert.equal(r.destinations,0);assert.equal(r.animations.length,0);assert.equal(r.root.dataset.motionNavigation,undefined);
+});
+
+test('native supersession commits pending requests in order even when the old browser callback arrives later',async()=>{
+ const r=navigationRuntime({native:true}),calls=[];
+ r.api.motionUpdate(()=>calls.push('first'),'dock');r.api.motionUpdate(()=>calls.push('second'),'push');
+ assert.deepEqual(calls,['first']);assert.equal(r.nativeTransitions[0].transition.skips,1);
+ r.nativeTransitions[0].commit();assert.deepEqual(calls,['first']);r.nativeTransitions[1].commit();assert.deepEqual(calls,['first','second']);
+ r.nativeTransitions[0].finished.resolve();await settleMotion();assert.equal(r.root.dataset.motionNavigation,'push');
+ r.nativeTransitions[1].finished.resolve();await settleMotion();assert.equal(r.root.dataset.motionNavigation,undefined);
+});
+
+test('reduced motion enabled during navigation cancels old feedback and retains both requests',async()=>{
+ for(const native of [false,true]){
+  const r=navigationRuntime({native}),calls=[];
+  r.api.motionUpdate(()=>calls.push('first'),'dock');if(!native)await settleMotion();
+  r.setReduced(true);r.api.motionUpdate(()=>calls.push('second'),'push');await settleMotion();
+  assert.deepEqual(calls,['first','second']);assert.equal(r.root.dataset.motionUpdating,undefined);assert.equal(r.nodes.length,0);assert.equal(r.api.motionMs('slow'),0);
+  if(native){assert.equal(r.nativeTransitions.length,1);assert.equal(r.nativeTransitions[0].transition.skips,1);r.nativeTransitions[0].commit();r.nativeTransitions[0].finished.resolve();await settleMotion();assert.deepEqual(calls,['first','second']);}
+  else assert.ok(r.animations.every(animation=>animation.canceled===1));
+ }
+});
+
+test('a native ready-rejection entrance remains cancelable after native snapshot completion',async()=>{
+ for(const next of ['gesture','navigation']){
+  const r=navigationRuntime({native:true});let updates=0;
+  r.api.motionUpdate(()=>updates++,'dock');const first=r.nativeTransitions[0];first.commit();first.ready.reject(Error('Snapshot unavailable'));await settleMotion();
+  assert.equal(updates,1);assert.equal(r.animations.length,1);assert.equal(r.animations[0].options.duration,180);assert.equal(r.root.dataset.motionUpdating,undefined);
+  first.finished.resolve();await settleMotion();
+  if(next==='gesture')r.api.interruptNavigationMotion();else r.api.motionUpdate(()=>updates++,'push');
+  assert.equal(r.animations[0].canceled,1);await settleMotion();
+  if(next==='navigation'){assert.equal(r.root.dataset.motionNavigation,'push');r.nativeTransitions[1].commit();assert.equal(updates,2);r.nativeTransitions[1].finished.resolve();await settleMotion();}
+  assert.equal(r.root.dataset.motionNavigation,undefined);
+ }
+});
+
+test('a native ready rejection after interruption cannot restart an entrance fade',async()=>{
+ const r=navigationRuntime({native:true});let updates=0;
+ r.api.motionUpdate(()=>updates++,'dock');const transition=r.nativeTransitions[0];r.api.interruptNavigationMotion();transition.commit();transition.ready.reject(Error('Snapshot unavailable'));transition.finished.resolve();await settleMotion();
+ assert.equal(updates,1);assert.equal(r.animations.length,0);assert.equal(r.root.dataset.motionUpdating,undefined);
+});
+
+test('a native API error cannot duplicate a route when its retained callback runs after fallback',async()=>{
+ const r=navigationRuntime();let callback,updates=0;
+ r.document.startViewTransition=update=>{callback=update;throw Error('Native API unavailable');};
+ r.api.motionUpdate(()=>updates++,'back');await settleMotion();assert.equal(updates,1);callback();assert.equal(updates,1);
+ r.api.interruptNavigationMotion();await settleMotion();assert.equal(r.nodes.length,0);
+});
+
+test('a synchronous native callback interrupted while committing cannot reclaim motion ownership',()=>{
+ const r=navigationRuntime();let skips=0,updates=0;
+ r.document.startViewTransition=update=>{void update();return {ready:Promise.resolve(),updateCallbackDone:Promise.resolve(),finished:new Promise(()=>{}),skipTransition(){skips++;}};};
+ r.api.motionUpdate(()=>{updates++;r.api.interruptNavigationMotion();},'push');
+ assert.equal(updates,1);assert.equal(skips,1);assert.equal(r.root.dataset.motionUpdating,undefined);
+ r.api.interruptNavigationMotion();assert.equal(skips,1);
+});
+
+test('deliberate profile-view swaps cancel prior native and fallback feedback without a new transition',async()=>{
+ for(const native of [false,true])for(const action of ['push','replace']){
+  const r=navigationRuntime({native});let priorUpdates=0;
+  r.api.motionUpdate(()=>priorUpdates++,'push');if(!native)await settleMotion();
+  const animationCount=r.animations.length,h=profileNavigation('/p/creator',r.api),state={fromProfile:true},options={viewTransition:false};
+  h.navigator[action]('/p/creator?view=followers',state,options);await settleMotion();
+  assert.equal(priorUpdates,1);assert.equal(h.interruptions,1);assert.deepEqual(h.modes,[]);assert.deepEqual(h.calls,[[action,'/p/creator?view=followers',state,options]]);assert.deepEqual(h.notifications,['portalink-before-navigation']);
+  assert.equal(r.nodes.length,0);assert.equal(r.root.dataset.motionUpdating,undefined);assert.equal(r.root.dataset.motionNavigation,undefined);assert.equal(r.animations.length,animationCount);
+  if(native){assert.equal(r.nativeTransitions.length,1);assert.equal(r.nativeTransitions[0].transition.skips,1);r.nativeTransitions[0].commit();r.nativeTransitions[0].finished.resolve();await settleMotion();assert.equal(priorUpdates,1);}
+  else assert.ok(r.animations.every(animation=>animation.canceled===1));
+ }
+});
+
+test('automatic query replacement does not acquire deliberate profile-tab interruption behavior',()=>{
+ for(const [from,to] of [['/p/creator','/p/creator?sort=name'],['/search?q=a','/search?q=ab'],['/p/creator?view=followers','/p/creator?view=followers&sort=name']]){
+  const h=profileNavigation(from);h.navigator.replace(to);assert.equal(h.interruptions,0);assert.deepEqual(h.modes,[]);assert.deepEqual(h.calls,[['replace',to]]);assert.deepEqual(h.notifications,['portalink-before-navigation']);
+ }
+});

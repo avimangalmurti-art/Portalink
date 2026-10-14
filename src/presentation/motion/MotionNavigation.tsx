@@ -3,7 +3,7 @@ import {MotionConfig,useReducedMotion} from 'framer-motion';
 import React,{useContext,useLayoutEffect,useMemo,useRef} from 'react';
 import {UNSAFE_NavigationContext,useLocation} from 'react-router-dom';
 import {ImageMotion} from './ImageMotion';
-import {motionUpdate,motionMs,motionSeconds,motionCurve,type NavigationMotion} from './motion';
+import {motionUpdate,interruptNavigationMotion,motionMs,motionSeconds,motionCurve,type NavigationMotion} from './motion';
 import {handleFromPath} from '../../features/sharing/shareModel';
 /** One adapter preserves the router's URLs, history and permission decisions. */
 export function MotionNavigation({children}:{children:React.ReactNode}){
@@ -37,11 +37,11 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
   function mode(to:Parameters<typeof original.push>[0]):NavigationMotion{const destination=new URL(original.createHref(to),window.location.href);if(dock.current){dock.current=false;return 'dock';}return destination.pathname===latest.current.pathname&&new URLSearchParams(destination.search).has('collection')?'tabs':'push';}
   return {...original,push:(...args:Parameters<typeof original.push>)=>{
    const destination=new URL(original.createHref(args[0]),window.location.href);
-   if(profileViewChange(destination)){dock.current=false;before('tabs');return original.push(...args);}
+   if(profileViewChange(destination)){dock.current=false;interruptNavigationMotion();before('tabs');return original.push(...args);}
    const direction=mode(args[0]);return motionUpdate(()=>{before(direction);original.push(...args);},direction);
   },replace:(...args:Parameters<typeof original.replace>)=>{
    const destination=new URL(original.createHref(args[0]),window.location.href);
-   if(profileViewChange(destination)){dock.current=false;before('tabs');return original.replace(...args);}
+   if(profileViewChange(destination)){dock.current=false;interruptNavigationMotion();before('tabs');return original.replace(...args);}
    // Search typing and automatic route canonicalisation must stay immediate.
    if(!new URLSearchParams(destination.search).has('collection')&&!new URLSearchParams(destination.search).has('section')){before();return original.replace(...args);}
    const direction=mode(args[0]);motionUpdate(()=>{before(direction);original.replace(...args);},direction);
