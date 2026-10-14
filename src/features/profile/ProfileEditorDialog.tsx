@@ -13,6 +13,21 @@ import { NAME_MAX_LENGTH } from './validation';
 import { usePresentation } from '../../presentation/usePresentation';
 import './profileEditorPage.css';
 
+function ProfilePreferenceSwitch({ label, checked, disabled, onChange }: {
+  label: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return <label className="flex min-h-11 items-center justify-between gap-4 text-sm">
+    <span>{label}</span>
+    <span className="profile-preference-switch">
+      <input type="checkbox" role="switch" checked={checked} disabled={disabled} onChange={event => onChange(event.target.checked)} />
+      <span className="profile-preference-switch-track" aria-hidden="true" />
+    </span>
+  </label>;
+}
+
 /**
  * The owner's identity editor.
  *
@@ -117,12 +132,9 @@ export function ProfileEditorPage({
                   </select>
                 </label>
               </MobileProfileAvatarEditor>
-              <label className="flex min-h-11 items-center justify-between gap-4 text-sm">
-                Show Journey publicly
-                <input type="checkbox" checked={fields.showJourney} disabled={isBusy} onChange={event => editor.setShowJourney(event.target.checked)} />
-              </label>
-
-              <label className="flex min-h-11 items-center justify-between gap-4 text-sm">Show what I cite<input type="checkbox" checked={fields.showOutgoingCitations} disabled={isBusy} onChange={e=>editor.setCitationPreference('showOutgoingCitations',e.target.checked)}/></label><label className="flex min-h-11 items-center justify-between gap-4 text-sm">Show who cites me<input type="checkbox" checked={fields.showIncomingCitations} disabled={isBusy} onChange={e=>editor.setCitationPreference('showIncomingCitations',e.target.checked)}/></label>
+              <ProfilePreferenceSwitch label="Show Journey publicly" checked={fields.showJourney} disabled={isBusy} onChange={editor.setShowJourney} />
+              <ProfilePreferenceSwitch label="Show what I cite" checked={fields.showOutgoingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showOutgoingCitations', checked)} />
+              <ProfilePreferenceSwitch label="Show who cites me" checked={fields.showIncomingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showIncomingCitations', checked)} />
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />
               <ProfileLocationPicker id="profile-editor-city" value={fields.location} error={fieldErrors.location} disabled={isBusy} onChange={value => editor.setField('location', value)} />
               </section>
