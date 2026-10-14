@@ -1,5 +1,5 @@
 import { handleFromPath } from '../features/sharing/shareModel';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { Navigate, matchPath, useLocation } from 'react-router-dom';
 import { App } from '../App';
@@ -54,15 +54,9 @@ export function ApplicationBootstrap() {
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const isWelcomeInvite = pathname === '/' && new URLSearchParams(search).get('welcome') === '1' && !isAuthCallback && !isRecovery;
-  const invitePresented = useRef(false);
-  useEffect(() => {
-    if (!isWelcomeInvite || auth.isInitializing || auth.isAuthenticated || invitePresented.current) return;
-    invitePresented.current = true;
-    auth.requestAuth('signUp');
-  }, [isWelcomeInvite, auth]);
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
-  const [landingPath] = useState(() => presentation === 'mobile'
+  const [landingPath] = useState(() => (presentation === 'mobile' || isWelcomeInvite)
     && !isAuthCallback && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
@@ -73,7 +67,7 @@ export function ApplicationBootstrap() {
   const sessionSharedProfileId = isWelcomeInvite ? null : readSharedViewerProfileId();
   // A newly opened public URL is authoritative, even after visiting another creator.
   const lockedSharedProfileId = auth.isAuthenticated ? null : routeSharedProfileId ?? sessionSharedProfileId;
-  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && presentation === 'mobile' && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
+  const holdLanding = Boolean(!isSharedView && landingPath && !hasLeftLanding && (presentation === 'mobile' || isWelcomeInvite) && !auth.isInitializing && !auth.isAuthenticated && !isRecovery);
 
   useEffect(() => {
     // Public links open directly. Later navigation must not replay an intro
@@ -89,8 +83,8 @@ export function ApplicationBootstrap() {
   }, [holdLanding]);
 
   useEffect(() => {
-    if (auth.isAuthenticated || isRecovery || presentation !== 'mobile') setHasLeftLanding(true);
-  }, [auth.isAuthenticated, isRecovery, presentation]);
+    if (auth.isAuthenticated || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite)) setHasLeftLanding(true);
+  }, [auth.isAuthenticated, isRecovery, presentation, isWelcomeInvite]);
 
   useEffect(() => {
     if (!auth.isInitializing && (hasSplashCompleted || hasPresentedLanding) && !holdLanding) setHasStartupCompleted(true);
@@ -128,7 +122,8 @@ export function ApplicationBootstrap() {
       }}>
         {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
-          hidden={Boolean(landingPath && (auth.pendingView || (auth.isAuthenticated && hasPresentedLanding) || isRecovery || (presentation !== 'mobile' && hasPresentedLanding)))}
+          welcomeHandoff={hasPresentedLanding && auth.isAuthenticated}
+          hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
           landing={holdLanding ? {
             ready: !auth.isInitializing,
             onCreateAccount: () => startAccount('signUp'),
