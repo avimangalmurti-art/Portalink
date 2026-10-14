@@ -1,3 +1,9 @@
+## 2026-10-13 - Mobile connection name centering and reading motion
+
+Owned logs/connection-name-motion / codex/connection-name-motion from live Sites395 f29de97. Followers/Following opt into centered labels and measured22px/sec eased travel with endpoint pauses rather than260ms sweeps. Short names stay centered; reduced-motion wraps. Home attribution and WEB unchanged. No service/data/SQL changes.
+
+44 focused tests, typecheck, lint0errors(existing warnings), build and main/visitorSupabase graph guards pass. Synthetic browser420Followers avatar/label centers identical;390Following; reducedmotion wrapping;1280WEB legacy labels. Screenshot ignored logs/qa/followers-centered.png. PhysicaliPhone unverified. Source f766edf; PR/publication receipt follows. GitHubmain/CIbilling deferred; pendingStudioheader/popupmotion separate.
+
 ## 2026-10-13 - Large document density stability
 
 Owned logs/large-document-density / codex/large-document-density, exactliveSites394 basec5c8b83. User reports mobile crash when many pages/row on100+page documents; one/page works. Workererrors readreturnednone; browsermemorypressure path found: dense processed-document grid kept full-resolution original img elements. New DocumentGridPreview onlymobile overviewcols>1: viewport120pxbuffer, display-sized canvas (max512wide/2048high), 2job global queue, bitmapresize or boundednative-image fallback, aborttimeouts/cancellation/close/revoke andoffscreenzero. Focusedfullresolution andsinglecolumn/WEBimg paths retained. Mobile rawPDF overview shares2jobqueue, starts20s timeoutonactualrender notqueuewait, cleanupPDFart beforebackgroundtextandaftertext; nearbuffer120; focused/WEBdirectpaint remain. No visiblecontrols/header/pagecount/order/theme changes, noSQL/backend/auth changes.
