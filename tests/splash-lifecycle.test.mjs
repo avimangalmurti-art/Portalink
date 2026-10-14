@@ -433,6 +433,12 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
   [app, presence] = render();
   assert.equal(app.type, 'app', 'data starts loading before the intro completes');
   assert.equal(presence.props.children.type, 'splash');
+  if (first === 'auth') {
+    [app, presence] = render();
+    assert.equal(app.type, 'app');
+    assert.equal(presence.props.children.type, 'splash', 'fast authentication cannot truncate playback');
+    assert.equal(presence.props.children.props.stillOnly, false);
+  }
   presence.props.children.props.onComplete();
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
@@ -555,15 +561,19 @@ test('invitation marker does not override signed-in, recovery or authentication 
   ordinary.render(); assert.equal(ordinary.app.type,'redirect','ordinary guest navigation keeps its existing shared-profile boundary');
 });
 
-test('restored MOBILE sessions release the intro immediately when authentication is ready', () => {
-  const h=sharedBootstrap({path:'/',search:''}); let splash=h.render();
+test('restored MOBILE and WEB sessions finish the splash while ready screens load beneath it', () => {
+ for (const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({path:'/',search:'',presentation}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
-  assert.equal(splash.props.timedIntro,true); assert.equal(h.app,null);
+  assert.equal(splash.props.timedIntro,presentation==='mobile'); assert.equal(h.app,null);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
   splash=h.render(); splash=h.render();
-  assert.equal(splash,null); assert.equal(h.app.type,'app');
+  assert.equal(splash.type,'splash'); assert.equal(splash.props.stillOnly,false);
+  assert.equal(h.app.type,'app');
+  splash.props.onComplete(); h.render(); assert.equal(h.render(),null);
   assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
   h.render(); h.location.pathname='/messages'; assert.equal(h.render(),null);
+ }
 });
 
 test('a slow MOBILE session shows loading after the intro without extending video or revealing protected content', () => {
@@ -574,11 +584,12 @@ test('a slow MOBILE session shows loading after the intro without extending vide
   assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
 });
 
-test('rotation preserves the authentication wait and releases it as soon as the session is ready', () => {
+test('rotation preserves complete splash playback while the ready screen loads', () => {
   const h=sharedBootstrap({path:'/',search:''}); h.render(); h.setPresentation('web');
   let splash=h.render(); assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true; splash=h.render();
-  h.render(); assert.equal(h.render(),null);
+  splash=h.render(); assert.equal(splash.type,'splash'); assert.equal(h.app.type,'app');
+  splash.props.onComplete(); h.render(); assert.equal(h.render(),null);
 });
 
 test('root mobile landing waits for verified guest status, then stays behind account forms', () => {

@@ -91,9 +91,9 @@ export function ApplicationBootstrap() {
   }, [auth.isAuthenticated, isRecovery, presentation, isWelcomeInvite]);
 
   useEffect(() => {
-    // Session readiness releases the screen; the intro is no longer a mandatory wait.
-    if (!auth.isInitializing && !holdLanding) setHasStartupCompleted(true);
-  }, [auth.isInitializing, holdLanding]);
+    // Ready screens load beneath the splash while its complete intro plays.
+    if (!auth.isInitializing && (hasSplashCompleted || hasPresentedLanding) && !holdLanding) setHasStartupCompleted(true);
+  }, [auth.isInitializing, hasSplashCompleted, hasPresentedLanding, holdLanding]);
 
   const startAccount = (view: 'signIn' | 'signUp' | 'forgotPassword') => {
     auth.requestAuth(view);
