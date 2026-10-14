@@ -12,7 +12,7 @@ import { matchPath } from 'react-router-dom';
 
 function hooks() {
   const slots = [], effects = [], timers = new Map();
-  let cursor = 0, timerId = 0;
+  let cursor = 0, timerId = 0, now = 0;
   return {
     react: { ...React,
       useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
@@ -40,10 +40,21 @@ function hooks() {
       },
     },
     window: {
-      setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay }); return id; },
+      setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay, due: now + delay }); return id; },
       clearTimeout(id) { timers.delete(id); },
     },
     timers,
+    advance(ms) {
+      const end = now + ms;
+      let calls = 0;
+      for (;;) {
+        const next = [...timers.entries()].filter(([, timer]) => timer.due <= end).sort((a,b) => a[1].due-b[1].due)[0];
+        if (!next) break;
+        assert.ok(calls++ < 100, 'Timers must remain bounded');
+        now = next[1].due; timers.delete(next[0]); next[1].fn();
+      }
+      now = end;
+    },
     render(fn) { cursor = 0; return fn(); },
     flush() { effects.splice(0).forEach(fn => fn()); },
     restartEffects() { slots.forEach(slot => { if (slot?.effect) { slot.cleanup?.(); slot.cleanup = slot.effect(); } }); },
@@ -85,7 +96,8 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     removeEventListener(name, fn) { if (docListeners.get(name) === fn) docListeners.delete(name); },
   };
   const video = {
-    paused: true, ended: false, readyState: 0,
+    paused: true, ended: false, readyState: 0, duration: 44 / 30,
+    buffered: { length: 0, end: () => 44 / 30 },
     setAttribute() {},
     addEventListener(name, fn) { listeners.set(name, fn); },
     removeEventListener(name, fn) { if (listeners.get(name) === fn) listeners.delete(name); },
@@ -93,9 +105,9 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     cancelVideoFrameCallback(id) { frames.delete(id); },
     play() {
       plays++;
-      if (throws) throw Error('playback unavailable');
+      if (throws) throw Object.assign(Error('playback unavailable'), { name: 'NotSupportedError' });
       if (play) return play(plays);
-      return blocked ? Promise.reject(Error('autoplay blocked')) : Promise.resolve();
+      return blocked ? Promise.reject(Object.assign(Error('autoplay blocked'), { name: 'NotAllowedError' })) : Promise.resolve();
     },
     pause() { pauses++; this.paused = true; listeners.get('pause')?.(); },
   };
@@ -103,6 +115,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
+    './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
   }, { window: h.window, document });
   const onComplete = () => completed++;
   return { ...h,
@@ -110,16 +123,22 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
       const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
-      const [poster, media] = tree.props.children[0].props.children.props.children;
+      const [poster, backup, media] = tree.props.children[0].props.children.props.children;
       if (media) media.ref.current = video;
-      h.flush(); return { poster, media, tree };
+      h.flush(); return { poster, backup, media, tree };
     },
-    start() { video.paused = false; video.readyState = 2; listeners.get('playing')?.(); },
+    decoded() { video.readyState = 2; listeners.get('loadeddata')?.(); },
+    buffer() { video.readyState = 4; video.buffered.length = 1; listeners.get('canplaythrough')?.(); },
+    start() { video.readyState = 4; video.buffered.length = 1; listeners.get('canplaythrough')?.(); video.paused = false; video.ended = false; listeners.get('playing')?.(); },
+    backupLoaded() { const { backup } = this.render(); assert.ok(backup); backup.props.onLoad(); },
+    backupFailed() { const { backup } = this.render(); assert.ok(backup); backup.props.onError(); },
     paint() { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(fn => fn()); },
     emit(name) { if (name === 'ended') video.ended = true; if (name === 'pause') video.paused = true; listeners.get(name)?.(); },
     hide() { document.hidden = true; docListeners.get('visibilitychange')?.(); },
     foreground() { document.hidden = false; docListeners.get('visibilitychange')?.(); },
     setHidden(value) { surfaceHidden = value; },
+    setStillOnly(value) { stillOnly = value; },
+    setHandoff(value) { welcomeHandoff = value; },
     setLanding(value) { landing = value; },
     timer(delay) { const entry = [...h.timers.entries()].find(([, timer]) => timer.delay === delay); assert.ok(entry, `missing timer ${delay}`); h.timers.delete(entry[0]); entry[1].fn(); },
     listeners, docListeners, windowListeners, frames, modalCalls,
@@ -134,298 +153,247 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   };
 }
 
-test('embedded Hello World media uses the looping mobile clip on both platforms without a startup overlay or landing focus', () => {
-  for (const presentation of ['mobile', 'web']) {
-    const h = loader({ presentation, welcomeMedia: true });
-    let { tree, poster, media } = h.render();
-    const mediaKey = media.key;
-    assert.equal(tree.props.className, 'portalink-welcome-media');
-    assert.equal(tree.props['data-portalink-splash'], undefined);
-    assert.equal(tree.props['data-share-landing'], undefined);
-    assert.equal(tree.props['data-presentation'], presentation);
-    assert.equal(tree.props.role, 'img');
-    assert.equal(tree.props['aria-label'], 'Hello World — Portalink');
-    assert.equal(tree.props['aria-live'], undefined);
-    assert.equal(tree.props['aria-modal'], undefined);
-    assert.equal(tree.props.tabIndex, undefined);
-    assert.equal(tree.props.children[1], undefined);
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
-    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=9c1a9457');
-    assert.equal(media.props.poster, undefined);
-    assert.equal(media.props.loop, true);
-    assert.equal(media.props.controls, false);
-    assert.equal(media.props.width, 512);
-    assert.equal(media.props.height, 720);
-    assert.equal(h.modalCalls.some(Boolean), false);
-    assert.equal([...h.timers.values()].some(timer => [600, 880, 1500].includes(timer.delay)), false,
-      'Embedded media must not schedule first-frame or startup exit budgets');
-    h.start(); h.paint();
-    assert.equal(h.render().media.props.style.opacity, 1);
-    assert.equal(h.timers.size, 0, 'Healthy embedded playback has no deadline');
-    // A prolonged interruption can trigger playback recovery, but cannot expire the embedded surface.
-    h.emit('waiting'); h.timer(2200); h.timer(800); h.start(); h.paint();
-    ({ tree, poster, media } = h.render());
-    assert.equal(tree.props.className, 'portalink-welcome-media');
-    assert.equal(media.key, mediaKey);
-    assert.equal(media.props.loop, true);
-    assert.equal(media.props.style.opacity, 1);
-    assert.equal(h.timers.size, 0);
-    assert.equal(h.modalCalls.some(Boolean), false);
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
-    h.unmount();
-    assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0); assert.equal(h.windowListeners.size, 0);
+test('both startup layouts have inline artwork immediately and request only the supplied video', () => {
+  for (const presentation of ['mobile','web']) {
+    const h=loader({presentation,timedIntro:true}),{poster,backup,media}=h.render();
+    assert.match(poster.props.src,/^data:image\/webp;base64,/);
+    assert.equal(poster.props.decoding,'sync');assert.equal(poster.props.style,undefined);
+    assert.equal(backup,false,'The609KB animated backup is not requested beside the cold video');
+    assert.equal(media.props.src,'/portalink-splash-mobile.mp4?v=9c1a9457');
+    assert.equal(media.props.width,512);assert.equal(media.props.height,720);
+    assert.equal(media.props.loop,false);assert.equal(media.props.autoPlay,false);
+    assert.equal(media.props.controls,false);assert.equal(media.props.preload,'auto');
+    assert.equal(media.props.style.opacity,0);assert.equal(h.plays,0);
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===600),false);
+    assert.equal(h.completed,0);h.unmount();assert.equal(h.timers.size,0);
   }
 });
 
-test('embedded welcome media keeps an animated fallback after blocked autoplay and bounded retries on MOBILE and WEB', async () => {
-  for (const presentation of ['mobile', 'web']) {
-    const h = loader({ presentation, welcomeMedia: true, blocked: true });
-    h.render(); await Promise.resolve();
-    for (let retry = 0; retry < 2; retry++) { h.timer(800); await Promise.resolve(); }
-    const { tree, poster, media } = h.render();
-    assert.equal(h.plays, 3);
-    assert.equal(h.timers.size, 0, 'Repeated policy rejection stops retries without expiring the form media');
-    assert.equal(tree.props.className, 'portalink-welcome-media');
-    assert.equal(tree.props['data-portalink-splash'], undefined);
-    assert.equal(tree.props['aria-live'], undefined);
-    assert.equal(media.type, 'video');
-    assert.equal(media.props.loop, true);
-    assert.equal(media.props.poster, undefined);
-    assert.equal(media.props.style.opacity, 0);
-    assert.equal(poster.type, 'img');
-    assert.equal(poster.props.src, '/portalink-welcome-loop.webp?v=307bdea0');
-    assert.notEqual(poster.props.style?.visibility, 'hidden');
-    assert.equal(h.modalCalls.some(Boolean), false);
-    h.unmount(); assert.equal(h.frames.size, 0); assert.equal(h.timers.size, 0);
+test('the tiny clip prefers full buffering but decoded data can prime Safari after a short grace',()=>{
+  const h=loader();h.render();h.decoded();
+  assert.equal(h.plays,0);assert.ok([...h.timers.values()].some(timer=>timer.delay===100));
+  h.buffer();assert.equal(h.plays,1);assert.equal([...h.timers.values()].some(timer=>timer.delay===100),false);
+  h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);h.unmount();
+  const safari=loader();safari.render();safari.decoded();safari.timer(100);
+  assert.equal(safari.plays,1,'Partial preload must not deadlock playback');
+  safari.unmount();assert.equal(safari.timers.size,0);
+});
+
+test('a late first painted frame shows the complete clip on BOTH and natural ended owns completion',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,timedIntro:true});h.render();
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===1500 || timer.delay===600),false);
+    h.start();assert.equal(h.render().media.props.style.opacity,0);
+    h.paint();assert.equal(h.render().media.props.style.opacity,1);assert.equal(h.completed,0);
+    assert.equal(h.render().backup,false);assert.match(h.render().poster.props.src,/^data:/);
+    h.emit('ended');h.emit('ended');assert.equal(h.completed,1);
+    assert.equal(h.render().media.props.style.opacity,1,'The final painted frame remains during handoff');
+    assert.equal(h.timers.size,0);h.unmount();
   }
 });
 
-test('both platforms keep their fallback visible until a real video frame is ready', () => {
-  for (const presentation of ['web', 'mobile']) {
-    const h = loader({ presentation }), { poster, media } = h.render(), mobile = presentation === 'mobile';
-    assert.equal(poster.type, 'img');
-    assert.equal(media.type, 'video');
-    assert.equal(h.presentation, presentation);
-    assert.equal(media.props.src, '/portalink-splash-mobile.mp4?v=9c1a9457');
-    assert.equal(media.props.poster, mobile ? undefined : '/portalink-splash-poster.png?v=98f4e103');
-    assert.equal(media.props.width, 512);
-    assert.equal(media.props.height, 720);
-    assert.equal(media.props.muted, true); assert.equal(media.props.playsInline, true);
-    assert.equal(media.props.autoPlay, true); assert.equal(media.props['aria-hidden'], 'true');
-    assert.equal(media.props.loop, mobile || undefined); assert.equal(media.props.controls, false);
-    assert.equal(media.props.disableRemotePlayback, true); assert.equal(media.props.tabIndex, -1);
-    assert.equal(media.props.style.opacity, 0);
-    assert.equal(h.video.muted, true); assert.equal(h.video.defaultMuted, true);
-    assert.equal(h.plays, 1); assert.equal(h.completed, 0);
-    h.render(); assert.equal(h.plays, 1);
-    h.start(); assert.equal(h.render().media.props.style.opacity, 0);
-    h.paint(); assert.equal(h.render().media.props.style.opacity, 1);
-    h.emit('ended'); h.emit('ended');
-    if (mobile) { assert.equal(h.completed, 0); h.timer(1500); }
-    assert.equal(h.completed, 1);
-    assert.equal(h.render().media.props.style.opacity, 1, 'successful exit retains the final frame');
-    h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.listeners.size, 0); assert.equal(h.docListeners.size, 0);
+test('brief waiting and stalled events retain the painted frame without requesting backup or completing',()=>{
+  for(const presentation of ['mobile','web']) for(const event of ['waiting','stalled']) {
+    const h=loader({presentation});h.render();h.start();h.paint();h.video.readyState=2;
+    h.emit(event);
+    const view=h.render();assert.equal(view.media.props.style.opacity,1);assert.equal(view.backup,false);
+    assert.equal(h.completed,0);h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
   }
 });
 
-test('WEB shows the full supplied clip and starts its playback watchdog on the first frame', () => {
-  const h = loader(); h.render();
-  const preplayDeadline=[...h.timers.entries()].find(([,timer])=>timer.delay===2200)[0];
-  assert.equal([...h.timers.values()].some(t => t.delay === 1500 || t.delay === 880), false);
-  h.start(); h.paint();
-  assert.equal(h.exitDuration, 0.26); assert.equal(h.completed,0);
-  assert.equal(h.timers.has(preplayDeadline),false,'Loading time is excluded from the playback watchdog');
-  assert.equal([...h.timers.values()].some(t=>t.delay===600),false);
-  h.emit('ended');
-  assert.equal(h.completed, 1);
-  assert.equal(h.render().media.props.style.opacity, 1);
-  assert.equal(h.timers.size,0);
-  h.unmount();
-});
-
-test('WEB playback remains bounded when decoded video never reaches its ended event',()=>{
-  const h=loader();h.render();h.start();h.paint();
-  h.timer(2200);assert.equal(h.completed,1);
-  assert.equal(h.render().media.props.style.opacity,1);
-  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
-});
-
-test('returning MOBILE shows the complete clip after a late first frame, with no extra exit fade', () => {
-  const h=loader({presentation:'mobile',timedIntro:true});
-  let {tree,media}=h.render();
-  assert.equal(tree.props.children[1],undefined);
-  assert.equal(media.props.controls,false); assert.equal(media.props.loop,true);
-  assert.equal(h.exitDuration,0);
-  assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false,'Loading cannot consume clip playback');
-  h.start(); assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false,'Decoded playback is not yet a painted frame');
-  h.paint(); ({tree,media}=h.render());
-  const timerId=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
-  assert.equal(media.props.style.opacity,1); assert.equal(h.completed,0);
-  h.emit('ended'); h.render();
-  assert.equal(h.completed,0,'early media completion cannot shorten the intro');
-  assert.ok(h.timers.has(timerId),'playback and rerenders cannot restart the budget');
-  h.timer(1500); assert.equal(h.completed,1);
-  h.unmount(); assert.equal(h.timers.size,0); assert.equal(h.listeners.size,0);
-});
-
-test('returning MOBILE autoplay rejection and missing first frames show a bounded full animated fallback', async () => {
-  for (const options of [{blocked:true},{throws:true},{play:()=>new Promise(()=>{})}]) {
-    const h=loader({presentation:'mobile',timedIntro:true,...options});
-    h.render(); await Promise.resolve(); h.render();
-    assert.equal(h.completed,0);
-    if(options.play) {
-      assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false);
-      h.timer(2200);
-    }
-    assert.ok([...h.timers.values()].some(timer=>timer.delay===1500));
-    h.timer(1500); assert.equal(h.completed,1);
-    assert.equal(h.exitDuration,0); h.unmount(); assert.equal(h.timers.size,0);
+test('a preplay watchdog is recoverable and late healthy playback replaces a pending backup',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,play:()=>new Promise(()=>{})});h.render();h.timer(2200);
+    assert.ok(h.render().media);assert.equal(h.render().backup.props.style.opacity,0);assert.equal(h.completed,0);
+    h.start();h.paint();
+    assert.equal(h.render().media.props.style.opacity,1);assert.equal(h.completed,0);
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false);
+    h.emit('ended');assert.equal(h.completed,1);h.unmount();assert.equal(h.timers.size,0);
   }
 });
 
-test('a recovered MOBILE first frame replaces its fallback budget only once and cleans up callbacks', async()=>{
-  const h=loader({presentation:'mobile',timedIntro:true,play:n=>n===1?Promise.reject(Error('blocked')):Promise.resolve()});
-  h.render();await Promise.resolve();
-  const fallbackTimer=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
-  h.timer(800);h.start();h.paint();h.render();
-  assert.equal(h.timers.has(fallbackTimer),false,'A late recovered video receives its full playback time');
-  const videoTimer=[...h.timers.entries()].find(([,timer])=>timer.delay===1500)[0];
-  h.emit('waiting');h.start();h.paint();h.render();
-  assert.ok(h.timers.has(videoTimer),'Later playback events cannot extend the intro indefinitely');
-  h.timer(1500);assert.equal(h.completed,1);
-  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);assert.equal(h.windowListeners.size,0);
+test('a five-second cold primary load cannot be skipped by the shorter pending-backup timeout on BOTH',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,play:()=>new Promise(()=>{})});h.render();
+    h.advance(2200);h.backupLoaded();
+    assert.equal(h.render().backup.props.style.opacity,0,'A cached backup cannot take over a cold healthy primary');
+    h.advance(2800);
+    assert.equal(h.completed,0,'Static artwork cannot replace the full splash during a legitimate cold media load');
+    assert.equal(h.render().backup.props.style.opacity,0);assert.ok(h.render().media);
+    h.start();h.paint();assert.equal(h.render().media.props.style.opacity,1);assert.equal(h.completed,0);
+    h.advance(1467);assert.equal(h.completed,0,'Healthy playback completes at ended, not an old load timer');
+    h.emit('ended');assert.equal(h.completed,1);h.unmount();assert.equal(h.timers.size,0);
+  }
 });
 
-test('ordinary MOBILE startup and reduced-motion startup both show the full clip before completion',()=>{
-  for(const options of [{},{timedIntro:true,reduced:true}]) {
-    const h=loader({presentation:'mobile',...options});h.render();h.start();h.paint();
+test('pending primary and backup downloads remain bounded by one initial loading window that retries cannot extend',()=>{
+  const h=loader({play:()=>new Promise(()=>{})});h.render();h.advance(9999);
+  assert.equal(h.completed,0);h.advance(1);assert.equal(h.completed,1);
+  h.unmount();assert.equal(h.timers.size,0);
+});
+
+test('primary loading pauses in background and a loaded backup still receives a full cycle across the loading deadline',()=>{
+  const hidden=loader({play:()=>new Promise(()=>{})});hidden.render();hidden.hide();hidden.advance(20000);
+  assert.equal(hidden.completed,0);assert.equal(hidden.timers.size,0);hidden.foreground();hidden.advance(5000);
+  assert.equal(hidden.completed,0);hidden.start();hidden.paint();hidden.emit('ended');assert.equal(hidden.completed,1);hidden.unmount();
+  const backup=loader({play:()=>new Promise(()=>{})});backup.render();backup.advance(2200);backup.backupLoaded();
+  backup.advance(7800);assert.equal(backup.completed,0,'The deadline gives a cached fallback its complete visible cycle');
+  assert.equal(backup.render().backup.props.style.opacity,1);
+  backup.advance(1499);assert.equal(backup.completed,0);backup.advance(1);assert.equal(backup.completed,1);
+  backup.unmount();assert.equal(backup.timers.size,0);
+});
+
+test('newly decoded data recovers after all automatic retries without spinning on identical readiness events',async()=>{
+  const h=loader({play:n=>n<4?Promise.reject(Error('blocked')):Promise.resolve()});
+  h.render();h.timer(2200);
+  for(let retry=0;retry<2;retry++){h.timer(800);await Promise.resolve();}
+  assert.equal(h.plays,2);
+  h.buffer();await Promise.resolve();assert.equal(h.plays,3);
+  // This failed attempt had the same decoded/buffered state. Repeating the
+  // cached event cannot silently create unlimited autoplay attempts.
+  h.buffer();await Promise.resolve();assert.equal(h.plays,3);
+  h.video.currentTime=.01;h.buffer();assert.equal(h.plays,4);
+  h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);
+  h.unmount();assert.equal(h.timers.size,0);
+});
+
+test('unchanged timeupdate events cannot postpone a stalled startup forever',()=>{
+  const h=loader();h.render();h.start();h.paint();h.video.currentTime=.5;h.emit('timeupdate');
+  const timer=[...h.timers.entries()].find(([,timer])=>timer.delay===2200)[0];
+  h.emit('timeupdate');h.emit('timeupdate');assert.ok(h.timers.has(timer));
+  h.timer(2200);assert.ok(h.render().backup);h.unmount();assert.equal(h.timers.size,0);
+});
+
+test('repeated waiting or stalled events without media progress retain one bounded deadline',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation});h.render();h.start();h.paint();h.video.readyState=2;
+    const timer=[...h.timers.entries()].find(([,timer])=>timer.delay===2200)[0];
+    for(let event=0;event<6;event++){h.emit('waiting');h.emit('stalled');}
+    assert.ok(h.timers.has(timer),'Only actual playback progress can refresh the deadline');
+    h.timer(2200);assert.ok(h.render().backup);h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
+test('an actual gesture attempts playback within user activation even if preload has not advanced',()=>{
+  const h=loader();h.render();assert.equal(h.plays,0);h.gesture();assert.equal(h.plays,1);
+  h.unmount();assert.equal(h.timers.size,0);
+});
+
+test('blocked or unavailable playback keeps inline artwork while backup downloads, then shows one full cycle',async()=>{
+  for(const presentation of ['mobile','web']) for(const options of [{blocked:true},{throws:true}]) {
+    const h=loader({presentation,...options});h.render();h.start();await Promise.resolve();
+    let view=h.render();assert.ok(view.media);assert.ok(view.backup);
+    assert.match(view.poster.props.src,/^data:/);assert.equal(view.backup.props.style.opacity,0);
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===1500),false);
+    h.backupLoaded();view=h.render();assert.equal(view.backup.props.style.opacity,1);assert.equal(view.media.props.style.opacity,0);
     assert.equal(h.completed,0);h.timer(1500);assert.equal(h.completed,1);
-    h.unmount();assert.equal(h.timers.size,0);
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.listeners.size,0);assert.equal(h.windowListeners.size,0);
   }
 });
 
-test('a verified guest switches pending MOBILE playback to the continuous welcome without a deadline', () => {
-  const h=loader({presentation:'mobile',timedIntro:true});
-  h.render(); h.start();
-  assert.ok([...h.timers.values()].some(timer=>timer.delay===2200));
-  h.setLanding(welcome); h.render(); h.start(); h.paint();
-  assert.equal(h.render().media.props.loop,true);
-  assert.equal(h.render().tree.props.children[1].props['aria-busy'],false);
-  assert.equal(h.timers.size,0); h.unmount();
+test('a foreground policy retry cannot restart the loaded backup animation completion cycle',async()=>{
+  const h=loader({blocked:true});h.render();h.start();await Promise.resolve();h.backupLoaded();
+  h.advance(800);await Promise.resolve();assert.equal(h.completed,0);
+  h.advance(699);assert.equal(h.completed,0);h.advance(1);assert.equal(h.completed,1);
+  assert.equal(h.render().backup.props.style.opacity,1);h.unmount();assert.equal(h.timers.size,0);
 });
 
-test('temporary buffering or backgrounding during restoration cannot poison a later guest welcome', () => {
-  for (const event of ['waiting','stalled','pause','hidden']) {
-    const h=loader({presentation:'mobile',timedIntro:true}); h.render(); h.start(); h.paint();
-    if(event==='hidden') h.hide(); else h.emit(event);
-    assert.ok(h.render().media); assert.equal(h.completed,0);
-    h.setLanding(welcome); h.render(); if(event==='hidden') h.foreground(); h.start(); h.paint();
-    assert.equal(h.render().media.props.loop,true); assert.equal(h.render().media.props.style.opacity,1);
-    assert.equal(h.completed,1); assert.equal(h.timers.size,0); h.unmount();
+test('failed or stalled backup downloads release truthfully on inline artwork without deadlock',async()=>{
+  for(const failBackup of [true,false]) {
+    const h=loader({blocked:true});h.render();h.start();await Promise.resolve();
+    if(failBackup)h.backupFailed();else h.timer(2200);
+    assert.equal(h.completed,1);assert.match(h.render().poster.props.src,/^data:/);
+    assert.equal(h.render().backup.props.style.opacity,0);
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
   }
 });
 
-test('backgrounding invalidates an aborted timed play promise before the guest welcome resumes', async () => {
-  let rejectPending;
-  const h=loader({presentation:'mobile',timedIntro:true,play:n=>n===1?new Promise((_,reject)=>{rejectPending=reject;}):Promise.resolve()});
-  h.render(); h.hide(); rejectPending(Error('play interrupted by pause')); await Promise.resolve();
-  assert.ok(h.render().media); assert.equal(h.completed,0);
-  h.setLanding(welcome); h.render(); h.foreground(); h.start(); h.paint();
-  assert.equal(h.render().media.props.style.opacity,1); assert.equal(h.render().media.props.loop,true);
-  h.unmount(); assert.equal(h.timers.size,0);
+test('a prolonged decoded-video stall adopts only a loaded backup, and missing ended stays bounded',()=>{
+  const h=loader();h.render();h.start();h.paint();h.emit('waiting');h.timer(2200);
+  assert.equal(h.render().media.props.style.opacity,1,'Pending backup never erases a real frame');
+  h.backupLoaded();assert.equal(h.render().backup.props.style.opacity,1);
+  h.timer(1500);assert.equal(h.completed,1);h.unmount();
+  const missingEnd=loader();missingEnd.render();missingEnd.start();missingEnd.paint();missingEnd.timer(2200);
+  missingEnd.timer(2200);assert.equal(missingEnd.completed,1);missingEnd.unmount();assert.equal(missingEnd.timers.size,0);
 });
 
-test('MOBILE interruptions retain a looping video and animated fallback', () => {
-  for (const event of ['pause','error','waiting','stalled']) {
-    const h=loader({presentation:'mobile'}); h.render(); h.start(); h.paint();
-    h.emit(event); const {poster,media}=h.render();
-    assert.ok(media); assert.equal(media.props.loop,true);
-    assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=307bdea0');
-    h.unmount(); assert.equal(h.timers.size,0);
+test('backgrounding pauses startup and backup completion; foreground resumes the same video or a whole backup cycle',async()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation});h.render();h.start();h.paint();h.video.currentTime=.75;
+    h.hide();assert.equal(h.video.paused,true);assert.equal(h.timers.size,0);assert.equal(h.completed,0);
+    h.foreground();h.start();h.paint();assert.equal(h.video.currentTime,.75);
+    h.emit('ended');assert.equal(h.completed,1);h.unmount();
   }
+  const backup=loader({blocked:true});backup.render();backup.start();await Promise.resolve();backup.backupLoaded();
+  backup.hide();assert.equal(backup.timers.size,0);assert.equal(backup.completed,0);
+  backup.foreground();await Promise.resolve();backup.timer(1500);assert.equal(backup.completed,1);
+  backup.unmount();assert.equal(backup.timers.size,0);
 });
 
-test('missing first frames use a still within 600ms, including a never-settling play promise', () => {
-  const h = loader({ play: () => new Promise(() => {}) }); h.render();
-  h.start(); const staleFrame = [...h.frames.values()][0];
-  h.timer(600); assert.equal(h.completed, 1); assert.equal(h.frames.size, 0);
-  staleFrame(); assert.equal(h.render().media, false);
-  assert.equal(h.timers.size, 0); h.unmount();
-});
-
-test('browsers without frame callbacks reveal only playing, decoded media', () => {
-  const h = loader({ legacy: true }); h.render(); h.emit('loadeddata');
-  assert.equal(h.render().media.props.style.opacity, 0);
-  h.start(); assert.equal(h.render().media.props.style.opacity, 1); h.unmount();
-});
-
-test('a viewport change during startup does not replace or restart the selected platform clip', () => {
-  for (const presentation of ['web', 'mobile']) {
-    const h = loader({ presentation }), { media } = h.render();
-    const timer = [...h.timers.values()][0];
-    h.setViewport(presentation === 'mobile' ? 'web' : 'mobile');
-    const { media: next } = h.render();
-    assert.equal(h.presentation, presentation);
-    assert.equal(next.props.src, media.props.src);
-    assert.equal(next.props.poster, media.props.poster);
-    assert.equal(next.key, media.key);
-    assert.equal(h.plays, 1); assert.equal(h.pauses, 0);
-    assert.equal([...h.timers.values()][0], timer);
-    h.unmount();
+test('explicit stillOnly never restarts media on either layout; WEB reduced motion remains still',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,stillOnly:true}),view=h.render();
+    assert.equal(view.media,false);assert.equal(view.backup,false);assert.match(view.poster.props.src,/^data:/);
+    assert.equal(h.plays,0);assert.equal(h.completed,1);assert.equal(h.timers.size,0);h.unmount();
   }
+  const web=loader({reduced:true});assert.equal(web.render().media,false);assert.equal(web.completed,1);web.unmount();
+  const mobile=loader({presentation:'mobile',reduced:true});assert.ok(mobile.render().media);mobile.start();mobile.paint();mobile.emit('ended');
+  assert.equal(mobile.completed,1);assert.equal(mobile.exitDuration,0);mobile.unmount();
 });
 
-test('WEB errors, rejected autoplay and playback failures retain its still fallback', async () => {
-  for (const presentation of ['web']) {
-    for (const failure of ['error', 'blocked', 'throws']) {
-      const h = loader({ presentation, blocked: failure === 'blocked', throws: failure === 'throws' }); h.render();
-      if (failure === 'error') h.emit('error');
-      await Promise.resolve();
-      assert.equal(h.completed, 1);
-      const { poster, media } = h.render();
-      assert.equal(media, false); assert.equal(poster.type, 'img');
-      assert.equal(poster.props.src, presentation === 'mobile' ? '/portalink-welcome-loop.webp?v=307bdea0' : '/portalink-splash-poster.png?v=98f4e103');
-      assert.equal(h.timers.size, 0);
-      h.emit('error'); h.emit('ended'); assert.equal(h.completed, 1);
-      h.unmount();
-    }
-  }
-});
-
-test('WEB interruptions retain its existing immediate still fallback', () => {
-  for (const event of ['pause', 'waiting', 'stalled', 'hidden']) {
-    const h = loader(); h.render(); h.start(); h.paint();
-    if (event === 'hidden') h.hide(); else h.emit(event);
-    assert.equal(h.completed, 1); assert.equal(h.render().media, false);
-    assert.equal(h.plays, 1); assert.equal(h.timers.size, 0); h.unmount();
-  }
-  const background = loader({ hidden: true }); background.render();
-  assert.equal(background.plays, 0); assert.equal(background.completed, 1); background.unmount();
-});
-
-test('late promises from cleanup or StrictMode cannot fail a newer playback attempt', async () => {
+test('queued promises and frame callbacks from StrictMode, hidden surfaces and unmount cannot corrupt the current attempt',async()=>{
   let rejectOld;
-  const h = loader({ play: n => n === 1 ? new Promise((_, reject) => { rejectOld = reject; }) : Promise.resolve() });
-  h.render(); h.restartEffects(); assert.equal(h.plays, 2);
-  rejectOld(Error('aborted old playback')); await Promise.resolve();
-  assert.equal(h.completed, 0); assert.ok(h.render().media);
-  h.start(); h.listeners.get('pause')();
-  assert.equal(h.completed, 0, 'a queued pause from cleanup cannot fail resumed playback');
-  h.paint(); assert.equal(h.render().media.props.style.opacity, 1);
-  h.unmount(); assert.equal(h.timers.size, 0); assert.equal(h.frames.size, 0);
+  const h=loader({play:n=>n===1?new Promise((_,reject)=>{rejectOld=reject;}):Promise.resolve()});
+  h.render();h.buffer();h.restartEffects();assert.equal(h.plays,2);
+  rejectOld(Error('old aborted attempt'));await Promise.resolve();assert.equal(h.completed,0);assert.equal(h.render().backup,false);
+  h.start();const stale=[...h.frames.values()][0];h.setHidden(true);h.render();stale();
+  assert.equal(h.completed,0);assert.equal(h.timers.size,0);assert.equal(h.video.paused,true);
+  h.setHidden(false);h.render();h.start();h.paint();assert.equal(h.render().media.props.style.opacity,1);
+  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);assert.equal(h.listeners.size,0);assert.equal(h.docListeners.size,0);
 });
 
-test('WEB reduced motion and later session retries retain its still fallback', () => {
-  for (const presentation of ['web']) {
-    for (const options of [{ reduced: true }, { stillOnly: true }]) {
-      const h = loader({ presentation, ...options }), { poster, media } = h.render(), mobile = presentation === 'mobile';
-      assert.equal(media, false); assert.equal(poster.type, 'img');
-      assert.equal(poster.props.src, mobile ? '/portalink-welcome-loop.webp?v=307bdea0' : '/portalink-splash-poster.png?v=98f4e103');
-      assert.equal(poster.props.width, 512); assert.equal(poster.props.height, 720);
-      assert.equal(h.plays, 0); assert.equal(h.completed, 1); assert.equal(h.timers.size, 0);
-      if (options.reduced) assert.equal(h.exitDuration, 0);
-      h.unmount();
-    }
+test('legacy browsers reveal only decoded playing frames and rotation cannot remount the selected clip',()=>{
+  const legacy=loader({legacy:true});legacy.render();legacy.decoded();legacy.timer(100);
+  assert.equal(legacy.render().media.props.style.opacity,0);legacy.start();assert.equal(legacy.render().media.props.style.opacity,1);
+  legacy.emit('ended');assert.equal(legacy.completed,1);legacy.unmount();
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation}),{media}=h.render();const timer=[...h.timers.values()][0];
+    h.setViewport(presentation==='mobile'?'web':'mobile');const next=h.render().media;
+    assert.equal(h.presentation,presentation);assert.equal(next.key,media.key);assert.equal(next.props.src,media.props.src);
+    assert.equal([...h.timers.values()][0],timer);h.unmount();
+  }
+});
+
+test('embedded Hello World stays looping on BOTH with immediate inline art and no cold animatedbackup request',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,welcomeMedia:true}),view=h.render();
+    assert.equal(view.tree.props.className,'portalink-welcome-media');assert.equal(view.tree.props.role,'img');
+    assert.equal(view.tree.props['data-portalink-splash'],undefined);assert.equal(view.tree.props['aria-label'],'Hello World — Portalink');
+    assert.equal(view.media.props.loop,true);assert.equal(view.backup,false);assert.equal(h.modalCalls.some(Boolean),false);
+    h.start();h.paint();assert.equal(h.completed,1);assert.equal(h.timers.size,0);
+    h.emit('waiting');assert.equal(h.render().media.props.style.opacity,1);h.start();h.paint();assert.equal(h.timers.size,0);
+    h.unmount();assert.equal(h.listeners.size,0);
+  }
+});
+
+test('a completed intro stillOnly prop cannot freeze active guest or embedded welcome loops',()=>{
+  for(const presentation of ['mobile','web']) for(const props of [{landing:welcome},{welcomeMedia:true}]) {
+    const h=loader({presentation,...props});h.render();h.start();h.paint();h.setStillOnly(true);
+    const view=h.render();assert.ok(view.media);assert.equal(view.media.props.loop,true);
+    assert.equal(view.media.props.style.opacity,1);h.emit('waiting');h.start();h.paint();
+    assert.equal(h.render().media.props.style.opacity,1);h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
+test('guest Continue preserves the remembered looping scene while Home waits and the welcome fades',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,landing:welcome});const first=h.render();h.start();h.paint();
+    h.setLanding(undefined);h.setHandoff(true);h.setStillOnly(true);const handoff=h.render();
+    assert.equal(handoff.media.key,first.media.key);assert.equal(handoff.media.props.loop,true);
+    assert.equal(handoff.media.props.style.opacity,1);assert.equal(handoff.tree.props['data-share-landing'],'true');
+    assert.equal(h.plays,1,'The handoff does not pause or restart the welcome');
+    assert.equal(h.timers.size,0);h.unmount();
   }
 });
 
@@ -434,13 +402,17 @@ test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () 
   const { MOBILE_PRESENTATION_QUERY } = compile('../src/presentation/useViewportPresentation.ts', { react: React });
   const preboot = html.match(/<div id="portalink-preboot"[\s\S]*?<\/div>/)?.[0];
   assert.ok(preboot);
-  const source = preboot.match(/<source\s[^>]*>/)?.[0];
-  assert.ok(source);
-  assert.equal(source.match(/media="([^"]+)"/)?.[1], MOBILE_PRESENTATION_QUERY);
-  assert.match(source, /srcset="\/portalink-welcome-loop\.webp\?v=307bdea0"/);
+  const inline = preboot.match(/<img src="(data:image\/webp;base64,[^"]+)"/)?.[1];
+  const { SPLASH_POSTER_DATA_URL } = sourceModule('src/components/ui/splashPoster.ts');
+  assert.equal(inline, SPLASH_POSTER_DATA_URL);
+  const bytes = Buffer.from(inline.split(',')[1], 'base64');
+  assert.deepEqual(bytes, readFileSync(new URL('../public/portalink-splash-first-frame.webp', import.meta.url)));
+  assert.equal(createHash('sha256').update(bytes).digest('hex').slice(0,8),'e2c3390a');
+  assert.match(preboot, /data-portalink-inline-splash/);
+  assert.doesNotMatch(preboot, /<source|\/portalink-welcome-loop|\/portalink-splash-poster/);
   assert.doesNotMatch(preboot, /portalink-splash-mobile-poster/);
   assert.doesNotMatch(preboot, /mobile-startup-status/);
-  assert.match(preboot, /<img src="\/portalink-splash-poster\.png\?v=98f4e103"[^>]*width="512" height="720"/);
+  assert.match(preboot, /<img src="data:image\/webp;base64,[^"]+"[^>]*width="512" height="720"[^>]*decoding="sync"/);
   assert.ok(html.includes(`@media ${MOBILE_PRESENTATION_QUERY}`));
   assert.doesNotMatch(html, /(?:^|\n)\s*#portalink-preboot picture\s*\{\s*display:\s*none;/,
     'normal startup retains its picture; shared entry may hide it with a scoped rule');
@@ -732,83 +704,38 @@ test('ordinary root fragments keep welcome while authentication fragments bypass
 
 const welcome = {ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'View shared content'};
 
-test('mobile welcome loops without the splash deadline and keeps all entry actions available', () => {
-  const h=loader({presentation:'mobile',landing:welcome});
-  const {media,tree}=h.render(); assert.equal(media.props.loop,true);
-  const actions=tree.props.children[1];
-  assert.equal(actions.props['aria-busy'],false);
-  assert.equal(actions.props.children[0].props.disabled,false);
-  assert.equal(actions.props.children[0].props.children,'Create account');
-  assert.equal(actions.props.children[1].props.children[0].props.children,'Sign in');
-  assert.equal(actions.props.children[1].props.children[1].props.children,'Forgot password?');
-  h.start(); h.paint(); assert.equal(h.completed,1);
-  assert.equal(h.timers.size,0,'no 2200ms deadline interrupts healthy playback');
-  for(let cycle=0;cycle<5;cycle++) {
-    h.emit('waiting'); h.start(); h.paint();
-    assert.equal(h.render().media.props.style.opacity,1);
-    assert.equal(h.timers.size,0); assert.equal(h.plays,1); assert.equal(h.pauses,0);
-  }
-  h.unmount(); assert.equal(h.listeners.size,0); assert.equal(h.frames.size,0);
-});
-
-test('welcome pauses for account forms and background tabs, then resumes the same video', () => {
-  const h=loader({presentation:'mobile',landing:welcome}); h.render(); h.start(); h.paint();
-  h.video.currentTime=0.75;
-  h.setHidden(true); assert.equal(h.render().media.props.autoPlay,false);
-  assert.equal(h.video.paused,true); assert.equal(h.plays,1); assert.equal(h.timers.size,0);
-  h.setHidden(false); h.render(); assert.equal(h.plays,2); assert.equal(h.video.currentTime,0.75);
-  h.start(); h.paint(); h.hide();
-  assert.equal(h.video.paused,true); assert.equal(h.timers.size,0); assert.ok(h.render().media);
-  h.foreground(); assert.equal(h.plays,3); h.start(); h.paint();
-  assert.equal(h.completed,1); assert.equal(h.render().media.props.style.opacity,1);
-  h.unmount(); assert.equal(h.docListeners.size,0);
-});
-
-test('welcome ignores stale playback failures after hide/resume and keeps reduced-motion and failure fallbacks usable', async () => {
-  let rejectOld;
-  const h=loader({presentation:'mobile',landing:welcome,play:n=>n===1?new Promise((_,reject)=>{rejectOld=reject;}):Promise.resolve()});
-  h.render(); h.setHidden(true); h.render(); h.setHidden(false); h.render();
-  rejectOld(Error('old attempt aborted')); await Promise.resolve();
-  h.start(); h.paint(); assert.ok(h.render().media); assert.equal(h.completed,1); h.unmount();
-  for(const options of [{blocked:true},{reduced:true}]) {
-    const fallback=loader({presentation:'mobile',landing:welcome,...options}); fallback.render();
-    await Promise.resolve();
-    const {media,tree,poster}=fallback.render(); assert.ok(media); assert.equal(poster.props.src,'/portalink-welcome-loop.webp?v=307bdea0');
-    if(options.reduced) { fallback.start(); fallback.paint(); }
-    assert.equal(fallback.completed,1);
-    assert.equal(tree.props.children[1].props['aria-busy'],false); fallback.unmount();
+test('welcome loops without an exit deadline and keeps all entry actions available on BOTH',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,landing:welcome}),{media,tree}=h.render();assert.equal(media.props.loop,true);
+    assert.equal(tree.props.children[1].props['aria-busy'],false);
+    assert.equal(tree.props.children[1].props.children[0].props.children,'Create account');
+    h.start();h.paint();assert.equal(h.completed,1);assert.equal(h.timers.size,0);
+    for(let cycle=0;cycle<3;cycle++){h.emit('waiting');assert.equal(h.render().media.props.style.opacity,1);h.start();h.paint();assert.equal(h.timers.size,0);}
+    h.unmount();assert.equal(h.frames.size,0);
   }
 });
 
-test('cold mobile playback retries without replacing its animation or leaving pending callbacks', () => {
-  const h=loader({presentation:'mobile',landing:welcome,play:()=>new Promise(()=>{})});
-  h.render(); h.timer(2200);
-  assert.equal(h.completed,1); assert.ok(h.render().media);
-  h.timer(800); assert.equal(h.plays,2);
-  h.start(); h.paint(); assert.equal(h.render().media.props.style.opacity,1);
-  h.unmount(); assert.equal(h.timers.size,0); assert.equal(h.frames.size,0);
+test('welcome pauses behind account forms and in background, then resumes without replacing video',()=>{
+  const h=loader({presentation:'mobile',landing:welcome});h.render();h.start();h.paint();h.video.currentTime=.75;
+  h.setHidden(true);h.render();assert.equal(h.video.paused,true);assert.equal(h.timers.size,0);
+  h.setHidden(false);h.render();h.start();h.paint();assert.equal(h.video.currentTime,.75);
+  h.hide();assert.equal(h.timers.size,0);h.foreground();h.start();h.paint();assert.equal(h.render().media.props.style.opacity,1);
+  h.unmount();assert.equal(h.docListeners.size,0);
 });
 
-test('mobile playback recovers after a policy rejection, a gesture and home-screen page restore', async () => {
-  let rejected=true;
-  const h=loader({presentation:'mobile',timedIntro:true,play:()=>rejected?Promise.reject(Error('autoplay blocked')):Promise.resolve()});
-  h.render(); await Promise.resolve(); assert.ok(h.render().media);
-  h.setLanding(welcome); h.render(); await Promise.resolve();
-  assert.ok(h.render().media); rejected=false;
-  h.gesture(); h.start(); h.paint(); assert.equal(h.render().media.props.style.opacity,1);
-  h.leave(); assert.equal(h.video.paused,true); assert.equal(h.timers.size,0);
-  h.restore(); h.start(); h.paint(); assert.equal(h.render().media.props.style.opacity,1);
-  h.emit('pause'); assert.equal(h.render().media.props.style.opacity,0);
-  h.timer(800); h.start(); h.paint(); assert.equal(h.render().media.props.style.opacity,1);
-  h.unmount(); assert.equal(h.windowListeners.size,0); assert.equal(h.docListeners.size,0);
-});
-
-test('mobile retries are bounded while its fallback remains animated', async () => {
-  const h=loader({presentation:'mobile',landing:welcome,blocked:true}); h.render(); await Promise.resolve();
+test('welcome backup and automatic retries remain bounded while gestures and home-screen restoration can recover',async()=>{
+  const h=loader({presentation:'mobile',landing:welcome,blocked:true});h.render();h.start();await Promise.resolve();
   for(let retry=0;retry<2;retry++){h.timer(800);await Promise.resolve();}
-  assert.equal(h.plays,3); assert.equal(h.timers.size,0); assert.ok(h.render().media);
-  h.hide(); h.foreground(); await Promise.resolve(); assert.equal(h.plays,4);
-  h.unmount(); assert.equal(h.timers.size,0);
+  assert.equal(h.plays,3);assert.ok(h.render().media);h.backupLoaded();h.timer(1500);
+  assert.equal(h.completed,1);assert.equal(h.timers.size,0);
+  h.hide();h.foreground();await Promise.resolve();assert.equal(h.plays,4);
+  h.unmount();assert.equal(h.timers.size,0);assert.equal(h.windowListeners.size,0);
+});
+
+test('a verified guest can switch pending startup playback to the looping welcome without a startup timer',()=>{
+  const h=loader({presentation:'mobile',timedIntro:true});h.render();h.start();h.paint();assert.equal(h.completed,0);
+  h.setLanding(welcome);h.render();h.start();h.paint();assert.equal(h.render().media.props.loop,true);
+  assert.equal(h.completed,1);assert.equal(h.timers.size,0);h.unmount();
 });
 
 test('mobile welcome can disable its actions until its caller marks them ready', () => {
