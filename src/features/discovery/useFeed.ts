@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useProfileData } from '../../contexts/ProfileDataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -43,30 +43,27 @@ export type FeedState = {
 type FeedSnapshot = Pick<FeedState, 'featured' | 'projects' | 'creators' | 'sphere' | 'homeMode' | 'nextCursor'>;
 type FeedCacheEntry = {
   snapshot?: FeedSnapshot;
-  cachedAt?: number;
   request?: Promise<FeedSnapshot>;
 };
 
-// Home paints immediately from the last complete snapshot, then refreshes on
-// every mount. Relationship changes happen away from Home (on a creator's
-// profile), so a time-only freshness window could hide a newly followed or
-// unfollowed creator when the viewer returned to the feed.
-const feedCache = new WeakMap<object, Map<string, FeedCacheEntry>>();
+// Navigation restores the last complete feed. Only an explicit refresh or a
+// confirmed data revision replaces it; elapsed time is not refresh intent.
+// Scope identity prevents a signed-out account's snapshot being reused on login.
+const feedCache = new WeakMap<object, WeakMap<object, Map<string, FeedCacheEntry>>>();
 const MAX_FEED_SNAPSHOTS = 12;
-const FEED_SNAPSHOT_RETENTION_MS = 15 * 60_000;
 
-function getFeedCacheEntry(discovery: object, cacheKey: string): FeedCacheEntry {
-  let revisions = feedCache.get(discovery);
+function getFeedCacheEntry(discovery: object, scope: object, cacheKey: string): FeedCacheEntry {
+  let scopes = feedCache.get(discovery);
+  if (!scopes) {
+    scopes = new WeakMap<object, Map<string, FeedCacheEntry>>();
+    feedCache.set(discovery, scopes);
+  }
+  let revisions = scopes.get(scope);
   if (!revisions) {
     revisions = new Map<string, FeedCacheEntry>();
-    feedCache.set(discovery, revisions);
+    scopes.set(scope, revisions);
   }
   // Revision keys must not retain every historical project snapshot forever.
-  // This is retention only: Home still revalidates on every mount so a changed
-  // follow relationship is visible immediately when the user returns.
-  for (const [key, cached] of revisions) {
-    if (!cached.request && cached.cachedAt !== undefined && Date.now() - cached.cachedAt >= FEED_SNAPSHOT_RETENTION_MS) revisions.delete(key);
-  }
   let entry = revisions.get(cacheKey);
   if (!entry) {
     entry = {};
@@ -87,11 +84,12 @@ export function useFeed(locationId?: Id): FeedState {
     discovery
   } = useServices();
   const {
-    revision
+    revision, scope
   } = useProfileData();
   const accountId = useAuth().user?.id ?? 'guest';
   const cacheKey = `${accountId}:${revision}:${locationId ?? 'home'}`;
-  const initialSnapshot = getFeedCacheEntry(discovery, cacheKey).snapshot;
+  const identity = useMemo(() => ({ discovery, scope, cacheKey }), [discovery, scope, cacheKey]);
+  const initialSnapshot = getFeedCacheEntry(discovery, scope, cacheKey).snapshot;
   const [status, setStatus] = useState<AsyncStatus>(initialSnapshot ? 'success' : 'idle');
   const [featured, setFeatured] = useState<ProjectView | null>(initialSnapshot?.featured ?? null);
   const [projects, setProjects] = useState<ProjectView[]>(initialSnapshot?.projects ?? []);
@@ -109,15 +107,25 @@ export function useFeed(locationId?: Id): FeedState {
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const loadMoreRequest = useRef(0);
   const loadMoreBusy = useRef(false);
-  const currentCacheKey = useRef(cacheKey);
-  currentCacheKey.current = cacheKey;
+  const currentIdentity = useRef(identity);
+  currentIdentity.current = identity;
+  const stateIdentity = useRef(identity);
+  const handledAttempt = useRef(0);
   useEffect(() => {
     let isCurrent = true;
+    stateIdentity.current = identity;
+    const requestedRefresh = attempt !== handledAttempt.current;
+    handledAttempt.current = attempt;
+    const cleanup = () => {
+      isCurrent = false;
+      loadMoreRequest.current += 1;
+      loadMoreBusy.current = false;
+    };
     loadMoreRequest.current += 1;
     loadMoreBusy.current = false;
     setIsLoadingMore(false);
     setLoadMoreError(null);
-    const entry = getFeedCacheEntry(discovery, cacheKey);
+    const entry = getFeedCacheEntry(discovery, scope, cacheKey);
     const cachedSnapshot = entry.snapshot;
     if (cachedSnapshot) {
       setFeatured(cachedSnapshot.featured);
@@ -134,13 +142,20 @@ export function useFeed(locationId?: Id): FeedState {
       setProjects([]);
       setCreators([]);
       setSphere(null);
+      setHomeModeState('balanced');
     }
     setError(null);
-    setIsRefreshing(true);
     setRefreshError(null);
+    setHomeModeError(null);
+    setIsSavingHomeMode(false);
+    if (cachedSnapshot && !requestedRefresh && !entry.request) {
+      setIsRefreshing(false);
+      return cleanup;
+    }
+    setIsRefreshing(true);
     // Home ranking and its sphere resolve atomically. A location feed is a
     // different placement query entirely: it never borrows Home relationships.
-    if (!entry.request || attempt > 0) {
+    if (!entry.request || requestedRefresh) {
       entry.request = locationId
         ? discovery.listLocationProjects(locationId).then((projects) => ({
             featured: null,
@@ -151,9 +166,8 @@ export function useFeed(locationId?: Id): FeedState {
             nextCursor: null,
           }))
         : discovery.getHomeDiscovery().then(async (first) => {
-            // Back restores all pages the user already loaded. Refresh those
-            // pages too, so unfollowed/deleted content is never retained merely
-            // to preserve scroll height.
+            // An explicit refresh covers every page already loaded so it does
+            // not truncate the feed or retain removed work on later pages.
             let home = first;
             let projects = first.projects;
             const targetCount = cachedSnapshot?.projects.length ?? 0;
@@ -180,7 +194,6 @@ export function useFeed(locationId?: Id): FeedState {
     request.then((snapshot) => {
       if (entry.request === request) {
         entry.snapshot = snapshot;
-        entry.cachedAt = Date.now();
         delete entry.request;
       }
       if (!isCurrent) {
@@ -218,14 +231,11 @@ export function useFeed(locationId?: Id): FeedState {
       setError(caught instanceof Error ? caught.message : 'The feed could not be loaded.');
       setStatus('error');
     });
-    return () => {
-      isCurrent = false;
-      loadMoreRequest.current += 1;
-      loadMoreBusy.current = false;
-    };
-  }, [discovery, cacheKey, attempt, locationId]);
+    return cleanup;
+  }, [discovery, scope, cacheKey, identity, attempt, locationId]);
   const loadMore = useCallback(() => {
-    const entry = getFeedCacheEntry(discovery, cacheKey);
+    if (currentIdentity.current !== identity) return;
+    const entry = getFeedCacheEntry(discovery, scope, cacheKey);
     const snapshot = entry.snapshot;
     if (locationId || isRefreshing || loadMoreBusy.current || !snapshot?.nextCursor) return;
     const requestId = ++loadMoreRequest.current;
@@ -233,17 +243,16 @@ export function useFeed(locationId?: Id): FeedState {
     setIsLoadingMore(true);
     setLoadMoreError(null);
     discovery.getHomeDiscovery(snapshot.nextCursor).then((home) => {
-      if (currentCacheKey.current !== cacheKey || requestId !== loadMoreRequest.current || entry.snapshot !== snapshot) return;
+      if (currentIdentity.current !== identity || requestId !== loadMoreRequest.current || entry.snapshot !== snapshot) return;
       const merged: FeedSnapshot = { ...snapshot,
         projects: Array.from(new Map([...snapshot.projects, ...home.projects].map((view) => [view.project.id, view])).values()),
         nextCursor: home.nextCursor ?? null,
       };
       entry.snapshot = merged;
-      entry.cachedAt = Date.now();
       setProjects(merged.projects);
       setNextCursor(merged.nextCursor);
     }).catch((caught) => {
-      if (currentCacheKey.current === cacheKey && requestId === loadMoreRequest.current) {
+      if (currentIdentity.current === identity && requestId === loadMoreRequest.current) {
         setLoadMoreError(caught instanceof Error ? caught.message : 'More projects could not be loaded. Please try again.');
       }
     }).finally(() => {
@@ -252,13 +261,14 @@ export function useFeed(locationId?: Id): FeedState {
         setIsLoadingMore(false);
       }
     });
-  }, [discovery, cacheKey, locationId, isRefreshing]);
+  }, [discovery, scope, cacheKey, identity, locationId, isRefreshing]);
   const retry = useCallback(() => {
     setIsRefreshing(true);
     setRefreshError(null);
     setAttempt((count) => count + 1);
   }, []);
   const setHomeMode = useCallback((mode: HomeFeedMode) => {
+    if (currentIdentity.current !== identity) return;
     loadMoreRequest.current += 1;
     loadMoreBusy.current = false;
     setIsLoadingMore(false);
@@ -267,7 +277,7 @@ export function useFeed(locationId?: Id): FeedState {
     setHomeModeError(null);
     setIsSavingHomeMode(true);
     discovery.setHomeFeedMode(mode).then((home) => {
-      if (currentCacheKey.current !== cacheKey) return;
+      if (currentIdentity.current !== identity) return;
       const snapshot: FeedSnapshot = {
         featured: home.featured,
         projects: home.projects,
@@ -276,9 +286,8 @@ export function useFeed(locationId?: Id): FeedState {
         homeMode: home.homeMode,
         nextCursor: home.nextCursor ?? null,
       };
-      const entry = getFeedCacheEntry(discovery, cacheKey);
+      const entry = getFeedCacheEntry(discovery, scope, cacheKey);
       entry.snapshot = snapshot;
-      entry.cachedAt = Date.now();
       setFeatured(snapshot.featured);
       setProjects(snapshot.projects);
       setCreators(snapshot.creators);
@@ -286,29 +295,34 @@ export function useFeed(locationId?: Id): FeedState {
       setHomeModeState(snapshot.homeMode);
       setNextCursor(snapshot.nextCursor);
     }).catch((caught) => {
-      if (currentCacheKey.current !== cacheKey) return;
+      if (currentIdentity.current !== identity) return;
       setHomeModeState(previousMode);
       setHomeModeError(caught instanceof Error ? caught.message : 'Your Home preference could not be saved.');
-    }).finally(() => { if (currentCacheKey.current === cacheKey) setIsSavingHomeMode(false); });
-  }, [discovery, homeMode, cacheKey]);
+    }).finally(() => { if (currentIdentity.current === identity) setIsSavingHomeMode(false); });
+  }, [discovery, scope, homeMode, cacheKey, identity]);
+  // A departing account or placement must not paint its previous cards before
+  // the new identity's effect runs.
+  const currentState = stateIdentity.current === identity;
+  const visible = currentState ? { featured, projects, creators, sphere, homeMode, nextCursor } : initialSnapshot;
+  const visibleStatus = currentState ? status : initialSnapshot ? 'success' : 'idle';
   return {
-    status,
-    isRefreshing,
-    refreshError,
-    featured,
-    projects,
-    creators,
-    sphere,
-    homeMode,
-    isSavingHomeMode,
-    homeModeError,
+    status: visibleStatus,
+    isRefreshing: currentState && isRefreshing,
+    refreshError: currentState ? refreshError : null,
+    featured: visible?.featured ?? null,
+    projects: visible?.projects ?? [],
+    creators: visible?.creators ?? [],
+    sphere: visible?.sphere ?? null,
+    homeMode: visible?.homeMode ?? 'balanced',
+    isSavingHomeMode: currentState && isSavingHomeMode,
+    homeModeError: currentState ? homeModeError : null,
     setHomeMode,
-    error,
-    isEmpty: status === 'success' && projects.length === 0 && featured === null,
+    error: currentState ? error : null,
+    isEmpty: visibleStatus === 'success' && (visible?.projects.length ?? 0) === 0 && !visible?.featured,
     retry,
-    nextCursor,
-    isLoadingMore,
-    loadMoreError,
+    nextCursor: visible?.nextCursor ?? null,
+    isLoadingMore: currentState && isLoadingMore,
+    loadMoreError: currentState ? loadMoreError : null,
     loadMore,
   };
 }
