@@ -77,8 +77,8 @@ test('registration composition stays in the active route kind and keeps canonica
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
 
-function sheetHarness() {
- const slots=[], calls=[]; let cursor=0, escape, tree;
+function sheetHarness({viewportHeight=800,safeTop=16,entranceOffset=0}={}) {
+ const slots=[], calls=[], measurements={viewport:0,panel:0}; let cursor=0, escape, tree;
  class ElementStub {
   constructor(kind='header') { this.kind=kind; this.captured=new Set(); }
   closest(selector) {
@@ -92,11 +92,13 @@ function sheetHarness() {
  }
  const header=new ElementStub(), resize=new ElementStub('resize'), close=new ElementStub('button');
  header.querySelector=selector=>selector==='.mobile-context-resize'?resize:null;
- const viewport={getBoundingClientRect:()=>({top:0,bottom:800,height:800})};
+ const viewport={getBoundingClientRect:()=>{measurements.viewport++;return {top:0,bottom:viewportHeight,height:viewportHeight};}};
  const dialog={getBoundingClientRect:()=>{
+  measurements.panel++;
   const node=nodes(tree).find(node=>node.props.role==='dialog');
-  const height=node?.props.style?.height??(node?.props['data-expanded']?760:600);
-  return {top:800-height,bottom:800,height};
+  const height=viewportHeight-Math.max(16,safeTop),rest=node?.props['data-expanded']?0:Math.max(0,height-viewportHeight*.75);
+  const offset=rest+Number.parseFloat(node?.props.style?.['--sheet-drag-y']??0)+(node?.props['data-sheet-dragging']?0:entranceOffset);
+  return {top:viewportHeight-height+offset,bottom:viewportHeight+offset,height};
  }};
  const react={...React,useId:()=> 'title',useRef(initial){return slots[cursor++]??={current:initial};},useState(initial){
   const index=cursor++; if(!(index in slots))slots[index]=initial;
@@ -119,7 +121,7 @@ function sheetHarness() {
   isPrimary:true,button:0,pointerId:1,clientX:100,clientY:600,target:header,currentTarget:header,...overrides,
  });
  const resizeButton=()=>find(node=>node.props.className==='mobile-context-resize');
- return {render,find,calls,escape:()=>escape(),pointer,header,resize,close,resizeButton,
+ return {render,find,calls,measurements,escape:()=>escape(),pointer,header,resize,close,resizeButton,
   dialog:()=>find(node=>node.props.role==='dialog'),
   clickResize:(detail=1)=>resizeButton().props.onClick({detail}),
  };
@@ -145,10 +147,12 @@ test('the resize button exposes expansion to keyboard users without changing ava
  assert.equal(h.dialog().props['data-expanded'],false);
  assert.equal(h.resizeButton().props['aria-label'],'Expand actions');
  assert.equal(h.resizeButton().props['aria-expanded'],false);
+ assert.equal(h.dialog().props['data-sheet-interacted'],undefined);
  h.clickResize(0);
  assert.equal(h.dialog().props['data-expanded'],true);
  assert.equal(h.resizeButton().props['aria-label'],'Collapse actions');
  assert.equal(h.resizeButton().props['aria-expanded'],true);
+ assert.equal(h.dialog().props['data-sheet-interacted'],true,'A keyboard expansion ends entrance animation for this mount');
  assert.deepEqual(labels(),initialLabels);
  assert.equal(h.dialog().props['aria-labelledby'],'title');
  h.clickResize(0);
@@ -156,18 +160,39 @@ test('the resize button exposes expansion to keyboard users without changing ava
  assert.deepEqual(h.calls,[]);
 });
 
-test('vertical dragging resizes within the viewport, expands, collapses and suppresses its follow-up click',()=>{
+test('stationary taps, release and cancellation never re-enable the entrance animation',()=>{
+ const h=sheetHarness();
+ assert.equal(h.dialog().props['data-sheet-interacted'],undefined);
+ h.pointer('onPointerDown');
+ assert.equal(h.dialog().props['data-sheet-interacted'],true);
+ h.pointer('onPointerUp');
+ assert.equal(h.dialog().props['data-sheet-dragging'],undefined);
+ assert.equal(h.dialog().props['data-sheet-interacted'],true);
+ h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:550});h.pointer('onPointerCancel');
+ assert.equal(h.dialog().props['data-sheet-interacted'],true);
+ assert.equal(h.dialog().props['data-sheet-dragging'],undefined);
+ h.clickResize(0);h.clickResize(0);
+ assert.equal(h.dialog().props['data-sheet-interacted'],true);
+ assert.equal(h.dialog().props['data-expanded'],false);
+});
+
+test('vertical dragging translates a fixed panel, expands, collapses and suppresses its follow-up click',()=>{
  const h=sheetHarness();
  h.pointer('onPointerDown',{target:h.resize});
  assert.equal(h.resize.hasPointerCapture(1),true);
+ assert.equal(h.dialog().props['data-sheet-dragging'],true);
  h.pointer('onPointerMove',{clientY:500});
- assert.equal(h.dialog().props.style.height,700);
- assert.equal(h.dialog().props.style.transform,undefined,'Dragging resizes rather than translating the sheet');
+ assert.equal(h.dialog().props.style['--sheet-drag-y'],'-100px');
+ assert.equal(h.dialog().props.style.height,undefined,'Dragging never writes panel height');
+ assert.deepEqual(h.measurements,{viewport:1,panel:1},'Move events reuse the start measurement');
  h.pointer('onPointerMove',{clientY:-500});
- assert.ok(h.dialog().props.style.height<=800,'The dragged sheet stays inside its viewport');
+ assert.equal(h.dialog().props.style['--sheet-drag-y'],'-184px','The translated panel stops at its safe top edge');
+ assert.deepEqual(h.measurements,{viewport:1,panel:1});
  h.pointer('onPointerUp',{clientY:450});
  assert.equal(h.resize.hasPointerCapture(1),false);
  assert.equal(h.dialog().props.style.height,undefined);
+ assert.equal(h.dialog().props.style['--sheet-drag-y'],'0px');
+ assert.equal(h.dialog().props['data-sheet-dragging'],undefined);
  assert.equal(h.dialog().props['data-expanded'],true);
  h.clickResize();assert.equal(h.dialog().props['data-expanded'],true,'The drag-generated click does not undo expansion');
  assert.deepEqual(h.calls,[]);
@@ -195,11 +220,68 @@ test('simple resize taps remain clicks; cancelled, horizontal and unrelated poin
  h.pointer('onPointerDown',{target:h.resize});h.pointer('onPointerUp',{clientX:180});h.clickResize();
  assert.equal(h.dialog().props['data-expanded'],false,'Horizontal handle drags cannot become toggle clicks, even without a move event');
  for(const cancel of ['onPointerCancel','onLostPointerCapture']){
-  h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});assert.ok(h.dialog().props.style.height>440);
+  h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:450});assert.equal(h.dialog().props.style['--sheet-drag-y'],'-150px');
   h.pointer(cancel);h.pointer('onPointerUp',{clientY:450});
   assert.equal(h.dialog().props['data-expanded'],false);assert.equal(h.dialog().props.style.height,undefined);
+  assert.equal(h.dialog().props.style['--sheet-drag-y'],'0px');assert.equal(h.dialog().props['data-sheet-dragging'],undefined);
  }
  assert.deepEqual(h.calls,[]);
+});
+
+test('a drag catches its visible entrance position and respects a taller safe-top inset',()=>{
+ const entering=sheetHarness({entranceOffset:90});
+ entering.pointer('onPointerDown');
+ assert.equal(entering.dialog().props.style['--sheet-drag-y'],'90px','Disabling entrance motion preserves the currently painted offset');
+ entering.pointer('onPointerMove',{clientY:570});
+ assert.equal(entering.dialog().props.style['--sheet-drag-y'],'60px');
+ const inset=sheetHarness({viewportHeight:600,safeTop:80});
+ inset.pointer('onPointerDown');inset.pointer('onPointerMove',{clientY:300});
+ assert.equal(inset.dialog().props.style['--sheet-drag-y'],'-70px','The expanded canvas cannot move above its safe top');
+ inset.pointer('onPointerCancel');
+ assert.equal(inset.dialog().props.style['--sheet-drag-y'],'0px');
+ assert.equal(inset.dialog().props['data-expanded'],false);
+});
+
+test('fast swipe thresholds and cancelled expanded gestures preserve the settled state',()=>{
+ const h=sheetHarness();
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:561});
+ assert.equal(h.dialog().props['data-expanded'],false);
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:560});
+ assert.equal(h.dialog().props['data-expanded'],true);
+ h.pointer('onPointerDown');h.pointer('onPointerMove',{clientY:670});h.pointer('onPointerCancel');
+ assert.equal(h.dialog().props['data-expanded'],true);assert.equal(h.dialog().props.style['--sheet-drag-y'],'0px');
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:640});
+ assert.equal(h.dialog().props['data-expanded'],false);
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:664});
+ assert.deepEqual(h.calls,[],'The existing dismissal boundary remains strictly greater than64px');
+ h.pointer('onPointerDown');h.pointer('onPointerUp',{clientY:665});
+ assert.deepEqual(h.calls,['close']);
+ assert.equal(h.dialog().props.style['--sheet-drag-y'],'65px','Exit starts at the released drag position');
+});
+
+test('public action sheets retain intrinsic geometry and route dismissal through slide motion',()=>{
+ const calls=[],root={},motion={closing:false,close(after,scope){calls.push(['motion',Boolean(after),scope]);if(after)after();else calls.push('close');}};
+ let escape;
+ const {PublicActionSheet}=compile('../src/visitor/mobile/PublicActionSheet.tsx',{
+  react:{...React,useRef:()=>({current:null}),useId:()=> 'public-title'},
+  '../../presentation/motion/useSheetMotion':{useSheetMotion:()=>motion},
+  '../../hooks/useDialogViewport':{useDialogViewport:()=>({current:null})},
+  '../../hooks/useModalFocus':{useModalFocus:(open,_dialog,close,preventScroll)=>{assert.equal(open,true);assert.equal(preventScroll,true);escape=close;}},
+ });
+ const model={title:'Public actions',primary:[{id:'share',label:'Share',run(){}}],groups:[]};
+ const render=()=>PublicActionSheet({model,onClose(){},onAction:action=>calls.push(['action',action.id]),children:React.createElement('button',{id:'extra'},'Extra')});
+ const list=nodes(render()),sheet=list.find(node=>node.props.role==='dialog'),overlay=list.find(node=>node.props.className==='public-actions-overlay');
+ assert.equal(sheet.props['data-motion-sheet'],'');assert.equal(overlay.props['data-motion-scrim'],'');
+ assert.equal(sheet.props.style,undefined,'Public sizing remains intrinsic');assert.equal(sheet.props['aria-labelledby'],'public-title');
+ assert.ok(list.find(node=>node.props.id==='extra'),'Dynamic child actions remain in the scroll body');
+ list.find(node=>node.props['aria-label']==='Close actions').props.onClick();escape();
+ const target={};overlay.props.onClick({target,currentTarget:target});overlay.props.onClick({target:{},currentTarget:target});
+ assert.equal(calls.filter(call=>call==='close').length,3,'Interior clicks do not dismiss');
+ const share=list.find(node=>node.type==='button'&&nodes(node).some(child=>child.props.children==='Share'));
+ share.props.onClick({currentTarget:{closest:selector=>{assert.equal(selector,'[data-motion-scrim]');return root;}}});
+ assert.deepEqual(calls.slice(-2),[['motion',true,root],['action','share']],'Native actions run in the original activation without waiting for slide exit');
+ motion.closing=true;
+ assert.equal(nodes(render()).find(node=>node.props.role==='dialog').props['data-motion-closing'],true);
 });
 test('provider re-resolves capabilities and restores context focus before handing off an action', () => {
  const slots=[]; let cursor=0, location={pathname:'/',search:''}, account='me'; const effects=[], calls=[];
@@ -284,12 +366,19 @@ test('workbench has Drafts and Bookmarks; Select is only supplied by collection 
  assert.equal(ids(contextActions('profile',{signedIn:true,owner:true},{handlers:{}})).length,0);
  });
 
- test('mobile action sheets anchor to the viewport base while resizing upward', () => {
+ test('action sheets keep one safe panel height and reserve the visible collapsed body without layout animation', () => {
  const source = readFileSync(new URL('../src/components/messages/MobileActionSheet.tsx', import.meta.url), 'utf8');
  const css = readFileSync(new URL('../src/presentation/mobile/mobile.css', import.meta.url), 'utf8');
  assert.match(source, /style=\{\{bottom:0,height:/);
  assert.match(css, /mobile-context-scrim \{[^}]*top: auto; bottom: 0; padding: 0;/);
  assert.match(css, /mobile-context-sheet \{\s*position: absolute; bottom: 0; margin-block: 0;/);
+ const rules=css.match(/#root \.codex-shell \[data-presentation='mobile'\] \.mobile-context-sheet[^}]+}/g).join('\n');
+ assert.match(rules,/height: calc\(100% - max\(16px, var\(--safe-area-top\)\)\)/);
+ assert.match(rules,/padding-bottom: calc\(max\(16px, var\(--safe-area-bottom\)\) \+ var\(--sheet-rest-y\)\)/);
+ assert.match(rules,/\[data-expanded='true'\] \{ --sheet-rest-y: 0px;/);
+ assert.match(rules,/\[data-sheet-dragging\] \{ padding-bottom: max\(16px, var\(--safe-area-bottom\)\);/);
+ assert.doesNotMatch(rules,/transition[^;]*(?:height|padding)|height: 75%/);
+ assert.doesNotMatch(source,/dragHeight|style\.height|height:drag/);
  });
 
 test('Delete chat is a destructive signed-in conversation action', () => {

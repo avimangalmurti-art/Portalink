@@ -3,7 +3,7 @@
   display: flex; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
   background: rgb(0 0 0 / 18%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  animation: follow-info-backdrop-in var(--m-slow) var(--m-enter) both;
+  animation: follow-info-backdrop-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-panel {
   box-sizing: border-box; width: min(100%, 440px); max-height: 100%; min-height: 0;
@@ -13,7 +13,7 @@
   background: color-mix(in srgb, var(--surface-raised) 65%, transparent);
   backdrop-filter: blur(40px) saturate(145%); -webkit-backdrop-filter: blur(40px) saturate(145%);
   box-shadow: 0 20px 64px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 16%);
-  animation: follow-info-panel-in var(--m-slow) var(--m-enter) both;
+  animation: follow-info-panel-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-header { display: flex; align-items: center; gap: 12px; flex: none; }
 [data-follow-info-layer] .project-popup-creator { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; border: 0; font-weight: 600; text-align: left; }

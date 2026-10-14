@@ -3,10 +3,10 @@
 :where(button,a[href],[role='button'],input[type='checkbox']) { transition-duration:var(--m-fast); transition-timing-function:var(--m-enter); }
 :where(button,a[href],[role='button']):active:not(:disabled) { scale:.97; }
 html[data-motion-navigation]::view-transition-group(root) { animation-duration:var(--m-slow); }
-html[data-motion-navigation]::view-transition-old(root) { animation:m-screen-out var(--m-slow) var(--m-exit) both; }
-html[data-motion-navigation]::view-transition-new(root) { animation:m-screen-in var(--m-slow) var(--m-enter) both; }
-html[data-motion-navigation='back']::view-transition-old(root) { animation-name:m-back-out; }
-html[data-motion-navigation='back']::view-transition-new(root) { animation-name:m-back-in; }
+html[data-motion-navigation]::view-transition-old(root) { animation:m-screen-out var(--m-base) var(--m-exit) both; }
+html[data-motion-navigation]::view-transition-new(root) { animation:m-screen-in var(--m-slow) var(--m-enter) both,m-fade-in var(--m-base) var(--m-enter) both; }
+html[data-motion-navigation='back']::view-transition-old(root) { animation:m-back-out var(--m-slow) var(--m-exit) both,m-fade-out var(--m-base) var(--m-exit) both; }
+html[data-motion-navigation='back']::view-transition-new(root) { animation:m-back-in var(--m-base) var(--m-enter) both; }
 html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-transition-old(root) { animation:m-fade-out var(--m-base) var(--m-exit) both; }
 html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-transition-new(root) { animation:m-fade-in var(--m-base) var(--m-enter) both; }
 .mobile-navigation-dock { view-transition-name:portalink-dock; }
@@ -14,20 +14,21 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 ::view-transition-group(portalink-dock),::view-transition-group(portalink-header),::view-transition-old(portalink-dock),::view-transition-new(portalink-dock),::view-transition-old(portalink-header),::view-transition-new(portalink-header) { animation:none; }
 @keyframes m-fade-in { from {opacity:0;} to {opacity:1;} }
 @keyframes m-fade-out { from {opacity:1;} to {opacity:0;} }
-@keyframes m-screen-in { from {opacity:0;transform:translateX(100%);} to {opacity:1;transform:translateX(0);} }
+@keyframes m-screen-in { from {transform:translateX(100%);} to {transform:translateX(0);} }
 @keyframes m-screen-out { from {opacity:1;} to {opacity:0;} }
-@keyframes m-back-out { from {opacity:1;transform:translateX(0);} to {opacity:0;transform:translateX(100%);} }
+@keyframes m-back-out { from {transform:translateX(0);} to {transform:translateX(100%);} }
 @keyframes m-back-in { from {opacity:0;} to {opacity:1;} }
 [data-motion-image] { transition:opacity var(--m-base) var(--m-enter); }
 [data-motion-image]:not([data-motion-image-ready]) { opacity:0; }
 :where(picture,span,div,button):has(> [data-motion-image]:not([data-motion-image-ready])) { background:var(--surface-sunken); }
-[data-motion-scrim] { animation:m-fade-in var(--m-slow) var(--m-enter) backwards; }
-[data-motion-sheet] { animation:m-sheet-in var(--m-slow) var(--m-enter) backwards; transform:translateY(var(--sheet-drag-y,0px)); transition:transform var(--m-slow) var(--m-enter); }
+[data-motion-scrim] { animation:m-fade-in var(--m-base) var(--m-enter) backwards; }
+[data-motion-sheet] { animation:m-sheet-in var(--m-slow) var(--m-enter) backwards; transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px))); transition:transform var(--m-slow) var(--m-enter); }
+[data-motion-sheet][data-sheet-interacted]:not([data-motion-closing]) { animation:none; }
 [data-motion-sheet][data-sheet-dragging] { animation:none;transition:none; }
-[data-motion-scrim][data-motion-closing] { animation:m-fade-out var(--m-slow) var(--m-exit) both; }
+[data-motion-scrim][data-motion-closing] { animation:m-fade-out var(--m-base) var(--m-exit) both; }
 [data-motion-sheet][data-motion-closing] { animation:m-sheet-out var(--m-slow) var(--m-exit) both; }
-@keyframes m-sheet-in { from {transform:translateY(100%);} to {transform:translateY(0);} }
-@keyframes m-sheet-out { from {transform:translateY(var(--sheet-drag-y,0px));} to {transform:translateY(100%);} }
+@keyframes m-sheet-in { from {transform:translateY(100%);} to {transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px)));} }
+@keyframes m-sheet-out { from {transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px)));} to {transform:translateY(100%);} }
 .motion-skeleton { overflow:hidden;position:relative;background:var(--surface-sunken);border-radius:inherit; }
 .motion-skeleton::after { content:'';position:absolute;inset:0;background:var(--surface-raised);animation:m-skeleton var(--m-slow) var(--m-enter) infinite alternate; }
 @keyframes m-skeleton { from {opacity:0;} to {opacity:.35;} }
@@ -51,7 +52,7 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 
 [data-motion-closing] { pointer-events:none; }
 ::view-transition-old(portalink-scrim-exit),::view-transition-old(portalink-sheet-exit) { opacity:0;animation:none; }
-::view-transition-new(portalink-scrim-exit) { animation:m-fade-out var(--m-slow) var(--m-exit) both; }
+::view-transition-new(portalink-scrim-exit) { animation:m-fade-out var(--m-base) var(--m-exit) both; }
 ::view-transition-new(portalink-sheet-exit) { animation:m-sheet-out var(--m-slow) var(--m-exit) both; }
 [data-motion-pending-reader] { position:fixed;inset:0;z-index:39;background:var(--surface-canvas);view-transition-name:portalink-pending-reader;pointer-events:none; }
 ::view-transition-old(portalink-pending-reader),::view-transition-new(portalink-pending-reader) { animation:none;opacity:0; }
@@ -60,8 +61,9 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 
 [data-motion-sheet] > header { touch-action:none; }
 ::view-transition { pointer-events:none; }
-::view-transition-old(*) { animation-duration:var(--m-slow);animation-timing-function:var(--m-exit); }
-::view-transition-new(*) { animation-duration:var(--m-slow);animation-timing-function:var(--m-enter); }
+::view-transition-old(*) { animation-duration:var(--m-base);animation-timing-function:var(--m-exit); }
+::view-transition-new(*) { animation-duration:var(--m-base);animation-timing-function:var(--m-enter); }
+::view-transition-new(portalink-sheet-exit) { animation-duration:var(--m-slow); }
 
 .screen-loading-shapes {display:none;}
 .legacy-loading-shapes {display:contents;}

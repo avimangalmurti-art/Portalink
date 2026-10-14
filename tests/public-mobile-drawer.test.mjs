@@ -257,8 +257,11 @@ test('viewport opener disappears while navigation is open and returns after outs
   const h = harness();
   assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
   h.open();
+  assert.equal(h.animations.at(-1).options.duration, 0.18, 'Shared progress settles both the scrim fade and panel slide within 180ms');
   assert.equal(opener(h.render()), undefined);
   h.outsideBinding.close();
+  assert.equal(h.animations.at(-1).options.duration, 0.18, 'Closing uses the same bounded progress animation');
+  assert.equal(h.render().props['data-visible'], true, 'Navigation remains mounted until the closing motion finishes');
   assert.equal(h.finish().props['data-visible'], false);
   assert.equal(opener(h.render()).props['aria-label'], 'Open profile navigation');
   h.unmount();
