@@ -92,7 +92,7 @@ function componentHarness(file, name, initial, overrides = {}) {
     dispose() { slots.forEach(slot => slot?.cleanup?.()); lastRefs.forEach(ref => ref(null)); },
   };
 }
-const calendarHarness = (entries = sparse, extra = {}) => componentHarness('src/features/journey/JourneyCalendar.tsx', 'JourneyCalendar', { profile, owner: true, entries, onOpen() {}, onOpenPortal() {}, onDetails() {}, ...extra });
+const calendarHarness = (entries = sparse, extra = {}) => componentHarness('src/features/journey/JourneyCalendar.tsx', 'JourneyCalendar', { profile, owner: true, entries, onOpen() {}, onOpenPortal() {}, onOpenCalendar() {}, onDetails() {}, ...extra });
 // FormattedText is a descendant boundary in this harness; its text prop is its
 // visible content, so descriptions cannot accidentally disappear from assertions.
 const text = tree => Array.isArray(tree) ? tree.map(text).join(' ') : React.isValidElement(tree) ? tree.type === 'formatted-text' ? tree.props.text : text(tree.props.children) : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : '';
@@ -120,6 +120,26 @@ test('previous and next arrows jump directly across decades of sparse posted dat
   h.button('Next date with work').props.onClick(); assert.equal(h.selected(), '2026-10-13');
   assert.deepEqual(h.scrolls.map(item => item.day), ['2024-02-29', '1990-01-01', '2024-02-29', '2026-10-13']);
   assert.ok(h.scrolls.every(item => item.options.block === 'start'));
+  h.dispose();
+});
+
+test('calendar Today opens the month screen above date navigation without changing the selected date or scrolling', () => {
+  let opened = 0;
+  const h = calendarHarness(sparse, { onOpenCalendar: () => opened++ });
+  h.button('Previous date with work').props.onClick();
+  const selected = h.selected(), rows = h.nodes.filter(node => node.type === 'li').map(node => node.key);
+  h.scrolls.length = 0;
+  const header = h.nodes.find(node => node.props.className === 'journey-calendar-header');
+  const controls = nodes(header).filter(node => node.type === 'button');
+  assert.equal(controls[0].props['aria-label'], 'Open Timeline calendar for today');
+  assert.equal(controls[1].props['aria-label'], 'Previous date with work');
+  assert.equal(controls[2].props['aria-label'], 'Next date with work');
+  const today = h.button('Open Timeline calendar for today');
+  assert.equal(today.props.type, 'button'); assert.equal(today.props['aria-haspopup'], 'dialog');
+  today.props.onClick();
+  assert.equal(opened, 1); assert.equal(h.selected(), selected);
+  assert.deepEqual(h.scrolls, [], 'Opening the month screen does not jump the posted-work agenda to today.');
+  assert.deepEqual(h.nodes.filter(node => node.type === 'li').map(node => node.key), rows);
   h.dispose();
 });
 
@@ -229,13 +249,13 @@ test('the mobile parent scopes consumed month requests to the viewed profile and
   const child = () => h.nodes.find(node => node.type === 'journey-calendar');
   assert.equal(child().key, 'creator:true');
   assert.equal(h.wrapperKey, 'creator:true');
-  h.button('Open Timeline calendar for today').props.onClick();
+  child().props.onOpenCalendar();
   h.nodes.find(node => node.type === 'month-calendar').props.onSelect('1990-01-01');
   assert.equal(child().props.jumpTo.request, 1);
   h.update({ profile: { ...initial.profile, id: 'other' } });
   assert.equal(child().key, 'other:true'); assert.equal(child().props.jumpTo, undefined);
   assert.equal(h.wrapperKey, 'other:true');
-  h.button('Open Timeline calendar for today').props.onClick();
+  child().props.onOpenCalendar();
   h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29');
   assert.equal(child().props.jumpTo.request, 1);
   h.update({ owner: false });
@@ -245,6 +265,22 @@ test('the mobile parent scopes consumed month requests to the viewed profile and
   const remounted = calendarHarness(sparse, { profile: { ...profile, id: 'other' }, owner: false, jumpTo: { day: '1990-01-01', request: 1 } });
   assert.equal(remounted.selected(), '1990-01-01');
   h.dispose(); remounted.dispose();
+});
+
+test('empty and undated mobile Timelines retain one Today action before the agenda and can still open the month screen', () => {
+  for (const projects of [[], [project('undated', 'invalid')]]) {
+    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: { ...profile, projects }, owner: true, onOpen() {}, presentation: 'mobile' });
+    const controls = h.nodes.filter(node => node.type === 'button' && node.props['aria-label'] === 'Open Timeline calendar for today');
+    assert.equal(controls.length, 1);
+    const agenda = h.nodes.find(node => node.type === 'journey-calendar');
+    assert.ok(h.nodes.indexOf(controls[0]) < h.nodes.indexOf(agenda), 'The fallback Today action sits above the empty or undated agenda.');
+    controls[0].props.onClick();
+    const month = h.nodes.find(node => node.type === 'month-calendar');
+    assert.ok(month); assert.deepEqual(Array.from(month.props.days), []);
+    month.props.onClose();
+    assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);
+    h.dispose();
+  }
 });
 
 test('WEB month navigation keeps the year rail and jumps to its first same-day entry with profile header clearance', () => {
@@ -337,7 +373,10 @@ for (const presentation of ['mobile', 'web']) {
     assert.ok(nodes(pair).some(node => node.type === 'button' && node.props.children === 'Work'), 'Then / Now includes the same portal action.');
     nodes(pair).find(node => node.type === 'button' && node.props['aria-label'] === 'Open Then: early').props.onClick();
     assert.deepEqual(opened, ['early']); opened.length = 0;
-    h.button('Open Timeline calendar for today').props.onClick();
+    if (presentation === 'mobile') {
+      assert.equal(h.button('Open Timeline calendar for today'), undefined, 'Dated mobile work uses the calendar header action instead of a second standalone Today.');
+      calendar().props.onOpenCalendar();
+    } else h.button('Open Timeline calendar for today').props.onClick();
     h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29'); h.frames();
     const key = h.wrapperKey, jump = calendar()?.props.jumpTo, calendarKey = calendar()?.key;
     const datedRows = h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key);

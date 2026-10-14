@@ -1,3 +1,19 @@
+## 2026-10-14 - Today placement integrated into approved Timeline release
+
+User approved publishing the Timeline update while requesting a Today-control placement follow-up. Root announced that the placement would be included in the approved release. Continue codex/timeline-portal-popup from source6ab4244363b009705e7d65f21ccc2082d1ef5541; the earlier release-timeline-portal archive is superseded and must not be deployed. Sites418 remains live until the new combined archive is saved/deployed. PR88 remains the stacked review; main integration separate.
+
+MOBILE JourneyCalendar now places Today in a92px right control stack above44px Previous/Next work-day targets with4px row gap. Month/year block is also92px tall, using32px month/18px year text and44px line boxes. The old bottom floating Today placement is removed; no-dated-work timelines retain one inline Today above their agenda. Today still opens the existing month calendar and month selection uses the unchanged work-date callback. WEB retains its intentional year rail and existing Today action because it has no day-arrow toolbar. Existing header ResizeObserver measures the new192px header and preserves agenda/sticky clearance.
+
+74 focused checks/typecheck/focused lint(0errors2existingwarnings)/production client+worker build/main+visitor configuration guards/diff review pass. Actual-component420x912 browser screenshot verifies Today above arrows, equal92px text/control heights and44px targets; month calendar opens, work-date Next navigation works,390px has equal sizing/nooverflow;1280x900 retains the year rail with one static Today and no mobile toolbar. Fresh console errors0. Physical iPhone/live-account acceptance unverified. Owned preview5236 stopped, tab42 closed and viewport reset; QA excluded. No additional architecture/backend/data/dependency/worker/service-worker changes. Remaining: refreshed exact source/archive/PR preparation and native publication of the combined approved payload.
+
+
+## 2026-10-14 - Timeline portal release ready; publication pending (ALL)
+
+Prepared source6ab4244363b009705e7d65f21ccc2082d1ef5541 on codex/timeline-portal-popup is saved/pushed to existing Sites source and github. Attached draft PR88 https://github.com/avimangalmurti-art/Portalink/pull/88 is stacked on PR87; main integration is separate. All72 focused checks/typecheck/focused lint(0errors2existingwarnings)/client+worker build/main+visitor production configuration guards/diff review and controlled mobile/WEB browser checks pass, with physical/live-account limits recorded below. No source changes after build/preparation.
+
+Exact archive logs/video-qa/release-timeline-portal.tar.gz verified590entries/580files SHA256d437d98903b9374f0818cd670ce3aba42f1f687c1894100ea7fd511a26c03310. All build files match; current worker+D1/attribution manifest and existing splash video/backup/poster/15756-byte inline first art/8gatedstyles/28launch images/default status bar preserved. Env/Git/deps/logs/QA excluded. Sites418 remains live; no new saved Site version or deployment for this payload. Source-only pushes have publish_on_push=false. Only separate explicit publication approval under AGENTS.md remains. Owned preview5236/tab41 are closed and viewport reset. This receipt is local/uncommitted, outside the frozen source/archive; do not rebuild/repackage merely for this receipt.
+
+
 ## 2026-10-14 - Compact Timeline and local Portal Popup prepared (ALL)
 
 Root owns codex/timeline-portal-popup in logs/splash-video, based on Sites418/source58ca49387756ca3d44f54202062971db9b449045. Current Sites source opened before edits; github/main ancestry checked and branch created from the current reviewed stack. Coordinated agents handled shared popup extraction and focused tests under root review. Sites418 remains live; this new payload has no publication approval. GitHub main integration is separate.

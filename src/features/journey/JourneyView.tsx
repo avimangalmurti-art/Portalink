@@ -59,14 +59,13 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
     });
     return () => cancelAnimationFrame(frame);
   }, [calendarJump, calendarOpen, isMobile]);
-  const calendarControls = <>
-    <button type="button" className="journey-today-launch" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>
-    <DeferredDialog active={calendarOpen} onClose={() => setCalendarOpen(false)}>{calendarOpen && <JourneyMonthCalendar days={record.days} onClose={() => setCalendarOpen(false)} onSelect={requested => {
+  const todayLaunch = <button type="button" className="journey-today-launch" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>;
+  const calendarDialog = <DeferredDialog active={calendarOpen} onClose={() => setCalendarOpen(false)}>{calendarOpen && <JourneyMonthCalendar days={record.days} onClose={() => setCalendarOpen(false)} onSelect={requested => {
       const day = workCalendarDay(record.days.map(([date]) => date), requested);
       if (day) setCalendarJump(previous => ({ day, request: (previous?.request ?? 0) + 1 }));
       setCalendarOpen(false);
-    }} />}</DeferredDialog>
-  </>;
+    }} />}</DeferredDialog>;
+  const calendarControls = <>{todayLaunch}{calendarDialog}</>;
   const portalButton = (project: Project) => {
     const portal = profile.categories.find(category => category.id === project.categoryId);
     return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={activePortalPopupId === portal.id} onClick={() => setPortalPopupId(portal.id)}>{portal.label}</button> : null;
@@ -88,7 +87,7 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
     </section>;
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
-  if (isMobile) return <><JourneyCalendar key={`${profile.id}:${owner}`} profile={profile} owner={owner} entries={entries} onOpen={onOpen} onDetails={setDetailsProject} onOpenPortal={setPortalPopupId} openPortalId={activePortalPopupId} onAdd={onAdd} jumpTo={calendarJump}>{pairContent}</JourneyCalendar>{calendarControls}{popup}{portalPopup}</>;
+  if (isMobile) return <>{!record.days.length && todayLaunch}<JourneyCalendar key={`${profile.id}:${owner}`} profile={profile} owner={owner} entries={entries} onOpen={onOpen} onDetails={setDetailsProject} onOpenCalendar={() => setCalendarOpen(true)} onOpenPortal={setPortalPopupId} openPortalId={activePortalPopupId} onAdd={onAdd} jumpTo={calendarJump}>{pairContent}</JourneyCalendar>{calendarDialog}{popup}{portalPopup}</>;
   if (!groups.length && !owner) return <div className="journey-view">{calendarControls}</div>;
   if (!groups.length) return <div className="journey-view">{calendarControls}<button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
     <span aria-hidden="true">+</span>Add your first project
