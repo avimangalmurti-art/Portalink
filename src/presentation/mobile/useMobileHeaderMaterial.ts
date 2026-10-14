@@ -1,14 +1,33 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
-const HEADERS = 'header, .profile-header-region, .mobile-home-search-header, [data-inbox-controls]';
+const HEADERS = 'header, .profile-header-region, .mobile-home-search-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header';
 const SCROLLERS = '[data-screen-scroll], .scroll-edge-fade, .feed-edge-fade, [class*="overflow-y-auto"], .mobile-profile-wall, .studio-workbench-scroll, .studio-bookmarks-scroll, .account-search-results, [data-mobile-scroll-end]';
 const SCREEN = '[data-profile-page], [data-messages-page], .studio-citation-shell, [data-mobile-home-search], .app-screen-layer, [data-screen-scroll]';
 
 /** The material reacts to vertical content overlap, never horizontal tab scrolling. */
 export function headerHasUnderlap(header: HTMLElement, scroller: HTMLElement, scope: HTMLElement, viewportBounds?: Pick<DOMRect, 'top' | 'bottom' | 'left' | 'right' | 'width' | 'height'>) {
   if (scroller.scrollTop <= 1 || (!scroller.contains(header) && !scope.contains(scroller))) return false;
-  const h = header.getBoundingClientRect(), s = viewportBounds ?? scroller.getBoundingClientRect();
-  if (!h.height || !s.height || !s.width || h.right <= s.left || h.left >= s.right) return false;
+  const h = header.getBoundingClientRect();
+  const bounds = viewportBounds ?? scroller.getBoundingClientRect();
+  let top = bounds.top, bottom = bounds.bottom, left = bounds.left, right = bounds.right;
+  // A nested scroller's full box can extend behind a header while its visible
+  // content is clipped below it. Only the visible intersection counts.
+  for (let parent = scroller.parentElement; parent; parent = parent.parentElement) {
+    const style = getComputedStyle(parent), clip = parent.getBoundingClientRect();
+    if (/hidden|clip|auto|scroll/.test(style.overflowY)) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+    if (/hidden|clip|auto|scroll/.test(style.overflowX)) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+  }
+  const s = { top, bottom, left, right, width: right - left, height: bottom - top };
+  if (!h.height || s.height <= 0 || s.width <= 0 || h.right <= s.left || h.left >= s.right || h.bottom <= s.top || h.top >= s.bottom) return false;
+  const contentRoot = scroller.contains(scope) ? scope : scroller;
+  const firstContent = Array.from(contentRoot.querySelectorAll<HTMLElement>('li, img, canvas, video, p, h1, h2, h3, input, textarea, [data-studio-row]')).find(node => {
+    if (header.contains(node) || node.closest('.sr-only, [hidden], [role="dialog"], [role="menu"]')) return false;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+  // Ignore the blank gap before the first row. Once the content has reached the
+  // header, keep the material steady through the gaps between subsequent rows.
+  if (!firstContent || firstContent.getBoundingClientRect().top >= h.bottom) return false;
   if (scroller.contains(header)) {
     const style = getComputedStyle(header);
     return (style.position === 'sticky' || style.position === 'fixed') && h.top <= s.top + (parseFloat(style.top) || 0) + 1;
@@ -25,17 +44,27 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
     const refresh = () => {
       frame = 0;
       const scrollers = Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).filter(node =>
-        !node.closest('[role="dialog"], [role="menu"]') && /auto|scroll/.test(getComputedStyle(node).overflowY));
+        !node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]') && /auto|scroll/.test(getComputedStyle(node).overflowY));
       const documentScroller = document.scrollingElement as HTMLElement | null;
       if (documentScroller && documentScroller.scrollHeight > documentScroller.clientHeight) scrollers.push(documentScroller);
-      const headers = Array.from(root.querySelectorAll<HTMLElement>(HEADERS)).filter(node => {
-        if (node.closest('[role="dialog"], [role="menu"]')) return false;
+      const candidates = Array.from(root.querySelectorAll<HTMLElement>(HEADERS)).filter(node => {
+        if (node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]')) return false;
         const position = getComputedStyle(node).position;
-        return position === 'sticky' || position === 'fixed' || node.matches('.profile-header-region, .mobile-home-search-header, [data-inbox-controls], [data-mobile-safe-header], .studio-mobile-shell-header, .settings-page-header, .account-search-header');
+        if (position === 'static') return false;
+        return position === 'sticky' || position === 'fixed' || node.matches('.profile-header-region, .mobile-home-search-header, [data-inbox-controls], [data-mobile-safe-header], .studio-mobile-shell-header, .settings-page-header, .account-search-header, .global-control-header');
       });
+      // A region paints once; nested toolbar headers remain foreground only.
+      const headers = candidates.filter(node => !candidates.some(parent => parent !== node && parent.contains(node)));
+      for (const node of marked) {
+        if (!headers.includes(node)) delete node.dataset.mobileHeaderUnderlap;
+      }
       for (const node of scrollers) {
         node.dataset.mobileScrollTop = String(node.scrollTop <= 1);
         node.dataset.mobileScrollUnderlap = 'false';
+        node.dataset.mobileScrollHasHeader = String(headers.some(header => node.contains(header)));
+        marked.add(node);
+      }
+      for (const node of root.querySelectorAll<HTMLElement>('.scroll-edge-fade, .feed-edge-fade')) {
         node.dataset.mobileScrollHasHeader = String(headers.some(header => node.contains(header)));
         marked.add(node);
       }

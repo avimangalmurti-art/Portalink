@@ -1,13 +1,94 @@
-/* Stationary mobile headers stay solid until vertical content reaches them. */
-#root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap='false'][data-mobile-header-underlap] {
-  background:var(--surface-canvas,var(--codex-workspace-bg))!important;
-  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+/* One background layer owns header material. Foreground opacity is never animated. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap] {
+  isolation: isolate;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
-#root .codex-shell[data-presentation='mobile'] :is(.profile-header-region,.mobile-home-search-header):not([data-mobile-header-underlap='true'])::before {
-  bottom:0;background:var(--surface-canvas,var(--codex-workspace-bg));
-  mask-image:none;-webkit-mask-image:none;backdrop-filter:none;-webkit-backdrop-filter:none;
+#root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+  mask-image: none;
+  -webkit-mask-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: background-color var(--m-base) var(--m-enter), backdrop-filter var(--m-base) var(--m-enter), -webkit-backdrop-filter var(--m-base) var(--m-enter);
 }
-/* Mask content only; a mask on a parent would also dim its stationary header. */
-#root .codex-shell[data-presentation='mobile'] :is(.scroll-edge-fade,.feed-edge-fade):is(:not([data-mobile-scroll-underlap='true']),[data-mobile-scroll-has-header='true']) {
-  mask-image:none!important;-webkit-mask-image:none!important;
+#root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap='true']::before {
+  background: color-mix(in srgb, var(--surface-canvas, var(--codex-workspace-bg)) 96%, transparent);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+}
+/* Preserve Home/Profile's existing glass colour and soft background edge. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)[data-mobile-header-underlap='true']::before {
+  bottom: -20px;
+  background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] .mobile-pill-header[data-mobile-header-underlap='true']::before {
+  background: var(--navigation-surface, var(--surface-raised));
+  backdrop-filter: var(--navigation-blur, blur(20px));
+  -webkit-backdrop-filter: var(--navigation-blur, blur(20px));
+}
+/* Nested headers cannot repaint an unconditional glass surface over this layer. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap] header {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* A scrolling ancestor mask would fade the stationary foreground as well. */
+#root .codex-shell[data-presentation='mobile'] :is(.scroll-edge-fade, .feed-edge-fade):is(:not([data-mobile-scroll-underlap='true']), [data-mobile-scroll-has-header='true']) {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile']:is(.reduce-translucency, .high-contrast) [data-mobile-header-underlap]::before {
+  bottom: 0;
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+  mask-image: none;
+  -webkit-mask-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap][data-mobile-header-underlap]::before {
+    bottom: 0;
+    background: var(--surface-canvas, var(--codex-workspace-bg));
+    mask-image: none;
+    -webkit-mask-image: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap]::before { transition: none; }
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'].reduce-motion [data-mobile-header-underlap]::before { transition: none; }
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap][data-mobile-header-underlap]::before {
+    background: var(--surface-canvas, var(--codex-workspace-bg));
+  }
+}
+
+/* Lazy screen content can mount after the shell. Keep its initial frame solid
+   until the overlap observer marks it, too. Floating/dialog surfaces are excluded. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.studio-workbench-header, .account-search-header, [data-inbox-controls], [data-mobile-chat] > header, .mobile-pill-header):not([data-mobile-header-underlap]):not(:where([role='dialog'] *, [role='menu'] *, .mobile-profile-portal-overlay *, [data-project-index-panel] *, [data-project-response-rail] *)) {
+  background: var(--surface-canvas, var(--codex-workspace-bg)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header):not([data-mobile-header-underlap])::before {
+  bottom: 0;
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+  mask-image: none;
+  -webkit-mask-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
