@@ -62,7 +62,7 @@
   color: var(--ui-control-text) !important;
   box-shadow: none;
   cursor: pointer;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter), border-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter), opacity var(--m-fast) var(--m-enter);
 }
 #root .codex-shell [data-ui-control][data-control-variant='ghost'] {
   --ui-control-rest-surface: transparent;

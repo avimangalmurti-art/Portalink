@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import { useLayoutEffect, useRef, type ReactNode, type RefObject, type ComponentProps } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeftIcon, XIcon } from 'lucide-react';
@@ -36,7 +37,7 @@ export function ProjectFormDialog({ title, titleId, description, onClose, closeD
   const requestClose = () => { if (!closeDisabled) onClose(); };
   useModalFocus(true, ref, requestClose);
   const closeTap = useTouchTap(requestClose, topLayer && !closeDisabled);
-  const transition = { duration: reduceMotion ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] as const };
+  const transition = { duration: reduceMotion ? 0 : motionSeconds('base'), ease: motionCurve() };
   const content = <motion.div ref={overlayRef} data-mobile-publish-flow={mobileFlow || undefined} className="project-form-overlay modal-scrim z-[80] bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={transition} onPointerDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
       <motion.section ref={ref} tabIndex={-1} role={topLayer ? undefined : "dialog"} aria-modal={topLayer ? undefined : true} aria-labelledby={titleId} className="project-form-dialog flex flex-col rounded-[16px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] text-[var(--text-primary)] shadow-[0_24px_60px_rgba(15,23,42,0.28)] outline-none" initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985 }} animate={{ opacity: 1, scale: 1 }} transition={transition}>
         <div className="project-form-heading flex items-start justify-between gap-3">

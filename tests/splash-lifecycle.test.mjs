@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 const shareModel = sourceModule('src/features/sharing/shareModel.ts');
 import { sourceModule } from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
@@ -18,12 +19,17 @@ function hooks() {
       useState(initial) {
         const i = cursor++;
         slots[i] ??= { value: typeof initial === 'function' ? initial() : initial };
-        return [slots[i].value, value => { slots[i].value = value; }];
+        return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value; }];
       },
       useCallback(callback, deps) {
         const i = cursor++;
         if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) slots[i] = { callback, deps };
         return slots[i].callback;
+      },
+      useMemo(factory, deps) {
+        const i = cursor++;
+        if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) slots[i] = { value: factory(), deps };
+        return slots[i].value;
       },
       useEffect(effect, deps) {
         const i = cursor++;
@@ -63,10 +69,10 @@ function compile(path, imports, globals) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, ...globals, require(name) { assert.ok(name in imports, name); return imports[name]; } });
+  }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
   const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [];
@@ -101,7 +107,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
   const onComplete = () => completed++;
   return { ...h,
     render() {
-      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, hidden: surfaceHidden }));
+      const tree = h.render(() => PortalinkSplashLoader({ onComplete, stillOnly, landing, timedIntro, welcomeMedia, welcomeHandoff, hidden: surfaceHidden }));
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
       const [poster, media] = tree.props.children[0].props.children.props.children;
@@ -224,7 +230,7 @@ test('WEB starts its short presentation budget on the first frame, not during bu
   const h = loader(); h.render();
   assert.equal([...h.timers.values()].some(t => t.delay === 880), false);
   h.start(); h.paint();
-  assert.equal(h.exitDuration, 0.32); h.timer(880);
+  assert.equal(h.exitDuration, 0.26); h.timer(880);
   assert.equal(h.completed, 1);
   assert.equal(h.render().media.props.style.opacity, 1);
   h.unmount();
@@ -405,7 +411,7 @@ test('preboot removes the obsolete MOBILE poster at the canonical boundary and p
 test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
   for (const first of ['auth', 'media']) {
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: false }, location = { pathname: '/' };
-  const storage = new Map();
+  const storage = new Map(), warmed = [];
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
     react: h.react, 'framer-motion': { AnimatePresence: 'presence' },
     'react-router-dom': { Navigate: 'redirect', matchPath: () => null, useLocation: () => location },
@@ -414,13 +420,16 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
+    './screenModules': { warmScreenForPath: path => { warmed.push(path); return Promise.resolve([]); } },
+    './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
   }, { window: { ...h.window, sessionStorage: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } } });
-  const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
+  const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); const app = tree.props.children[0]; if (app?.type === 'app') { app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true); } return tree.props.children; };
   let [app, presence] = render();
   assert.equal(app, null); assert.equal(presence.props.children.props.stillOnly, false);
+  assert.deepEqual(warmed, ['/'], 'requested screen code starts while authentication is still initializing');
   if (first === 'media') {
     presence.props.children.props.onComplete(); [app, presence] = render();
     assert.equal(app, null, 'completed intro cannot bypass session restoration');
@@ -430,6 +439,12 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
   [app, presence] = render();
   assert.equal(app.type, 'app', 'data starts loading before the intro completes');
   assert.equal(presence.props.children.type, 'splash');
+  if (first === 'auth') {
+    [app, presence] = render();
+    assert.equal(app.type, 'app');
+    assert.equal(presence.props.children.type, 'splash', 'fast authentication cannot truncate playback');
+    assert.equal(presence.props.children.props.stillOnly, false);
+  }
   presence.props.children.props.onComplete();
   render(); [app, presence] = render();
   assert.equal(app.type, 'app'); assert.equal(presence.props.children, null);
@@ -450,7 +465,7 @@ test('splash native controls are suppressed only inside the decorative startup v
   assert.match(css, /\.portalink-splash-video::-webkit-media-controls-start-playback-button\s*\{[^}]*display:\s*none !important/);
 });
 
-function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId } = {}) {
+function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId, homeReady = true } = {}) {
   const h = hooks(), requested = [], redirects = [], location = {pathname:path,search,hash}, storage = new Map();
   if (storedProfileId) storage.set('portalink.sharedViewerProfileId', storedProfileId);
   let rendered;
@@ -461,15 +476,17 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     react:h.react, 'framer-motion':{AnimatePresence:'presence'},
     'react-router-dom':{Navigate:'redirect',matchPath,useLocation:()=>location},
     '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
-    '../components/ui/StateViews':{LoadingState:'loading'},
+    '../components/ui/StateViews':{LoadingState:'loading',ErrorState:'home-error'},
     '../contexts/AuthContext':{useAuth:()=>auth},
     './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
+    './screenModules':{warmScreenForPath:()=>Promise.resolve([])},
+    './homeStartup':{HOME_STARTUP_TIMEOUT_MS:12000},
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
     }, {window:{...h.window,location:{replace:path=>redirects.push(path)},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
+  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
 }
 
 test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
@@ -534,12 +551,14 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   }
   splash.props.landing.onContinue(); assert.equal(h.render(),null);
   assert.equal(h.render(),null,'the welcome marker cannot reopen a dismissed landing');
+  const desktop=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web'}); desktop.auth.isInitializing=false;
+  assert.equal(desktop.render().props.landing.ready,true);
   const reopened=sharedBootstrap({path:'/',search:'?welcome=1'}); reopened.auth.isInitializing=false;
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
 });
 
-test('invitation marker does not override signed-in, WEB, recovery or authentication callback flows', () => {
-  for (const options of [{authenticated:true},{presentation:'web'},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
+test('invitation marker does not override signed-in, recovery or authentication callback flows', () => {
+  for (const options of [{authenticated:true},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
     const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator',...options});
     h.render(); h.auth.isInitializing=false;
     assert.equal(h.render().props.landing,undefined);
@@ -549,33 +568,34 @@ test('invitation marker does not override signed-in, WEB, recovery or authentica
   ordinary.render(); assert.equal(ordinary.app.type,'redirect','ordinary guest navigation keeps its existing shared-profile boundary');
 });
 
-test('restored MOBILE sessions keep a visible video-only intro until its timed completion', () => {
-  const h=sharedBootstrap({path:'/',search:''}); let splash=h.render();
+test('restored MOBILE and WEB sessions finish the splash while ready screens load beneath it', () => {
+ for (const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({path:'/',search:'',presentation}); let splash=h.render();
   assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
-  assert.equal(splash.props.timedIntro,true); assert.equal(h.app,null);
+  assert.equal(splash.props.timedIntro,presentation==='mobile'); assert.equal(h.app,null);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
   splash=h.render(); splash=h.render();
-  assert.equal(splash.props.landing,undefined); assert.equal(splash.props.hidden,false);
-  assert.equal(splash.props.timedIntro,true); assert.equal(h.app.type,'app');
-  splash.props.onComplete(); assert.equal(h.render(),null);
+  assert.equal(splash.type,'splash'); assert.equal(splash.props.stillOnly,false);
+  assert.equal(h.app.type,'app');
+  splash.props.onComplete(); h.render(); assert.equal(h.render(),null);
   assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
   h.render(); h.location.pathname='/messages'; assert.equal(h.render(),null);
+ }
 });
 
-test('a slow MOBILE session shows loading after the intro without extending video or revealing protected content', () => {
+test('opening Home keeps its splash through a slow session without revealing protected content', () => {
   const h=sharedBootstrap({path:'/',search:''}); h.render().props.onComplete();
-  assert.equal(h.render(),null); assert.equal(h.app,null);
-  assert.equal(h.waiting.props.children.type,'loading');
+  assert.equal(h.render().type,'splash'); assert.equal(h.app,null); assert.equal(h.waiting,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
-  assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
+  h.render();h.render();assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
 });
 
-test('rotation does not cancel or hide the initial returning MOBILE intro', () => {
+test('rotation preserves complete splash playback while the ready screen loads', () => {
   const h=sharedBootstrap({path:'/',search:''}); h.render(); h.setPresentation('web');
   let splash=h.render(); assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true; splash=h.render();
-  assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
-  splash.props.onComplete(); assert.equal(h.render(),null);
+  splash=h.render(); assert.equal(splash.type,'splash'); assert.equal(h.app.type,'app');
+  splash.props.onComplete(); h.render(); assert.equal(h.render(),null);
 });
 
 test('root mobile landing waits for verified guest status, then stays behind account forms', () => {
@@ -584,7 +604,7 @@ test('root mobile landing waits for verified guest status, then stays behind acc
     assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
     if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
     splash=h.render();
-    if(first==='media') assert.equal(splash,null,'a slow session cannot extend the intro');
+    if(first==='media') assert.equal(splash.type,'splash','Home stays covered until the session can start its real reads');
     else assert.equal(splash.props.landing.ready,true);
     if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
     splash=h.render(); assert.equal(splash.props.landing.ready,true);
@@ -602,9 +622,48 @@ test('root mobile landing waits for verified guest status, then stays behind acc
 test('authenticated visitors, recovery, WEB and callback URLs never hold the landing', () => {
   for(const options of [{authenticated:true},{recovery:true},{presentation:'web'},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
     const h=sharedBootstrap({path:'/',search:'',...options}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
-    splash.props.onComplete(); h.auth.isInitializing=false; h.render(); assert.equal(h.render(),null);
+    splash.props.onComplete(); h.auth.isInitializing=false; h.render(); h.render(); assert.equal(h.render(),null);
     h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);
   }
+});
+
+test('opening Home waits for decoded content and its shell after the full intro on both platforms', () => {
+ for (const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});
+  h.auth.isInitializing=false;
+  let splash=h.render(); assert.equal(h.app.type,'app'); assert.equal(h.app.props.homeStartupPending,true);
+  splash.props.onComplete(); h.app.props.onHomeStartupShellReady(true);
+  assert.equal(h.render().type,'splash','shell and intro cannot expose incomplete Home');
+  assert.equal(h.waiting,false);
+  h.app.props.onHomeStartupReady(false); assert.equal(h.render().type,'splash');
+  h.app.props.onHomeStartupReady(true); h.render(); assert.equal(h.render(),null);
+  h.location.pathname='/messages'; assert.equal(h.render(),null);
+ }
+});
+
+test('ready Home never shortens the full intro', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+ h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
+ let splash=h.render();assert.equal(splash.type,'splash');splash.props.onComplete();h.render();assert.equal(h.render(),null);
+});
+
+test('Home timeout offers Retry and rejects stale account or startup-attempt completions', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+ h.render().props.onComplete(); h.render();
+ const old=h.app.props;
+ h.timer();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
+ h.homeError.props.children.props.onRetry();assert.equal(h.render().type,'splash');assert.equal(h.app.props.homeStartupAttempt,1);
+ old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ const retry=h.app.props;h.auth.user={id:'different'};h.auth.session={user:h.auth.user};h.render();
+ retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
+});
+
+test('guest Continue waits for Home without reopening entry actions', () => {
+ const h=sharedBootstrap({path:'/',search:'',homeReady:false});h.auth.isInitializing=false;
+ const splash=h.render();splash.props.landing.onContinue();
+ const waiting=h.render();assert.equal(waiting.type,'splash');assert.equal(waiting.props.landing,undefined);assert.equal(waiting.props.welcomeHandoff,true);
+ h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
 test('all root mobile welcome actions open the intended form without adding a shared destination', () => {
@@ -731,7 +790,7 @@ test('sign in or resizing to WEB ends the opening landing permanently', () => {
     const splash=h.render();
     if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
     else h.setPresentation('web');
-    assert.equal(h.render().props.hidden,true);assert.equal(h.render(),null);
+    const handoff=h.render();assert.equal(handoff.props.hidden,action==='resize');if(action==='signin')assert.equal(handoff.props.welcomeHandoff,true);assert.equal(h.render(),null);
     h.auth.isAuthenticated=false;h.setPresentation('mobile');assert.equal(h.render(),null);
   }
 });
@@ -748,4 +807,11 @@ test('shared visitors can open Settings while the public-view boundary remains i
   h.auth.isInitializing=false;h.render();
   assert.equal(h.app.type,'redirect');
   assert.equal(h.app.props.to,'/share/creator');
+});
+
+test('leaving Hello World cross-fades for the base motion token, respecting reduced motion and other startup timings',()=>{
+ const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'Continue as guest'};
+ for(const options of [{presentation:'mobile',landing:welcome},{presentation:'mobile',welcomeHandoff:true}]){const h=loader(options),view=h.render();assert.equal(view.tree.props.transition.duration,.18);assert.equal(view.tree.props.exit.opacity,0);h.unmount();}
+ const reduce=loader({presentation:'mobile',landing:welcome,reduced:true});reduce.render();assert.equal(reduce.exitDuration,0);reduce.unmount();
+ const normal=loader();normal.render();assert.equal(normal.exitDuration,.26);normal.unmount();
 });

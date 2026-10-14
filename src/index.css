@@ -7,6 +7,8 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
+@import './presentation/motion/motion.css';
+
 /* END TAILWIND IMPORTS — ALL OTHER CSS MUST GO BELOW THIS LINE */
 
 /* Native scrolling stays available; pinch and double-tap must not scale the
@@ -269,10 +271,10 @@ textarea {
   --shape-inset: 13px;
   --shape-compact: 10px;
   --shape-pill: 999px;
-  --motion-fast: 120ms;
-  --motion-base: 180ms;
-  --motion-slow: 260ms;
-  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: var(--m-fast);
+  --motion-base: var(--m-base);
+  --motion-slow: var(--m-slow);
+  --ease-standard: var(--m-enter);
 }
 .shape-container {
   border-radius: var(--shape-container);
@@ -1158,7 +1160,7 @@ body {
     radial-gradient(1px 1px at 91% 29%, rgba(255, 255, 255, 0.7), transparent 100%);
   background-size: 260px 240px, 310px 280px, 230px 260px, 340px 300px, 290px 250px, 370px 320px;
   opacity: 0.28;
-  animation: auth-vanta-twinkle-a 4.8s ease-in-out infinite;
+  animation: auth-vanta-twinkle-a var(--m-slow) var(--m-enter) infinite;
 }
 .auth-signin-vanta::after {
   background-image:
@@ -1170,7 +1172,7 @@ body {
     radial-gradient(1.1px 1.1px at 97% 58%, rgba(255, 255, 255, 0.78), transparent 100%);
   background-size: 300px 270px, 250px 310px, 360px 260px, 280px 330px, 330px 290px, 240px 250px;
   opacity: 0.16;
-  animation: auth-vanta-twinkle-b 6.7s ease-in-out infinite reverse;
+  animation: auth-vanta-twinkle-b var(--m-slow) var(--m-enter) infinite reverse;
 }
 .auth-signin-vanta > * {
   position: relative;
@@ -1237,9 +1239,9 @@ button[data-portalink-tile],
   border-radius: 8px;
   background-color: var(--surface-raised);
   border: 0;
-  transition: border-radius 150ms var(--ease-standard),
-    background-color 160ms var(--ease-standard),
-    border-color 160ms var(--ease-standard), box-shadow 160ms var(--ease-standard);
+  transition: border-radius var(--m-fast) var(--ease-standard),
+    background-color var(--m-base) var(--ease-standard),
+    border-color var(--m-base) var(--ease-standard), box-shadow var(--m-base) var(--ease-standard);
 }
 .feed-card__preview {
   background-color: var(--surface-placeholder);
@@ -1257,7 +1259,7 @@ button[data-portalink-tile],
   overflow: hidden;
 }
 .project-preview-image,
-.project-preview-description { transition: opacity 150ms var(--ease-standard); }
+.project-preview-description { transition: opacity var(--m-fast) var(--ease-standard); }
 .project-preview-card[data-expanded='true'] .project-card-frame,
 .project-preview-card[data-expanded='true'] .project-preview-artwork,
 .project-preview-card[data-expanded='true'] .project-preview-description { border-radius: 0; }
@@ -1298,7 +1300,7 @@ button[data-portalink-tile],
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
-  transition: opacity 150ms var(--ease-standard);
+  transition: opacity var(--m-fast) var(--ease-standard);
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   will-change: opacity;
@@ -1398,7 +1400,7 @@ button[data-portalink-tile],
 .accent-theme [data-profile-module] {
   background-color: var(--surface-sunken) !important;
   box-shadow: inset 0 0 0 1px var(--hairline) !important;
-  transition: background-color 160ms var(--ease-standard);
+  transition: background-color var(--m-base) var(--ease-standard);
   /* Square, like the feed card: a profile module reads as a different KIND of
      destination through its square proportion and neutral surface, not through
      a corner language of its own. */
@@ -1469,7 +1471,7 @@ button[data-portalink-tile],
   pointer-events: none;
   border: var(--content-preview-edge-width, 1px) solid var(--content-preview-edge-color, transparent);
   border-radius: inherit;
-  transition: border-color 150ms var(--ease-standard);
+  transition: border-color var(--m-fast) var(--ease-standard);
 }
 @media (hover: hover) and (pointer: fine) {
   .individual-content-outline:hover::after {
@@ -1506,11 +1508,11 @@ button[data-portalink-tile],
    Profile cover/details are siblings: shape them together without clipping
    their owner menus. Other cards clip their entire stack in one frame. */
 #root .codex-shell .content-corner-frame {
-  transition: border-radius 150ms var(--ease-standard),
-    opacity 150ms var(--ease-standard),
-    box-shadow 150ms var(--ease-standard),
-    background-color 160ms var(--ease-standard),
-    border-color 160ms var(--ease-standard);
+  transition: border-radius var(--m-fast) var(--ease-standard),
+    opacity var(--m-fast) var(--ease-standard),
+    box-shadow var(--m-fast) var(--ease-standard),
+    background-color var(--m-base) var(--ease-standard),
+    border-color var(--m-base) var(--ease-standard);
 }
 #root .codex-shell .content-corner-frame:is(:hover, :active, :focus-within),
 #root .codex-shell .content-corner-group:is(:hover, :active, :focus-within) > .content-corner-frame {
@@ -1519,7 +1521,7 @@ button[data-portalink-tile],
 /* A short tap must not finish before the corner transition is visible. */
 #root .codex-shell .content-corner-frame:active,
 #root .codex-shell .content-corner-group:active > .content-corner-frame {
-  transition-duration: 0s;
+  transition:none!important;
 }
 @media (prefers-reduced-motion: reduce) {
   #root .codex-shell .content-corner-frame {
@@ -1771,7 +1773,7 @@ button[data-portalink-tile],
   100% { transform: translateX(300%); }
 }
 .studio-indeterminate-bar {
-  animation: studio-indeterminate 1.5s ease-in-out infinite;
+  animation: studio-indeterminate var(--m-slow) var(--m-enter) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .studio-indeterminate-bar { animation: none; transform: none; width: 100% !important; opacity: 0.5; }
@@ -1842,7 +1844,7 @@ button[data-portalink-tile],
 .feed-starfield [data-profile-module],
 .accent-theme .feed-starfield [data-profile-module] {
   border: 1px solid var(--feed-card-border) !important;
-  transition: background-color 160ms var(--ease-standard), box-shadow 160ms var(--ease-standard);
+  transition: background-color var(--m-base) var(--ease-standard), box-shadow var(--m-base) var(--ease-standard);
 }
 .feed-starfield .feed-card__preview {
   background-color: rgba(255, 255, 255, 0.1) !important;
@@ -1930,7 +1932,7 @@ button[data-portalink-tile],
 }
 .profile-project-reorder-card {
   animation-name: profile-project-jiggle;
-  animation-timing-function: ease-in-out;
+  animation-timing-function: var(--m-enter);
   animation-iteration-count: infinite;
   transform-origin: 50% 58%;
   will-change: transform;
@@ -2178,9 +2180,9 @@ button[data-portalink-tile],
   background-color: var(--nav-button-background) !important;
   color: var(--nav-button-text) !important;
   box-shadow: inset 0 0 0 1px var(--nav-button-border) !important;
-  transition: background-color 160ms cubic-bezier(0.25, 0.9, 0.35, 1),
-    color 160ms cubic-bezier(0.25, 0.9, 0.35, 1),
-    box-shadow 160ms cubic-bezier(0.25, 0.9, 0.35, 1);
+  transition: background-color var(--m-base) var(--m-enter),
+    color var(--m-base) var(--m-enter),
+    box-shadow var(--m-base) var(--m-enter);
 }
 .nav-button svg,
 .accent-theme .nav-button svg {
@@ -2422,8 +2424,8 @@ button[data-portalink-tile],
 .ps-nav-item {
   border-radius: calc(var(--ps-radius) - 1px) !important;
   color: var(--text-secondary);
-  transition: background-color 150ms ease-out, color 150ms ease-out,
-    box-shadow 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter),
+    box-shadow var(--m-fast) var(--m-enter);
 }
 
 .ps-nav-item.active,
@@ -2455,8 +2457,8 @@ button[data-portalink-tile],
 .ps-list-item {
   border-radius: var(--ps-radius) !important;
   border-color: var(--ps-border);
-  transition: background-color 150ms ease-out, color 150ms ease-out,
-    box-shadow 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter),
+    box-shadow var(--m-fast) var(--m-enter);
 }
 
 .ps-list-btn[aria-current='page'],
@@ -2475,8 +2477,8 @@ button[data-portalink-tile],
 
 .ps-btn {
   border-radius: var(--ps-radius) !important;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out,
-    color 150ms ease-out, opacity 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter), border-color var(--m-fast) var(--m-enter),
+    color var(--m-fast) var(--m-enter), opacity var(--m-fast) var(--m-enter);
 }
 
 .ps-btn-primary {
@@ -2827,7 +2829,7 @@ select:focus-visible {
     radial-gradient(1px 1px at 18% 57%, rgba(var(--star-rgb), 0.62), transparent 100%);
   background-size: 118px 118px, 146px 146px, 92px 92px, 73px 73px, 108px 108px, 86px 86px, 137px 137px, 66px 66px;
   opacity: 0.62;
-  animation: auth-vanta-twinkle-a 4.8s ease-in-out infinite;
+  animation: auth-vanta-twinkle-a var(--m-slow) var(--m-enter) infinite;
 }
 #root .accent-theme .auth-signin-experience > .auth-signin-vanta::after {
   background-image:
@@ -2841,7 +2843,7 @@ select:focus-visible {
     radial-gradient(1px 1px at 97% 63%, rgba(var(--star-rgb), 0.74), transparent 100%);
   background-size: 101px 101px, 116px 116px, 137px 137px, 78px 78px, 96px 96px, 62px 62px, 122px 122px, 82px 82px;
   opacity: 0.46;
-  animation: auth-vanta-twinkle-b 6.7s ease-in-out infinite reverse;
+  animation: auth-vanta-twinkle-b var(--m-slow) var(--m-enter) infinite reverse;
 }
 @media (prefers-reduced-motion: reduce) {
   #root .accent-theme .auth-signin-experience > .auth-signin-vanta::before,
@@ -2893,7 +2895,7 @@ select:focus-visible {
     #000 calc(100% - var(--sidebar-fade-size)),
     transparent 100%
   );
-  transition: -webkit-mask-image 180ms ease-out, mask-image 180ms ease-out;
+  transition: -webkit-mask-image var(--m-base) var(--m-enter), mask-image var(--m-base) var(--m-enter);
 }
 .sidebar-scroll-fade.is-at-top {
   -webkit-mask-image: linear-gradient(
@@ -3197,9 +3199,9 @@ select:focus-visible {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation:none!important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition:none!important;
     scroll-behavior: auto !important;
   }
 }
@@ -3897,7 +3899,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   to { transform: rotate(360deg); }
 }
 [data-interface-icon-frame][data-icon-effect='rotate'][data-icon-effect-active] {
-  animation: interface-symbol-rotate 900ms linear infinite;
+  animation: interface-symbol-rotate var(--m-slow) linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   [data-interface-icon-frame][data-icon-effect-active] {
@@ -4214,10 +4216,10 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   .codex-shell *,
   .codex-shell *::before,
   .codex-shell *::after {
-    animation-duration: 0.01ms !important;
+    animation:none!important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    transition:none!important;
   }
 }
 
@@ -4429,7 +4431,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   border: 0;
   border-radius: var(--shape-compact);
   background: transparent;
-  transition: background-color 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter);
 }
 
 .message-contact-row[data-selected='true'] {
@@ -4509,7 +4511,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 65%), transparent);
   -webkit-backdrop-filter: blur(16px) saturate(120%);
   backdrop-filter: blur(16px) saturate(120%);
-  transition: background-color 150ms ease-out;
+  transition: background-color var(--m-fast) var(--m-enter);
 }
 .profile-collection-name {
   max-width: 100%;
@@ -4675,9 +4677,9 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
   background-color: var(--surface-inset) !important;
   color: var(--text-primary);
   transition:
-    border-color 150ms ease-out,
-    box-shadow 150ms ease-out,
-    background-color 150ms ease-out;
+    border-color var(--m-fast) var(--m-enter),
+    box-shadow var(--m-fast) var(--m-enter),
+    background-color var(--m-fast) var(--m-enter);
 }
 
 .text-control {
@@ -4938,7 +4940,7 @@ body.reduce-translucency > [role='tooltip']:not([data-material='content']) {
     0 2px 10px rgba(0, 0, 0, 0.18);
   -webkit-backdrop-filter: blur(24px) saturate(135%);
   backdrop-filter: blur(24px) saturate(135%);
-  animation: account-menu-arrive 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: account-menu-arrive var(--m-base) var(--m-enter) both;
 }
 
 .account-menu-popover.theme-dark {
@@ -4998,8 +5000,8 @@ html[data-project-continuity]::view-transition-group(portalink-project) {
   z-index: 120;
   overflow: clip;
   border-radius: 10px;
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-enter);
 }
 
 html[data-project-continuity]::view-transition-image-pair(portalink-project) {
@@ -5015,8 +5017,8 @@ html[data-project-continuity]::view-transition-new(portalink-project) {
   width: 100%;
   mix-blend-mode: normal;
   object-fit: cover;
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: var(--m-slow);
+  animation-timing-function: var(--m-enter);
 }
 
 html[data-project-continuity='open']::view-transition-old(portalink-project),
@@ -5030,11 +5032,11 @@ html[data-project-continuity='return']::view-transition-old(portalink-project) {
 }
 
 html[data-project-continuity]::view-transition-old(root) {
-  animation: project-continuity-workspace-out 180ms ease-out both;
+  animation: m-screen-out var(--m-slow) var(--m-exit) both;
 }
 
 html[data-project-continuity]::view-transition-new(root) {
-  animation: project-continuity-workspace-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: m-screen-in var(--m-slow) var(--m-enter) both;
 }
 
 @keyframes mobile-project-panel-enter {
@@ -5105,15 +5107,15 @@ html[data-project-continuity]::view-transition-new(root) {
   box-shadow: 0 -14px 30px -30px rgba(0, 0, 0, 0.55);
   -webkit-backdrop-filter: blur(18px) saturate(120%);
   backdrop-filter: blur(18px) saturate(120%);
-  transition: max-height 180ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 140ms ease,
-    padding 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: max-height var(--m-base) var(--m-enter),
+    opacity var(--m-fast) var(--m-enter),
+    padding var(--m-base) var(--m-enter);
 }
 
 [data-premium-project-viewer] button {
   transition-property: color, background-color, opacity, transform;
-  transition-duration: 150ms;
-  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  transition-duration: var(--m-fast);
+  transition-timing-function: var(--m-enter);
 }
 
 [data-premium-project-viewer] button:active:not(:disabled):not([data-viewer-page-control]) {
@@ -5147,7 +5149,7 @@ html[data-project-continuity]::view-transition-new(root) {
 [data-premium-project-viewer] [data-viewer-page-control] {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 160ms ease;
+  transition: opacity var(--m-base) var(--m-enter);
 }
 
 [data-premium-project-viewer][data-controls-visible='true'] [data-viewer-page-control] {
@@ -5214,7 +5216,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-media-mode-enter {
-  animation: premium-media-mode-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: premium-media-mode-enter var(--m-slow) var(--m-enter) both;
 }
 
 /* Exact-page engagement stays visually quiet until the viewer reaches for it.
@@ -5223,7 +5225,7 @@ html[data-project-continuity]::view-transition-new(root) {
   opacity: 0;
   pointer-events: none;
   transform: translateY(-3px) scale(0.985);
-  transition: opacity 160ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--m-base) var(--m-enter), transform var(--m-base) var(--m-enter);
 }
 
 [class~='group/media']:hover > .media-item-engagement,
@@ -5262,7 +5264,7 @@ html[data-project-continuity]::view-transition-new(root) {
   gap: calc(4 * var(--media-action-unit));
   padding: 0 calc(4 * var(--media-action-unit));
   border-radius: calc(8 * var(--media-action-unit));
-  transition: background-color 140ms ease, transform 140ms ease;
+  transition: background-color var(--m-fast) var(--m-enter), transform var(--m-fast) var(--m-enter);
 }
 
 .media-item-action [data-interface-icon-frame][data-icon-size] {
@@ -5308,12 +5310,12 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-focused-media {
-  transition: opacity 180ms ease;
+  transition: opacity var(--m-base) var(--m-enter);
   will-change: width, height;
 }
 
 .premium-media-ready {
-  animation: premium-media-ready 240ms ease-out both;
+  animation: premium-media-ready var(--m-slow) var(--m-enter) both;
 }
 
 .premium-media-placeholder {
@@ -5333,7 +5335,7 @@ html[data-project-continuity]::view-transition-new(root) {
     transparent 64%
   );
   transform: translateX(-100%);
-  animation: premium-media-shimmer 1.5s ease-in-out infinite;
+  animation: premium-media-shimmer var(--m-slow) var(--m-enter) infinite;
 }
 
 .premium-media-loading-mark {
@@ -5344,7 +5346,7 @@ html[data-project-continuity]::view-transition-new(root) {
   border-radius: 999px;
   border: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
   border-top-color: var(--text-secondary);
-  animation: premium-media-spin 800ms linear infinite;
+  animation: premium-media-spin var(--m-slow) linear infinite;
 }
 
 @keyframes premium-media-mode-enter {
@@ -5433,7 +5435,7 @@ html[data-project-continuity]::view-transition-new(root) {
   content: '';
   opacity: 0;
   transform: translate(-50%, -50%) scaleY(0.72);
-  transition: opacity 140ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1), background-color 140ms ease;
+  transition: opacity var(--m-fast) var(--m-enter), transform var(--m-base) var(--m-enter), background-color var(--m-fast) var(--m-enter);
 }
 
 [data-panel-resize-handle]:hover::after,
@@ -5451,7 +5453,7 @@ html[data-project-continuity]::view-transition-new(root) {
 /* Width follows the pointer directly while dragging; open/close transitions
    resume as soon as the pointer is released. */
 [data-resizable-panel]:has([data-panel-resize-handle][data-resizing]) {
-  transition-duration: 0s !important;
+  transition:none!important;
 }
 
 @media (max-width: 1023px) {
@@ -5509,7 +5511,7 @@ html[data-project-continuity]::view-transition-new(root) {
 #root .account-welcome-card label { font-size: 14px; font-weight: 500; }
 
 /* The welcome controls use the same preferences as Appearance settings. */
-.appearance-switch-thumb { transition: left 160ms cubic-bezier(0.25, 0.9, 0.35, 1); }
+.appearance-switch-thumb { transition: left var(--m-base) var(--m-enter); }
 .account-welcome-appearance { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .account-welcome-colors { display: grid; grid-template-columns: repeat(6, 40px); gap: 4px; flex: 0 0 auto; }
 #root .account-welcome-card .account-welcome-swatch {
@@ -5683,3 +5685,8 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
   -webkit-backdrop-filter: none !important;
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button { border-radius: 0; }
+
+html[data-project-continuity='return']::view-transition-old(root) { animation:m-back-out var(--m-slow) var(--m-exit) both; }
+html[data-project-continuity='return']::view-transition-new(root) { animation:m-back-in var(--m-slow) var(--m-enter) both; }
+html[data-project-continuity]::view-transition-old(portalink-project) { animation-timing-function:var(--m-exit); }
+html[data-project-continuity='return']::view-transition-group(portalink-project) { animation-timing-function:var(--m-exit); }

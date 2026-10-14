@@ -16,7 +16,7 @@
   height: 100%;
   will-change: transform, opacity;
   backface-visibility: hidden;
-  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease-out;
+  transition: transform var(--m-slow) var(--m-enter), opacity var(--m-base) var(--m-enter);
 }
 
 .app-screen-layer > main {
@@ -66,7 +66,7 @@
   border-radius: 999px;
   background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
   transform: translate3d(-110%, 0, 0);
-  animation: navigation-progress-sweep 1.05s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: navigation-progress-sweep var(--m-slow) var(--m-enter) infinite;
 }
 
 .navigation-feedback {
