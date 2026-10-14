@@ -22,7 +22,7 @@ if (rootEl) {
   // The browser URL is the canonical navigation state, so the router wraps
   // everything: the shell derives its destination from the location rather than
   // maintaining a second navigation state machine.
-  ReactDOM.createRoot(rootEl).render(<BrowserRouter>
+  ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
       <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
