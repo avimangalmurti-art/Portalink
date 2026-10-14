@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -77,6 +78,7 @@ function harness({ reducedMotion = false, inert = false, width = 312, onEscape, 
     exports, document, Element, HTMLElement: Element,
     requestAnimationFrame: callback => { frames.push(callback); return frames.length; },
     require(name) {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return react;
     if (name === 'framer-motion') return motion;
     if (name === 'lucide-react') return { PanelLeftOpenIcon: 'open-icon', PanelLeftCloseIcon: 'close-icon' };
