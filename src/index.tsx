@@ -11,6 +11,7 @@ import { ApplicationBootstrap } from "./app/ApplicationBootstrap";
 import { services } from "./services";
 import { initializeRum } from './features/performance/rum';
 import { RumPageView } from './features/performance/RumPageView';
+import { waitForStartupStyles } from './app/startupStyles';
 
 initializeRum(__APP_VERSION__, import.meta.env.VITE_RUNTIME_MODE !== 'prototype' && import.meta.env.PROD);
 
@@ -22,7 +23,9 @@ if (rootEl) {
   // The browser URL is the canonical navigation state, so the router wraps
   // everything: the shell derives its destination from the location rather than
   // maintaining a second navigation state machine.
-  ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
+  document.documentElement.dataset.portalinkEntryReady = 'true';
+  window.dispatchEvent(new Event('portalink:main-entry-ready'));
+  void waitForStartupStyles().then(() => ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
       <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
@@ -35,5 +38,5 @@ if (rootEl) {
           </ProfileDataProvider>
         </AuthProvider>
       </ServicesProvider>
-    </BrowserRouter>);
+    </BrowserRouter>));
 }

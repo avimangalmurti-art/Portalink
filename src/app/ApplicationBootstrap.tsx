@@ -157,7 +157,7 @@ export function ApplicationBootstrap() {
         // splash fade on the compositor instead of competing with globe work.
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
-        {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted}
+        {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
           timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
           hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}

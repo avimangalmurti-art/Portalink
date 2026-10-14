@@ -14,6 +14,7 @@ import { sites } from '@openai/sites-vite-plugin'
 import { sharedProfilePreloadPlugin } from './scripts/shared-profile-preload.mjs'
 import { appVersionHash } from './scripts/app-version.mjs'
 import { publicMediaPreviewPlugin } from './scripts/public-media-preview.mjs'
+import { startupStylesPlugin } from './scripts/startup-styles.mjs'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -66,7 +67,7 @@ export default defineConfig(({ command, mode }) => {
       mkdirSync('logs', { recursive: true })
       writeFileSync('logs/client-module-graph.json', JSON.stringify(Object.values(bundle).filter(item => item.type === 'chunk').map(item => ({ file: item.fileName, imports: item.imports, dynamicImports: item.dynamicImports, modules: Object.keys(item.modules), renderedLengths: Object.fromEntries(Object.entries(item.modules).map(([id, module]) => [id, module.renderedLength])) })), null, 2))
     },
-  }],
+  }, startupStylesPlugin()],
   // Production cannot enter the mock graph. Explicit prototype builds and local
   // development keep their existing runtime selection; client.ts still rejects
   // invalid production configuration instead of substituting demo accounts.

@@ -4,7 +4,7 @@
   "description": "A creator platform for publishing work and discovering people, projects, and places.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fdfc",
+  "background_color": "#fdffff",
   "theme_color": "#0b0c0f",
   "icons": [
     {
