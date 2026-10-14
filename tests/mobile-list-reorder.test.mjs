@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -21,6 +22,7 @@ const activateTouch = () => {}, activateMouse = () => {}, activateKeyboard = () 
 function harness() {
   let dragging = false, reducedMotion = false;
   const { MobileReorderList } = compile('../src/presentation/mobile/MobileReorderList.tsx', name => {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return React;
     if (name === '@dnd-kit/core') return { DndContext, TouchSensor, MouseSensor, KeyboardSensor,
       KeyboardCode: { Space: 'Space', Esc: 'Escape', Enter: 'Enter' },
@@ -107,6 +109,7 @@ function projectHarness() {
   };
   let presentation = 'mobile';
   const { ProjectIndexList } = compile('../src/components/profile/ProjectIndexList.tsx', name => {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return react;
     if (name === 'react-dom') return { createPortal: node => node };
     if (name === 'framer-motion') return { Reorder: { Group: ReorderGroup }, useDragControls: () => ({}), AnimatePresence: () => null, motion: { div: 'div' } };

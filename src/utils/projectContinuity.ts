@@ -1,11 +1,9 @@
 import type React from 'react';
 
 const TRANSITION_NAME = 'portalink-project';
-const TRANSITION_SETTLE_MS = 900;
 
 let currentProjectId: string | null = null;
 let transitionActive = false;
-let settleTimer = 0;
 
 type ContinuityDirection = 'open' | 'return';
 
@@ -34,26 +32,18 @@ export function beginProjectContinuity(projectId: string, direction: ContinuityD
     startViewTransition?: unknown;
   }).startViewTransition === 'function';
 
-  if (reduceMotion || !supportsViewTransitions) {
-    return false;
-  }
-
-  for (const surface of projectSurfaces()) {
-    if (surface.dataset.projectContinuityId === projectId) {
-      surface.style.viewTransitionName = TRANSITION_NAME;
-    }
-  }
+  const candidates=[...projectSurfaces()].filter(surface=>surface.dataset.projectContinuityId===projectId);
+  const focused=document.activeElement;
+  const source=candidates.find(surface=>focused&&surface.contains(focused))??candidates[0]??(typeof HTMLElement !== 'undefined' && focused instanceof HTMLElement?focused.querySelector<HTMLElement>('img'):null);
+  const image=typeof HTMLImageElement !== 'undefined' && source instanceof HTMLImageElement?source:source?.querySelector('img');
+  const width=Number(image?.getAttribute('width'))||image?.naturalWidth,height=Number(image?.getAttribute('height'))||image?.naturalHeight;
+  if(width&&height)document.documentElement.style.setProperty('--motion-page-aspect',String(width/height));
+  transitionActive = !reduceMotion;
+  if (reduceMotion || !supportsViewTransitions) return false;
+  if(source)source.style.viewTransitionName=TRANSITION_NAME;
 
   transitionActive = true;
   document.documentElement.dataset.projectContinuity = direction;
-  window.clearTimeout(settleTimer);
-  settleTimer = window.setTimeout(() => {
-    transitionActive = false;
-    delete document.documentElement.dataset.projectContinuity;
-    for (const surface of projectSurfaces()) {
-      surface.style.viewTransitionName = '';
-    }
-  }, TRANSITION_SETTLE_MS);
   return true;
 }
 
@@ -67,4 +57,19 @@ export function projectContinuityStyle(projectId: string): React.CSSProperties |
 /** Suppresses the older whole-screen layer animation during shared-element travel. */
 export function isProjectContinuityActive(): boolean {
   return transitionActive;
+}
+
+/** The native update callback pairs exactly one source with exactly one first page. */
+export function markProjectContinuityDestination(){
+ if(!currentProjectId||typeof document==='undefined')return;
+ const surfaces=[...projectSurfaces()];for(const surface of surfaces)surface.style.viewTransitionName='';
+ const destination=surfaces.find(surface=>surface.dataset.projectContinuityId===currentProjectId&&surface.getBoundingClientRect().width>0);
+ const hero=destination?.querySelector<HTMLElement>('[data-page-cell],canvas,img')??destination;
+ if(hero){hero.dataset.motionProjectHero='';hero.style.viewTransitionName=TRANSITION_NAME;}
+}
+export function finishProjectContinuity(){
+ transitionActive=false;currentProjectId=null;
+ if(typeof document==='undefined')return;
+ delete document.documentElement.dataset.projectContinuity;
+ for(const surface of document.querySelectorAll<HTMLElement>('[data-project-continuity-surface],[data-motion-project-hero]'))surface.style.viewTransitionName='';
 }

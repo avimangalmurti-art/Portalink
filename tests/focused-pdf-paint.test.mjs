@@ -1,3 +1,4 @@
+import {sourceModule} from './helpers/source-module.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -12,6 +13,7 @@ const code = ts.transpileModule(`${source}\nexport { PdfImagePage };`, { compile
 
 function harness(retainCanvasWhileLoading = true, focused = true, throwRender = false) {
   const slots = [], effects = [], tasks = [];
+  const queuePageRender = sourceModule('src/components/media/pageRenderQueue.ts').createPageRenderQueue();
   let cursor = 0, dirty = false, tree, props, intersection;
   class Canvas {
     width = 300; height = 150; painted = null;
@@ -41,6 +43,7 @@ function harness(retainCanvasWhileLoading = true, focused = true, throwRender = 
     IntersectionObserver: class { constructor(callback) { intersection = callback; } observe() {} disconnect() {} },
     require(name) {
       if (name === 'react') return hooks;
+      if (name === './pageRenderQueue') return {queuePageRender};
       if (name === './viewerMemory') return { readViewerMemory: () => ({}), updateViewerMemory() {} };
       if (name === '../../features/performance/rum') return { rumViewToken: () => null, markRumPdf() {} };
       return { InterfaceIcon: () => null, RotateCcwIcon: () => null };

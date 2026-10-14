@@ -181,10 +181,12 @@ function homeHarness(presentation, feed, props) {
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
   const stateViews = compile('src/components/ui/StateViews.tsx', name => name === 'react' ? React : placeholder);
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
+    if(name.endsWith('/useHomePullRefresh'))return {useHomePullRefresh:()=>''};
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
+    if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ layout: null }) };

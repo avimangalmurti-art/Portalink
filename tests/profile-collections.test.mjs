@@ -601,7 +601,7 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const h = profileHarness('', {presentation:'mobile',viewerRole,links});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'));
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), viewerRole !== 'owner');
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
@@ -627,7 +627,7 @@ function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
   if (toggle) toggle.props.onClick();
-  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'), 'MOBILE delegates options to the global actions sheet');
+  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton') || h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
   return h.render();
 }
 
