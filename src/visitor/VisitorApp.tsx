@@ -26,9 +26,10 @@ import { PublicActionSheet } from './mobile/PublicActionSheet';
 import { canResumeRegistration, readSharedReturnPath } from '../features/auth/registration';
 import { interactionIntent } from '../features/auth/interactionIntent';
 import type { AuthIntent } from '../types/auth';
+import { loadVisitorProjectPage } from '../app/screenModules';
 import '../app/screenTransitions.css';
 
-const VisitorProjectPage = lazy(() => import('./VisitorProjectPage').then(module => ({ default: module.VisitorProjectPage })));
+const VisitorProjectPage = lazy(loadVisitorProjectPage);
 const AuthDialog = lazy(() => import('../features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const CollaborationPage = lazy(() => import('../components/profile/CollaborationPage').then(module => ({ default: module.CollaborationPage })));
 const ControlCenterPage = lazy(() => import('../components/ControlCenterPage').then(module => ({ default: module.ControlCenterPage })));
@@ -68,6 +69,7 @@ export function VisitorApp() {
   const previewSuffix = visitorPreview ? '?visitorPreview=1' : '';
   const categoryId = readingRoute?.kind === 'sharedCategory' || readingRoute?.kind === 'sharedProject' ? readingRoute.categoryId : null;
   const projectId = readingRoute?.kind === 'sharedProject' ? readingRoute.projectId : null;
+  useEffect(() => { if (projectId) void loadVisitorProjectPage().catch(() => undefined); }, [projectId]);
   const sharedPath = readSharedReturnPath(shared ? location.pathname + location.search : settingsReturn);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);

@@ -22,10 +22,12 @@ import './studio-workbench.css';
 type Props={onBack:()=>void;onOpenProject:(id:string,location?:ProjectLocation)=>void;savedRoute?:boolean;onNewProject?:()=>void};
 export function StudioPage({onBack,onOpenProject,onNewProject,savedRoute=false}:Props){
  const mobile=usePresentation()==='mobile';
- const auth=useAuth(),services=useServices(),navigate=useNavigate(),[params,setParams]=useSearchParams(),state=useWorkbench();
+ const auth=useAuth(),services=useServices(),navigate=useNavigate(),[params,setParams]=useSearchParams();
+ const collection=params.get('collection')??(savedRoute?'bookmarks':params.get('category'));
+ const state=useWorkbench(!['cited','references','published','activity','all','bookmarks'].includes(collection??''));
  const location=useLocation();
  const [headerHost,setHeaderHost]=useState<HTMLElement|null>(null);
- const collection=params.get('collection')??(savedRoute?'bookmarks':params.get('category')),profile=state.data?.profile??null;
+ const profile=state.data?.profile??null;
  const [resume,setResume]=useState<DraftResume|null>(null);
  const draft=newestDraft(state.data?.drafts??[]);
  useEffect(()=>{if(params.get('newProject')==='1'&&auth.hasCreatorProfile&&onNewProject){setParams({}, {replace:true});onNewProject();}},[params,auth.hasCreatorProfile,onNewProject,setParams]);

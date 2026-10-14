@@ -383,6 +383,12 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
   if (profileRows.length === 0) return [];
 
   const profileIds = profileRows.map((row) => row.id);
+  const ownerIds = !publicOnly ? profileRows.filter(row => row.account_id === viewerAccountId).map(row => row.id) : [];
+  // The private pair can travel alongside the portfolio without delaying media
+  // preparation. Capture early failures now and consume them at the pair boundary.
+  const pairRequest = ownerIds.length ? Promise.allSettled([
+    client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds),
+  ]) : null;
   const [categoryResult, projectResult] = await Promise.all([
     client.from('portfolio_categories').select('*').in('profile_id', profileIds).order('position'),
     client.from('projects').select('*').in('profile_id', profileIds).order('published_at', { ascending: false }),
@@ -445,11 +451,12 @@ async function loadProfiles(profileId?: string, publicOnly = false, mediaMode: '
       .filter((project): project is Project => Boolean(project)));
   });
 
-  const ownerIds = !publicOnly ? profileRows.filter(row => row.account_id === viewerAccountId).map(row => row.id) : [];
   const privatePairs = new Map<string, unknown>();
   let privatePairsAvailable = false;
-  if (ownerIds.length) {
-    const result = await client.from('profile_journey_pairs').select('profile_id,pair').in('profile_id', ownerIds);
+  if (pairRequest) {
+    const [pair] = await pairRequest;
+    if (pair.status === 'rejected') throw pair.reason;
+    const result = pair.value;
     const missing = result.error && ['42P01', 'PGRST205'].includes(result.error.code) && /profile_journey_pairs/.test(result.error.message);
     if (result.error && !missing) throw new Error(result.error.message);
     if (!result.error) {

@@ -5,13 +5,13 @@ import {sourceModule} from './helpers/source-module.mjs';
 const model=sourceModule('src/features/studio/workbenchModel.ts');
 const draft={id:'draft',metadata:{title:'Draft'},stage:'review',createdAt:'2026-10-01'};
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-function harness(status='ready',drafts=[draft]){
- const calls=[];let registered;
+function harness(status='ready',drafts=[draft],options={}){
+ const calls=[],workbenchEnabled=[];let registered;
  const fake={...React,useEffect(){},useState:v=>[typeof v==='function'?v():v,value=>calls.push(['state',value])]};
  const dependencies={'../../presentation/mobile/MobilePillHeader':{MobilePillHeader:'pill-header'},
-  react:fake,'react-router-dom':{useLocation:()=>({state:null}),useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(),value=>calls.push(['collection',value.collection])]},
+  react:fake,'react-router-dom':{useLocation:()=>({state:null}),useNavigate:()=>path=>calls.push(['navigate',path]),useSearchParams:()=>[new URLSearchParams(options.search),value=>calls.push(['collection',value.collection])]},
   'lucide-react':{ChevronLeftIcon:'chevron'},
-  '../../presentation/usePresentation':{usePresentation:()=> 'mobile'},
+  '../../presentation/usePresentation':{usePresentation:()=> options.presentation??'mobile'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
   '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',user:{id:'account'},isAuthenticated:true})},
   '../../contexts/ServicesContext':{useServices:()=>({})},
@@ -22,12 +22,12 @@ function harness(status='ready',drafts=[draft]){
   '../publishing/PublishProjectDialog':{PublishProjectDialog:'publish-dialog'},
   './discardStudioDraft':{},'./StudioBookmarksList':{StudioPage:'bookmarks'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
   './StudioOverview':{StudioOverview:'overview'},'./StudioWorkbenchView':{StudioWorkbenchHeader:'hub-header'},
-  './workbenchModel':model,'./useWorkbench':{useWorkbench:()=>({loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[]},drafts,material:[]},retry(){}})},
+  './workbenchModel':model,'./useWorkbench':{useWorkbench:enabled=>{workbenchEnabled.push(enabled);return{loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[]},drafts,material:[]},retry(){}};}},
   './studio-workbench.css':{},
  };
  const Page=sourceModule('src/features/studio/StudioPage.tsx',dependencies,{window:{history:{state:{idx:0}}}}).StudioPage;
- const tree=Page({onBack(){},onOpenProject(){},onNewProject:()=>calls.push(['create'])});
- return{calls,registered,tree};
+ const tree=Page({onBack(){},onOpenProject(){},onNewProject:()=>calls.push(['create']),savedRoute:options.savedRoute});
+ return{calls,registered,tree,workbenchEnabled};
 }
 test('Overview resumes the exact saved draft and Add work uses the existing creation flow',()=>{
  const withDraft=harness(),overview=nodes(withDraft.tree).find(n=>n.type==='overview');
@@ -44,5 +44,24 @@ test('existing Studio action shortcuts reach Bookmarks and Insights in ready, lo
   const h=harness(status);h.registered.handlers.bookmarks();h.registered.handlers.reads();
   assert.deepEqual(h.calls,[['collection','bookmarks'],['navigate','/insights?period=7d']]);
   if(status!=='ready')assert.ok(nodes(h.tree).some(n=>n.type===status));
+ }
+});
+
+test('both platforms load only overview/drafts workbench data and let independent collections own their reads',()=>{
+ for(const presentation of ['mobile','web']){
+  for(const collection of [null,'overview','drafts']){
+   const h=harness('ready',[draft],{presentation,search:collection?`collection=${collection}`:''});
+   assert.deepEqual(h.workbenchEnabled,[true]);
+   assert.ok(nodes(h.tree).some(node=>node.type===(collection==='drafts'?'drafts':'overview')));
+  }
+  for(const collection of ['published','activity','all','bookmarks','references','cited']){
+   const h=harness('loading',[draft],{presentation,search:`collection=${collection}`});
+   assert.deepEqual(h.workbenchEnabled,[false]);
+   assert.ok(nodes(h.tree).some(node=>node.type===(['references','cited'].includes(collection)?'citations':'bookmarks')));
+   assert.equal(nodes(h.tree).some(node=>node.type==='loading'),false);
+  }
+  const saved=harness('loading',[draft],{presentation,savedRoute:true});
+  assert.deepEqual(saved.workbenchEnabled,[false]);
+  assert.ok(nodes(saved.tree).some(node=>node.type==='bookmarks'&&node.props.savedRoute));
  }
 });

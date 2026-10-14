@@ -57,13 +57,10 @@ import { canResumeRegistration, readSharedReturnPath } from './features/auth/reg
 import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
 import { usePresentation } from './presentation/usePresentation';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
+import { loadMessagesPage, loadStudioPage, loadSearchPage, loadSettingsPage, loadProfilePage, loadCategoryPage, loadProfileEditorPage, warmScreenForPath, warmCommonScreens } from './app/screenModules';
 
 // Expensive destinations are loaded only when opened. In particular, the
 // spatial discovery stack no longer competes with Home's first navigation frame.
-const loadMessagesPage = () => import('./components/MessagesPage').then((module) => ({ default: module.MessagesPage }));
-const loadStudioPage = () => import('./features/studio/StudioPage').then((module) => ({ default: module.StudioPage }));
-const loadSearchPage = () => import('./components/SearchBrowsePage').then((module) => ({ default: module.SearchBrowsePage }));
-const loadSettingsPage = () => import('./components/ControlCenterPage').then((module) => ({ default: module.ControlCenterPage }));
 const MessagesPage = React.lazy(loadMessagesPage);
 const StudioPage = React.lazy(loadStudioPage);
 const SearchBrowsePage = React.lazy(loadSearchPage);
@@ -71,14 +68,12 @@ const ControlCenterPage = React.lazy(loadSettingsPage);
 const AppDetailPage = React.lazy(() => import('./components/AppDetailPage').then(module => ({ default: module.AppDetailPage })));
 const IconPickerPage = React.lazy(() => import('./components/profile/IconPickerPage').then(module => ({ default: module.IconPickerPage })));
 const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
-const ProfileEditorPage = React.lazy(() => import('./features/profile/ProfileEditorDialog').then(module => ({ default: module.ProfileEditorPage })));
+const ProfileEditorPage = React.lazy(loadProfileEditorPage);
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
 const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
-const loadProfilePage = () => import('./components/UserProfilePage').then((module) => ({ default: module.UserProfilePage }));
-const loadCategoryPage = () => import('./components/profile/ProfileCategoryPage').then((module) => ({ default: module.ProfileCategoryPage }));
 const UserProfilePage = React.lazy(loadProfilePage);
 const ProfileCategoryPage = React.lazy(loadCategoryPage);
 const MAIN_SIDEBAR_COLLAPSED_KEY = 'portalink.mainSidebarCollapsed';
@@ -467,12 +462,11 @@ function AppContent() {
       const control = event.target instanceof Element ? event.target.closest('a,button') : null;
       if (!control) return;
       const href = control.getAttribute('href');
-      const path = href ? new URL(href, window.location.origin).pathname : '';
-      const label = control.getAttribute('aria-label') ?? '';
-      if (path.startsWith('/messages') || /^(Open messages|Messages)$/.test(label)) void loadMessagesPage().catch(() => undefined);
-      else if (path === '/studio' || path === '/saved') void loadStudioPage().catch(() => undefined);
-      else if (path === '/control-center' || /^(Open settings)$/.test(label)) void loadSettingsPage().catch(() => undefined);
-      else if (path.startsWith('/search') || label === 'Search accounts') void loadSearchPage().catch(() => undefined);
+      const url = href ? new URL(href, window.location.origin) : null;
+      if (url && url.origin !== window.location.origin) return;
+      const label = control.getAttribute('aria-label') ?? control.textContent?.trim() ?? '';
+      const path = url?.pathname ?? (/^(Open messages|Messages)$/.test(label) ? '/messages' : label === 'Studio' ? '/studio' : label === 'Open settings' ? '/control-center' : label === 'Search accounts' ? '/search' : '');
+      void warmScreenForPath(path);
       const profileId = /^\/p\/([^/]+)/.exec(path)?.[1];
       if (profileId) { void loadProfilePage().catch(() => undefined); warmCreator(profileId); }
     };
@@ -480,14 +474,20 @@ function AppContent() {
     document.addEventListener('focusin', warm, true);
     document.addEventListener('touchstart', warm, { capture: true, passive: true });
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
-    // Warm common destinations after the first paint without charging slow/data-saving connections.
-    const timer = !connection?.saveData && !/^(slow-2g|2g)$/.test(connection?.effectiveType ?? '') ? window.setTimeout(() => {
-      void loadProfilePage().then(loadMessagesPage).then(loadStudioPage).catch(() => undefined);
-    }, 1200) : undefined;
+    // Start independent screen downloads after painting the current destination.
+    // Idle scheduling protects that first frame; fallback supports mobile Safari.
+    let idle: number | undefined;
+    let timer: number | undefined;
+    const frame = !connection?.saveData && !/^(slow-2g|2g)$/.test(connection?.effectiveType ?? '') ? window.requestAnimationFrame(() => {
+      if (window.requestIdleCallback) idle = window.requestIdleCallback(() => { void warmCommonScreens(); }, { timeout: 500 });
+      else timer = window.setTimeout(() => { void warmCommonScreens(); }, 200);
+    }) : undefined;
     return () => {
       document.removeEventListener('pointerover', warm, true);
       document.removeEventListener('focusin', warm, true);
       document.removeEventListener('touchstart', warm, true);
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
+      if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [warmCreator]);

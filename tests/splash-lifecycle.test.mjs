@@ -406,7 +406,7 @@ test('preboot removes the obsolete MOBILE poster at the canonical boundary and p
 test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
   for (const first of ['auth', 'media']) {
   const h = hooks(), auth = { isInitializing: true, isAuthenticated: false }, location = { pathname: '/' };
-  const storage = new Map();
+  const storage = new Map(), warmed = [];
   const { ApplicationBootstrap } = compile('../src/app/ApplicationBootstrap.tsx', {
     react: h.react, 'framer-motion': { AnimatePresence: 'presence' },
     'react-router-dom': { Navigate: 'redirect', matchPath: () => null, useLocation: () => location },
@@ -415,6 +415,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     '../contexts/AuthContext': { useAuth: () => auth },
     './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
+    './screenModules': { warmScreenForPath: path => { warmed.push(path); return Promise.resolve([]); } },
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
@@ -422,6 +423,7 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
   const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
   let [app, presence] = render();
   assert.equal(app, null); assert.equal(presence.props.children.props.stillOnly, false);
+  assert.deepEqual(warmed, ['/'], 'requested screen code starts while authentication is still initializing');
   if (first === 'media') {
     presence.props.children.props.onComplete(); [app, presence] = render();
     assert.equal(app, null, 'completed intro cannot bypass session restoration');
@@ -466,6 +468,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../contexts/AuthContext':{useAuth:()=>auth},
     './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
+    './screenModules':{warmScreenForPath:()=>Promise.resolve([])},
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},

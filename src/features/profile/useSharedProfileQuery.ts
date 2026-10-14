@@ -27,15 +27,25 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
     setState({ scope, key, profile: null, status: 'loading', error: null });
     if (!scope.bundle) scope.bundle = profiles.getSharedProfile
       ? profiles.getSharedProfile(profileId) : profiles.getProfile(profileId);
+    const confirmedSelection = scope.profile?.projects.find(project => project.id === projectId && project.categoryId === categoryId);
+    // A first direct link starts both RLS-backed reads together. A confirmed
+    // public bundle can refuse an absent project before preparing any media.
+    // Capture rejection immediately even if the bundle is slower or navigation leaves.
+    const selectedRequest = projectId && categoryId && (!scope.profile || (confirmedSelection && confirmedSelection.isPubliclyVisible !== false))
+      ? Promise.resolve().then(() => projects.getProjectView(projectId)).then(view => ({ view }), (error: unknown) => ({ error })) : null;
     void scope.bundle.then(async bundle => {
       if (cancelled || currentScope.current !== scope) return bundle;
-      if (bundle.isPrivate) throw new Error('That creator profile could not be found.');
+      if (bundle.id !== profileId || bundle.isPrivate) throw new Error('That creator profile could not be found.');
       scope.profile = bundle;
       if (!projectId) return bundle;
       const selected = bundle.projects.find(project => project.id === projectId && project.categoryId === categoryId);
       if (!selected) return bundle; // Existing route handles truthful project-not-found.
-      const view = await projects.getProjectView(projectId);
-      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.isPubliclyVisible === false || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
+      if (selected.isPubliclyVisible === false || !selectedRequest) throw new Error('That project could not be found.');
+      const result = await selectedRequest;
+      if (cancelled || currentScope.current !== scope) return bundle;
+      if ('error' in result) throw result.error;
+      const { view } = result;
+      if (view.creator.id !== bundle.id || view.creator.isPrivate || view.project.id !== projectId || view.project.isPubliclyVisible === false || view.project.categoryId !== categoryId) throw new Error('That project could not be found.');
       const detailed = { ...bundle, projects: bundle.projects.map(project => project.id === projectId ? view.project : project) };
       const oldest = scope.views.keys().next().value;
       if (scope.views.size >= 16 && oldest !== undefined) scope.views.delete(oldest);

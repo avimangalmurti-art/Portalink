@@ -14,6 +14,7 @@ const fn = name => source.statements.find(node => ts.isFunctionDeclaration(node)
 const service = source.statements.flatMap(node => ts.isVariableStatement(node) ? [...node.declarationList.declarations] : [])
   .find(node => node.name.getText(source) === 'supabaseProfileReadService').getText(source);
 const plain = value => JSON.parse(JSON.stringify(value));
+const tick = async () => { for (let index = 0; index < 20; index++) await Promise.resolve(); };
 const manifest = (id, bucket = 'project-covers') => ({ version: 1, bucket, frameBaked: true, sourceKey: HASH, sourceAttachmentId: `${id}-cover`,
   variants: [200, 400, 800].map(size => ({ size, path: `${PROFILE}/${id}/${HASH}/${size}.webp`, width: size / 2, height: size })) });
 const project = (id, extra = {}) => ({ id, profile_id: PROFILE, category_id: CATEGORY, title: id, summary: 'Project description',
@@ -26,7 +27,7 @@ const attachment = (projectId, id, extra = {}) => ({ project_id: projectId, id, 
       storagePath: `${id}-page-${index + 1}.png`, width: 600, height: 800, aspectRatio: .75 })) }, ...extra });
 
 function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bitmap') }), project('legacy')], attachments,
-  accountId = 'owner', profile = {}, readable = true, errors = {} } = {}) {
+  accountId = 'owner', profile = {}, readable = true, errors = {}, gates = {} } = {}) {
   const queries = [], signing = [], multipart = [];
   const rows = {
     profiles: readable ? [{ id: PROFILE, account_id: 'owner', name: 'Creator Name', handle: 'creator', headline: 'Bio', location: 'City',
@@ -56,7 +57,7 @@ function harness({ projects = [project('bitmap', { cover_thumbnail: manifest('bi
             const compared = typeof a[key] === 'number' ? a[key] - b[key] : String(a[key]).localeCompare(String(b[key]));
             return ascending ? compared : -compared;
           });
-          return Promise.resolve({ data, error: errors[table] ?? null }).then(resolve, reject);
+          return Promise.resolve(gates[table]).then(() => ({ data, error: errors[table] ?? null })).then(resolve, reject);
         },
       };
       return builder;
@@ -161,6 +162,48 @@ test('owner overview retains private Journey pair, hidden projects and categorie
   assert.equal(h.queries.filter(query => query.table === 'profile_journey_pairs').length, 1);
 });
 
+test('owner Journey pair read runs alongside portfolio reads instead of waiting for cover preparation', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const h = harness({ gates: { portfolio_categories: gate } });
+  const pending = h.service.getProfileOverview(PROFILE);
+  await tick();
+  assert.ok(h.queries.some(query => query.table === 'profile_journey_pairs'));
+  assert.ok(h.queries.some(query => query.table === 'projects'));
+  assert.equal(h.signing.length, 0);
+  release();
+  assert.deepEqual(plain((await pending).thenNow), { then: 'bitmap', now: 'legacy' });
+});
+
+test('a pending owner pair does not postpone attachment reads or cover signing', async () => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const h = harness({ gates: { profile_journey_pairs: gate } });
+  let finished = false;
+  const pending = h.service.getProfileOverview(PROFILE).then(profile => { finished = true; return profile; });
+  await tick();
+  await tick();
+  assert.ok(h.queries.some(query => query.table === 'project_attachments'));
+  assert.deepEqual(h.signing, [['legacy-cover.pdf', 'legacy-cover-page-7.png']]);
+  assert.equal(finished, false, 'The final profile still includes the confirmed private pair.');
+  release();
+  assert.deepEqual(plain((await pending).thenNow), { then: 'bitmap', now: 'legacy' });
+});
+
+test('an early owner-pair transport failure is captured until the profile consumes it', async () => {
+  let releaseCategories, rejectPair;
+  const categories = new Promise(resolve => { releaseCategories = resolve; });
+  const pair = new Promise((_resolve, reject) => { rejectPair = reject; });
+  const h = harness({ gates: { portfolio_categories: categories, profile_journey_pairs: pair } });
+  const pending = h.service.getProfileOverview(PROFILE);
+  await tick();
+  rejectPair(new Error('Pair transport failed'));
+  await tick();
+  releaseCategories();
+  await assert.rejects(pending, /Pair transport failed/);
+  assert.ok(h.signing.length > 0, 'Independent cover preparation keeps running before pair consumption.');
+});
+
 test('nonowner overview keeps the existing public visibility and Journey opt-in rules', async () => {
   const h = harness({ accountId: 'visitor', projects: [project('bitmap', { cover_thumbnail: manifest('bitmap') }),
     project('legacy', { cover_thumbnail: manifest('legacy'), category_id: HIDDEN_CATEGORY, is_hidden: true })], profile: { show_journey: false } });
@@ -195,7 +238,9 @@ test('existing public fallback keeps its original cover-only bundle behavior', a
 });
 
 test('missing/unreadable profiles remain absent and database failures are still reported', async () => {
-  await assert.rejects(harness({ readable: false }).service.getProfileOverview(PROFILE), /could not be found/);
+  const missing = harness({ readable: false });
+  await assert.rejects(missing.service.getProfileOverview(PROFILE), /could not be found/);
+  assert.deepEqual(missing.queries.map(query => query.table), ['profiles']);
   await assert.rejects(harness({ errors: { project_attachments: { message: 'Access denied' } } }).service.getProfileOverview(PROFILE), /Access denied/);
   const h = harness({ errors: { profile_journey_pairs: { code: '42P01', message: 'profile_journey_pairs does not exist' } } });
   assert.deepEqual(plain((await h.service.getProfileOverview(PROFILE)).thenNow), { then: 'legacy', now: 'bitmap' });

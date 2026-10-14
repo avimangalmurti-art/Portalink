@@ -9,6 +9,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { buildPath, routes } from './routes';
 import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 import { useViewportPresentation } from '../presentation/useViewportPresentation';
+import { warmScreenForPath } from './screenModules';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 
@@ -49,6 +50,9 @@ export function ApplicationBootstrap() {
   // MOBILE public links own their entry and design even when opened from the
   // platform router. The worker/dev server selects share.html on this request.
   const usePublicEntry = isHandleView || (presentation === 'mobile' && isSharedView);
+  // Code has no account data: overlap the requested destination's download
+  // with session restoration, while the normal auth gate still owns rendering.
+  useEffect(() => { if (!usePublicEntry) void warmScreenForPath(pathname); }, [usePublicEntry, pathname]);
   useEffect(() => { if (usePublicEntry) window.location.replace(pathname + search + hash); }, [usePublicEntry, pathname, search, hash]);
   const [openingPresentation] = useState(presentation);
   const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
