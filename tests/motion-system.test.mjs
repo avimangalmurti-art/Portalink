@@ -40,11 +40,71 @@ test('deferred dock handlers retain dock motion and other links use push motion'
  const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
   react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>({pathname:'/studio'})},
-  './ImageMotion':{ImageMotion:'images'},'./motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],motionUpdate:(fn,mode)=>{modes.push(mode);fn();}},
+  './ImageMotion':{ImageMotion:'images'},'../../features/sharing/shareModel':{handleFromPath:()=>null},'./motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],motionUpdate:(fn,mode)=>{modes.push(mode);fn();}},
  },{Element:ElementStub,URL,document:{addEventListener(_event,fn){click=fn},removeEventListener(){}},window:{location:{href:'https://example.test/studio'},setTimeout:fn=>timers.push(fn)}});
  const wrapper=MotionNavigation({children:'screen'}),tree=wrapper.type(wrapper.props),navigator=tree.props.value.navigator;
  click({target:new ElementStub()});navigator.push('/messages');assert.deepEqual(modes,['dock']);
  timers.forEach(fn=>fn());navigator.push('/p/creator');assert.deepEqual(modes,['dock','push']);
+});
+
+function profileNavigation(initial='/p/creator'){
+ const url=new URL(initial,'https://example.test'),location={pathname:url.pathname,search:url.search,hash:url.hash};
+ const calls=[],modes=[],notifications=[],listeners=new Map(),timers=new Map();let timer=0;
+ const window={location:{href:url.href},setTimeout:(fn)=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id),addEventListener:(name,fn)=>listeners.set(name,fn),removeEventListener:(name,fn)=>{if(listeners.get(name)===fn)listeners.delete(name);}};
+ const href=to=>typeof to==='string'?to:`${to.pathname??location.pathname}${to.search??''}${to.hash??''}`;
+ const commit=(kind,...args)=>{calls.push([kind,...args]);const next=new URL(href(args[0]),window.location.href);Object.assign(location,{pathname:next.pathname,search:next.search,hash:next.hash});window.location.href=next.href;};
+ const context={navigator:{createHref:href,push:(...args)=>commit('push',...args),replace:(...args)=>commit('replace',...args),go:delta=>calls.push(['go',delta])}};
+ const react={...React,useContext:()=>context,useLayoutEffect:fn=>fn(),useMemo:fn=>fn(),useRef:value=>({current:value})};
+ const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
+  react,'react-dom':{flushSync:fn=>fn()},'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'react-router-dom':{UNSAFE_NavigationContext:{Provider:'provider'},useLocation:()=>location},
+  './ImageMotion':{ImageMotion:'images'},'../../features/sharing/shareModel':sourceModule('src/features/sharing/shareModel.ts'),
+  './motion':{motionMs:()=>120,motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1],motionUpdate:(fn,mode)=>{modes.push(mode);return fn();}},
+ },{URL,URLSearchParams,Event:class{constructor(type){this.type=type;}},document:{documentElement:{dataset:{}},addEventListener(){return;},removeEventListener(){return;},dispatchEvent:event=>notifications.push(event.type)},window});
+ const wrapper=MotionNavigation({children:'profile'}),tree=wrapper.type(wrapper.props);
+ return {navigator:tree.props.value.navigator,calls,modes,notifications,location,pop:()=>listeners.get('popstate')?.()};
+}
+
+test('profile count views swap immediately for push and replace, including returning to default Projects',()=>{
+ for(const path of ['/p/creator','/share/creator','/avima.work'])for(const action of ['push','replace']){
+  const h=profileNavigation(path);
+  for(const search of ['?view=followers','?view=following','?view=portals','?view=projects',''])h.navigator[action](path+search);
+  assert.deepEqual(h.modes,[],`${action} ${path} must not start a native or fallback navigation animation`);
+  assert.deepEqual(h.calls.map(call=>call[0]),Array(5).fill(action));
+  assert.deepEqual(h.notifications,Array(5).fill('portalink-before-navigation'));
+  assert.equal(h.location.search,'');
+ }
+});
+
+test('an immediate profile view change preserves router arguments, URL data and fragment',()=>{
+ const h=profileNavigation('/p/creator?view=portals&fromConnections=owner#profile');
+ const destination={pathname:'/p/creator',search:'?view=followers&fromConnections=owner&connectionList=following',hash:'#profile'};
+ const state={profileFromDock:true},options={viewTransition:false};
+ h.navigator.push(destination,state,options);
+ assert.deepEqual(h.modes,[]);assert.equal(h.calls[0][1],destination);assert.equal(h.calls[0][2],state);assert.equal(h.calls[0][3],options);
+ assert.equal(h.location.search,destination.search);assert.equal(h.location.hash,destination.hash);
+});
+
+test('real destinations and unrelated profile query changes retain their existing motion',()=>{
+ for(const [from,to] of [
+  ['/p/creator?view=followers','/p/other?view=following'],
+  ['/p/creator?view=followers','/p/creator/c/portal'],
+  ['/p/creator?view=followers','/p/creator?view=following#new-fragment'],
+  ['/p/creator?view=followers','/p/creator?view=followers&sort=name'],
+  ['/p/creator?view=unknown','/p/creator?view=following'],
+  ['/p/creator?view=followers','/p/creator?view=following&view=portals'],
+  ['/settings?view=followers','/settings?view=following'],
+  ['/p/creator?view=followers','https://different.test/p/creator?view=following'],
+ ]){
+  const h=profileNavigation(from);h.navigator.push(to);assert.deepEqual(h.modes,['push'],`${from} -> ${to}`);
+ }
+ const tabs=profileNavigation('/p/creator?collection=one');tabs.navigator.replace('/p/creator?collection=two');assert.deepEqual(tabs.modes,['tabs']);
+});
+
+test('profile controls preserve directional back and forward history navigation',async()=>{
+ const h=profileNavigation('/p/creator?view=followers');
+ const back=h.navigator.go(-1);h.pop();await back;
+ const forward=h.navigator.go(1);h.pop();await forward;
+ assert.deepEqual(h.modes,['back','push']);assert.deepEqual(h.calls,[['go',-1],['go',1]]);
 });
 
 test('images reserve their existing geometry, reveal after load and release removed listeners',()=>{
@@ -93,7 +153,7 @@ test('standalone citation previews get motion defaults without requiring a route
  const {MotionNavigation}=sourceModule('src/presentation/motion/MotionNavigation.tsx',{
   react:{...React,useContext:()=>null},'react-dom':{},'react-router-dom':{UNSAFE_NavigationContext:{},useLocation:()=>{locationReads++;throw Error('No router');}},
   'framer-motion':{MotionConfig:'motion-config',useReducedMotion:()=>false},'./ImageMotion':{ImageMotion:'images'},
-  './motion':{motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1]},
+  './motion':{motionSeconds:()=>.18,motionCurve:()=>[.2,.8,.2,1]},'../../features/sharing/shareModel':{handleFromPath:()=>null},
  });
  const wrapper=MotionNavigation({children:'PDF preview'}),tree=wrapper.type(wrapper.props);
  assert.equal(locationReads,0);assert.equal(tree.type,'motion-config');assert.equal(tree.props.transition.duration,.18);

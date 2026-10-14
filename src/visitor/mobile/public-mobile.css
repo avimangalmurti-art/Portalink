@@ -1649,7 +1649,12 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform var(--m-base) var(--m-enter);
+  transition: var(--navigation-control-transition);
+}
+
+/* Keep counter placement instant when shared navigation styles load later. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
