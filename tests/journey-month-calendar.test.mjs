@@ -71,7 +71,7 @@ test('month marks preserve only supplied authorized project/citation days, dedup
   posted.props.onClick(); cited.props.onClick(); empty.props.onClick();
   assert.deepEqual(f.selected, ['2026-10-14', '2026-10-18']);
   assert.equal(empty.props.disabled, true); assert.equal(empty.props['data-has-work'], undefined);
-  assert.doesNotMatch(empty.props['aria-label'], /No Journey|No posted|No work/);
+  assert.doesNotMatch(empty.props['aria-label'], /No Timeline|No posted|No work/);
   assert.equal(f.closed, 0, 'The parent owns closure and the real agenda jump after selection.');
   assert.equal(nodes(tree).some(node => node.props['data-journey-month-day'] === '1990-01-01'), false);
 });
@@ -99,7 +99,7 @@ test('modal uses shared Escape/focus-return lifecycle, native keyboard controls 
     assert.equal(f.viewportCalls.length, 1);
     for (const control of nodes(tree).filter(node => node.type === 'button')) assert.equal(control.props.type, 'button');
     const back = nodes(tree).find(node => node.type === 'screen-back'); assert.equal(back.props.action, f.onClose); assert.equal(back.props.visibleOnMobile, true);
-    button(tree, presentation === 'mobile' ? 'Back to Journey' : 'Close calendar').props.onClick();
+    button(tree, presentation === 'mobile' ? 'Back to Timeline' : 'Close calendar').props.onClick();
     f.focusCalls[0][2](); assert.equal(f.closed, 2, 'Button and Escape share the same close callback.');
     const overlay = nodes(tree).find(node => node.props.className === 'journey-month-calendar-overlay');
     const backdrop = {}; overlay.props.onPointerDown({ target: {}, currentTarget: backdrop }); assert.equal(f.closed, 2);

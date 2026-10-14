@@ -132,7 +132,7 @@ export function ProfileEditorPage({
                   </select>
                 </label>
               </MobileProfileAvatarEditor>
-              <ProfilePreferenceSwitch label="Show Journey publicly" checked={fields.showJourney} disabled={isBusy} onChange={editor.setShowJourney} />
+              <ProfilePreferenceSwitch label="Show Timeline publicly" checked={fields.showJourney} disabled={isBusy} onChange={editor.setShowJourney} />
               <ProfilePreferenceSwitch label="Show what I cite" checked={fields.showOutgoingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showOutgoingCitations', checked)} />
               <ProfilePreferenceSwitch label="Show who cites me" checked={fields.showIncomingCitations} disabled={isBusy} onChange={checked => editor.setCitationPreference('showIncomingCitations', checked)} />
               <ProfileField ref={firstFieldRef} id="profile-editor-name" label="Name" required={isMobile} value={fields.name} autoComplete="name" maxLength={NAME_MAX_LENGTH} placeholder="Name shown on profile" error={fieldErrors.name} disabled={isBusy} onChange={(value) => editor.setField('name', value)} />

@@ -1,4 +1,4 @@
-"""Public Journey export using the existing PyMuPDF renderer. No queue writes."""
+"""Public Timeline export using the existing PyMuPDF renderer. No queue writes."""
 from __future__ import annotations
 
 import io
@@ -69,7 +69,7 @@ def render_portfolio(document: dict, cover_loader=None) -> bytes:
     page = pdf.new_page(width=595, height=842)
     text(page, document.get('name', ''), 40, 38, 25)
     text(page, '@' + document.get('handle', '').lstrip('@'), 40, 84, 13)
-    text(page, 'Journey · ' + generated, 40, 110, 11)
+    text(page, 'Timeline · ' + generated, 40, 110, 11)
     y = 162
     if not document['projects']:
         text(page, 'No public projects.', 40, y)
@@ -78,7 +78,7 @@ def render_portfolio(document: dict, cover_loader=None) -> bytes:
             raise TimeoutError('Portfolio export deadline exceeded')
         if y + 245 > 785:
             page = pdf.new_page(width=595, height=842)
-            text(page, document.get('name', '') + ' · Journey', 40, 30, 12)
+            text(page, document.get('name', '') + ' · Timeline', 40, 30, 12)
             y = 65
         cover_rect = fitz.Rect(40, y, 200, y + 132)
         cover = cover_loader(project['cover_url']) if cover_loader and project.get('cover_url') and time.monotonic() - started < 25 else None
@@ -104,7 +104,7 @@ def render_portfolio(document: dict, cover_loader=None) -> bytes:
         y += 245
     for index, page in enumerate(pdf):
         text(page, f'{generated} · {index + 1} / {pdf.page_count}', 40, 808, 9)
-    pdf.set_metadata({'title': document.get('name', '') + ' — Portalink Journey', 'author': document.get('name', ''), 'subject': 'Public work only; generated ' + generated})
+    pdf.set_metadata({'title': document.get('name', '') + ' — Portalink Timeline', 'author': document.get('name', ''), 'subject': 'Public work only; generated ' + generated})
     result = pdf.tobytes(garbage=4, deflate=True)
     pdf.close()
     return result

@@ -112,16 +112,16 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
     <button type="button" className="journey-calendar-options" aria-label={`Show details for ${entry.project.title}`} aria-haspopup="dialog" onClick={() => onDetails(entry.project)}><MoreHorizontalIcon size={20} aria-hidden="true" /></button>
   </li>;
 
-  return <section ref={root} className="journey-calendar" aria-label={`${profile.name} Journey`}>
+  return <section ref={root} className="journey-calendar" aria-label={`${profile.name} Timeline`}>
     {workDays.length > 0 && <header ref={header} className="journey-calendar-header">
       <div className="journey-calendar-toolbar">
         <label className="journey-calendar-month"><span>{formatDay(selected, { month: 'long' })}<small>{formatDay(selected, { year: 'numeric' })}</small></span>
-          <input type="date" aria-label="Go to a Journey date" value={selected} onInput={event => select(event.currentTarget.value)} onChange={event => select(event.target.value)} />
+          <input type="date" aria-label="Go to a Timeline date" value={selected} onInput={event => select(event.currentTarget.value)} onChange={event => select(event.target.value)} />
         </label>
         <button type="button" aria-label="Previous date with work" disabled={!previous} onClick={() => previous && select(previous)}><ChevronLeftIcon size={22} aria-hidden="true" /></button>
         <button type="button" aria-label="Next date with work" disabled={!next} onClick={() => next && select(next)}><ChevronRightIcon size={22} aria-hidden="true" /></button>
       </div>
-      <div className="journey-calendar-week" role="group" aria-label="Journey week" onTouchStart={event => { const touch = event.touches[0]; drag.current = touch ? { x: touch.clientX, y: touch.clientY } : null; }} onTouchEnd={event => {
+      <div className="journey-calendar-week" role="group" aria-label="Timeline week" onTouchStart={event => { const touch = event.touches[0]; drag.current = touch ? { x: touch.clientX, y: touch.clientY } : null; }} onTouchEnd={event => {
         const touch = event.changedTouches[0], start = drag.current; drag.current = null;
         if (touch && start && Math.abs(touch.clientX - start.x) > 50 && Math.abs(touch.clientY - start.y) < 30) {
           if (event.cancelable) event.preventDefault();

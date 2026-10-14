@@ -30,7 +30,7 @@ export function PortfolioQrScreen({ profile, counts, url, heading, busy, copied 
       <section className="share-profile-preview" aria-label="Public portfolio preview">
         <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />
         <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
-        <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Journey</span>}</div>
+        <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Timeline</span>}</div>
         <div className="share-preview-stats"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span>{counts?.followers != null && <span><b>{counts.followers}</b> followers</span>}{counts?.following != null && <span><b>{counts.following}</b> following</span>}</div>
       </section>
     </section>
