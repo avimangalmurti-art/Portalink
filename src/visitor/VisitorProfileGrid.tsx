@@ -31,6 +31,7 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
   const journey = useJourneySelection(profile.id, auth.viewerProfileId, false);
   const [search, setSearch] = useSearchParams();
   const portalsView = !categoryId && search.get('view') === 'portals';
+  const isJourney = profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView;
   const category = profile.categories.find(item => item.id === categoryId);
   const density = useProjectGridDensity(profile, false);
   const projects = useMemo(() => categoryId ? profile.projects.filter(project => project.categoryId === categoryId) : profile.projects, [profile.projects, categoryId]);
@@ -58,19 +59,19 @@ export function VisitorProfileGrid({ profile, categoryId, onOpen, onCollaboratio
         </div>
 
       </header>
-      <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
+      {!isJourney && <header id="profile-navigation-tools" className="user-profile-canvas ps-panel-toolbar global-control-header profile-navigation-header side-panel-content-inset relative z-20 w-full">
         <div className="side-panel-control-row w-full min-w-0 flex-wrap">
           <div data-mobile-profile-links="" className="w-full min-w-0 basis-full"><PlatformGrid links={links} profileName={profile.name} isSharedView onOpenBio={() => setBioOpen(true)} onCollaboration={onCollaboration}
             onMessage={onMessage} /></div>
         </div>
-      </header>
+      </header>}
     </div>
     {bioOpen && <Suspense fallback={null}><ProfileBioSheet profileId={profile.id} bio={profile.headline} canEdit={false} onClose={() => setBioOpen(false)} /></Suspense>}
     {!categoryId && !portalsView && <EmployerOverview profile={profile} onOpen={project => onOpen(project.categoryId,project.id)} />}
     {!isMobile && profile.showJourney === true && !categoryId && !portalsView && <JourneyToggle view={journey.view} onChange={journey.select} />}
     <div id="profile-content" className="min-w-0 w-full px-[var(--content-gutter)] pb-4">
       {category && <header className="side-panel-control-row my-3"><button type="button" onClick={onBack} data-ui-control="button" data-control-size="md" data-control-variant="secondary">Back to profile</button><h2 className="min-w-0 truncate px-2 font-semibold">{category.label}</h2></header>}
-      {profile.showJourney === true && journey.view === 'journey' && !categoryId && !portalsView ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Journey…"/>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
+      {isJourney ? <Suspense fallback={<LoadingSkeleton kind="journey" label="Opening Journey…"/>}><JourneyView profile={profile} owner={false} onOpen={project => onOpen(project.categoryId, project.id)} /></Suspense> : portalsView ? <Suspense fallback={<LoadingSkeleton kind="rows" label="Opening portals…"/>}><ProfileCollectionGrid shared profileId={profile.id} kind="portals" portals={profile.categories} people={[]} loading={false} error={null} hasMore={false} onLoadMore={() => undefined} /></Suspense>
         : projects.length ? <JustifiedImageWall label={`${profile.name} — profile imagery`} columns={density.columns} onColumnsChange={density.setColumns} allowLayoutControls={false} items={items} />
         : <p className="px-3 py-10 text-[var(--text-secondary)]">No published projects here yet.</p>}
     </div>
