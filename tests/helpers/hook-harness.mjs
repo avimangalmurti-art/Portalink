@@ -9,18 +9,20 @@ export function deferred() {
 }
 
 /** Executes the real hook with controlled effects, service responses and clock events. */
-export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = { invalidateProfiles() {} }, dependencies = {}, globals = {}) {
+export function hookHarness(file, exportName, services, auth, initialOptions = {}, profileData = { invalidateProfiles() {}, scope: {} }, dependencies = {}, globals = {}) {
   const slots = [];
   const intervals = new Map();
   const timeouts = new Map();
-  let cursor = 0, dirty = true, result, options = initialOptions, timer = 0;
+  let cursor = 0, dirty = true, result, options = initialOptions, timer = 0, generation = 0, mounted = true;
   let effects = [];
   const same = (left, right) => left && right && left.length === right.length && left.every((value, i) => Object.is(value, right[i]));
   const react = {
     useState(initial) {
       const index = cursor++;
+      const mount = generation;
       slots[index] ??= { value: typeof initial === 'function' ? initial() : initial };
       return [slots[index].value, (value) => {
+        if (!mounted || mount !== generation) return;
         const next = typeof value === 'function' ? value(slots[index].value) : value;
         if (!Object.is(next, slots[index].value)) { slots[index].value = next; dirty = true; }
       }];
@@ -86,6 +88,14 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     for (const effect of effects) effect();
     return result;
   };
+  const dispose = () => {
+    for (const slot of slots) {
+      slot?.cleanup?.();
+      if (slot) delete slot.cleanup;
+    }
+    mounted = false;
+    generation += 1;
+  };
   return {
     get value() { if (dirty) render(); return result; },
     document,
@@ -94,6 +104,12 @@ export function hookHarness(file, exportName, services, auth, initialOptions = {
     runTimeouts() { const pending = [...timeouts.values()]; timeouts.clear(); for (const fn of pending) fn(); },
     options(next) { options = next; dirty = true; },
     rerender() { dirty = true; },
-    dispose() { for (const slot of slots) slot?.cleanup?.(); },
+    // Reuse module-level caches while replacing the component's hook lifecycle.
+    // Old state setters cannot write into a newly mounted instance's slots.
+    remount(next = options) {
+      dispose(); slots.length = 0; effects = []; result = undefined;
+      options = next; mounted = true; dirty = true;
+    },
+    dispose,
   };
 }
