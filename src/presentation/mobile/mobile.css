@@ -653,6 +653,8 @@
 
 /* Six full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
+  transform: scale(.85);
+  transform-origin: center bottom;
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
   min-width: calc(4 * var(--mobile-control-target) + 3 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
@@ -684,6 +686,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: var(--mobile-control-target);
@@ -691,6 +694,16 @@
   place-items: center;
   padding: 0;
   border: 0;
+}
+
+/* Keep a 44px touch height while the visible capsule and icons shrink to 85%. */
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: max(100%, calc(44px / .85));
+  transform: translateY(-50%);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
