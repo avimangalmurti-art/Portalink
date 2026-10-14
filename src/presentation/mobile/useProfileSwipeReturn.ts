@@ -1,16 +1,24 @@
+import { useMobileScreenActive } from './MobileBackNavigation';
+import { preparePullSurface, revealPullUnderlay, commitPullDismiss, cancelPullDismiss, finishPullDismiss } from './pullDismissMotion';
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
 /** A downward pull at the profile's top returns without borrowing browser overscroll. */
 export function useProfileSwipeReturn(ref: RefObject<HTMLElement>, enabled: boolean, onReturn: () => void) {
+  const active = useMobileScreenActive();
+  const canReturn = enabled && active;
   const latest = useRef(onReturn); latest.current = onReturn;
   useEffect(() => {
     const root = ref.current;
-    if (!enabled || !root) return;
+    if (!canReturn || !root) return;
     let start: { x: number; y: number } | null = null;
     let distance = 0;
-    const restore = () => { root.removeAttribute('data-profile-pulling'); root.style.removeProperty('--profile-pull-offset'); };
+    let dismissing = false;
+    let stage: ReturnType<typeof preparePullSurface> | null = null;
+    let animation: Animation | undefined;
+    const restore = () => { stage?.restore(); stage = null; finishPullDismiss(); root.removeAttribute('data-profile-pulling'); root.style.removeProperty('--profile-pull-offset'); };
     const begin = (event: TouchEvent) => {
+      if (dismissing || (window.history.state?.idx ?? 0) === 0 && !document.querySelector('[data-mobile-screen-underlay]')) return;
       start = null; distance = 0; restore();
       if (event.touches.length !== 1 || document.querySelector('[aria-modal="true"]')) return;
       const target = event.target instanceof Element ? event.target : null;
@@ -31,20 +39,22 @@ export function useProfileSwipeReturn(ref: RefObject<HTMLElement>, enabled: bool
       if (dy > 8 && dy > Math.abs(dx)) {
         if (event.cancelable) event.preventDefault();
         distance = dy;
-        root.setAttribute('data-profile-pulling', '');
-        root.style.setProperty('--profile-pull-offset', `${Math.min(dy, window.innerHeight * .65)}px`);
+        if (!stage) { stage = preparePullSurface(root); revealPullUnderlay(); }
+        stage.surface.setAttribute('data-profile-pulling', '');
+        stage.surface.style.setProperty('--profile-pull-offset', `${Math.min(dy, window.innerHeight * .65)}px`);
       }
     };
-    const end = () => { const returnNow = Boolean(start) && distance >= 72; start = null; distance = 0; restore(); if (returnNow) latest.current(); };
-    const cancel = () => { start = null; distance = 0; restore(); };
+    const end = (event: TouchEvent) => { if (distance > 8 && event.cancelable) event.preventDefault(); if (dismissing) return; const returnNow = Boolean(start) && distance >= 72; start = null; if (returnNow && stage) { dismissing = true; animation = commitPullDismiss(stage.surface, Math.min(distance, window.innerHeight * .65), () => latest.current()); } else if (stage) { dismissing = true; animation = cancelPullDismiss(stage.surface, Math.min(distance, window.innerHeight * .65), () => { restore(); dismissing = false; }); } else restore(); distance = 0; };
+    const cancel = () => { if (dismissing) return; start = null; distance = 0; restore(); };
     root.addEventListener('touchstart', begin, { passive: true });
     root.addEventListener('touchmove', move, { passive: false });
-    root.addEventListener('touchend', end);
+    root.addEventListener('touchend', end, { passive: false });
     root.addEventListener('touchcancel', cancel);
     return () => {
+      animation?.cancel();
       restore();
       root.removeEventListener('touchstart', begin); root.removeEventListener('touchmove', move);
       root.removeEventListener('touchend', end); root.removeEventListener('touchcancel', cancel);
     };
-  }, [ref, enabled]);
+  }, [ref, canReturn]);
 }

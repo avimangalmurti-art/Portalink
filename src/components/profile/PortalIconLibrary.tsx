@@ -8,7 +8,8 @@ import { usePresentation } from '../../presentation/usePresentation';
 const PAGE_SIZE = 60;
 
 /** One bounded, searchable catalog for creating a portal or changing its icon. */
-export function PortalIconLibrary({ selected, onSelect, disabled = false, pendingName, compact = false, label = 'Portal icon', searchQuery }: {
+export function PortalIconLibrary({ selected, onSelect, disabled = false, pendingName, compact = false, label = 'Portal icon', searchQuery, additionalOptions = [] }: {
+  additionalOptions?: readonly { name: string; label: string }[];
   selected: string;
   onSelect: (name: string) => void;
   disabled?: boolean;
@@ -25,9 +26,9 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
   const [page, setPage] = useState({ query: '', limit: PAGE_SIZE });
   const limit = page.query === query ? page.limit : PAGE_SIZE;
   const [initialSelected] = useState(selected);
-  const matches = searchPortalIcons(query);
+  const matches = [...new Set([...additionalOptions.filter(option=>(option.label+' '+option.name).toLowerCase().includes(query.toLowerCase().trim())).map(option=>option.name),...searchPortalIcons(query)])];
   // A saved selection remains easy to locate when reopening the picker.
-  const ordered = !query.trim() && portalIconNames.includes(initialSelected)
+  const ordered = !query.trim() && (portalIconNames.includes(initialSelected)||additionalOptions.some(option=>option.name===initialSelected))
     ? [initialSelected, ...matches.filter(name => name !== initialSelected)] : matches;
   const visible = ordered.slice(0, limit);
   const tabStop = visible.includes(selected) ? selected : visible[0];
@@ -69,7 +70,9 @@ export function PortalIconLibrary({ selected, onSelect, disabled = false, pendin
         const Icon = getCategoryIcon(name);
         const chosen = name === selected;
         const pending = disabled && pendingName === name;
-        const title = getPortalIconLabel(name);
+        const extraOption = additionalOptions.find(option => option.name === name);
+        const catalogTitle = getPortalIconLabel(name);
+        const title = extraOption?.label ?? (additionalOptions.some(option => option.label === catalogTitle) ? catalogTitle + ' (outline)' : catalogTitle);
         const selectedStyle = compact ? 'border-[var(--accent-primary)] bg-[var(--surface-selected)] text-[var(--accent-text)]' : 'border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-foreground)]';
         return <button key={name} type="button" role={compact ? 'radio' : undefined}
           aria-label={compact ? title : `Use the ${title} icon`} title={title}

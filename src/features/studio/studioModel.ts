@@ -39,22 +39,21 @@ export function publishedStudioRows(profile: Profile | null | undefined): Studio
   return [...profile.projects].sort((a, b) => (Date.parse(b.publishedAt ?? '') || 0) - (Date.parse(a.publishedAt ?? '') || 0)).map(project => ({
     kind: 'published', id: `published:${project.id}`, title: project.title,
     secondary: project.summary || profile.categories.find(category => category.id === project.categoryId)?.label || 'Published project',
-    date: realDate(project.publishedAt), href: projectHref(project, profile), project, creator: profile,
+    date: realDate(project.madeOn ?? project.publishedAt), href: projectHref(project, profile), project, creator: profile,
   }));
 }
 
 export function savedProjectStudioRows(views: ProjectView[]): StudioRow[] {
-  // The service knows save order, but does not expose save dates. A publication
-  // date would describe a different event, so these rows intentionally omit it.
+  // The date describes when the work was made; collection order remains unchanged.
   return views.map(({ project, creator }) => ({ kind: 'saved-project', id: `saved-project:${project.id}`, title: project.title,
-    secondary: creator.name, href: projectHref(project, creator), project, creator }));
+    secondary: creator.name, date: realDate(project.madeOn ?? project.publishedAt), href: projectHref(project, creator), project, creator }));
 }
 
 export function savedPageStudioRows(entries: SavedPageEntry[]): StudioRow[] {
   return entries.map(({ target, presentation }) => ({ kind: 'saved-page', id: `saved-page:${savedPageKey(target)}`,
     title: presentation?.view.project.title ?? 'Unavailable page',
     secondary: presentation ? `${presentation.label} · ${presentation.view.creator.name}` : 'This page is no longer shared with you.',
-    date: realDate(target.savedAt), href: presentation?.href, target, presentation }));
+    date: realDate(presentation?.view.project.madeOn ?? presentation?.view.project.publishedAt), href: presentation?.href, target, presentation }));
 }
 
 export function savedCreatorStudioRows(entries: SavedCreatorEntry[]): StudioRow[] {

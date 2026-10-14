@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 test('Studio rail follows the safe-area header and selected pills never scroll vertically',()=>{
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.ok(source.indexOf('className="studio-mobile-shell-header"')<source.indexOf('className="studio-citation-pills"'));
- assert.match(source,/hideHeader=\{mobile\}/);assert.match(source,/rail\.scrollLeft=/);assert.doesNotMatch(source,/scrollIntoView/);
+ assert.match(source,/<StudioOverview/);assert.match(source,/rail\.scrollLeft=/);assert.doesNotMatch(source,/scrollIntoView/);
  const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
  const scoped=css.slice(css.indexOf('/* Studio: one stationary safe-area header'));
  assert.match(scoped,/data-presentation='mobile'/);assert.match(scoped,/padding-top: var\(--mobile-screen-action-top\)/);
@@ -16,7 +16,7 @@ test('mobile Studio header receives existing collection controls and hides its r
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
  assert.match(source,/className="studio-mobile-header-controls" ref=\{setHeaderHost\}/);
  assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
- assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
+ assert.match(source,/<StudioDraftsList key="drafts" headerHost=\{mobile\?headerHost:undefined\}/);
  const css=readFileSync('src/presentation/mobile/mobile.css','utf8');
  assert.match(css, /data-presentation='mobile'\] \.studio-mobile-shell-header h1 \{ display: none;/);
 });
@@ -29,5 +29,5 @@ test('mobile landing overview is the first tab, with reference-style fallback he
  assert.match(source,/aria-label="Back from Studio"/);
  assert.match(source,/className="studio-text-control" aria-label="Select items" disabled>Select/);
  assert.match(source,/<BookmarksList headerHost=\{mobile\?headerHost:undefined\}/);
- assert.match(source,/<StudioDraftsList headerHost=\{mobile\?headerHost:undefined\}/);
+ assert.match(source,/<StudioDraftsList key="drafts" headerHost=\{mobile\?headerHost:undefined\}/);
 });
