@@ -2,8 +2,39 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 import React from 'react';
+import postcss from 'postcss';
 import {sourceModule} from './helpers/source-module.mjs';
 const cssFiles=dir=>readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?cssFiles(dir+'/'+e.name):e.name.endsWith('.css')?[dir+'/'+e.name]:[]);
+test('finite stylesheet motion is capped at260ms and every authored opacity fade at180ms',()=>{
+ const sheets=cssFiles('src').map(file=>({file,root:postcss.parse(readFileSync(file,'utf8'))}));
+ const keyframes=new Map(),tokens={fast:120,base:180,slow:260};
+ for(const {root} of sheets)root.walkAtRules(/keyframes$/,rule=>{let opacity=false;rule.walkDecls('opacity',()=>{opacity=true;});keyframes.set(rule.params,{opacity});});
+ const milliseconds=value=>{const token=/var\(--m-(fast|base|slow)\)/.exec(value);assert.ok(token,`Unrecognized motion duration: ${value}`);return tokens[token[1]];};
+ for(const {file,root} of sheets)root.walkRules(rule=>{
+  const declarations=rule.nodes.filter(node=>node.type==='decl'),lookup=property=>declarations.findLast(node=>node.prop===property)?.value;
+  for(const declaration of declarations.filter(node=>node.prop==='animation'))for(const value of postcss.list.comma(declaration.value)){
+   if(value==='none'||/\binfinite\b/.test(value))continue;
+   const name=[...keyframes.keys()].find(name=>new RegExp(`(?<![\\w-])${name}(?![\\w-])`).test(value));
+   assert.ok(name,`${file}: ${value}`);const duration=milliseconds(value);
+   assert.ok(duration<=260,`${file}: ${name} exceeds screen motion cap`);
+   if(keyframes.get(name).opacity)assert.ok(duration<=180,`${file}: ${name} exceeds fade cap`);
+  }
+  const names=lookup('animation-name'),duration=lookup('animation-duration');
+  if(names&&names!=='none'&&duration&&lookup('animation-iteration-count')!=='infinite')for(const name of postcss.list.comma(names)){
+   if(keyframes.get(name)?.opacity)assert.ok(milliseconds(duration)<=180,`${file}: ${name} exceeds fade cap`);
+  }
+  for(const declaration of declarations.filter(node=>node.prop==='transition'))for(const value of postcss.list.comma(declaration.value)){
+   if(value==='none')continue;
+   if(/^opacity\b/.test(value))assert.ok(milliseconds(value)<=180,`${file}: ${value} exceeds fade cap`);
+  }
+ });
+ const motion=sheets.find(({file})=>file.endsWith('/motion/motion.css')).root;
+ for(const selector of ['::view-transition-old(*)','::view-transition-new(*)']){
+  const rules=motion.nodes.filter(node=>node.type==='rule'&&node.selector===selector);
+  const duration=rules.at(-1).nodes.findLast(node=>node.prop==='animation-duration').value;
+  assert.equal(milliseconds(duration),180,`${selector} must not override named exit fades to260ms`);
+ }
+});
 test('all authored stylesheet durations come from the one three-token motion scale',()=>{
  const files=cssFiles('src'),definitions=[];
  for(const file of files){const css=readFileSync(file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');

@@ -3303,7 +3303,8 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet {
   position: absolute; bottom: 0; margin-block: 0;
-  display: flex; flex-direction: column; height: 75%;
+  --sheet-rest-y: max(0px, calc(var(--dialog-viewport-height, 100dvh) * .25 - max(16px, var(--safe-area-top))));
+  display: flex; flex-direction: column; height: calc(100% - max(16px, var(--safe-area-top)));
   max-height: calc(100% - max(16px, var(--safe-area-top)));
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
@@ -3311,9 +3312,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   background: var(--material-regular) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  outline: none; padding-bottom: max(16px, var(--safe-area-bottom));
+  outline: none; padding-bottom: calc(max(16px, var(--safe-area-bottom)) + var(--sheet-rest-y));
 }
-#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { height: calc(100% - max(16px, var(--safe-area-top))); }
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { --sheet-rest-y: 0px; }
+/* Layout settles once; gestures and expansion move the same panel with transform. */
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-dragging] { padding-bottom: max(16px, var(--safe-area-bottom)); }
 #root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }

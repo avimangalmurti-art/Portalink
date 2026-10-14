@@ -5017,7 +5017,7 @@ html[data-project-continuity]::view-transition-new(portalink-project) {
   width: 100%;
   mix-blend-mode: normal;
   object-fit: cover;
-  animation-duration: var(--m-slow);
+  animation-duration: var(--m-base);
   animation-timing-function: var(--m-enter);
 }
 
@@ -5032,11 +5032,12 @@ html[data-project-continuity='return']::view-transition-old(portalink-project) {
 }
 
 html[data-project-continuity]::view-transition-old(root) {
-  animation: m-screen-out var(--m-slow) var(--m-exit) both;
+  animation: m-screen-out var(--m-base) var(--m-exit) both;
 }
 
 html[data-project-continuity]::view-transition-new(root) {
-  animation: m-screen-in var(--m-slow) var(--m-enter) both;
+  animation: m-screen-in var(--m-slow) var(--m-enter) both,
+    m-fade-in var(--m-base) var(--m-enter) both;
 }
 
 @keyframes mobile-project-panel-enter {
@@ -5216,7 +5217,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-media-mode-enter {
-  animation: premium-media-mode-enter var(--m-slow) var(--m-enter) both;
+  animation: premium-media-mode-enter var(--m-base) var(--m-enter) both;
 }
 
 /* Exact-page engagement stays visually quiet until the viewer reaches for it.
@@ -5315,7 +5316,7 @@ html[data-project-continuity]::view-transition-new(root) {
 }
 
 .premium-media-ready {
-  animation: premium-media-ready var(--m-slow) var(--m-enter) both;
+  animation: premium-media-ready var(--m-base) var(--m-enter) both;
 }
 
 .premium-media-placeholder {
@@ -5686,7 +5687,7 @@ body.reduce-translucency [data-themed-portal] { background: var(--surface-raised
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-index-list] [data-mobile-project-layout='list'] .project-index-row > button { border-radius: 0; }
 
-html[data-project-continuity='return']::view-transition-old(root) { animation:m-back-out var(--m-slow) var(--m-exit) both; }
-html[data-project-continuity='return']::view-transition-new(root) { animation:m-back-in var(--m-slow) var(--m-enter) both; }
+html[data-project-continuity='return']::view-transition-old(root) { animation:m-back-out var(--m-slow) var(--m-exit) both,m-fade-out var(--m-base) var(--m-exit) both; }
+html[data-project-continuity='return']::view-transition-new(root) { animation:m-back-in var(--m-base) var(--m-enter) both; }
 html[data-project-continuity]::view-transition-old(portalink-project) { animation-timing-function:var(--m-exit); }
 html[data-project-continuity='return']::view-transition-group(portalink-project) { animation-timing-function:var(--m-exit); }

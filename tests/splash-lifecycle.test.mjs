@@ -777,9 +777,15 @@ test('shared visitors can open Settings while the public-view boundary remains i
   assert.equal(h.app.props.to,'/share/creator');
 });
 
-test('leaving Hello World cross-fades for the base motion token, respecting reduced motion and other startup timings',()=>{
+test('splash and Hello World exit fades stay within the base token on both layouts without changing fixed mobile handoff',()=>{
  const welcome={ready:true,onCreateAccount(){},onSignIn(){},onForgotPassword(){},onContinue(){},continueLabel:'Continue as guest'};
- for(const options of [{presentation:'mobile',landing:welcome},{presentation:'mobile',welcomeHandoff:true}]){const h=loader(options),view=h.render();assert.equal(view.tree.props.transition.duration,.18);assert.equal(view.tree.props.exit.opacity,0);h.unmount();}
- const reduce=loader({presentation:'mobile',landing:welcome,reduced:true});reduce.render();assert.equal(reduce.exitDuration,0);reduce.unmount();
- const normal=loader();normal.render();assert.equal(normal.exitDuration,.26);normal.unmount();
+ for(const presentation of ['mobile','web']){
+  for(const state of [{},{landing:welcome},{welcomeHandoff:true}]){
+   const h=loader({presentation,...state}),view=h.render();
+   assert.equal(view.tree.props.transition.duration,.18);
+   assert.equal(view.tree.props.exit.opacity,0);h.unmount();
+   const reduce=loader({presentation,...state,reduced:true});reduce.render();assert.equal(reduce.exitDuration,0);reduce.unmount();
+  }
+ }
+ const fixed=loader({presentation:'mobile',timedIntro:true});fixed.render();assert.equal(fixed.exitDuration,0);fixed.unmount();
 });

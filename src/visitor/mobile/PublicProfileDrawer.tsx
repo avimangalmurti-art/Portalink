@@ -46,7 +46,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
     const finish = () => { if (!next) setVisible(false); };
     if (immediate || reducedMotion) { progress.set(next ? 1 : 0); finish(); }
     else animation.current = animate(progress, next ? 1 : 0, {
-      duration: motionSeconds('slow'), ease: motionCurve(next ? 'enter' : 'exit'), onComplete: finish,
+      duration: motionSeconds('base'), ease: motionCurve(next ? 'enter' : 'exit'), onComplete: finish,
     });
   }, [progress, reducedMotion]);
   const close = useCallback(() => {

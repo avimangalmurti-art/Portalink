@@ -311,7 +311,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
       exit={{ opacity: 0 }}
-      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : landing || welcomeHandoff ? motionSeconds('base') : motionSeconds('slow'), ease: motionCurve() }}
+      transition={{ duration: shouldReduceMotion || fixedMobileIntro ? 0 : motionSeconds('base'), ease: motionCurve() }}
     >
       <div className="portalink-splash-media" aria-hidden="true" style={{ '--portalink-media-ratio': mediaWidth / mediaHeight } as React.CSSProperties}>
         <div className="portalink-splash-frame">
