@@ -1,7 +1,6 @@
 :root { --m-fast:120ms; --m-base:180ms; --m-slow:260ms; --m-enter:cubic-bezier(.2,.8,.2,1); --m-exit:cubic-bezier(.4,0,1,1); }
 /* These change paint/compositing only; geometry belongs to the existing screens. */
 :where(button,a[href],[role='button'],input[type='checkbox']) { transition-duration:var(--m-fast); transition-timing-function:var(--m-enter); }
-:where(button,a[href],[role='button']):active:not(:disabled) { scale:.97; }
 html[data-motion-navigation]::view-transition-group(root) { animation-duration:var(--m-slow); }
 html[data-motion-navigation]::view-transition-old(root) { animation:m-screen-out var(--m-base) var(--m-exit) both; }
 html[data-motion-navigation]::view-transition-new(root) { animation:m-screen-in var(--m-slow) var(--m-enter) both,m-fade-in var(--m-base) var(--m-enter) both; }
@@ -13,7 +12,7 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 .mobile-pill-header { view-transition-name:portalink-header; }
 ::view-transition-group(portalink-dock),::view-transition-group(portalink-header),::view-transition-old(portalink-dock),::view-transition-new(portalink-dock),::view-transition-old(portalink-header),::view-transition-new(portalink-header) { animation:none; }
 @keyframes m-fade-in { from {opacity:0;} to {opacity:1;} }
-@keyframes m-fade-out { from {opacity:1;} to {opacity:0;} }
+@keyframes m-fade-out { from {opacity:var(--motion-exit-opacity,1);} to {opacity:0;} }
 @keyframes m-screen-in { from {transform:translateX(100%);} to {transform:translateX(0);} }
 @keyframes m-screen-out { from {opacity:1;} to {opacity:0;} }
 @keyframes m-back-out { from {transform:translateX(0);} to {transform:translateX(100%);} }
@@ -28,7 +27,7 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 [data-motion-scrim][data-motion-closing] { animation:m-fade-out var(--m-base) var(--m-exit) both; }
 [data-motion-sheet][data-motion-closing] { animation:m-sheet-out var(--m-slow) var(--m-exit) both; }
 @keyframes m-sheet-in { from {transform:translateY(100%);} to {transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px)));} }
-@keyframes m-sheet-out { from {transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px)));} to {transform:translateY(100%);} }
+@keyframes m-sheet-out { from {transform:var(--sheet-exit-transform,translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px))));} to {transform:translateY(100%);} }
 .motion-skeleton { overflow:hidden;position:relative;background:var(--surface-sunken);border-radius:inherit; }
 .motion-skeleton::after { content:'';position:absolute;inset:0;background:var(--surface-raised);animation:m-skeleton var(--m-slow) var(--m-enter) infinite alternate; }
 @keyframes m-skeleton { from {opacity:0;} to {opacity:.35;} }
@@ -42,7 +41,6 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 .motion-profile-skeleton .motion-list-skeleton > span { height:144px; }
 @media(prefers-reduced-motion:reduce) {
  *,*::before,*::after { animation:none!important;transition:none!important;scroll-behavior:auto!important; }
- :where(button,a[href],[role='button']):active { scale:1!important; }
  ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*) { animation:none!important; }
 }
 .reduce-motion *, .reduce-motion *::before,.reduce-motion *::after { animation:none!important;transition:none!important; }
