@@ -56,12 +56,12 @@ export function JourneyMonthCalendar({ days, onSelect, onClose }: {
 
   return <MobileBackScope active enabled><ModalPortal><div ref={viewport} data-presentation={presentation} className="journey-month-calendar-overlay" onPointerDown={event => { if (!isMobile && event.target === event.currentTarget) onClose(); }}>
     <section ref={dialog} className="journey-month-calendar-screen" role="dialog" aria-modal="true" aria-labelledby={`journey-month-calendar-title journey-month-${month}`} tabIndex={-1}>
-      <h1 id="journey-month-calendar-title" className="sr-only">Journey calendar</h1>
+      <h1 id="journey-month-calendar-title" className="sr-only">Timeline calendar</h1>
       <header className="journey-month-calendar-toolbar">
-        <ScreenBack action={onClose} visibleOnMobile><button type="button" className="journey-month-calendar-close" aria-label={isMobile ? 'Back to Journey' : 'Close calendar'} onClick={onClose}>
+        <ScreenBack action={onClose} visibleOnMobile><button type="button" className="journey-month-calendar-close" aria-label={isMobile ? 'Back to Timeline' : 'Close calendar'} onClick={onClose}>
           {isMobile ? <ArrowLeftIcon size={22} aria-hidden="true" /> : <XIcon size={22} aria-hidden="true" />}
         </button></ScreenBack>
-        <div className="journey-month-calendar-navigation" role="group" aria-label="Browse Journey months">
+        <div className="journey-month-calendar-navigation" role="group" aria-label="Browse Timeline months">
           <button type="button" aria-label="Previous month" onClick={() => moveMonth(-1)}><ChevronLeftIcon size={22} aria-hidden="true" /></button>
           <span aria-live="polite" aria-atomic="true">{formatDay(month, { month: 'short', year: 'numeric' })}</span>
           <button type="button" aria-label="Next month" onClick={() => moveMonth(1)}><ChevronRightIcon size={22} aria-hidden="true" /></button>

@@ -192,13 +192,13 @@ test('the mobile parent scopes consumed month requests to the viewed profile and
   const child = () => h.nodes.find(node => node.type === 'journey-calendar');
   assert.equal(child().key, 'creator:true');
   assert.equal(h.wrapperKey, 'creator:true');
-  h.button('Open Journey calendar for today').props.onClick();
+  h.button('Open Timeline calendar for today').props.onClick();
   h.nodes.find(node => node.type === 'month-calendar').props.onSelect('1990-01-01');
   assert.equal(child().props.jumpTo.request, 1);
   h.update({ profile: { ...initial.profile, id: 'other' } });
   assert.equal(child().key, 'other:true'); assert.equal(child().props.jumpTo, undefined);
   assert.equal(h.wrapperKey, 'other:true');
-  h.button('Open Journey calendar for today').props.onClick();
+  h.button('Open Timeline calendar for today').props.onClick();
   h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29');
   assert.equal(child().props.jumpTo.request, 1);
   h.update({ owner: false });
@@ -215,13 +215,13 @@ test('WEB month navigation keeps the year rail and jumps to its first same-day e
   const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: { ...profile, projects: [visible, sameDay, hidden] }, owner: false, onOpen() {}, presentation: 'web', events: [{ id: 'citation', date: '2024-02-29', href: '/citation', label: 'Existing public citation' }] });
   assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);
   assert.equal(h.nodes.filter(node => node.props.className === 'journey-year').length, 2);
-  h.button('Open Journey calendar for today').props.onClick();
+  h.button('Open Timeline calendar for today').props.onClick();
   const month = h.nodes.find(node => node.type === 'month-calendar');
   assert.deepEqual(Array.from(month.props.days, ([day]) => day), ['2024-02-29', '2026-10-13']);
   assert.equal(month.props.days.flatMap(([, entries]) => entries).some(item => item.project?.id === hidden.id), false);
   month.props.onSelect('2020-01-01'); h.frames();
   assert.equal(h.scrolls.at(-1).day, '2024-02-29');
-  h.button('Open Journey calendar for today').props.onClick();
+  h.button('Open Timeline calendar for today').props.onClick();
   h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2026-10-13'); h.frames();
   assert.equal(h.scrolls.at(-1).day, '2026-10-13');
   // Each date uses querySelector's first existing rail entry, rather than creating a calendar row.

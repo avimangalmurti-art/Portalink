@@ -53,7 +53,7 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
     return () => cancelAnimationFrame(frame);
   }, [calendarJump, calendarOpen, isMobile]);
   const calendarControls = <>
-    <button type="button" className="journey-today-launch" aria-label="Open Journey calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>
+    <button type="button" className="journey-today-launch" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>
     <DeferredDialog active={calendarOpen} onClose={() => setCalendarOpen(false)}>{calendarOpen && <JourneyMonthCalendar days={record.days} onClose={() => setCalendarOpen(false)} onSelect={requested => {
       const day = workCalendarDay(record.days.map(([date]) => date), requested);
       if (day) setCalendarJump(previous => ({ day, request: (previous?.request ?? 0) + 1 }));
@@ -74,7 +74,7 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
   if (!groups.length) return <div className="journey-view">{calendarControls}<button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
     <span aria-hidden="true">+</span>Add your first project
   </button></div>;
-  return <section ref={desktopRoot} className="journey-view" aria-label={`${profile.name} Journey`}>
+  return <section ref={desktopRoot} className="journey-view" aria-label={`${profile.name} Timeline`}>
     {calendarControls}
     {pairContent}
     {owner && !isMobile && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
