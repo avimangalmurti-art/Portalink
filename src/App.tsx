@@ -57,6 +57,7 @@ import { canResumeRegistration, readSharedReturnPath } from './features/auth/reg
 import { AppPresentation, AppPresentationProvider } from './presentation/AppPresentation';
 import { usePresentation } from './presentation/usePresentation';
 import { MobileBackProvider } from './presentation/mobile/MobileBackNavigation';
+import type { HomeStartupProps } from './app/homeStartup';
 import { loadMessagesPage, loadStudioPage, loadSearchPage, loadSettingsPage, loadProfilePage, loadCategoryPage, loadProfileEditorPage, warmScreenForPath, warmCommonScreens } from './app/screenModules';
 
 // Expensive destinations are loaded only when opened. In particular, the
@@ -131,11 +132,11 @@ function toDetailView(view: ProjectView): FeatureCardApp {
 // no stand-in identity: an id that does not resolve to a real profile record
 // opens no profile page at all, rather than a page assembled from a display name
 // and sample content.
-export function App() {
-  return <AppPresentationProvider><AppContent /></AppPresentationProvider>;
+export function App(props: HomeStartupProps = {}) {
+  return <AppPresentationProvider><AppContent {...props} /></AppPresentationProvider>;
 }
 
-function AppContent() {
+function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHomeStartupReady, onHomeStartupShellReady }: HomeStartupProps) {
   useWeeklyReadSignal();
   const presentation = usePresentation();
   /**
@@ -447,6 +448,17 @@ function AppContent() {
   const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
     route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
   const viewedProfileQuery = isSharedRoute ? sharedProfileQuery : ordinaryProfileQuery;
+  const startupShellReady = !auth.viewerProfileId || ['ready', 'error', 'not-found'].includes(viewedProfileQuery.status);
+  useEffect(() => {
+    if (homeStartupPending && route.kind === 'home') onHomeStartupShellReady?.(startupShellReady);
+  }, [homeStartupPending, route.kind, startupShellReady, onHomeStartupShellReady]);
+  const retryStartupProfile = viewedProfileQuery.retry;
+  const lastStartupAttempt = useRef(homeStartupAttempt);
+  useEffect(() => {
+    if (!homeStartupPending || lastStartupAttempt.current === homeStartupAttempt) return;
+    lastStartupAttempt.current = homeStartupAttempt;
+    if (homeStartupAttempt > 0) retryStartupProfile();
+  }, [homeStartupAttempt, homeStartupPending, retryStartupProfile]);
   const viewedProfile = viewedProfileQuery.profile;
   // Pointer, touch, or keyboard intent can arrive a beat before navigation.
   // Warm the same canonical profile query the destination consumes so the
@@ -478,7 +490,7 @@ function AppContent() {
     // Idle scheduling protects that first frame; fallback supports mobile Safari.
     let idle: number | undefined;
     let timer: number | undefined;
-    const frame = !connection?.saveData && !/^(slow-2g|2g)$/.test(connection?.effectiveType ?? '') ? window.requestAnimationFrame(() => {
+    const frame = !homeStartupPending && !connection?.saveData && !/^(slow-2g|2g)$/.test(connection?.effectiveType ?? '') ? window.requestAnimationFrame(() => {
       if (window.requestIdleCallback) idle = window.requestIdleCallback(() => { void warmCommonScreens(); }, { timeout: 500 });
       else timer = window.setTimeout(() => { void warmCommonScreens(); }, 200);
     }) : undefined;
@@ -490,7 +502,7 @@ function AppContent() {
       if (idle !== undefined) window.cancelIdleCallback(idle);
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [warmCreator]);
+  }, [warmCreator, homeStartupPending]);
   // The footer always represents the signed-in viewer, even while they browse
   // another creator. Reuse the current read when the viewed portal is their own;
   // only resolve a second record when those identities genuinely differ.
@@ -1309,7 +1321,7 @@ function AppContent() {
         setIconPickerCategoryId(null);
       }} /> : isMobileStudioOpen ? (auth.isAuthenticated && !auth.isInitializing && auth.phase !== 'authenticating' && auth.phase !== 'signing-out' ? <StudioPage onNewProject={requestMobilePublish} key={auth.user?.id} savedRoute={isSavedOpen} onBack={() => nav.back()} onOpenProject={openProjectById} /> : <LoadingState label="Opening Studio…" />) : isSavedOpen ? <SavedPage key={auth.user?.id} onBack={() => nav.back()} onOpenProject={openProjectById} /> : isActivityOpen ? <ActivityPage key={auth.user?.id} onBack={() => nav.back()} /> : isInsightsOpen ? <InsightsPage key={auth.user?.id} onBack={() => nav.back()} /> : inDesignFeature ? (isPortalsOpen ? mobilePortalsWorkspace : <FeatureInDesignPage feature={inDesignFeature} onBack={() => nav.back()} />) : isMessagesOpen ? <MessagesPage key={auth.viewerProfileId ?? auth.user?.id ?? 'guest'} onBack={() => nav.back()} initialRecipientId={route.kind === 'messages' ? route.recipientId ?? null : null} initialConversationId={route.kind === 'messages' ? route.conversationId ?? null : null} onConversationChange={(conversationId, replace) => nav.messages(conversationId ?? undefined, replace)} /> : isSearchOpen ? <SearchBrowsePage onBack={() => nav.back()} query={searchQuery} onQueryChange={changeSearchQuery} onOpenProject={openProjectById} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} live={live} view={route.kind === 'portalink' ? route.locationId ? 'location' : 'world' : 'atlas'} locationId={route.kind === 'portalink' ? route.locationId ?? null : null} onOpenAtlas={() => nav.search('')} onOpenWorld={() => nav.portalink()} onReturnHome={() => nav.home()} onOpenLocation={(locationId) => nav.to(`/portalink/${encodeURIComponent(locationId)}`)} /> : routeActivityKind && isProfileRouteReady && viewedProfile ? <div className="w-full">
           <ActivityCollectionPage key={`${auth.user?.id}:${viewedProfile.id}:${routeActivityKind}`} kind={routeActivityKind} profileName={viewedProfile.name} isViewerOwnCollection={auth.viewerProfileId !== null && auth.viewerProfileId === viewedProfile.id} onBack={() => nav.back()} onOpenProject={openProjectById} />
-        </div> : isCollaborationOpen && isProfileRouteReady && viewedProfile ? <CollaborationPage profile={viewedProfile} onBack={() => nav.closeCollaboration(viewedProfile.id, isSharedRoute)} /> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your portfolio', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onSearchUsers={() => nav.search('')} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
+        </div> : isCollaborationOpen && isProfileRouteReady && viewedProfile ? <CollaborationPage profile={viewedProfile} onBack={() => nav.closeCollaboration(viewedProfile.id, isSharedRoute)} /> : categoryPage && profilePage ? <MobileProfileWorkspace overview={profilePage} projectSelected={activeProjectId !== null}>{categoryPage}</MobileProfileWorkspace> : (route.kind === 'profile' || route.kind === 'sharedProfile') && isProfileRouteReady && profilePage ? <MobileProfileWorkspace overview={profilePage} /> : <HomeFeed startupPending={homeStartupPending && route.kind === 'home'} startupAttempt={homeStartupAttempt} onStartupReady={onHomeStartupReady} emptyAction={{ label: auth.isAuthenticated ? 'Publish a project' : 'Create your portfolio', onClick: requestGlobalPublish }} emptySecondaryAction={{ label: 'Explore the world', onClick: openPortalink }} isSidebarCollapsed={isSidebarCollapsed || isSignInExperienceOpen} showSearchPlaceholder={route.kind === 'home'} onExploreWorld={openPortalink} onSearchUsers={() => nav.search('')} onOpenProject={(projectId, location) => openProjectById(projectId, location, {
         openEngagement: true
       })} onOpenCreator={(creatorId) => openFeedCreator(creatorId)} onWarmCreator={warmCreator} scrollMemoryKey="home" />}
       </React.Suspense></DeferredSurfaceBoundary>

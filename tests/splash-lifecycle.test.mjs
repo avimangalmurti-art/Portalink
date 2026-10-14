@@ -19,12 +19,17 @@ function hooks() {
       useState(initial) {
         const i = cursor++;
         slots[i] ??= { value: typeof initial === 'function' ? initial() : initial };
-        return [slots[i].value, value => { slots[i].value = value; }];
+        return [slots[i].value, value => { slots[i].value = typeof value === 'function' ? value(slots[i].value) : value; }];
       },
       useCallback(callback, deps) {
         const i = cursor++;
         if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) slots[i] = { callback, deps };
         return slots[i].callback;
+      },
+      useMemo(factory, deps) {
+        const i = cursor++;
+        if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) slots[i] = { value: factory(), deps };
+        return slots[i].value;
       },
       useEffect(effect, deps) {
         const i = cursor++;
@@ -416,11 +421,12 @@ test('ready content loads beneath the bounded intro; navigation and auth retries
     './routes': { routes: { controlCenter: {path:'/settings'}, sharedCollaboration: {}, sharedProject: {}, sharedProfileCategory: {}, sharedProfile: {} }, buildPath: (_, p) => `/share/${p.profileId}` },
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exited' },
     './screenModules': { warmScreenForPath: path => { warmed.push(path); return Promise.resolve([]); } },
+    './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation': { useViewportPresentation: () => 'web' },
     '../features/auth/registration': { readSharedReturnPath: () => undefined },
   }, { window: { ...h.window, sessionStorage: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } } });
-  const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); return tree.props.children; };
+  const render = () => { const tree = h.render(ApplicationBootstrap); h.flush(); const app = tree.props.children[0]; if (app?.type === 'app') { app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true); } return tree.props.children; };
   let [app, presence] = render();
   assert.equal(app, null); assert.equal(presence.props.children.props.stillOnly, false);
   assert.deepEqual(warmed, ['/'], 'requested screen code starts while authentication is still initializing');
@@ -459,7 +465,7 @@ test('splash native controls are suppressed only inside the decorative startup v
   assert.match(css, /\.portalink-splash-video::-webkit-media-controls-start-playback-button\s*\{[^}]*display:\s*none !important/);
 });
 
-function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId } = {}) {
+function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', search = '?page=2', hash = '', recovery = false, authenticated = false, storedProfileId, homeReady = true } = {}) {
   const h = hooks(), requested = [], redirects = [], location = {pathname:path,search,hash}, storage = new Map();
   if (storedProfileId) storage.set('portalink.sharedViewerProfileId', storedProfileId);
   let rendered;
@@ -470,16 +476,17 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     react:h.react, 'framer-motion':{AnimatePresence:'presence'},
     'react-router-dom':{Navigate:'redirect',matchPath,useLocation:()=>location},
     '../App':{App:'app'}, '../components/ui/PortalinkSplashLoader':{PortalinkSplashLoader:'splash'},
-    '../components/ui/StateViews':{LoadingState:'loading'},
+    '../components/ui/StateViews':{LoadingState:'loading',ErrorState:'home-error'},
     '../contexts/AuthContext':{useAuth:()=>auth},
     './routes':{routes:{controlCenter:{path:'/settings'},sharedCollaboration:{path:'/share/:profileId/collaboration'},sharedProject:{path:'/share/:profileId/c/:categoryId/:projectId'},sharedProfileCategory:{path:'/share/:profileId/c/:categoryId'},sharedProfile:{path:'/share/:profileId'}},buildPath:(_,p)=>`/share/${p.profileId}`},
     './splashLifecycle':{PORTALINK_SPLASH_EXIT_EVENT:'splash-exited'},
     './screenModules':{warmScreenForPath:()=>Promise.resolve([])},
+    './homeStartup':{HOME_STARTUP_TIMEOUT_MS:12000},
     '../features/sharing/shareModel': shareModel,
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
     }, {window:{...h.window,location:{replace:path=>redirects.push(path)},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();return rendered.props.children[1].props.children;}};
+  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
 }
 
 test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
@@ -576,12 +583,11 @@ test('restored MOBILE and WEB sessions finish the splash while ready screens loa
  }
 });
 
-test('a slow MOBILE session shows loading after the intro without extending video or revealing protected content', () => {
+test('opening Home keeps its splash through a slow session without revealing protected content', () => {
   const h=sharedBootstrap({path:'/',search:''}); h.render().props.onComplete();
-  assert.equal(h.render(),null); assert.equal(h.app,null);
-  assert.equal(h.waiting.props.children.type,'loading');
+  assert.equal(h.render().type,'splash'); assert.equal(h.app,null); assert.equal(h.waiting,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true;
-  assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
+  h.render();h.render();assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
 });
 
 test('rotation preserves complete splash playback while the ready screen loads', () => {
@@ -598,7 +604,7 @@ test('root mobile landing waits for verified guest status, then stays behind acc
     assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
     if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
     splash=h.render();
-    if(first==='media') assert.equal(splash,null,'a slow session cannot extend the intro');
+    if(first==='media') assert.equal(splash.type,'splash','Home stays covered until the session can start its real reads');
     else assert.equal(splash.props.landing.ready,true);
     if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
     splash=h.render(); assert.equal(splash.props.landing.ready,true);
@@ -616,9 +622,48 @@ test('root mobile landing waits for verified guest status, then stays behind acc
 test('authenticated visitors, recovery, WEB and callback URLs never hold the landing', () => {
   for(const options of [{authenticated:true},{recovery:true},{presentation:'web'},{search:'?auth=signIn'},{search:'?code=private'},{hash:'#type=recovery'},{path:'/messages'}]) {
     const h=sharedBootstrap({path:'/',search:'',...options}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
-    splash.props.onComplete(); h.auth.isInitializing=false; h.render(); assert.equal(h.render(),null);
+    splash.props.onComplete(); h.auth.isInitializing=false; h.render(); h.render(); assert.equal(h.render(),null);
     h.auth.isAuthenticated=false; h.auth.pendingView=null; assert.equal(h.render(),null);
   }
+});
+
+test('opening Home waits for decoded content and its shell after the full intro on both platforms', () => {
+ for (const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});
+  h.auth.isInitializing=false;
+  let splash=h.render(); assert.equal(h.app.type,'app'); assert.equal(h.app.props.homeStartupPending,true);
+  splash.props.onComplete(); h.app.props.onHomeStartupShellReady(true);
+  assert.equal(h.render().type,'splash','shell and intro cannot expose incomplete Home');
+  assert.equal(h.waiting,false);
+  h.app.props.onHomeStartupReady(false); assert.equal(h.render().type,'splash');
+  h.app.props.onHomeStartupReady(true); h.render(); assert.equal(h.render(),null);
+  h.location.pathname='/messages'; assert.equal(h.render(),null);
+ }
+});
+
+test('ready Home never shortens the full intro', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+ h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
+ let splash=h.render();assert.equal(splash.type,'splash');splash.props.onComplete();h.render();assert.equal(h.render(),null);
+});
+
+test('Home timeout offers Retry and rejects stale account or startup-attempt completions', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+ h.render().props.onComplete(); h.render();
+ const old=h.app.props;
+ h.timer();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
+ h.homeError.props.children.props.onRetry();assert.equal(h.render().type,'splash');assert.equal(h.app.props.homeStartupAttempt,1);
+ old.onHomeStartupReady(true);old.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ const retry=h.app.props;h.auth.user={id:'different'};h.auth.session={user:h.auth.user};h.render();
+ retry.onHomeStartupReady(true);retry.onHomeStartupShellReady(true);assert.equal(h.render().type,'splash');
+ h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
+});
+
+test('guest Continue waits for Home without reopening entry actions', () => {
+ const h=sharedBootstrap({path:'/',search:'',homeReady:false});h.auth.isInitializing=false;
+ const splash=h.render();splash.props.landing.onContinue();
+ const waiting=h.render();assert.equal(waiting.type,'splash');assert.equal(waiting.props.landing,undefined);assert.equal(waiting.props.welcomeHandoff,true);
+ h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
 test('all root mobile welcome actions open the intended form without adding a shared destination', () => {

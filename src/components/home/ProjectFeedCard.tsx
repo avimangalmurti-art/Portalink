@@ -2,13 +2,14 @@ import React from 'react';
 import type { Id, ProjectLocation, ProjectView } from '../../types/domain';
 import { ProjectPreviewCard } from '../profile/ProjectPreviewCard';
 import type { ProjectManagement } from '../../features/projects/useProjectManagement';
+import type { ImagePriority } from '../ui/ResponsiveImage';
 
 type ProjectFeedCardProps = {
   view: ProjectView;
   onOpenProject: (projectId: Id, location?: ProjectLocation) => void;
   onOpenCreator: (creatorId: Id) => void;
   onWarmCreator?: (creatorId: Id) => void;
-  priority?: boolean;
+  priority?: ImagePriority;
   management?: ProjectManagement;
 };
 export function ProjectFeedCard({ view: { project, creator }, onOpenProject, onOpenCreator, onWarmCreator, priority = false, management }: ProjectFeedCardProps) {

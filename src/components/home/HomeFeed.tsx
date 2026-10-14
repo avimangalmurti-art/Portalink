@@ -6,7 +6,7 @@ import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
 import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
 import { contextActions } from '../../presentation/mobile/contextActions';
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
 import { BentoFeedGrid } from './BentoFeedGrid';
@@ -21,6 +21,7 @@ import { useProfileGridLayout } from '../../features/profile/useProfileGridLayou
 import { useProjectGridDensity } from '../../features/profile/useProjectGridDensity';
 import { useProjectManagement } from '../../features/projects/useProjectManagement';
 import { DeferredDialog } from '../ui/DeferredDialog';
+import { useHomeStartupReadiness } from './useHomeStartupReadiness';
 
 const ProjectEditorDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.ProjectEditorDialog })));
 const DeleteProjectDialog = React.lazy(() => import('../../features/projects/ProjectEditorDialog').then(module => ({ default: module.DeleteProjectDialog })));
@@ -46,6 +47,9 @@ type HomeFeedProps = {
   emptySecondaryAction?: { label: string; onClick: () => void };
   emptyTitle?: string;
   emptyDescription?: string;
+  startupPending?: boolean;
+  startupAttempt?: number;
+  onStartupReady?: (ready: boolean) => void;
 };
 
 const FEED_SCROLL_PREFIX = 'portalink.feedScroll.';
@@ -89,21 +93,31 @@ export function HomeFeed({
   emptySecondaryAction,
   emptyTitle = 'Your Home feed is ready',
   emptyDescription = 'Public work from creators across Portalink will appear here.',
+  startupPending = false,
+  startupAttempt = 0,
+  onStartupReady,
 }: HomeFeedProps) {
   const isMobile = usePresentation() === 'mobile';
   const navigate = useNavigate();
   const showMobileSearch = isMobile && !locationId && showSearchPlaceholder;
   const feed = useFeed(locationId);
-  const { viewerProfileId, isAuthenticated } = useAuth();
+  const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
   const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
+  const layoutFailed = !layoutReady && (ownerLayout.status === 'error' || ownerLayout.status === 'ready');
+  const loadFailed = layoutFailed || feed.status === 'error';
   const autoScrollRef = useRef<HTMLDivElement>(null);
   const [hasReloaded, setHasReloaded] = useState(false);
   const [locationGridWidth, setLocationGridWidth] = useState(0);
   const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
   const hasRestoredScrollRef = useRef(false);
+  const [scrollRestored, setScrollRestored] = useState(false);
+  const [noteReadiness, setNoteReadiness] = useState<{ account: string | null; attempt: number; settled: boolean } | null>(null);
+  const account = user?.id ?? null;
+  const reportNoteReadiness = useCallback((settled: boolean) => setNoteReadiness(current => current?.account === account && current.attempt === startupAttempt && current.settled === settled ? current : { account, attempt: startupAttempt, settled }), [account, startupAttempt]);
+  const previousStartupAttempt = useRef(startupAttempt);
   const latestScrollTopRef = useRef(readFeedScroll(scrollMemoryKey));
   const persistFrameRef = useRef(0);
 
@@ -127,6 +141,25 @@ export function HomeFeed({
     const ordered = feed.featured ? [feed.featured, ...feed.projects] : feed.projects;
     return Array.from(new Map(ordered.map((view) => [view.project.id, view])).values());
   }, [feed.featured, feed.projects]);
+  const documentProjects = useMemo(() => new Set(projects.filter(view => view.project.cover && view.project.coverKind === 'document' && !view.project.coverThumbnail).map(view => view.project.id)), [projects]);
+  const firstProjectHome = isMobile && Boolean(firstProjectAction) && projects.length === 0;
+  const retryFeed = feed.retry, retryLayout = ownerLayout.retry;
+  useEffect(() => {
+    if (startupPending && !locationId && previousStartupAttempt.current !== startupAttempt) {
+      retryFeed(); retryLayout();
+    }
+    previousStartupAttempt.current = startupAttempt;
+  }, [startupPending, startupAttempt, locationId, retryFeed, retryLayout]);
+  useHomeStartupReadiness({
+    enabled: startupPending && !locationId,
+    attempt: startupAttempt,
+    ref: autoScrollRef,
+    settled: (firstProjectHome && feed.status === 'success') || (feed.status === 'success' && layoutReady && scrollRestored && noteReadiness?.account === account && noteReadiness.attempt === startupAttempt && noteReadiness.settled),
+    terminalError: feed.status === 'error' || (!firstProjectHome && layoutFailed),
+    projectCount: firstProjectHome ? 0 : projects.length,
+    documentProjects,
+    onReady: onStartupReady,
+  });
 
   const cells: BentoCellItem[] = projects.map((view, index) => ({
     key: view.project.id,
@@ -136,35 +169,37 @@ export function HomeFeed({
       onOpenProject={onOpenProject}
       onOpenCreator={onOpenCreator}
       onWarmCreator={onWarmCreator}
-      priority={index < 2}
+      priority={startupPending && !locationId ? scrollRestored ? 'viewport' : false : index < 2}
     />,
   }));
 
   useLayoutEffect(() => {
     hasRestoredScrollRef.current = false;
+    setScrollRestored(false);
   }, [isMobile]);
 
   // MOBILE uses the document; WEB retains its contained feed. Restore the
   // real scroll surface once its cards exist, so Back lands
   // on the work the viewer left instead of quietly returning them to the top.
   useLayoutEffect(() => {
-    if (!layoutReady || hasRestoredScrollRef.current || (feed.status === 'loading' && projects.length === 0)) {
+    if (!layoutReady || hasRestoredScrollRef.current || ((feed.status === 'idle' || feed.status === 'loading') && projects.length === 0)) {
       return undefined;
     }
     hasRestoredScrollRef.current = true;
     const target = latestScrollTopRef.current;
     let frame = 0;
     let attempts = 0;
+    let completed = false;
     const restore = () => {
       const element = isMobile ? document.scrollingElement : autoScrollRef.current;
       if (!element) return;
       element.scrollTop = target;
-      if (Math.abs(element.scrollTop - target) < 2 || attempts >= 30) return;
+      if (Math.abs(element.scrollTop - target) < 2 || attempts >= 30) { completed = true; setScrollRestored(true); return; }
       attempts += 1;
       frame = requestAnimationFrame(restore);
     };
     frame = requestAnimationFrame(restore);
-    return () => cancelAnimationFrame(frame);
+    return () => { cancelAnimationFrame(frame); if (!completed) hasRestoredScrollRef.current = false; };
   }, [feed.status, projects.length, layoutReady, isMobile]);
 
   useLayoutEffect(() => {
@@ -221,14 +256,14 @@ export function HomeFeed({
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
           </header>}
-          {!locationId && <WeeklyReadNote />}
+          {!locationId && <WeeklyReadNote startupPending={startupPending} startupAttempt={startupAttempt} onStartupSettled={startupPending ? reportNoteReadiness : undefined} />}
           <section aria-labelledby="home-work-title">
             <h1 id="home-work-title" className="sr-only">Home</h1>
             {density.saveError && <p role="status" className="py-2 text-[13px] text-[var(--text-secondary)]">{density.saveError} <button type="button" onClick={() => { void density.retry(); }} className="text-[var(--accent-text)] underline">Retry layout save</button></p>}
-            {!layoutReady && (ownerLayout.status === 'error'
+            {!layoutReady && (layoutFailed
               ? <ErrorState title="Your Home layout could not be loaded" description={ownerLayout.error ?? undefined} onRetry={ownerLayout.retry} />
-              : <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" />)}
-            {feed.status === 'loading' && projects.length === 0
+              : !loadFailed ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home layout" /> : null)}
+            {!loadFailed && feed.status === 'loading' && projects.length === 0
               ? <LoadingState kind="grid" columns={density.columns} label="Loading your Home feed" />
               : null}
             {feed.status === 'error'
