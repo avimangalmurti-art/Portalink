@@ -1,23 +1,25 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from 'lucide-react';
+import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon, PlusIcon } from 'lucide-react';
 import type { Profile, Project } from '../../types/domain';
 import type { JourneyTimelineEntry } from '../citations/journeyCitations';
 import { adjacentWorkDay, calendarDay, calendarRecord, calendarWeek, localToday, workCalendarDay } from './calendar';
 import { JourneyCover } from './JourneyView';
-import { learnedLine } from './journey';
-import { FormattedText } from '../../components/text/FormattedText';
 import './journey-calendar.css';
 
 const formatDay = (day: string, options: Intl.DateTimeFormatOptions) => new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { ...options, timeZone: 'UTC' });
 
-export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, onAdd, jumpTo, children }: {
+export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, onOpenCalendar, onOpenPortal, openPortalId, onAdd, jumpTo, children }: {
   profile: Profile; owner: boolean; entries: JourneyTimelineEntry[];
   onOpen: (project: Project) => void; onDetails: (project: Project) => void; onAdd?: (year?: number) => void; jumpTo?: { day: string; request: number }; children?: React.ReactNode;
+  onOpenPortal: (categoryId: string) => void; openPortalId?: string | null;
+  onOpenCalendar: () => void;
 }) {
   const today = localToday();
   const [selected, setSelected] = useState(() => entries.map(entry => calendarDay(entry.date)).filter((day): day is string => Boolean(day)).sort().at(-1) ?? today);
   const pendingScroll = useRef<string | null>(selected);
   const heldSelection = useRef<string | null>(selected);
+  const activePortal = useRef(openPortalId);
+  activePortal.current = openPortalId;
   const root = useRef<HTMLElement>(null), header = useRef<HTMLElement>(null);
   const targets = useRef(new Map<string, HTMLElement>());
   const drag = useRef<{ x: number; y: number } | null>(null);
@@ -68,7 +70,7 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
-        if (heldSelection.current || !root.current || !header.current || root.current.closest('[aria-hidden="true"]')) return;
+        if (activePortal.current || heldSelection.current || !root.current || !header.current || root.current.closest('[aria-hidden="true"]')) return;
         const boundary = header.current.getBoundingClientRect().bottom + 20;
         let visible: string | undefined;
         for (const [day, target] of [...targets.current].sort(([a], [b]) => a.localeCompare(b))) {
@@ -79,6 +81,9 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
       });
     };
     const releaseSelection = (event: Event) => {
+      if (activePortal.current) return;
+      const fromPortal = Boolean((event.target as Element | null)?.closest?.('.journey-calendar-portal, .journey-portal'));
+      if (fromPortal && (event.type === 'pointerdown' || event.type === 'keydown')) return;
       const fromHeader = Boolean(event.target && header.current?.contains(event.target as Node));
       if (event.type === 'pointerdown' && fromHeader) return;
       if (event.type === 'keydown' && (fromHeader || !['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' '].includes((event as KeyboardEvent).key))) return;
@@ -106,8 +111,10 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
   </li> : <li key={`project:${entry.project.id}`} className="journey-calendar-entry">
     <button type="button" className="journey-calendar-cover" onClick={() => onOpen(entry.project)} aria-label={`Open ${entry.project.title}`}><JourneyCover project={entry.project} sizes="64px" /></button>
     <div className="journey-calendar-copy"><button type="button" className="journey-calendar-title" onClick={() => onOpen(entry.project)}>{entry.project.title}</button>
-      <span className="journey-calendar-portal">{profile.categories.find(portal => portal.id === entry.project.categoryId)?.label}</span>
-      <FormattedText className="journey-calendar-summary" text={learnedLine(entry.project)} />
+      {(() => {
+        const portal = profile.categories.find(category => category.id === entry.project.categoryId);
+        return portal ? <button type="button" className="journey-calendar-portal" aria-haspopup="dialog" aria-expanded={openPortalId === portal.id} onClick={() => onOpenPortal(portal.id)}>{portal.label}</button> : null;
+      })()}
     </div>
     <button type="button" className="journey-calendar-options" aria-label={`Show details for ${entry.project.title}`} aria-haspopup="dialog" onClick={() => onDetails(entry.project)}><MoreHorizontalIcon size={20} aria-hidden="true" /></button>
   </li>;
@@ -118,8 +125,11 @@ export function JourneyCalendar({ profile, owner, entries, onOpen, onDetails, on
         <label className="journey-calendar-month"><span>{formatDay(selected, { month: 'long' })}<small>{formatDay(selected, { year: 'numeric' })}</small></span>
           <input type="date" aria-label="Go to a Timeline date" value={selected} onInput={event => select(event.currentTarget.value)} onChange={event => select(event.target.value)} />
         </label>
-        <button type="button" aria-label="Previous date with work" disabled={!previous} onClick={() => previous && select(previous)}><ChevronLeftIcon size={22} aria-hidden="true" /></button>
-        <button type="button" aria-label="Next date with work" disabled={!next} onClick={() => next && select(next)}><ChevronRightIcon size={22} aria-hidden="true" /></button>
+        <div className="journey-calendar-controls">
+          <button type="button" className="journey-calendar-today" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={onOpenCalendar}><CalendarDaysIcon size={16} aria-hidden="true" />Today</button>
+          <button type="button" aria-label="Previous date with work" disabled={!previous} onClick={() => previous && select(previous)}><ChevronLeftIcon size={22} aria-hidden="true" /></button>
+          <button type="button" aria-label="Next date with work" disabled={!next} onClick={() => next && select(next)}><ChevronRightIcon size={22} aria-hidden="true" /></button>
+        </div>
       </div>
       <div className="journey-calendar-week" role="group" aria-label="Timeline week" onTouchStart={event => { const touch = event.touches[0]; drag.current = touch ? { x: touch.clientX, y: touch.clientY } : null; }} onTouchEnd={event => {
         const touch = event.changedTouches[0], start = drag.current; drag.current = null;

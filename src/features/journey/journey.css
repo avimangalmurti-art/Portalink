@@ -8,6 +8,8 @@
 [data-presentation='mobile'] .journey-entry-cover { height: auto; align-self: start; background: transparent; }
 
 .journey-portal{display:block;margin-top:5px;font-size:var(--type-footnote-size);line-height:1.45;color:var(--text-secondary)}
+.journey-portal { min-height: 44px; text-align: left; overflow-wrap: anywhere; }
+.journey-pair-grid .journey-portal { font-weight: 400; }
 
 /* Desktop Journey keeps its identity and switch above the scrolling year rail. */
 #root .codex-shell[data-presentation='web'] [data-profile-journey] > .profile-header-region {
@@ -55,5 +57,5 @@
 
 .journey-today-launch { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 18px; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--surface-raised); color: var(--text-primary); font-size: var(--type-callout-size); }
 [data-presentation='web'] .journey-today-launch { margin: 0 0 18px auto; }
-[data-presentation='mobile'] .journey-today-launch { position: fixed; z-index: 36; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--mobile-dock-clearance, 80px) + env(safe-area-inset-bottom, 0px) + 12px); box-shadow: var(--shadow-pop); }
+[data-presentation='mobile'] .journey-today-launch { margin: 8px 0 12px auto; }
 .journey-today-launch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
