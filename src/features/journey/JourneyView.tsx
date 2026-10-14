@@ -1,3 +1,4 @@
+import { JourneyCalendar } from './JourneyCalendar';
 import { FormattedText } from '../../components/text/FormattedText';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline } from '../citations/journeyCitations';
@@ -24,19 +25,22 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onEditDescription,
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const events=useJourneyCitations(profile,owner);
   const groups = journeyTimeline(profile.projects,events,owner), pair = visiblePair(profile, owner);
-  if (!groups.length && !owner) return null;
-  if (!groups.length) return <div className="journey-view"><button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
-    <span aria-hidden="true">+</span>Add your first project
-  </button></div>;
-  return <section className="journey-view" aria-label={`${profile.name} Journey`}>
-    {pair && <section className="journey-pair" aria-label="Then / Now">
+  const pairContent = pair && <section className="journey-pair" aria-label="Then / Now">
       <h2>Then / Now</h2><div className="journey-pair-grid">{pair.map((project, index) => <div key={project.id}>
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
         </button><FormattedText className="journey-caption" text={project.thenNowCaption?.trim() || learnedLine(project)} />
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
-    </section>}
+    </section>;
+  const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
+  if (isMobile) return <><JourneyCalendar profile={profile} owner={owner} entries={groups.flatMap(group => group.entries)} onOpen={onOpen} onDetails={setDetailsProject} onAdd={onAdd}>{pairContent}</JourneyCalendar>{popup}</>;
+  if (!groups.length && !owner) return null;
+  if (!groups.length) return <div className="journey-view"><button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
+    <span aria-hidden="true">+</span>Add your first project
+  </button></div>;
+  return <section className="journey-view" aria-label={`${profile.name} Journey`}>
+    {pairContent}
     {owner && !isMobile && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{group.year ?? 'Date not set'}</h2>
@@ -53,6 +57,6 @@ export function JourneyView({ profile, owner, onOpen, onEdit, onEditDescription,
         </div>
       </li>;})())}</ol>
     </section>)}
-    {isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />}
+    {popup}
   </section>;
 }
