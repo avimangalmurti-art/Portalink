@@ -1,7 +1,7 @@
 import { useLayoutEffect, type RefObject } from 'react';
 
 const HEADERS = 'header, .profile-header-region, .mobile-home-search-header, [data-inbox-controls], [data-mobile-safe-header], .global-control-header';
-const SCROLLERS = '[data-screen-scroll], .scroll-edge-fade, .feed-edge-fade, [class*="overflow-y-auto"], .mobile-profile-wall, .studio-workbench-scroll, .studio-bookmarks-scroll, .account-search-results, [data-mobile-scroll-end]';
+const SCROLLERS = '[data-screen-scroll], .scroll-edge-fade, .feed-edge-fade, [class*="overflow-y-auto"], .mobile-profile-wall, .studio-workbench-scroll, .studio-bookmarks-scroll, .account-search-results, [data-mobile-scroll-end], [data-mobile-screen-underlay], [data-profile-pulling]';
 const SCREEN = '[data-profile-page], [data-messages-page], .studio-citation-shell, [data-mobile-home-search], .app-screen-layer, [data-screen-scroll]';
 
 /** The material reacts to vertical content overlap, never horizontal tab scrolling. */
@@ -44,10 +44,12 @@ export function useMobileHeaderMaterial(enabled: boolean, path: string, ref: Ref
     const refresh = () => {
       frame = 0;
       const scrollers = Array.from(root.querySelectorAll<HTMLElement>(SCROLLERS)).filter(node =>
-        !node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]') && /auto|scroll/.test(getComputedStyle(node).overflowY));
+        !node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]') && (/auto|scroll/.test(getComputedStyle(node).overflowY) || node.matches('[data-mobile-screen-underlay], [data-profile-pulling]')));
       const documentScroller = document.scrollingElement as HTMLElement | null;
       if (documentScroller && documentScroller.scrollHeight > documentScroller.clientHeight) scrollers.push(documentScroller);
       const candidates = Array.from(root.querySelectorAll<HTMLElement>(HEADERS)).filter(node => {
+        const retained = node.closest('[data-mobile-screen-retained]');
+        if (retained && getComputedStyle(retained).display === 'none') return false;
         if (node.closest('[role="dialog"], [role="menu"], .mobile-profile-portal-overlay, [data-project-index-panel], [data-project-response-rail]')) return false;
         const position = getComputedStyle(node).position;
         if (position === 'static') return false;

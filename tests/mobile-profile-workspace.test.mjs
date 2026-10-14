@@ -13,7 +13,7 @@ function harness(initialPresentation = 'mobile') {
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/AppScreenLayers.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require(name) {
-    if (name === 'react') return { ...React, useRef: initial => identity ??= { current: initial }, useSyncExternalStore: () => 0 };
+    if (name === 'react') return { ...React, useLayoutEffect: () => {}, useRef: initial => identity ??= { current: initial }, useSyncExternalStore: () => 0 };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     // No mark in flight, so these cases exercise ordinary unmarked navigation.
     if (name.endsWith('/backNavigationTransition')) return {

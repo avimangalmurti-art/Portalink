@@ -22,13 +22,14 @@ function RoutedMotionNavigation({children}:{children:React.ReactNode}){
  },[]);
  const navigator=useMemo(()=>{
   const original=context.navigator;
+  function before(direction:NavigationMotion='push'){if(document.documentElement)document.documentElement.dataset.mobileStackNavigation=direction;document.dispatchEvent?.(new Event('portalink-before-navigation'));}
   function mode(to:Parameters<typeof original.push>[0]):NavigationMotion{const destination=new URL(original.createHref(to),window.location.href);if(dock.current){dock.current=false;return 'dock';}return destination.pathname===latest.current.pathname&&new URLSearchParams(destination.search).has('collection')?'tabs':'push';}
-  return {...original,push:(...args:Parameters<typeof original.push>)=>motionUpdate(()=>original.push(...args),mode(args[0])),replace:(...args:Parameters<typeof original.replace>)=>{
+  return {...original,push:(...args:Parameters<typeof original.push>)=>{const direction=mode(args[0]);return motionUpdate(()=>{before(direction);original.push(...args);},direction);},replace:(...args:Parameters<typeof original.replace>)=>{
    const destination=new URL(original.createHref(args[0]),window.location.href);
    // Search typing and automatic route canonicalisation must stay immediate.
-   if(!new URLSearchParams(destination.search).has('collection')&&!new URLSearchParams(destination.search).has('section'))return original.replace(...args);
-   motionUpdate(()=>original.replace(...args),mode(args[0]));
-  },go:(delta:number)=>motionUpdate(()=>new Promise<void>(resolve=>{const done=()=>{window.removeEventListener('popstate',onPop);window.clearTimeout(timer);resolve();};const onPop=()=>{flushSync(()=>undefined);done();};const timer=window.setTimeout(done,motionMs('slow'));window.addEventListener('popstate',onPop,{once:true});original.go(delta);}),delta<0?'back':'push')};
+   if(!new URLSearchParams(destination.search).has('collection')&&!new URLSearchParams(destination.search).has('section')){before();return original.replace(...args);}
+   const direction=mode(args[0]);motionUpdate(()=>{before(direction);original.replace(...args);},direction);
+  },go:(delta:number)=>{before();return motionUpdate(()=>new Promise<void>(resolve=>{const done=()=>{window.removeEventListener('popstate',onPop);window.clearTimeout(timer);resolve();};const onPop=()=>{flushSync(()=>undefined);done();};const timer=window.setTimeout(done,motionMs('slow'));window.addEventListener('popstate',onPop,{once:true});original.go(delta);}),delta<0?'back':'push');}};
  },[context.navigator]);
  return <UNSAFE_NavigationContext.Provider value={{...context,navigator}}><MotionDefaults>{children}</MotionDefaults></UNSAFE_NavigationContext.Provider>;
 }

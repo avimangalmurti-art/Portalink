@@ -161,3 +161,7 @@ test('async history work cannot hold a native update beyond the slow motion toke
 test('all browser router entries let the motion adapter commit synchronously',()=>{
  for(const file of ['src/index.tsx','src/visitor/index.tsx','src/citation/CitationInteraction.tsx'])assert.match(readFileSync(file,'utf8'),/<BrowserRouter useTransitions=\{false\}>/);
 });
+
+test('a pull dismissal commits history without a second native or fallback entrance',()=>{const r=runtime();r.root.dataset.mobilePullDismiss='committing';r.api.motionUpdate(r.update,'back');assert.equal(r.updates,1);assert.equal(r.native,0);assert.equal(r.root.dataset.motionNavigation,undefined);assert.equal(r.root.dataset.mobilePullDismiss,'committing');});
+
+test('a direct gesture interrupts unfinished navigation instead of competing with its snapshot',()=>{const r=runtime();r.api.motionUpdate(r.update,'push');r.api.interruptNavigationMotion();assert.equal(r.root.dataset.motionUpdating,undefined);assert.equal(r.root.dataset.motionNavigation,undefined);assert.equal(r.native,1);});

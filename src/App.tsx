@@ -20,7 +20,7 @@ import { ActivityCollectionPage } from './components/profile/ActivityCollectionP
 import { ActivityPage, SavedPage, InsightsPage } from './features/library/PersonalPages';
 import type { NavigationDestination } from './components/navigation';
 import { describeRoute, PROTECTED_ROUTE_KINDS, screenPresetPath, useAppRoute, useRouteNavigator } from './app/useAppRoute';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { EmptyState, LoadingState, LoadingSkeleton } from './components/ui/StateViews';
 import { Sidebar } from './components/Sidebar';
 import { SharedProfileSidebar } from './components/profile/SharedProfileSidebar';
@@ -169,11 +169,9 @@ function AppContent() {
   const setNavSystemGray = (value: string) => { chooseAppearance({ systemGray: value }); creatorAppearance.choose({ systemGray: value }); };
   const setHighContrast = (value: boolean) => chooseAppearance({ highContrast: value });
   const setReduceTranslucency = (value: boolean) => chooseAppearance({ reduceTranslucency: value });
-  const {
-    pathname,
-    search,
-    state: navigationState
-  } = useLocation();
+  const screenLocation = useLocation();
+  const screenNavigationType = useNavigationType();
+  const { pathname, search, state: navigationState } = screenLocation;
   const settingsReturnPath = route.kind === 'controlCenter' && navigationState && typeof navigationState === 'object'
     && 'settingsReturn' in navigationState && typeof navigationState.settingsReturn === 'string'
     ? readSharedReturnPath(navigationState.settingsReturn) : undefined;
@@ -577,6 +575,7 @@ function AppContent() {
     let frame = 0;
     let attempts = 0;
     const apply = () => {
+      if (presentation === 'mobile' && mainContentRef.current?.closest('[data-mobile-screen-restored]')) return;
       if (presentation === 'mobile' && mainContentRef.current?.querySelector('.mobile-profile-wall, .feed-edge-fade, [data-mobile-page-reader]')) return;
       const element = presentation === 'mobile' ? document.scrollingElement : mainContentRef.current;
       if (element) {
@@ -1340,7 +1339,7 @@ function AppContent() {
           <button type="button" onClick={requestGlobalPublish} className="font-semibold text-[var(--accent-text)]">Try again</button>
           <button type="button" onClick={() => setGlobalCreateError(null)} aria-label="Dismiss">×</button>
         </div>}
-        <AppScreenLayers screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
+        <AppScreenLayers navigation={{location: screenLocation, navigationType: screenNavigationType, scope: `${auth.isAuthenticated ? auth.user?.id : 'guest'}:${isSharedRoute}`}} screenKey={screenTransitionKey} mobileProfileKey={mobileProfileKey} snapshot={{ mainClassName: screenMainClassName, ariaLabel: screenAriaLabel, content: !isSharedRoute && projectNavigation.resolution?.state === 'loading' && !routeItemId ? <LoadingSkeleton kind="reader" projectId={projectNavigation.resolution.projectId} label="Opening project"/> : screenContent }} reduceMotion={Boolean(shouldReduceMotion)} skipLayerTransition={isProjectContinuityActive()} mainContentRef={mainContentRef} onScroll={handleMainScroll} />
       </div>
       </div>
 
