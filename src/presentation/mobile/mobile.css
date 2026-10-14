@@ -3720,6 +3720,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   text-overflow: clip;
 }
 
+/* Keep connection labels centered beneath their avatar; overflowing text starts at its beginning. */
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] { text-align: center; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] > span { margin-inline: auto; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-overflow] > span { margin-inline: 0; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion],
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion] > span { white-space: normal; }
+
 /* The headerless inbox still needs status-bar clearance for Search. */
 #root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
 

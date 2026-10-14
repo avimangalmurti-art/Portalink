@@ -111,3 +111,27 @@ test('reduced motion wraps the full name while WEB retains its existing static l
   assert.equal(web.props.children, 'Portalink Networks Inc.');
   assert.equal(h.animations.length, 1);
 });
+
+test('connection names pause at both ends and move at a reading pace', () => {
+  const h = harness(); const tree = h.render({ centered: true });
+  assert.equal(tree.props['data-name-centered'], '');
+  const { frames, options } = h.animations[0];
+  assert.equal(options.duration, 80 / 22 * 1000 + 2400);
+  assert.equal(frames[0].transform, frames[1].transform);
+  assert.equal(frames[2].transform, frames[3].transform);
+  assert.equal(frames[1].offset * options.duration, 1200);
+  assert.equal(options.easing, 'linear');
+  assert.equal(frames[1].easing, 'ease-in-out');
+  h.observers[0].callback(); assert.equal(h.animations.length, 1);
+  h.setReducedMotion(true); const reduced = h.render({ centered: true });
+  assert.equal(h.animations[0].cancelled, true);
+  assert.equal(reduced.props['data-name-reduced-motion'], '');
+});
+
+test('short connection names remain centered and still; desktop stays unchanged', () => {
+  const h = harness(); h.text.scrollWidth = 80;
+  assert.equal(h.render({ centered: true }).props['data-name-centered'], '');
+  assert.equal(h.animations.length, 0);
+  h.setPresentation('web');
+  assert.equal(h.render({ centered: true }).props['data-name-centered'], undefined);
+});
