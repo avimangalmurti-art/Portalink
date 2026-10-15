@@ -394,3 +394,18 @@ test('Delete chat is a destructive signed-in conversation action', () => {
  assert.equal(action.destructive, true);
  assert.equal(ids(contextActions('conversation', {signedIn:false}, {handlers:{deleteChat:()=>{}}})).includes('deleteChat'), false);
 });
+
+
+test('retained profile actions do not render a second ellipsis over the active screen', () => {
+  let active = true;
+  const actions = compile('../src/presentation/mobile/MobileContextActions.tsx', {
+    react: { ...React, useContext: () => null },
+    './MobileBackNavigation': { useMobileScreenActive: () => active },
+  });
+  assert.notEqual(actions.MobileContextButton({}), null);
+  active = false;
+  assert.equal(actions.MobileContextButton({}), null);
+  assert.equal(actions.MobileContextButton({ floating: true }), null);
+  active = true;
+  assert.notEqual(actions.MobileContextButton({}), null);
+});

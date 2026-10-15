@@ -21,6 +21,7 @@ function harness(status='ready',drafts=[draft],options={}){
   '../../components/ui/StateViews':{LoadingState:'loading',ErrorState:'error'},
   '../publishing/PublishProjectDialog':{PublishProjectDialog:'publish-dialog'},
   './discardStudioDraft':{},'./StudioBookmarksList':{StudioPage:'bookmarks'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
+  '../library/PersonalPages':{InsightsPage:'insights'},
   './StudioOverview':{StudioOverview:'overview'},'./StudioWorkbenchView':{StudioWorkbenchHeader:'hub-header'},
   './workbenchModel':model,'./useWorkbench':{useWorkbench:enabled=>{workbenchEnabled.push(enabled);return{loading:status==='loading',error:status==='error'?'Offline':undefined,data:{profile:{id:'owner',projects:[]},drafts,material:[]},retry(){}};}},
   './studio-workbench.css':{},
@@ -30,12 +31,12 @@ function harness(status='ready',drafts=[draft],options={}){
  return{calls,registered,tree,workbenchEnabled};
 }
 test('Overview resumes the exact saved draft and Add work uses the existing creation flow',()=>{
- const withDraft=harness(),overview=nodes(withDraft.tree).find(n=>n.type==='overview');
+ const withDraft=harness('ready',[draft],{presentation:'web'}),overview=nodes(withDraft.tree).find(n=>n.type==='overview');
  assert.equal(overview.props.draft,draft);
  overview.props.onContinue(overview.props.draft);
  assert.deepEqual(withDraft.calls,[['state',draft]]);
  assert.equal(overview.props.onAttention,undefined);
- const withoutDraft=harness('ready',[]),empty=nodes(withoutDraft.tree).find(n=>n.type==='overview');
+ const withoutDraft=harness('ready',[],{presentation:'web'}),empty=nodes(withoutDraft.tree).find(n=>n.type==='overview');
  assert.equal(empty.props.draft,null);empty.props.onNew();
  assert.deepEqual(withoutDraft.calls,[['create']]);
 });
@@ -43,7 +44,7 @@ test('existing Studio action shortcuts reach Bookmarks and Insights in ready, lo
  for(const status of ['ready','loading','error']){
   const h=harness(status);h.registered.handlers.bookmarks();h.registered.handlers.reads();
   assert.deepEqual(h.calls,[['collection','bookmarks'],['navigate','/insights?period=7d']]);
-  if(status!=='ready')assert.ok(nodes(h.tree).some(n=>n.type===status));
+  assert.ok(nodes(h.tree).some(n=>n.type==='insights'));assert.deepEqual(h.workbenchEnabled,[false]);
  }
 });
 
@@ -51,8 +52,9 @@ test('both platforms load only overview/drafts workbench data and let independen
  for(const presentation of ['mobile','web']){
   for(const collection of [null,'overview','drafts']){
    const h=harness('ready',[draft],{presentation,search:collection?`collection=${collection}`:''});
-   assert.deepEqual(h.workbenchEnabled,[true]);
-   assert.ok(nodes(h.tree).some(node=>node.type===(collection==='drafts'?'drafts':'overview')));
+   const overview= presentation==='mobile' && collection!=='drafts';
+   assert.deepEqual(h.workbenchEnabled,[!overview]);
+   assert.ok(nodes(h.tree).some(node=>node.type===(overview?'insights':collection==='drafts'?'drafts':'overview')));
   }
   for(const collection of ['published','activity','all','bookmarks','references','cited']){
    const h=harness('loading',[draft],{presentation,search:`collection=${collection}`});

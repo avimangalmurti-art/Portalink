@@ -127,7 +127,11 @@ export interface AuthService {
  * in a parallel onboarding layer, so onboarding and later profile editing share
  * one model, one validation vocabulary, and one service boundary.
  */
+export type TimelinePair = { id: string; then: string; now: string };
 export interface ProfileService {
+  listTimelinePairs?(profileId: Id): Promise<TimelinePair[]>;
+  addTimelinePair?(profileId: Id, thenId: Id, nowId: Id): Promise<void>;
+  removeTimelinePair?(profileId: Id, pairId: Id): Promise<void>;
   /**
    * Rejects when the id names no profile. Absence must be an error rather than a
    * substituted record: a caller resolving a creator by id has to be able to

@@ -149,7 +149,7 @@ test('edge contact captures immediately so a first move beyond the narrow edge s
     assert.equal(h.workspace.inert, false);
     // Pointer capture delivers this sample after the pointer has crossed into the workspace.
     h.fire('onPointerMoveCapture', h.event(168, 101, 300, pointer));
-    assert.equal(panel(h.render()).props.style.x.get(), '-50%');
+    assert.equal(panel(h.render()).props.style.opacity.get(), 0.5);
     h.fire('onPointerUpCapture', h.event(168, 101, 500, pointer));
     assert.equal(h.finish().props['data-visible'], true);
     h.unmount();
@@ -175,7 +175,7 @@ test('vertical, canceled, lost-capture and multi-touch gestures return to their 
       h.fire('onPointerUpCapture', h.event(initiallyOpen ? 0 : 312, 100, 50));
       const tree = h.finish();
       assert.equal(tree.props['data-visible'], initiallyOpen, `${mode} must not change the committed drawer state`);
-      assert.equal(panel(tree).props.style.x.get(), initiallyOpen ? '0%' : '-100%');
+      assert.equal(panel(tree).props.style.opacity.get(), initiallyOpen ? 1 : 0);
       h.unmount();
     }
   }
@@ -237,7 +237,7 @@ test('pathname and query changes cancel active dragging and close immediately; u
     h.fire('onPointerMoveCapture', h.event(150, 102, 30));
     let tree = h.navigate(changed === 'pathname' ? '/share/creator/c/photos' : '/share/creator', changed === 'search' ? '?page=2' : '');
     assert.equal(tree.props['data-visible'], false);
-    assert.equal(panel(tree).props.style.x.get(), '-100%');
+    assert.equal(panel(tree).props.style.opacity.get(), 0);
     assert.equal(h.workspace.inert, false);
     h.fire('onPointerUpCapture', h.event(312, 100, 50));
     tree = h.finish();

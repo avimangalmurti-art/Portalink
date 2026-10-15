@@ -7,10 +7,11 @@ import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
-import { journeyProjects, projectMonth, visiblePair } from './journey';
+import { journeyProjects, projectMonth } from './journey';
 import { calendarDay } from './calendar';
 import { DeferredDialog } from '../../components/ui/DeferredDialog';
 import './journey.css';
+import { useTimelinePairs } from './useTimelinePairs';
 
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 
@@ -37,7 +38,7 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
-  const pair = visiblePair(profile, owner);
+  const { pairs, error: pairsError } = useTimelinePairs(profile, owner);
   useEffect(() => {
     if (portalPopupId && !activePortalPopupId) setPortalPopupId(null);
   }, [portalPopupId, activePortalPopupId]);
@@ -53,14 +54,17 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
       onOpen(project);
     }} />
   </DeferredDialog>;
-  const pairContent = pair && <section className="journey-pair" aria-label="Then / Now">
+  const pairContent = pairs.map(record => {
+    const pair = [record.then, record.now].map(id => profile.projects.find(project => project.id === id)!);
+    return <section key={record.id} className="journey-pair" aria-label="Then / Now">
       <h2>Then / Now</h2><div className="journey-pair-grid">{pair.map((project, index) => <div key={project.id}>
         <button type="button" onClick={() => onOpen(project)} aria-label={`Open ${index ? 'Now' : 'Then'}: ${project.title}`}>
           <span className="journey-pair-cover"><JourneyCover project={project} sizes="(max-width: 639px) 42vw, 240px" /></span>
           <strong>{project.title}{projectMonth(project) && ` · ${projectMonth(project)?.slice(0, 4)}`}</strong>
         </button>{portalButton(project)}
-      </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
+      </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Manage pairs</button>}
     </section>;
+  });
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
   return <section className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
     <div className="journey-toolbar">
@@ -68,6 +72,8 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
         <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>Newest first</button>
         <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>Oldest first</button>
       </div>
+      {isMobile && owner && onAdd && <button type="button" className="journey-toolbar-action" onClick={() => onAdd()}>Add work</button>}
+      {isMobile && owner && onPair && <button type="button" className="journey-toolbar-action" onClick={onPair}>Choose a Then/Now pair</button>}
     </div>
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
@@ -89,10 +95,11 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
         </li>;
       })}</ol>
     </section>)}
-    {!groups.length && owner && <button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}><span aria-hidden="true">+</span>Add your first project</button>}
-    {groups.length > 0 && owner && onAdd && <button type="button" className="journey-text-action journey-add" onClick={() => onAdd()}>+ Add work</button>}
+    {!isMobile && !groups.length && owner && <button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}><span aria-hidden="true">+</span>Add your first project</button>}
+    {!isMobile && groups.length > 0 && owner && onAdd && <button type="button" className="journey-text-action journey-add" onClick={() => onAdd()}>+ Add work</button>}
+    {owner && pairsError && <p role="status">{pairsError}</p>}
     {pairContent}
-    {owner && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
+    {!isMobile && owner && !pairs.length && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
     {popup}
     {portalPopup}
   </section>;

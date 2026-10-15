@@ -25,7 +25,6 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
   const { pathname, search } = useLocation();
   const reducedMotion = useReducedMotion();
   const progress = useMotionValue(0);
-  const x = useTransform(progress, value => `${(value - 1) * 100}%`);
   const opacity = useTransform(progress, value => value * 0.32);
   const [visible, setVisible] = useState(false);
 
@@ -124,7 +123,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
     <motion.div aria-hidden="true" className="mobile-shared-drawer-scrim" style={{ opacity }} onClick={close} />
     <motion.div ref={panelRef} id="mobile-shared-profile-navigation" role="dialog" aria-modal={visible || undefined} aria-label={`${name} navigation`}
       aria-hidden={!visible} tabIndex={-1}
-      className="mobile-shared-drawer-panel" style={{ x }}>
+      className="mobile-shared-drawer-panel" style={{ opacity: progress }}>
       {visible ? children(close) : null}
     </motion.div>
   </div>;

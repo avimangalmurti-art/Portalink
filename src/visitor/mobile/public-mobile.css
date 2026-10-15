@@ -2523,3 +2523,34 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] [data-shared-project-reader] :is([data-project-work-column], [data-media-frame], [data-media-frame-body], [data-document-attachment], ol.scrollbar-overlay) {
   scrollbar-gutter: auto;
 }
+
+/* Shared portfolio uses the same centered portal chooser frame as Profile. */
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  width: min(calc(100% - 32px), 420px);
+  max-width: min(calc(100% - 32px), 420px);
+  height: min(70dvh, 640px);
+  max-height: calc(100% - 32px);
+  border: 1px solid var(--hairline);
+  border-radius: 24px !important;
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 76%), transparent) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(125%);
+  backdrop-filter: blur(22px) saturate(125%);
+  box-shadow: var(--shadow-pop) !important;
+  will-change: opacity;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel > .shared-profile-sidebar {
+  background: transparent !important;
+}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency, .high-contrast) .mobile-shared-drawer-panel[role='dialog'] {
+  background: var(--surface-raised) !important;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .mobile-shared-drawer-panel[role='dialog'] { background: var(--surface-raised) !important; }
+}

@@ -125,7 +125,29 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
   return { ...profile, categories, projects } as Profile;
 }
 
+const timelinePairs = new Map<string, Array<{ id: string; then: string; now: string }>>();
+let timelinePairSequence = 0;
 export const mockProfileService: ProfileService = {
+  async listTimelinePairs(profileId) {
+    const profile = findProfileById(profileId);
+    const own = currentFollower()?.profileId === profileId;
+    if (!profile || (!own && (!profileForCurrentViewer(profile).showJourney || profile.isPrivate))) return [];
+    const visible = new Set(profileForCurrentViewer(profile).projects.filter(project => project.isPubliclyVisible !== false).map(project => project.id));
+    return (timelinePairs.get(profileId) ?? []).filter(pair => visible.has(pair.then) && visible.has(pair.now));
+  },
+  async addTimelinePair(profileId, thenId, nowId) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can add pairs.');
+    const profile = findProfileById(profileId);
+    const visible = new Set((profile ? profileForCurrentViewer(profile).projects : []).filter(project => !project.sessionOnly && project.isPubliclyVisible !== false).map(project => project.id));
+    if (thenId === nowId || !visible.has(thenId) || !visible.has(nowId)) throw new Error('Choose two visible projects.');
+    const pairs = timelinePairs.get(profileId) ?? [];
+    if (pairs.some(pair => pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
+    timelinePairs.set(profileId, [...pairs, { id: 'pair-' + ++timelinePairSequence, then: thenId, now: nowId }]);
+  },
+  async removeTimelinePair(profileId, pairId) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can remove pairs.');
+    timelinePairs.set(profileId, (timelinePairs.get(profileId) ?? []).filter(pair => pair.id !== pairId));
+  },
   async getProfile(profileId) {
     const profile = findProfileById(profileId);
     // Absence is reported, never papered over. Returning a fallback record here

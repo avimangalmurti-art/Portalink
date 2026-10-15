@@ -43,6 +43,10 @@ function componentHarness(file, name, initial, overrides = {}) {
     '../../presentation/usePresentation': { usePresentation: () => props.presentation ?? 'mobile' },
     '../citations/useJourneyCitations': { useJourneyCitations: () => props.events ?? [] },
     '../citations/journeyCitations': timeline,
+    './useTimelinePairs': { useTimelinePairs: (profile, owner) => {
+      const pair = journey.visiblePair(profile, owner);
+      return { pairs: pair ? [{ id: 'legacy', then: pair[0].id, now: pair[1].id }] : [], error: '', loading: false };
+    } },
     './journey-calendar.css': {}, './journey.css': {}, ...overrides,
   };
   const Component = sourceModule(file, imports, {
@@ -344,7 +348,7 @@ test('empty and undated Timelines retain only the two sort controls and owner Ad
     assert.equal(h.button('Open Timeline calendar for today'), undefined);
     assert.equal(h.nodes.some(node => ['journey-calendar', 'month-calendar'].includes(node.type)), false);
     const toolbar = h.nodes.find(node => node.props.className === 'journey-toolbar');
-    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => text(node)), ['Newest first', 'Oldest first']);
+    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => text(node)), presentation === 'mobile' ? ['Newest first', 'Oldest first', 'Add work'] : ['Newest first', 'Oldest first']);
     assert.equal(timelineRows(h).length, projects.length);assert.doesNotMatch(text(h.tree), /No work recorded|What were you making/);
     sortButton(h, 'Oldest first').props.onClick();h.frames();assert.deepEqual(h.scrolls, []);
     const add = h.nodes.find(node => node.type === 'button' && /Add your first project|Add work/.test(text(node)));
@@ -480,3 +484,14 @@ for (const presentation of ['mobile', 'web']) {
     h.dispose();
   });
 }
+
+
+test('mobile owner Add and Then/Now actions share the sort toolbar and retain their handlers', () => {
+  let adds=0,pairs=0;
+  const h=viewHarness({profile:{...profile,projects:[]},owner:true,presentation:'mobile',onOpen(){},onAdd:()=>adds++,onPair:()=>pairs++});
+  const toolbar=h.nodes.find(node=>node.props.className==='journey-toolbar');
+  const controls=nodes(toolbar).filter(node=>node.type==='button');
+  assert.deepEqual(controls.map(text),['Newest first','Oldest first','Add work','Choose a Then/Now pair']);
+  controls[2].props.onClick();controls[3].props.onClick();assert.equal(adds,1);assert.equal(pairs,1);
+  h.update({owner:false});assert.equal(h.button('Choose a Then/Now pair'),undefined);h.dispose();
+});

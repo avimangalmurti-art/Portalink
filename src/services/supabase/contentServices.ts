@@ -1,3 +1,4 @@
+import { supabaseTimelinePairService } from './timelinePairsService';
 import { validContactEmail } from '../../features/employer/employer';
 import { profileSharing } from './profileSharing';
 import { mergeProjectDesign, saveProjectCreationDetails, saveProjectJourneyDetails } from './projectCreationDetails';
@@ -94,6 +95,7 @@ async function uploadAvatar(accountId: string, input: CreateProfileInput['avatar
 
 export const supabaseProfileService: ProfileService = {
   ...supabaseProfileReadService,
+  ...supabaseTimelinePairService,
   ...profileSharing,
 
   async updateProjectGridLayout(profileId, columns) {
