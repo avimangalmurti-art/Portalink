@@ -8,13 +8,13 @@
   "theme_color": "#0b0c0f",
   "icons": [
     {
-      "src": "/icons/portalink-app-192-e2bfa853.png",
+      "src": "/icons/portalink-app-192-c791fdec.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/portalink-app-512-e2bfa853.png",
+      "src": "/icons/portalink-app-512-c791fdec.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

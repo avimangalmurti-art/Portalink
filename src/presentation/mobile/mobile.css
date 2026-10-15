@@ -5405,3 +5405,21 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root [data-presentation='mobile'] [data-loading-layout] .loading-year {width:70px;height:24px;}
 
 #root [data-presentation='mobile'] [data-loading-layout='journey'] {padding-top:0;}
+
+/* Compact Timeline: one left edge and a shared first-line center for dates/actions. */
+#root .codex-shell[data-presentation='mobile'] .journey-view[data-timeline-order] { padding: 12px 22px 36px; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { margin-bottom: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order { gap: 8px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { min-height: 44px; padding: 0 10px; background: transparent; font-size: 14px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button::before { content: ''; position: absolute; inset: 10px 0; border-radius: 7px; background: var(--surface-sunken); z-index: -1; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { isolation: isolate; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button[aria-pressed='true']::before { background: var(--text-primary); }
+#root .codex-shell[data-presentation='mobile'] .journey-year h2 { align-items: center; gap: 18px; margin-bottom: 12px; font-size: 28px; }
+#root .codex-shell[data-presentation='mobile'] .journey-year-count { font-size: 12px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
+#root .codex-shell[data-presentation='mobile'] .journey-title { font-size: 18px; line-height: 1.35; }
+#root .codex-shell[data-presentation='mobile'] .journey-date { padding-top: 0; font-size: 13px; line-height: 24.3px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry[data-has-options] .journey-entry-copy { padding-right: 30px; }
+#root .codex-shell[data-presentation='mobile'] .journey-project-options { top: 2.15px; right: -10px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal { position: relative; isolation: isolate; min-height: 24px; margin-top: 2px; padding: 2px 0; font-size: 13px; line-height: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal::before { content: ''; position: absolute; inset: 0 0 -20px; z-index: -1; }
