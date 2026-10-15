@@ -19,6 +19,18 @@
   object-fit: contain;
 }
 
+/* Match the native launch canvas when installed WebKit reserves a status-bar
+   region outside the web view but still reports its full height through vh.
+   Keep this identical to the inline preboot rule, including the held last frame. */
+@supports (height: 100dvh) {
+  @media (max-width: 639px) {
+    html[data-standalone] [data-presentation='mobile'].portalink-splash:not([data-share-landing]) .portalink-splash-media {
+      position: relative;
+      top: min(0px, calc(100dvh - var(--mobile-launch-height, 100vh)));
+    }
+  }
+}
+
 /* A looping welcome above reachable account actions, on the same surface. */
 [data-presentation='mobile'].portalink-splash[data-share-landing] {
   outline: none;

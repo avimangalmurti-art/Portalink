@@ -23,7 +23,7 @@ function earlyVideoFixture({ shared = false, reduced = false, legacy = false, hi
   const videoEvents = new Map(), documentEvents = new Map(), windowEvents = new Map(), frames = new Map();
   let plays = 0, pauses = 0, frameId = 0;
   const video = {
-    dataset: {}, style: { opacity: '0' }, paused: true, readyState: 0, ended: false,
+    dataset: {}, style: { opacity: '0' }, paused: true, readyState: 0, ended: false, currentTime: 0,
     removeAttribute(name) { this.removedAttribute = name; },
     addEventListener: (name, callback) => videoEvents.set(name, callback),
     removeEventListener: name => videoEvents.delete(name),
@@ -62,6 +62,26 @@ test('adoption removes early listeners and frame callbacks without pausing or re
   assert.equal(f.documentEvents.size, 0); assert.equal(f.windowEvents.size, 0);
 });
 
+test('decoded playback progress reveals HTML video when WebKit delays its first frame callback', () => {
+  const f = earlyVideoFixture(); f.playing(); assert.equal(f.frames.size, 1);
+  f.videoEvents.get('timeupdate')(); assert.equal(f.video.style.opacity, '0', 'A playback time of zero is not proof of advancement');
+  f.video.currentTime = .1; f.videoEvents.get('timeupdate')();
+  assert.equal(f.video.style.opacity, '1'); assert.equal(f.video.dataset.portalinkPainted, 'true');
+  assert.equal(f.frames.size, 0); assert.equal(f.video.currentTime, .1); assert.equal(f.plays, 1);
+});
+
+test('undecoded, hidden, paused and failed HTML video cannot reveal through a progress event', () => {
+  for (const state of ['undecoded', 'hidden', 'paused', 'failed']) {
+    const f = earlyVideoFixture(); f.playing(); f.video.currentTime = .1;
+    if (state === 'undecoded') f.video.readyState = 1;
+    if (state === 'hidden') f.document.hidden = true;
+    if (state === 'paused') f.video.paused = true;
+    if (state === 'failed') f.video.error = { code: 3 };
+    f.videoEvents.get('timeupdate')();
+    assert.equal(f.video.style.opacity, '0', state); assert.equal(f.video.dataset.portalinkPainted, undefined, state);
+  }
+});
+
 test('HTML playback respects background suspension, completed clips, shared entry and WEB reduced motion', () => {
   const f = earlyVideoFixture({ hidden: true }); assert.equal(f.plays, 0);
   f.document.hidden = false; f.documentEvents.get('visibilitychange')(); assert.equal(f.plays, 1);
@@ -85,6 +105,13 @@ test('a native decode failure before React reveals the embedded artwork again', 
   f.videoEvents.get('error')();
   assert.equal(f.video.style.opacity, '0'); assert.equal(f.video.dataset.portalinkPainted, undefined);
   f.videoEvents.get('portalink:splash-adopt')(); assert.equal(f.videoEvents.size, 0);
+});
+
+test('a pending HTML first-frame callback is cancelled on decode failure', () => {
+  const f = earlyVideoFixture(); f.playing(); assert.equal(f.frames.size, 1);
+  f.video.error = { code: 3 }; f.videoEvents.get('error')(); assert.equal(f.frames.size, 0);
+  f.video.currentTime = .1; f.videoEvents.get('timeupdate')();
+  assert.equal(f.video.style.opacity, '0'); assert.equal(f.video.dataset.portalinkPainted, undefined);
 });
 
 function bootFixture({ shared = false } = {}) {

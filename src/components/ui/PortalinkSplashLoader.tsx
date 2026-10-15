@@ -141,6 +141,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       // clip's first real frame while its initial loading window remains open.
       if (!canUseBackup()) return;
       clearPrimary();
+      if (!playbackModeRef.current.loop) {
+        // Home can still be preparing underneath. Completion is terminal for
+        // this startup even when its overlay must remain mounted a little longer.
+        finished = true;
+        clearPlayback();
+        video.pause();
+      }
       setIntroComplete(true);
       complete();
     };
@@ -174,6 +181,9 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     };
     const fail = () => {
       if (!active || suspended || finished) return;
+      // Native playback can finish before its queued ended event is delivered.
+      // A watchdog must preserve that completed clip instead of replacing it.
+      if (painted && video.ended) { ended(); return; }
       suspend();
       // A brief stall keeps the last real frame. If decoding itself failed,
       // the always-present inline artwork covers the invalid video surface.
@@ -188,7 +198,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     };
     const reveal = (currentAttempt: number) => {
       frame = undefined;
-      if (!canPlay() || suspended || currentAttempt !== attempt || video.paused || video.readyState < 2) return;
+      if (!canPlay() || suspended || currentAttempt !== attempt || video.paused || video.readyState < 2 || video.error) return;
       painted = true; retries = 0; fallbackActive = false;
       if (video.dataset) video.dataset.portalinkPainted = 'true';
       clearPrimary();
@@ -293,6 +303,14 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       if (!active || suspended || finished || video.paused || video.readyState < 2) return;
       if (video.currentTime === lastProgress) return;
       lastProgress = video.currentTime;
+      if (!painted && video.currentTime > 0) {
+        // Safari can advance decoded playback before delivering its first
+        // frame callback. Real progress is enough to replace the poster.
+        if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
+        frame = undefined;
+        reveal(attempt);
+        return;
+      }
       if (playbackModeRef.current.loop && !playbackModeRef.current.introPending) { window.clearTimeout(watchdog); watchdog = undefined; }
       else armWatchdog();
     };

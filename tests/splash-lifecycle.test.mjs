@@ -319,6 +319,48 @@ test('a late first painted frame shows the complete clip on BOTH and natural end
   }
 });
 
+test('decoded playback progress can reveal the first frame when a video frame callback never arrives',()=>{
+  for(const presentation of ['mobile','web']) for(const bootVideo of [undefined,{}]) {
+    const h=loader({presentation,bootVideo});h.render();h.start();
+    assert.equal(h.frames.size,1);assert.equal(h.completed,0);
+    h.video.currentTime=.05;h.emit('timeupdate');const view=h.render();
+    assert.equal(bootVideo?h.video.style.opacity:view.media.props.style.opacity,bootVideo?'1':1);
+    assert.equal(h.frames.size,0,'Real decoded playback cancels the unavailable frame callback');
+    assert.equal(view.backup,false);assert.equal(h.completed,0);
+    h.emit('ended');assert.equal(h.completed,1);assert.equal(h.timers.size,0);h.unmount();
+  }
+});
+
+test('zero-time, paused, hidden, unready or failed video cannot reveal through a progress event',()=>{
+  for(const presentation of ['mobile','web']) for(const condition of ['zero-time','paused','hidden','unready','error']) {
+    const h=loader({presentation});h.render();h.start();
+    h.video.currentTime=condition==='zero-time'?0:.05;
+    if(condition==='paused')h.video.paused=true;
+    if(condition==='hidden'){h.hide();h.video.paused=false;}
+    if(condition==='unready')h.video.readyState=0;
+    if(condition==='error')h.video.error={code:3};
+    h.emit('timeupdate');h.emit('timeupdate');
+    const view=h.render();assert.equal(view.media.props.style.opacity,0,condition);
+    assert.equal(h.completed,0,condition);assert.equal(view.backup,false,condition);
+    h.unmount();assert.equal(h.frames.size,0);assert.equal(h.timers.size,0);
+  }
+});
+
+test('a delayed native ended event cannot turn an already-finished painted intro into a stall or replay',()=>{
+  for(const presentation of ['mobile','web']) for(const bootVideo of [undefined,{}]) {
+    const h=loader({presentation,bootVideo});h.render();h.start();h.paint();
+    h.video.currentTime=h.video.duration;h.video.paused=true;h.video.ended=true;
+    const plays=h.plays;assert.equal(h.completed,0);
+    h.timer(2200);const view=h.render();
+    assert.equal(h.completed,1);assert.equal(view.backup,false,'A real native end cannot request a backup animation');
+    assert.equal(h.video.currentTime,h.video.duration);assert.equal(h.plays,plays);
+    assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
+    h.emit('ended');h.emit('ended');h.restore();h.gesture();
+    assert.equal(h.completed,1);assert.equal(h.plays,plays);assert.equal(h.timers.size,0);
+    h.unmount();
+  }
+});
+
 test('brief waiting and stalled events retain the painted frame without requesting backup or completing',()=>{
   for(const presentation of ['mobile','web']) for(const event of ['waiting','stalled']) {
     const h=loader({presentation});h.render();h.start();h.paint();h.video.readyState=2;
@@ -424,6 +466,33 @@ test('a foreground policy retry cannot restart the loaded backup animation compl
   h.advance(800);await Promise.resolve();assert.equal(h.completed,0);
   h.advance(699);assert.equal(h.completed,0);h.advance(1);assert.equal(h.completed,1);
   assert.equal(h.render().backup.props.style.opacity,1);h.unmount();assert.equal(h.timers.size,0);
+});
+
+test('ordinary startup fallback completion cancels retries and stays terminal while Home is still waiting',async()=>{
+  for(const presentation of ['mobile','web']) for(const bootVideo of [undefined,{}]) {
+    const h=loader({presentation,bootVideo,blocked:true});h.render();await Promise.resolve();h.backupLoaded();
+    h.advance(800);await Promise.resolve();assert.equal(h.plays,2);assert.equal(h.completed,0);
+    const queuedRetry=[...h.timers.values()].find(timer=>timer.delay===800);assert.ok(queuedRetry);
+    h.advance(699);assert.equal(h.completed,0);h.advance(1);
+    assert.equal(h.completed,1);assert.equal(h.render().backup.props.style.opacity,1);assert.equal(h.timers.size,0);
+    h.advance(100);queuedRetry.fn();await Promise.resolve();h.gesture();h.restore();h.buffer();h.paint();
+    assert.equal(h.completed,1);assert.equal(h.plays,2,'A completed startup cannot restart media while the next screen waits');
+    assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);h.unmount();
+  }
+});
+
+test('a guest welcome fallback can still recover to its looping video after the complete backup cycle',async()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,landing:welcome,play:n=>n<=2
+      ?Promise.reject(Object.assign(Error('autoplay blocked'),{name:'NotAllowedError'})):Promise.resolve()});
+    h.render();await Promise.resolve();h.backupLoaded();h.advance(800);await Promise.resolve();
+    h.advance(700);assert.equal(h.completed,1);assert.equal(h.render().backup.props.style.opacity,1);
+    h.gesture();assert.equal(h.plays,3);h.start();h.paint();const recovered=h.render();
+    assert.equal(recovered.media.props.loop,true);assert.equal(recovered.media.props.style.opacity,1);
+    assert.equal(recovered.backup.props.style.opacity,0);assert.equal(h.completed,1);assert.equal(h.timers.size,0);
+    h.hide();h.foreground();h.start();h.paint();assert.equal(h.render().media.props.loop,true);
+    assert.equal(h.completed,1);assert.equal(h.timers.size,0);h.unmount();
+  }
 });
 
 test('failed or stalled backup downloads release truthfully on inline artwork without deadlock',async()=>{

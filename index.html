@@ -182,6 +182,12 @@
       @supports (height: 100dvh) {
         @media (max-width: 639px) {
           :root:not([data-standalone]) { --mobile-launch-height: 100dvh; }
+          /* Installed WebKit can place a full-height vh stage below a native
+             status bar. Align its artwork with the full-screen launch image. */
+          :root[data-standalone] #portalink-preboot .portalink-preboot-media {
+            position: relative;
+            top: min(0px, calc(100dvh - var(--mobile-launch-height, 100vh)));
+          }
         }
       }
       @media (max-width: 639px) and (display-mode: standalone) {
@@ -320,7 +326,7 @@
         let active = true, pending = false, frame;
         const paint = () => {
           frame = undefined;
-          if (!active || document.hidden || video.paused || video.readyState < 2) return;
+          if (!active || document.hidden || video.paused || video.readyState < 2 || video.error) return;
           video.dataset.portalinkPainted = 'true';
           video.style.opacity = '1';
         };
@@ -340,8 +346,18 @@
           if (document.hidden) { pending = false; video.pause(); }
           else play();
         };
+        const advanced = () => {
+          // A decoded frame whose playback time advanced is also ready to show
+          // if WebKit has delayed its first video-frame callback.
+          if (!(video.currentTime > 0) || video.dataset.portalinkPainted === 'true') return;
+          if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
+          frame = undefined;
+          paint();
+        };
         const failed = () => {
           pending = false;
+          if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
+          frame = undefined;
           video.style.opacity = '0';
           delete video.dataset.portalinkPainted;
         };
@@ -351,6 +367,7 @@
           video.removeEventListener('playing', playing);
           video.removeEventListener('canplay', play);
           video.removeEventListener('error', failed);
+          video.removeEventListener('timeupdate', advanced);
           document.removeEventListener('visibilitychange', visibility);
           window.removeEventListener('pageshow', play);
           video.removeEventListener('portalink:splash-adopt', adopted);
@@ -358,6 +375,7 @@
         video.addEventListener('playing', playing);
         video.addEventListener('canplay', play);
         video.addEventListener('error', failed);
+        video.addEventListener('timeupdate', advanced);
         video.addEventListener('portalink:splash-adopt', adopted, { once: true });
         document.addEventListener('visibilitychange', visibility);
         window.addEventListener('pageshow', play);
