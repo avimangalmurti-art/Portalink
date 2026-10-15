@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
-import { attachmentsFromPersistedMedia } from '../media/projectAttachments';
+import { attachmentsFromPersistedMedia } from '../media/persistedMediaAttachments';
 import { UploadServiceError } from '../../types/publishing';
 import type { Id } from '../../types/domain';
 import type { PersistedAttachment, PersistedMedia, PreparedMedia, UploadCapability, UploadFailure, UploadId, UploadItemState, UploadProgress } from '../../types/publishing';

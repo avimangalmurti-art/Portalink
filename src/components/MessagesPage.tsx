@@ -378,7 +378,7 @@ export function MessagesPage({
               <div data-mobile-scroll-end="" className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto">
                 {isSearching ? <div className="side-panel-content-inset pt-3 text-[12px] text-[var(--text-secondary)]" role="status">Searching…</div> : null}
                 {searchError ? <div className="side-panel-content-inset mt-3 text-[12px] text-[var(--status-danger)]" role="alert">{searchError}<button type="button" className="ml-2 min-h-11 underline" onClick={() => setSearchAttempt(value => value + 1)}>Try again</button></div> : null}
-                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState label="Loading conversations" /></div> : null}
+                {messaging.status === 'loading' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><LoadingState kind="messages" label="Loading conversations" /></div> : null}
                 {messaging.status === 'error' && messaging.conversations.length === 0 ? <div className="side-panel-content-inset py-5"><ErrorState title="Messages could not be loaded" description={messaging.error ?? undefined} onRetry={() => void messaging.retry()} /></div> : null}
                 {messaging.status === 'success' && visibleConversations.length === 0 && !isSearching && !searchError ? <div className="side-panel-content-inset py-5"><EmptyState title={query.trim() ? 'No matching conversations' : conversationFilter === 'unread' ? 'No unread messages' : conversationFilter === 'requests' ? 'No message requests' : 'No conversations yet'} description={query.trim() ? 'Try another name or message.' : conversationFilter === 'unread' ? 'You are all caught up.' : conversationFilter === 'requests' ? 'New requests will appear here for you to review.' : 'Start a conversation with another creator.'} action={(query.trim() || conversationFilter !== 'all') ? { label: query.trim() ? 'Clear search' : 'Clear filter', onClick: () => { if (query.trim()) setQuery(''); else setConversationFilter('all'); } } : conversationFilter === 'all' && !query.trim() ? { label: 'New message', onClick: openNewMessage } : undefined} /></div> : null}
                 <ul className="side-panel-content-inset side-panel-navigation-list pb-2 inset-row-group inset-row-group-icons">
@@ -418,7 +418,7 @@ export function MessagesPage({
                 isAtBottomRef.current = atBottom;
                 if (atBottom) { setHasNewBelow(false); markReadRef.current(); }
               }} className="relative min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-5 sm:px-6">
-                {messaging.isLoadingThread ? <LoadingState label="Loading conversation" /> : null}
+                {messaging.isLoadingThread ? <LoadingState kind="conversation" label="Loading conversation" /> : null}
                 {!messaging.isLoadingThread && messaging.hasOlderMessages ? <div className="mb-5 flex justify-center">
                     <button type="button" disabled={messaging.isLoadingOlder} onClick={() => void loadEarlier()} className="shape-compact px-4 py-2 text-[13px] font-semibold text-[var(--accent-text)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50">{messaging.isLoadingOlder ? 'Loading…' : 'Earlier messages'}</button>
                   </div> : null}

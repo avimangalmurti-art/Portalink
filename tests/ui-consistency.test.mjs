@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
@@ -161,6 +162,7 @@ test('project editor Escape uses existing dirty and transfer safeguards', () => 
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
       useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, (next) => changes.push(next)] };
     const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -180,6 +182,7 @@ test('shared project dialog sends all dismissal paths through the same transfer 
     let escape, closed = 0;
     const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }), useLayoutEffect() {}, useRef: () => ({ current: null }) };
     const { ProjectFormDialog } = compile('../src/components/publishing/ProjectFormDialog.tsx', { React: react, require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -208,6 +211,7 @@ test('editing keeps Save associated with the form so Enter uses the normal save 
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
     useLayoutEffect() {}, useRef: () => ({ current: null }), useEffect() {}, useState: (initial) => [initial, () => {}] };
   const { ProjectEditorDialog } = compile('../src/features/projects/ProjectEditorDialog.tsx', { require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
     if (name.endsWith('/useTouchTap')) return {useTouchTap:fn=>({onPointerDown:fn})};
       if (name.endsWith('/usePresentation')) return {usePresentation:()=> 'web'};
       if (name === 'react') return react;
@@ -232,6 +236,7 @@ for (const initialPreference of [false, true]) test(`compact navigation preserve
   const slots = [], changes = [];
   const { useCompactNavigation } = compile('../src/hooks/useCompactNavigation.ts', {
     require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       if (name === 'react-router-dom') return { useLocation: () => location };
       if (name === '../presentation/usePresentation') return { usePresentation: () => presentation };
       return {

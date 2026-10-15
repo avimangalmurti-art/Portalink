@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion';
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from 'lucide-react';
@@ -45,7 +46,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
     const finish = () => { if (!next) setVisible(false); };
     if (immediate || reducedMotion) { progress.set(next ? 1 : 0); finish(); }
     else animation.current = animate(progress, next ? 1 : 0, {
-      type: 'spring', stiffness: 440, damping: 42, mass: 0.8, onComplete: finish,
+      duration: motionSeconds('base'), ease: motionCurve(next ? 'enter' : 'exit'), onComplete: finish,
     });
   }, [progress, reducedMotion]);
   const close = useCallback(() => {

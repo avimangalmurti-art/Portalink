@@ -37,20 +37,18 @@ export async function multipartSource(path: string, spec: MultipartSpec, fileNam
 }
 
 async function createMultipartSource(path: string, spec: MultipartSpec, fileName: string, mimeType: string): Promise<string> {
-  await ensureMultipartReader();
-  const urls: string[] = [];
-  // Storage signing requests are bounded even for a file containing many parts.
-  for (let start = 0; start < spec.partCount; start += 100) {
-    const paths = Array.from({ length: Math.min(100, spec.partCount - start) }, (_, index) => partPath(path, start + index));
-    // Renew parts if necessary so a new five-hour virtual URL cannot outlive
-    // signing tokens cached by an earlier viewing session.
-    const signed = await signedMediaUrls(BUCKET, paths, 5 * 3600_000);
-    for (const item of paths) {
-      const address = signed.get(item);
-      if (!address) throw new Error('Some parts of this file are unavailable. Refresh the project and try again.');
-      urls.push(address);
-    }
-  }
+  const paths = Array.from({ length: spec.partCount }, (_, index) => partPath(path, index));
+  // Signing uses shared bounded batches and can run while the service worker
+  // becomes ready. Both must finish before registering the virtual source.
+  const [, signed] = await Promise.all([
+    ensureMultipartReader(),
+    signedMediaUrls(BUCKET, paths, 5 * 3600_000),
+  ]);
+  const urls = paths.map(item => {
+    const address = signed.get(item);
+    if (!address) throw new Error('Some parts of this file are unavailable. Refresh the project and try again.');
+    return address;
+  });
   const id = crypto.randomUUID();
   await new Promise<void>((resolve, reject) => {
     const channel = new MessageChannel();

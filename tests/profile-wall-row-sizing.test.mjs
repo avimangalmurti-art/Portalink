@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -29,6 +30,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
     if (!compiled.has(file)) compiled.set(file, ts.transpileModule(readFileSync(new URL(`../src/components/profile/${file}.tsx`, import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText);
     const exports = {}; modules.set(file, exports);
     vm.runInNewContext(compiled.get(file), { exports, require(name) {
+      if(name.endsWith('/motion/motion')) return motionFixture;
       imports.push(name);
       if (name === 'react') return { ...React, useMemo: fn => fn(), lazy: () => function LazyReorder(props) { return load('ReorderableImageWall').ReorderableImageWall(props); } };
       if (name === '@dnd-kit/core') return { DndContext: 'DndContext', PointerSensor: 'Pointer', TouchSensor: 'Touch', MouseSensor: 'Mouse', KeyboardSensor: 'Keyboard', useSensor: (sensor, options) => ({ sensor, options }), useSensors: (...sensors) => sensors };

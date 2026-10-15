@@ -332,10 +332,10 @@ export function useProjectManagement(profileId: Id | null) {
         // The write already succeeded; a refresh outage must not relabel it a
         // failed save. Re-read surfaces through their normal invalidation path.
         const project = { ...loadedProject, creationDetails: metadata.creationDetails ?? EMPTY_CREATION, thenNowCaption: metadata.thenNowCaption?.trim() ?? '' };
-        if (isMountedRef.current) { hydrate(project); invalidateProfiles(); setEditorPhase('saved'); setSaveResult({ project, message: 'Journey details saved.', mediaPersisted: !project.sessionOnly, sessionOnly: Boolean(project.sessionOnly), removedAttachmentIds: [] }); }
+        if (isMountedRef.current) { hydrate(project); invalidateProfiles(); setEditorPhase('saved'); setSaveResult({ project, message: 'Timeline details saved.', mediaPersisted: !project.sessionOnly, sessionOnly: Boolean(project.sessionOnly), removedAttachmentIds: [] }); }
         return null;
       } catch (error) {
-        if (isMountedRef.current) { invalidateProfiles(); setEditorPhase('editing'); setSaveFailure({ ...failureFrom(error, 'Journey details could not be saved.'), retry: null }); }
+        if (isMountedRef.current) { invalidateProfiles(); setEditorPhase('editing'); setSaveFailure({ ...failureFrom(error, 'Timeline details could not be saved.'), retry: null }); }
         return 'failed';
       } finally { isSavingRef.current = false; }
     }

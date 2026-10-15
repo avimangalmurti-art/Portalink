@@ -80,11 +80,13 @@ function packRows(items: WallItem[], width: number, columns: number, trailingRow
   return rows;
 }
 
-export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true }: {
+export function JustifiedImageWall({ items, columns, label, onColumnsChange, reorderMode, allowLayoutControls = true, fitColumns }: {
   items: WallItem[];
   /** Exact card count for every complete row. */
   columns: number;
   label: string;
+  /** Optional Home-only density bound; never persists its responsive fallback. */
+  fitColumns?: (columns:number,width:number)=>number;
   onColumnsChange?: (columns: number) => void;
   reorderMode?: ReorderMode;
   /** Hides layout chrome on public shares while retaining local card zoom. */
@@ -93,7 +95,7 @@ export function JustifiedImageWall({ items, columns, label, onColumnsChange, reo
   const { ref, width } = useElementSize<HTMLDivElement>();
   const isMobile = usePresentation() === 'mobile';
   // Measurement and pinch selection survive loading/entering/exiting reorder.
-  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange);
+  const view = useContentZoom<HTMLDivElement>(columns, !reorderMode?.enabled, columns, onColumnsChange, fitColumns ? value => fitColumns(value,width) : undefined);
   const effectiveColumns = view.columns;
   const rows = useMemo(() => {
     if (width === 0) return [];
