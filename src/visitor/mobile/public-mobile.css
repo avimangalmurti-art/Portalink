@@ -435,20 +435,20 @@
 #root .codex-shell [data-mobile-onboarding] .mobile-onboarding-art img { width: min(100%, 360px); max-height: 62dvh; object-fit: contain; mix-blend-mode: screen; filter: invert(1) hue-rotate(180deg); }
 #root .codex-shell [data-mobile-onboarding='light'] .mobile-onboarding-art img { mix-blend-mode: multiply; filter: none; }
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -551,7 +551,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -990,8 +990,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
   border: 1px solid var(--border-default) !important;
@@ -1649,7 +1649,12 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: var(--navigation-control-transition);
+}
+
+/* Keep counter placement instant when shared navigation styles load later. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -2273,8 +2278,6 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-presentation='mobile'] .mobile-shared-drawer-opener { background: var(--accent-primary); color: var(--accent-foreground); border-color: var(--accent-primary); }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle { padding: 2px; }
 #root .codex-shell[data-presentation='mobile'] .profile-identity-view .journey-toggle button { min-height: 28px; padding-block: 3px; font-size: 12px; }
-[data-presentation='mobile'].shared-portal-popup-layer { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)); }
-[data-presentation='mobile'] .shared-portal-popup { display: flex; flex-direction: column; width: 100%; max-height: min(70dvh, 640px); min-height: 160px; border-radius: 24px; background: var(--navigation-surface, var(--surface-raised)); color: var(--text-primary); border: 1px solid var(--hairline-strong); overflow: hidden; box-shadow: var(--navigation-shadow); }
 
 /* Keep the shared identity header identical to the in-platform mobile header. */
 /* Name, location and the text tabs share the avatar's 76px footprint.
@@ -2378,18 +2381,6 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 }
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) .mobile-shared-drawer-panel [data-sidebar-toggle] [data-interface-icon-frame] {
   --interface-icon-size: 22px;
-}
-/* Public portal lists keep one viewport-based size regardless of entry point. */
-#root .codex-shell[data-presentation='mobile'] .shared-portal-popup-layer {
-  box-sizing:border-box;
-}
-#root .codex-shell[data-presentation='mobile'] .shared-portal-popup {
-  width:min(100%, 420px);
-  max-width:420px;
-  height:min(70dvh, 640px);
-  max-height:100%;
-  min-height:0;
-  flex:none;
 }
 /* Reader navigation controls share the bottom toolbar position. */
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:has([data-shared-project-reader]) :is(.mobile-shared-drawer-opener, .mobile-shared-drawer-panel [data-sidebar-toggle]) {

@@ -69,7 +69,7 @@ function ActivityCollectionContent({
   const Icon = ICONS[kind];
   return <section aria-label={`${profileName} — ${labels.title}`} className="w-full">
       {!embedded && <header className="ps-panel-toolbar global-control-header side-panel-content-inset">
-        <ScreenBack><button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-2 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-150 hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+        <ScreenBack><button type="button" onClick={onBack} className="side-panel-primary-control side-panel-control-row px-2 text-[13px] font-semibold text-[var(--text-secondary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
           <InterfaceIcon icon={ArrowLeftIcon} weight="medium" mirroredInRtl />
           Back to work
         </button></ScreenBack>

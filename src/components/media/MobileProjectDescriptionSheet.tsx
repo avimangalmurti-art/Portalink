@@ -32,11 +32,12 @@ type Props = {
   emptyMessage?: string;
   fullScreenEditor?: boolean;
   directEditAction?: boolean;
+  centeredOwnerMenu?: boolean;
   onClose: () => void;
 };
 
 /** A mobile reading sheet. Authoring still belongs to the existing project boundary. */
-export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, ownerActions, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, onClose }: Props) {
+export function MobileProjectDescriptionSheet({ projectId, projectTitle, description, typeface, details, ownerActions, creatorHeader, editor, textEditor, contentLabel = 'Description', emptyMessage = 'This project has no description.', fullScreenEditor = false, directEditAction = false, centeredOwnerMenu = false, onClose }: Props) {
   const viewportRef = useDialogViewport();
   useDescriptionSheetScrollBoundary(viewportRef);
   const panelRef = useRef<HTMLElement>(null);
@@ -98,7 +99,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
   const writingScreen = (fullScreenEditor || contentLabel === 'Description') && editing && !saved;
   const topEditorActions = writingScreen && (directEditAction || contentLabel === 'Description');
   const host = document.fullscreenElement ?? document.querySelector('.app-shell') ?? document.body;
-  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-project={contentLabel === 'Description' || undefined}
+  return createPortal(<div data-presentation="mobile"><div ref={viewportRef} data-project-description-overlay="" data-centered-owner-menu={centeredOwnerMenu || undefined} data-centered-project={contentLabel === 'Description' || undefined}
     style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
     onPointerDown={event => { stop(event); if (event.target === event.currentTarget) dismiss(); }}
     onPointerUp={stop} onClick={event => { stop(event); if (menuOpen) setMenuOpen(false); }}
