@@ -6,8 +6,10 @@ import React from 'react';
 import vm from 'node:vm';
 import ts from 'typescript';
 import { TouchSensor } from '@dnd-kit/core';
+import { sourceModule } from './helpers/source-module.mjs';
 
 const source = readFileSync(new URL('../src/components/profile/JustifiedImageWall.tsx', import.meta.url), 'utf8');
+const density = sourceModule('src/utils/projectGridDensity.ts');
 
 test('the incomplete profile row inherits the preceding row height when it fits', () => {
   assert.match(source, /const precedingRowHeight = rows\[rows\.length - 1\]\?\.height \?\? trailingRowHeight;/);
@@ -40,7 +42,7 @@ function wallHarness(presentation, reorderMode, { width = 390, columns = 3, sele
       if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       if (name.endsWith('/SingleTouchSensor')) return { SingleTouchSensor: 'Touch' };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width, ref: 'measured-list' }) };
-      if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled, resetKey, callback) => { zoomEnabled = enabled; assert.equal(callback, onColumnsChange); return { columns: selectedColumns ?? Math.max(2, Math.min(13, base)), ref: 'pinch-root' }; } };
+      if (name.endsWith('/useContentZoom')) return { useContentZoom: (base, enabled, resetKey, callback) => { zoomEnabled = enabled; assert.equal(callback, onColumnsChange); return { columns: selectedColumns ?? density.normalizeProjectGridColumns(base), ref: 'pinch-root' }; } };
       if (name === './ImageWallLayout') return load('ImageWallLayout');
       return placeholder;
     } });
@@ -126,7 +128,7 @@ test('a swipe during reorder stays native; a stationary hold picks up the projec
 test('holding starts only on artwork, then a completed drop moves the selected project', () => {
   const calls = [];
   const mode = { enabled: false, onStart: () => calls.push('start'), onMove: (from, to) => calls.push([from, to]) };
-  const h = wallHarness('mobile', mode);
+  const h = wallHarness('mobile', mode, { columns: 1 });
   const card = h.card.type(h.card.props);
   const activator = h.nodes(card).find(node => node.props.onTouchStart);
   activator.props.onTouchStart({ target: { closest: () => null } });
@@ -136,7 +138,7 @@ test('holding starts only on artwork, then a completed drop moves the selected p
   h.context.props.onDragStart();
   assert.deepEqual(calls, ['start']);
   mode.enabled = true;
-  const active = wallHarness('mobile', mode);
+  const active = wallHarness('mobile', mode, { columns: 1 });
   active.context.props.onDragEnd({ active: { id: 'a' }, over: { id: 'b' } });
   assert.deepEqual(calls, ['start', ['a', 'b']]);
   mode.disabled = true;
@@ -157,7 +159,7 @@ test('mobile Home retains columns and source order while the sidebar scales each
 
 test('Home and profile render every saved density exactly during browsing and reorder at any width', () => {
   const items = Array.from({ length: 30 }, (_, index) => ({ key: `project-${index}`, ratio: 0.6 + index % 4 * 0.4, content: index }));
-  for (const mode of ['mobile', 'web']) for (const width of [224, 390, 1280]) for (let columns = 2; columns <= 13; columns++) {
+  for (const mode of ['mobile', 'web']) for (const width of [224, 390, 1280]) for (let columns = 1; columns <= 13; columns++) {
     for (const enabled of [false, true]) {
       const h = wallHarness(mode, { enabled }, { width, columns, items, onColumnsChange() {} });
       assert.equal(h.list.props['data-profile-wall-columns'], columns);
@@ -170,6 +172,7 @@ test('Home and profile render every saved density exactly during browsing and re
       }
       const cards = h.nodes(h.list).filter(node => /^(Sortable|Static)WallCard$/.test(node.type?.name));
       assert.deepEqual(cards.map(card => card.props.item.key), items.map(item => item.key));
+      for (const card of cards) assert.ok(Math.abs(card.props.item.width / card.props.item.height - card.props.item.ratio) < 0.0001, 'Density changes and reorder preserve each artwork proportion.');
     }
   }
 });

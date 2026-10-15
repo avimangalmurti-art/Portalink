@@ -55,13 +55,13 @@ function harness() {
 }
 
 test('every starting density can reach both endpoints, including multiple events before rendering', () => {
-  for (let base = 2; base <= 13; base++) {
+  for (let base = 1; base <= 13; base++) {
     const h = harness(); h.render(base);
     for (let step = 0; step < 20; step++) h.wheel(1);
     assert.equal(h.render(base).columns, 13);
     for (let step = 0; step < 20; step++) h.wheel(-1);
-    assert.equal(h.render(base).columns, 2);
-    h.wheel(0); assert.equal(h.render(base).columns, 2);
+    assert.equal(h.render(base).columns, 1);
+    h.wheel(0); assert.equal(h.render(base).columns, 1);
     h.cleanup(); assert.equal(h.listeners.size, 0); assert.equal(h.timers.size, 0);
   }
 });
@@ -69,11 +69,11 @@ test('every starting density can reach both endpoints, including multiple events
 test('explicit gallery controls share density commits and supersede a pending gesture', () => {
   const h = harness(); h.render(4, true, 4);
   h.wheel(1);
-  h.render(4, true, 4).chooseColumns(2);
-  assert.equal(h.render(4, true, 4).columns, 2);
-  assert.deepEqual(h.commits, [2]);
+  h.render(4, true, 4).chooseColumns(1);
+  assert.equal(h.render(4, true, 4).columns, 1);
+  assert.deepEqual(h.commits, [1]);
   h.flush(220);
-  assert.deepEqual(h.commits, [2], 'old wheel timer cannot overwrite the visible choice');
+  assert.deepEqual(h.commits, [1], 'old wheel timer cannot overwrite the visible choice');
   h.render(4, true, 4).chooseColumns(99);
   assert.equal(h.render(4, true, 4).columns, 13);
   h.render(4, false, 4).chooseColumns(2);
@@ -112,7 +112,7 @@ test('reorder entry, dropping, saving and cancelling preserve the active five-co
 });
 
 test('saved densities are clamped and remain exact when gestures are disabled', () => {
-  for (const [value, expected] of [[-4, 2], [2, 2], [5, 5], [13, 13], [30, 13], [NaN, 2]]) {
+  for (const [value, expected] of [[-4, 1], [0, 1], [1, 1], [2, 2], [5, 5], [13, 13], [30, 13], [NaN, 2]]) {
     const h = harness();
     assert.equal(h.render(value, false).columns, expected);
     assert.equal(h.commits.length, 0, 'Rendering an owner setting does not write it back');
@@ -131,6 +131,17 @@ test('a pinch commits only its final density, with spread enlarging and pinch sh
   h.listeners.get('touchend')(); assert.deepEqual(h.commits, [7]);
   h.listeners.get('touchend')(); assert.deepEqual(h.commits, [7], 'The same gesture is not saved twice');
   h.cleanup();
+});
+
+test('a phone spread from two columns reaches one and commits the bounded final choice once', () => {
+  const h = harness();h.render(2, true, 2);
+  const touches = distance => [{ clientX: 0, clientY: 0 }, { clientX: distance, clientY: 0 }];
+  const move = distance => h.listeners.get('touchmove')({ touches: touches(distance), cancelable: true, preventDefault() {} });
+  h.listeners.get('touchstart')({ touches: touches(100) });
+  move(125);assert.equal(h.render(2, true, 2).columns, 1);
+  move(500);assert.equal(h.render(2, true, 2).columns, 1);assert.deepEqual(h.commits, []);
+  h.listeners.get('touchend')();h.listeners.get('touchend')();assert.deepEqual(h.commits, [1]);
+  h.cleanup();assert.equal(h.listeners.size, 0);assert.equal(h.timers.size, 0);
 });
 
 test('modified wheel commits once after its burst, while a new owner setting rejects an old pending commit', () => {
@@ -156,14 +167,14 @@ test('a cancelled pinch stops changing density and a new pinch starts at the cur
   h.cleanup();
 });
 
-test('Home uses one project per track at every density, preserving project order and content', () => {
+test('Home uses one project per track at every density on both presentations, preserving project order and content', () => {
   const items = Array.from({ length: 26 }, (_, i) => ({ key: `project-${i}`, content: `Cover ${i}` }));
-  for (let columns = 2; columns <= 13; columns++) {
+  for (const presentation of ['mobile', 'web']) for (let columns = 1; columns <= 13; columns++) {
     const { BentoFeedGrid } = compile('../src/components/home/BentoFeedGrid.tsx', name => {
       if (name === 'react') return { ...React, useState: value => [value, () => {}], useCallback: fn => fn };
       if (name.endsWith('/useContentZoom')) return { useContentZoom: () => ({ columns }) };
       if (name.endsWith('/useElementSize')) return { useElementSize: () => ({ width: 1000 }) };
-      if (name.endsWith('/usePresentation')) return { usePresentation: () => 'web' };
+      if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
       if (name.endsWith('/WebGalleryControls')) return { WebGalleryControls: 'WebGalleryControls' };
       if (name.endsWith('/ZoomReadout')) return { ZoomReadout: 'ZoomReadout' };
       return {};

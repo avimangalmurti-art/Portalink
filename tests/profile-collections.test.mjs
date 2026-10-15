@@ -14,6 +14,7 @@ function compile(path, imports, globals = {}) {
 }
 const employer = compile('../src/features/employer/employer.ts', name => { assert.fail(`Unexpected employer import: ${name}`); });
 const journeyHelpers = compile('../src/features/journey/journey.ts', () => ({}));
+const gridDensity = compile('../src/utils/projectGridDensity.ts', () => ({}));
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
@@ -220,7 +221,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
-    if (name.endsWith('/projectGridDensity')) return { MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
+    if (name.endsWith('/projectGridDensity')) return gridDensity;
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;

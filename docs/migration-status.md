@@ -5,6 +5,12 @@
 <!-- 2026-10-12: immediate_account_session_revocation.sql is pending explicit approval. No SQL applied; adds active-session functions, guarded Data API pre-request hook and restrictive policies on31 inventoried RLS tables. See docs/immediate-session-revocation.md. -->
 # Migration status register
 
+## Applied — one project per row (2026-10-15)
+
+[202610150001_profile_project_grid_one_column.sql](../supabase/migrations/202610150001_profile_project_grid_one_column.sql) was applied once through the authenticated SQL Editor of the existing Portalink Networks production project after the user explicitly approved the single rule change and publication. The selected project was compared with the existing local configuration before any query. Read-only catalog preflight confirmed the September27 saved-density constraint2–13, smallint/NOTNULL/default2 and RLS enabled. The exact reviewed transaction (SHA256c425fc53486932cb3f9ecdacbbaa1b16772580ee2162e1f62724234e5f1e0335) replaced only `profiles_project_grid_columns_check` with1–13 and updated its comment. SQL Editor returned “Success. No rows returned.” Postflight confirmed1–13, unchanged smallint/NOTNULL/default2/RLS, and byte-identical policy/grant metadata hashes. No user rows, project ordering, policies, grants, other migrations or migration ledger were changed. Application occurred around2026-10-15T07:02Z (October15 00:02Pacific); the reviewed pending file was then moved unchanged into migrations.
+
+Isolated PGlite tests verify both the original restriction and repeated forward application, owner1/public reads, denied non-owner writes, invalid0/14/NULL rejection, and retained rows/defaults/order/policies/grants/RLS. Actual production account-layout saves were not exercised. Database application and website/source publication are separate states; see the current handoff for the release receipt.
+
 ## Pending review — external references (2026-10-12)
 
 `supabase/pending/external_references.sql` is **unapplied**. It adds the requested

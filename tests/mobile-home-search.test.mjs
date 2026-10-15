@@ -39,7 +39,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
     if (name.endsWith('/contextActions')) return actionMap;
     if (name.endsWith('/useProjectReach')) return { useProjectReach() {} };
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
-    if (name.endsWith('/MobileContextActions')) return { useMobileScreenActions(model) { actions=model; } };
+    if (name.endsWith('/MobileContextActions')) return { MobileContextButton: 'context-button', useMobileScreenActions(model) { actions=model; } };
     if (name.endsWith('/useHomePullRefresh')) return {useHomePullRefresh:(_ref,enabled,_busy,refresh)=>{refreshGesture=enabled?refresh:null;return '';}};
     if (name.endsWith('/useHomeStartupReadiness')) return {useHomeStartupReadiness:options=>{readiness=options;}};
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
@@ -71,7 +71,7 @@ function harness(presentation = 'mobile', props = {}, signedIn = true) {
 
 test('Explore feed allows the complete Profile density range without a mobile fit restriction',()=>{
  for(const presentation of ['mobile','web']){const h=harness(presentation);const grid=()=>nodes(h.render()).find(n=>n.type===(presentation==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));assert.equal(grid().props.columns,5);
- for(const count of [2,13,5]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}
+ for(const count of [1,2,13,5]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}
  h.ownerProfile.status='loading';assert.equal(grid().props.columns,5);const profile=h.ownerProfile.profile;h.ownerProfile.profile=null;assert.equal(grid(),undefined);h.ownerProfile.profile=profile;assert.equal(grid().props.columns,5);
  }
 });
@@ -98,5 +98,5 @@ test('city retains responsive measurement/local pinch and never receives the Hom
 test('empty Explore feed retains top buttons and Actions',()=>{const h=harness();h.feed.isEmpty=true;h.feed.projects=[];const tree=h.render();assert.equal(nodes(tree).some(n=>n.type==='header'),true);assert.deepEqual(Array.from(h.actions.primary,a=>a.id),['search','explore']);assert.equal(typeof h.actions.groups.flat().find(a=>a.id==='refresh').run,'function');});
 test('refresh gesture retains cards, announces state/errors and rejects a busy request',()=>{const h=harness();h.render();h.pull();assert.equal(h.reloads,1);h.feed.isRefreshing=true;let tree=h.render();assert.ok(nodes(tree).some(n=>n.props.className==='premium-media-loading-mark' && n.props['aria-hidden']==='true'));h.pull();assert.equal(h.reloads,1);assert.deepEqual(Array.from(nodes(tree).find(n=>n.type==='JustifiedImageWall').props.items,i=>i.key),['first','second']);assert.equal(nodes(tree).find(n=>n.props.role==='status' && !('data-home-pull-feedback' in n.props)).props.children,'Refreshing Home content.');h.feed.isRefreshing=false;h.feed.refreshError='Could not refresh Home. Please try again.';tree=h.render();assert.equal(nodes(tree).find(n=>n.props.role==='status' && !('data-home-pull-feedback' in n.props)).props.children,h.feed.refreshError);for(const other of [harness('web'),harness('mobile',{locationId:'city'})]){other.render();other.pull();assert.equal(other.reloads,0);}});
 
-test('guests can choose every Profile density while keeping changes local',()=>{for(const mode of ['mobile','web']){const h=harness(mode,{},false);const grid=()=>nodes(h.render()).find(n=>n.type===(mode==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));for(const count of [2,3,5,13]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}}});
+test('guests can choose every Profile density while keeping changes local',()=>{for(const mode of ['mobile','web']){const h=harness(mode,{},false);const grid=()=>nodes(h.render()).find(n=>n.type===(mode==='mobile'?'JustifiedImageWall':'BentoFeedGrid'));for(const count of [1,2,3,5,13]){grid().props.onColumnsChange(count);assert.equal(grid().props.columns,count);assert.equal(grid().props.fitColumns,undefined);}}});
 test('restored header buttons invoke their existing discovery and refresh callbacks',()=>{const h=harness();const button=label=>nodes(h.render()).find(n=>n.type==='button'&&n.props['aria-label']===label);button('Open globe search').props.onClick();button('Search accounts').props.onClick();button('Reload Home content').props.onClick();assert.equal(h.worldVisits,1);assert.equal(h.userSearchVisits,1);assert.equal(h.reloads,1);h.feed.isRefreshing=true;assert.equal(button('Reload Home content').props.disabled,true);button('Reload Home content').props.onClick();assert.equal(h.reloads,1);const web=nodes(harness('web').render());assert.equal(web.some(n=>n.type==='header'&&n.props.className==='mobile-home-search-header'),false);});
