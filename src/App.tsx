@@ -1,3 +1,4 @@
+import { OptionalAccountSetup } from './components/auth/OptionalAccountSetup';
 import { RouteError, routeErrorKind } from './components/ui/RouteError';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
 import { rememberLivePortfolio, shouldStartFirstProject } from './features/publishing/firstProject';
@@ -524,7 +525,14 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   const follows = useFollows(viewedProfileId);
   // An account can exist without a profile; creator surfaces onboard instead.
   const onboardingStatus = useProfileOnboardingStatus();
+  useEffect(() => {
+    const callback = new URLSearchParams(search);
+    if (!auth.isAuthenticated || !auth.viewerProfileId || !callback.has('onboarding_return')) return;
+    const destination = readSharedReturnPath(callback.get('onboarding_return'));
+    nav.to(destination ?? '/', true);
+  }, [auth.isAuthenticated, auth.viewerProfileId, search, nav]);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [optionalSetupAccount, setOptionalSetupAccount] = useState<string | null>(null);
   const resumedRegistration = useRef<string | null>(null);
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -1434,20 +1442,22 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         deferredIntentRef.current = null;
       }} onComplete={(profileId) => {
         setIsOnboardingOpen(false);
-        // Mobile account setup enters discovery; publishing starts only when chosen.
-        // WEB retains its existing deferred destination behavior.
+        // Optional setup never replaces an explicit destination or starts publishing.
         const deferred = deferredIntentRef.current;
         deferredIntentRef.current = null;
-        if (presentation === 'mobile' && auth.user?.id) {
-          nav.home(true);
-          return;
-        }
+        if (auth.user?.id && (!deferred || ['route', 'my-profile'].includes(deferred.kind))) setOptionalSetupAccount(auth.user.id);
         if (deferred && deferred.kind !== 'my-profile' && deferred.kind !== 'interaction') {
           fulfilIntent(deferred);
           return;
         }
-        openProfile(profileId);
+        if (presentation === 'mobile') nav.home(true);
+        else openProfile(profileId);
       }} /></DeferredSurface>}
+      {optionalSetupAccount === auth.user?.id && auth.viewerProfileId && !isOnboardingOpen && <DeferredSurface active onClose={() => setOptionalSetupAccount(null)}><OptionalAccountSetup
+        theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor}
+        highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency}
+        onDone={() => setOptionalSetupAccount(null)} onFirstProject={() => { setOptionalSetupAccount(null); requestGlobalPublish(); }}
+      /></DeferredSurface>}
 
       </MobileBackProvider>
     </AppPresentation>;

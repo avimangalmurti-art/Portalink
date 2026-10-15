@@ -1,0 +1,41 @@
+.one-screen-entry { display:flex; flex-direction:column; gap:12px; color:#071326; color-scheme:light; font-family:'IBM Plex Sans',sans-serif; }
+.one-screen-entry .entry-providers { display:grid; gap:8px; }
+.one-screen-entry button { min-height:44px; padding:10px 16px; border-radius:16px; font:inherit; }
+.one-screen-entry .entry-providers button { border:1px solid #929aa4; background:#fdffff; color:#071326; }
+.one-screen-entry .entry-email { background:#071326; color:white; }
+.one-screen-entry .entry-links { display:flex; flex-direction:column; align-items:center; }
+.one-screen-entry .entry-links button { color:#535d6b; background:transparent; }
+.one-screen-entry .entry-availability { font-size:12px; line-height:1.4; color:#535d6b; }
+.one-screen-entry button:disabled { opacity:.6; cursor:default; }
+.one-screen-entry button:focus-visible { outline:2px solid #071326; outline-offset:3px; }
+.portalink-splash[data-share-landing] { background:#fdffff; height:100dvh; min-height:0; grid-template-rows:minmax(0, 1fr) auto; padding: max(12px, env(safe-area-inset-top, 0px)) 0 max(12px, env(safe-area-inset-bottom, 0px)); }
+.portalink-splash[data-share-landing] .portalink-splash-media { width:100%; height:100%; min-height:0; max-height:100%; object-fit:contain; }
+.portalink-splash[data-share-landing] .mobile-share-landing-actions { position:relative; z-index:1; grid-area:2 / 1; width:calc(100% - 40px); max-width:400px; }
+.portalink-splash[data-share-landing]:has(.entry-inline-form) { overflow-y:auto; grid-template-rows:minmax(140px, 28dvh) auto; align-content:start; }
+.portalink-splash[data-share-landing]:has(.entry-inline-form) .portalink-splash-media { transform:none; }
+.portalink-splash[data-share-landing]:has(.entry-inline-form) .mobile-share-landing-actions { width:calc(100% - 40px); padding-bottom:24px; }
+.entry-inline-form { --text-primary:#071326; --text-secondary:#535d6b; --text-tertiary:#535d6b; --accent-text:#071326; --surface-sunken:#fdffff; --hairline-strong:#929aa4; --status-danger:#b42318; --focus-ring:#071326; display:flex; flex-direction:column; gap:12px; }
+.entry-inline-form input { min-height:44px; padding-inline:12px; border:1px solid #929aa4; border-radius:10px; color:#071326; background:#fdffff; }
+.entry-inline-form input[aria-invalid='true'] { border-color:var(--status-danger); }
+#root .codex-shell .entry-inline-form :is(.text-control, .text-control-shell) { background:#fdffff !important; color:#071326 !important; border-color:#929aa4 !important; }
+#root .codex-shell .entry-inline-form :is(.text-control, .text-control-shell):is(:focus, :focus-within) { border-color:#071326 !important; }
+#root .codex-shell .entry-inline-form :is(.text-control, .text-control-shell):is([aria-invalid='true'], :has([aria-invalid='true'])) { border-color:#b42318 !important; }
+#root .codex-shell .entry-inline-form input { color:#071326 !important; }
+#root .codex-shell .entry-inline-form .input-shell { min-height:44px; }
+#root .codex-shell .entry-inline-form .input-shell input { background:transparent !important; border:0; padding:0; }
+#root .codex-shell .entry-inline-form input::placeholder { color:#626a78 !important; }
+#root .codex-shell .entry-inline-form button[type='submit'] { background:#071326 !important; color:#fff !important; }
+#root .codex-shell .optional-account-setup { border-radius:28px !important; outline:none !important; }
+.entry-inline-form h1 { font-size:24px; font-weight:600; }
+.entry-inline-form .entry-legal { font-size:12px; line-height:1.5; color:#535d6b; }
+.entry-inline-form .entry-legal a { text-decoration:underline; }
+.entry-inline-form .entry-handle { font-size:13px; }
+.entry-inline-form > form { gap:12px; }
+@media (min-width:640px) { .portalink-splash[data-share-landing] .mobile-share-landing-actions { max-width:400px; } }
+
+.optional-account-setup .mobile-onboarding-appearance { display:grid; gap:18px; padding-top:20px; }
+.optional-account-setup .mobile-onboarding-swatches { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px; }
+.optional-account-setup .mobile-onboarding-swatches button { min-width:0; min-height:44px; padding:5px; border:2px solid transparent; border-radius:10px; }
+.optional-account-setup .mobile-onboarding-swatches button[aria-checked='true'] { border-color:var(--text-primary); }
+.optional-account-setup .mobile-onboarding-swatches span { display:grid; place-items:center; height:32px; width:100%; border-radius:6px; }
+.optional-account-setup .mobile-onboarding-switch { display:flex; align-items:center; justify-content:space-between; gap:12px; }

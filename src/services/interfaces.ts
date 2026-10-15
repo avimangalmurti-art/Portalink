@@ -41,6 +41,8 @@ export interface AuthService {
   /** A lookup failure can clear a stale identity without pretending the user signed out. */
   onAuthStateChange(listener: (session: AuthSession | null, error?: AuthError) => void): () => void;
   signIn(input: SignInInput): Promise<AuthSession>;
+  getSocialProviders?(): Promise<{ google: boolean; apple: boolean }>;
+  signInWithOAuth?(provider: 'google' | 'apple', returnPath?: string): Promise<void>;
   /** Never returns a session when the address must be confirmed first. */
   signUp(input: SignUpInput): Promise<SignUpResult>;
   signOut(scope?: 'local' | 'global'): Promise<void>;

@@ -13,6 +13,11 @@ function load(path, imports, globals = {}) {
   vm.runInNewContext(ts.transpileModule(read(path), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, URL, URLSearchParams, ...globals, require(name) {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+
     if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
     if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts',{'../features/sharing/shareModel':shareModel});
     assert.ok(name in imports, `Missing test import: ${name}`);
@@ -191,16 +196,17 @@ test('shared-entry media preference reaches the existing auth surface only when 
     assert.equal(AuthDialog({ showWelcomeMedia: false }), null);
     auth.pendingView = 'signIn';
     const requested = AuthDialog({ showWelcomeMedia: false });
-    for (const view of ['signUp', 'signIn']) {
+    for (const view of ['signUp']) {
       auth.pendingView = view;
-      const welcome = AuthDialog({ welcomeBeforeSignup: true });
+      const fragment = AuthDialog({ welcomeBeforeSignup: true });
+      const welcome = React.Children.toArray(fragment.props.children)[0];
       assert.equal(welcome.type, 'hello-world');
       assert.equal(welcome.props.landing.continueLabel, 'Continue as guest');
       welcome.props.landing.onCreateAccount();
       welcome.props.landing.onSignIn();
       welcome.props.landing.onForgotPassword();
       welcome.props.landing.onContinue();
-      assert.deepEqual(actions.splice(0), ['signUp', 'signIn', 'forgotPassword', 'close']);
+      assert.deepEqual(actions.splice(0), ['signIn', 'forgotPassword', 'close']);
     }
     assert.equal(requested.type, 'account-surface'); assert.equal(requested.props.showWelcomeMedia, false); assert.equal(requested.props.title, 'Sign in');
   }

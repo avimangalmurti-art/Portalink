@@ -82,7 +82,12 @@ function compile(path, imports, globals) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
+  }).outputText, { exports, URLSearchParams, ...globals, require(name) {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+ if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
 function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
@@ -905,7 +910,8 @@ test('welcome loops without an exit deadline and keeps all entry actions availab
   for(const presentation of ['mobile','web']) {
     const h=loader({presentation,landing:welcome}),{media,tree}=h.render();assert.equal(media.props.loop,true);
     assert.equal(tree.props.children[1].props['aria-busy'],false);
-    assert.equal(tree.props.children[1].props.children[0].props.children,'Create account');
+    assert.equal(tree.props.children[1].props.children[0].type,'EntryChoices');
+    assert.equal(tree.props.children[1].props.children[0].props.onEmail,welcome.onCreateAccount);
     h.start();h.paint();assert.equal(h.completed,1);assert.equal(h.timers.size,0);
     for(let cycle=0;cycle<3;cycle++){h.emit('waiting');assert.equal(h.render().media.props.style.opacity,1);h.start();h.paint();assert.equal(h.timers.size,0);}
     h.unmount();assert.equal(h.frames.size,0);
@@ -937,17 +943,11 @@ test('a verified guest waits for the remaining intro before switching to welcome
   h.start();h.paint();assert.equal(h.timers.size,0);h.unmount();
 });
 
-test('mobile welcome can disable its actions until its caller marks them ready', () => {
-  const pending={...welcome,ready:false};
-  const h=loader({presentation:'mobile',landing:pending});
-  const controls=tree=>React.Children.toArray(tree.props.children[1].props.children).flatMap(node=>node.type==='button'?[node]:React.Children.toArray(node.props.children).filter(child=>child.type==='button'));
-  let {tree}=h.render();
-  assert.equal(tree.props.children[1].props.style,undefined,'do not hide the action row and look like an old splash');
+test('mobile welcome delegates readiness to the shared entry controls',()=>{
+  const h=loader({presentation:'mobile',landing:{...welcome,ready:false}});
+  const {tree}=h.render();
   assert.equal(tree.props.children[1].props['aria-busy'],true);
-  assert.equal(controls(tree).length,4); controls(tree).forEach(button=>assert.equal(button.props.disabled,true));
-  pending.ready=true; tree=h.render().tree;
-  assert.equal(tree.props.children[1].props['aria-busy'],false);
-  controls(tree).forEach(button=>assert.equal(button.props.disabled,false));
+  assert.equal(tree.props.children[1].props.children[0].props.ready,false);
   h.unmount();
 });
 
@@ -987,4 +987,15 @@ test('splash and Hello World exit fades stay within the base token on both layou
   }
  }
  const fixed=loader({presentation:'mobile',timedIntro:true});fixed.render();assert.equal(fixed.exitDuration,0);fixed.unmount();
+});
+
+
+test('a failed OAuth callback reopens welcome on both presentations without interrupting recovery',()=>{
+ for(const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({presentation,path:'/',search:'?entry=oauth',hash:'#error=access_denied'});
+  h.auth.isInitializing=false;
+  assert.equal(h.render().props.landing.ready,true);
+  const recovery=sharedBootstrap({presentation,path:'/',search:'?entry=oauth',hash:'#error=access_denied',recovery:true});
+  recovery.auth.isInitializing=false;assert.equal(recovery.render()?.props.landing,undefined);
+ }
 });

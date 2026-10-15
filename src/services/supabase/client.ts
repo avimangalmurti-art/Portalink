@@ -5,6 +5,16 @@ import { createSessionRevocationObserver } from './sessionRevocation';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
+
+export async function readSocialProviders() {
+  requireSupabase();
+  const response = await fetch(`${projectUrl}/auth/v1/settings`, {
+    headers: { apikey: publishableKey }, signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error('Sign-in options could not be checked.');
+  const settings = await response.json();
+  return { google: settings.external?.google === true, apple: settings.external?.apple === true };
+}
 const configuredRuntimeMode = import.meta.env.VITE_RUNTIME_MODE?.trim().toLowerCase() ?? '';
 
 if (configuredRuntimeMode && configuredRuntimeMode !== 'prototype' && configuredRuntimeMode !== 'production') {

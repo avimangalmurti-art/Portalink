@@ -24,6 +24,7 @@ function execute(source, imports = {}, globals = {}) {
 }
 function buildConfig(command, runtime) {
   const factory = execute(read('vite.config.ts').replaceAll('import.meta.url', 'configUrl'), {
+    './scripts/startup-styles.mjs': {startupStylesPlugin: () => ({})},
     './scripts/build-environment.mjs': { requireBuildEnvironment() {} },
     './src/features/sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
     './src/server/referenceResolver':{},'./src/server/portfolioExport':{},

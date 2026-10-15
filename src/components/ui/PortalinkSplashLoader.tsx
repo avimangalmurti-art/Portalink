@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { EntryChoices } from '../auth/EntryChoices';
 
 const SPLASH_TIMEOUT_MS = 2200;
 const PRIMARY_LOAD_TIMEOUT_MS = 10_000;
@@ -21,7 +22,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   welcomeMedia?: boolean;
   /** Leaving the white welcome scene for the app, including a completed sign-in. */
   welcomeHandoff?: boolean;
-  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string };
+  landing?: { ready: boolean; onCreateAccount: () => void; onSignIn: () => void; onForgotPassword: () => void; onContinue: () => void; continueLabel: string; content?: React.ReactNode; suspendFocus?: boolean };
 }) {
   // Startup precedes AppPresentation. Reuse its canonical viewport hook here
   // rather than mounting another app host or introducing device detection.
@@ -69,7 +70,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   if (landing) lastLanding.current = landing;
   // Keep the exact white scene geometry while a completed sign-in fades it out.
   const sceneLanding = introPending ? undefined : landing ?? (welcomeHandoff ? lastLanding.current : undefined);
-  useModalFocus(Boolean(landing && sceneLanding) && !hidden, landingRef, () => landing?.onContinue(), true);
+  useModalFocus(Boolean(landing && sceneLanding) && !hidden && !landing?.suspendFocus, landingRef, () => landing?.onContinue(), true);
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
@@ -403,12 +404,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         </div>
       </div>
       {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
-        <button type="button" className="mobile-share-create" disabled={!sceneLanding.ready} onClick={sceneLanding.onCreateAccount}>Create account</button>
-        <div className="mobile-share-secondary">
-          <button type="button" className="mobile-share-signin" disabled={!sceneLanding.ready} onClick={sceneLanding.onSignIn}>Sign in</button>
-          <button type="button" className="mobile-share-forgot" disabled={!sceneLanding.ready} onClick={sceneLanding.onForgotPassword}>Forgot password?</button>
-          <button type="button" className="mobile-share-guest" disabled={!sceneLanding.ready} onClick={sceneLanding.onContinue}>{sceneLanding.continueLabel}</button>
-        </div>
+        {sceneLanding.content ?? <EntryChoices ready={sceneLanding.ready} onEmail={sceneLanding.onCreateAccount} onSignIn={sceneLanding.onSignIn} onGuest={sceneLanding.onContinue} />}
         {!sceneLanding.ready && <span role="status" className="sr-only">Opening Portalink…</span>}
       </div>}
     </motion.div>

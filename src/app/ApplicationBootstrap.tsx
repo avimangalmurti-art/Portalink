@@ -56,9 +56,11 @@ export function ApplicationBootstrap() {
   useEffect(() => { if (usePublicEntry) window.location.replace(pathname + search + hash); }, [usePublicEntry, pathname, search, hash]);
   const [openingPresentation] = useState(presentation);
   const [openingPath] = useState(pathname);
-  const isAuthCallback = /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
+  const oauthFailed = new URLSearchParams(search).get('entry') === 'oauth'
+    && [search, hash].some(part => new URLSearchParams(part.slice(1)).has('error'));
+  const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
-  const isWelcomeInvite = pathname === '/' && new URLSearchParams(search).get('welcome') === '1' && !isAuthCallback && !isRecovery;
+  const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
   // Only the opening mobile visit is a landing. Rotation or later navigation
   // cannot introduce it over an existing session, recovery flow or content.
   const [landingPath] = useState(() => (presentation === 'mobile' || isWelcomeInvite)

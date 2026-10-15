@@ -6,9 +6,10 @@ import type {
   AuthSession,
   AuthUser,
 } from '../../types/auth';
-import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase } from './client';
+import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase, readSocialProviders } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
-import { readRegistrationDraft, readRegistrationProfile } from '../../features/auth/registration';
+import { readRegistrationDraft, readRegistrationProfile, readSharedReturnPath } from '../../features/auth/registration';
+import { socialRegistration } from '../../features/auth/socialRegistration';
 
 function textMetadata(user: User, key: string): string {
   const value: unknown = user.user_metadata?.[key];
@@ -129,6 +130,9 @@ async function mapAuthSession(session: Session, generation: number): Promise<Aut
   }
   const email = user.email ?? '';
   const displayName = identity.displayName || textMetadata(user, 'display_name') || textMetadata(user, 'full_name') || email.split('@')[0] || 'Creator';
+  if (!identity.profileId && !isPasswordRecovery && !registration && ['google', 'apple'].includes(user.app_metadata?.provider ?? '')) {
+    registration = socialRegistration(user, new URLSearchParams(window.location.search).get('onboarding_return') ?? undefined);
+  }
   const mapped: AuthUser = {
     id: user.id,
     email,
@@ -266,6 +270,21 @@ export const supabaseAuthService: AuthService = {
       throw new AuthServiceError('unknown', 'Sign in did not establish a session.');
     }
     return mapped;
+  },
+
+  async getSocialProviders() {
+    return readSocialProviders();
+  },
+
+  async signInWithOAuth(provider, returnPath) {
+    const redirect = new URL('/', window.location.origin);
+    redirect.searchParams.set('entry', 'oauth');
+    const safePath = readSharedReturnPath(returnPath);
+    if (safePath) redirect.searchParams.set('onboarding_return', safePath);
+    const { error } = await requireSupabase().auth.signInWithOAuth({
+      provider, options: { redirectTo: redirect.href },
+    });
+    if (error) throw authFailure(error, 'Sign in could not be started.');
   },
 
   async signUp(input) {
