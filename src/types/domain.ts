@@ -88,7 +88,7 @@ export type Profile = {
   isPrivate?: boolean;
   /** Creator branding shared by every public URL; null until first saved. */
   publicAppearance?: PublicAppearance | null;
-  /** Owner's saved 2–13 project-card count, shared by Home and the public profile. */
+  /** Owner's saved 1–13 project-card count, shared by Home and the public profile. */
   projectGridColumns?: number;
 };
 /**

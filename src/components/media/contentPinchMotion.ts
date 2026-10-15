@@ -1,3 +1,4 @@
+import { motionMs, motionEase } from '../../presentation/motion/motion';
 type Point = { x: number; y: number };
 type Box = Point & { width: number; height: number };
 type Page = { element: HTMLElement; key: string; box: Box; layout: Box; transform: string; origin: string; transition: string; willChange: string };
@@ -102,7 +103,7 @@ export function beginContentPinch(surface: HTMLElement, origin: Point, focused =
         return [element.animate([
           { transformOrigin: '0 0', transform: `translate3d(${before.x - after.x}px, ${before.y - after.y}px, 0) scale(${before.width / after.width}, ${before.height / after.height})` },
           { transformOrigin: '0 0', transform: 'none' }
-        ], { duration: 180, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' })];
+        ], { duration: motionMs('base'), easing: motionEase() })];
       });
       animations.set(surface, running);
       void Promise.allSettled(running.map(animation => animation.finished)).then(() => {

@@ -83,6 +83,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   const readingScopes = [];
   const context = React.createContext('web');
   const { AppPresentation, AppPresentationProvider } = compile('../src/presentation/AppPresentation.tsx', { require(name) {
+    if(name.endsWith('/MotionNavigation'))return {MotionNavigation:'motion-navigation'};
     if (name.endsWith('/InternalContentShare')) return {InternalContentShareProvider:'InternalContentShareProvider'};
     if (name === 'react') return React;
     if (name === 'react-router-dom') return { useLocation: () => ({ pathname: '/share/profile/project' }) };
@@ -90,6 +91,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
     if (name === './usePresentation') return { PresentationContext: context, usePresentation: () => presentation };
     if (name === './useViewportPresentation') return { useViewportPresentation: () => presentation };
     if (name === './mobile/useMobileBrowserSurface') return { useMobileBrowserSurface: () => ({ current: null }) };
+    if (name === './mobile/useMobileHeaderMaterial') return { useMobileHeaderMaterial() {} };
     if (name === './mobile/useMobileViewportFrame') return { useMobileViewportFrame() {} };
     if (name === './useAppZoomBoundary') return { useAppZoomBoundary() {} };
     if (name === './mobile/useProjectScrollActivity') return { useProjectScrollActivity: (enabled, path) => readingScopes.push([enabled, path]) };
@@ -108,7 +110,7 @@ test('both presentations keep the same provider, DOM host, and child element ide
   assert.equal(web.provider.key, mobile.provider.key);
   for (const [tree, mode] of [[web, 'web'], [mobile, 'mobile']]) {
     assert.equal(tree.provider.props.value, mode);
-    assert.equal(tree.provider.props.children, children);
+    assert.equal(tree.provider.props.children.type,'motion-navigation');assert.equal(tree.provider.props.children.props.children,children);
     const host = tree.host;
     assert.equal(host.type, 'div'); assert.equal(host.key, null);
     assert.equal(host.props.children.type, 'InternalContentShareProvider');
