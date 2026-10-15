@@ -1,3 +1,18 @@
+Validation:31 focused tests pass/no skips, typecheck, lint0errors113existingwarnings, final client/worker build and configured main/visitor guards pass. Actual-component synthetic preview confirms Apple absent and email form retained at desktop and420x912; Google accurately disabled. No live login/physical-device check. Source ready for authorized publication.
+
+## 2026-10-15 - Apple hidden; production Google setup explicitly deferred
+
+User requested hiding Apple, assisting Google setup and publication, then explicitly prohibited using the personal Google account for production or changing any Google Cloud/consent-screen settings. Isolated codex/google-signin-release based on live Sites432/source10b68e4 preserves all published changes. Only entry UI hides Apple button and its unavailable notice across MOBILE/WEB. Shared authentication support remains intact. Google stays dynamically unavailable until existing Supabase provider configuration is completed by the owner; no client ID/secret/redirect URI/consent details added or hard-coded. No Google project created, verified, published or modified; no new secrets anywhere in repo. Personal projects are for local development/testing only, and none was created in this task.
+
+Production Google checklist (BLOCKED on company ownership, not ready to enable):
+- Owner supplies Portalink Google Workspace organization and company domain; use a verified Portalink domain.
+- Owner supplies a company-owned Google Cloud project under that organization, with at least two admins and designated owner/admin accounts.
+- Owner supplies final app name and logo. Consent-screen name placeholder: Portalink.
+- Owner supplies approved Terms and Privacy URLs. Placeholders: [terms URL], [privacy URL]. This is a future Google consent requirement; current onboarding continues using its in-app agreements sheet and legal placeholders. Do not create/publish legal URLs without a separate request.
+- Owner configures production OAuth client and final authorized origins/callbacks directly in Google/Supabase, with secrets kept out of source, config and handoff. Browser credential creation and entry require user handoff.
+- Only after configuration: verify provider availability, authorized redirect behavior, consent, account onboarding and returning-user sign-in. No production authentication success is claimed yet.
+
+Checks/publication receipt follow. Existing Supabase project/accounts, welcome artwork, email entry, Sites worker/D1 and public audience retained. No SQL, Cloud, consent-screen, Auth-provider or data changes in this iteration.
 ## 2026-10-15 - Combined pending release validated; approved Timeline migration applied
 
 User explicitly requested all changes from this chat, then approved the single additional Then/Now-pairs migration and publication. Owning checkout logs/all-pending-release, branch codex/all-pending-release, baseline live Sites431/source33afa26328086d1c123ce3ea863ea091a9502678. Root checkout and nine originating task checkouts remain untouched. Combined mobile public Portal popup, action-dot contexts, Timeline sort contrast, centered gesture hint, Portal backdrop, project-action stacking, Mission label, inline Timeline owner controls/multiple pairs, and Studio Overview Insights. Retains live onboarding, welcome artwork, icons, original backend/worker/D1 and hard-disabled deletion. No Google/Apple credentials/provider enablement included; setup remains pending. Legal agreement placeholders still require review.
