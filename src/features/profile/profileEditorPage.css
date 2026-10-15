@@ -11,6 +11,66 @@
 .profile-editor-scroll { overscroll-behavior-y: contain; scroll-padding-block: 16px; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
 .profile-editor-layout { width: 100%; max-width: 960px; margin-inline: auto; }
 .profile-editor-page [data-profile-editor-section] { background: transparent; box-shadow: none; }
+.profile-editor-page .profile-preference-switch {
+  position: relative;
+  display: flex;
+  flex: 0 0 64px;
+  align-items: center;
+  width: 64px;
+  height: 44px;
+}
+.profile-editor-page .profile-preference-switch input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.profile-editor-page .profile-preference-switch-track {
+  position: relative;
+  width: 64px;
+  height: 28px;
+  border-radius: 999px;
+  background: #c7c7c7;
+}
+.profile-editor-page .profile-preference-switch-track::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #9f9f9f;
+  border-radius: 50%;
+}
+.profile-editor-page .profile-preference-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 38px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff;
+}
+.profile-editor-page .profile-preference-switch input:checked + .profile-preference-switch-track { background: #34c759; }
+.profile-editor-page .profile-preference-switch input:checked + .profile-preference-switch-track::before {
+  top: 9px;
+  right: auto;
+  left: 13px;
+  width: 1.5px;
+  height: 10px;
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+}
+.profile-editor-page .profile-preference-switch input:checked + .profile-preference-switch-track::after { transform: translateX(22px); }
+.profile-editor-page .profile-preference-switch input:focus-visible + .profile-preference-switch-track { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.profile-editor-page .profile-preference-switch input:disabled { cursor: default; }
+.profile-editor-page .profile-preference-switch input:disabled + .profile-preference-switch-track { opacity: 0.45; }
 .profile-editor-page .profile-link-editor-row { background: var(--surface-inset); box-shadow: none; }
 .profile-editor-page .mobile-profile-avatar {
   display: grid;

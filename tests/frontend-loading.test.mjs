@@ -24,8 +24,10 @@ function execute(source, imports = {}, globals = {}) {
 }
 function buildConfig(command, runtime) {
   const factory = execute(read('vite.config.ts').replaceAll('import.meta.url', 'configUrl'), {
+    './scripts/startup-styles.mjs': {startupStylesPlugin: () => ({})},
     './scripts/build-environment.mjs': { requireBuildEnvironment() {} },
     './src/features/sharing/shareModel': sourceModule('src/features/sharing/shareModel.ts'),
+    './src/server/referenceResolver':{},'./src/server/portfolioExport':{},
     './src/server/citation': {}, './src/server/sharedPreview': {}, './src/server/shareAddress': {}, 'node:fs/promises': {},
     vite: { defineConfig: value => value, loadEnv: () => ({ VITE_RUNTIME_MODE: runtime }) },
     'node:url': { fileURLToPath },
@@ -83,7 +85,7 @@ test('the production startup graph excludes mock identities, seed imagery and un
   assert.deepEqual(paths.filter(path => /\/services\/(mocks|prototype)\/|\/data\/(profiles|sourceImages)\.ts$/.test(path)), []);
   for (const path of ['features/auth/AuthDialog.tsx', 'features/publishing/PublishProjectDialog.tsx',
     'features/profile/ProfileOnboardingDialog.tsx', 'features/profile/ProfileEditorDialog.tsx',
-    'features/profile/PortalsPage.tsx', 'components/AppDetailPage.tsx', 'components/profile/IconPickerPage.tsx']) {
+    'features/profile/PortalsPage.tsx', 'components/AppDetailPage.tsx', 'components/profile/IconPickerPage.tsx', 'features/projects/ProjectEditorDialog.tsx']) {
     assert.ok(!paths.includes(`src/${path}`), `${path} must wait until requested`);
   }
 });

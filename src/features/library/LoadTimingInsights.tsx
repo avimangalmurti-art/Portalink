@@ -13,13 +13,13 @@ export default function LoadTimingInsights() {
   const auth = useAuth();
   const [period, setPeriod] = useState<'24h' | '7d'>('24h');
   const query = useCallback(() => auth.session?.isPrototype ? Promise.resolve(null) : getRumInsights(), [auth.session?.isPrototype]);
-  const state = useAccountQuery(query);
+  const state = useAccountQuery(query, { key: `insights:timings:${auth.session?.isPrototype ? 'prototype' : 'connected'}`, scope: getRumInsights });
   if (!auth.isAuthenticated || (!state.data && !state.error)) return null;
   const window = state.data?.windows.find(item => item.period === period);
   return <section aria-label="Site load timings" className="mt-8 border-t border-[var(--hairline)] pt-6">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-[15px] font-semibold">Site load timings</h2>
-      <button type="button" onClick={state.retry} disabled={state.loading} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh timings</button>
+      <button type="button" onClick={state.retry} disabled={state.loading || state.refreshing} className="shape-compact px-3 py-2 text-[13px] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">Refresh timings</button>
     </div>
     <p className="mt-2 text-[12px] text-[var(--text-secondary)]">Median / 90th percentile, measured from navigation start. Only the platform owner can see this table.</p>
     <div role="group" aria-label="Timing period" className="side-panel-control-row my-4">
