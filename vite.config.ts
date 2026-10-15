@@ -1,5 +1,7 @@
 import { requireBuildEnvironment } from './scripts/build-environment.mjs'
 import { handleCitation, citationLicenseResponse } from './src/server/citation'
+import {handleReferenceResolve} from './src/server/referenceResolver'
+import {handlePortfolioExport} from './src/server/portfolioExport'
 import { readPortfolioCard } from './src/server/sharedPreview'
 import { resolveShareRequest, injectShareResolution, publicSitemap } from './src/server/shareAddress'
 import { readFile } from 'node:fs/promises'
@@ -12,6 +14,7 @@ import { sites } from '@openai/sites-vite-plugin'
 import { sharedProfilePreloadPlugin } from './scripts/shared-profile-preload.mjs'
 import { appVersionHash } from './scripts/app-version.mjs'
 import { publicMediaPreviewPlugin } from './scripts/public-media-preview.mjs'
+import { startupStylesPlugin } from './scripts/startup-styles.mjs'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command, mode }) => {
@@ -27,6 +30,13 @@ export default defineConfig(({ command, mode }) => {
         const origin = `http://${request.headers.host || '127.0.0.1:5178'}`;
         const url = new URL(request.url ?? '/', origin);
         const config = { supabaseUrl: env.VITE_SUPABASE_URL, publishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY };
+        if(url.pathname.startsWith('/api/exports/portfolio/')){const result=await handlePortfolioExport(new Request(url,{method:request.method}),url.pathname.split('/').at(-1)??'',{PORTFOLIO_PDF_WORKER_URL:process.env.PORTFOLIO_PDF_WORKER_URL,PORTFOLIO_PDF_WORKER_SECRET:process.env.PORTFOLIO_PDF_WORKER_SECRET},config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(Buffer.from(await result.arrayBuffer()));return;}
+        if(url.pathname==='/api/references/resolve'){
+          const chunks:Buffer[]=[];let size=0;for await(const chunk of request){size+=chunk.length;if(size>32768){response.statusCode=413;response.end('Reference is too large.');return;}chunks.push(Buffer.from(chunk));}
+          const headers=new Headers();if(request.headers.authorization)headers.set('authorization',request.headers.authorization);
+          const webRequest=new Request(url,{method:request.method,headers,...(request.method==='POST'?{body:Buffer.concat(chunks).toString('utf8')}:{})});
+          const result=await handleReferenceResolve(webRequest,async req=>{const authorization=req.headers.get('authorization');if(!authorization?.startsWith('Bearer '))return null;const auth=await fetch(`${config.supabaseUrl}/auth/v1/user`,{headers:{apikey:config.publishableKey,authorization},credentials:'omit',redirect:'error',signal:AbortSignal.timeout(5000)});return auth.ok?auth.json():null;});response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return;
+        }
         if (url.pathname === '/sitemap.xml') { const result=await publicSitemap(new Request(url,{method:request.method}),config);response.statusCode=result.status;result.headers.forEach((value,key)=>response.setHeader(key,value));response.end(await result.text());return; }
         const license = citationLicenseResponse(url.pathname);
         if (license) { response.statusCode=license.status; response.setHeader('Content-Type',license.headers.get('content-type')!); response.end(await license.text()); return; }
@@ -57,7 +67,7 @@ export default defineConfig(({ command, mode }) => {
       mkdirSync('logs', { recursive: true })
       writeFileSync('logs/client-module-graph.json', JSON.stringify(Object.values(bundle).filter(item => item.type === 'chunk').map(item => ({ file: item.fileName, imports: item.imports, dynamicImports: item.dynamicImports, modules: Object.keys(item.modules), renderedLengths: Object.fromEntries(Object.entries(item.modules).map(([id, module]) => [id, module.renderedLength])) })), null, 2))
     },
-  }],
+  }, startupStylesPlugin()],
   // Production cannot enter the mock graph. Explicit prototype builds and local
   // development keep their existing runtime selection; client.ts still rejects
   // invalid production configuration instead of substituting demo accounts.

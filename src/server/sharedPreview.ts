@@ -138,7 +138,7 @@ async function readProject(target: SharedTarget, origin: string, config: Preview
   return rows?.length === 1 && visibleProject(rows[0], target) ? rows[0] : null;
 }
 
-function coverImage(project: Row, profileId: string): Preview['image'] | null {
+export function coverImage(project: Row, profileId: string): Preview['image'] | null {
   const thumbnail = readCoverThumbnail(project.cover_thumbnail, profileId, String(project.id));
   const selected = thumbnail?.social ?? thumbnail?.variants.find(item => item.size === 800);
   if (thumbnail && selected) return { path: selected.path, width: selected.width, height: selected.height, public: thumbnail.bucket === 'project-covers', alt: text(project.title, 120) || 'Project cover' };
@@ -228,12 +228,12 @@ async function readPublicPreview(target: SharedTarget, origin: string, config: P
   };
 }
 
-async function signImage(path: string, origin: string, config: PreviewConfiguration, signal: AbortSignal): Promise<string | null> {
+export async function signImage(path: string, origin: string, config: PreviewConfiguration, signal: AbortSignal, fetcher: typeof fetch = fetch, expiresIn = 21_600): Promise<string | null> {
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const expectedPath = `/storage/v1/object/sign/project-media/${encodedPath}`;
-  const response = await fetch(`${origin}${expectedPath}`, {
+  const response = await fetcher(`${origin}${expectedPath}`, {
     method: 'POST', headers: { apikey: config.publishableKey, 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ expiresIn: 21_600 }), cache: 'no-store', redirect: 'manual', signal,
+    body: JSON.stringify({ expiresIn }), cache: 'no-store', redirect: 'manual', signal,
   });
   if (!response.ok) return null;
   const body = record(await response.json());

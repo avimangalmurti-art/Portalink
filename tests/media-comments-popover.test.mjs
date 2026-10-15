@@ -221,6 +221,7 @@ function interactionBarHarness(mode, guest = false) {
   const icon = () => null;
   const { MediaInteractionBar } = load('../src/features/media-interactions/MediaInteractionBar.tsx', {
     '../../components/ui/ConfirmationDialog': {ConfirmationDialog:'confirmation'},
+    '../references/ownCitation':{ownPageCitation:()=>{throw new Error('Unexpected owner copy in visitor fixture');}},
     '../citations/useCiteTarget': {useCiteTarget:()=>({surface:null,citedIn:null,open(){}})},
     '../citations/CiteSheet': {CiteSheet:()=>null},
     '../citations/CitedIn': {CitedIn:()=>null},

@@ -40,7 +40,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
  const react={...React,useEffect(){},useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
-  react,'react-router-dom':{useNavigate:()=>()=>{},useSearchParams:()=>[params,next=>{params=new URLSearchParams(next);}]},
+  react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>()=>{},useSearchParams:()=>[params,next=>{params=new URLSearchParams(next);}]},
   'lucide-react':{},
   '../../presentation/usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
@@ -55,6 +55,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   '../projects/useProjectManagement':{useProjectManagement:()=>({editor:{result:null}})},
   '../publishing/PublishProjectDialog':{},'./discardStudioDraft':{},'../publishing/firstProjectDraft':{},
   '../sharing/shareModel':{},'../../utils/copyPublicLink':{},
+  './StudioOverview':{StudioOverview:'overview'},
   './StudioBookmarksList':{StudioPage:'collection'},'./StudioDraftsList':{StudioDraftsList:'drafts'},
   './StudioActionSheet':{},'./StudioWorkbenchView':{StudioWorkbenchHeader:'header',StudioWorkbenchView:'overview'},
   './workbenchModel':{attentionRows:()=>[],newestDraft:()=>null,weeklyReads:()=>null},
@@ -83,9 +84,10 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   params=new URLSearchParams({collection});
   workbench={data:{profile:{projects:[]},drafts:[],material:[]},retry(){}};
   const emptyTree=nodes(StudioPage(props));
-  assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,1,`${collection}: empty Studio retains one header fallback`);
-  assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,1,`${collection}: fallback contains screen actions header`);
-  assert.equal(registered.kind,'studio',`${collection}: empty view keeps actionable screen model`);
+  const fallback=['overview','cited'].includes(collection)?1:0;
+  assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,fallback,`${collection}: empty Studio retains one header fallback`);
+  assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,fallback,`${collection}: fallback contains screen actions header`);
+  assert.equal(registered?.kind,fallback?'studio':undefined,`${collection}: list child provides its own actions`);
  }
  for(const state of [{loading:true},{error:'Unavailable'},{data:{draftsUnavailable:true}}]) {
   params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};
