@@ -102,7 +102,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
   const loadVersion = useRef(0);
   const confirmedMembership = useRef({ profileId, ids: [] as Id[] });
   if (confirmedMembership.current.profileId !== profileId) confirmedMembership.current = { profileId, ids: [] };
-  const confirmedProfile = profileId ? peekProfile(profileId) : null;
+  const confirmedProfile = profileId ? peekProfile(profileId, 'overview') : null;
   if (confirmedProfile) confirmedMembership.current.ids = confirmedProfile.categories.map(category => category.id);
   const historyState = useSavedChangeHistory<PortfolioArrangement>({ scope: profileId && isOwner ? scope : null,
     membership: membershipSignature(confirmedMembership.current.ids), value: arrangement,
@@ -180,7 +180,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     // A peek, not a read: if the record has not been confirmed yet, the local
     // duplicate check is simply skipped — the service re-validates the label on
     // write, so nothing is decided from an assumed record.
-    const existing = peekProfile(profileId)?.categories ?? [];
+    const existing = peekProfile(profileId, 'overview')?.categories ?? [];
     const invalid = validateCategoryLabel(label, existing, null);
     if (invalid) {
       setFailure({
@@ -211,7 +211,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     if (!profileId) {
       return false;
     }
-    const existing = peekProfile(profileId)?.categories ?? [];
+    const existing = peekProfile(profileId, 'overview')?.categories ?? [];
     const current = existing.find((category) => category.id === categoryId);
     if (current && current.label === label.trim()) {
       return true;

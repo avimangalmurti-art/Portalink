@@ -136,20 +136,15 @@ function component(file, name, props) {
 function nodes(tree) {
   return !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
 }
-test('Appearance starts fully collapsed, opens manually and resets on a fresh visit', () => {
-  const visit = () => component('src/components/settings/NavigationButtonsPanel.tsx', 'NavigationButtonsPanel', { theme: 'dark', appearanceMode: 'dark', accentColor: '#ff375f' });
-  const render = visit();
-  const accordions = () => nodes(render()).filter((node) => node.props?.onToggle && 'isOpen' in node.props);
-  assert.equal(accordions().length, 2);
-  assert.ok(accordions().every((node) => node.props.isOpen === false));
-  accordions()[1].props.onToggle();
-  assert.equal(accordions()[1].props.isOpen, true);
-  accordions()[1].props.onToggle();
-  assert.ok(accordions().every((node) => node.props.isOpen === false));
-  assert.ok(nodes(visit()()).filter((node) => node.props?.onToggle && 'isOpen' in node.props).every((node) => node.props.isOpen === false));
+test('Appearance rows request routed controls without local expansion', () => {
+ const opened=[],props={theme:'dark',appearanceMode:'dark',accentColor:'#ff375f',selectedSection:null,onSectionOpen:id=>opened.push(id)};
+ const render=component('src/components/settings/NavigationButtonsPanel.tsx','NavigationButtonsPanel',props);
+ const choices=()=>nodes(render()).filter(node=>node.props?.section&&node.props?.onOpen);
+ assert.equal(choices().length,2);assert.ok(choices().every(node=>node.props.active===null));
+ const row=choices()[1],button=nodes(row.type(row.props)).find(node=>node.type==='button');
+ assert.equal(button.props['aria-expanded'],undefined);button.props.onClick();assert.deepEqual(opened,['appearance']);assert.ok(choices().every(node=>node.props.active===null));
+ props.selectedSection='appearance';assert.equal(choices()[0].type(choices()[0].props),null);assert.ok(choices()[1].type(choices()[1].props));
 });
-
-
 test('client accepts completed deletion only with explicit server confirmation',async()=>{
  const client={auth:{getUser:async()=>({data:{user:{id:'a',email:'owner@example.test'}}})},functions:{invoke:async()=>({data:{status:'completed',isDeleted:true}})}};
  const result=await authService(client).deleteAccount({accountId:'a',confirmation:'owner@example.test'});

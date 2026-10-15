@@ -4,6 +4,14 @@ export default {content: [
 ],
   theme: {
     extend: {
+      transitionDuration: { DEFAULT:'var(--m-fast)' },
+      transitionTimingFunction: { DEFAULT:'var(--m-enter)' },
+      animation: {
+        spin:'spin var(--m-slow) linear infinite',
+        ping:'ping var(--m-slow) var(--m-enter) infinite',
+        pulse:'pulse var(--m-slow) var(--m-enter) infinite',
+        bounce:'bounce var(--m-slow) var(--m-enter) infinite'
+      },
       fontFamily: {
         sans: [
           '-apple-system',

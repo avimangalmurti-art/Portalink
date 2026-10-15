@@ -16,6 +16,7 @@ function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+      if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
     if (id === './features/sharing/shareModel') return load('../src/features/sharing/shareModel.ts');
       if (id === './server/shareAddress') return load('../src/server/shareAddress.ts', {'../features/sharing/shareModel':load('../src/features/sharing/shareModel.ts')}, globals);
@@ -52,6 +53,7 @@ function database() {
 function workerFor(db) {
   const worker = load('../src/sites-worker.ts', {}, {
     fetch: async (url, init) => {
+      if (new URL(url).pathname === '/rest/v1/rpc/require_active_account_session') return new Response(null, { status: 204 });
       if (new URL(url).pathname === '/rest/v1/projects') {
         return Response.json([{ id: 'project', category: { id: 'portal' }, attachments: [
           { id: 'original/file.pdf', kind: 'document', position: 0, page_count: 8 },

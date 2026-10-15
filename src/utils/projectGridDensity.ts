@@ -1,5 +1,5 @@
 /** One saved project-card density for a creator's Home and public profile. */
-export const MIN_PROJECT_GRID_COLUMNS = 2;
+export const MIN_PROJECT_GRID_COLUMNS = 1;
 export const MAX_PROJECT_GRID_COLUMNS = 13;
 export const DEFAULT_PROJECT_GRID_COLUMNS = 2;
 

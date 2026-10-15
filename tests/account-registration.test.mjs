@@ -191,7 +191,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
   const { SignUpForm } = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
     '../../contexts/AuthContext': { useAuth: () => authContext },
-    '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {},
+    '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': {PortalinkSplashLoader:'welcome'},
     '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' }, '../../components/profile/ProfileField': { ProfileField: 'ProfileField' },
     '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
     '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
@@ -298,7 +298,8 @@ test('an unsubmitted saved draft restores all editable fields and reuses its id 
     const store = { saved: { registration: savedRegistration, email: 'saved@example.test', avatar: { file: image }, requiresEmailVerification: false } };
     const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, rememberedEmail: 'saved@example.test' });
     h.render(); await tick(); let tree = h.render();
-    assert.equal(h.step, 'account');
+    assert.equal(h.step, 'appearance');
+    h.showStep('account'); tree = h.render();
     assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
     assert.equal(signupField(tree, 'password').props.value, '');
     assert.equal(signupField(tree, 'confirmation').props.value, '');
@@ -352,7 +353,7 @@ test('changing the normalized signup email after an uncertain failure starts a s
     const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, requestAccount: async () => {
       throw new Error('Response lost after the provider may have accepted signup');
     } });
-    h.render(); await tick(); let tree = h.render();
+    h.render(); await tick(); h.showStep('account'); let tree = h.render();
     signupField(tree, 'password').props.onChange('test-password');
     signupField(tree, 'confirmation').props.onChange('test-password');
     tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
@@ -396,7 +397,8 @@ test('a pre-verification draft with a missing promised picture stays blocked unt
     store.saved.avatar = { file: image };
     tree.props.onRetry(); h.render(); await tick(); tree = h.render();
     assert.equal(tree.type, 'form');
-    assert.equal(h.step, 'account');
+    assert.equal(h.step, 'appearance');
+    h.showStep('account'); tree = h.render();
     assert.equal(h.avatar.avatar.file, image);
     assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
     assert.equal(signupField(tree, 'password').props.value, '');
@@ -470,7 +472,7 @@ test('one registration form validates account and profile fields before the sing
   const selectAvatar = () => {};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}, peekPendingIntent: () => ({kind:'route',path:'/share/original/c/portal?page=2&access_token=do-not-persist'})})},
-    '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
+    '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': {PortalinkSplashLoader:'welcome'},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
     '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
     '../../components/profile/ProfileLocationPicker': {ProfileLocationPicker: 'ProfileLocationPicker'},

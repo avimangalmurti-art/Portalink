@@ -15,7 +15,7 @@ export function WorldViewToggle({ onToggle }: { onToggle: () => void }) {
    * theme's blanket "every icon is text-primary" rule, which would otherwise
    * repaint the accent straight back to white.
    */
-  return <button type="button" onClick={onToggle} aria-label="Back to Home" title="Back to Home" data-keep-color="" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--portalink-text-primary)] transition-colors duration-150 hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] motion-reduce:transition-none">
+  return <button type="button" onClick={onToggle} aria-label="Back to Home" title="Back to Home" data-keep-color="" className="side-panel-compact-control shape-compact inline-flex shrink-0 items-center justify-center text-[var(--portalink-text-primary)] transition-colors duration-[var(--m-fast)] hover:text-[var(--accent-text)] focus:outline-none focus-visible:text-[var(--accent-text)] focus-visible:ring-2 focus-visible:ring-[var(--portalink-focus-ring)] motion-reduce:transition-none">
       <InterfaceIcon icon={ArrowLeftIcon} size="lg" weight="medium" keepColor mirroredInRtl />
     </button>;
 }

@@ -199,7 +199,7 @@ export const supabaseProfileService: ProfileService = {
     if (Object.keys(update).length === 0) return this.getProfile(profileId);
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.session.user.id).select('id').single();
     if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These portfolio settings are not enabled yet. Your changes have not been saved.');
-    if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Journey sharing and pairs are not enabled yet. Your changes have not been saved.');
+    if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Timeline sharing and pairs are not enabled yet. Your changes have not been saved.');
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
   },
@@ -817,13 +817,20 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
     };
   }
 
+  const pageRequest = readFeedPage('global', cursor, scope === 'home' ? 30 : 120);
+  // Home covers can prepare as soon as their public page arrives, while the
+  // account's independent ranking reads are still travelling. Capture failures
+  // now; the usual account checks still run before the prepared page is consumed.
+  const preparedHomeRequest = scope === 'home' ? pageRequest
+    .then(page => page ? feedViews(page.rows, true) : null)
+    .then(views => ({ views }), (error: unknown) => ({ error })) : null;
   const [viewerRow, followResult, engagementResult, signalResult, preferenceResult, page] = await Promise.all([
     client.from('profiles').select('id,location').eq('account_id', accountId).maybeSingle(),
     client.from('profile_follows').select('target_profile_id').eq('follower_account_id', accountId).eq('status', 'following'),
     client.from('project_engagement').select('project_id,kind,created_at').eq('account_id', accountId),
     client.from('discovery_signals').select('topic_key,interest_weight,curiosity_weight,last_interest_at,last_curiosity_at').eq('account_id', accountId),
     client.from('discovery_preferences').select('home_mode').eq('account_id', accountId).maybeSingle(),
-    readFeedPage('global', cursor, scope === 'home' ? 30 : 120),
+    pageRequest,
   ]);
   if (viewerRow.error) throw new Error(viewerRow.error.message);
   if (followResult.error) throw new Error(followResult.error.message);
@@ -837,7 +844,9 @@ async function discoveryContext(scope: 'global' | 'home' = 'global', cursor?: Pr
   const projectIds = page ? [] : scope === 'home'
     ? await allPublicProjectIds()
     : await latestProjectIds(120);
-  const availableProjects = page ? await feedViews(page.rows, scope === 'home') : await projectViewsForIds(projectIds);
+  const preparedHome = preparedHomeRequest ? await preparedHomeRequest : null;
+  if (preparedHome && 'error' in preparedHome) throw preparedHome.error;
+  const availableProjects = page ? preparedHome?.views ?? await feedViews(page.rows, scope === 'home') : await projectViewsForIds(projectIds);
   // Ranking only needs identity and location. Reloading the complete portfolio
   // here would repeat projects, attachments and signing after the feed is ready.
   const explicitSignals: DiscoverySignal[] = signalResult.error ? [] : ((signalResult.data ?? []) as unknown as Array<{
