@@ -11,8 +11,15 @@ import ts from 'typescript';
 import { matchPath } from 'react-router-dom';
 
 function hooks() {
-  const slots = [], effects = [], timers = new Map();
+  const slots = [], layouts = [], effects = [], timers = new Map();
   let cursor = 0, timerId = 0, now = 0;
+  const queueEffect = (queue, effect, deps) => {
+    const i = cursor++;
+    if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) {
+      slots[i]?.cleanup?.(); slots[i] = { deps, effect };
+      queue.push(() => { slots[i].cleanup = effect(); });
+    }
+  };
   return {
     react: { ...React,
       useRef(initial) { const i = cursor++; return slots[i] ??= { current: initial }; },
@@ -31,13 +38,8 @@ function hooks() {
         if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) slots[i] = { value: factory(), deps };
         return slots[i].value;
       },
-      useEffect(effect, deps) {
-        const i = cursor++;
-        if (!slots[i] || deps.some((dep, n) => dep !== slots[i].deps[n])) {
-          slots[i]?.cleanup?.(); slots[i] = { deps, effect };
-          effects.push(() => { slots[i].cleanup = effect(); });
-        }
-      },
+      useLayoutEffect(effect, deps) { queueEffect(layouts, effect, deps); },
+      useEffect(effect, deps) { queueEffect(effects, effect, deps); },
     },
     window: {
       setTimeout(fn, delay) { const id = ++timerId; timers.set(id, { fn, delay, due: now + delay }); return id; },
@@ -56,7 +58,7 @@ function hooks() {
       now = end;
     },
     render(fn) { cursor = 0; return fn(); },
-    flush() { effects.splice(0).forEach(fn => fn()); },
+    flush() { layouts.splice(0).forEach(fn => fn()); effects.splice(0).forEach(fn => fn()); },
     restartEffects() { slots.forEach(slot => { if (slot?.effect) { slot.cleanup?.(); slot.cleanup = slot.effect(); } }); },
     unmount() { slots.forEach(slot => slot?.cleanup?.()); },
   };
@@ -83,22 +85,45 @@ function compile(path, imports, globals) {
   }).outputText, { exports, URLSearchParams, ...globals, require(name) { if(name.endsWith('.css'))return {}; if(name.endsWith('/motion/motion'))return motionFixture; assert.ok(name in imports, name); return imports[name]; } });
   return exports;
 }
-function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false } = {}) {
+function loader({ reduced = false, stillOnly = false, blocked = false, throws = false, hidden = false, legacy = false, play, presentation = 'web', landing = undefined, timedIntro = false, welcomeMedia = false, welcomeHandoff = false, bootVideo = undefined, findBootVideo = undefined } = {}) {
   const h = hooks();
   let completed = 0, plays = 0, pauses = 0, exitDuration = 0, renderedPresentation, surfaceHidden = false;
   const listeners = new Map(), docListeners = new Map(), windowListeners = new Map(), frames = new Map(), modalCalls = [];
   h.window.addEventListener=(name,fn)=>windowListeners.set(name,fn);
   h.window.removeEventListener=(name,fn)=>{if(windowListeners.get(name)===fn)windowListeners.delete(name);};
   let frameId = 0;
+  let bootRemoved = false;
+  const boot = { remove() { bootRemoved = true; } };
+  const host = {
+    children: [],
+    appendChild(child) {
+      child.parentNode?.removeChild(child);
+      this.children.push(child); child.parentNode = this;
+      return child;
+    },
+    removeChild(child) {
+      this.children.splice(this.children.indexOf(child), 1); child.parentNode = null;
+      return child;
+    },
+  };
   const document = {
     hidden,
+    getElementById(id) {
+      if (id === 'portalink-preboot-video') return findBootVideo ? findBootVideo() : bootVideo && video.id === id ? video : null;
+      if (id === 'portalink-preboot') return bootRemoved ? null : boot;
+      return null;
+    },
     addEventListener(name, fn) { docListeners.set(name, fn); },
     removeEventListener(name, fn) { if (docListeners.get(name) === fn) docListeners.delete(name); },
   };
   const video = {
-    paused: true, ended: false, readyState: 0, duration: 44 / 30,
+    tagName: 'VIDEO', paused: true, ended: false, readyState: 0, currentTime: 0, duration: 44 / 30,
+    dataset: {}, style: {}, parentNode: null,
     buffered: { length: 0, end: () => 44 / 30 },
     setAttribute() {},
+    removeAttribute(name) { if (name === 'id') this.id = ''; },
+    dispatchEvent(event) { listeners.get(event.type)?.(event); return true; },
+    remove() { this.parentNode?.removeChild(this); },
     addEventListener(name, fn) { listeners.set(name, fn); },
     removeEventListener(name, fn) { if (listeners.get(name) === fn) listeners.delete(name); },
     requestVideoFrameCallback: legacy ? undefined : fn => { const id = ++frameId; frames.set(id, fn); return id; },
@@ -111,12 +136,13 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     },
     pause() { pauses++; this.paused = true; listeners.get('pause')?.(); },
   };
+  if (bootVideo) Object.assign(video, { id: 'portalink-preboot-video' }, bootVideo, { dataset: { ...bootVideo.dataset } });
   const { PortalinkSplashLoader } = compile('../src/components/ui/PortalinkSplashLoader.tsx', {
     react: h.react, 'framer-motion': { motion: { div: 'div' }, useReducedMotion: () => reduced },
     '../../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
     '../../hooks/useModalFocus': { useModalFocus(open) { modalCalls.push(open); } },
     './splashPoster': { SPLASH_POSTER_DATA_URL: 'data:image/webp;base64,inline-poster-fixture' },
-  }, { window: h.window, document });
+  }, { window: h.window, document, Event });
   const onComplete = () => completed++;
   return { ...h,
     render() {
@@ -124,7 +150,7 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
       exitDuration = tree.props.transition.duration;
       renderedPresentation = tree.props['data-presentation'];
       const [poster, backup, media] = tree.props.children[0].props.children.props.children;
-      if (media) media.ref.current = video;
+      if (media) media.ref.current = media.type === 'video' ? video : host;
       h.flush(); return { poster, backup, media, tree };
     },
     decoded() { video.readyState = 2; listeners.get('loadeddata')?.(); },
@@ -146,7 +172,8 @@ function loader({ reduced = false, stillOnly = false, blocked = false, throws = 
     leave() { windowListeners.get('pagehide')?.(); },
     gesture() { docListeners.get('pointerup')?.(); },
     setViewport(nextPresentation) { presentation = nextPresentation; },
-    video,
+    video, host,
+    get bootRemoved() { return bootRemoved; },
     get completed() { return completed; }, get plays() { return plays; }, get pauses() { return pauses; },
     get exitDuration() { return exitDuration; },
     get presentation() { return renderedPresentation; },
@@ -161,22 +188,122 @@ test('both startup layouts have inline artwork immediately and request only the 
     assert.equal(backup,false,'The609KB animated backup is not requested beside the cold video');
     assert.equal(media.props.src,'/portalink-splash-mobile.mp4?v=9c1a9457');
     assert.equal(media.props.width,512);assert.equal(media.props.height,720);
-    assert.equal(media.props.loop,false);assert.equal(media.props.autoPlay,false);
+    assert.equal(media.props.loop,false);assert.equal(media.props.autoPlay,true);
     assert.equal(media.props.controls,false);assert.equal(media.props.preload,'auto');
-    assert.equal(media.props.style.opacity,0);assert.equal(h.plays,0);
-    assert.equal([...h.timers.values()].some(timer=>timer.delay===600),false);
+    assert.equal(media.props.style.opacity,0);assert.equal(h.plays,1,'Playback starts before decoded or buffered readiness events');
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===100 || timer.delay===600),false);
     assert.equal(h.completed,0);h.unmount();assert.equal(h.timers.size,0);
   }
 });
 
-test('the tiny clip prefers full buffering but decoded data can prime Safari after a short grace',()=>{
-  const h=loader();h.render();h.decoded();
-  assert.equal(h.plays,0);assert.ok([...h.timers.values()].some(timer=>timer.delay===100));
-  h.buffer();assert.equal(h.plays,1);assert.equal([...h.timers.values()].some(timer=>timer.delay===100),false);
-  h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);h.unmount();
-  const safari=loader();safari.render();safari.decoded();safari.timer(100);
-  assert.equal(safari.plays,1,'Partial preload must not deadlock playback');
-  safari.unmount();assert.equal(safari.timers.size,0);
+test('partial buffering starts immediately and completes only after the painted clip naturally ends',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation});h.render();
+    assert.equal(h.video.readyState,0);assert.equal(h.plays,1);
+    h.decoded();h.video.buffered.length=1;h.video.buffered.end=()=>.2;
+    h.video.paused=false;h.emit('playing');h.paint();
+    assert.equal(h.render().media.props.style.opacity,1);assert.equal(h.plays,1);
+    assert.equal([...h.timers.values()].some(timer=>timer.delay===100),false);
+    h.advance(100);assert.equal(h.completed,0,'A buffer grace timer cannot shorten natural playback');
+    h.emit('ended');assert.equal(h.completed,1);h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
+test('React adopts the exact already-playing startup element without pausing, rewinding or replaying on BOTH',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,bootVideo:{paused:false,readyState:2,currentTime:.63,dataset:{portalinkPainted:'true'}}});
+    const first=h.render();
+    assert.equal(first.media.type,'div');assert.equal(first.media.ref.current,h.host);
+    assert.equal(h.host.children.length,1);assert.equal(h.host.children[0],h.video);
+    assert.equal(h.video.parentNode,h.host);assert.equal(h.bootRemoved,true);
+    assert.equal(h.video.currentTime,.63);assert.equal(h.plays,0);assert.equal(h.pauses,0);
+    assert.equal(h.video.style.opacity,'1');assert.equal(h.video.loop,false);
+    assert.equal(h.completed,0);assert.equal(first.tree.props['data-startup-playing'],'true');
+    h.render();h.paint();assert.equal(h.host.children[0],h.video);assert.equal(h.plays,0);
+    h.emit('ended');assert.equal(h.completed,1);assert.equal(h.video.currentTime,.63);
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);
+  }
+});
+
+test('a paused painted startup resumes at its current position and can finish without a second decoder',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,bootVideo:{paused:true,readyState:2,currentTime:.75,dataset:{portalinkPainted:'true'}}});
+    h.render();assert.equal(h.plays,1);assert.equal(h.pauses,0);assert.equal(h.video.currentTime,.75);
+    assert.equal(h.host.children[0],h.video);assert.equal(h.video.style.opacity,'1');
+    h.start();h.paint();assert.equal(h.completed,0);h.emit('ended');assert.equal(h.completed,1);
+    h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
+test('a later loader cannot reclaim the native video already owned by the active splash',()=>{
+  const first=loader({bootVideo:{paused:false,readyState:2,currentTime:.63,dataset:{portalinkPainted:'true'}}});
+  first.render();assert.equal(first.video.id,'');assert.equal(first.video.dataset.portalinkAdopted,'true');
+  const later=loader({findBootVideo:()=>first.video.id==='portalink-preboot-video'?first.video:null});
+  assert.equal(later.render().media.type,'video');assert.equal(later.host.children.length,0);
+  assert.equal(first.video.parentNode,first.host);assert.equal(first.video.currentTime,.63);
+  assert.equal(first.plays,0);assert.equal(first.pauses,0);assert.equal(later.plays,1);
+  first.unmount();later.unmount();
+  const marked=loader({bootVideo:{dataset:{portalinkAdopted:'true'}}});
+  assert.equal(marked.render().media.type,'video','The ownership marker also protects a retained or restored startup id');
+  assert.equal(marked.host.children.length,0);marked.unmount();
+});
+
+test('a fully painted startup that ended before React completes once and never replays',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,bootVideo:{paused:true,ended:true,readyState:4,currentTime:44/30,dataset:{portalinkPainted:'true'}}});
+    h.render();assert.equal(h.completed,1);assert.equal(h.plays,0);assert.equal(h.video.currentTime,44/30);
+    assert.equal(h.host.children[0],h.video);assert.equal(h.video.style.opacity,'1');assert.equal(h.timers.size,0);
+    h.render();h.emit('ended');h.restore();assert.equal(h.completed,1);assert.equal(h.plays,0);
+    h.unmount();assert.equal(h.frames.size,0);assert.equal(h.listeners.size,0);
+  }
+});
+
+test('an ended native video without a painted frame cannot count as a seen complete intro',()=>{
+  const h=loader({bootVideo:{paused:true,ended:true,readyState:2,currentTime:44/30}});
+  h.render();assert.equal(h.completed,0);assert.equal(h.plays,1);assert.equal(h.video.currentTime,0);
+  assert.equal(h.video.style.opacity,'0');assert.equal(h.render().tree.props['data-startup-playing'],'true');
+  h.start();h.paint();assert.equal(h.completed,0);h.emit('ended');assert.equal(h.completed,1);h.unmount();
+});
+
+test('background adoption pauses the same startup element and resumes it without losing its position',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,hidden:true,bootVideo:{paused:false,readyState:2,currentTime:.5,dataset:{portalinkPainted:'true'}}});
+    h.render();assert.equal(h.video.parentNode,h.host);assert.equal(h.video.paused,true);
+    assert.equal(h.video.currentTime,.5);assert.equal(h.plays,0);assert.equal(h.completed,0);assert.equal(h.timers.size,0);
+    h.advance(20000);h.foreground();assert.equal(h.plays,1);assert.equal(h.video.currentTime,.5);
+    h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);h.unmount();assert.equal(h.timers.size,0);
+  }
+});
+
+test('a blocked adopted video keeps artwork visible and gives the loaded backup one complete cycle',async()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,blocked:true,bootVideo:{paused:true,readyState:0}});
+    h.render();await Promise.resolve();const pending=h.render();
+    assert.equal(h.host.children[0],h.video);assert.equal(h.video.style.opacity,'0');
+    assert.equal(pending.media.props.style.background,'transparent','The adoption host cannot cover the backup underneath');
+    assert.match(pending.poster.props.src,/^data:/);assert.ok(pending.backup);
+    assert.equal(pending.backup.props.style.opacity,0);assert.equal(h.completed,0);
+    h.backupLoaded();assert.equal(h.render().backup.props.style.opacity,1);
+    h.advance(1499);assert.equal(h.completed,0);h.advance(1);assert.equal(h.completed,1);
+    h.unmount();assert.equal(h.timers.size,0);assert.equal(h.frames.size,0);assert.equal(h.listeners.size,0);
+  }
+});
+
+test('guest readiness during an adopted intro preserves the startup scene until natural end, then opens welcome',()=>{
+  for(const presentation of ['mobile','web']) {
+    const h=loader({presentation,bootVideo:{paused:false,readyState:2,currentTime:.4,dataset:{portalinkPainted:'true'}}});
+    const first=h.render();h.setLanding(welcome);const pending=h.render();
+    assert.equal(pending.tree.props.role,'status');assert.equal(pending.tree.props['data-share-landing'],undefined);
+    assert.equal(pending.tree.props.children[1],undefined,'Welcome actions cannot resize the playing intro');
+    assert.equal(pending.tree.props['data-startup-playing'],'true');assert.equal(h.video.loop,false);
+    assert.equal(pending.media.ref.current,first.media.ref.current);assert.equal(h.video.currentTime,.4);
+    assert.equal(h.plays,0);assert.equal(h.pauses,0);assert.equal(h.modalCalls.some(Boolean),false);
+    h.paint();h.emit('ended');assert.equal(h.completed,1);const ready=h.render();
+    assert.equal(ready.tree.props.role,'dialog');assert.equal(ready.tree.props['data-share-landing'],'true');
+    assert.equal(ready.tree.props['data-startup-playing'],undefined);assert.ok(ready.tree.props.children[1]);
+    assert.equal(h.video.loop,true);assert.equal(h.plays,1,'Welcome looping begins only after the real intro end');
+    assert.equal(h.host.children[0],h.video);h.unmount();assert.equal(h.timers.size,0);
+  }
 });
 
 test('a late first painted frame shows the complete clip on BOTH and natural ended owns completion',()=>{
@@ -245,15 +372,15 @@ test('primary loading pauses in background and a loaded backup still receives a 
 });
 
 test('newly decoded data recovers after all automatic retries without spinning on identical readiness events',async()=>{
-  const h=loader({play:n=>n<4?Promise.reject(Error('blocked')):Promise.resolve()});
-  h.render();h.timer(2200);
+  const h=loader({play:n=>n<5?Promise.reject(Error('blocked')):Promise.resolve()});
+  h.render();await Promise.resolve();
   for(let retry=0;retry<2;retry++){h.timer(800);await Promise.resolve();}
-  assert.equal(h.plays,2);
-  h.buffer();await Promise.resolve();assert.equal(h.plays,3);
+  assert.equal(h.plays,3);
+  h.buffer();await Promise.resolve();assert.equal(h.plays,4);
   // This failed attempt had the same decoded/buffered state. Repeating the
   // cached event cannot silently create unlimited autoplay attempts.
-  h.buffer();await Promise.resolve();assert.equal(h.plays,3);
-  h.video.currentTime=.01;h.buffer();assert.equal(h.plays,4);
+  h.buffer();await Promise.resolve();assert.equal(h.plays,4);
+  h.video.currentTime=.01;h.buffer();assert.equal(h.plays,5);
   h.start();h.paint();h.emit('ended');assert.equal(h.completed,1);
   h.unmount();assert.equal(h.timers.size,0);
 });
@@ -276,7 +403,7 @@ test('repeated waiting or stalled events without media progress retain one bound
 });
 
 test('an actual gesture attempts playback within user activation even if preload has not advanced',()=>{
-  const h=loader();h.render();assert.equal(h.plays,0);h.gesture();assert.equal(h.plays,1);
+  const h=loader();h.render();assert.equal(h.plays,1);h.gesture();assert.equal(h.plays,2);
   h.unmount();assert.equal(h.timers.size,0);
 });
 
@@ -354,7 +481,7 @@ test('queued promises and frame callbacks from StrictMode, hidden surfaces and u
 });
 
 test('legacy browsers reveal only decoded playing frames and rotation cannot remount the selected clip',()=>{
-  const legacy=loader({legacy:true});legacy.render();legacy.decoded();legacy.timer(100);
+  const legacy=loader({legacy:true});legacy.render();legacy.decoded();
   assert.equal(legacy.render().media.props.style.opacity,0);legacy.start();assert.equal(legacy.render().media.props.style.opacity,1);
   legacy.emit('ended');assert.equal(legacy.completed,1);legacy.unmount();
   for(const presentation of ['mobile','web']) {
@@ -418,7 +545,8 @@ test('preboot matches the supplied clip ratio and canvas on MOBILE and WEB', () 
     'normal startup retains its picture; shared entry may hide it with a scoped rule');
   assert.match(html, /#portalink-preboot\s*\{[^}]*background-color:\s*#fdffff/);
   assert.match(html, /#portalink-preboot\s*\{[^}]*--portalink-media-ratio:\s*0\.7111111111/);
-  assert.doesNotMatch(preboot, /<video/);
+  assert.match(preboot, /<video id="portalink-preboot-video"[^>]*src="\/portalink-splash-mobile\.mp4\?v=9c1a9457"/);
+  assert.match(preboot, /<video[^>]*autoplay muted playsinline[^>]*preload="auto"/);
 });
 
 test('ready content loads beneath the bounded intro; navigation and auth retries never replay it', () => {
@@ -732,10 +860,12 @@ test('welcome backup and automatic retries remain bounded while gestures and hom
   h.unmount();assert.equal(h.timers.size,0);assert.equal(h.windowListeners.size,0);
 });
 
-test('a verified guest can switch pending startup playback to the looping welcome without a startup timer',()=>{
+test('a verified guest waits for the remaining intro before switching to welcome looping',()=>{
   const h=loader({presentation:'mobile',timedIntro:true});h.render();h.start();h.paint();assert.equal(h.completed,0);
-  h.setLanding(welcome);h.render();h.start();h.paint();assert.equal(h.render().media.props.loop,true);
-  assert.equal(h.completed,1);assert.equal(h.timers.size,0);h.unmount();
+  h.setLanding(welcome);assert.equal(h.render().media.props.loop,false);
+  h.start();h.paint();assert.equal(h.completed,0);assert.equal(h.render().tree.props.role,'status');
+  h.emit('ended');assert.equal(h.completed,1);assert.equal(h.render().media.props.loop,true);
+  h.start();h.paint();assert.equal(h.timers.size,0);h.unmount();
 });
 
 test('mobile welcome can disable its actions until its caller marks them ready', () => {

@@ -25,7 +25,11 @@ if (rootEl) {
   // maintaining a second navigation state machine.
   document.documentElement.dataset.portalinkEntryReady = 'true';
   window.dispatchEvent(new Event('portalink:main-entry-ready'));
-  void waitForStartupStyles().then(() => ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
+  void waitForStartupStyles().then(() => {
+    // Public entries skip the intro. Ordinary startup adopts this same video
+    // inside its layout effect, after the application has actually mounted.
+    if (document.documentElement.hasAttribute('data-shared-view')) document.getElementById('portalink-preboot')?.remove();
+    ReactDOM.createRoot(rootEl).render(<BrowserRouter useTransitions={false}>
       <RumPageView />
       <ServicesProvider services={services}>
         <AuthProvider>
@@ -38,5 +42,6 @@ if (rootEl) {
           </ProfileDataProvider>
         </AuthProvider>
       </ServicesProvider>
-    </BrowserRouter>));
+    </BrowserRouter>);
+  });
 }

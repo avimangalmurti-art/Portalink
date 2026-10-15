@@ -1,12 +1,11 @@
 import './portalink-welcome-mobile.css';
 import { SPLASH_POSTER_DATA_URL } from './splashPoster';
 import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useViewportPresentation } from '../../presentation/useViewportPresentation';
 import { useModalFocus } from '../../hooks/useModalFocus';
 
-const BUFFER_GRACE_MS = 100;
 const SPLASH_TIMEOUT_MS = 2200;
 const PRIMARY_LOAD_TIMEOUT_MS = 10_000;
 const FALLBACK_CYCLE_MS = 1500;
@@ -43,7 +42,20 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const shouldReduceMotion = useReducedMotion();
   // MOBILE always uses the requested animation; motion preferences still remove the exit fade.
   const showStill = (stillOnly && !loopLanding && !welcomeMedia) || (!isMobile && shouldReduceMotion);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [startupVideo] = useState<HTMLVideoElement | null>(() => {
+    if (welcomeMedia || showStill || typeof document.getElementById !== 'function') return null;
+    const candidate = document.getElementById('portalink-preboot-video');
+    return candidate?.tagName === 'VIDEO' && candidate.dataset.portalinkAdopted !== 'true' ? candidate as HTMLVideoElement : null;
+  });
+  const [introComplete, setIntroComplete] = useState(() => startupVideo
+    ? startupVideo.ended && startupVideo.dataset.portalinkPainted === 'true'
+    : showStill || Boolean(landing) || welcomeMedia || welcomeHandoff);
+  const endedBeforeAdoption = useRef(Boolean(startupVideo?.ended && startupVideo.dataset.portalinkPainted === 'true'));
+  const introPending = !introComplete && !showStill && !welcomeMedia;
+  const playbackModeRef = useRef({ loop: loopLanding || welcomeMedia, introPending });
+  playbackModeRef.current = { loop: loopLanding || welcomeMedia, introPending };
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoHostRef = useRef<HTMLDivElement>(null);
   const reported = useRef(false);
   const [backupRequested, setBackupRequested] = useState(false);
   const [backupReady, setBackupReady] = useState(false);
@@ -51,34 +63,67 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
   const backupReadyRef = useRef(false);
   const backupFailedRef = useRef(false);
   const backupEventRef = useRef<((ready: boolean) => void) | null>(null);
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(() => startupVideo?.dataset.portalinkPainted === 'true');
   const landingRef = useRef<HTMLDivElement>(null);
   const lastLanding = useRef(landing);
   if (landing) lastLanding.current = landing;
   // Keep the exact white scene geometry while a completed sign-in fades it out.
-  const sceneLanding = landing ?? (welcomeHandoff ? lastLanding.current : undefined);
-  useModalFocus(Boolean(landing) && !hidden, landingRef, () => landing?.onContinue());
+  const sceneLanding = introPending ? undefined : landing ?? (welcomeHandoff ? lastLanding.current : undefined);
+  useModalFocus(Boolean(landing && sceneLanding) && !hidden, landingRef, () => landing?.onContinue(), true);
   const complete = useCallback(() => {
     if (reported.current) return;
     reported.current = true;
     onComplete?.();
   }, [onComplete]);
+  useLayoutEffect(() => {
+    if (welcomeMedia) return;
+    const preboot = typeof document.getElementById === 'function' ? document.getElementById('portalink-preboot') : null;
+    if (startupVideo && videoHostRef.current) {
+      // Move the already-playing native element, rather than replacing it with
+      // a second download/decoder or rewinding the opening frames.
+      videoHostRef.current.appendChild(startupVideo);
+      videoRef.current = startupVideo;
+      startupVideo.dispatchEvent(new Event('portalink:splash-adopt'));
+      startupVideo.dataset.portalinkAdopted = 'true';
+      startupVideo.removeAttribute('id');
+      startupVideo.className = 'portalink-splash-asset portalink-splash-video';
+      Object.assign(startupVideo.style, { position: 'absolute', inset: '0', display: 'block', width: '100%', height: '100%', objectFit: 'fill', background: 'var(--portalink-splash-background)' });
+      startupVideo.controls = false;
+      startupVideo.disablePictureInPicture = true;
+      startupVideo.disableRemotePlayback = true;
+      startupVideo.tabIndex = -1;
+      startupVideo.setAttribute('aria-hidden', 'true');
+    } else if (preboot) {
+      const unusedVideo = document.getElementById('portalink-preboot-video') as HTMLVideoElement | null;
+      unusedVideo?.dispatchEvent(new Event('portalink:splash-adopt'));
+      unusedVideo?.pause();
+    }
+    // The React poster is already committed underneath, including when WEB
+    // reduced motion deliberately keeps the opening scene still.
+    preboot?.remove();
+  }, [startupVideo, welcomeMedia]);
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.loop = (loopLanding || welcomeMedia) && !introPending;
+    if (startupVideo) video.style.opacity = showVideo && !showBackup ? '1' : '0';
+  }, [introPending, loopLanding, welcomeMedia, showVideo, showBackup, startupVideo]);
   useEffect(() => {
     if (showStill) { complete(); return; }
     const video = videoRef.current;
     if (!video) { complete(); return; }
     let active = true, suspended = true, playingAttempt = false, finished = false;
-    let attempt = 0, retries = 0, painted = false, fallbackActive = false;
+    let attempt = 0, retries = 0, painted = video.dataset?.portalinkPainted === 'true', fallbackActive = false;
     let lastReadiness = '', lastProgress = -1;
     let primaryExpired = false, primaryUnavailable = false;
     let frame: number | undefined, watchdog: number | undefined, retryTimer: number | undefined;
-    let bufferTimer: number | undefined, backupTimer: number | undefined, cycleTimer: number | undefined;
+    let backupTimer: number | undefined, cycleTimer: number | undefined;
     let primaryTimer: number | undefined;
     const canPlay = () => active && !playbackHiddenRef.current && !document.hidden && !finished;
     const clearPlayback = () => {
-      window.clearTimeout(watchdog); window.clearTimeout(retryTimer); window.clearTimeout(bufferTimer);
+      window.clearTimeout(watchdog); window.clearTimeout(retryTimer);
       if (frame !== undefined) video.cancelVideoFrameCallback?.(frame);
-      frame = undefined; watchdog = undefined; bufferTimer = undefined;
+      frame = undefined; watchdog = undefined;
     };
     const clearBackup = () => {
       window.clearTimeout(backupTimer); window.clearTimeout(cycleTimer);
@@ -96,6 +141,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       // clip's first real frame while its initial loading window remains open.
       if (!canUseBackup()) return;
       clearPrimary();
+      setIntroComplete(true);
       complete();
     };
     const adoptBackup = () => {
@@ -134,7 +180,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       if (video.error) { primaryUnavailable = true; setShowVideo(false); }
       if (!canPlay()) return;
       requestBackup();
-      if (retries++ < 2) retryTimer = window.setTimeout(() => resume(true), 800);
+      if (retries++ < 2) retryTimer = window.setTimeout(() => resume(), 800);
     };
     const armWatchdog = () => {
       window.clearTimeout(watchdog);
@@ -144,12 +190,13 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       frame = undefined;
       if (!canPlay() || suspended || currentAttempt !== attempt || video.paused || video.readyState < 2) return;
       painted = true; retries = 0; fallbackActive = false;
+      if (video.dataset) video.dataset.portalinkPainted = 'true';
       clearPrimary();
       clearBackup(); window.clearTimeout(retryTimer);
       setShowVideo(true); setShowBackup(false);
       // Healthy startup finishes only at its natural end, never on a clock
       // that also runs while decoding, buffering or the page is backgrounded.
-      if (loopLanding || welcomeMedia) { window.clearTimeout(watchdog); watchdog = undefined; complete(); }
+      if (playbackModeRef.current.loop && !playbackModeRef.current.introPending) { window.clearTimeout(watchdog); watchdog = undefined; complete(); }
       else armWatchdog();
     };
     const playing = () => {
@@ -176,12 +223,6 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       }
       if (!video.paused && video.readyState >= 2) playing();
     };
-    const buffered = () => {
-      if (video.readyState >= 4) return true;
-      const duration = video.duration;
-      return Number.isFinite(duration) && duration > 0 && video.buffered.length > 0
-        && video.buffered.end(video.buffered.length - 1) >= duration - 0.05;
-    };
     const ready = () => {
       if (!canPlay() || video.readyState < 2 || playingAttempt) return;
       const end = video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0;
@@ -194,14 +235,9 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
         clearPlayback(); suspended = false; retries = 0; armWatchdog();
       }
       lastReadiness = readiness;
-      if (buffered()) { window.clearTimeout(bufferTimer); bufferTimer = undefined; play(); }
-      else if (video.readyState >= 2 && bufferTimer === undefined) {
-        // Give this tiny clip a short chance to buffer fully. Safari may stop
-        // preloading until play(), so decoded data cannot wait indefinitely.
-        bufferTimer = window.setTimeout(() => { bufferTimer = undefined; play(); }, BUFFER_GRACE_MS);
-      }
+      play();
     };
-    const resume = (force = false) => {
+    const resume = () => {
       if (!canPlay() || !suspended) return;
       clearPlayback(); suspended = false;
       if (!painted && !primaryExpired && primaryTimer === undefined) {
@@ -215,18 +251,30 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       if (video.error) { lastReadiness = ''; video.load(); }
       if (fallbackActive) requestBackup();
       armWatchdog();
-      if (force) play(); else ready();
+      // A play request also primes Safari when preload has not decoded data.
+      // Frame confirmation still owns visibility and natural ended completion.
+      play();
     };
-    const recover = (force = false) => {
+    const recover = () => {
       if (!canPlay()) return;
       retries = 0;
       if (!video.paused && video.readyState >= 2) { suspended = false; playing(); return; }
-      suspend(); resume(force);
+      suspend(); resume();
     };
-    const gesture = () => recover(true);
+    const gesture = () => recover();
     const ended = () => {
-      if (!active || suspended || finished || loopLanding || welcomeMedia) return;
+      if (!active || suspended || finished || !video.ended) return;
       if (!painted) { fail(); return; }
+      if (playbackModeRef.current.introPending) setIntroComplete(true);
+      if (playbackModeRef.current.loop) {
+        // The initial clip has now really ended. A guest welcome can begin its
+        // independent loop without moving/restarting the introductory clip.
+        video.loop = true;
+        playingAttempt = false;
+        complete();
+        play();
+        return;
+      }
       finished = true; clearPlayback(); clearBackup();
       video.pause(); complete();
     };
@@ -245,7 +293,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       if (!active || suspended || finished || video.paused || video.readyState < 2) return;
       if (video.currentTime === lastProgress) return;
       lastProgress = video.currentTime;
-      if (loopLanding || welcomeMedia) { window.clearTimeout(watchdog); watchdog = undefined; }
+      if (playbackModeRef.current.loop && !playbackModeRef.current.introPending) { window.clearTimeout(watchdog); watchdog = undefined; }
       else armWatchdog();
     };
     const stalled = () => { if (video.readyState < 3) waiting(); };
@@ -270,7 +318,16 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
     window.addEventListener('online', restored);
     video.muted = true; video.defaultMuted = true; video.playsInline = true;
     video.setAttribute('webkit-playsinline', '');
-    if (document.hidden || playbackHiddenRef.current) suspend(true); else resume();
+    if (painted && endedBeforeAdoption.current) {
+      endedBeforeAdoption.current = false;
+      setIntroComplete(true);
+      if (playbackModeRef.current.loop) { complete(); resume(); }
+      else { finished = true; complete(); }
+    }
+    else if (painted && video.ended) { suspended = false; ended(); }
+    else if (document.hidden || playbackHiddenRef.current) suspend(true);
+    else if (!video.paused && video.readyState >= 2) { suspended = false; playingAttempt = true; armWatchdog(); playing(); }
+    else resume();
     return () => {
       active = false;
       if (backupEventRef.current === backupEvent) backupEventRef.current = null;
@@ -292,7 +349,7 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       window.removeEventListener('online', restored);
       suspend(true);
     };
-  }, [showStill, complete, isMobile, loopLanding, welcomeMedia, playbackHidden]);
+  }, [showStill, complete, playbackHidden]);
 
   return (
     <motion.div
@@ -300,13 +357,14 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
       data-portalink-splash={welcomeMedia ? undefined : 'true'}
       data-presentation={presentation}
       data-share-landing={sceneLanding ? 'true' : undefined}
+      data-startup-playing={introPending ? 'true' : undefined}
       data-welcome-handoff={welcomeHandoff || undefined}
-      role={welcomeMedia ? 'img' : landing ? 'dialog' : 'status'}
-      aria-modal={landing && !hidden ? true : undefined}
-      aria-live={landing || welcomeMedia ? undefined : 'polite'}
-      aria-label={welcomeMedia ? 'Hello World — Portalink' : landing ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
+      role={welcomeMedia ? 'img' : landing && sceneLanding ? 'dialog' : 'status'}
+      aria-modal={landing && sceneLanding && !hidden ? true : undefined}
+      aria-live={sceneLanding || welcomeMedia ? undefined : 'polite'}
+      aria-label={welcomeMedia ? 'Hello World — Portalink' : sceneLanding ? 'Welcome to Portalink' : 'Portalink Networks is opening'}
       aria-hidden={hidden || undefined}
-      tabIndex={landing ? -1 : undefined}
+      tabIndex={landing && sceneLanding ? -1 : undefined}
       style={hidden ? { display: 'none' } : welcomeHandoff ? { pointerEvents: 'none' } : undefined}
       className={welcomeMedia ? 'portalink-welcome-media' : 'portalink-splash fixed inset-0 z-[1000] grid min-h-[100dvh] w-full place-items-center overflow-hidden'}
       initial={false}
@@ -320,10 +378,10 @@ export function PortalinkSplashLoader({ onComplete, stillOnly = false, hidden = 
             className="portalink-splash-asset" style={{ opacity: backupReady && showBackup ? 1 : 0 }}
             onLoad={() => { backupReadyRef.current = true; setBackupReady(true); backupEventRef.current?.(true); }}
             onError={() => { backupFailedRef.current = true; backupEventRef.current?.(false); }} />}
-          {!showStill && <video key={presentation} ref={videoRef} src={videoSrc} autoPlay={false} loop={loopLanding || welcomeMedia} muted playsInline preload="auto"
+          {!showStill && (startupVideo ? <div ref={videoHostRef} className="portalink-splash-asset portalink-splash-video-host" style={{ background: 'transparent' }} /> : <video key={presentation} ref={videoRef} src={videoSrc} autoPlay loop={(loopLanding || welcomeMedia) && !introPending} muted playsInline preload="auto"
             controls={false} disablePictureInPicture disableRemotePlayback tabIndex={-1}
             aria-hidden="true" width={mediaWidth} height={mediaHeight} className="portalink-splash-asset portalink-splash-video"
-            style={{ opacity: showVideo && !showBackup ? 1 : 0 }} />}
+            style={{ opacity: showVideo && !showBackup ? 1 : 0 }} />)}
         </div>
       </div>
       {sceneLanding && <div className="mobile-share-landing-actions" aria-busy={!sceneLanding.ready}>
