@@ -1,18 +1,17 @@
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarDaysIcon, MoreHorizontalIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { MoreHorizontalIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
 import type { Profile, Project } from '../../types/domain';
 import { ProjectCover } from '../../components/media/ProjectCover';
 import { journeyProjects, projectMonth, visiblePair } from './journey';
-import { calendarDay, calendarRecord, workCalendarDay } from './calendar';
+import { calendarDay } from './calendar';
 import { DeferredDialog } from '../../components/ui/DeferredDialog';
 import './journey.css';
 
-const JourneyMonthCalendar = React.lazy(() => import('./JourneyMonthCalendar').then(module => ({ default: module.JourneyMonthCalendar })));
 const PortalProjectPopup = React.lazy(() => import('../../components/profile/PortalProjectPopup').then(module => ({ default: module.PortalProjectPopup })));
 
 export function JourneyCover({ project, sizes = '92px' }: { project: Project; sizes?: string }) {
@@ -25,22 +24,16 @@ type JourneyViewProps = {
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 };
 export function JourneyView(props: JourneyViewProps) {
-  // Calendar requests and citation state belong to one viewed profile/access mode.
+  // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
 function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
   const [order, setOrder] = useState<TimelineOrder>('newest');
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
-  const [calendarJump, setCalendarJump] = useState<{ day: string; request: number }>();
-  const consumedJump = useRef(0);
-  const listRoot = useRef<HTMLElement>(null);
   const events=useJourneyCitations(profile,owner);
   const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order), [profile.projects, events, owner, order]);
-  const entries = useMemo(() => groups.flatMap(group => group.entries), [groups]);
-  const record = useMemo(() => calendarRecord(entries), [entries]);
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
@@ -48,25 +41,6 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
   useEffect(() => {
     if (portalPopupId && !activePortalPopupId) setPortalPopupId(null);
   }, [portalPopupId, activePortalPopupId]);
-  useEffect(() => { setCalendarOpen(false); setCalendarJump(undefined); }, [profile.id, owner]);
-  useEffect(() => {
-    if (calendarOpen || !calendarJump || consumedJump.current === calendarJump.request) return;
-    const frame = requestAnimationFrame(() => {
-      const item = listRoot.current?.querySelector<HTMLElement>(`[data-journey-date="${calendarJump.day}"]`);
-      if (!item) return;
-      consumedJump.current = calendarJump.request;
-      const identity = listRoot.current?.closest('[data-profile-journey]')?.querySelector<HTMLElement>('.profile-header-region');
-      item.style.scrollMarginTop = `${(identity?.getBoundingClientRect().height ?? 0) + 16}px`;
-      item.scrollIntoView({ block: 'start', behavior: 'instant' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [calendarJump, calendarOpen]);
-  const todayLaunch = <button type="button" className="journey-today-launch" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>;
-  const calendarDialog = <DeferredDialog active={calendarOpen} onClose={() => setCalendarOpen(false)}>{calendarOpen && <JourneyMonthCalendar days={record.days} onClose={() => setCalendarOpen(false)} onSelect={requested => {
-      const day = workCalendarDay(record.days.map(([date]) => date), requested);
-      if (day) setCalendarJump(previous => ({ day, request: (previous?.request ?? 0) + 1 }));
-      setCalendarOpen(false);
-    }} />}</DeferredDialog>;
   const portalButton = (project: Project) => {
     const portal = profile.categories.find(category => category.id === project.categoryId);
     return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={activePortalPopupId === portal.id} onClick={() => setPortalPopupId(portal.id)}>{portal.label}</button> : null;
@@ -88,13 +62,12 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
     </section>;
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
-  return <section ref={listRoot} className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
+  return <section className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
     <div className="journey-toolbar">
       <div className="journey-order" role="group" aria-label="Timeline order">
         <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>Newest first</button>
         <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>Oldest first</button>
       </div>
-      {todayLaunch}
     </div>
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
@@ -120,7 +93,6 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
     {groups.length > 0 && owner && onAdd && <button type="button" className="journey-text-action journey-add" onClick={() => onAdd()}>+ Add work</button>}
     {pairContent}
     {owner && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
-    {calendarDialog}
     {popup}
     {portalPopup}
   </section>;
