@@ -243,65 +243,143 @@ test('an undated-only Journey keeps the work and owner Add without date navigati
   h.dispose();
 });
 
-test('the mobile parent scopes consumed month requests to the viewed profile and owner mode', () => {
-  const initial = { profile: { ...profile, projects: sparse.map(item => item.project) }, owner: true, onOpen() {}, presentation: 'mobile' };
-  const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', initial);
-  const child = () => h.nodes.find(node => node.type === 'journey-calendar');
-  assert.equal(child().key, 'creator:true');
-  assert.equal(h.wrapperKey, 'creator:true');
-  child().props.onOpenCalendar();
-  h.nodes.find(node => node.type === 'month-calendar').props.onSelect('1990-01-01');
-  assert.equal(child().props.jumpTo.request, 1);
-  h.update({ profile: { ...initial.profile, id: 'other' } });
-  assert.equal(child().key, 'other:true'); assert.equal(child().props.jumpTo, undefined);
-  assert.equal(h.wrapperKey, 'other:true');
-  child().props.onOpenCalendar();
-  h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29');
-  assert.equal(child().props.jumpTo.request, 1);
-  h.update({ owner: false });
-  assert.equal(child().key, 'other:false'); assert.equal(child().props.jumpTo, undefined);
-  assert.equal(h.wrapperKey, 'other:false');
-  assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);
-  const remounted = calendarHarness(sparse, { profile: { ...profile, id: 'other' }, owner: false, jumpTo: { day: '1990-01-01', request: 1 } });
-  assert.equal(remounted.selected(), '1990-01-01');
-  h.dispose(); remounted.dispose();
+const viewHarness = initial => componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', initial);
+const timelineRows = h => h.nodes.filter(node => node.props.className === 'journey-entry');
+const yearSections = h => h.nodes.filter(node => node.props.className === 'journey-year');
+const sortButton = (h, label) => h.nodes.find(node => node.type === 'button' && node.props.children === label);
+const timelineOrder = h => h.nodes.find(node => node.props.className === 'journey-view').props['data-timeline-order'];
+
+for (const presentation of ['mobile', 'web']) test(`${presentation} continuous Timeline swaps both year and row order in place with truthful project counts`, () => {
+  const opened = [];
+  const works = [project('old', '1990-01-01'), project('leap', '2024-02-29'), project('same-year', '2024-03-01'),
+    project('new', '2026-10-13'), project('undated', 'invalid'), project('private', '2027-01-01', { isPubliclyVisible: false }),
+    project('preview', '2028-01-01', { sessionOnly: true })];
+  for (const work of works) { work.summary = 'Never list this description.'; work.creationDetails = { answers: { learned: 'Never list this lesson.' } }; }
+  const viewed = { ...profile, projects: works };
+  const events = [{ id: 'cited', date: '2024-03-02', label: 'A real citation', href: '/cite/page', thumbnail: 'citation-cover.webp' },
+    { id: 'citation-only', date: '2020-01-01', label: 'Earlier citation', href: '/share/other/c/portal/project' }];
+  const h = viewHarness({ profile: viewed, owner: false, presentation, events, onOpen: work => opened.push(work) });
+  const key = h.wrapperKey;
+  const order = h.nodes.find(node => node.props.role === 'group' && node.props['aria-label'] === 'Timeline order');
+  assert.ok(order);assert.equal(nodes(order).filter(node => node.type === 'button').length, 2);
+  assert.equal(timelineOrder(h), 'newest');assert.equal(sortButton(h, 'Newest first').props['aria-pressed'], true);
+  assert.equal(sortButton(h, 'Oldest first').props['aria-pressed'], false);
+  assert.deepEqual(yearSections(h).map(node => node.props['aria-label']), ['2026', '2024', '2020', '1990', 'Date not set']);
+  assert.deepEqual(yearSections(h).map(node => text(nodes(node).find(child => child.type === 'h2')).trim().replace(/\s+/g, ' ')),
+    ['2026 1 project', '2024 2 projects', '2020 0 projects', '1990 1 project', 'Date not set 1 project']);
+  const newestRows = timelineRows(h).map(node => node.key);
+  assert.deepEqual(newestRows, ['project:new', 'citation:cited', 'project:same-year', 'project:leap', 'citation:citation-only', 'project:old', 'project:undated']);
+  assert.doesNotMatch(text(h.tree), /Never list|private|preview|No work recorded|What were you making/);
+  assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);
+  for (const year of yearSections(h)) assert.equal(nodes(year).some(node => node.type === 'img' || node.type === 'project-cover' || node.type?.name === 'JourneyCover'), false, 'List rows do not request project or citation thumbnails.');
+  for (const row of timelineRows(h)) {
+    const children = React.Children.toArray(row.props.children);
+    assert.equal(children[0].props.className, 'journey-date');
+    assert.equal(children[1].props.className, 'journey-entry-copy');
+  }
+  assert.equal(h.nodes.find(node => node.type === 'a' && node.props.children === 'A real citation').props.href, '/cite/page');
+  h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-title' && node.props.children === 'leap').props.onClick();
+  assert.equal(opened[0], works[1], 'The title still opens the canonical project object.');opened.length = 0;
+  sortButton(h, 'Oldest first').props.onClick();h.frames();
+  assert.equal(timelineOrder(h), 'oldest');assert.equal(h.wrapperKey, key);
+  assert.equal(sortButton(h, 'Newest first').props['aria-pressed'], false);assert.equal(sortButton(h, 'Oldest first').props['aria-pressed'], true);
+  assert.deepEqual(yearSections(h).map(node => node.props['aria-label']), ['1990', '2020', '2024', '2026', 'Date not set']);
+  assert.deepEqual(timelineRows(h).map(node => node.key), ['project:old', 'citation:citation-only', 'project:leap', 'project:same-year', 'citation:cited', 'project:new', 'project:undated']);
+  assert.deepEqual([...timelineRows(h).map(node => node.key)].sort(), [...newestRows].sort());
+  assert.deepEqual(h.scrolls, []);assert.deepEqual(opened, [], 'Sorting is an immediate local list operation, not project navigation.');
+  h.update({ profile: { ...viewed, projects: [...works, project('added', '2029-01-01')] } });
+  assert.equal(timelineOrder(h), 'oldest');assert.equal(timelineRows(h).length, 8);
+  h.update({ owner: true });
+  assert.equal(timelineOrder(h), 'newest');assert.equal(timelineRows(h).some(node => node.key === 'project:private'), true);
+  assert.equal(timelineRows(h).some(node => node.key === 'project:preview'), false);h.dispose();
 });
 
-test('empty and undated mobile Timelines retain one Today action before the agenda and can still open the month screen', () => {
-  for (const projects of [[], [project('undated', 'invalid')]]) {
-    const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: { ...profile, projects }, owner: true, onOpen() {}, presentation: 'mobile' });
-    const controls = h.nodes.filter(node => node.type === 'button' && node.props['aria-label'] === 'Open Timeline calendar for today');
-    assert.equal(controls.length, 1);
-    const agenda = h.nodes.find(node => node.type === 'journey-calendar');
-    assert.ok(h.nodes.indexOf(controls[0]) < h.nodes.indexOf(agenda), 'The fallback Today action sits above the empty or undated agenda.');
-    controls[0].props.onClick();
-    const month = h.nodes.find(node => node.type === 'month-calendar');
-    assert.ok(month); assert.deepEqual(Array.from(month.props.days), []);
-    month.props.onClose();
-    assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);
+test('Timeline details preserve mobile read-only access and owner edit/delete behavior while desktop visitors have no options', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const work = project('work', '2026-01-01'), opened = [], edited = [], descriptions = [], deleted = [], added = [];
+    const h = viewHarness({ profile: { ...profile, projects: [work] }, owner: false, presentation, onOpen: value => opened.push(value.id),
+      onEdit: value => edited.push(value.id), onEditDescription: value => descriptions.push(value.id), onDelete: value => deleted.push(value.id), onAdd: () => added.push(true) });
+    if (presentation === 'mobile') {
+      h.button('Show details for work').props.onClick();
+      const popup = h.nodes.find(node => node.type === 'project-popup');assert.equal(popup.props.project, work);
+      assert.equal(popup.props.contextHandlers, undefined);assert.equal(popup.props.onOptions, undefined);assert.equal(popup.props.onEditDescription, undefined);
+      popup.props.onClose();assert.equal(h.nodes.some(node => node.type === 'project-popup'), false);
+    } else assert.equal(h.button('Show details for work'), undefined);
+    assert.equal(h.nodes.some(node => node.type === 'button' && /Add work/.test(text(node))), false);
+    h.update({ owner: true });h.button('Show details for work').props.onClick();
+    if (presentation === 'mobile') {
+      const popup = h.nodes.find(node => node.type === 'project-popup');
+      popup.props.onOptions();popup.props.onEditDescription();popup.props.contextHandlers.delete();
+      assert.deepEqual(descriptions, ['work']);assert.deepEqual(deleted, ['work']);
+    }
+    assert.deepEqual(edited, ['work']);assert.deepEqual(opened, []);
+    h.nodes.find(node => node.type === 'button' && /Add work/.test(text(node))).props.onClick();assert.deepEqual(added, [true]);h.dispose();
+  }
+});
+
+test('the year-list parent scopes order, month requests and open dialogs to the viewed profile and owner mode', () => {
+  for (const presentation of ['mobile', 'web']) {
+    const initial = { profile: { ...profile, projects: sparse.map(item => item.project) }, owner: true, onOpen() {}, presentation };
+    const h = viewHarness(initial);
+    assert.equal(h.wrapperKey, 'creator:true');
+    sortButton(h, 'Oldest first').props.onClick();assert.equal(timelineOrder(h), 'oldest');
+    h.button('Open Timeline calendar for today').props.onClick();
+    h.nodes.find(node => node.type === 'month-calendar').props.onSelect('1990-01-01');h.frames();
+    assert.equal(h.scrolls.at(-1).day, '1990-01-01');h.scrolls.length = 0;
+    h.button('Open Timeline calendar for today').props.onClick();
+    h.update({ profile: { ...initial.profile, id: 'other' } });h.frames();
+    assert.equal(h.wrapperKey, 'other:true');assert.equal(timelineOrder(h), 'newest');
+    assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);assert.deepEqual(h.scrolls, []);
+    sortButton(h, 'Oldest first').props.onClick();
+    h.button('Open Timeline calendar for today').props.onClick();
+    h.update({ owner: false });h.frames();
+    assert.equal(h.wrapperKey, 'other:false');assert.equal(timelineOrder(h), 'newest');
+    assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);assert.deepEqual(h.scrolls, []);
     h.dispose();
   }
 });
 
-test('WEB month navigation keeps the year rail and jumps to its first same-day entry with profile header clearance', () => {
+test('empty and undated Timelines retain Today and only owners can add work, without empty-day placeholders', () => {
+  for (const presentation of ['mobile', 'web']) for (const projects of [[], [project('undated', 'invalid')]]) {
+    let adds = 0;
+    const h = viewHarness({ profile: { ...profile, projects }, owner: true, onOpen() {}, onAdd: () => adds++, presentation });
+    const controls = h.nodes.filter(node => node.type === 'button' && node.props['aria-label'] === 'Open Timeline calendar for today');
+    assert.equal(controls.length, 1);assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);
+    assert.equal(timelineRows(h).length, projects.length);assert.doesNotMatch(text(h.tree), /No work recorded|What were you making/);
+    controls[0].props.onClick();const month = h.nodes.find(node => node.type === 'month-calendar');
+    assert.ok(month);assert.deepEqual(Array.from(month.props.days), []);month.props.onClose();
+    const add = h.nodes.find(node => node.type === 'button' && /Add your first project|Add work/.test(text(node)));
+    assert.ok(add);add.props.onClick();assert.equal(adds, 1);
+    h.update({ owner: false });assert.equal(h.nodes.some(node => node.type === 'button' && /Add your first project|Add work/.test(text(node))), false);
+    h.dispose();
+  }
+});
+
+for (const presentation of ['mobile', 'web']) test(`${presentation} month navigation jumps into the continuous list with authorized days and profile header clearance`, () => {
   const visible = project('visible', '2026-10-13'), sameDay = project('same-day', '2026-10-13'), hidden = project('hidden', '1990-01-01', { isPubliclyVisible: false });
-  const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: { ...profile, projects: [visible, sameDay, hidden] }, owner: false, onOpen() {}, presentation: 'web', events: [{ id: 'citation', date: '2024-02-29', href: '/citation', label: 'Existing public citation' }] });
-  assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);
-  assert.equal(h.nodes.filter(node => node.props.className === 'journey-year').length, 2);
-  h.button('Open Timeline calendar for today').props.onClick();
+  const h = viewHarness({ profile: { ...profile, projects: [visible, sameDay, hidden] }, owner: false, onOpen() {}, presentation, events: [{ id: 'citation', date: '2024-02-29', href: '/citation', label: 'Existing public citation' }] });
+  assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);assert.equal(yearSections(h).length, 2);
+  sortButton(h, 'Oldest first').props.onClick();h.button('Open Timeline calendar for today').props.onClick();h.frames();
+  assert.deepEqual(h.scrolls, [], 'Opening Today cannot move the continuous list.');
   const month = h.nodes.find(node => node.type === 'month-calendar');
   assert.deepEqual(Array.from(month.props.days, ([day]) => day), ['2024-02-29', '2026-10-13']);
   assert.equal(month.props.days.flatMap(([, entries]) => entries).some(item => item.project?.id === hidden.id), false);
-  month.props.onSelect('2020-01-01'); h.frames();
-  assert.equal(h.scrolls.at(-1).day, '2024-02-29');
-  h.button('Open Timeline calendar for today').props.onClick();
-  h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2026-10-13'); h.frames();
+  month.props.onSelect('2020-01-01');h.frames();assert.equal(h.scrolls.at(-1).day, '2024-02-29');
+  assert.equal(timelineOrder(h), 'oldest');
+  for (let request = 0; request < 2; request++) {
+    const previous = h.scrolls.length;
+    h.button('Open Timeline calendar for today').props.onClick();
+    h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2026-10-13');h.frames();
+    assert.equal(h.scrolls.length, previous + 1, 'Each deliberate month selection scrolls once, including repeated same-day picks.');
+  }
   assert.equal(h.scrolls.at(-1).day, '2026-10-13');
-  // Each date uses querySelector's first existing rail entry, rather than creating a calendar row.
   assert.equal(h.nodes.filter(node => node.props['data-journey-date'] === '2026-10-13').length, 2);
-  assert.equal(h.scrolls.at(-1).options.block, 'start');
-  assert.equal(h.scrolls.at(-1).rowKey, 'same-day');
+  assert.equal(h.scrolls.at(-1).options.block, 'start');assert.equal(h.scrolls.at(-1).rowKey, 'project:same-day');
   assert.equal(h.target('2026-10-13').style.scrollMarginTop, '156px');
+  const beforeCancel = h.scrolls.length;
+  h.button('Open Timeline calendar for today').props.onClick();
+  h.nodes.find(node => node.type === 'month-calendar').props.onClose();h.frames();
+  assert.equal(h.scrolls.length, beforeCancel, 'Closing the month screen cannot replay a previously consumed date request.');
   h.dispose();
 });
 
@@ -337,26 +415,25 @@ test('a same-profile refresh removing the open portal releases the Timeline and 
   for (const presentation of ['mobile', 'web']) {
     const viewed = { ...profile, showJourney: true, projects: [project('work', '2026-10-13')] };
     const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen() {} });
-    const calendar = () => h.nodes.find(node => node.type === 'journey-calendar');
     const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
-    if (presentation === 'mobile') calendar().props.onOpenPortal('portal');
-    else h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
+    sortButton(h, 'Oldest first').props.onClick();
+    h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
     assert.equal(popup().props.categoryId, 'portal');
     const key = h.wrapperKey;
     h.update({ profile: { ...viewed, categories: [] } });
     assert.equal(h.wrapperKey, key, 'This refresh preserves the same Timeline component rather than remounting it.');
     assert.equal(popup(), undefined);
-    if (presentation === 'mobile') assert.equal(calendar().props.openPortalId, null, 'A missing portal no longer freezes calendar tracking.');
+    assert.equal(timelineOrder(h), 'oldest');
+    assert.equal(timelineRows(h).length, 1, 'Removing a category cannot remove already-authorized work from the Timeline.');
     h.update({ profile: { ...viewed, categories: [...viewed.categories] } });
     assert.equal(popup(), undefined, 'Restoring a category cannot resurrect its obsolete open-popup request.');
-    if (presentation === 'mobile') assert.equal(calendar().props.openPortalId, null);
-    else assert.equal(h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props['aria-expanded'], false);
+    assert.equal(h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props['aria-expanded'], false);
     h.dispose();
   }
 });
 
 for (const presentation of ['mobile', 'web']) {
-  test(`${presentation} Timeline portal popup stays local, returns to the same calendar state, and guards project selection`, () => {
+  test(`${presentation} Timeline portal popup stays local, preserves list order and date position, and guards project selection`, () => {
     const opened = [];
     const published = project('early', '2024-02-29', { summary: 'Never display this summary.', thenNowCaption: 'Never display this caption.' });
     const recent = project('recent', '2026-10-13', { creationDetails: { answers: { learned: 'Never display this learned line.' } } });
@@ -365,20 +442,18 @@ for (const presentation of ['mobile', 'web']) {
     const other = project('other', '2026-10-14', { categoryId: 'other' });
     const viewed = { ...profile, showJourney: true, thenNow: { then: published.id, now: recent.id }, projects: [published, recent, hidden, draft, other] };
     const h = componentHarness('src/features/journey/JourneyView.tsx', 'JourneyView', { profile: viewed, owner: false, presentation, onOpen: value => opened.push(value.id) });
-    const calendar = () => h.nodes.find(node => node.type === 'journey-calendar');
     const popup = () => h.nodes.find(node => node.type === 'portal-project-popup');
-    const openPortal = () => presentation === 'mobile' ? calendar().props.onOpenPortal('portal') : h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
+    const openPortal = () => h.nodes.find(node => node.type === 'button' && node.props.className === 'journey-portal').props.onClick();
+    sortButton(h, 'Oldest first').props.onClick();
     assert.doesNotMatch(text(h.tree), /Never display this/);
     const pair = h.nodes.find(node => node.props.className === 'journey-pair');
+    assert.ok(h.nodes.indexOf(pair) > h.nodes.indexOf(yearSections(h).at(-1)), 'Then / Now follows the continuous year list.');
     assert.ok(nodes(pair).some(node => node.type === 'button' && node.props.children === 'Work'), 'Then / Now includes the same portal action.');
     nodes(pair).find(node => node.type === 'button' && node.props['aria-label'] === 'Open Then: early').props.onClick();
     assert.deepEqual(opened, ['early']); opened.length = 0;
-    if (presentation === 'mobile') {
-      assert.equal(h.button('Open Timeline calendar for today'), undefined, 'Dated mobile work uses the calendar header action instead of a second standalone Today.');
-      calendar().props.onOpenCalendar();
-    } else h.button('Open Timeline calendar for today').props.onClick();
+    h.button('Open Timeline calendar for today').props.onClick();
     h.nodes.find(node => node.type === 'month-calendar').props.onSelect('2024-02-29'); h.frames();
-    const key = h.wrapperKey, jump = calendar()?.props.jumpTo, calendarKey = calendar()?.key;
+    const key = h.wrapperKey, position = h.scrolls.at(-1), scrollCount = h.scrolls.length;
     const datedRows = h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key);
     openPortal();
     assert.equal(popup().props.categoryId, 'portal');
@@ -389,8 +464,8 @@ for (const presentation of ['mobile', 'web']) {
     popup().props.onClose();
     assert.equal(popup(), undefined);
     assert.equal(h.wrapperKey, key);
-    assert.equal(calendar()?.key, calendarKey);
-    assert.equal(calendar()?.props.jumpTo, jump);
+    h.frames();assert.equal(timelineOrder(h), 'oldest');
+    assert.equal(h.scrolls.length, scrollCount);assert.equal(h.scrolls.at(-1), position);
     assert.deepEqual(h.nodes.filter(node => node.props['data-journey-date']).map(node => node.key), datedRows);
     openPortal();
     for (const [categoryId, id] of [['portal', 'hidden'], ['portal', 'draft'], ['portal', 'missing'], ['other', 'early'], ['other', 'other']]) popup().props.onSelect(categoryId, id);
@@ -401,7 +476,8 @@ for (const presentation of ['mobile', 'web']) {
     openPortal();
     h.update({ profile: { ...viewed, id: 'another-profile' } });
     assert.equal(popup(), undefined, 'Changing the viewed profile closes the old local popup.');
-    assert.equal(calendar()?.props.jumpTo, undefined);
+    assert.equal(timelineOrder(h), 'newest');
+    assert.equal(h.nodes.some(node => node.type === 'month-calendar'), false);
     openPortal();
     h.update({ owner: true });
     assert.equal(popup(), undefined, 'Changing the access mode closes the old local popup.');

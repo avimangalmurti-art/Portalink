@@ -1,6 +1,5 @@
-import { JourneyCalendar } from './JourneyCalendar';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
-import { journeyTimeline } from '../citations/journeyCitations';
+import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDaysIcon, MoreHorizontalIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
@@ -31,13 +30,15 @@ export function JourneyView(props: JourneyViewProps) {
 }
 function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
+  const [order, setOrder] = useState<TimelineOrder>('newest');
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const [calendarJump, setCalendarJump] = useState<{ day: string; request: number }>();
-  const desktopRoot = useRef<HTMLElement>(null);
+  const consumedJump = useRef(0);
+  const listRoot = useRef<HTMLElement>(null);
   const events=useJourneyCitations(profile,owner);
-  const groups = useMemo(() => journeyTimeline(profile.projects,events,owner), [profile.projects, events, owner]);
+  const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order), [profile.projects, events, owner, order]);
   const entries = useMemo(() => groups.flatMap(group => group.entries), [groups]);
   const record = useMemo(() => calendarRecord(entries), [entries]);
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
@@ -49,23 +50,23 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
   }, [portalPopupId, activePortalPopupId]);
   useEffect(() => { setCalendarOpen(false); setCalendarJump(undefined); }, [profile.id, owner]);
   useEffect(() => {
-    if (isMobile || calendarOpen || !calendarJump) return;
+    if (calendarOpen || !calendarJump || consumedJump.current === calendarJump.request) return;
     const frame = requestAnimationFrame(() => {
-      const item = desktopRoot.current?.querySelector<HTMLElement>(`[data-journey-date="${calendarJump.day}"]`);
+      const item = listRoot.current?.querySelector<HTMLElement>(`[data-journey-date="${calendarJump.day}"]`);
       if (!item) return;
-      const identity = desktopRoot.current?.closest('[data-profile-journey]')?.querySelector<HTMLElement>('.profile-header-region');
+      consumedJump.current = calendarJump.request;
+      const identity = listRoot.current?.closest('[data-profile-journey]')?.querySelector<HTMLElement>('.profile-header-region');
       item.style.scrollMarginTop = `${(identity?.getBoundingClientRect().height ?? 0) + 16}px`;
       item.scrollIntoView({ block: 'start', behavior: 'instant' });
     });
     return () => cancelAnimationFrame(frame);
-  }, [calendarJump, calendarOpen, isMobile]);
+  }, [calendarJump, calendarOpen]);
   const todayLaunch = <button type="button" className="journey-today-launch" aria-label="Open Timeline calendar for today" aria-haspopup="dialog" onClick={() => setCalendarOpen(true)}><CalendarDaysIcon size={20} aria-hidden="true" />Today</button>;
   const calendarDialog = <DeferredDialog active={calendarOpen} onClose={() => setCalendarOpen(false)}>{calendarOpen && <JourneyMonthCalendar days={record.days} onClose={() => setCalendarOpen(false)} onSelect={requested => {
       const day = workCalendarDay(record.days.map(([date]) => date), requested);
       if (day) setCalendarJump(previous => ({ day, request: (previous?.request ?? 0) + 1 }));
       setCalendarOpen(false);
     }} />}</DeferredDialog>;
-  const calendarControls = <>{todayLaunch}{calendarDialog}</>;
   const portalButton = (project: Project) => {
     const portal = profile.categories.find(category => category.id === project.categoryId);
     return portal ? <button type="button" className="journey-portal" aria-haspopup="dialog" aria-expanded={activePortalPopupId === portal.id} onClick={() => setPortalPopupId(portal.id)}>{portal.label}</button> : null;
@@ -87,29 +88,39 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
       </div>)}</div>{owner && !isMobile && onPair && <button type="button" className="journey-text-action" onClick={onPair}>Change pair</button>}
     </section>;
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
-  if (isMobile) return <>{!record.days.length && todayLaunch}<JourneyCalendar key={`${profile.id}:${owner}`} profile={profile} owner={owner} entries={entries} onOpen={onOpen} onDetails={setDetailsProject} onOpenCalendar={() => setCalendarOpen(true)} onOpenPortal={setPortalPopupId} openPortalId={activePortalPopupId} onAdd={onAdd} jumpTo={calendarJump}>{pairContent}</JourneyCalendar>{calendarDialog}{popup}{portalPopup}</>;
-  if (!groups.length && !owner) return <div className="journey-view">{calendarControls}</div>;
-  if (!groups.length) return <div className="journey-view">{calendarControls}<button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}>
-    <span aria-hidden="true">+</span>Add your first project
-  </button></div>;
-  return <section ref={desktopRoot} className="journey-view" aria-label={`${profile.name} Timeline`}>
-    {calendarControls}
-    {pairContent}
-    {owner && !isMobile && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
+  return <section ref={listRoot} className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
+    <div className="journey-toolbar">
+      <div className="journey-order" role="group" aria-label="Timeline order">
+        <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>Newest first</button>
+        <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>Oldest first</button>
+      </div>
+      {todayLaunch}
+    </div>
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
-      <h2>{group.year ?? 'Date not set'}</h2>
-      <ol className="journey-rail">{group.gap ? <li className="journey-entry journey-gap">
-        <span className="journey-gap-cover" aria-hidden="true">+</span><div><h3>What were you making in {group.year}?</h3>
-          <button type="button" className="journey-text-action" onClick={() => onAdd?.(group.year ?? undefined)}>Add something from {group.year}</button></div>
-      </li> : group.entries.map(entry => entry.kind==='citation'?<li className="journey-entry" data-journey-date={calendarDay(entry.date) ?? undefined} key={entry.event.id}>{entry.event.thumbnail&&<a href={entry.event.href}><img className="journey-entry-cover" src={entry.event.thumbnail} alt=""/></a>}<div className="journey-entry-copy"><time className="journey-month">{entry.event.date.slice(0,10)}</time><a href={entry.event.href}>{entry.event.label}</a></div></li>:(()=>{const project=entry.project;return <li className="journey-entry" data-journey-date={calendarDay(entry.date) ?? undefined} key={project.id}>
-        <button type="button" className="journey-entry-cover" style={{ aspectRatio: project.coverAspectRatio && project.coverAspectRatio > 0 ? project.coverAspectRatio : 1 }} onClick={() => onOpen(project)} aria-label={`Open ${project.title}`}><JourneyCover project={project} /></button>
-        <div className="journey-entry-copy"><span className="journey-month">{(project.madeOn ?? project.publishedAt) && Number.isFinite(Date.parse(project.madeOn ?? project.publishedAt!)) ? new Date(project.madeOn ?? project.publishedAt!).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', ...(project.madeOn ? { timeZone: 'UTC' } : {}) }) : 'Posting date unavailable'}</span>
-          <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
-          {portalButton(project)}
-          {(isMobile || (owner && onEdit)) && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
-        </div>
-      </li>;})())}</ol>
+      <h2>{group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
+      <ol className="journey-list">{group.entries.map(entry => {
+        const day = calendarDay(entry.date);
+        const date = day ? <time className="journey-date" dateTime={day} title={new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'long', timeZone: 'UTC' })}>{new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}</time> : <span className="journey-date" aria-label="Posting date unavailable">—</span>;
+        if (entry.kind === 'citation') return <li className="journey-entry" data-journey-date={day ?? undefined} key={`citation:${entry.event.id}`}>
+          {date}<div className="journey-entry-copy"><a className="journey-title" href={entry.event.href}>{entry.event.label}</a></div>
+        </li>;
+        const project = entry.project;
+        const hasOptions = isMobile || (owner && onEdit);
+        return <li className="journey-entry" data-journey-date={day ?? undefined} data-has-options={Boolean(hasOptions) || undefined} key={`project:${project.id}`}>
+          {date}
+          <div className="journey-entry-copy">
+            <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
+            {portalButton(project)}
+          </div>
+          {hasOptions && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}
+        </li>;
+      })}</ol>
     </section>)}
+    {!groups.length && owner && <button type="button" className="journey-first" onClick={() => onAdd?.()} disabled={!onAdd}><span aria-hidden="true">+</span>Add your first project</button>}
+    {groups.length > 0 && owner && onAdd && <button type="button" className="journey-text-action journey-add" onClick={() => onAdd()}>+ Add work</button>}
+    {pairContent}
+    {owner && !pair && onPair && <button type="button" className="journey-text-action journey-pair-start" onClick={onPair}>Choose a Then/Now pair</button>}
+    {calendarDialog}
     {popup}
     {portalPopup}
   </section>;
