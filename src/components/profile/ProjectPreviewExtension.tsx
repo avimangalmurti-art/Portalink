@@ -1,3 +1,4 @@
+import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -36,7 +37,7 @@ export function ProjectPreviewExtension({ expanded, creator, projectId, creatorH
     onFocus: onWarmCreator,
   };
   return <motion.div initial={false} animate={{ height: expanded ? 'auto' : 0, opacity: expanded ? 1 : 0 }}
-    transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0.8, 0.2, 1] }}
+    transition={{ duration: reduceMotion ? 0 : motionSeconds('base'), ease: motionCurve() }}
     onAnimationStart={() => setSettled(false)} onAnimationComplete={() => setSettled(true)}
     aria-hidden={!expanded}
     className="project-preview-extension" style={{ overflow: expanded && (settled || reduceMotion) ? 'visible' : 'hidden' }}>

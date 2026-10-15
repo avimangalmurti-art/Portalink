@@ -1,9 +1,9 @@
 [data-follow-info-layer] .follow-info-overlay {
-  position: fixed; inset-inline: 0; z-index: 75; box-sizing: border-box;
+  position: fixed; inset-inline: 0; z-index: 110; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
   background: rgb(0 0 0 / 18%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-  animation: follow-info-backdrop-in 220ms ease-out both;
+  animation: follow-info-backdrop-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-panel {
   box-sizing: border-box; width: min(100%, 440px); max-height: 100%; min-height: 0;
@@ -13,7 +13,7 @@
   background: color-mix(in srgb, var(--surface-raised) 65%, transparent);
   backdrop-filter: blur(40px) saturate(145%); -webkit-backdrop-filter: blur(40px) saturate(145%);
   box-shadow: 0 20px 64px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 16%);
-  animation: follow-info-panel-in 260ms cubic-bezier(.2,.85,.25,1.05) both;
+  animation: follow-info-panel-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-header { display: flex; align-items: center; gap: 12px; flex: none; }
 [data-follow-info-layer] .project-popup-creator { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; padding: 0; margin: 0; border: 0; font-weight: 600; text-align: left; }
@@ -28,8 +28,8 @@
 [data-follow-info-layer] button:active { background: color-mix(in srgb, var(--text-primary) 16%, transparent); }
 [data-follow-info-layer] button:disabled { opacity: .5; }
 [data-follow-info-layer] :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
-[data-follow-info-layer] [data-closing] { animation: follow-info-backdrop-out 180ms ease-in both; }
-[data-follow-info-layer] [data-closing] .follow-info-panel { animation: follow-info-panel-out 180ms ease-in both; }
+[data-follow-info-layer] [data-closing] { animation: follow-info-backdrop-out var(--m-base) var(--m-enter) both; }
+[data-follow-info-layer] [data-closing] .follow-info-panel { animation: follow-info-panel-out var(--m-base) var(--m-enter) both; }
 @keyframes follow-info-panel-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes follow-info-panel-out { to { opacity: 0; transform: scale(.97); } }
 @keyframes follow-info-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
@@ -47,3 +47,9 @@ body:has([data-follow-info-layer]) #root .codex-shell[data-presentation='mobile'
 
 [data-follow-info-layer] .follow-info-panel:focus-visible { outline: none !important; box-shadow: 0 20px 64px rgb(0 0 0 / 22%), inset 0 1px 0 rgb(255 255 255 / 16%); }
 
+
+/* Cover-page owner commands retain their existing callbacks in the shared card. */
+[data-follow-info-layer] .follow-info-header {position:relative;}
+[data-follow-info-layer] .follow-info-owner-menu {position:absolute;top:52px;right:0;z-index:1;min-width:180px;max-width:100%;padding:8px;border-radius:16px;background:var(--surface-raised);border:1px solid var(--hairline-strong);box-shadow:0 8px 24px #0005;}
+[data-follow-info-layer] .project-popup-owner-actions {display:flex;flex-direction:column;}
+[data-follow-info-layer] .project-popup-owner-button {min-height:44px;padding:8px 12px;text-align:left;border-radius:10px;}

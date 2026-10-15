@@ -1,0 +1,7 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {readFileSync} from 'node:fs';
+import {measureEntry} from '../scripts/measure-entry-assets.mjs';
+test('citation initial JS and CSS together stay below the 350 KB visitor gate',()=>{const entry=measureEntry('dist/client','cite.html');assert.ok(entry.jsBytes+entry.cssBytes<350000,`${entry.jsBytes} JS + ${entry.cssBytes} CSS`);});
+test('citation emitted initial graph contains no editor, auth SDK, router, or document renderer chunks',()=>{const graph=JSON.parse(readFileSync('logs/client-module-graph.json')),manifest=JSON.parse(readFileSync('dist/client/.vite/manifest.json'));const seen=new Set();function visit(file){if(seen.has(file))return;seen.add(file);const chunk=graph.find(c=>c.file===file);assert.ok(chunk);chunk.imports.forEach(visit);}visit(manifest['cite.html'].file);const modules=[...seen].flatMap(file=>graph.find(c=>c.file===file).modules).join('\n').replaceAll('\\','/');assert.doesNotMatch(modules,/EditorDialog|PublishProjectDialog|services\/mocks|pdfjs-dist|@supabase\/|react-router|AuthDialog/);
+const full=new Set();function all(file){if(full.has(file))return;full.add(file);const chunk=graph.find(c=>c.file===file);[...chunk.imports,...chunk.dynamicImports].forEach(all);}all(manifest['cite.html'].file);assert.doesNotMatch([...full].flatMap(file=>graph.find(c=>c.file===file).modules).join('\n').replaceAll('\\','/'),/EditorDialog|PublishProjectDialog|features\/editor\//);});

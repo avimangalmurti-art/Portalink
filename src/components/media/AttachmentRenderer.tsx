@@ -3,7 +3,7 @@ import { MediaFrame } from './MediaFrame';
 import { ImageAttachment } from './ImageAttachment';
 import { GenericFileCard } from './GenericFileCard';
 import { ProcessingNotice } from './ProcessingNotice';
-import { LoadingState } from '../ui/StateViews';
+import { LoadingSkeleton } from '../ui/StateViews';
 import type { ProjectAttachment } from '../../types/domain';
 import type { PdfDocument } from './PdfPage';
 
@@ -66,7 +66,7 @@ export function AttachmentRenderer({
         onRetry={processing?.onRetry ?? (() => undefined)} />
     </MediaFrame>;
   }
-  const loading = <LoadingState label={`Loading ${title}…`} />;
+  const loading = <LoadingSkeleton kind="reader" projectId={projectId} label={`Loading ${title}…`} />;
   const documentLoading = <div data-page-loading="" data-initial-page-loading="">{loading}</div>;
   switch (attachment.kind) {
     case 'audio':

@@ -35,7 +35,7 @@ function harness() {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/presentation/mobile/useProjectScrollActivity.ts', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText, { exports, Element: Target,
+  }).outputText, { exports, Element: Target, performance: { now: () => now },
     window: {
       addEventListener(type, fn) { listeners.set(type, fn); },
       removeEventListener(type, fn) { assert.equal(listeners.get(type), fn); listeners.delete(type); },
@@ -117,32 +117,60 @@ test('real scrolling hides all controls through short pauses and restores after 
   h.unmount();
 });
 
-test('single artwork taps toggle controls after the page double-tap window, without changing content', () => {
+test('single artwork taps toggle controls immediately without a timer or changing content', () => {
   const h = harness(), artwork = new Target(); h.render();
   h.emit('pointerdown', artwork);
   const release = h.emit('pointerup', artwork);
   assert.equal(release.prevented, false); assert.equal(release.stopped, false, 'Page gesture handlers still receive their events');
-  h.tick(320); assert.equal(h.hidden, false);
-  h.tick(20); assert.equal(h.hidden, true);
+  assert.equal(h.hidden, true, 'The first pointer-up hides controls before any clock advance');
+  assert.equal(h.timers, 0);
+  h.tick(340); assert.equal(h.hidden, true);
   h.tick(1000); assert.equal(h.hidden, true, 'Explicit tap-to-hide has no automatic idle reveal');
   h.emit('pointerdown', artwork); assert.equal(h.hidden, true, 'Touching before movement must not flash controls');
-  h.emit('pointerup', artwork); h.tick(340); assert.equal(h.hidden, false);
+  h.emit('pointerup', artwork); assert.equal(h.hidden, false, 'A reveal tap is immediate too');
+  assert.equal(h.timers, 0);
   h.emit('pointerdown', new Target({ stage: false })); h.emit('pointerup'); h.tick(340); assert.equal(h.hidden, false);
-  h.emit('pointerdown', artwork); h.emit('pointerup', artwork); artwork.isConnected = false;
-  h.tick(340); assert.equal(h.hidden, false, 'A removed page cannot toggle the next page');
+  h.emit('pointerdown', artwork); artwork.isConnected = false; h.emit('pointerup', artwork);
+  assert.equal(h.hidden, false, 'A page removed during the gesture cannot toggle the next page');
   h.unmount();
 });
 
-test('a page double tap reaches both page handlers without toggling chrome, visible or hidden', () => {
+test('a page double tap restores its original chrome state and reaches both page handlers', () => {
   for (const initiallyHidden of [false, true]) {
     const h = harness(), artwork = new Target(); h.render();
     if (initiallyHidden) { h.emit('pointerdown', artwork); h.emit('pointerup', artwork); h.tick(340); }
     h.emit('pointerdown', artwork); const first = h.emit('pointerup', artwork); h.tick(180);
+    assert.equal(h.hidden, !initiallyHidden, 'The first tap takes effect immediately');
     h.emit('pointerdown', artwork); const second = h.emit('pointerup', artwork); h.tick(400);
     assert.equal(h.hidden, initiallyHidden);
     assert.equal(first.prevented || first.stopped || second.prevented || second.stopped, false);
     assert.equal(h.emit('click', artwork).prevented, false);
     h.unmount();
+  }
+});
+
+test('double-tap rollback preserves the original scroll-idle deadline without delaying either tap', () => {
+  const h = harness(), artwork = new Target(); h.render(); hide(h); h.tick(100);
+  h.emit('pointerdown', artwork); h.emit('pointerup', artwork);
+  assert.equal(h.hidden, false); assert.equal(h.timers, 0, 'A single reveal cancels the scroll timer immediately');
+  h.tick(180); h.emit('pointerdown', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, true);
+  h.tick(419); assert.equal(h.hidden, true);
+  h.tick(1); assert.equal(h.hidden, false, 'The original700ms deadline remains, rather than restarting after double tap');
+  assert.equal(h.timers, 0); h.unmount();
+});
+
+test('expired scroll deadlines and unrelated gestures cannot restore stale idle timers', () => {
+  const expired = harness(), artwork = new Target(); expired.render(); hide(expired); expired.tick(600);
+  expired.emit('pointerdown', artwork); expired.emit('pointerup', artwork); expired.tick(150);
+  expired.emit('pointerdown', artwork); expired.emit('pointerup', artwork);
+  assert.equal(expired.hidden, false); assert.equal(expired.timers, 0, 'An elapsed original deadline cannot hide chrome again');
+  expired.unmount();
+  for (const clear of [h => { h.emit('wheel', artwork); h.emit('scroll', artwork); },
+    h => h.emit('keydown', artwork, { key: 'Tab' }), h => h.render(true, '/project/other')]) {
+    const h = harness(); h.render(); hide(h); h.tick(100);
+    h.emit('pointerdown', artwork); h.emit('pointerup', artwork); clear(h);
+    h.emit('pointerdown', artwork); h.emit('pointerup', artwork);
+    assert.equal(h.timers, 0); h.tick(1000); assert.equal(h.timers, 0); h.unmount();
   }
 });
 
@@ -251,11 +279,25 @@ test('navigation, desktop switch, keyboard and modal opening safely restore cont
   assert.equal(h.timers, 0);
 });
 
-test('pending single taps are cancelled by scrolling, keyboard, modal opening and route cleanup', () => {
+test('immediate taps leave no delayed change after scrolling, keyboard, modal opening or route cleanup', () => {
   for (const cancel of [h => { h.emit('wheel'); h.emit('scroll'); }, h => h.emit('keydown', undefined, { key: 'Tab' }),
     h => { h.modal(true); h.refreshDom(); }, h => h.render(true, '/project/other'), h => h.unmount()]) {
     const h = harness(), artwork = new Target(); h.render();
-    h.emit('pointerdown', artwork); h.emit('pointerup', artwork); cancel(h); h.tick(1000);
+    h.emit('pointerdown', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, true);
+    cancel(h); h.tick(1000);
     assert.equal(h.hidden, false); assert.equal(h.timers, 0); h.unmount();
   }
+});
+
+test('double-tap metadata expires and cancelled multi-touch cannot undo a later independent tap', () => {
+  const h = harness(), artwork = new Target(); h.render();
+  h.emit('pointerdown', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, true);
+  h.tick(320); h.emit('pointerdown', artwork);
+  // Focus can reveal controls between down/up. An expired pair must retain
+  // this new tap's original reveal intent, never roll back the earlier tap.
+  h.emit('focusin', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, false);
+  h.emit('pointerdown', artwork); h.emit('pointerdown', artwork, { isPrimary: false, pointerId: 2 });
+  h.emit('pointerup', artwork); assert.equal(h.hidden, false);
+  h.emit('pointerdown', artwork); h.emit('pointerup', artwork); assert.equal(h.hidden, true);
+  assert.equal(h.timers, 0); h.unmount();
 });

@@ -177,14 +177,18 @@ function compile(path, imports) {
 function nodes(node) { return React.isValidElement(node) ? [node, ...React.Children.toArray(node.props.children).flatMap(nodes)] : []; }
 function homeHarness(presentation, feed, props) {
   const placeholder = new Proxy({}, { get: (_, key) => key });
-  const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useLayoutEffect() {}, useRef: current => ({ current }),
+  let readiness;
+  const react = { ...React, useCallback: fn => fn, useMemo: fn => fn(), useEffect() {}, useLayoutEffect() {}, useRef: current => ({ current }),
     useState: initial => [typeof initial === 'function' ? initial() : initial, () => {}] };
   const stateViews = compile('src/components/ui/StateViews.tsx', name => name === 'react' ? React : placeholder);
   const { HomeFeed } = compile('src/components/home/HomeFeed.tsx', name => {
+    if(name.endsWith('/useHomePullRefresh'))return {useHomePullRefresh:()=>''};
+    if(name.endsWith('/useHomeStartupReadiness'))return {useHomeStartupReadiness(options){readiness=options;}};
     if (name === 'react') return react;
     if (name.endsWith('/MobileContextActions')) return {useMobileScreenActions() {}, useMobileContextActions:()=>null};
     if (name === 'react-router-dom') return { useNavigate: () => () => {} };
     if (name.endsWith('/useFeed')) return { useFeed: () => feed };
+    if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: null, close() {} }, deletion: { projectId: null, cancel() {} } }) };
     if (name.endsWith('/usePresentation')) return { usePresentation: () => presentation };
     if (name.endsWith('/AuthContext')) return { useAuth: () => ({ viewerProfileId: null }) };
     if (name.endsWith('/useProfileGridLayout')) return { useProfileGridLayout: () => ({ layout: null }) };
@@ -193,7 +197,7 @@ function homeHarness(presentation, feed, props) {
     if (name.endsWith('/projectPresentation')) return { getProjectAspectRatio: () => 1 };
     return placeholder;
   });
-  return { tree: HomeFeed({ isSidebarCollapsed: false, onOpenProject() {}, onOpenCreator() {}, ...props }), stateViews };
+  return { tree: HomeFeed({ isSidebarCollapsed: false, onOpenProject() {}, onOpenCreator() {}, ...props }), stateViews, readiness };
 }
 
 test('Home renders working publish and browse controls only in its empty state on WEB and MOBILE', async () => {
@@ -221,6 +225,16 @@ test('zero-project mobile Home is one first-project action even before its empty
   const action=nodes(mobile.tree).find(node=>node.props?.onClick);
   action.props.onClick();assert.equal(clicks,1);
   assert.equal(nodes(mobile.tree).filter(node=>node.props?.onClick).length,1);
+});
+
+test('startup first-project Home still waits for the feed to confirm its empty state or fail',()=>{
+  for(const status of ['idle','loading','success','error']){
+    const h=homeHarness('mobile',{status,featured:null,projects:[],isEmpty:status==='success'},{firstProjectAction(){},startupPending:true,onStartupReady(){}});
+    assert.equal(h.readiness.enabled,true);
+    assert.equal(h.readiness.settled,status==='success');
+    assert.equal(h.readiness.terminalError,status==='error');
+    assert.equal(h.readiness.projectCount,0);
+  }
 });
 
 test('public Home work stays visible for a mobile owner who has not published yet',()=>{
