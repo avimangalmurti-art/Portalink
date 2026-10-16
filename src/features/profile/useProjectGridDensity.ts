@@ -11,12 +11,13 @@ type DensityState = {
   saveError: string | null;
   pending: number | null;
   localChoice: boolean;
+  previewing: boolean;
   listeners: Set<() => void>;
 };
 
 function createState(columns: unknown): DensityState {
   return { columns: normalizeProjectGridColumns(columns), saving: false, saveError: null,
-    pending: null, localChoice: false, listeners: new Set() };
+    pending: null, localChoice: false, previewing: false, listeners: new Set() };
 }
 
 // Preserve outstanding profile writes and separate Home choices across route
@@ -102,7 +103,7 @@ export function useProjectGridDensity(
 
   const { columns, saving, saveError } = state;
   useEffect(() => {
-    if (scope === 'home') return;
+    if (scope === 'home' || state.previewing) return;
     if (state.localChoice) {
       // Ignore old refetches until the service has echoed the latest confirmed
       // owner choice. Visitors' local zoom is never written to the profile.
@@ -117,7 +118,8 @@ export function useProjectGridDensity(
 
   const setColumns = useCallback((value: number) => {
     const next = normalizeProjectGridColumns(value);
-    if (state.columns === next && !state.saveError) return;
+    if (state.columns === next && !state.saveError && !state.previewing) return;
+    state.previewing = false;
     state.columns = next;
     state.localChoice = true;
     state.saveError = null;
@@ -136,5 +138,13 @@ export function useProjectGridDensity(
     void savePending(state, profiles, profileId, invalidateProfiles);
   }, [state, saveProfile, profileId, profiles, invalidateProfiles]);
 
-  return { columns, setColumns, saving, saveError, retry };
+  const previewColumns = useCallback((value: number) => {
+    const next = normalizeProjectGridColumns(value);
+    state.previewing = true;
+    state.localChoice = true;
+    if (state.columns === next) return;
+    state.columns = next;
+    notify(state);
+  }, [state]);
+  return { columns, setColumns, previewColumns, saving, saveError, retry };
 }

@@ -259,7 +259,7 @@ export function HomeFeed({
             <p role="status" className={hasReloaded && (feed.isRefreshing || feed.refreshError) ? 'py-2 text-[13px] text-[var(--text-secondary)]' : 'sr-only'}>
               {feed.isRefreshing ? 'Refreshing Home content.' : hasReloaded ? feed.refreshError ?? (feed.status === 'error' ? 'Could not refresh Home. Please try again.' : 'Home content refreshed.') : ''}
             </p>
-            {layoutReady && <DensitySeparator columns={density.columns} onChange={density.setColumns} label="Home content per row" />}
+            {layoutReady && <DensitySeparator columns={density.columns} onChange={density.setColumns} onPreview={density.previewColumns} label="Home content per row" />}
           </header>}
           {!locationId && <WeeklyReadNote startupPending={startupPending} startupAttempt={startupAttempt} onStartupSettled={startupPending ? reportNoteReadiness : undefined} />}
           <section aria-labelledby="home-work-title">

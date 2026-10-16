@@ -409,3 +409,12 @@ test('retained profile actions do not render a second ellipsis over the active s
   active = true;
   assert.notEqual(actions.MobileContextButton({}), null);
 });
+
+test('individual page Cite remains available for owners as well as visitors',()=>{
+ for(const owner of [true,false]) {
+  let opened=0;const cite=()=>opened++;
+  const model=contextActions('project',{signedIn:true,owner},{handlers:{cite}});
+  const action=[...model.primary,...model.groups.flat()].find(item=>item.id==='cite');
+  assert.ok(action);action.run();assert.equal(opened,1);
+ }
+});

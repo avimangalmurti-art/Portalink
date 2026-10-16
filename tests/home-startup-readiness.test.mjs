@@ -139,19 +139,28 @@ test('a late decode between scope render and passive cleanup keeps the old readi
 });
 
 test('WeeklyReadNote reports terminal data settlement, skips a dismissed note, and retries only a new startup attempt', () => {
-  let cursor = 0, effects = [], dismissed = false, retries = 0;
+  let cursor = 0, effects = [], retries = 0, loginSession = {};
   const slots = [], reports = [];
   const query = { loading: true, data: undefined, error: undefined, retry: () => retries++ };
   const react = { ...React, useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value; }]; },
     useRef(initial) { return slots[cursor++] ??= { current: initial }; }, useCallback: callback => callback, useEffect: callback => effects.push(callback) };
   const { WeeklyReadNote } = sourceModule('src/features/reads/WeeklyReadNote.tsx', {
     react, 'react-router-dom': { useNavigate: () => () => {} }, '../../contexts/ServicesContext': { useServices: () => ({ reads: {} }) },
-    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'account' } }) }, '../library/useAccountQuery': { useAccountQuery: () => query },
+    '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'account' }, loginSession }) }, '../library/useAccountQuery': { useAccountQuery: () => query },
     './readSignal': { currentWeek: () => 'week' }, '../../components/ui/Button': { Button: 'button' }, './reads.css': {},
-  }, { localStorage: { getItem: () => dismissed ? 'yes' : null } });
-  const render = attempt => { cursor = 0; effects = []; WeeklyReadNote({ startupPending: true, startupAttempt: attempt, onStartupSettled: value => reports.push(value) }); effects.forEach(effect => effect()); };
+  }, { localStorage: { getItem: () => 'yes', setItem: () => assert.fail('Dismissal must not persist across logins') } });
+  const render = attempt => { cursor = 0; effects = []; const tree = WeeklyReadNote({ startupPending: true, startupAttempt: attempt, onStartupSettled: value => reports.push(value) }); effects.forEach(effect => effect()); return tree; };
   render(0); assert.equal(reports.at(-1), false); assert.equal(retries, 0);
   query.loading = false; query.error = 'Reads unavailable'; render(0); assert.equal(reports.at(-1), true);
   render(1); assert.equal(retries, 1); render(1); assert.equal(retries, 1);
-  query.loading = true; dismissed = true; render(1); assert.equal(reports.at(-1), true);
+  query.error = undefined;
+  query.data = [{ projectId: 'work', weekly: { opened: 48, finished: 6 } }];
+  assert.ok(render(1), 'Old weekly localStorage dismissal is ignored');
+  const walk = node => !React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(walk)];
+  walk(render(1)).find(node => node.type === 'button' && node.props.children === 'Dismiss').props.onClick();
+  query.loading = true; assert.equal(render(1), null); assert.equal(reports.at(-1), true);
+  slots.length = 0; assert.equal(render(1), null, 'Navigation remount keeps this login dismissed');
+  loginSession = {}; query.loading = false;
+  assert.ok(render(1), 'A new login shows the same week again');
+  query.data = []; assert.ok(render(1), 'A successfully loaded zero-activity week still greets the user');
 });

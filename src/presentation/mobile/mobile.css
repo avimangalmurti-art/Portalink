@@ -5781,3 +5781,78 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   border: 0;
   pointer-events: none;
 }
+
+/* A single page owns its viewport controls, independent of nested body insets. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
+  --focused-control-top: calc(max(var(--safe-area-top, 0px), env(safe-area-inset-top, 0px)) + 8px);
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] > :is(.premium-viewer-exit-control, [data-focused-page-count]) {
+  position: fixed;
+  top: var(--focused-control-top);
+  z-index: 65;
+  min-height: 44px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none;
+}
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-mobile-focused-view]) .mobile-context-floating button.mobile-context-button {
+  top: calc(max(var(--safe-area-top, 0px), env(safe-area-inset-top, 0px)) + 8px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: var(--surface-canvas) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Every Studio collection uses the centered Insights title/control row. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-collection-title {
+  display: block !important;
+  position: absolute;
+  inset-inline: 76px;
+  top: 8px;
+  height: 44px;
+  margin: 0;
+  display: grid !important;
+  place-items: center;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.15;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-text-control, .studio-drafts-control) {
+  margin-right: 0;
+  padding-inline: 8px;
+  font-size: 14px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-drafts-title, .studio-header h1),
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > section > h2 {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-mobile-shell-header::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, 16px);
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline);
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-back, .studio-drafts-back, .studio-header-back) {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 14px;
+  background: var(--navigation-surface);
+  color: var(--navigation-foreground);
+}
+
+/* Draw inbox search focus inside its rounded shell so header clipping cannot cut it off. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] .text-control-shell:focus-within {
+  border: 1px solid var(--focus-ring) !important;
+  box-shadow: inset 0 0 0 1px var(--focus-ring) !important;
+  outline: none !important;
+}

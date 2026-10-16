@@ -202,3 +202,11 @@ test('Home and Profile density stay independent across writes, remounts and sess
  assert.equal(fresh.mount({...s.records.owner}).value.columns,3);
  assert.equal(fresh.mount({...s.records.other},true,'home').value.columns,2);
 });
+
+test('drag previews update immediately without profile writes and final release saves once',async()=>{
+ const s=setup(),profile=s.mount();
+ for(const value of [3,4,7,9]) {profile.value.previewColumns(value);await profile.flush();}
+ assert.equal(profile.value.columns,9);assert.equal(s.writes.length,0);
+ profile.value.setColumns(9);await profile.flush();
+ assert.equal(s.writes.length,1);assert.equal(s.writes[0].input.projectGridColumns,9);
+});

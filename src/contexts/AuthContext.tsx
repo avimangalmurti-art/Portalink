@@ -19,6 +19,8 @@ export type AuthView = 'signIn' | 'signUp' | 'forgotPassword' | 'resetPassword';
 type AuthContextValue = {
   phase: AuthPhase;
   session: AuthSession | null;
+  /** In-memory UI identity, renewed after sign-out/account change, never token refresh. */
+  loginSession: object;
   user: AuthUser | null;
   /** The profile this account owns. Null while signed out. */
   viewerProfileId: Id | null;
@@ -111,6 +113,7 @@ export function AuthProvider({
   } = useServices();
   const [phase, setPhase] = useState<AuthPhase>('initializing');
   const [session, setSession] = useState<AuthSession | null>(null);
+  const loginSession = useMemo(() => ({}), [session?.user.id]);
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const [error, setError] = useState<AuthError | null>(null);
@@ -333,6 +336,7 @@ export function AuthProvider({
   const value = useMemo<AuthContextValue>(() => ({
     phase,
     session,
+    loginSession,
     user: session?.user ?? null,
     viewerProfileId: session?.user.profileId ? session.user.profileId : null,
     isAuthenticated,
@@ -357,7 +361,7 @@ export function AuthProvider({
     peekPendingIntent,
     get rememberedEmail() { return rememberedEmailRef.current; },
     rememberEmail
-  }), [phase, session, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberEmail]);
+  }), [phase, session, loginSession, isAuthenticated, error, signIn, signOut, completeAccountDeletion, linkProfile, refreshSession, pendingView, gateMessage, requestAuth, closeAuth, requestAuthenticatedDestination, consumePendingIntent, peekPendingIntent, rememberEmail]);
   pendingViewRef.current = pendingView;
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

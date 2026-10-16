@@ -110,7 +110,7 @@ export function MediaInteractionBar({
   const current = currentPage?.projectId === target.projectId && currentPage.attachmentId === target.attachmentId && currentPage.pageIndex === target.pageIndex;
   useMobileScreenActions(current ? contextActions(currentPage?.shared ? 'shared' : 'project', { signedIn: auth.isAuthenticated, owner: isOwner }, { handlers: {
     copyCitation: isOwner&&auth.viewerProfileId?async()=>{const identity=copyIdentity.current;try{const text=await ownPageCitation(auth.viewerProfileId!,target.projectId,target.attachmentId,target.pageIndex);if(copyIdentity.current!==identity)return;await navigator.clipboard.writeText(text);setCitationStatus('Citation copied.');}catch(caught){if(copyIdentity.current===identity)setCitationStatus(caught instanceof Error?caught.message:'Citation could not be copied.');}}:undefined,
-    cite: !isOwner ? () => citation.open() : undefined,
+    cite: () => citation.open(),
     share: () => activity.share(),
     savePage: sharedGuest || (!activity.isResolvingEngagement && activity.pendingKind !== 'save') ? () => savePage() : undefined,
     comment: () => { if (!requireAccount()) setCommentsOpen(true); },
@@ -181,7 +181,7 @@ export function MediaInteractionBar({
         <InterfaceIcon icon={MessageCircleIcon} size="sm" weight="regular" keepColor stroke="currentColor" />
         {counts[ACTIONS.length] ? <span className="media-item-action-count font-semibold tabular-nums">{counts[ACTIONS.length]}</span> : null}
       </button>
-      {!isOwner && <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>}
+      <button type="button" aria-label="Cite this page" title="Cite" onClick={()=>void citation.open()} className="media-item-action"><InterfaceIcon icon={QuoteIcon} size="sm" weight="regular" keepColor /></button>
       <button
         type="button"
         aria-pressed={activity.shareState === 'shared'}
