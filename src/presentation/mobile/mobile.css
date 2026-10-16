@@ -3324,7 +3324,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   max-height: calc(100% - max(16px, var(--safe-area-top)));
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
-  border-radius: 28px 28px 0 0 !important;
+  border-radius: var(--ui-popup-radius, 24px) var(--ui-popup-radius, 24px) 0 0 !important;
   background: var(--material-regular) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
