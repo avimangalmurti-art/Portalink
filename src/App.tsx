@@ -72,6 +72,7 @@ const IconPickerPage = React.lazy(() => import('./components/profile/IconPickerP
 const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').then(module => ({ default: module.PortalsPage })));
 const ProfileEditorPage = React.lazy(loadProfileEditorPage);
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
+const FirstLoginWelcome = React.lazy(() => import('./components/auth/FirstLoginWelcome').then(module => ({ default: module.FirstLoginWelcome })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
 // Keep the title input available in the opening interaction for mobile keyboard focus.
 import { ProjectSetupScreen } from './features/publishing/ProjectSetupScreen';
@@ -535,6 +536,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }, [auth.isAuthenticated, auth.viewerProfileId, search, nav]);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [optionalSetupAccount, setOptionalSetupAccount] = useState<string | null>(null);
+  useEffect(() => {
+    if (auth.isAuthenticated && onboardingStatus === 'required' && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword') setIsOnboardingOpen(true);
+  }, [auth.isAuthenticated, auth.user?.id, onboardingStatus, auth.session?.isPasswordRecovery, auth.pendingView]);
   const resumedRegistration = useRef<string | null>(null);
   useEffect(() => {
     if (!auth.isAuthenticated) {
@@ -1464,7 +1468,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       <PublishConfirmation message={publishConfirmation?.message ?? null} />
 
       {/* Onboarding opens only when a creator surface needs a profile. */}
-      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
+      {isOnboardingOpen && auth.isAuthenticated && !auth.session?.isPasswordRecovery && auth.pendingView !== 'resetPassword' && <DeferredSurface active onClose={() => { setIsOnboardingOpen(false); deferredIntentRef.current = null; }}><FirstLoginWelcome key={auth.user?.id} accountId={auth.user?.id ?? ''}><ProfileOnboardingDialog theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} key={auth.user?.id} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} isOpen={isOnboardingOpen} completionActionLabel={deferredIntentRef.current?.kind === 'create-project' ? 'Publish your first project' : deferredIntentRef.current?.kind === 'messages' ? 'Continue to messages' : 'Open profile'} onDismiss={() => {
         setIsOnboardingOpen(false);
         // Abandoning onboarding abandons the journey it interrupted.
         deferredIntentRef.current = null;
@@ -1480,7 +1484,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         }
         if (presentation === 'mobile') nav.home(true);
         else openProfile(profileId);
-      }} /></DeferredSurface>}
+      }} /></FirstLoginWelcome></DeferredSurface>}
       {optionalSetupAccount === auth.user?.id && auth.viewerProfileId && !isOnboardingOpen && <DeferredSurface active onClose={() => setOptionalSetupAccount(null)}><OptionalAccountSetup
         theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor}
         highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency}

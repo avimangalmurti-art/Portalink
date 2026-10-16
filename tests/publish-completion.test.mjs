@@ -123,13 +123,12 @@ test('disabled Publish explains the missing detail, then clears the helper when 
   for (const presentation of ['web']) {
   for (const [title, summary, expected] of [
     ['  ', '', 'Add a title to publish.'],
-    ['My project', '  ', 'Add a description to publish.'],
   ]) {
     const tree = harness(presentation).render({ metadata: { title, summary }, canPublish: false, media: { items: [{}] } });
     assert.ok(nodes(tree).some((node) => node.props?.role === 'status' && node.props.children === expected));
     assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, true);
   }
-  const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: 'About the work' }, canPublish: true, media: { items: [{}] } });
+  const tree = harness(presentation).render({ firstProject: false, metadata: { title: 'My project', summary: '' }, canPublish: true, media: { items: [{}] } });
   assert.equal(nodes(tree).find((node) => node.props?.type === 'submit').props.disabled, false);
   assert.ok(!nodes(tree).some((node) => node.props?.role === 'status'));
   assert.ok(nodes(tree).some((node) => node.props?.id === 'publish-details-label' && node.props.children === 'Project details'));

@@ -21,7 +21,7 @@ export function ProjectSetupScreen({categories,initialCategoryId,onCreatePortal,
  useModalFocus(true,panel,()=>{if(!flight.current)onClose();},true);
  async function proceed(){
   if(flight.current)return;
-  const invalid=validateTitle(title)||(!summary.trim()?'Describe this project.':null)||(portal==='new'?validateCategoryLabel(name,categories,null):!availableCategories.some(c=>c.id===portal)?'Choose a portal.':null);
+  const invalid=validateTitle(title)||(portal==='new'?validateCategoryLabel(name,categories,null):!availableCategories.some(c=>c.id===portal)?'Choose a portal.':null);
   if(invalid){setError(invalid);return;}
   flight.current=true;setBusy(true);setError('');
   try{const category=portal==='new'?await onCreatePortal(name.trim()):availableCategories.find(c=>c.id===portal);
@@ -45,7 +45,7 @@ export function ProjectSetupScreen({categories,initialCategoryId,onCreatePortal,
     {portal!=='new'&&<button type="button" className="project-setup-add-portal" disabled={busy} onClick={()=>setPortal('new')}><PlusIcon size={16} aria-hidden="true"/>Add new portal</button>}
     {portal==='new'&&<label className="project-setup-row"><span>Portal name</span><input autoFocus aria-label="New portal name" value={name} onChange={e=>setName(e.target.value)} maxLength={MAX_CATEGORY_LABEL} placeholder="Name your portal" disabled={busy}/></label>}
     <div className="project-setup-row"><span><UsersIcon size={18} aria-hidden="true"/>Collaboration</span><button type="button" disabled>Coming soon</button></div>
-    <label className="project-setup-description"><span>Description</span><textarea value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Tell the story behind this project…" rows={5} disabled={busy} required/></label>
+    <label className="project-setup-description"><span>Description (optional)</span><textarea value={summary} onChange={e=>setSummary(e.target.value)} placeholder="Tell the story behind this project…" rows={5} disabled={busy}/></label>
    </div>
    <p className="project-setup-hint">{portal==='new'?'Continue creates this portal, then opens uploads.':'Next, choose the files and cover for this project.'} Nothing is published until you review and publish.</p>
    {error&&<p role="alert">{error}</p>}

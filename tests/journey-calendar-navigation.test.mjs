@@ -496,3 +496,12 @@ test('mobile Timeline has only three sort buttons and no creation actions for ow
  assert.equal(h.button('Add work'),undefined);assert.equal(h.button('Choose a Then/Now pair'),undefined);
  h.update({owner:false});assert.equal(h.button('Add work'),undefined);h.dispose();
 });
+test('Popular shows authorized open counts and tied ranks only while selected',async()=>{
+ const reads={list:async()=>[{profileId:'creator',projectId:'older-hit',opened:50},{profileId:'creator',projectId:'recent-tie',opened:5},{profileId:'creator',projectId:'older-tie',opened:5},{profileId:'other',projectId:'zero',opened:999}]};
+ const h=componentHarness('src/features/journey/JourneyView.tsx','JourneyView',{profile:{...profile,projects:[project('older-hit','2020-01-01'),project('recent-tie','2026-01-01'),project('older-tie','2025-01-01'),project('zero','2024-01-01')]},owner:true,presentation:'mobile',onOpen(){}},{'../../contexts/ServicesContext':{useServices:()=>({reads})}});
+ assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);await new Promise(setImmediate);h.update({});
+ h.nodes.find(n=>n.type==='button'&&text(n)==='Popular').props.onClick();
+ assert.deepEqual(h.nodes.filter(n=>n.props.className==='journey-popularity').map(n=>text(n).replace(/\s+/g,' ').replace('# ','#')),['#1 · 50 opens','#2 · 5 opens','#2 · 5 opens','#4 · 0 opens']);
+ h.nodes.find(n=>n.type==='button'&&text(n)==='Oldest').props.onClick();assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);
+ h.update({owner:false});assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);h.dispose();
+});

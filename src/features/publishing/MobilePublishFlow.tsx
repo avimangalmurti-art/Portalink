@@ -92,7 +92,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
       {flow.localDraftError && <p role="alert" className="mobile-publish-error">{flow.localDraftError} Your work is still open here.</p>}
       {stage === 'files' ? <MobileCoverFiles media={flow.media} upload={flow.upload} disabled={busy} /> : stage === 'details' ? <section className="project-form-details" aria-labelledby="mobile-publish-step-title">
         <ProfileField id="publish-title" label="Title" required requiredIndicator="asterisk" workspace clearable value={flow.metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={flow.fieldErrors.title} disabled={busy} onChange={value => flow.setField('title', value)} />
-        <ProfileField id="publish-summary" label="Description" formatting required requiredIndicator="asterisk" workspace multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
+        <ProfileField id="publish-summary" label="Description" formatting optional optionalParentheses workspace multiline value={flow.metadata.summary} placeholder="Describe the work" error={flow.fieldErrors.summary} disabled={busy} onChange={value => flow.setField('summary', value)} />
         <ProjectCitationFields metadata={flow.metadata} disabled={busy} onChange={flow.setCitationFields}/>
         <ProfileField id="publish-location" label="Location" optional optionalParentheses workspace clearable leadingIcon={<MapPinIcon size={20} aria-hidden="true" />} value={flow.location} maxLength={80} placeholder="City or place" disabled={busy} onChange={flow.setLocation} />
       </section> : <div className="mobile-publish-review">
@@ -103,7 +103,7 @@ export function MobilePublishFlow({ flow, editingStep, onEditingStepChange, noti
         <section className="mobile-review-card mobile-publish-review-details" aria-label="Project details">
           <header><h4>Project details</h4>{editAction('Edit project details', 'details')}</header>
           <dl><div><dt>Title</dt><dd>{flow.metadata.title.trim()}</dd></div>
-            <div><dt>Description</dt><dd className="mobile-review-summary"><FormattedText text={flow.metadata.summary.trim()} /></dd></div>
+            {flow.metadata.summary.trim() && <div><dt>Description</dt><dd className="mobile-review-summary"><FormattedText text={flow.metadata.summary.trim()} /></dd></div>}
             {flow.location.trim() && <div><dt>Location</dt><dd><MapPinIcon size={16} aria-hidden="true" />{flow.location.trim()}</dd></div>}
           </dl>
         </section>

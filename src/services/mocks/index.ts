@@ -593,10 +593,9 @@ export const mockProjectService: ProjectService = {
     if (!profile.categories.some((category) => category.id === input.categoryId)) {
       throw new PublishServiceError('category_not_found', 'That category does not belong to this profile.');
     }
-    // Defence in depth: the public fields are required at the boundary too, so
-    // no path can create a project with metadata invented to fill a gap.
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new PublishServiceError('invalid_metadata', 'A title and a description are both required.');
+    // Keep the title required at the boundary; descriptions are optional.
+    if (!input.metadata.title.trim()) {
+      throw new PublishServiceError('invalid_metadata', 'A title is required.');
     }
     const preparedMedia = input.media ?? [];
     const persistedAttachments = input.attachments ?? [];

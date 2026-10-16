@@ -46,6 +46,20 @@ function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDes
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const events=useJourneyCitations(profile,owner);
   const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order,popularCounts), [profile.projects, events, owner, order, popularCounts]);
+  const popularityRanks = useMemo(() => {
+    const result = new Map<string,{rank:number;opens:number}>();
+    if (!isMobile || order !== 'popular' || !popularCounts) return result;
+    let previous = -1, rank = 0, position = 0;
+    for (const group of groups) for (const entry of group.entries) {
+      if (entry.kind !== 'project') continue;
+      const opens = Math.max(0, popularCounts[entry.project.id] ?? 0);
+      position += 1;
+      if (opens !== previous) rank = position;
+      result.set(entry.project.id, {rank, opens});
+      previous = opens;
+    }
+    return result;
+  }, [groups, isMobile, order, popularCounts]);
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
@@ -95,11 +109,12 @@ function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDes
           {date}<div className="journey-entry-copy"><a className="journey-title" href={entry.event.href}>{entry.event.label}</a></div>
         </li>;
         const project = entry.project;
+        const popularity = popularityRanks.get(project.id);
         const hasOptions = isMobile || (owner && onEdit);
         return <li className="journey-entry" data-journey-date={day ?? undefined} data-has-options={Boolean(hasOptions) || undefined} key={`project:${project.id}`}>
           {date}
           <div className="journey-entry-copy">
-            <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>
+            {popularity ? <div className="journey-popular-heading"><button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button><span className="journey-popularity" aria-label={`Rank ${popularity.rank}, ${popularity.opens} project ${popularity.opens === 1 ? 'open' : 'opens'}`}>#{popularity.rank} · {popularity.opens} {popularity.opens === 1 ? 'open' : 'opens'}</span></div> : <button type="button" className="journey-title" onClick={() => onOpen(project)}>{project.title}</button>}
             {portalButton(project)}
           </div>
           {hasOptions && <button type="button" className="journey-project-options" aria-label={`Show details for ${project.title}`} aria-haspopup="dialog" aria-expanded={isMobile ? detailsProject?.id === project.id : undefined} onClick={() => isMobile ? setDetailsProject(project) : onEdit?.(project)}><InterfaceIcon icon={MoreHorizontalIcon} size="sm" weight="medium" /></button>}

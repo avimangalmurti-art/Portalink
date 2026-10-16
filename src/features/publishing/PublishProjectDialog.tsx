@@ -133,7 +133,6 @@ export function PublishProjectDialog({
     setField
   } = publishFlow;
   const publishHint = !metadata.title.trim() ? 'Add a title to publish.'
-    : !metadata.summary.trim() ? 'Add a description to publish.'
     : metadata.title.trim().length > TITLE_MAX_LENGTH ? `Keep the title within ${TITLE_MAX_LENGTH} characters.`
     : !media.items.length ? 'Add a file to publish.'
     : publishFlow.upload.isBusy ? 'Wait for your files to finish uploading.' : null;
@@ -200,7 +199,7 @@ export function PublishProjectDialog({
                    pre-filled or derived, so no public metadata is invented
                    on the creator's behalf. */}
                     <ProfileField ref={firstFieldRef} id="publish-title" label="Title" required value={metadata.title} maxLength={TITLE_MAX_LENGTH} placeholder="Project title" error={fieldErrors.title} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('title', value)} />
-                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} required multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
+                     <ProfileField id="publish-summary" label="Description" formatting={isMobile} optional optionalParentheses multiline value={metadata.summary} placeholder="Describe the work" error={fieldErrors.summary} disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={(value) => setField('summary', value)} />
                     <ProjectCitationFields metadata={metadata} disabled={isPublishing || publishFlow.hasCommittedProject} onChange={publishFlow.setCitationFields}/>
                     {isMobile ? <ProfileField id="publish-location" label="Location" optional value={publishFlow.location} maxLength={80} placeholder="City or place" disabled={isPublishing || publishFlow.isSavingDraft || publishFlow.hasCommittedProject} onChange={publishFlow.setLocation} /> : publishFlow.inferredRelevance.contentGeography ? <div className="rounded-[9px] border border-[var(--hairline)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-secondary)]">
                         <p>Project relevance: <strong className="font-semibold text-[var(--text-primary)]">{publishFlow.inferredRelevance.contentGeography.label}</strong>. This describes the work; Portalink city pages use the city chosen on your profile.</p>

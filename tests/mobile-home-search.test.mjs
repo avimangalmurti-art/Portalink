@@ -107,3 +107,9 @@ test('header categories entry opens a separate page without refreshing and resto
  page.props.onBack();h.render();h.pull();assert.equal(h.reloads,1);assert.equal(h.worldVisits,1);assert.equal(h.userSearchVisits,1);
  const web=nodes(harness('web').render());assert.equal(web.some(n=>n.props['aria-label']==='Explore categories'),false);
 });
+
+test('mobile Home separator controls existing grid density without adding a WEB control',()=>{
+ const h=harness();const slider=()=>nodes(h.render()).find(n=>n.props.label==='Home content per row');assert.ok(slider());
+ slider().props.onChange(7);assert.equal(slider().props.columns,7);assert.equal(nodes(h.render()).find(n=>n.type==='JustifiedImageWall').props.columns,7);
+ assert.equal(nodes(harness('web').render()).some(n=>n.props.label==='Home content per row'),false);
+});

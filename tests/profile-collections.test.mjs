@@ -1026,3 +1026,10 @@ test('confirmed mutuals can list both connection directions',async()=>{
  assert.equal(page.items[0].profileId,'person');
  }
 });
+
+test('mobile Profile separator changes the existing wall density and stays absent from WEB and shared portfolios',()=>{
+ const h=profileHarness('',{presentation:'mobile',projects:reorderProjects});
+ const slider=()=>nodes(h.render()).find(n=>n.props.label==='Profile content per row');assert.ok(slider());slider().props.onChange(8);
+ assert.equal(slider().props.columns,8);assert.equal(wall(h.render()).props.columns,8);
+ for(const options of [{presentation:'web'},{presentation:'mobile',isSharedView:true}])assert.equal(nodes(profileHarness('',{...options,projects:reorderProjects}).render()).some(n=>n.props.label==='Profile content per row'),false);
+});

@@ -1,3 +1,4 @@
+import { DensitySeparator } from './ui/DensitySeparator';
 import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
@@ -820,6 +821,7 @@ export function UserProfilePage({
 
       {!isMobile && isJourney && <JourneyToggle view="journey" disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} />}
       {isMobile && isJourney && <div className="timeline-header-controls" ref={setTimelineToolbarHost} />}
+      {isMobileWall && !isSharedView && !isReorderingProjects && <DensitySeparator columns={columnsPerRow} onChange={density.setColumns} label="Profile content per row" />}
       </div>
       {isBioOpen && <ProfileBioSheet key={profile.id} profileId={profile.id} bio={profile.headline}
         canEdit={showsOwnerTools && !isSharedView} onClose={() => setIsBioOpen(false)} />}

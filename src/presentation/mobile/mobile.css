@@ -2313,19 +2313,22 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
   display: flex;
   position: absolute;
-  right: var(--project-card-action-inset, 4px);
-  bottom: var(--project-card-action-inset, 4px);
+  right: 0;
+  bottom: 0;
   z-index: 5;
   width: 44px;
   height: 44px;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-end;
+  justify-content: flex-end;
   border-radius: 0;
   background: transparent;
   color: #fff;
   border: 0;
   padding: 4px;
+  min-width: 0 !important;
+  min-height: 0 !important;
   max-width: 100%;
+  max-height: 100%;
   box-sizing: border-box;
 }
 
@@ -5545,3 +5548,21 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   flex: none;
   padding-top: 8px;
 }
+
+/* Profile's adjustable hairline retains the existing 1px neutral divider. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator)::after {
+  content:''; position:absolute; inset-inline:16px; bottom:0; height:1px; background:var(--hairline); pointer-events:none;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-region:has(> .density-separator) .profile-navigation-header::after { content:none; }
+
+/* Keep the glyph in its thumbnail corner even when a dense row is below 44px. */
+#root .codex-shell[data-presentation='mobile'] .mobile-preview-details > [data-interface-icon-frame] {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+#root .codex-shell[data-presentation='mobile'] .journey-popular-heading {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;}
+#root .codex-shell[data-presentation='mobile'] .journey-popular-heading .journey-title {flex:1 1 150px;min-width:0;}
+#root .codex-shell[data-presentation='mobile'] .journey-popularity {flex:none;font-size:13px;line-height:1.5;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;}
