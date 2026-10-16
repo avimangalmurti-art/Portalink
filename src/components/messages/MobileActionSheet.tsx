@@ -21,7 +21,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
   const cancelDrag = () => { start.current = null; setDragging(false); setDragY(0); };
   useModalFocus(true, dialogRef, dismiss, true);
   return <ModalPortal><div data-presentation="mobile" ref={viewportRef} data-motion-scrim="" data-motion-closing={motion.closing || undefined} className="mobile-context-scrim modal-scrim" style={{bottom:0,height:'var(--dialog-viewport-height, 100dvh)'}} onClick={e=>{if(e.target===e.currentTarget)dismiss();}}>
-    <div ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+    <div data-ui-surface="sheet" ref={dialogRef} className="mobile-context-sheet" data-expanded={expanded} data-motion-sheet="" data-motion-closing={motion.closing || undefined} data-sheet-dragging={dragging || undefined} data-sheet-interacted={interacted || undefined} style={{['--sheet-drag-y' as string]:`${dragY}px`}} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
       <header onPointerDown={e=>{
         if(!e.isPrimary||e.button!==0||start.current)return;
         if(e.target instanceof Element&&e.target.closest('button:not(.mobile-context-resize)'))return;
@@ -64,7 +64,7 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
           setInteracted(true);
           setExpanded(value=>!value);
         }}><span className="mobile-context-handle" aria-hidden="true" /></button>
-        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" onClick={dismiss} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
+        <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
       </header>
       <div className="mobile-context-body">
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}

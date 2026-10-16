@@ -87,7 +87,7 @@ export function NewCategoryDialog({
       onCancel();
     }
   }} className="new-portal-screen modal-scrim fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <form data-icon-create-panel="" ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
+      <form data-ui-surface={presentation === 'web' ? 'popup' : undefined} data-icon-create-panel="" ref={dialogRef} tabIndex={-1} onSubmit={submit} onKeyDown={(event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onEscape();

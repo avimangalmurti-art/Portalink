@@ -42,8 +42,8 @@ export function FollowContentInfoPopup({ projectId, title, description, creatorH
     <div ref={viewport} className="follow-info-overlay" data-closing={closing || undefined}
       style={{ top: 'var(--dialog-viewport-top, 0px)', height: 'var(--dialog-viewport-height, 100dvh)' }}
       onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) dismiss(); }}>
-      <section ref={panel} id="mobile-project-popup" className="follow-info-panel" role="dialog" aria-modal="true" aria-labelledby="follow-info-title" tabIndex={-1}>
-        <header className="follow-info-header">{creatorHeader}<button type="button" aria-label="Content options" className="follow-info-options" disabled={!optionsContent && !onOptions} aria-expanded={optionsContent ? optionsOpen : undefined} onClick={() => optionsContent ? setOptionsOpen(open => !open) : onOptions?.()}><InterfaceIcon icon={MoreHorizontalIcon} /></button>{optionsContent && optionsOpen && <div className="follow-info-owner-menu">{optionsContent}</div>}</header>
+      <section data-ui-surface="popup" ref={panel} id="mobile-project-popup" className="follow-info-panel" role="dialog" aria-modal="true" aria-labelledby="follow-info-title" tabIndex={-1}>
+        <header className="follow-info-header">{creatorHeader}<button type="button" aria-label="Content options" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" className="follow-info-options" disabled={!optionsContent && !onOptions} aria-expanded={optionsContent ? optionsOpen : undefined} onClick={() => optionsContent ? setOptionsOpen(open => !open) : onOptions?.()}><InterfaceIcon icon={MoreHorizontalIcon} /></button>{optionsContent && optionsOpen && <div className="follow-info-owner-menu">{optionsContent}</div>}</header>
         <h2 id="follow-info-title">{title}</h2>
         <div className="follow-info-description scrollbar-overlay" tabIndex={0} aria-label="Content description"><FormattedText text={description || 'This project has no description.'} /></div>
         <footer className="follow-info-engagement">

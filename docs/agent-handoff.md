@@ -1,3 +1,8 @@
+## 2026-10-15 — Premium UI publication preparation
+
+Explicit user approval to publish the reviewed visual changes. Isolated codex/premium-ui-release from current github/main, fast-forwarded to current Sites source f8e36c828f528f5f329133e5d48f672d075aa596 to retain existing releases. Only twelve presentation/component files plus design-system-controls.md changed; new surfaces.css supplies shared popup/control/typography/spacing contracts. All unpublished adult-launch, Google callback/Auth, worker and pending SQL changes remain excluded in logs/adult-launch-review. Existing Supabase configuration linked via ignored .env.local; dependencies linked without installation. Public audience and existing Worker/D1 retained. No SQL/provider/runtime-setting/resource changes.
+
+Isolated candidate: typecheck and 121 focused Node checks pass. Prior actual local component browser QA covers WEB/MOBILE, light/dark, focus/Escape, sheet gestures, compact/scrolling cards and accessibility modes; not physical-device acceptance. Release build/main+visitor configuration verification and official source/archive synchronization follow. GitHub review/main integration remain separate from Sites publication; preserve all previous unpublished work.
 Validation:31 focused tests pass/no skips, typecheck, lint0errors113existingwarnings, final client/worker build and configured main/visitor guards pass. Actual-component synthetic preview confirms Apple absent and email form retained at desktop and420x912; Google accurately disabled. No live login/physical-device check. Source ready for authorized publication.
 
 ## 2026-10-15 - Apple hidden; production Google setup explicitly deferred

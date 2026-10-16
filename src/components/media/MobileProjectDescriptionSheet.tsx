@@ -105,7 +105,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
     onPointerUp={stop} onClick={event => { stop(event); if (menuOpen) setMenuOpen(false); }}
     onDoubleClick={stop} onTouchMove={stop} onWheel={stop} onKeyDown={stop}>
     <section ref={panelRef} id="mobile-project-popup" role="dialog" aria-modal="true" aria-labelledby={contentLabel !== 'Description' || projectTitle ? 'project-description-title' : undefined} aria-label={contentLabel === 'Description' && !projectTitle ? 'Project information' : undefined}
-      tabIndex={-1} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-top-editor-actions={topEditorActions || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
+      tabIndex={-1} data-ui-surface={writingScreen ? undefined : contentLabel === 'Description' ? 'popup' : 'sheet'} data-media-interaction="" data-writing-screen={writingScreen || undefined} data-top-editor-actions={topEditorActions || undefined} data-expanded={expanded || undefined} className="mobile-project-description-sheet">
       {contentLabel !== 'Description' && !writingScreen && <button type="button" className="project-description-grabber" aria-label={expanded ? `Reduce ${label} sheet` : `Expand ${label} sheet`} aria-expanded={expanded}
         onClick={() => { if (!moved.current) setExpanded(value => !value); moved.current = false; }}
         onPointerDown={event => {
@@ -137,7 +137,7 @@ export function MobileProjectDescriptionSheet({ projectId, projectTitle, descrip
           }
           resetDrag();
         }} onPointerCancel={() => { moved.current = false; resetDrag(); }} onLostPointerCapture={() => { if (drag.current) { moved.current = false; resetDrag(); } }}><span /></button>}
-      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}<button type="button" className="project-popup-close" aria-label={`Close ${label}`} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button></div>}
+      {creatorHeader && !editing && <div className="project-popup-identity">{creatorHeader}<button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" className="project-popup-close" aria-label={`Close ${label}`} onClick={() => dismiss()}><XIcon aria-hidden="true" /></button></div>}
       <header className="project-description-heading">
         {(contentLabel !== 'Description' || projectTitle) && <h2 id="project-description-title" style={{ fontFamily: typeface }}>{contentLabel === 'Description' ? projectTitle : contentLabel}</h2>}
         {writingScreen && phase !== 'load-failed' && <TextFormattingToolbar variant="dropdown" inputRef={textareaRef} value={activeEditor.value} onChange={activeEditor.onChange} disabled={busy || phase === 'loading'} maxLength={activeEditor.maxLength} />}

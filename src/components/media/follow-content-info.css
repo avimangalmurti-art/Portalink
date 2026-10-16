@@ -2,7 +2,7 @@
   position: fixed; inset-inline: 0; z-index: 110; box-sizing: border-box;
   display: flex; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
-  background: rgb(0 0 0 / 18%); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  background: var(--scrim, rgb(0 0 0 / 18%)); backdrop-filter: blur(18px) saturate(115%); -webkit-backdrop-filter: blur(18px) saturate(115%);
   animation: follow-info-backdrop-in var(--m-base) var(--m-enter) both;
 }
 [data-follow-info-layer] .follow-info-panel {

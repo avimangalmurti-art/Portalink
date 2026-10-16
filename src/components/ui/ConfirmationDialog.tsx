@@ -47,13 +47,13 @@ export function ConfirmationDialog({ title, description, confirmLabel, cancelLab
   };
   const content = <div ref={viewport} data-presentation={presentation} className="portalink-confirmation-overlay modal-scrim" role="presentation" onPointerDown={event => event.stopPropagation()}>
     <ScreenBack action={cancel}>{null}</ScreenBack>
-    <section ref={dialog} tabIndex={-1} data-material="content" className="portalink-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} aria-busy={busy}>
+    <section ref={dialog} tabIndex={-1} data-material="content" data-ui-surface="popup" className="portalink-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} aria-busy={busy}>
       <h2 id={`${id}-title`}>{title}</h2>
       <div id={`${id}-description`} className="portalink-confirmation-description">{description}</div>
       {(error || failure) && <p role="alert" className="portalink-confirmation-error">{error || failure}</p>}
       <div className="portalink-confirmation-actions">
-        <button ref={safe} type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button>
-        <button type="button" data-keep-color="" data-variant={variant} disabled={busy || confirmDisabled} onClick={() => void confirm()}>{busy ? pendingLabel : confirmLabel}</button>
+        <button data-ui-control="button" data-control-size="lg" data-control-variant="secondary" ref={safe} type="button" disabled={busy} onClick={cancel}>{cancelLabel}</button>
+        <button type="button" data-ui-control="button" data-control-size="lg" data-control-variant={variant === 'destructive' ? 'danger' : 'primary'} data-keep-color="" data-variant={variant} disabled={busy || confirmDisabled} onClick={() => void confirm()}>{busy ? pendingLabel : confirmLabel}</button>
       </div>
     </section>
   </div>;

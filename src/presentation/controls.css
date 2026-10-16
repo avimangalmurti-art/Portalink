@@ -18,7 +18,8 @@
   padding: 0 var(--ui-control-padding);
   font-size: 14px;
   line-height: 1.25;
-  font-weight: 400;
+  font-weight: 500;
+  letter-spacing: -0.005em;
   vertical-align: middle;
 }
 :where(#root .codex-shell) [data-ui-control][data-control-size='sm'] {
@@ -57,7 +58,7 @@
   --ui-control-surface: var(--ui-control-rest-surface);
   --ui-control-text: var(--ui-control-rest-text);
   border: 1px solid var(--ui-control-border) !important;
-  border-radius: var(--shape-compact) !important;
+  border-radius: var(--ui-control-radius, 12px) !important;
   background: var(--ui-control-surface) !important;
   color: var(--ui-control-text) !important;
   box-shadow: none;

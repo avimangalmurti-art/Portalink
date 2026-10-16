@@ -32,7 +32,7 @@ export function PortalProjectPopup({ profile, categoryId, onClose, onSelect, bac
       if (event.target === event.currentTarget) onClose();
     }}>
       <ScreenBack action={onClose}>{null}</ScreenBack>
-      <section ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
+      <section data-ui-surface="popup" ref={ref} className="shared-portal-popup ps-panel" role="dialog" aria-modal="true" aria-label={category.label} tabIndex={-1}>
         <MobilePortalProjectToolbar category={category} onBack={onClose} backLabel={backLabel} sharedReadOnly
           layout="list" onLayout={() => undefined} sort="saved" onSort={() => undefined} />
         <nav data-project-index-list="" className="min-h-0 flex-1 overflow-y-auto" aria-label={`${category.label} projects`}>
