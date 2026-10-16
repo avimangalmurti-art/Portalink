@@ -1,94 +1,6 @@
+@import '../../components/profile/icon-create-mobile.css';
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
-/* The startup layer exists before the app host and carries the same scope. */
-[data-presentation='mobile'].portalink-startup-wait {
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: var(--mobile-launch-height, 100dvh);
-  background-color: #f8fdfc;
-  overflow: hidden;
-}
-[data-presentation='mobile'].portalink-splash {
-  background-color: #f8fdfc;
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: var(--mobile-launch-height, 100dvh);
-  overscroll-behavior: none;
-}
-
-[data-presentation='mobile'].portalink-splash .portalink-splash-media {
-  width: 100vw;
-  height: var(--mobile-launch-height, 100dvh);
-  max-height: var(--mobile-launch-height, 100dvh);
-  object-fit: contain;
-}
-
-/* A looping welcome above reachable account actions, on the same surface. */
-[data-presentation='mobile'].portalink-splash[data-share-landing] {
-  outline: none;
-  background: #f8fdfc !important;
-  height: var(--mobile-launch-height, 100dvh);
-  min-height: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
-  padding-top: max(12px, env(safe-area-inset-top, 0px));
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
-}
-[data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  max-height: 100%;
-  object-fit: contain;
-}
-@media (min-height: 561px) {
-  /* The supplied clip contains generous blank margins around the artwork. */
-  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { transform: scale(1.4); }
-}
-[data-presentation='mobile'] .mobile-share-landing-actions {
-  position: relative;
-  z-index: 1;
-  grid-area: 2 / 1;
-  width: 78%;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: #071326;
-  font-family: 'IBM Plex Sans', sans-serif;
-}
-[data-presentation='mobile'] .mobile-share-create {
-  min-height: clamp(52px, 6.8dvh, 60px);
-  width: 100%;
-  border-radius: 999px;
-  border: 1.5px solid #071326;
-  font-size: 20px;
-  font-weight: 500;
-}
-[data-presentation='mobile'] .mobile-share-create { background: #071326; color: #fff; }
-[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 4px;
-  border: 0;
-  box-shadow: none;
-}
-[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary button {
-  min-height: 44px;
-  -webkit-appearance: none;
-  appearance: none;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  text-decoration: none;
-  color: #6f7682;
-  font-family: inherit;
-  font-size: 16px;
-  font-weight: 400;
-  line-height: 24px;
-  letter-spacing: normal;
-}
-[data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
-[data-presentation='mobile'] .mobile-share-landing-actions button:disabled { opacity: .55; cursor: wait; }
-
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
    fallback weaker than explicit circles, pills, and component corner rules.
    Body-portalled menus carry the same presentation scope as the app. */
@@ -708,7 +620,7 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-floating-navigation[data-scrolling] * {
@@ -717,20 +629,20 @@
 
 /* Reading hides only interface surfaces. Keep all geometry and artwork intact. */
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control] {
-  transition: opacity 160ms ease, visibility 0s;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: opacity 160ms ease, visibility 0s 160ms;
+  transition: opacity var(--m-base) var(--m-enter), visibility var(--m-fast) var(--m-base);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-project-reading-control]:where([data-project-reading] *) * {
   visibility: hidden !important;
   pointer-events: none !important;
-  transition: visibility 0s 160ms;
+  transition: visibility var(--m-fast) var(--m-base);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -741,6 +653,8 @@
 
 /* Six full touch targets share one centered, responsive capsule. */
 #root .codex-shell[data-presentation='mobile'] .mobile-navigation-quick-links {
+  transform: scale(.85);
+  transform-origin: center bottom;
   width: var(--mobile-control-group-width);
   flex: 0 1 var(--mobile-control-group-width);
   min-width: calc(4 * var(--mobile-control-target) + 3 * var(--mobile-control-gap) + 2 * var(--mobile-control-inset));
@@ -772,6 +686,7 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: var(--mobile-control-target);
@@ -781,13 +696,23 @@
   border: 0;
 }
 
+/* Keep a 44px touch height while the visible capsule and icons shrink to 85%. */
+#root .codex-shell[data-presentation='mobile'] .mobile-dock-destination::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: max(100%, calc(44px / .85));
+  transform: translateY(-50%);
+}
+
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination {
   border-radius: 999px !important;
   background: transparent !important;
   color: var(--text-primary) !important;
   box-shadow: var(--mobile-navigation-item-shadow, none) !important;
   transform: none !important;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter), box-shadow var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-dock-destination[aria-current='page'] {
@@ -1103,7 +1028,7 @@
   width: auto !important;
   max-width: none;
   overflow: hidden;
-  animation: mobile-project-panel-enter 180ms ease-out;
+  animation: mobile-project-panel-enter var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-overlay[data-mobile-combined-rail] {
@@ -1299,7 +1224,7 @@
   flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  border-radius: 10px;
+  border-radius: var(--project-thumbnail-radius, 12px);
   overflow: hidden;
   background: var(--surface-sunken);
 }
@@ -1309,7 +1234,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--project-card-copy-gap, 4px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-title {
@@ -1325,7 +1250,8 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-date {
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
@@ -1360,8 +1286,8 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 10px 40px;
-  gap: 8px;
+  padding: 10px 10px 48px;
+  gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
@@ -1371,10 +1297,22 @@
   aspect-ratio: 1;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > div.absolute {
+/* Reserve the metadata track even when no publication date exists. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-copy {
+  display: grid;
+  font-size: 14px;
+  grid-template-rows: minmax(2.6em, auto) 1.2em;
+}
+/* Reserve two title lines so short and wrapped titles share a date baseline. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-title {
+  min-height: 2.6em;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] {
   top: auto;
-  bottom: 0;
-  right: 4px;
+  bottom: var(--project-card-action-inset, 4px);
+  right: var(--project-card-action-inset, 4px);
+  width: 44px;
+  height: 44px;
 }
 
 [data-presentation='mobile'] [data-mobile-media-comments]:has([data-mobile-project-popup-content]) {
@@ -1599,8 +1537,8 @@
   color: var(--text-primary);
   box-shadow: 0 -8px 36px rgb(0 0 0 / 18%);
   outline: none;
-  transition: height 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  animation: project-description-arrive 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: height var(--m-slow) var(--m-enter);
+  animation: project-description-arrive var(--m-slow) var(--m-enter);
 }
 /* Override generic floating-dialog paint and all-corner rounding only here. */
 #root .codex-shell [data-presentation='mobile'] .mobile-project-description-sheet {
@@ -1944,6 +1882,9 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
+  background: rgb(0 0 0 / 18%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-profile-portal-dismiss {
@@ -2362,7 +2303,7 @@
 /* Public profiles have no engagement footer. Keep the card's base rounded
    when its redundant creator row is omitted on mobile. */
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--project-thumbnail-radius, 12px) var(--project-thumbnail-radius, 12px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
@@ -2373,13 +2314,13 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
   display: flex;
   position: absolute;
-  right: 0;
-  bottom: 0;
+  right: var(--project-card-action-inset, 4px);
+  bottom: var(--project-card-action-inset, 4px);
   z-index: 5;
   width: 44px;
   height: 44px;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   border-radius: 0;
   background: transparent;
   color: #fff;
@@ -2738,7 +2679,12 @@
   pointer-events: auto;
   border: 0;
   cursor: pointer;
-  transition: transform 160ms ease;
+  transition: var(--navigation-control-transition);
+}
+
+/* Keep counter placement instant when shared navigation styles load later. */
+#root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter[data-mobile-project-page-count] {
+  --navigation-control-transition: background-color var(--m-base) var(--m-enter), color var(--m-base) var(--m-enter);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-page-counter [data-interface-icon-frame] {
@@ -3164,7 +3110,7 @@
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  transition: background-color var(--m-fast) var(--m-enter), color var(--m-fast) var(--m-enter);
 }
 /* Override the shared soft-selected toggle rule for Mail-style categories. */
 #root .codex-shell[data-presentation='mobile'] .studio-category[aria-pressed='true'] { background: var(--accent-primary) !important; color: var(--accent-foreground) !important; }
@@ -3348,7 +3294,7 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   border-top-color: var(--text-secondary);
   border-radius: 50%;
   pointer-events: none;
-  animation: premium-media-spin 800ms linear infinite;
+  animation: premium-media-spin var(--m-slow) linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3386,17 +3332,20 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 }
 #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet {
   position: absolute; bottom: 0; margin-block: 0;
-  display: flex; flex-direction: column; height: 75%;
+  --sheet-rest-y: max(0px, calc(var(--dialog-viewport-height, 100dvh) * .25 - max(16px, var(--safe-area-top))));
+  display: flex; flex-direction: column; height: calc(100% - max(16px, var(--safe-area-top)));
   max-height: calc(100% - max(16px, var(--safe-area-top)));
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
-  border-radius: 28px 28px 0 0 !important;
+  border-radius: var(--ui-popup-radius, 24px) var(--ui-popup-radius, 24px) 0 0 !important;
   background: var(--material-regular) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
-  outline: none; padding-bottom: max(16px, var(--safe-area-bottom));
+  outline: none; padding-bottom: calc(max(16px, var(--safe-area-bottom)) + var(--sheet-rest-y));
 }
-#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { height: calc(100% - max(16px, var(--safe-area-top))); }
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-expanded='true'] { --sheet-rest-y: 0px; }
+/* Layout settles once; gestures and expansion move the same panel with transform. */
+#root .codex-shell [data-presentation='mobile'] .mobile-context-sheet[data-sheet-dragging] { padding-bottom: max(16px, var(--safe-area-bottom)); }
 #root .codex-shell[data-presentation='mobile'].reduce-translucency .mobile-context-sheet { background: var(--surface-raised) !important; }
 @media (prefers-reduced-transparency: reduce) {
   #root .codex-shell [data-presentation='mobile'] .mobile-context-sheet { background: var(--surface-raised) !important; }
@@ -3719,6 +3668,13 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
   text-overflow: clip;
 }
 
+/* Keep connection labels centered beneath their avatar; overflowing text starts at its beginning. */
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] { text-align: center; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered] > span { margin-inline: auto; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-overflow] > span { margin-inline: 0; }
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion],
+[data-presentation='mobile'] .profile-collection-name [data-name-centered][data-name-reduced-motion] > span { white-space: normal; }
+
 /* The headerless inbox still needs status-bar clearance for Search. */
 #root .codex-shell[data-presentation='mobile'] [data-messages-page][data-mobile-inbox] { padding-top: calc(var(--mobile-content-safe-top, env(safe-area-inset-top, 0px)) + 12px); }
 
@@ -4021,7 +3977,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 [data-presentation='mobile'] .share-handle-validation span { flex: 1; }
 [data-presentation='mobile'] .share-qr-skeleton { width: 82%; height: 82%; background: #ededed; border-radius: 8px; }
 [data-presentation='mobile'] .share-note-field textarea { resize: none; }
-[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color 120ms ease, background-color 120ms ease; }
+[data-presentation='mobile'] .share-main-actions button, [data-presentation='mobile'] .share-save-address, [data-presentation='mobile'] .share-qr-save { transition: color var(--m-fast) var(--m-enter), background-color var(--m-fast) var(--m-enter); }
 @media (prefers-reduced-motion: reduce) { [data-presentation='mobile'] .portfolio-share-dialog * { transition: none !important; animation: none !important; } }
 
 /* Compact relationship controls match the mobile profile reference. */
@@ -4619,7 +4575,7 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-profile-page]:has(.profile-return-handle) {
-  transition: transform 180ms ease-out;
+  transition: transform var(--m-base) var(--m-enter);
 }
 #root .codex-shell[data-presentation='mobile'] [data-profile-page][data-profile-pulling] {
   transform: translate3d(0, var(--profile-pull-offset, 0px), 0);
@@ -4632,16 +4588,16 @@ html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not
 }
 
 /* Mobile portal creation is a screen; only its icon catalog scrolls. */
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) {
   padding: 0; z-index: 100; background: var(--surface-canvas);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen-form {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) .new-portal-screen-form {
   width: 100%; max-width: none; height: 100dvh; max-height: 100dvh;
   border-radius: 0; box-shadow: none; background: var(--surface-canvas);
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-#root .codex-shell[data-presentation='mobile'] .new-portal-screen [data-portal-icon-scroll] {
+#root .codex-shell[data-presentation='mobile'] .new-portal-screen:not([data-mobile-icon-create]) [data-portal-icon-scroll] {
   overscroll-behavior-y: contain;
 }
 #root .codex-shell[data-presentation='mobile'] .new-portal-pinned-controls {
@@ -5038,7 +4994,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button { width: 48px; min-width: 48px; height: 48px; min-height: 48px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--surface-raised) !important; color: var(--text-primary) !important; box-shadow: var(--navigation-shadow); }
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-header-fallback > .studio-workbench-header { flex: 0 0 48px; }
 /* Profile editing owns Back/Save; shell actions must not overlap Save. */
-#root .codex-shell[data-presentation='mobile']:has(.profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer:not(.screen-exit) .profile-editor-page[data-presentation='mobile']) .mobile-context-floating { display: none !important; }
 [data-presentation='mobile'] .profile-link-details { scroll-margin-top: 100px; }
 
 /* Paint below the visible-viewport sheet too: iOS can leave a bottom inset
@@ -5178,3 +5134,316 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   background: var(--navigation-surface, var(--surface-selected));
   color: var(--navigation-foreground, var(--text-primary));
 }
+
+/* Keep Profile's hover surface and ellipsis in the same screen-action frame. */
+#root .codex-shell[data-presentation='mobile'] .profile-header-options {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  right: var(--mobile-screen-action-right);
+  left: auto;
+  width: var(--explore-action-width);
+  height: 44px;
+  min-height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options .mobile-context-slot {
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-header-options button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+
+/* Home's grey hover/press surface uses the same frame as its ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-home-search-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Studio's grey action surface follows the ellipsis across header states. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] {
+  position: fixed !important;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 48px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Messages paints its grey action surface in the ellipsis button's own frame. */
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions] button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] [data-inbox-controls] [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Insights keeps its grey action surface centered on the ellipsis. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions] .mobile-context-slot {
+  width: 100%;
+  height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header [data-inline-screen-actions]:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Account Explore/Search keeps the floating ellipsis and grey surface together. */
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-account-search]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Settings keeps the grey action surface and floating ellipsis in one frame. */
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has(.settings-page) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Saved/Activity library screens keep their grey floating surface on the ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-library-actions]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Project reader screen actions keep the grey surface on the floating ellipsis. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating {
+  left: auto;
+  bottom: auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating button.mobile-context-button {
+  position: static;
+  width: 100%;
+}
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating:is(:hover, :has(button:active)) {
+  background: var(--surface-hover);
+}
+
+/* Conversation options paints its grey surface inside the centered touch frame. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options'] {
+  position: static;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-chat] [data-conversation-header] > button[aria-label='Conversation options']:is(:hover, :active) {
+  background: var(--surface-hover) !important;
+}
+
+/* Home conformance: measured, inset artwork; other feed/profile surfaces retain their spacing. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] > .feed-edge-fade {
+  min-width: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content] {
+  padding-top: var(--mobile-content-safe-top);
+  min-width: 0;
+}
+
+/* Cancel only the artwork's inherited half-rem inset, then use fixed pixel gutters.
+   This week's existing scroller spacing remains unchanged, including larger text. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-home-grid] {
+  margin-inline: -0.5rem;
+  width: calc(100% + 1rem);
+  padding-inline: 16px;
+}
+
+/* Content navigation stays in its established bottom pill, including owner readers. */
+#root .codex-shell[data-presentation='mobile']:has([data-premium-project-viewer]) .mobile-context-floating { display: none; }
+/* Explore/Home has restored its own safe-area header. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-home-search] [data-feed-scroll-content]:has(> .mobile-home-search-header) {
+  padding-top: 0;
+}
+
+/* Private analytics owns one viewport: safe header, then scrolling results. */
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page {
+  width:100%;min-width:0;
+  height:var(--mobile-viewport-height,100dvh);
+  max-height:var(--mobile-viewport-height,100dvh);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-page > header {
+  box-sizing:border-box;
+  height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  min-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  max-height:calc(var(--mobile-screen-action-top) + 44px + 12px);
+  padding-top:var(--mobile-screen-action-top);
+  padding-bottom:12px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-insights-scroll {
+  min-width:0;
+  padding-bottom:calc(var(--mobile-dock-clearance,88px) + var(--safe-area-bottom,env(safe-area-inset-bottom,0px)));
+}
+
+/* Only loading surfaces: finished layouts and desktop geometry stay unchanged. */
+#root [data-presentation='mobile'] [data-loading-layout] {min-width:0;overflow:hidden;}
+#root [data-presentation='mobile'] [data-loading-layout] .legacy-loading-shapes {display:none;}
+#root [data-presentation='mobile'] [data-loading-layout] .screen-loading-shapes {display:block;padding:12px 16px calc(var(--mobile-content-safe-bottom,104px) + 16px);}
+#root [data-presentation='mobile'] [data-loading-layout='profile'] {padding-top:var(--safe-area-top,0px);}
+#root [data-presentation='mobile'] [data-loading-layout] .motion-skeleton {display:block;border-radius:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-title {width:64%;height:18px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-subtitle {width:80%;height:12px;margin-bottom:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metadata {width:40%;height:10px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity {display:flex;align-items:center;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-identity>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-avatar {width:76px;height:76px;flex-shrink:0;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-inline-tabs {display:flex;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-tab {width:60px;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts {display:flex;gap:12px;margin:16px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-counts>span {flex:1;height:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links {display:flex;gap:10px;margin-bottom:20px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-profile-links>span {width:40px;height:40px;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-project-grid {display:grid;grid-template-columns:repeat(var(--loading-columns,2),minmax(0,1fr));gap:8px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-cover {width:100%;aspect-ratio:1;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-caption {width:70%;height:10px;margin:8px 0 12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-list {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row {display:flex;gap:12px;align-items:center;min-height:76px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-item-row>div {flex:1;min-width:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-thumbnail {width:56px;height:68px;flex-shrink:0;border-radius:12px;}
+#root [data-presentation='mobile'] [data-loading-layout='messages'] .loading-avatar {width:48px;height:48px;border-radius:50%;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-overview>div {padding:18px;border-radius:18px;border:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-action {width:112px;height:38px;border-radius:999px;margin-top:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills {display:flex;gap:8px;margin:20px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-metric-pills>span {flex:1;height:44px;border-radius:999px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart {display:flex;gap:10px;height:210px;margin-bottom:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience {display:grid;gap:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience>div {display:flex;align-items:center;justify-content:space-between;height:50px;gap:24px;border-bottom:1px solid var(--hairline);}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey {display:grid;gap:24px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey>div {display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-date {height:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-title {grid-column:2;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation {display:grid;gap:16px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span {width:68%;height:56px;border-radius:18px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-conversation>span:nth-child(even) {justify-self:end;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-headline {width:90%;height:68px;margin:24px 0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-chart>span {flex:1;border-radius:4px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-audience .loading-subtitle {width:45%;margin:0;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-count {width:32px;height:22px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-cover {width:92px;height:92px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-journey .loading-date {width:76px;margin-bottom:12px;}
+#root [data-presentation='mobile'] [data-loading-layout] .loading-year {width:70px;height:24px;}
+
+#root [data-presentation='mobile'] [data-loading-layout='journey'] {padding-top:0;}
+
+/* Compact Timeline: one left edge and a shared first-line center for dates/actions. */
+#root .codex-shell[data-presentation='mobile'] .journey-view[data-timeline-order] { padding: 12px 22px 36px; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { margin-bottom: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order { gap: 8px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { min-height: 44px; padding: 0 10px; background: transparent !important; color: var(--text-secondary) !important; font-size: 14px; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button::before { content: ''; position: absolute; inset: 10px 0; border-radius: 7px; background: var(--surface-sunken); z-index: -1; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button { isolation: isolate; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button[aria-pressed='true'] { color: var(--surface-canvas) !important; }
+#root .codex-shell[data-presentation='mobile'] .journey-order button[aria-pressed='true']::before { background: var(--text-primary); }
+#root .codex-shell[data-presentation='mobile'] .journey-year h2 { align-items: center; gap: 18px; margin-bottom: 12px; font-size: 28px; }
+#root .codex-shell[data-presentation='mobile'] .journey-year-count { font-size: 12px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 12px 0; }
+#root .codex-shell[data-presentation='mobile'] .journey-title { font-size: 18px; line-height: 1.35; }
+#root .codex-shell[data-presentation='mobile'] .journey-date { padding-top: 0; font-size: 13px; line-height: 24.3px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry[data-has-options] .journey-entry-copy { padding-right: 30px; }
+#root .codex-shell[data-presentation='mobile'] .journey-project-options { top: 2.15px; right: -10px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal { position: relative; isolation: isolate; min-height: 24px; margin-top: 2px; padding: 2px 0; font-size: 13px; line-height: 20px; }
+#root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal::before { content: ''; position: absolute; inset: 0 0 -20px; z-index: -1; }
+
+/* Timeline owner actions sit beside ordering controls and scroll on narrow phones. */
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { gap: 4px 8px; flex-wrap: nowrap; overflow-x: auto; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar > * { flex-shrink: 0; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar-action { white-space: nowrap; min-height: 44px; padding: 6px 10px; border-radius: var(--shape-compact); background: var(--surface-sunken); color: var(--text-primary); font-size: 14px; line-height: 1.3; }
+/* Studio Overview embeds the existing Insights page without collection padding. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page { flex: 1; padding: 0; overflow: hidden; }

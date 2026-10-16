@@ -46,7 +46,7 @@ type AuthContextValue = {
    * provider also closes the auth sheet; the pending destination survives.
    */
   signIn: (input: SignInInput) => Promise<AuthSession | null>;
-  signOut: () => Promise<boolean>;
+  signOut: (scope?: 'local' | 'global') => Promise<boolean>;
   /** Clear UI identity only after the service confirms permanent deletion. */
   completeAccountDeletion: () => void;
   /**
@@ -234,12 +234,12 @@ export function AuthProvider({
       isSigningInRef.current = false;
     }
   }, [auth]);
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (scope?: 'local' | 'global') => {
     signInGenerationRef.current += 1;
     setPhase('signing-out');
     setError(null);
     try {
-      await auth.signOut();
+      await auth.signOut(scope);
       sessionRef.current = null;
       setSession(null);
       setPhase('unauthenticated');

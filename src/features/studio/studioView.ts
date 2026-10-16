@@ -38,7 +38,12 @@ export function studioBulkTargets(rows: StudioRow[]) {
   };
 }
 
+export function studioMadeOnDate(value?:string):string|undefined{
+ if(!value||!/^\d{4}-\d{2}-\d{2}$/.test(value))return undefined;
+ const date=new Date(value+'T12:00:00');
+ return Number.isFinite(date.getTime())?date.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}):undefined;
+}
 export function studioDate(value?: string): string | undefined {
   if (!value || Number.isNaN(Date.parse(value))) return undefined;
-  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', ...(/^\d{4}-\d{2}-\d{2}$/.test(value) ? { timeZone: 'UTC' } : {}) });
 }

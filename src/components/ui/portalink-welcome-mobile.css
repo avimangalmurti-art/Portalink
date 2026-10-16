@@ -1,0 +1,114 @@
+/* The startup layer exists before the app host and carries the same scope. */
+[data-presentation='mobile'].portalink-startup-wait {
+  height: var(--mobile-launch-height, 100dvh);
+  min-height: var(--mobile-launch-height, 100dvh);
+  background-color: #fdffff;
+  overflow: hidden;
+}
+[data-presentation='mobile'].portalink-splash {
+  background-color: #fdffff;
+  height: var(--mobile-launch-height, 100dvh);
+  min-height: var(--mobile-launch-height, 100dvh);
+  overscroll-behavior: none;
+}
+
+[data-presentation='mobile'].portalink-splash .portalink-splash-media {
+  width: 100vw;
+  height: var(--mobile-launch-height, 100dvh);
+  max-height: var(--mobile-launch-height, 100dvh);
+  object-fit: contain;
+}
+
+/* Match the native launch canvas when installed WebKit reserves a status-bar
+   region outside the web view but still reports its full height through vh.
+   Keep this identical to the inline preboot rule, including the held last frame. */
+@supports (height: 100dvh) {
+  @media (max-width: 639px) {
+    html[data-standalone] [data-presentation='mobile'].portalink-splash:not([data-share-landing]) .portalink-splash-media {
+      position: relative;
+      top: min(0px, calc(100dvh - var(--mobile-launch-height, 100vh)));
+    }
+  }
+}
+
+/* A looping welcome above reachable account actions, on the same surface. */
+[data-presentation='mobile'].portalink-splash[data-share-landing] {
+  outline: none;
+  background: #fdffff !important;
+  height: var(--mobile-launch-height, 100dvh);
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  padding-top: max(12px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  object-fit: contain;
+}
+@media (min-height: 561px) {
+  /* The supplied clip contains generous blank margins around the artwork. */
+  [data-presentation='mobile'].portalink-splash[data-share-landing] .portalink-splash-media { transform: scale(1.4); }
+}
+[data-presentation='mobile'] .mobile-share-landing-actions {
+  position: relative;
+  z-index: 1;
+  grid-area: 2 / 1;
+  width: 78%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #071326;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+[data-presentation='mobile'] .mobile-share-create {
+  min-height: clamp(52px, 6.8dvh, 60px);
+  width: 100%;
+  border-radius: 999px;
+  border: 1.5px solid #071326;
+  font-size: 20px;
+  font-weight: 500;
+}
+[data-presentation='mobile'] .mobile-share-create { background: #071326; color: #fff; }
+[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+  border: 0;
+  box-shadow: none;
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary button {
+  min-height: 44px;
+  -webkit-appearance: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-decoration: none;
+  color: #6f7682;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  letter-spacing: normal;
+}
+[data-presentation='mobile'] .mobile-share-landing-actions button:focus-visible { outline: 2px solid #071326; outline-offset: 4px; }
+[data-presentation='mobile'] .mobile-share-landing-actions button:disabled { opacity: .55; cursor: wait; }
+
+/* A welcome is the same full-viewport scene even inside a themed visitor dialog. */
+html:has(.portalink-splash[data-presentation='mobile'][data-share-landing]) { overflow: hidden !important; }
+#root .portalink-splash[data-presentation='mobile'][data-share-landing] {
+  background: #fdffff !important;
+  width: 100vw;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-landing-actions button {
+  font-family: 'IBM Plex Sans', sans-serif !important;
+}
+[data-presentation='mobile'].portalink-splash[data-share-landing] .mobile-share-secondary button { border-radius: 10px; }

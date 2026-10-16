@@ -14,6 +14,7 @@ function compile(path, imports, globals = {}) {
 }
 const employer = compile('../src/features/employer/employer.ts', name => { assert.fail(`Unexpected employer import: ${name}`); });
 const journeyHelpers = compile('../src/features/journey/journey.ts', () => ({}));
+const gridDensity = compile('../src/utils/projectGridDensity.ts', () => ({}));
 const socialTypes = compile('../src/types/social.ts', () => ({}));
 const engagementTypes = compile('../src/types/engagement.ts', () => ({}));
 const routes = compile('../src/app/routes.ts', () => ({ navigationDestinations: [] }));
@@ -200,6 +201,7 @@ function profileHarness(search = '', options = {}) {
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => (target, options) => navigation.push({ target, options }), useSearchParams: () => [params, (update, options) => { params = update(params); navigation.push(options); }] };
     if (name.endsWith('/routes')) return routes;
     if (name.endsWith('/usePresentation')) return { usePresentation: () => options.presentation ?? 'web' };
+    if (name.endsWith('/useMobileHeaderMaterial')) return { useMobileHeaderMaterial() {} };
     if (name.endsWith('/useProfileSwipeReturn')) return { useProfileSwipeReturn() {} };
     if (name.endsWith('/useMobilePortalPopupSize')) return { useMobilePortalPopupSize: () => ({ current: null }) };
     if (name.endsWith('/useReorderOutsideTap')) return { useReorderOutsideTap: (enabled, root, finish) => { outside = { enabled, finish }; } };
@@ -219,7 +221,7 @@ function profileHarness(search = '', options = {}) {
     if (name.endsWith('/useProjectManagement')) return { useProjectManagement: () => ({ editor: { projectId: options.editorProjectId ?? null } }) };
     if (name.endsWith('/useProfileProjectOrder')) return { useProfileProjectOrder: () => projectOrder };
     if (name.endsWith('/useProjectGridDensity')) return { useProjectGridDensity: () => density };
-    if (name.endsWith('/projectGridDensity')) return { MIN_PROJECT_GRID_COLUMNS: 2, MAX_PROJECT_GRID_COLUMNS: 13 };
+    if (name.endsWith('/projectGridDensity')) return gridDensity;
     if (name.endsWith('/profileLinks')) return { ...linkHelpers, resolveProfileLinks: () => linkHelpers.resolveProfileLinks(options.links ?? [], {}) };
     if (name.endsWith('/types/engagement')) return engagementTypes;
     return placeholder;
@@ -231,7 +233,7 @@ function profileHarness(search = '', options = {}) {
   } };
 }
 
-test('mobile header keeps its Journey choice when expanded alongside counts and links', () => {
+test('mobile header keeps its Journey choice while hiding counts and links until Portfolio returns', () => {
   const h = profileHarness('', { presentation: 'mobile' });
   const toggle = tree => nodes(tree).find(node => node.type === 'JourneyToggle');
   let tree = h.render();
@@ -244,22 +246,28 @@ test('mobile header keeps its Journey choice when expanded alongside counts and 
   toggle(tree).props.onChange('journey');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
+  assert.equal(nodes(tree).some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(nodes(tree).some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   openProfileOptions(h);
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'journey');
   assert.equal(nodes(tree).filter(node => node.type === 'JourneyToggle').length, 1);
   const all = nodes(tree);
-  const stats = all.find(node => node.type?.name === 'ProfileStats');
-  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(all.some(node => node.type?.name === 'ProfileStats'), false);
+  assert.equal(all.some(node => node.props?.['data-mobile-profile-links'] !== undefined), false);
   const tools = all.find(node => node.props?.id === 'profile-navigation-tools');
-  assert.ok(all.indexOf(stats) < all.indexOf(tools));
   assert.equal(nodes(tools).some(node => node.type === 'JourneyToggle'), false);
   assert.equal(nodes(tree).find(node => node.props?.id === 'profile-content').props.children.type, React.Suspense);
   toggle(tree).props.onChange('portfolio');
   tree = h.render();
   assert.equal(toggle(tree).props.view, 'portfolio');
   assert.equal(nodes(tree).find(node => node.props?.className === 'profile-compact-header').props['data-expanded'], true);
+  const restored = nodes(tree);
+  const stats = restored.find(node => node.type?.name === 'ProfileStats');
+  assert.equal(nodes(stats.type(stats.props)).filter(node => node.props?.className === 'profile-count-control').length, 4);
+  assert.equal(restored.some(node => node.props?.['data-mobile-profile-links'] !== undefined), true);
+  assert.ok(restored.indexOf(stats) < restored.indexOf(restored.find(node => node.props?.id === 'profile-navigation-tools')));
   openProfileOptions(h);
   assert.equal(toggle(h.render()).props.view, 'portfolio');
 });
@@ -601,7 +609,7 @@ test('mobile profile keeps links and visitor controls visible without duplicate 
     const h = profileHarness('', {presentation:'mobile',viewerRole,links});
     const tree = openProfileOptions(h);
     const grid = nodes(tree).find(node => node.type === 'PlatformGrid');
-    assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'));
+    assert.equal(nodes(tree).some(node => node.type === 'MobileContextButton'), viewerRole !== 'owner');
     assert.deepEqual(Array.from(grid.props.links.filter(link => link.action), link => link.action), viewerRole === 'owner' ? ['bio','collaboration'] : ['bio','collaboration','message']);
     assert.deepEqual(JSON.parse(JSON.stringify(grid.props.links.filter(link => !link.action))), links);
     assert.equal(nodes(tree).some(node => node.props?.['data-profile-owner-actions'] !== undefined), false);
@@ -627,7 +635,7 @@ function openProfileOptions(h) {
   const tree = h.render();
   const toggle = nodes(tree).find(node => node.props?.['aria-label'] === 'Profile options');
   if (toggle) toggle.props.onClick();
-  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton'), 'MOBILE delegates options to the global actions sheet');
+  else assert.ok(nodes(tree).some(node => node.type === 'MobileContextButton') || h.action('viewAsVisitor'), 'MOBILE owner delegates to the standard floating Actions button');
   return h.render();
 }
 
