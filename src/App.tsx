@@ -73,7 +73,8 @@ const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').th
 const ProfileEditorPage = React.lazy(loadProfileEditorPage);
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
-const ProjectSetupScreen = React.lazy(() => import('./features/publishing/ProjectSetupScreen').then(module => ({ default: module.ProjectSetupScreen })));
+// Keep the title input available in the opening interaction for mobile keyboard focus.
+import { ProjectSetupScreen } from './features/publishing/ProjectSetupScreen';
 const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
@@ -1419,7 +1420,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={viewedProfile?.categories ?? []} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
+      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={(viewedProfile?.categories ?? []).map(category=>({...category,iconName:management.categoryIcons[category.id]??category.iconName}))} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
         if (!viewedProfileId) throw new Error('Choose your profile before continuing.');
         invalidateProfiles();
         const profile = await fetchProfile(viewedProfileId, 'overview');

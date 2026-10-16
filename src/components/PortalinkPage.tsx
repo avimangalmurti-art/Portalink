@@ -1,3 +1,4 @@
+const WORLD_RECOMMENDED_CITIES = ['San Francisco','New York','London','Tokyo','Paris'] as const;
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type City } from '../data/cities';
@@ -168,7 +169,7 @@ export function PortalinkPage({
         <WorldViewToggle onToggle={onBack} />
       </div></ScreenBack>
       <div ref={searchViewportRef} className={`portalink-world-search relative z-20 mx-auto w-full max-w-[520px] px-4 ${isMobile ? '' : 'shrink-0'}`}>
-        <LocationSearch label="Find a place" value={query} onChange={setQuery} blurOnSelect={isMobile}
+        <LocationSearch label="Search cities" hideLabel citiesOnly resultLimit={5} recommendedCities={WORLD_RECOMMENDED_CITIES} value={query} onChange={setQuery} blurOnSelect={isMobile}
           onConfirm={isMobile ? onSelectCity : undefined}
           onSelect={place => { setQuery(placeLabel(place)); focusCity(place); if (!isMobile) onSelectCity(place); }} />
       </div>

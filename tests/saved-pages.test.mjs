@@ -227,3 +227,12 @@ test('Saved tab handlers replace history, retain their URL selection, and leave 
     } finally { router.dispose(); }
   }
 });
+
+test('saved links explicitly request single-page mode and never match another attachment preview',()=>{
+ const mixed={...view,project:{...view.project,attachments:[{...view.project.attachments[0],metadata:{pageCount:8,renderedPages:[{attachmentId:'other-document',withinDocumentIndex:5,sourceUrl:'wrong-page'},{attachmentId:target.attachmentId,withinDocumentIndex:5,sourceUrl:'correct-page'}]}}]}};
+ const item=presentation(target,mixed);
+ assert.equal(item.source,'correct-page');assert.equal(new URL(item.href,'https://site.test').searchParams.get('view'),'page');
+ const without={...mixed,project:{...mixed.project,attachments:[{...mixed.project.attachments[0],metadata:{pageCount:8,renderedPages:[{attachmentId:'other-document',withinDocumentIndex:5,sourceUrl:'wrong-page'}]}}]}};
+ assert.equal(presentation(target,without).source,'original-pdf');assert.equal(presentation(target,without).pageNumber,5);
+ assert.equal(presentation({...target,attachmentId:'image-one',pageIndex:2},view),null);
+});

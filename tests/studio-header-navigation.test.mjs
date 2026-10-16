@@ -35,7 +35,7 @@ test('mobile Drafts restores Back while WEB retains its existing navigation', ()
  assert.ok(web.some(n=>n.props['aria-label']==='Back from Drafts'));
 });
 
-test('mobile Studio starts on Overview, and selecting Drafts switches the content with consistent header controls', () => {
+test('mobile Studio starts on Insights, and selecting Drafts switches the content with consistent header controls', () => {
  let params=new URLSearchParams(), mobile=true, registered;
  let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
  const react={...React,useEffect(){},useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
@@ -67,7 +67,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  const props={onBack(){},onOpenProject(){}};
  let tree=nodes(StudioPage(props));
  const pills=tree.filter(n=>n.props['data-studio-pill']);
- assert.equal(pills[0].props.children,'Overview');
+ assert.equal(pills[0].props.children,'Insights');
  assert.equal(pills[0].props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='insights'));
  assert.equal(tree.some(n=>n.type==='overview'),false);
@@ -76,6 +76,11 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  tree=nodes(StudioPage(props));
  assert.equal(tree.find(n=>n.props['data-studio-pill']==='drafts').props['aria-pressed'],true);
  assert.equal(tree.find(n=>n.type==='drafts').props.hideBack,undefined);
+ tree.find(n=>n.props['data-studio-pill']==='overview').props.onClick();
+ tree=nodes(StudioPage(props));
+ assert.ok(tree.some(n=>n.type==='insights'));
+ assert.equal(tree.find(n=>n.props['data-studio-pill']==='overview').props['aria-pressed'],true);
+
  assert.equal(tree.some(n=>n.type==='overview'),false);
  params=new URLSearchParams();mobile=false;
  tree=nodes(StudioPage(props));

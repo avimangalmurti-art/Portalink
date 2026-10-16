@@ -41,3 +41,8 @@
 .optional-account-setup .mobile-onboarding-swatches button[aria-checked='true'] { border-color:var(--text-primary); }
 .optional-account-setup .mobile-onboarding-swatches span { display:grid; place-items:center; height:32px; width:100%; border-radius:6px; }
 .optional-account-setup .mobile-onboarding-switch { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+
+@media (max-width:639px) {
+  .one-screen-entry .entry-links { flex-direction:row; justify-content:center; gap:8px; }
+  .one-screen-entry .entry-links button { flex:none; min-width:0; padding-inline:0; font-size:clamp(10px,3vw,13px); line-height:1.4; white-space:nowrap; }
+}

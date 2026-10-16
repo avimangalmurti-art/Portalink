@@ -243,3 +243,13 @@ test('choosing a place waits for Enter when confirmation is separate', async t =
  h.key('Enter');assert.deepEqual(confirmed,[london]);
  h.search('Paris');h.key('Enter');assert.equal(confirmed.length,1,'Changing the query clears the selected place');
 });
+
+test('globe city menu limits matches to five cities and updates recommendations with the query',async t=>{
+ const h=harness({hideLabel:true,citiesOnly:true,resultLimit:5,recommendedCities:['London','Paris']});t.after(()=>h.dispose());
+ assert.equal(nodes(h.render()).find(n=>n.type==='label').props.className,'sr-only');
+ h.focus();h.advance(180);assert.deepEqual(h.requests.map(r=>r.query),['London','Paris']);
+ h.requests[0].resolve([london]);h.requests[1].resolve([paris]);await h.flush();assert.equal(h.options().length,2);
+ h.search('Lo');h.advance(180);assert.equal(h.options().length,0,'Old recommendations clear while the new query loads');
+ h.requests[2].resolve([{...london,id:'region',kind:'region'},...Array.from({length:7},(_,i)=>({...london,id:'city-'+i,name:'London '+i}))]);await h.flush();
+ assert.equal(h.options().length,5);h.key('ArrowUp');h.key('Enter');assert.equal(h.selected[0].id,'city-0');
+});

@@ -3,6 +3,10 @@ import { locationDirectory, type DirectoryPlace } from '../../data/locationDirec
 import './locationSearch.css';
 
 type Props = {
+  hideLabel?: boolean;
+  citiesOnly?: boolean;
+  resultLimit?: number;
+  recommendedCities?: readonly string[];
   id?: string;
   label: string;
   value: string;
@@ -16,7 +20,7 @@ type Props = {
   blurOnSelect?: boolean;
   onConfirm?: (place: DirectoryPlace) => void;
 };
-export function LocationSearch({ id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above, blurOnSelect, onConfirm }: Props) {
+export function LocationSearch({ hideLabel, citiesOnly, resultLimit, recommendedCities, id, label, value, onChange, onSelect, disabled, maxLength, error, canSelect, above, blurOnSelect, onConfirm }: Props) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const [open, setOpen] = useState(false);
@@ -27,18 +31,21 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
   const list = useRef<HTMLUListElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const selectedPlace = useRef<DirectoryPlace | null>(null);
-  const searching = open && !disabled && value.trim().length >= 1;
+  const searching = open && !disabled && (value.trim().length >= 1 || Boolean(recommendedCities?.length));
   useEffect(() => {
     if (!searching) return;
     let current = true;
     setResults([]); setStatus('loading'); setActive(0);
     const timer = window.setTimeout(() => {
-      void locationDirectory.search(value).then(places => {
-        if (current) { setResults(places); setStatus('ready'); }
+      const request = !value.trim() && recommendedCities?.length
+        ? Promise.all(recommendedCities.map(name=>locationDirectory.search(name).then(places=>places.find(place=>place.kind==='city'&&place.name.toLowerCase()===name.toLowerCase())??places.find(place=>place.kind==='city')))).then(places=>places.filter((place):place is DirectoryPlace=>Boolean(place)))
+        : locationDirectory.search(value, citiesOnly ? 50 : undefined);
+      void request.then(places => {
+        if (current) { setResults((citiesOnly?places.filter(place=>place.kind==='city'):places).slice(0,resultLimit??places.length)); setStatus('ready'); }
       }).catch(() => { if (current) setStatus('error'); });
     }, 180);
     return () => { current = false; window.clearTimeout(timer); };
-  }, [searching, value, retry]);
+  }, [searching, value, retry, citiesOnly, resultLimit, recommendedCities]);
   useEffect(() => {
     const item = list.current?.querySelector<HTMLElement>('[aria-selected="true"]');
     const parent = list.current;
@@ -55,7 +62,7 @@ export function LocationSearch({ id, label, value, onChange, onSelect, disabled,
     if (blurOnSelect && (!onConfirm || confirm)) input.current?.blur();
   };
   return <div className="location-search" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-    <label htmlFor={inputId}>{label}</label>
+    <label className={hideLabel ? 'sr-only' : undefined} htmlFor={inputId}>{label}</label>
     <input ref={input} id={inputId} className="input-shell text-control-shell" role="combobox" value={value} disabled={disabled} maxLength={maxLength}
       autoComplete="off" aria-autocomplete="list" aria-expanded={searching} aria-controls={searching ? `${inputId}-results` : undefined}
       aria-activedescendant={searching && results[active] ? `${inputId}-result-${active}` : undefined}

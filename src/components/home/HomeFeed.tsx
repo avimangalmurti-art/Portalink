@@ -1,6 +1,7 @@
+import { ExploreCategories } from './ExploreCategories';
 import { useNavigate } from 'react-router-dom';
 import { buildPath } from '../../app/routes';
-import { Globe2Icon, HomeIcon, CircleUserRoundIcon, RotateCwIcon } from 'lucide-react';
+import { Globe2Icon, HomeIcon, CircleUserRoundIcon, LayoutGridIcon } from 'lucide-react';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
@@ -109,6 +110,7 @@ export function HomeFeed({
   const layoutFailed = !layoutReady && (ownerLayout.status === 'error' || ownerLayout.status === 'ready');
   const loadFailed = layoutFailed || feed.status === 'error';
   const autoScrollRef = useRef<HTMLDivElement>(null);
+  const [categoriesOpen,setCategoriesOpen]=useState(false);
   const [hasReloaded, setHasReloaded] = useState(false);
   const [locationGridWidth, setLocationGridWidth] = useState(0);
   const [locationGridChoice, setLocationGridChoice] = useState<number | null>(null);
@@ -229,11 +231,12 @@ export function HomeFeed({
 
   const {isRefreshing,status:feedStatus,retry}=feed;
   const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retry();},[isRefreshing,feedStatus,retry]);
-  const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
-  useMobileScreenActions(showSearchPlaceholder ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
+  const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !categoriesOpen && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
+  useMobileScreenActions(showSearchPlaceholder && !categoriesOpen ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
     explore:onExploreWorld,search:onSearchUsers,
     refresh: !feed.isRefreshing && feed.status !== 'loading' ? refreshHome : undefined,
   },labels:{search:'Search accounts',explore:'Explore the world'} }) : null, 5);
+  if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
       <div
@@ -246,7 +249,7 @@ export function HomeFeed({
               {onExploreWorld && <button type="button" onClick={onExploreWorld} aria-label="Open globe search" className="mobile-home-header-button"><InterfaceIcon icon={Globe2Icon} weight="medium" /></button>}
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
-              <button type="button" aria-label="Reload Home content" aria-pressed={feed.isRefreshing} className="mobile-home-header-button" disabled={feed.isRefreshing || feed.status === 'loading'} aria-busy={feed.isRefreshing} onClick={refreshHome}><InterfaceIcon icon={RotateCwIcon} weight="medium" effect="rotate" effectActive={feed.isRefreshing} /></button>
+              <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
               <div data-inline-screen-actions=""><MobileContextButton /></div></div>
             {(pullLabel || feed.isRefreshing) && <p data-home-pull-feedback="" role="status" className="flex items-center justify-center py-2 text-[13px] text-[var(--text-secondary)]">
               <span className="premium-media-loading-mark" aria-hidden="true" />

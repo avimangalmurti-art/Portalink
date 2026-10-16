@@ -1,7 +1,9 @@
+import { createPortal } from 'react-dom';
+import { useServices } from '../../contexts/ServicesContext';
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Columns2Icon, MoreHorizontalIcon, PlusIcon } from 'lucide-react';
+import { MoreHorizontalIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -21,20 +23,29 @@ export function JourneyCover({ project, sizes = '92px' }: { project: Project; si
     allowPdfFallback={false} allowVideoFallback={false} fallbackAttachments={project.attachments} />;
 }
 type JourneyViewProps = {
-  profile: Profile; owner: boolean; onOpen: (project: Project) => void;
+  toolbarHost?: HTMLElement | null; profile: Profile; owner: boolean; onOpen: (project: Project) => void;
   onEdit?: (project: Project) => void; onEditDescription?: (project: Project) => void; onDelete?: (project: Project) => void; onAdd?: (year?: number) => void; onPair?: () => void;
 };
 export function JourneyView(props: JourneyViewProps) {
   // Sorting, popup and citation state belong to one viewed profile/access mode.
   return <JourneyContent key={`${props.profile.id}:${props.owner}`} {...props} />;
 }
-function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
+function JourneyContent({ toolbarHost, profile, owner, onOpen, onEdit, onEditDescription, onDelete, onAdd, onPair }: JourneyViewProps) {
   const isMobile = usePresentation() === 'mobile';
+  const { reads } = useServices();
+  const [popular, setPopular] = useState<{profileId:string; counts:Record<string,number>} | null>(null);
+  const [popularError, setPopularError] = useState(false);
+  useEffect(() => {
+    let current=true; setPopular(null); setPopularError(false);
+    if(isMobile && owner && reads) void reads.list('all').then(rows=>{if(current)setPopular({profileId:profile.id,counts:Object.fromEntries(rows.filter(row=>row.profileId===profile.id).map(row=>[row.projectId,row.opened]))});}).catch(()=>{if(current)setPopularError(true);});
+    return()=>{current=false;};
+  },[reads,profile.id,owner,isMobile]);
+  const popularCounts=owner&&popular?.profileId===profile.id?popular.counts:undefined;
   const [order, setOrder] = useState<TimelineOrder>('newest');
   const [detailsProject, setDetailsProject] = useState<Project | null>(null);
   const [portalPopupId, setPortalPopupId] = useState<string | null>(null);
   const events=useJourneyCitations(profile,owner);
-  const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order), [profile.projects, events, owner, order]);
+  const groups = useMemo(() => journeyTimeline(profile.projects,events,owner,order,popularCounts), [profile.projects, events, owner, order, popularCounts]);
   const portalProjects = useMemo(() => journeyProjects(profile.projects, owner), [profile.projects, owner]);
   const portalProfile = useMemo(() => ({ ...profile, projects: portalProjects }), [profile, portalProjects]);
   const activePortalPopupId = profile.categories.some(category => category.id === portalPopupId) ? portalPopupId : null;
@@ -66,17 +77,17 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
     </section>;
   });
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
+  const toolbar = <header className="journey-toolbar">
+    <div className="journey-order" role="group" aria-label="Timeline order">
+      <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>{isMobile?'Latest':'Newest first'}</button>
+      {isMobile&&<button type="button" aria-pressed={order === 'popular'} disabled={!popularCounts} title={popularError?'Project opens could not be loaded. Reopen Timeline to retry.':!owner?'Project-open ranking is unavailable for this profile.':!popularCounts?'Loading project opens…':'Most project opens · all time'} onClick={()=>setOrder('popular')}>Popular</button>}
+      <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>{isMobile?'Oldest':'Oldest first'}</button>
+    </div>
+  </header>;
   return <section className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
-    <header className="journey-toolbar">
-      <div className="journey-order" role="group" aria-label="Timeline order">
-        <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>Newest first</button>
-        <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>Oldest first</button>
-      </div>
-      {isMobile && owner && onAdd && <button type="button" className="journey-toolbar-action" aria-label="Add work" title="Add work" onClick={() => onAdd()}><PlusIcon size={22} aria-hidden="true" /></button>}
-      {isMobile && owner && onPair && <button type="button" className="journey-toolbar-action" aria-label="Choose a Then/Now pair" title="Choose a Then/Now pair" onClick={onPair}><Columns2Icon size={22} aria-hidden="true" /></button>}
-    </header>
+    {isMobile&&toolbarHost?createPortal(toolbar,toolbarHost):toolbar}
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
-      <h2>{group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
+      <h2>{order==='popular'?'Popular':group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
       <ol className="journey-list">{group.entries.map(entry => {
         const day = calendarDay(entry.date);
         const date = day ? <time className="journey-date" dateTime={day} title={new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { dateStyle: 'long', timeZone: 'UTC' })}>{new Date(`${day}T00:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })}</time> : <span className="journey-date" aria-label="Posting date unavailable">—</span>;

@@ -1,5 +1,7 @@
 # Owner menu, portal publishing and test repairs
 
+Publication update: reviewed fixes were published as **Sites439** on 16 October 2026 from `1a51771aa2f79f0bf493abc80c11c2535457272a`. Google/Auth, production SQL and provider changes remain excluded. The preparation narrative below records the local review stage.
+
 Prepared locally on 16 October 2026 in `logs/apple-icon-release`, branch `codex/loading-recovery`, based on source `8c9a6c696c8f5279c9db68f73721b0f88d1a5c08` (live Sites 438). These changes are uncommitted and unpublished pending review. The earlier [redundancy audit](redundancy-audit-2026-10-16.md) remains a historical record of that release.
 
 ## Behavior corrections

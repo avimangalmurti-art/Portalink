@@ -114,7 +114,7 @@ test('made-on calendar dates retain their day/year while other Studio date forma
 test('share links use public canonical destinations and retain exact saved-page target', () => {
   assert.equal(view.studioSharePath(rows[0]), '/share/me/c/c1/p1');
   assert.equal(view.studioSharePath(rows[2]), null);
-  assert.equal(view.studioSharePath({ kind: 'saved-page', target: { attachmentId: 'a2' }, presentation: { pageNumber: 7, view: { project, creator: { id: 'me' } } } }), '/share/me/c/c1/p1?media=a2&page=7');
+  assert.equal(view.studioSharePath({ kind: 'saved-page', target: { attachmentId: 'a2' }, presentation: { pageNumber: 7, view: { project, creator: { id: 'me' } } } }), '/share/me/c/c1/p1?media=a2&page=7&view=page');
   assert.equal(view.studioDate('not-a-date'), undefined);
 });
 

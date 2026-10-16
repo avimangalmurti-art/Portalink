@@ -8,7 +8,7 @@ import { ModalPortal } from '../ui/ModalPortal';
 import type { ContextActions, ContextAction } from '../../presentation/mobile/contextActions';
 
 /** Shared message/context sheet: one viewport, focus, scrim and swipe lifecycle. */
-export function MobileActionSheet({ model, onClose, onAction, children }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; children?: React.ReactNode }) {
+export function MobileActionSheet({ model, onClose, onAction, beforeActions, children }: { model: ContextActions; onClose: () => void; onAction: (action: ContextAction) => void; beforeActions?: React.ReactNode; children?: React.ReactNode }) {
   const motion=useSheetMotion(onClose);
   const [dragY,setDragY]=useState(0);
   const [dragging,setDragging]=useState(false);
@@ -67,9 +67,10 @@ export function MobileActionSheet({ model, onClose, onAction, children }: { mode
         <div className="mobile-context-heading">{model.kind !== 'home' && <InterfaceIcon icon={SlidersHorizontalIcon}/>}<div><h2 id={titleId}>{model.title}</h2></div><button type="button" data-ui-control="icon" data-control-size="md" data-control-variant="secondary" onClick={dismiss} aria-label="Close actions"><InterfaceIcon icon={XIcon}/></button></div>
       </header>
       <div className="mobile-context-body">
+        {beforeActions}
         {model.primary.length>0&&<div className="mobile-context-primary" style={{gridTemplateColumns:`repeat(${model.primary.length}, minmax(0, 1fr))`}}>{model.primary.map(action=><button type="button" key={action.id} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><InterfaceIcon icon={action.icon}/><span>{action.label}</span></button>)}</div>}
         {model.groups.map((group,i)=><div className="mobile-context-group" key={i}>{group.map(action=><button type="button" key={action.id} data-destructive={action.destructive||undefined} data-keep-color={action.destructive?'':undefined} onClick={event=>motion.close(()=>onAction(action),event?.currentTarget?.closest<HTMLElement>('[data-motion-scrim]'))}><span>{action.label}</span><InterfaceIcon icon={action.icon}/></button>)}</div>)}
-        {model.primary.length === 0 && model.groups.length === 0 && !children && <p className="px-2 py-4 text-sm text-[var(--text-secondary)]">No additional actions on this screen.</p>}
+        {!beforeActions && model.primary.length === 0 && model.groups.length === 0 && !children && <p className="px-2 py-4 text-sm text-[var(--text-secondary)]">No additional actions on this screen.</p>}
         {children}
       </div>
     </div>

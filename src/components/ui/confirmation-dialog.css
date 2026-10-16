@@ -23,3 +23,7 @@
 .portalink-confirmation-actions button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .portalink-confirmation-actions button:disabled { opacity: .6; cursor: default; }
 @media (prefers-reduced-motion: reduce) { .portalink-confirmation, .portalink-confirmation * { animation: none !important; transition: none !important; } }
+
+.portalink-destructive-warning { width:112px; height:112px; margin:0 auto 16px; border-radius:20px; overflow:hidden; pointer-events:none; }
+.portalink-destructive-warning video,.portalink-destructive-warning img { display:block; width:100%; height:100%; object-fit:contain; }
+@media (max-height:600px) { .portalink-destructive-warning { width:72px; height:72px; margin-bottom:12px; } }

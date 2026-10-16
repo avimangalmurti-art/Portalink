@@ -25,7 +25,7 @@ export function studioSharePath(row: StudioRow): string | null {
   if (row.kind === 'saved-page' && row.presentation) {
     const { view, pageNumber } = row.presentation;
     const path = buildPath('sharedProject', { profileId: view.creator.id, categoryId: view.project.categoryId, projectId: view.project.id });
-    return `${path}?${new URLSearchParams({ media: row.target.attachmentId, page: String(pageNumber) })}`;
+    return `${path}?${new URLSearchParams({ media: row.target.attachmentId, page: String(pageNumber), view: 'page' })}`;
   }
   return null;
 }

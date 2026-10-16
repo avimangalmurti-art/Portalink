@@ -4,11 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { readSharedReturnPath } from '../../features/auth/registration';
 import './oneScreenEntry.css';
 import { EntryAgreements, EntryLegal } from './EntryAgreements';
+import { usePresentation } from '../../presentation/usePresentation';
 
 export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, children, returnPath, onDisagree }: {
   ready?: boolean; onEmail?: () => void; onSignIn: () => void; onGuest: () => void;
   children?: React.ReactNode; returnPath?: string; onDisagree?: () => void;
 }) {
+  const mobile = usePresentation() === 'mobile';
   const { auth: service } = useServices();
   const auth = useAuth();
   const [providers, setProviders] = useState<{ google: boolean; apple: boolean } | null>(null);
@@ -34,7 +36,9 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
       setError('Sign in could not be started. Please try again or continue with email.');
     } finally { starting.current = false; setBusy(false); }
   }
+  const emailButton = onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>;
   return <EntryAgreements onDisagree={onDisagree ?? (() => undefined)}>{agreements => <div className="one-screen-entry">
+    {mobile && emailButton}
     <div className="entry-providers" aria-label="Sign-in options">
       {(['google', 'apple'] as const).map(provider => {
         // Apple remains unavailable until its separately held setup is approved.
@@ -52,7 +56,7 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
       })}
     </div>
     {error && <p role="alert">{error}</p>}
-    {onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>}
+    {!mobile && emailButton}
     {children}
     <div className="entry-links">
       <button type="button" disabled={!ready || busy} onClick={onSignIn}>Already have an account? Sign in</button>

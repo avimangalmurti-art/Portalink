@@ -68,3 +68,14 @@ test('empty or entirely inaccessible work does not fabricate years, project coun
     assert.deepEqual(plain(journeyTimeline([project('private', '2026-01-01', { isPubliclyVisible: false })], [], false, order)), []);
   }
 });
+
+test('Popular ranks all authorized projects globally by opens, with latest ties and citations retained after projects',()=>{
+ const projects=[project('old-hit','2020-01-01'),project('recent','2026-01-01'),project('tie','2025-01-01'),project('hidden','2026-02-01',{isHidden:true,isPubliclyVisible:false}),project('draft','2026-03-01',{sessionOnly:true})];
+ const before=plain(projects);
+ const rows=journeyTimeline(projects,[event('citation','2026-04-01')],false,'popular',{'old-hit':50,recent:5,tie:5,hidden:100,draft:100});
+ assert.equal(rows.length,1);assert.equal(rows[0].year,null);
+ assert.deepEqual(plain(ids(rows[0])),['old-hit','recent','tie','citation']);
+ assert.equal(rows[0].projectCount,3);assert.deepEqual(plain(projects),before);
+});
+
+test('Popular does not invent an empty section',()=>{assert.deepEqual(plain(journeyTimeline([],[],false,'popular',{})),[]);});

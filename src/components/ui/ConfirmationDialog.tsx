@@ -5,6 +5,7 @@ import { useModalFocus } from '../../hooks/useModalFocus';
 import { usePresentation } from '../../presentation/usePresentation';
 import { ModalPortal } from './ModalPortal';
 import { ScreenBack } from '../../presentation/mobile/MobileBackNavigation';
+import { DestructiveWarning } from './DestructiveWarning';
 import './confirmation-dialog.css';
 
 export type ConfirmationDialogProps = {
@@ -48,6 +49,7 @@ export function ConfirmationDialog({ title, description, confirmLabel, cancelLab
   const content = <div ref={viewport} data-presentation={presentation} className="portalink-confirmation-overlay modal-scrim" role="presentation" onPointerDown={event => event.stopPropagation()}>
     <ScreenBack action={cancel}>{null}</ScreenBack>
     <section ref={dialog} tabIndex={-1} data-material="content" data-ui-surface="popup" className="portalink-confirmation" role="alertdialog" aria-modal="true" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} aria-busy={busy}>
+      {variant === 'destructive' && <DestructiveWarning />}
       <h2 id={`${id}-title`}>{title}</h2>
       <div id={`${id}-description`} className="portalink-confirmation-description">{description}</div>
       {(error || failure) && <p role="alert" className="portalink-confirmation-error">{error || failure}</p>}

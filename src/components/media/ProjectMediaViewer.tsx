@@ -277,8 +277,11 @@ export function ProjectMediaViewer({
    * one piece rather than as separate files to step between — a photo essay is
    * one work, not five attachments.
    */
-  const isDocumentReading = isMobileViewer && active?.kind === 'document';
-  const isVerticalReading = isMobileViewer && (active?.kind === 'document' || active?.kind === 'image');
+  const singlePageQuery = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search);
+  const singlePageNumber = Number(singlePageQuery?.get('page'));
+  const isSavedSinglePage = singlePageQuery?.get('view') === 'page' && singlePageQuery.get('media') === active?.id && Number.isInteger(singlePageNumber) && singlePageNumber >= 1;
+  const isDocumentReading = isMobileViewer && !isSavedSinglePage && active?.kind === 'document';
+  const isVerticalReading = isMobileViewer && !isSavedSinglePage && (active?.kind === 'document' || active?.kind === 'image');
   const isReadingHeader = isDocumentReading || (readOnlyShare && isVerticalReading);
   const imagePages = attachments.filter((item) => item.kind === 'image');
   const previewScope = `${projectId}:${active?.id ?? ''}`;

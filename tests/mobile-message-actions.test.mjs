@@ -15,10 +15,11 @@ function compile(path, dependencies, extra = '', globals = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, {
     exports, React: dependencies.react, sessionStorage: { getItem: () => null }, ...globals,
-    require(name) { if(name.endsWith('/useSheetMotion'))return sheetMotionFixture;if(name.endsWith('/motion/motion'))return motionFixture; return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); },
+    require(name) { if(name.endsWith('/useSheetMotion'))return sheetMotionFixture;if(name.endsWith('/motion/motion'))return motionFixture; if(name.endsWith('/messageReactionIcons'))return reactionIcons; return dependencies[name] ?? new Proxy({}, { get: (_object, key) => key === '__esModule' ? false : () => null }); },
   });
   return exports;
 }
+const reactionIcons=compile('../src/components/messages/messageReactionIcons.ts',{});
 function stateReact(runEffects = false) {
   const slots = [], pendingEffects = []; let cursor = 0;
   return { react: { ...React,
@@ -242,10 +243,10 @@ test('action sheet supports focus dismissal, touch reactions and only shows edit
   const h = sheetHarness(); const tree = h.render();
   assert.ok(nodes(tree).find(node => node.props.role === 'dialog' && node.props['aria-modal']));
   const reactions = nodes(tree).filter(node => node.type === 'button' && node.props['aria-pressed'] !== undefined);
-  assert.equal(reactions.length, 3, 'Existing default reaction is not duplicated');
-  assert.equal(reactions[0].props['aria-label'], 'Remove reaction ❤');
+  assert.equal(reactions.length, 3, 'All supported icon reactions are visible without duplicates');assert.deepEqual(reactions.map(node=>node.props['aria-label']),['Remove Love','React with Applause','React with Sparkle']);assert.ok(reactions.every(node=>!React.Children.toArray(node.props.children).some(child=>typeof child==='string'&&/[❤👏✨]/u.test(child))));
+  assert.equal(reactions[0].props['aria-label'], 'Remove Love');
   assert.equal(reactions[0].props['aria-pressed'], true);
-  for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[44px\] min-w-\[44px\]/);
+  for (const reaction of reactions) assert.match(reaction.props.className, /min-h-\[80px\]/);
   reactions[0].props.onClick(); assert.deepEqual(h.calls.at(-1), ['react', '❤']);
   h.escape(); assert.equal(h.calls.at(-1), 'close');
   const overlay = nodes(tree).find(node => node.props.className?.includes('mobile-context-scrim'));
@@ -253,10 +254,10 @@ test('action sheet supports focus dismissal, touch reactions and only shows edit
   overlay.props.onClick({ target: {}, currentTarget: background }); assert.equal(h.calls.length, before);
   overlay.props.onClick({ target: background, currentTarget: background }); assert.equal(h.calls.at(-1), 'close');
   const incomingButtons = nodes(sheetHarness(false).render()).filter(node => node.type === 'button');
-  assert.equal(incomingButtons.length, 6, 'Incoming messages have Resize, Close, React, and three emoji choices');
+  assert.equal(incomingButtons.length, 5, 'Incoming messages have Resize, Close and all three icon reactions');
   h.props.pending = true;
   const mutationButtons = nodes(h.render()).filter(node => node.type === 'button' && node.props['aria-label'] !== 'Close actions' && node.props.className !== 'mobile-context-resize');
-  assert.equal(mutationButtons.length, 0);
+  assert.equal(mutationButtons.length, 3);assert.ok(mutationButtons.every(button=>button.props.disabled));
 });
 
 test('message sheet resizing preserves reactions and pending state still permits resizing and dismissal', () => {
@@ -270,7 +271,7 @@ test('message sheet resizing preserves reactions and pending state still permits
   reactions[1].props.onClick();
   assert.equal(h.calls.at(-1)[0], 'react');
   h.props.pending = true;
-  assert.equal(nodes(h.render()).some(node => node.props['aria-pressed'] !== undefined), false);
+  assert.ok(nodes(h.render()).filter(node=>node.props['aria-pressed']!==undefined).every(node=>node.props.disabled));
   assert.equal(resize().props.disabled, undefined);
   const before = h.calls.length;
   resize().props.onClick({ detail: 0 });
