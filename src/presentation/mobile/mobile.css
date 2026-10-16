@@ -1224,7 +1224,7 @@
   flex: 0 0 46px;
   width: 46px;
   height: 46px;
-  border-radius: 10px;
+  border-radius: var(--project-thumbnail-radius, 12px);
   overflow: hidden;
   background: var(--surface-sunken);
 }
@@ -1234,7 +1234,7 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--project-card-copy-gap, 4px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-title {
@@ -1250,7 +1250,8 @@
 
 #root .codex-shell[data-presentation='mobile'] .mobile-project-index-date {
   font-size: 12px;
-  line-height: 1.3;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
@@ -1285,8 +1286,8 @@
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > button {
   flex-direction: column;
   align-items: stretch;
-  padding: 10px 10px 40px;
-  gap: 8px;
+  padding: 10px 10px 48px;
+  gap: var(--project-card-media-gap, 8px);
 }
 
 #root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-cover {
@@ -1296,10 +1297,22 @@
   aspect-ratio: 1;
 }
 
-#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .project-index-row > div.absolute {
+/* Reserve the metadata track even when no publication date exists. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-copy {
+  display: grid;
+  font-size: 14px;
+  grid-template-rows: minmax(2.6em, auto) 1.2em;
+}
+/* Reserve two title lines so short and wrapped titles share a date baseline. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] .mobile-project-index-title {
+  min-height: 2.6em;
+}
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-layout='grid'] [data-project-row-actions] {
   top: auto;
-  bottom: 0;
-  right: 4px;
+  bottom: var(--project-card-action-inset, 4px);
+  right: var(--project-card-action-inset, 4px);
+  width: 44px;
+  height: 44px;
 }
 
 [data-presentation='mobile'] [data-mobile-media-comments]:has([data-mobile-project-popup-content]) {
@@ -2290,7 +2303,7 @@
 /* Public profiles have no engagement footer. Keep the card's base rounded
    when its redundant creator row is omitted on mobile. */
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--project-thumbnail-radius, 12px) var(--project-thumbnail-radius, 12px);
 }
 
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
@@ -2301,13 +2314,13 @@
 #root .codex-shell[data-presentation='mobile'] .mobile-preview-details {
   display: flex;
   position: absolute;
-  right: 0;
-  bottom: 0;
+  right: var(--project-card-action-inset, 4px);
+  bottom: var(--project-card-action-inset, 4px);
   z-index: 5;
   width: 44px;
   height: 44px;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
   border-radius: 0;
   background: transparent;
   color: #fff;

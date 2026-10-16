@@ -1248,11 +1248,18 @@ button[data-portalink-tile],
 }
 /* One work preview: a fixed artwork frame, text in that frame, and an attached
    extension in normal flow. Only the extension changes the measured height. */
+/* Shared card finish keeps packing, crop and hover-extension geometry intact. */
+:root {
+  --project-thumbnail-radius: 12px;
+  --project-card-copy-gap: 4px;
+  --project-card-media-gap: 8px;
+  --project-card-action-inset: 4px;
+}
 .project-preview-card { isolation: isolate; }
 .project-preview-card[data-expanded='true'] { z-index: 2; }
 .project-card-frame,
 .project-preview-artwork,
-.project-preview-description { border-radius: 8px; }
+.project-preview-description { border-radius: var(--project-thumbnail-radius); }
 .project-preview-description {
   opacity: 0;
   pointer-events: none;
@@ -1271,7 +1278,7 @@ button[data-portalink-tile],
 .project-preview-extension {
   height: 0;
   opacity: 0;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--project-thumbnail-radius) var(--project-thumbnail-radius);
   background: var(--control-rest-surface);
   color: var(--control-text);
 }
