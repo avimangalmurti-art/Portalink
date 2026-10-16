@@ -300,6 +300,7 @@ test('New portal keeps its title through search and selection without creating p
   const scrollContainer = all(tree).find(node => 'data-portal-icon-scroll' in node.props);
   assert.ok(scrollContainer?.props.className.includes('overflow-y-auto'));
   assert.ok(all(scrollContainer).some(node => node.type === h.library(tree).type), 'library observes the existing dialog scroll region');
+  assert.ok(!all(scrollContainer).some(node => 'data-icon-create-preview' in node.props), 'selected preview stays outside the scrolling catalog');
   search(tree).props.onChange({ target: { value: '  Astronomy  ' } });
   tree = h.render(); toggle(tree).props.onClick(); tree = h.render();
   assert.equal(search(tree).props.type, 'search');
@@ -337,4 +338,20 @@ test('search cancellation preserves the draft and saving locks both modes', () =
   assert.equal(h.library(tree).props.disabled, true);
   form(tree).props.onSubmit({ preventDefault() {} });
   assert.equal(h.calls.length, 0);
+});
+
+test('link picker brands remain selectable and distinguish same-name outline icons', () => {
+  const h = harness('instagram', { presentation: 'mobile' });
+  h.props.additionalOptions = icons.profileLinkIconOptions;
+  h.props.searchQuery = 'instagram';
+  const options = radios(h.render());
+  assert.ok(options.some(node => node.props['aria-label'] === 'Instagram' && node.props['aria-checked']));
+  assert.ok(options.some(node => node.props['aria-label'] === 'Instagram (outline)'));
+  options.find(node => node.props['aria-label'] === 'Instagram (outline)').props.onClick();
+  assert.notEqual(h.props.selected, 'instagram');
+  h.props.searchQuery = 'youtube';
+  const brand = radios(h.render()).find(node => node.props['aria-label'] === 'YouTube');
+  assert.ok(brand);
+  brand.props.onClick();
+  assert.equal(h.props.selected, 'youtube');
 });

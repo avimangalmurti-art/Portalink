@@ -3,7 +3,7 @@
   height: var(--dialog-viewport-height, 100dvh); min-height: 0; z-index: 10020;
   display: flex; align-items: center; justify-content: center;
   padding: max(20px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
-  background: rgb(0 0 0 / 48%); backdrop-filter: blur(4px) !important; -webkit-backdrop-filter: blur(4px) !important;
+  background: rgb(0 0 0 / 48%); backdrop-filter: blur(18px) saturate(115%) !important; -webkit-backdrop-filter: blur(18px) saturate(115%) !important;
 }
 .portalink-confirmation {
   width: 100%; max-width: 400px; max-height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain;

@@ -1,3 +1,5 @@
+import {handleReferenceResolve} from './server/referenceResolver';
+import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
 import { handleFromPath, isPublicSharePath } from './features/sharing/shareModel';
@@ -31,6 +33,8 @@ interface D1Database {
 interface SitesEnvironment {
   ASSETS: StaticAssets
   DB?: D1Database
+  PORTFOLIO_PDF_WORKER_URL?: string
+  PORTFOLIO_PDF_WORKER_SECRET?: string
   RUM_OWNER_PROFILE_ID?: string
 }
 
@@ -116,6 +120,19 @@ async function authenticatedUser(request: Request, required: boolean): Promise<A
   if (!user || typeof user.id !== 'string' || !user.id) {
     throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   }
+  // Auth's JWT verification alone does not establish that its session row is
+  // still active. D1 requests use the same uncached check as the Data API.
+  let sessionCheck: Response
+  try {
+    sessionCheck = await fetch(`${SUPABASE_URL}/rest/v1/rpc/require_active_account_session`, {
+      method: 'POST', headers: { authorization, apikey: SUPABASE_KEY, 'content-type': 'application/json' },
+      body: '{}', signal: AbortSignal.timeout(8_000),
+    })
+  } catch { throw json({ error: 'Account verification is temporarily unavailable.' }, 503) }
+  if (sessionCheck.status === 401 || sessionCheck.status === 403) {
+    throw json({ error: 'Your session has ended. Sign in again to continue.' }, 401)
+  }
+  if (!sessionCheck.ok) throw json({ error: 'Account verification is temporarily unavailable.' }, 503)
   return user
 }
 
@@ -374,6 +391,9 @@ const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
+    if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
+    const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
+    if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}

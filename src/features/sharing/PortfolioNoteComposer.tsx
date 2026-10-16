@@ -9,7 +9,7 @@ export function PortfolioNoteComposer({profile, counts, note, url, heading, disa
     <section className="share-profile-preview" aria-label="Public portfolio preview">
       <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />
       <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
-      <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Journey</span>}</div>{stats}
+      <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Timeline</span>}</div>{stats}
     </section>
     <div className="share-note-field"><div><label htmlFor={`${heading}-message`}>Your message</label><span id={`${heading}-counter`}>{note.length}/3000</span></div><textarea id={`${heading}-message`} value={note} onChange={event=>onChange(event.target.value)} maxLength={3000} rows={4} placeholder="Write a message (optional)…" aria-describedby={`${heading}-counter`} /></div>
     <section className="share-note-preview" aria-labelledby={`${heading}-preview`}><h3 id={`${heading}-preview`}>Preview</h3><div className="share-note-bubble">
