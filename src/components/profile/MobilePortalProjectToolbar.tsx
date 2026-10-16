@@ -8,15 +8,16 @@ export type MobileProjectSort = 'recent' | 'title' | 'saved';
 
 /** Mobile browsing controls; authoring callbacks are supplied only for the owner. */
 export function MobilePortalProjectToolbar({ category, onBack, onCreate, layout, onLayout,
-  sort, onSort, sharedReadOnly = false }: {
+  sort, onSort, sharedReadOnly = false, backLabel }: {
   category: PortfolioCategory; onBack: () => void; onCreate?: () => void;
   layout: 'list' | 'grid'; onLayout: (value: 'list' | 'grid') => void;
   sort: MobileProjectSort; onSort: (value: MobileProjectSort) => void;
   sharedReadOnly?: boolean;
+  backLabel?: string;
 }) {
   return <header className="mobile-portal-index-toolbar">
     <div className="mobile-portal-index-heading">
-      <button type="button" onClick={onBack} aria-label={sharedReadOnly ? 'Back to profile' : 'Back to portals'} className="mobile-portal-index-control">
+      <button type="button" onClick={onBack} aria-label={backLabel ?? (sharedReadOnly ? 'Back to profile' : 'Back to portals')} className="mobile-portal-index-control">
         <InterfaceIcon icon={ChevronLeftIcon} mirroredInRtl />
       </button>
       <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" className="mobile-portal-index-icon" />
