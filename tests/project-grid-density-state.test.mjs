@@ -87,30 +87,30 @@ function setup(options = {}) {
 test('a saved owner density is restored on Home/Profile and initializes a public visitor', async () => {
   const s = setup(), home = s.mount();
   assert.equal(home.value.columns, 2);
-  home.value.setColumns(5); await home.flush();
-  assert.equal(home.value.columns, 5); assert.equal(home.value.saving, false);
-  assert.deepEqual(s.writes, [{ id: 'owner', input: { projectGridColumns: 5 } }]);
+  home.value.setColumns(1); await home.flush();
+  assert.equal(home.value.columns, 1); assert.equal(home.value.saving, false);
+  assert.deepEqual(s.writes, [{ id: 'owner', input: { projectGridColumns: 1 } }]);
   assert.equal(s.invalidations, 1); assert.equal(s.records.owner.name, 'Owner');
   home.dispose();
   const profile = s.mount({ ...s.records.owner }); await profile.flush();
   const visitor = s.mount({ ...s.records.owner }, false); await visitor.flush();
-  assert.equal(profile.value.columns, 5); assert.equal(visitor.value.columns, 5);
+  assert.equal(profile.value.columns, 1); assert.equal(visitor.value.columns, 1);
   // A new JS session reads the persisted record, rather than the owner cache.
   const fresh = setup({ records: s.records }).mount({ ...s.records.owner });
-  assert.equal(fresh.value.columns, 5);
+  assert.equal(fresh.value.columns, 1);
 });
 
-test('2 and 13 work; out-of-range choices clamp and visitors never save owner preferences', async () => {
+test('1 and 13 work; out-of-range choices clamp and visitors never save owner preferences', async () => {
   const s = setup(), owner = s.mount();
-  owner.value.setColumns(0); await owner.flush(); assert.equal(owner.value.columns, 2);
+  owner.value.setColumns(0); await owner.flush(); assert.equal(owner.value.columns, 1);
   owner.value.setColumns(30); await owner.flush(); assert.equal(owner.value.columns, 13);
   owner.value.setColumns(2); await owner.flush(); assert.equal(owner.value.columns, 2);
   const visitor = s.mount({ ...s.records.owner }, false);
-  visitor.value.setColumns(13); await visitor.flush();
-  assert.equal(visitor.value.columns, 13); assert.equal(visitor.value.saveError, null);
+  visitor.value.setColumns(1); await visitor.flush();
+  assert.equal(visitor.value.columns, 1); assert.equal(visitor.value.saveError, null);
   visitor.update({ ...s.records.owner, name: 'Refreshed' }); await visitor.flush();
-  assert.equal(visitor.value.columns, 13);
-  assert.deepEqual(s.writes.map(write => write.input.projectGridColumns), [13, 2]);
+  assert.equal(visitor.value.columns, 1);
+  assert.deepEqual(s.writes.map(write => write.input.projectGridColumns), [1, 13, 2]);
   assert.equal(s.records.owner.projectGridColumns, 2);
 });
 
@@ -180,11 +180,11 @@ test('canonical density refreshes when no local choice is outstanding, without s
 test('the lightweight Home writer shares the same serialized density state and persists only columns', async () => {
   const first = deferred();
   const s = setup({ lightweight: true, save: (_id, _input, count) => count === 1 ? first.promise : undefined });
-  const home = s.mount(); home.value.setColumns(5); home.value.setColumns(13); await home.flush();
+  const home = s.mount(); home.value.setColumns(5); home.value.setColumns(1); await home.flush();
   home.dispose();
   const profile = s.mount({ id: 'owner', projectGridColumns: 2 }); await profile.flush();
-  assert.equal(profile.value.columns, 13); assert.equal(s.writes.length, 1);
+  assert.equal(profile.value.columns, 1); assert.equal(s.writes.length, 1);
   first.resolve(); await profile.flush();
-  assert.deepEqual(s.writes.map(write => write.input), [{ projectGridColumns: 5 }, { projectGridColumns: 13 }]);
-  assert.equal(s.records.owner.projectGridColumns, 13); assert.equal(s.invalidations, 2);
+  assert.deepEqual(s.writes.map(write => write.input), [{ projectGridColumns: 5 }, { projectGridColumns: 1 }]);
+  assert.equal(s.records.owner.projectGridColumns, 1); assert.equal(s.invalidations, 2);
 });

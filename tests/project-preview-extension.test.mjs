@@ -1,3 +1,4 @@
+import {motionFixture} from './helpers/motion-fixture.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
@@ -92,6 +93,7 @@ function extensionHarness(reducedMotion = false) {
   const state = [], effects = [], element = { inert: undefined };
   let cursor = 0;
   const { ProjectPreviewExtension } = load('ProjectPreviewExtension', name => {
+    if(name.endsWith('/motion/motion')) return motionFixture;
     if (name === 'react') return { ...React,
       useRef: () => ({ current: element }), useLayoutEffect: effect => effects.push(effect),
       useState(initial) { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], next => { state[i] = next; }]; },

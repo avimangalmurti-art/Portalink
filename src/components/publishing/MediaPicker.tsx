@@ -155,7 +155,7 @@ export function MediaPicker({
       if (!disabled) {
         media.select(event.dataTransfer.files);
       }
-    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-150 motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
+    }} className={`project-media-dropzone flex flex-col items-center justify-center gap-2 rounded-[12px] border px-4 py-3 text-center transition-colors duration-[var(--m-fast)] motion-reduce:transition-none ${isDragOver ? 'border-[var(--accent-color)] bg-[var(--surface-sunken)]' : 'border-[var(--hairline-strong)] bg-[var(--surface-inset)]'}`}>
           <Button id="publish-add-files" variant="secondary" size="sm" disabled={disabled} onClick={() => addRef.current?.click()}>
             <InterfaceIcon icon={PlusIcon} size="sm" weight="medium" />
             Choose files
@@ -207,7 +207,7 @@ export function MediaPicker({
           {/* The value is the service's, and the text alongside it carries the
            same information for anyone not seeing the bar. */}
           <div role="progressbar" aria-label="Upload progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? 'Progress not reported yet' : `${percent}%`} className="h-1 w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${percent ?? 0}%`
         }} />
           </div>
@@ -405,14 +405,14 @@ function AssetRow({
         {resolutionNotice && <p role="status" className="mt-0.5 text-[11px] leading-snug text-[var(--text-secondary)]">{resolutionNotice}</p>}
         {/* A per-file bar only when the service attributes bytes to this file. */}
         {transport?.item?.state === 'uploading' && <span role="progressbar" aria-label={`Upload progress for ${asset.displayTitle}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(transport.item.fraction * 100)} className="mt-1 block h-[3px] w-full overflow-hidden rounded-full bg-[var(--surface-sunken)]">
-            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-200 ease-out motion-reduce:transition-none" style={{
+            <span className="block h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-[var(--m-base)] ease-[var(--m-enter)] motion-reduce:transition-none" style={{
           width: `${Math.round(transport.item.fraction * 100)}%`
         }} />
           </span>}
       </div>
 
       <div className="shrink-0">
-        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={() => setIsMenuOpen((open) => !open)} aria-haspopup="menu" aria-expanded={isMenuOpen} aria-label={`Options for ${asset.displayTitle}`} className="flex h-8 w-8 items-center justify-center rounded-[7px] text-[var(--text-tertiary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] hover:text-[var(--text-primary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 motion-reduce:transition-none">
           <InterfaceIcon icon={MoreHorizontalIcon} weight="medium" />
         </button>
         {isMenuOpen && <ModalPortal><div ref={menuRef} tabIndex={-1} role="menu" aria-label={`Options for ${asset.displayTitle}`} style={menuPosition ?? { visibility: 'hidden' }} className="fixed z-[100] w-[184px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--surface-raised)] py-1 shadow-[0_12px_28px_rgba(15,23,42,0.2)] outline-none">
@@ -447,7 +447,7 @@ function MenuAction({
 
 
 }: {label: string;onSelect: () => void;}) {
-  return <button type="button" role="menuitem" onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-150 hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
+  return <button type="button" role="menuitem" onClick={onSelect} className="flex w-full items-center px-3 py-2 text-left text-[13px] text-[var(--text-primary)] transition-colors duration-[var(--m-fast)] hover:bg-[var(--surface-sunken)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] motion-reduce:transition-none">
       {label}
     </button>;
 }

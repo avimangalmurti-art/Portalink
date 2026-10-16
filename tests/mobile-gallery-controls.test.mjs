@@ -18,6 +18,8 @@ function harness(file, storage = new Map()) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, esModuleInterop: true },
   }).outputText, { exports, require(name) {
     if (name === 'react') return react;
+    if (name.endsWith('/ModalPortal')) return { ModalPortal: 'portal' };
+    if (name === './MobileBackNavigation') return { useMobileScreenActive: () => true };
     throw new Error(name);
   }, window: { localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } } });
   return props => { cursor = 0; return exports[file](props); };

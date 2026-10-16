@@ -33,9 +33,14 @@ test('Studio sorts own published work by publication time and keeps collection i
   const saved = model.savedProjectStudioRows([{ project: oldProject, creator }])[0];
   assert.equal(saved.id, 'saved-project:old');
   assert.notEqual(saved.id, own[1].id);
-  assert.equal(saved.date, undefined);
+  assert.equal(saved.date, oldProject.publishedAt);
   assert.equal(model.savedCreatorStudioRows([{ id: creator.id, profile: creator }])[0].date, undefined);
-  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, target.savedAt);
+  assert.equal(model.savedPageStudioRows([pageEntry])[0].date, undefined);
+  assert.equal(model.publishedStudioRows({...creator,projects:[{...oldProject,madeOn:'2025-10-06'}]})[0].date,'2025-10-06');
+});
+test('Published rows display made-on dates without changing publication ordering; bookmarks retain made-on dates',()=>{
+ const profile={...creator,projects:[{...oldProject,madeOn:'2020-04-05'},{...newProject,madeOn:'2019-01-02'}]};
+ const rows=model.publishedStudioRows(profile);assert.deepEqual(Array.from(rows,row=>row.project.id),['new','old']);assert.deepEqual(Array.from(rows,row=>row.date),['2019-01-02','2020-04-05']);assert.equal(model.savedProjectStudioRows([{project:profile.projects[0],creator:profile}])[0].date,'2020-04-05');
 });
 
 test('Studio All retains every saved kind and an explicit unavailable Drafts explanation', () => {

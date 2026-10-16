@@ -16,7 +16,7 @@ import { RumPageView } from '../features/performance/RumPageView';
 initializeRum(__APP_VERSION__, import.meta.env.VITE_RUNTIME_MODE !== 'prototype' && import.meta.env.PROD);
 
 const root = document.getElementById('root');
-if (root) ReactDOM.createRoot(root).render(<BrowserRouter><RumPageView /><ServicesProvider services={visitorServices}>
+if (root) ReactDOM.createRoot(root).render(<BrowserRouter useTransitions={false}><RumPageView /><ServicesProvider services={visitorServices}>
   <AuthProvider><ProfileDataProvider><EngagementProvider><AppPresentationProvider>
     <VisitorApp />
   </AppPresentationProvider></EngagementProvider></ProfileDataProvider></AuthProvider>
