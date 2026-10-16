@@ -138,7 +138,7 @@ test('a late decode between scope render and passive cleanup keeps the old readi
   cleanup();
 });
 
-test('WeeklyReadNote reports terminal data settlement, skips a dismissed note, and retries only a new startup attempt', () => {
+test('WeeklyReadNote reports settlement and dismisses smoothly once per login', async () => {
   let cursor = 0, effects = [], retries = 0, loginSession = {};
   const slots = [], reports = [];
   const query = { loading: true, data: undefined, error: undefined, retry: () => retries++ };
@@ -147,6 +147,7 @@ test('WeeklyReadNote reports terminal data settlement, skips a dismissed note, a
   const { WeeklyReadNote } = sourceModule('src/features/reads/WeeklyReadNote.tsx', {
     react, 'react-router-dom': { useNavigate: () => () => {} }, '../../contexts/ServicesContext': { useServices: () => ({ reads: {} }) },
     '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'account' }, loginSession }) }, '../library/useAccountQuery': { useAccountQuery: () => query },
+    '../../presentation/motion/motion': { motionMs: () => 200, motionEase: () => 'ease-out' },
     './readSignal': { currentWeek: () => 'week' }, '../../components/ui/Button': { Button: 'button' }, './reads.css': {},
   }, { localStorage: { getItem: () => 'yes', setItem: () => assert.fail('Dismissal must not persist across logins') } });
   const render = attempt => { cursor = 0; effects = []; const tree = WeeklyReadNote({ startupPending: true, startupAttempt: attempt, onStartupSettled: value => reports.push(value) }); effects.forEach(effect => effect()); return tree; };
@@ -163,4 +164,16 @@ test('WeeklyReadNote reports terminal data settlement, skips a dismissed note, a
   loginSession = {}; query.loading = false;
   assert.ok(render(1), 'A new login shows the same week again');
   query.data = []; assert.ok(render(1), 'A successfully loaded zero-activity week still greets the user');
+  let finish; const animations=[];
+  const animation={finished:new Promise(resolve=>{finish=resolve;}),cancel(){}};
+  const card=render(1);
+  card.ref.current={style:{},closest:()=>({}),getBoundingClientRect:()=>({height:280}),animate:(frames,options)=>{animations.push({frames,options});return animation;}};
+  const dismiss=walk(card).find(node=>node.type==='button'&&node.props.children==='Dismiss').props.onClick;
+  dismiss();dismiss();
+  assert.equal(animations.length,1,'Repeated taps cannot restart dismissal');
+  assert.ok(render(1),'Card stays mounted while its exit collapses the layout');
+  assert.equal(animations[0].frames.at(-1).height,'0px');
+  assert.equal(animations[0].options.duration,200);
+  finish();await Promise.resolve();
+  assert.equal(render(1),null,'Card is removed when its exit finishes');
 });

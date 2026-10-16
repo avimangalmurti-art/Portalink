@@ -3369,11 +3369,11 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
 [data-presentation='mobile'] .mobile-context-group button[data-destructive] { color: var(--status-danger); }
 [data-presentation='mobile'] .mobile-context-sheet button:focus-visible, [data-presentation='mobile'] .mobile-context-button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
 [data-presentation='mobile'] .mobile-context-sheet button:active { background: var(--surface-hover); }
-#root .codex-shell[data-presentation='mobile'].high-contrast .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+#root .codex-shell[data-presentation='mobile'].high-contrast .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 1px; }
 @media (prefers-contrast: more) {
-  [data-presentation='mobile'] .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 2px; }
+  [data-presentation='mobile'] .mobile-context-sheet { --context-outline: var(--text-primary); --context-outline-width: 1px; }
 }
-[data-presentation='mobile'] .mobile-context-sheet button,
+[data-presentation='mobile'] .mobile-context-sheet button:not(.mobile-context-resize),
 [data-presentation='mobile'] .mobile-context-group { box-shadow: inset 0 0 0 var(--context-outline-width, 0px) var(--context-outline, transparent); }
 [data-presentation='mobile'] .mobile-context-sheet .mobile-context-group button { border-radius: 0; box-shadow: none; }
 [data-presentation='mobile'] .mobile-context-group button + button { border-top: var(--context-outline-width, 1px) solid var(--context-outline, var(--hairline)); }
@@ -5099,11 +5099,11 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
   backdrop-filter: none; -webkit-backdrop-filter: none;
 }
 #root .codex-shell[data-presentation='mobile'].high-contrast :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
-  border: 2px solid var(--text-primary) !important;
+  border: 1px solid var(--text-primary) !important;
 }
 @media (prefers-contrast: more), (forced-colors: active) {
   #root .codex-shell[data-presentation='mobile'] :is(.mobile-context-floating, [data-inline-screen-actions], .mobile-context-slot) button.mobile-context-button[data-keep-color][aria-haspopup="dialog"] {
-    border: 2px solid currentColor !important;
+    border: 1px solid currentColor !important;
   }
 }
 
@@ -5855,4 +5855,31 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   border: 1px solid var(--focus-ring) !important;
   box-shadow: inset 0 0 0 1px var(--focus-ring) !important;
   outline: none !important;
+}
+
+/* Contrast strengthens ink without changing the mobile system border weight. */
+#root .codex-shell[data-presentation='mobile'].high-contrast {
+  --content-preview-edge-width: 1px;
+}
+@media (prefers-contrast: more) {
+  #root .codex-shell[data-presentation='mobile'] { --content-preview-edge-width: 1px; }
+}
+
+/* Single-column Explore cards keep readable overlays inside their own frame. */
+#root .codex-shell[data-presentation='mobile'] .mobile-feed-content-type { display: none; }
+#root .codex-shell[data-presentation='mobile'] [data-project-grid-columns='1'] .explore-feed-card .mobile-preview-details {
+  right: 8px; bottom: 8px;
+  width: 56px; height: 44px;
+  padding: 0; align-items: center; justify-content: center;
+  border-radius: 999px;
+  background: var(--surface-sunken); color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-project-grid-columns='1'] .explore-feed-card .mobile-preview-details svg { filter: none; }
+#root .codex-shell[data-presentation='mobile'] [data-project-grid-columns='1'] .explore-feed-card .mobile-feed-content-type {
+  display: block; position: absolute; top: 8px; right: 8px; z-index: 4;
+  max-width: calc(100% - 16px); padding: 6px 10px;
+  border-radius: 999px; background: var(--surface-sunken); color: var(--text-primary);
+  font-size: 12px; line-height: 16px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  pointer-events: none;
 }
