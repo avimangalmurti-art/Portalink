@@ -127,7 +127,7 @@ function presentationBoundary(mode) {
   // The attribute may scope the shell itself or a descendant portal host.
   // The optional literal space permits only that descendant relation: no
   // unscoped siblings, negated attributes, or arbitrary intervening selectors.
-  return new RegExp(`^(?:(?:#root )?\\.(?:codex|app)-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
+  return new RegExp(`^(?:(?:#root )?\\.(?:codex|app)-shell(?::where\\(\\[data-presentation='${mode}'\\]\\)| ?\\[data-presentation='${mode}'\\])|:where\\(\\[data-presentation='${mode}'\\]\\)|(?:#root )?\\[data-presentation='${mode}'\\])(?=[\\s:.#\\[]|$)`);
 }
 
 test('presentation scope accepts an explicitly scoped descendant without accepting siblings or lookalike attributes', () => {
@@ -136,6 +136,7 @@ test('presentation scope accepts an explicitly scoped descendant without accepti
     const compoundShellBoundary = new RegExp(`^#root \\.(?:codex|app)-shell(?:\\.(?:theme-dark|theme-light))?\\[data-presentation=['\"]${mode}['\"]\\](?=[\\s:.#\\[]|$)`);
     assert.ok(boundary.test(`#root .codex-shell [data-presentation='${mode}'] .mobile-project-description-sheet`));
     assert.ok(boundary.test(`#root .codex-shell[data-presentation='${mode}'] .surface`));
+    assert.ok(boundary.test(`#root [data-presentation='${mode}'] [data-loading-layout]`));
     for (const selector of [
       '#root .codex-shell .mobile-project-description-sheet',
       `#root .codex-shell.unscoped[data-presentation='${mode}'] .surface`,

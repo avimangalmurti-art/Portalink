@@ -7,6 +7,7 @@ import ts from 'typescript';
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const app = ts.createSourceFile('App.tsx', read('src/App.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+assert.deepEqual(app.parseDiagnostics, [], 'App handlers must be extracted from syntactically valid source');
 function find(predicate) {
   let result;
   function visit(node) { if (result) return; if (predicate(node)) result = node; else ts.forEachChild(node, visit); }
@@ -29,7 +30,7 @@ function harness() {
   const calls = [];
   let pendingIntent = null;
   const context = vm.createContext({
-    React, result: null, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return { readFirstProjectDraft: async () => null }; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
+    React, result: null, projectSetupMetadata:undefined, projectSetupAccountId:null, setOptionalSetupAccount() {}, setProjectSetupAccountId:value=>context.projectSetupAccountId=value, setProjectSetupMetadata:value=>context.projectSetupMetadata=value, presentation: 'web', journeyMadeIn: null, firstProjectPublisher: false, isFirstProjectPublish: false, setFirstProjectPublisher: value => { context.firstProjectPublisher=value; }, setJourneyMadeIn: value => { context.journeyMadeIn=value; }, setIsFirstProjectPublish: value => { context.isFirstProjectPublish=value; }, require(name) { assert.equal(name, './features/publishing/firstProjectDraft'); return { readFirstProjectDraft: async () => null }; }, setGlobalCreateError() {}, defaultCategoryRequest: {current:null}, auth: { phase: 'unauthenticated', isAuthenticated: false, viewerProfileId: null, user: null,
       requestAuthenticatedDestination(intent) { pendingIntent = intent; calls.push(['auth', plain(intent)]); },
       consumePendingIntent() { const intent = pendingIntent; pendingIntent = null; return intent; },
     },
@@ -242,11 +243,28 @@ test('public Home work stays visible for a mobile owner who has not published ye
  const wall=nodes(h.tree).find(node=>node.type==='JustifiedImageWall');assert.ok(wall);assert.equal(wall.props.items[0].key,'public-work');
 });
 
- test('mobile creation goes directly to the selected portal without a chooser', async () => {
+ test('mobile creation enters details before creating a draft', async () => {
   const h = harness(); h.authenticate(); h.ownerProfile([{ id: 'first' }, { id: 'chosen' }]);
   h.context.presentation = 'mobile'; h.context.activeCategory = { id: 'chosen' };
   h.homeAction().onClick(); await h.progress();
-  assert.equal(h.context.publishTargetCategoryId, 'chosen');
-  assert.equal(h.context.isPublishOpen, true);
+  assert.equal(h.context.projectSetupAccountId,'account');
+  assert.equal(h.context.publishTargetCategoryId,null);
+  assert.equal(h.context.isPublishOpen,false);
   assert.doesNotMatch(read('src/App.tsx'), /ProjectPortalChoice|setPortalChoice/);
+});
+
+test('prepared metadata never bypasses current portal membership or account scope',()=>{const h=harness();h.authenticate();h.ownerProfile();Object.assign(h.context,{isPublishOpen:true,publishAccountId:'account',publishTargetCategoryId:'work',projectSetupMetadata:{categoryId:'work'}});assert.equal(h.canShowPublisher(),true);h.context.viewedProfile.categories=[];assert.equal(h.canShowPublisher(),false);h.context.viewedProfile.categories=[{id:'work'}];h.context.auth.user={id:'next-account'};assert.equal(h.canShowPublisher(),false);});
+
+
+test('portal confirmation invalidates before reading and rejects missing or wrong-owner portals',async()=>{
+ const h=harness();h.authenticate();h.ownerProfile();h.context.viewedProfileId='owner';const calls=[];
+ h.context.invalidateProfiles=()=>calls.push('invalidate');
+ h.context.fetchProfile=async(id,mode)=>{calls.push([id,mode]);return{id:h.context.auth.viewerProfileId,categories:[{id:'work'}]};};
+ const confirm=evaluate(expression('ProjectSetupScreen','onConfirmPortal'),h.context);
+ await confirm({id:'work'});assert.deepEqual(calls,['invalidate',['owner','overview']]);
+ h.context.fetchProfile=async()=>({id:'other',categories:[{id:'work'}]});await assert.rejects(confirm({id:'work'}),/no longer available/);
+ h.context.fetchProfile=async()=>({id:h.context.auth.viewerProfileId,categories:[]});await assert.rejects(confirm({id:'work'}),/no longer available/);
+ h.context.fetchProfile=async()=>{throw Error('Read failed');};await assert.rejects(confirm({id:'work'}),/Read failed/);
+ const setup=find(node=>ts.isJsxElement(node)&&node.openingElement.tagName.getText(app)==='DeferredDialog'&&node.getText(app).includes('<ProjectSetupScreen'));
+ assert.doesNotMatch(setup.parent.getText(app),/isOwnerMode && viewedProfile &&/);
 });

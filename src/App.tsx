@@ -445,7 +445,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
    * id produces a truthful not-found or a retryable failure rather than opening
    * whichever record a fallback would have handed back.
    */
-  const { fetchProfile } = useProfileData();
+  const { fetchProfile, invalidateProfiles } = useProfileData();
   const ordinaryProfileQuery = useProfileProjectQuery(isSharedRoute ? null : viewedProfileId, route.kind === 'project' ? route.projectId : null, routeCategoryId);
   const sharedProfileQuery = useSharedProfileQuery(isSharedRoute ? viewedProfileId : null,
     route.kind === 'sharedProject' ? route.projectId : null, routeCategoryId);
@@ -1075,9 +1075,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }, [presentation, isOwnerMode, viewedProfile, viewedProfileQuery.status, route.kind, search, auth.user?.id, nav]);
   const canShowPublisher = isPublishOpen && isOwnerMode && publishAccountId !== null
     && publishAccountId === auth.user?.id
-    // A newly created portal is already confirmed by the owner service; the
-    // profile query may still be refreshing when its publisher opens.
-    && (projectSetupMetadata?.categoryId === publishTargetCategoryId || Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId)));
+    && Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId));
   /** Opening or closing a project inside its category is a change of URL. */
   function selectProject(projectId: string | null, replace = false) {
     if (!activeCategory || !viewedProfileId) {
@@ -1421,9 +1419,14 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && viewedProfile && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={viewedProfile.categories} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onClose={closePublisher} onContinue={value => {
+      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={viewedProfile?.categories ?? []} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onConfirmPortal={async category => {
+        if (!viewedProfileId) throw new Error('Choose your profile before continuing.');
+        invalidateProfiles();
+        const profile = await fetchProfile(viewedProfileId, 'overview');
+        if (profile.id !== auth.viewerProfileId || !profile.categories.some(item => item.id === category.id)) throw new Error('This portal is no longer available.');
+      }} onClose={closePublisher} onContinue={value => {
         setProjectSetupMetadata(value);
-        setIsFirstProjectPublish(viewedProfile.projects.length === 0);
+        setIsFirstProjectPublish(viewedProfile?.projects.length === 0);
         setPublishTargetCategoryId(value.categoryId);
         setPublishAccountId(auth.user?.id ?? null);
         setFirstProjectPublisher(journeyMadeIn !== null);

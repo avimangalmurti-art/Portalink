@@ -43,6 +43,7 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>()=>{},useSearchParams:()=>[params,next=>{params=new URLSearchParams(next);}]},
   'lucide-react':{},
   '../../presentation/usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
+  '../library/PersonalPages':{InsightsPage:'insights'},
   '../citations/StudioCitations':{StudioCitations:'citations'},
   '../sharing/InternalContentShare':{useInternalContentShare:()=>()=>{}},
   '../../contexts/AuthContext':{useAuth:()=>({viewerProfileId:'owner',user:{id:'account'},isAuthenticated:true})},
@@ -68,8 +69,9 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
  const pills=tree.filter(n=>n.props['data-studio-pill']);
  assert.equal(pills[0].props.children,'Overview');
  assert.equal(pills[0].props['aria-pressed'],true);
- assert.ok(tree.some(n=>n.type==='overview'));
- assert.equal(tree.some(n=>n.props['aria-label']==='Back from Studio'),true);
+ assert.ok(tree.some(n=>n.type==='insights'));
+ assert.equal(tree.some(n=>n.type==='overview'),false);
+ assert.equal(tree.some(n=>n.props['aria-label']==='Back from Studio'),false);
  pills.find(n=>n.props['data-studio-pill']==='drafts').props.onClick();
  tree=nodes(StudioPage(props));
  assert.equal(tree.find(n=>n.props['data-studio-pill']==='drafts').props['aria-pressed'],true);
@@ -84,10 +86,10 @@ test('mobile Studio starts on Overview, and selecting Drafts switches the conten
   params=new URLSearchParams({collection});
   workbench={data:{profile:{projects:[]},drafts:[],material:[]},retry(){}};
   const emptyTree=nodes(StudioPage(props));
-  const fallback=['overview','cited'].includes(collection)?1:0;
+  const fallback=collection==='cited'?1:0;
   assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,fallback,`${collection}: empty Studio retains one header fallback`);
   assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,fallback,`${collection}: fallback contains screen actions header`);
-  assert.equal(registered?.kind,fallback?'studio':undefined,`${collection}: list child provides its own actions`);
+  assert.equal(registered?.kind,(fallback||collection==='overview')?'studio':undefined,`${collection}: screen or list child provides its actions`);
  }
  for(const state of [{loading:true},{error:'Unavailable'},{data:{draftsUnavailable:true}}]) {
   params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};

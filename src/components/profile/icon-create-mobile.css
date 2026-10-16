@@ -62,3 +62,23 @@
 #root [data-mobile-icon-create] [data-icon-create-field]>label {background:#050505!important;}
 #root [data-mobile-icon-create] [data-icon-create-field]>label input {background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;}
 #root [data-mobile-icon-create] .new-portal-pinned-controls {padding:0!important;margin:0!important;background:#000!important;}
+
+/* Keep link-picker actions inside the visible viewport, including the keyboard.
+   The icon library absorbs height changes; the footer never scrolls offscreen. */
+#root [data-mobile-icon-create='link'][data-link-icon-screen] {
+  top: var(--dialog-viewport-top, 0px);
+  bottom: auto;
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+}
+#root [data-mobile-icon-create='link'][data-link-icon-screen] [data-link-icon-form] {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
+}
+#root [data-mobile-icon-create='link'] [data-icon-create-panel] [data-icon-create-footer] {
+  flex-shrink: 0;
+  padding-bottom: max(22px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}

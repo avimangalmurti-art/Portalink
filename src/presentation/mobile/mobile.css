@@ -1,4 +1,3 @@
-@import '../../components/profile/icon-create-mobile.css';
 /* MOBILE starts with the existing compact frame, independently editable here.
    This is not a decision about future mobile navigation or feature availability. */
 /* Bare actions need a shape before their pressed/focus fill appears. Keep this
@@ -4982,27 +4981,6 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'][data-link-icon-screen] { padding: 0; background: var(--surface-canvas); }
 [data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
-
-/* Keep link-picker actions inside the visible viewport, including the keyboard.
-   The icon library absorbs height changes; the footer never scrolls offscreen. */
-#root [data-mobile-icon-create='link'][data-link-icon-screen] {
-  top: var(--dialog-viewport-top, 0px);
-  bottom: auto;
-  height: var(--dialog-viewport-height, 100dvh);
-  min-height: 0;
-}
-#root [data-mobile-icon-create='link'][data-link-icon-screen] [data-link-icon-form] {
-  box-sizing: border-box;
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
-  padding-bottom: 0;
-}
-#root [data-mobile-icon-create='link'] [data-icon-create-panel] [data-icon-create-footer] {
-  flex-shrink: 0;
-  padding-bottom: max(22px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
-}
-
 
 /* Studio header reference: circular Back/actions, pill Select/Done on one row. */
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: space-between; gap: 12px; }

@@ -179,7 +179,8 @@ test('WEB and MOBILE expose the same directory search while retaining their glob
     });
     const render = () => { cursor = 0; return PortalinkPage({ onBack() {}, onSelectCity: item => visits.push(item), live: {} }); };
     const search = () => nodes(render()).find(node => node.type === 'LocationSearch');
-    assert.equal(search().props.label, 'Find a place'); assert.equal(search().props.above, true);
+    assert.equal(search().props.label, 'Find a place'); assert.equal(search().props.above, undefined);
+    assert.ok(nodes(nodes(render()).find(n=>n.type==='header')).some(n=>n.type==='LocationSearch'));
     search().props.onChange('Oak'); assert.equal(search().props.value, 'Oak');
     search().props.onSelect(sample[0]); assert.deepEqual(visits, presentation === 'web' ? [sample[0]] : []);
     if(presentation === 'mobile') { search().props.onConfirm(sample[0]); assert.deepEqual(visits,[sample[0]]); }

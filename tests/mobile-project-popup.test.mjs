@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import React from 'react';
 import ts from 'typescript';
 const nodes=n=>React.isValidElement(n)?[n,...React.Children.toArray(n.props.children).flatMap(nodes)]:[];
-function render(shared=false, owner=false) {
+function render(shared=false, owner=false, props={}) {
  const calls=[]; const exports={};
  const engagement={};
  const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
@@ -17,11 +17,11 @@ function render(shared=false, owner=false) {
  './FollowContentInfoPopup':{FollowContentInfoPopup:'dialog'},
  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>calls.push(['share',target])},
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){}})},
- '../../presentation/mobile/contextActions':{contextActions:()=>({})},
+ '../../presentation/mobile/contextActions':{contextActions:(kind,viewer,target)=>({primary:Object.entries(target.handlers).filter(([,run])=>run).map(([id,run])=>({id,run})),groups:[]})},
  '../../app/routes':{buildPath:(kind,ids)=>'/'+kind+'/'+ids.profileId},
  '../../features/sharing/shareModel':{isPublicSharePath:()=>shared}};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>mocks[n]??{},window:{location:{origin:'https://example.com'}},URL});
- const tree=exports.MobileProjectPopup({project:{id:'work',categoryId:'portal',title:'Work',summary:'Description'},creator:{id:'creator',name:'Artist',avatar:'avatar.png'},onClose:()=>calls.push(['close']),onOpenComments:()=>calls.push(['comments'])});
+ const tree=exports.MobileProjectPopup({project:{id:'work',categoryId:'portal',title:'Work',summary:'Description'},creator:{id:'creator',name:'Artist',avatar:'avatar.png'},onClose:()=>calls.push(['close']),onOpenComments:()=>calls.push(['comments']),...props});
  return {tree,calls,engagement, OwnerActions: exports.ProjectPopupOwnerActions};
 }
 test('project popup preserves description, canonical engagement and creator order and navigation',()=>{
@@ -57,7 +57,9 @@ test('cover details use the reader card without the old sheet', () => {
  assert.ok(!source.includes('MobileProjectDescriptionSheet'));
 });
 test('owner commands stay available through the reader card options slot',()=>{
- const {tree,OwnerActions}=render(false,true);
+ const {tree,OwnerActions}=render(false,true,{onEditDescription(){}});
  assert.equal(tree.props.optionsContent.type,OwnerActions);
  assert.equal(tree.props.engagementContent.type,React.Fragment);
 });
+test('owner with no handlers or an empty context has no options content or callback',()=>{for(const props of [{},{contextHandlers:{}}]){const {tree}=render(false,true,props);assert.equal(tree.props.optionsContent,undefined);assert.equal(tree.props.onOptions,undefined);}});
+test('owner with one edit command retains a usable menu',()=>{const {tree,OwnerActions}=render(false,true,{onEditDescription(){}});assert.ok(tree.props.optionsContent);assert.equal(nodes(OwnerActions(tree.props.optionsContent.props)).filter(n=>n.type==='button').length,1);});

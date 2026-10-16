@@ -11,7 +11,7 @@ function compile(path, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(read(path), { compilerOptions: {
     module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true,
-  } }).outputText, { exports, ...globals });
+  } }).outputText, { exports, URLSearchParams, ...globals });
   return exports;
 }
 const plain = value => JSON.parse(JSON.stringify(value));
