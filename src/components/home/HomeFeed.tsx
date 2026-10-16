@@ -106,7 +106,7 @@ export function HomeFeed({
   const { viewerProfileId, isAuthenticated, user } = useAuth();
   const management = useProjectManagement(isAuthenticated ? viewerProfileId : null);
   const ownerLayout = useProfileGridLayout(locationId ? null : viewerProfileId);
-  const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId));
+  const density = useProjectGridDensity(ownerLayout.layout, !locationId && Boolean(viewerProfileId), 'home');
   const layoutReady = Boolean(locationId) || !viewerProfileId || ownerLayout.layout?.id === viewerProfileId;
   const layoutFailed = !layoutReady && (ownerLayout.status === 'error' || ownerLayout.status === 'ready');
   const loadFailed = layoutFailed || feed.status === 'error';

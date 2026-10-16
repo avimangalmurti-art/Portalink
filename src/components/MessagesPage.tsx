@@ -507,8 +507,12 @@ function RecipientIdentity({ conversation }: { conversation: NonNullable<ReturnT
 
 function MessageHold({ enabled, onHold, children }: { enabled: boolean; onHold: (trigger: HTMLButtonElement | null) => void; children: React.ReactNode }) {
   const rowRef = useRef<HTMLLIElement>(null);
-  const hold = useMobileHold(enabled ? () => { onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null); } : null);
-  return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef });
+  const hold = useMobileHold(enabled ? () => {
+    const selection = typeof window !== 'undefined' ? window.getSelection?.() : null;
+    if (selection && (rowRef.current?.contains(selection.anchorNode) || rowRef.current?.contains(selection.focusNode))) selection.removeAllRanges();
+    onHold(rowRef.current?.querySelector<HTMLButtonElement>('[aria-label="Message options"]') ?? null);
+  } : null);
+  return React.cloneElement(children as React.ReactElement, { ...hold, ref: rowRef, 'data-message-hold': enabled ? '' : undefined });
 }
 
 function MessageList({ messages, viewerProfileId, canInteract, participantReadAt, pendingMessageId, onRetry, onEdit, onDelete, onReact }: {

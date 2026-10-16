@@ -9,3 +9,18 @@
 .reads-page-preview{display:block;width:min(100%,320px);margin:20px auto;background:white;border-radius:16px;overflow:hidden;max-height:420px}.reads-page-preview img{display:block;width:100%;height:auto;object-fit:contain}.reads-actors li{padding:14px;background:var(--surface-sunken);border-radius:14px;font-size:14px}.reads-actors time{display:block;margin-top:5px}.reads-weekly{margin:16px}.reads-weekly small{text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary)}.reads-weekly>div{display:flex;gap:12px;margin-top:18px}
 
 .reads-view > .reads-chart + h3 {margin-top:24px}
+
+.reads-weekly-character { display: none; }
+[data-presentation='mobile'] .reads-weekly > div { align-items: flex-end; gap: 10px; }
+[data-presentation='mobile'] .reads-weekly > div > button { flex-shrink: 0; }
+[data-presentation='mobile'] .reads-weekly-character {
+  display: block;
+  flex: 0 1 96px;
+  width: 96px;
+  min-width: 0;
+  height: 112px;
+  margin-inline-start: auto;
+  object-fit: contain;
+  object-position: center bottom;
+  pointer-events: none;
+}

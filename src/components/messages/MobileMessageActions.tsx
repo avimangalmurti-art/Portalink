@@ -22,7 +22,7 @@ export function MobileMessageActions({ message, isMine, pending, onClose, onReac
   } });
   const close = () => { flushSync(onClose); };
   return <MobileActionSheet model={model} onClose={close} onAction={action => { close(); action.run(); }} beforeActions={<>
-    <div className="mb-4 rounded-[16px] border border-[var(--hairline)] bg-[var(--surface-sunken)] p-4">
+    <div data-message-options-preview="" className="mb-4 rounded-[16px] border border-[var(--hairline)] bg-[var(--surface-sunken)] p-4">
       <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-[var(--text-primary)]">{message.body || 'Attachment'}</p>
       <time dateTime={message.createdAt} className="mt-2 block text-xs text-[var(--text-tertiary)]">{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(message.createdAt))}{message.editedAt ? ' · Edited' : ''}</time>
     </div>

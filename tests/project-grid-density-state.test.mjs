@@ -32,7 +32,7 @@ function setup(options = {}) {
   vm.runInNewContext(transpile('../src/utils/projectGridDensity.ts'), { exports: densityExports });
   const exports = {};
   vm.runInNewContext(transpile('../src/features/profile/useProjectGridDensity.ts'), {
-    exports, Error,
+    exports, Error, localStorage: options.storage,
     require(name) {
       if (name === 'react') return react;
       if (name.endsWith('/ServicesContext')) return { useServices: () => services };
@@ -41,7 +41,7 @@ function setup(options = {}) {
       throw Error(`Unexpected dependency: ${name}`);
     },
   });
-  function mount(profile = { ...records.owner }, canSave = true) {
+  function mount(profile = { ...records.owner }, canSave = true, scope = 'profile') {
     const slots = [];
     let cursor = 0, dirty = true, effects = [], result;
     const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
@@ -70,7 +70,7 @@ function setup(options = {}) {
     };
     function render() {
       active = hooks; cursor = 0; dirty = false; effects = [];
-      result = exports.useProjectGridDensity(profile, canSave);
+      result = exports.useProjectGridDensity(profile, canSave, scope);
       for (const effect of effects) effect();
       return result;
     }
@@ -84,7 +84,7 @@ function setup(options = {}) {
   return { records, writes, mount, get invalidations() { return invalidations; } };
 }
 
-test('a saved owner density is restored on Home/Profile and initializes a public visitor', async () => {
+test('a saved owner profile density is restored and initializes a public visitor', async () => {
   const s = setup(), home = s.mount();
   assert.equal(home.value.columns, 2);
   home.value.setColumns(1); await home.flush();
@@ -187,4 +187,18 @@ test('the lightweight Home writer shares the same serialized density state and p
   first.resolve(); await profile.flush();
   assert.deepEqual(s.writes.map(write => write.input), [{ projectGridColumns: 5 }, { projectGridColumns: 1 }]);
   assert.equal(s.records.owner.projectGridColumns, 1); assert.equal(s.invalidations, 2);
+});
+
+test('Home and Profile density stay independent across writes, remounts and sessions', async () => {
+ const saved=new Map(); const storage={getItem:key=>saved.get(key)??null,setItem:(key,value)=>saved.set(key,value)};
+ const s=setup({storage}),home=s.mount({...s.records.owner},true,'home'),profile=s.mount();
+ home.value.setColumns(5);await home.flush();await profile.flush();
+ assert.equal(home.value.columns,5);assert.equal(profile.value.columns,2);assert.equal(s.writes.length,0);
+ profile.value.setColumns(3);await profile.flush();home.update({...s.records.owner});await home.flush();
+ assert.equal(profile.value.columns,3);assert.equal(home.value.columns,5);assert.equal(s.writes.length,1);
+ home.dispose();assert.equal(s.mount({...s.records.owner},true,'home').value.columns,5);
+ const fresh=setup({storage,records:s.records});
+ assert.equal(fresh.mount({...s.records.owner},true,'home').value.columns,5);
+ assert.equal(fresh.mount({...s.records.owner}).value.columns,3);
+ assert.equal(fresh.mount({...s.records.other},true,'home').value.columns,2);
 });

@@ -16,26 +16,26 @@
   -webkit-mask-image: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
-  transition: background-color var(--m-base) var(--m-enter), backdrop-filter var(--m-base) var(--m-enter), -webkit-backdrop-filter var(--m-base) var(--m-enter);
+  transition: none;
 }
 #root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap='true']::before {
-  background: color-mix(in srgb, var(--surface-canvas, var(--codex-workspace-bg)) 96%, transparent);
-  -webkit-backdrop-filter: blur(32px);
-  backdrop-filter: blur(32px);
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-/* Preserve Home/Profile's existing glass colour and soft background edge. */
+/* Home/Profile use the same solid canvas with no soft top edge. */
 #root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header, .journey-calendar-header)[data-mobile-header-underlap='true']::before {
-  bottom: -20px;
-  background: color-mix(in srgb, var(--codex-workspace-bg) 88%, transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  backdrop-filter: blur(20px) saturate(140%);
+  bottom: 0;
+  background: var(--codex-workspace-bg);
+  mask-image: none;
+  -webkit-mask-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 #root .codex-shell.codex-shell[data-presentation='mobile'] .mobile-pill-header[data-mobile-header-underlap='true']::before {
-  background: var(--navigation-surface, var(--surface-raised));
-  -webkit-backdrop-filter: var(--navigation-blur, blur(20px));
-  backdrop-filter: var(--navigation-blur, blur(20px));
+  background: var(--surface-canvas, var(--codex-workspace-bg));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 /* Nested headers cannot repaint an unconditional glass surface over this layer. */
 #root .codex-shell.codex-shell[data-presentation='mobile'] [data-mobile-header-underlap] header {
@@ -91,4 +91,30 @@
   -webkit-mask-image: none;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+/* All mobile screen headers stay opaque and sharp, including lazy screens and
+   the Studio pill rail before the overlap observer has marked its header. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls) {
+  background: var(--surface-canvas, var(--codex-workspace-bg)) !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls) :is(button, input, select) {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.profile-header-region, .mobile-home-search-header)::before {
+  bottom: 0 !important;
+  background: var(--surface-canvas, var(--codex-workspace-bg)) !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(.scroll-edge-fade, .feed-edge-fade) {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
 }

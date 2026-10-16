@@ -5623,3 +5623,161 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-mobile-shell-header, .studio-workbench-header, .mobile-insights-page > header) :is(.mobile-context-button, [data-inline-screen-actions]) {
   display: none !important;
 }
+
+/* World search is one stationary canvas; only its city list scrolls. */
+html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world),
+body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--dialog-viewport-top, 0px);
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header {
+  flex: none;
+  padding-bottom: 12px;
+  background: #000 !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  inset-inline: var(--mobile-navigation-inset-start, 16px);
+  height: 1px;
+  background: #d1d1d6;
+  pointer-events: none;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search,
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search:focus-within {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 520px;
+  height: 44px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: block;
+  background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search {
+  display: block;
+  height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search input {
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  order: initial;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: max(100px, calc(var(--dialog-viewport-height, 100dvh) - 110px));
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+  --text-primary: #111;
+  --text-secondary: #555;
+  --surface-selected: #ededf0;
+  --hairline: #d1d1d6;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results ul {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-search .location-search-results li {
+  color: #111 !important;
+  -webkit-text-fill-color: #111;
+}
+#root .codex-shell[data-presentation='mobile'].codex-shell .scroll-edge-fade:has(.portalink-world) {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+/* Holding a message opens actions rather than Safari text selection/callouts. */
+[data-presentation='mobile'] [data-message-hold] :is(p, time),
+[data-presentation='mobile'] [data-message-date],
+[data-presentation='mobile'] [data-message-options-preview],
+[data-presentation='mobile'] [data-message-options-preview] :is(p, time) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Reorder mode replaces profile chrome with two clear, stationary actions. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-compact-header > :not(.mobile-profile-reorder-actions),
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-header-region > :not(.profile-compact-header):not([data-profile-reorder-controls]) {
+  display: none !important;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .profile-compact-header {
+  display: block;
+  min-height: 0;
+  height: calc(var(--mobile-screen-action-top) + 56px);
+  padding: 0;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  inset-inline: var(--mobile-navigation-inset-start) var(--mobile-screen-action-right);
+  z-index: 60;
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  align-items: center;
+  height: 56px;
+  background: var(--surface-canvas);
+  font-size: 16px;
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+#root .codex-shell[data-presentation='mobile'] [data-profile-reordering] .mobile-profile-reorder-actions > button:first-child {
+  background: var(--accent-primary);
+  color: var(--accent-foreground);
+}
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active [data-profile-reordering]) .mobile-context-floating {
+  display: none;
+}
+
+/* Studio dividers share the content inset instead of spanning the viewport. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header {
+  position: relative;
+  border-bottom: 0 !important;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .studio-citation-pills::after,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell .mobile-insights-page > header::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--mobile-navigation-inset-start, 16px) var(--mobile-screen-action-right, 16px);
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline);
+  border: 0;
+  pointer-events: none;
+}

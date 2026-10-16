@@ -1,4 +1,4 @@
-/** One saved project-card density for a creator's Home and public profile. */
+/** Shared project-card density limits; each surface chooses its own persistence. */
 export const MIN_PROJECT_GRID_COLUMNS = 1;
 export const MAX_PROJECT_GRID_COLUMNS = 13;
 export const DEFAULT_PROJECT_GRID_COLUMNS = 2;

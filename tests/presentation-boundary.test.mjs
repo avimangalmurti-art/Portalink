@@ -211,8 +211,9 @@ test('every platform CSS selector is scoped, including nested rules and selector
         // Studio alone locks document scrolling while its active MOBILE screen
         // delegates scrolling to its inner results pane. Never permit a global lock.
         const studioScope = "#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell";
+        const worldScope = "#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .portalink-world";
         const mobileStudioScrollLock = mode === 'mobile'
-          && [`html:has(${studioScope})`, `body:has(${studioScope})`].includes(selector)
+          && [studioScope, worldScope].some(scope => [`html:has(${scope})`, `body:has(${scope})`].includes(selector))
           && rule.nodes.length === 3 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
             (node.prop === 'height' && node.value === '100%')
             || (node.prop === 'overflow' && node.value === 'hidden')

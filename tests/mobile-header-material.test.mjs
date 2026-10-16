@@ -56,6 +56,9 @@ test('shared material isolates the background, preserves foreground and honors p
  assert.match(css,/\[data-mobile-header-underlap='true'\]::before/);
  assert.match(css,/prefers-reduced-transparency/);
  assert.match(css,/prefers-reduced-motion/);
+ assert.doesNotMatch(css,/(?:^|[;{\n])\s*(?:-webkit-)?backdrop-filter\s*:\s*(?:blur\(|var\(--navigation-blur)/);
+ assert.doesNotMatch(css,/(?:-webkit-)?mask-image\s*:\s*linear-gradient/);
+ assert.match(css,/\.studio-citation-pills/,'Studio pills use the common sharp header boundary');
  assert.match(source,/\[data-mobile-safe-header\]/);
  assert.match(source,/candidates\.filter.*parent\.contains\(node\)/);
 });

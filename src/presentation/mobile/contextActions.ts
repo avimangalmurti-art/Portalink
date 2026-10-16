@@ -39,7 +39,7 @@ export function contextActions(kind: ContextKind, viewer: ContextViewer, target:
     const additional=id==='export'||id==='copyCitation';
       if (!run || !additional && count >= (kind === 'profile' && viewer.owner ? 10 : kind === 'project' && viewer.owner ? 11 : 8) || (accountActions.has(id) && !viewer.signedIn) || (ownerActions.has(id) && !viewer.owner) || (viewer.signedIn && (id === 'signIn' || id === 'createAccount'))) return [];
     if(!additional)count++;
-    return [{id, label:target.labels?.[id] ?? labels[id], icon:icons[id], run, destructive:['delete','deleteChat','report','block','unsend'].includes(id)}];
+    return [{id, label:target.labels?.[id] ?? (kind === 'profile' && id === 'copy' ? 'Copy public portfolio link' : labels[id]), icon:icons[id], run, destructive:['delete','deleteChat','report','block','unsend'].includes(id)}];
   });
   const layout = map[kind];
   return { kind, viewer, target, title:target.title ?? layout.title, primary:take(layout.primary.slice(0,3)), groups:layout.groups.map(take).filter(group=>group.length) };
