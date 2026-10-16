@@ -5566,3 +5566,60 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .journey-popular-heading {display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;}
 #root .codex-shell[data-presentation='mobile'] .journey-popular-heading .journey-title {flex:1 1 150px;min-width:0;}
 #root .codex-shell[data-presentation='mobile'] .journey-popularity {flex:none;font-size:13px;line-height:1.5;color:var(--text-secondary);font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+/* Studio owns one viewport; only its result regions may scroll, not the document. */
+html:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell),
+body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell) {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior-y: none;
+}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active:has(.studio-citation-shell) {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+#root .codex-shell[data-presentation='mobile'] .app-screen-layer > main:has(> [data-screen-scroll] > .studio-citation-shell) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding-block: 0;
+}
+
+/* Profile return is an explicit icon action aligned with the screen options. */
+#root .codex-shell[data-presentation='mobile'] .profile-return-navigation {
+  flex: none;
+  height: 44px;
+}
+#root .codex-shell[data-presentation='mobile'] .profile-return-back {
+  position: fixed;
+  top: var(--mobile-screen-action-top);
+  inset-inline-start: var(--mobile-navigation-inset-start);
+  z-index: 55;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  touch-action: manipulation;
+}
+
+/* Keep the Timeline's four view choices evenly spaced in its pinned row. */
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+#root .codex-shell[data-presentation='mobile'] .timeline-header-controls .journey-order button {
+  font-size: 14px;
+  padding-inline: 4px;
+  white-space: nowrap;
+}
+
+/* Studio collection pills replace the obscured screen-level options trigger. */
+#root .codex-shell[data-presentation='mobile']:has(.app-screen-layer.screen-active .studio-citation-shell) .mobile-context-floating,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell :is(.studio-mobile-shell-header, .studio-workbench-header, .mobile-insights-page > header) :is(.mobile-context-button, [data-inline-screen-actions]) {
+  display: none !important;
+}

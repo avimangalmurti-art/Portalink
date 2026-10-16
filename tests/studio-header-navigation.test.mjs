@@ -68,6 +68,7 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
  let tree=nodes(StudioPage(props));
  const pills=tree.filter(n=>n.props['data-studio-pill']);
  assert.equal(pills[0].props.children,'Insights');
+ assert.equal(pills.some(n=>n.props['data-studio-pill']==='published'),false);
  assert.equal(pills[0].props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='insights'));
  assert.equal(tree.some(n=>n.type==='overview'),false);
@@ -94,12 +95,12 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
   const fallback=collection==='cited'?1:0;
   assert.equal(emptyTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,fallback,`${collection}: empty Studio retains one header fallback`);
   assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,fallback,`${collection}: fallback contains screen actions header`);
-  assert.equal(registered?.kind,(fallback||collection==='overview')?'studio':undefined,`${collection}: screen or list child provides its actions`);
+  assert.equal(registered, null,`${collection}: screen or list child provides its actions`);
  }
  for(const state of [{loading:true},{error:'Unavailable'},{data:{draftsUnavailable:true}}]) {
   params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};
   const unavailableTree=nodes(StudioPage(props));
   assert.equal(unavailableTree.filter(n=>n.props.className==='studio-mobile-header-fallback').length,1,'Unavailable Drafts retains fallback');
-  assert.equal(registered.kind,'studio');
+  assert.equal(registered,null);
  }
 });

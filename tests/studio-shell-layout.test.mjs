@@ -23,7 +23,7 @@ test('mobile Studio header receives existing collection controls and hides its r
 
 test('mobile landing overview is the first tab, with reference-style fallback header controls', () => {
  const source=readFileSync('src/features/studio/StudioPage.tsx','utf8');
- assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts','published'/);
+ assert.match(source,/mobile\?\['overview'\]:\[\]\),'drafts',\.\.\.\(!mobile\?\['published'\]:\[\]\)/);
  assert.match(source,/collection\?\?\(mobile\?'overview':'all'\)/);
  assert.match(source,/mobile&&!collectionHeader&&!insightsOverview&&<div className="studio-mobile-header-fallback"/);
  assert.match(source,/aria-label="Back from Studio"/);

@@ -208,6 +208,16 @@ test('every platform CSS selector is scoped, including nested rules and selector
             (node.prop === 'overflow' && node.value === 'hidden')
             || (node.prop === 'overscroll-behavior' && node.value === 'none')
           ));
+        // Studio alone locks document scrolling while its active MOBILE screen
+        // delegates scrolling to its inner results pane. Never permit a global lock.
+        const studioScope = "#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen-active .studio-citation-shell";
+        const mobileStudioScrollLock = mode === 'mobile'
+          && [`html:has(${studioScope})`, `body:has(${studioScope})`].includes(selector)
+          && rule.nodes.length === 3 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
+            (node.prop === 'height' && node.value === '100%')
+            || (node.prop === 'overflow' && node.value === 'hidden')
+            || (node.prop === 'overscroll-behavior-y' && node.value === 'none')
+          ));
         const mobileRoot = "html:has(.codex-shell[data-presentation='mobile'])";
         const mobileDocumentScrollbar = mode === 'mobile' && rule.nodes.length === 1 && rule.nodes.every(node => node.type === 'decl' && !node.important && (
           ([mobileRoot, `${mobileRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
@@ -218,7 +228,7 @@ test('every platform CSS selector is scoped, including nested rules and selector
           ([readerRoot, `${readerRoot} body`].includes(selector) && node.prop === 'scrollbar-width' && node.value === 'none')
           || ([`${readerRoot}::-webkit-scrollbar`, `${readerRoot} body::-webkit-scrollbar`].includes(selector) && node.prop === 'display' && node.value === 'none')
         ));
-        assert.ok((boundary.test(selector) || compoundShellBoundary.test(selector)) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar, `Unscoped ${mode} selector: ${selector}`);
+        assert.ok((boundary.test(selector) || compoundShellBoundary.test(selector)) || (mode === 'mobile' && mobileOnboardingBoundary.test(selector)) || mobileDocumentCanvas || mobilePortalScrollLock || mobileReaderScrollbar || mobileDocumentScrollbar || mobileStudioScrollLock, `Unscoped ${mode} selector: ${selector}`);
         assert.ok(!selector.includes(`data-presentation='${mode === 'web' ? 'mobile' : 'web'}'`));
       }
     });

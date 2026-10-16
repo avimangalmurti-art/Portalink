@@ -42,9 +42,10 @@ test('Overview resumes the exact saved draft and Add work uses the existing crea
 });
 test('existing Studio action shortcuts reach Bookmarks and Insights in ready, loading and error states',()=>{
  for(const status of ['ready','loading','error']){
-  const h=harness(status);h.registered.handlers.bookmarks();h.registered.handlers.reads();
+  const mobile=harness(status);assert.equal(mobile.registered,null);
+  const h=harness(status,[draft],{presentation:'web'});h.registered.handlers.bookmarks();h.registered.handlers.reads();
   assert.deepEqual(h.calls,[['collection','bookmarks'],['navigate','/insights?period=7d']]);
-  assert.ok(nodes(h.tree).some(n=>n.type==='insights'));assert.deepEqual(h.workbenchEnabled,[false]);
+  assert.ok(nodes(mobile.tree).some(n=>n.type==='insights'));assert.deepEqual(mobile.workbenchEnabled,[false]);
  }
 });
 
@@ -59,7 +60,7 @@ test('both platforms load only overview/drafts workbench data and let independen
   for(const collection of ['published','activity','all','bookmarks','references','cited']){
    const h=harness('loading',[draft],{presentation,search:`collection=${collection}`});
    assert.deepEqual(h.workbenchEnabled,[false]);
-   assert.ok(nodes(h.tree).some(node=>node.type===(['references','cited'].includes(collection)?'citations':'bookmarks')));
+   assert.ok(nodes(h.tree).some(node=>node.type===(presentation==='mobile'&&collection==='published'?'insights':['references','cited'].includes(collection)?'citations':'bookmarks')));
    assert.equal(nodes(h.tree).some(node=>node.type==='loading'),false);
   }
   const saved=harness('loading',[draft],{presentation,savedRoute:true});

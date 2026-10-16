@@ -266,7 +266,7 @@ for (const presentation of ['mobile', 'web']) test(`${presentation} continuous T
   const h = viewHarness({ profile: viewed, owner: false, presentation, events, onOpen: work => opened.push(work) });
   const key = h.wrapperKey;
   const order = h.nodes.find(node => node.props.role === 'group' && node.props['aria-label'] === 'Timeline order');
-  assert.ok(order);assert.equal(nodes(order).filter(node => node.type === 'button').length, presentation==='mobile'?3:2);
+  assert.ok(order);assert.equal(nodes(order).filter(node => node.type === 'button').length, presentation==='mobile'?4:2);
   assert.equal(timelineOrder(h), 'newest');assert.equal(sortButton(h, 'Newest first').props['aria-pressed'], true);
   assert.equal(sortButton(h, 'Oldest first').props['aria-pressed'], false);
   assert.deepEqual(yearSections(h).map(node => node.props['aria-label']), ['2026', '2024', '2020', '1990', 'Date not set']);
@@ -349,7 +349,7 @@ test('empty and undated Timelines retain only the two sort controls and owner Ad
     assert.equal(h.button('Open Timeline calendar for today'), undefined);
     assert.equal(h.nodes.some(node => ['journey-calendar', 'month-calendar'].includes(node.type)), false);
     const toolbar = h.nodes.find(node => node.props.className === 'journey-toolbar');
-    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => node.props['aria-label']??text(node)), presentation === 'mobile' ? ['Latest', 'Popular', 'Oldest'] : ['Newest first', 'Oldest first']);
+    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => node.props['aria-label']??text(node)), presentation === 'mobile' ? ['Latest', 'Popular', 'Oldest', 'Then/Now'] : ['Newest first', 'Oldest first']);
     assert.equal(timelineRows(h).length, projects.length);assert.doesNotMatch(text(h.tree), /No work recorded|What were you making/);
     sortButton(h, 'Oldest first').props.onClick();h.frames();assert.deepEqual(h.scrolls, []);
     const add = h.nodes.find(node => node.type === 'button' && /Add your first project|Add work/.test(node.props['aria-label']??text(node)));
@@ -365,7 +365,7 @@ for (const presentation of ['mobile', 'web']) test(`${presentation} Timeline kee
   assert.equal(h.nodes.some(node => node.type === 'journey-calendar'), false);assert.equal(yearSections(h).length, 2);
   h.frames();assert.deepEqual(h.scrolls, [], 'Opening a Timeline cannot jump to a date.');
   const toolbar = h.nodes.find(node => node.props.className === 'journey-toolbar');
-  assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => text(node)), presentation==='mobile'?['Latest','Popular','Oldest']:['Newest first','Oldest first']);
+  assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => text(node)), presentation==='mobile'?['Latest','Popular','Oldest','Then/Now']:['Newest first','Oldest first']);
   assert.equal(h.button('Open Timeline calendar for today'), undefined);
   assert.equal(h.nodes.some(node => ['month-calendar', 'journey-calendar'].includes(node.type)), false);
   assert.equal(h.nodes.some(node => node.type === 'input' && node.props.type === 'date'), false);
@@ -487,11 +487,11 @@ for (const presentation of ['mobile', 'web']) {
 }
 
 
-test('mobile Timeline has only three sort buttons and no creation actions for owner or visitor', () => {
+test('mobile Timeline has four view buttons and no creation actions for owner or visitor', () => {
  const h=viewHarness({profile:{...profile,projects:[]},owner:true,presentation:'mobile',onOpen(){},onAdd:()=>assert.fail('unexpected create'),onPair:()=>assert.fail('unexpected pair')});
  const toolbar=h.nodes.find(node=>node.props.className==='journey-toolbar');
  const controls=nodes(toolbar).filter(node=>node.type==='button');
- assert.equal(toolbar.type,'header');assert.deepEqual(controls.map(node=>text(node)),['Latest','Popular','Oldest']);
+ assert.equal(toolbar.type,'header');assert.deepEqual(controls.map(node=>text(node)),['Latest','Popular','Oldest','Then/Now']);
  assert.equal(controls[1].props.disabled,true,'Unavailable opens must not use a fake ranking');
  assert.equal(h.button('Add work'),undefined);assert.equal(h.button('Choose a Then/Now pair'),undefined);
  h.update({owner:false});assert.equal(h.button('Add work'),undefined);h.dispose();
@@ -504,4 +504,22 @@ test('Popular shows authorized open counts and tied ranks only while selected',a
  assert.deepEqual(h.nodes.filter(n=>n.props.className==='journey-popularity').map(n=>text(n).replace(/\s+/g,' ').replace('# ','#')),['#1 · 50 opens','#2 · 5 opens','#2 · 5 opens','#4 · 0 opens']);
  h.nodes.find(n=>n.type==='button'&&text(n)==='Oldest').props.onClick();assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);
  h.update({owner:false});assert.equal(h.nodes.some(n=>n.props.className==='journey-popularity'),false);h.dispose();
+});
+
+test('Then/Now filters out ordinary Timeline entries and another view restores them', () => {
+ const early=project('early','2020-01-01'), recent=project('recent','2026-01-01');
+ const h=viewHarness({profile:{...profile,showJourney:true,thenNow:{then:early.id,now:recent.id},projects:[early,recent]},owner:false,presentation:'mobile',onOpen(){}});
+ assert.equal(timelineRows(h).length,2);
+ sortButton(h,'Then/Now').props.onClick();h.frames();
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],true);
+ assert.equal(sortButton(h,'Latest').props['aria-pressed'],false);
+ assert.equal(timelineRows(h).length,0);
+ assert.equal(h.nodes.filter(n=>n.props.className==='journey-pair').length,1);
+ sortButton(h,'Latest').props.onClick();h.frames();
+ assert.equal(timelineRows(h).length,2);
+ assert.equal(sortButton(h,'Then/Now').props['aria-pressed'],false);
+ h.update({profile:{...profile,projects:[]}});
+ sortButton(h,'Then/Now').props.onClick();h.frames();
+ assert.match(text(h.tree),/No Then\/Now pairs yet/);
+ h.dispose();
 });

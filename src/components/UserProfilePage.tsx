@@ -2,7 +2,6 @@ import { DensitySeparator } from './ui/DensitySeparator';
 import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
-import { useProfileSwipeReturn } from '../presentation/mobile/useProfileSwipeReturn';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
@@ -517,7 +516,7 @@ export function UserProfilePage({
     else if (searchReturn) { if ((window.history.state?.idx ?? 0) > 0) navigate(-1); else navigate(searchReturn, { replace: true }); }
     else onBack();
   };
-  useProfileSwipeReturn(profilePageRef, canDismissProfile, dismissProfile);
+
   const showsMobileReorder = !isJourney && showsOwnerTools && !isSharedView && activeView === 'projects' && !mobileContent;
   const canReorderProjects = orderedCardProjects.length > 1 && !projectOrder.isSaving && projectManagement.editor.projectId === null;
   const startReordering = () => {
@@ -714,7 +713,7 @@ export function UserProfilePage({
       {!isMobile && searchReturn && !isSharedView && <ScreenBack visibleOnMobile action={() => navigate(searchReturn)}><button type="button" data-search-back="" onClick={() => navigate(searchReturn)} aria-label="Back to search" className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
       <div {...profilePress} data-profile-header="" data-mobile-project-header-preview={isMobileProject && mobileProjectIndexOpen ? '' : undefined} className={isWebWorkspace || (isMobileProject && !mobileProjectIndexOpen) ? 'hidden' : 'profile-header-region contents'}>
       {showConnectionBack && !canDismissProfile && <ScreenBack visibleOnMobile action={backToConnections}><button type="button" data-connections-back="" onClick={backToConnections} aria-label={`Back to ${connectionList}`} className="flex min-h-11 items-center gap-2 px-4 py-2 text-[14px] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /><span className="hidden sm:inline">Back</span></button></ScreenBack>}
-      {canDismissProfile && <button type="button" className="profile-return-handle" aria-label="Swipe down to return to previous screen" onClick={event => { if (event.detail === 0) dismissProfile(); }}><span /></button>}
+      {canDismissProfile && <div className="profile-return-navigation"><button type="button" className="profile-return-back" aria-label="Back to previous screen" onClick={dismissProfile}><InterfaceIcon icon={ArrowLeftIcon} mirroredInRtl /></button></div>}
       <header className="profile-compact-header" data-expanded={isMobileToolsOpen || undefined}>
         <ProfileIdentityAndLinks profile={profile} displayName={displayName} links={profileLinks} showLinks={false} avatarPriority={isSharedView}
           profileView={isMobile && canSeeJourney ? <JourneyToggle view={isJourney ? 'journey' : 'portfolio'} disabled={isReorderingProjects || projectManagement.editor.projectId !== null} onChange={view => { journey.select(view); setActiveView('projects'); }} /> : undefined}

@@ -1005,14 +1005,14 @@ test('mobile nested profile headers retain Portfolio/Journey and return to the s
   }
 });
 
-test('mobile connection profiles expose pull return and return through history to the selected list; WEB stays unchanged', () => {
+test('mobile connection profiles expose icon Back and return through history to the selected list; WEB stays unchanged', () => {
   for (const kind of ['followers', 'following']) {
     const h = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:2}}}});
-    const back = nodes(h.render()).find(node => node.props['aria-label'] === 'Swipe down to return to previous screen');
-    assert.ok(back); back.props.onClick({detail:0});
+    const back = nodes(h.render()).find(node => node.props['aria-label'] === 'Back to previous screen');
+    assert.ok(back); back.props.onClick({detail:1});
     assert.equal(h.navigation.at(-1).target, -1);
     const direct = profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'mobile', window:{history:{state:{idx:0}}}});
-    nodes(direct.render()).find(node => node.props['aria-label'] === 'Swipe down to return to previous screen').props.onClick({detail:0});
+    nodes(direct.render()).find(node => node.props['aria-label'] === 'Back to previous screen').props.onClick({detail:1});
     assert.equal(direct.navigation.at(-1).target, `/p/source?view=${kind}`);
     assert.equal(direct.navigation.at(-1).options.replace, true);
     assert.equal(nodes(profileHarness(`fromConnections=source&connectionList=${kind}`, {presentation:'web'}).render()).some(node => node.props['data-connections-back'] !== undefined), false);
