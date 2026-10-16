@@ -35,11 +35,11 @@ test('finite stylesheet motion is capped at260ms and every authored opacity fade
   assert.equal(milliseconds(duration),180,`${selector} must not override named exit fades to260ms`);
  }
 });
-test('all authored stylesheet durations come from the one three-token motion scale',()=>{
+test('authored durations use shared transition tokens and the separate loading cycle',()=>{
  const files=cssFiles('src'),definitions=[];
  for(const file of files){const css=readFileSync(file,'utf8').replace(/\/\*[\s\S]*?\*\//g,'');
   const values=[...css.matchAll(/(?<![\w-])(?:\d*\.\d+|\d+)(?:ms|s)\b/g)].map(m=>m[0]);
-  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms']);else assert.deepEqual(values,[],file);
+  if(file.endsWith('/motion/motion.css'))assert.deepEqual(values,['120ms','180ms','260ms','1400ms']);else assert.deepEqual(values,[],file);
   definitions.push(...[...css.matchAll(/--m-(fast|base|slow)\s*:/g)].map(m=>m[1]));
  }
  assert.deepEqual(definitions.sort(),['base','fast','slow']);
@@ -172,7 +172,7 @@ test('Cite dismisses a fast downward drag even before the move state renders',()
  const react={...React,useEffect(){},useRef:value=>({current:value}),useState:value=>[value,()=>{}]};
  const {CiteSheet}=sourceModule('src/features/citations/CiteSheet.tsx',{
   react,'../../presentation/motion/useSheetMotion':{useSheetMotion:onClose=>({closing:false,close:onClose})},
-  './publicOrigin':{PUBLIC_ORIGIN:'https://example.test'},'../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:true,viewerProfileId:'owner'})},
+  './formats':{formatCitation:()=>'',citationFormatLabels:{mla:'MLA'}},'./publicOrigin':{PUBLIC_ORIGIN:'https://example.test'},'../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:true,viewerProfileId:'owner'})},
   '../../components/ui/ModalPortal':{ModalPortal:'portal'},'../../services/supabase/client':{},'./model':{},'./service':{},'./citations.css':{},'../../hooks/useModalFocus':{useModalFocus(){}},
  },{Element:ElementStub});
  const tree=CiteSheet({item:{creatorId:'owner'},onClose:()=>closed++});

@@ -36,12 +36,21 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
   }
   return <EntryAgreements onDisagree={onDisagree ?? (() => undefined)}>{agreements => <div className="one-screen-entry">
     <div className="entry-providers" aria-label="Sign-in options">
-      {(['google'] as const).map(provider => <button key={provider} type="button" disabled={!ready || busy || !providers?.[provider]}
-        onClick={() => void agreements.request().then(agreed => { if (agreed) return social(provider); })} aria-describedby={!providers?.[provider] ? `entry-${provider}-availability` : undefined}>
-        Continue with Google
-      </button>)}
+      {(['google', 'apple'] as const).map(provider => {
+        // Apple remains unavailable until its separately held setup is approved.
+        const available = provider === 'google' && Boolean(providers?.google);
+        return <div className="entry-provider" key={provider}>
+          <button type="button" disabled={!ready || busy || !available}
+            onClick={() => void agreements.request().then(agreed => { if (agreed) return social(provider); })}
+            aria-describedby={!available ? `entry-${provider}-availability` : undefined}>
+            Continue with {provider === 'google' ? 'Google' : 'Apple'}
+          </button>
+          {!available && <p className="entry-availability" id={`entry-${provider}-availability`}>
+            {provider === 'google' ? 'Google' : 'Apple'} sign-in is not available yet.
+          </p>}
+        </div>;
+      })}
     </div>
-    {providers && !providers.google && <p className="entry-availability" id="entry-google-availability">Google sign-in is not available yet.</p>}
     {error && <p role="alert">{error}</p>}
     {onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>}
     {children}

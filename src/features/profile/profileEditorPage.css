@@ -5,6 +5,24 @@
   padding: max(8px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
 }
 .profile-editor-header h1 { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; outline: none; }
+/* This stationary toolbar stays opaque; only the form beneath it scrolls. */
+.profile-editor-page[data-presentation='mobile'] .profile-editor-header {
+  background: var(--surface-canvas, var(--mac-window-bg));
+  isolation: isolate;
+  opacity: 1;
+  filter: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.profile-editor-page[data-presentation='mobile'] .profile-editor-header::before,
+.profile-editor-page[data-presentation='mobile'] .profile-editor-header::after {
+  content: none;
+}
+/* An outer screen-edge fade must not wash out the stationary toolbar. */
+#root .codex-shell[data-presentation='mobile'] .scroll-edge-fade:has(.profile-editor-page[data-presentation='mobile']) {
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
 .profile-editor-page :is(.profile-editor-back, .profile-editor-save) { flex-shrink: 0; }
 .profile-editor-page button:disabled { opacity: 0.45; }
 .profile-editor-page :is(button, input, select, textarea):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

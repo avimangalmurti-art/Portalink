@@ -41,3 +41,12 @@ test('received project links open inside Portalink while outside URLs stay text'
  const parts=messageContentParts('Work\nhttps://portalink.test/p/creator/c/portal/work?attachment=file#page-2 https://outside.test/p/creator/c/portal/work','https://portalink.test');
  assert.equal(parts.find(p=>p.to).to,'/p/creator/c/portal/work?attachment=file#page-2');assert.equal(parts.filter(p=>p.to).length,1);
 });
+test('sharing uses an opaque full-screen recipient search with Back and explicit Send',()=>{
+ const h=harness();const tree=nodes(h.render());
+ assert.ok(tree.some(n=>n.props.className==='internal-share-screen'));
+ assert.equal(tree.some(n=>(n.props.className??'').includes('modal-scrim')),false);
+ assert.equal(tree.find(n=>n.type==='recipients').props.appearance,'account-search');
+ const back=tree.find(n=>n.type==='button'&&n.props['aria-label']==='Back');
+ back.props.onClick();assert.deepEqual(h.calls,[['close']]);
+ assert.equal(h.button('Send').props.disabled,true);
+});

@@ -9,6 +9,7 @@ import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { EmptyState, ErrorState, LoadingState } from '../ui/StateViews';
 
 type NewChatPanelProps = {
+  appearance?: 'default' | 'account-search';
   showHeader?: boolean;
   selectedCreatorId?: string | null;
   onClose: () => void;
@@ -20,6 +21,7 @@ type NewChatPanelProps = {
 
 /** Starts with followed people and expands to visible profiles when searching. */
 export function NewChatPanel({
+  appearance = 'default',
   showHeader = true,
   selectedCreatorId,
   onClose,
@@ -48,7 +50,7 @@ export function NewChatPanel({
     return [...byLetter.entries()];
   }, [auth.viewerProfileId, directory.people]);
 
-  return <div className="flex min-h-0 flex-1 flex-col" aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
+  return <div className="flex min-h-0 flex-1 flex-col" data-recipient-appearance={appearance} aria-busy={directory.status === 'loading' || Boolean(startingCreatorId)}>
       <div className="side-panel-control-stack side-panel-content-inset shrink-0">
       {showHeader ? <div className="side-panel-primary-control side-panel-control-row">
         <ScreenBack><button type="button" onClick={onClose} aria-label="Back to messages" className="side-panel-compact-control shape-compact flex shrink-0 items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">

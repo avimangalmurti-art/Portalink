@@ -19,6 +19,7 @@ function harness(file, storage = new Map()) {
   }).outputText, { exports, require(name) {
     if (name === 'react') return react;
     if (name.endsWith('/ModalPortal')) return { ModalPortal: 'portal' };
+    if (name.endsWith('/GestureInstructions')) return { GestureInstructions: 'gesture-instructions' };
     if (name === './MobileBackNavigation') return { useMobileScreenActive: () => true };
     throw new Error(name);
   }, window: { localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } } });

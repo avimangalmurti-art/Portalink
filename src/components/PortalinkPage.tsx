@@ -163,9 +163,17 @@ export function PortalinkPage({
   return <div className="portalink-world relative flex h-full min-h-full w-full flex-col overflow-hidden bg-[var(--portalink-bg-primary)]">
       {/* The global header contract places this page control on the exact same
           centerline as the adjacent main-navigation header control. */}
+      <header className="portalink-world-header relative z-20 shrink-0">
       <ScreenBack><div data-mobile-safe-header="" className="ps-panel-toolbar global-control-header relative z-10 shrink-0 justify-start gap-1 px-2">
         <WorldViewToggle onToggle={onBack} />
       </div></ScreenBack>
+      <div ref={searchViewportRef} className={`portalink-world-search relative z-20 mx-auto w-full max-w-[520px] px-4 ${isMobile ? '' : 'shrink-0'}`}>
+        <LocationSearch label="Find a place" value={query} onChange={setQuery} blurOnSelect={isMobile}
+          onConfirm={isMobile ? onSelectCity : undefined}
+          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); if (!isMobile) onSelectCity(place); }} />
+      </div>
+
+      </header>
 
       {/* Starfield backdrop. */}
       <div aria-hidden="true" className="portalink-stars pointer-events-none absolute inset-0" />
@@ -315,11 +323,6 @@ export function PortalinkPage({
 
       
 
-      <div ref={searchViewportRef} className={`portalink-world-search relative z-10 mx-auto w-full max-w-[520px] px-6 pb-7 ${isMobile ? '' : 'shrink-0'}`}>
-        <LocationSearch label="Find a place" value={query} onChange={setQuery} above blurOnSelect={isMobile}
-          onConfirm={isMobile ? onSelectCity : undefined}
-          onSelect={place => { setQuery(placeLabel(place)); focusCity(place); if (!isMobile) onSelectCity(place); }} />
-      </div>
 
       {/* Broadcast crawl along the bottom edge — additive, never overlapping. */}
       <div data-mobile-scroll-end="" className="relative z-10 shrink-0">

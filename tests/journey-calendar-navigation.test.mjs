@@ -309,7 +309,7 @@ test('Timeline details preserve mobile read-only access and owner edit/delete be
       assert.equal(popup.props.contextHandlers, undefined);assert.equal(popup.props.onOptions, undefined);assert.equal(popup.props.onEditDescription, undefined);
       popup.props.onClose();assert.equal(h.nodes.some(node => node.type === 'project-popup'), false);
     } else assert.equal(h.button('Show details for work'), undefined);
-    assert.equal(h.nodes.some(node => node.type === 'button' && /Add work/.test(text(node))), false);
+    assert.equal(h.nodes.some(node => node.type === 'button' && /Add work/.test(node.props['aria-label']??text(node))), false);
     h.update({ owner: true });h.button('Show details for work').props.onClick();
     if (presentation === 'mobile') {
       const popup = h.nodes.find(node => node.type === 'project-popup');
@@ -317,7 +317,7 @@ test('Timeline details preserve mobile read-only access and owner edit/delete be
       assert.deepEqual(descriptions, ['work']);assert.deepEqual(deleted, ['work']);
     }
     assert.deepEqual(edited, ['work']);assert.deepEqual(opened, []);
-    h.nodes.find(node => node.type === 'button' && /Add work/.test(text(node))).props.onClick();assert.deepEqual(added, [true]);h.dispose();
+    h.nodes.find(node => node.type === 'button' && /Add work/.test(node.props['aria-label']??text(node))).props.onClick();assert.deepEqual(added, [true]);h.dispose();
   }
 });
 
@@ -348,12 +348,12 @@ test('empty and undated Timelines retain only the two sort controls and owner Ad
     assert.equal(h.button('Open Timeline calendar for today'), undefined);
     assert.equal(h.nodes.some(node => ['journey-calendar', 'month-calendar'].includes(node.type)), false);
     const toolbar = h.nodes.find(node => node.props.className === 'journey-toolbar');
-    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => text(node)), presentation === 'mobile' ? ['Newest first', 'Oldest first', 'Add work'] : ['Newest first', 'Oldest first']);
+    assert.deepEqual(nodes(toolbar).filter(node => node.type === 'button').map(node => node.props['aria-label']??text(node)), presentation === 'mobile' ? ['Newest first', 'Oldest first', 'Add work'] : ['Newest first', 'Oldest first']);
     assert.equal(timelineRows(h).length, projects.length);assert.doesNotMatch(text(h.tree), /No work recorded|What were you making/);
     sortButton(h, 'Oldest first').props.onClick();h.frames();assert.deepEqual(h.scrolls, []);
-    const add = h.nodes.find(node => node.type === 'button' && /Add your first project|Add work/.test(text(node)));
+    const add = h.nodes.find(node => node.type === 'button' && /Add your first project|Add work/.test(node.props['aria-label']??text(node)));
     assert.ok(add);add.props.onClick();assert.equal(adds, 1);
-    h.update({ owner: false });assert.equal(h.nodes.some(node => node.type === 'button' && /Add your first project|Add work/.test(text(node))), false);
+    h.update({ owner: false });assert.equal(h.nodes.some(node => node.type === 'button' && /Add your first project|Add work/.test(node.props['aria-label']??text(node))), false);
     h.dispose();
   }
 });
@@ -491,7 +491,9 @@ test('mobile owner Add and Then/Now actions share the sort toolbar and retain th
   const h=viewHarness({profile:{...profile,projects:[]},owner:true,presentation:'mobile',onOpen(){},onAdd:()=>adds++,onPair:()=>pairs++});
   const toolbar=h.nodes.find(node=>node.props.className==='journey-toolbar');
   const controls=nodes(toolbar).filter(node=>node.type==='button');
-  assert.deepEqual(controls.map(text),['Newest first','Oldest first','Add work','Choose a Then/Now pair']);
+  assert.equal(toolbar.type,'header');
+  assert.deepEqual(controls.map(node=>node.props['aria-label']??text(node)),['Newest first','Oldest first','Add work','Choose a Then/Now pair']);
+  assert.equal(text(controls[2]),'');assert.equal(text(controls[3]),'');
   controls[2].props.onClick();controls[3].props.onClick();assert.equal(adds,1);assert.equal(pairs,1);
   h.update({owner:false});assert.equal(h.button('Choose a Then/Now pair'),undefined);h.dispose();
 });

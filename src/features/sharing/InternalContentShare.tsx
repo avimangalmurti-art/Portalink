@@ -5,7 +5,8 @@ import { NewChatPanel } from '../../components/messages/NewChatPanel';
 import { ModalPortal } from '../../components/ui/ModalPortal';
 import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { useModalFocus } from '../../hooks/useModalFocus';
-import '../../components/ui/confirmation-dialog.css';
+import { ArrowLeftIcon } from 'lucide-react';
+import './internalContentShare.css';
 
 type Target = { title: string; url: string; onSent?: () => void };
 const ShareContext = createContext<((target: Target) => void) | null>(null);
@@ -39,14 +40,15 @@ export function InternalContentShareDialog({target,onClose,inline = false}: {tar
   } catch(caught) {setError(caught instanceof Error?caught.message:'Content could not be sent. Try again.');}
   finally {sending.current=false;setBusy(false);}
  };
- const content = <> <h2 id="internal-share-title">{sent?'Sent':'Send content'}</h2>
- <p className="portalink-confirmation-description">{target.title}</p>
- {sent?<p role="status">Sent in Portalink.</p>:<div className="min-h-0 flex-1 overflow-y-auto"><NewChatPanel selectedCreatorId={recipient} showHeader={false} onClose={onClose} startingCreatorId={busy?recipient:null} onSelectCreator={id=>{if(!busy){setRecipient(id);setError(null);}}} /></div>}
+ const content = <> <header className="internal-share-header"><button type="button" aria-label="Back" disabled={busy} onClick={onClose} className="internal-share-back"><ArrowLeftIcon aria-hidden="true" size={24}/></button><div><h1 id="internal-share-title">{sent?'Sent':'Send content'}</h1>
+ <p className="internal-share-source">{target.title}</p></div></header>
+ {sent?<p className="internal-share-feedback" role="status">Sent in Portalink.</p>:<div className="internal-share-directory"><NewChatPanel appearance="account-search" selectedCreatorId={recipient} showHeader={false} onClose={onClose} startingCreatorId={busy?recipient:null} onSelectCreator={id=>{if(!busy){setRecipient(id);setError(null);}}} /></div>}
+ <footer className="internal-share-footer">
  {recipient && !sent && <p role="status">Recipient selected</p>}
  {error && <p role="alert">{error}</p>}
- <div className="portalink-confirmation-actions"><button type="button" disabled={busy} onClick={onClose}>{sent?'Done':'Cancel'}</button>{!sent && <button type="button" disabled={!recipient || busy} onClick={()=>void send()}>{busy?'Sending…':'Send'}</button>}</div></>;
+ <div className="internal-share-actions"><button type="button" disabled={busy} onClick={onClose}>{sent?'Done':'Cancel'}</button>{!sent && <button type="button" disabled={!recipient || busy} onClick={()=>void send()}>{busy?'Sending…':'Send'}</button>}</div></footer></>;
  if (inline) return <div className="project-inline-share">{content}</div>;
- return <ModalPortal><div ref={viewport} className="portalink-confirmation-overlay modal-scrim" style={{zIndex:150}} onClick={event=>{if(event.target===event.currentTarget && !busy)onClose();}}><section ref={panel} role="dialog" aria-modal="true" aria-labelledby="internal-share-title" tabIndex={-1} className="portalink-confirmation" style={{display:'flex',flexDirection:'column',maxHeight:'min(70dvh, 640px)',width:'min(420px, calc(100vw - 32px))'}}>
+ return <ModalPortal><div ref={viewport} className="internal-share-screen"><section ref={panel} role="dialog" data-material="content" aria-modal="true" aria-labelledby="internal-share-title" tabIndex={-1} className="internal-share-page">
  {content}
  </section></div></ModalPortal>;
 }

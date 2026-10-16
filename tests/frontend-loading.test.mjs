@@ -171,7 +171,7 @@ test('a rejected deferred surface stays contained, is dismissible, and reloads o
   boundary.props = { ...boundary.props, active: true };
   assert.equal(boundary.render().props.failed, true, 'Reopening does not claim a cached rejected lazy import was retried.');
   assert.equal(reloads, 0);
-  rendered.find(node => node.type === 'button' && node.props.children === 'Reload').props.onClick();
+  rendered.find(node => node.type === 'button' && node.props.children === 'Reload page').props.onClick();
   assert.equal(reloads, 1);
   assert.equal(exports.DeferredSurfaceBoundary.getDerivedStateFromProps(boundary.props, boundary.state), null);
   boundary.props = { ...boundary.props, resetKey: 'another-route' };

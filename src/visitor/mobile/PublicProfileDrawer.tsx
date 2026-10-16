@@ -25,7 +25,7 @@ export function PublicProfileDrawer({ name, children, enabled = true }: {
   const { pathname, search } = useLocation();
   const reducedMotion = useReducedMotion();
   const progress = useMotionValue(0);
-  const opacity = useTransform(progress, value => value * 0.32);
+  const opacity = useTransform(progress, value => value);
   const [visible, setVisible] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);

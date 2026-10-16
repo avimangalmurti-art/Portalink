@@ -151,3 +151,13 @@ test('Review shows ordered summaries, omits empty location and limits file thumb
  assert.equal(h.flow.media.items.length,8);
  action(tree,'Edit project details').props.onClick();assert.equal(h.flow.metadata.summary,'A study of space.');
 });
+test('details-first project setup goes from files directly to review without a duplicate form or early publication',async()=>{
+ const h=harness({}, {detailsFirst:true});let tree=h.render();
+ assert.deepEqual(nodes(tree).filter(n=>n.type==='li').map(n=>React.Children.toArray(n.props.children).at(-1)),['Details','Files','Review']);
+ assert.ok(button(tree,'Review project'));
+ await h.submit(tree);tree=h.render();
+ assert.equal(h.flow.step,'preview');assert.deepEqual(h.calls,['save']);
+ assert.ok(button(tree,'Publish project'));
+ action(tree,'Edit project details').props.onClick();tree=h.render();
+ assert.ok(component(tree,'ProfileField'));assert.equal(h.flow.metadata.title,'Quiet Rooms');
+});

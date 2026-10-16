@@ -1,11 +1,13 @@
 .one-screen-entry { display:flex; flex-direction:column; gap:12px; color:#071326; color-scheme:light; font-family:'IBM Plex Sans',sans-serif; }
-.one-screen-entry .entry-providers { display:grid; gap:8px; }
+.one-screen-entry .entry-providers { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; align-items:start; }
+.one-screen-entry .entry-provider { min-width:0; display:grid; gap:8px; }
+.one-screen-entry .entry-provider button { width:100%; min-height:44px; padding-inline:8px; text-align:center; font-size:14px; line-height:1.3; }
 .one-screen-entry button { min-height:44px; padding:10px 16px; border-radius:16px; font:inherit; }
 .one-screen-entry .entry-providers button { border:1px solid #929aa4; background:#fdffff; color:#071326; }
 .one-screen-entry .entry-email { background:#071326; color:white; }
 .one-screen-entry .entry-links { display:flex; flex-direction:column; align-items:center; }
 .one-screen-entry .entry-links button { color:#535d6b; background:transparent; }
-.one-screen-entry .entry-availability { font-size:12px; line-height:1.4; color:#535d6b; }
+.one-screen-entry .entry-availability { font-size:12px; line-height:1.4; color:#b42318; text-align:center; margin:0; overflow-wrap:anywhere; }
 .one-screen-entry button:disabled { opacity:.6; cursor:default; }
 .one-screen-entry button:focus-visible { outline:2px solid #071326; outline-offset:3px; }
 .portalink-splash[data-share-landing] { background:#fdffff; height:100dvh; min-height:0; grid-template-rows:minmax(0, 1fr) auto; padding: max(12px, env(safe-area-inset-top, 0px)) 0 max(12px, env(safe-area-inset-bottom, 0px)); }

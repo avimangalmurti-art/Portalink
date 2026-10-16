@@ -15,3 +15,13 @@
 .app-shell[data-presentation=mobile] .studio-citation-pills{margin-right:56px}.studio-citation-pills{scrollbar-width:none}
 
 @media(max-width:639px){.studio-citation-pills{margin-right:56px}}
+
+.cite-source-sheet {display:grid;gap:14px;background:var(--surface-raised,#191919);color:var(--text-primary,#fff);}
+.cite-source-summary {display:grid;gap:6px;padding:16px;border:1px solid var(--hairline,#7776);border-radius:16px;overflow-wrap:anywhere;}
+.cite-source-summary span,.cite-format-help,.cite-attach p {font-size:13px;line-height:1.5;color:var(--text-secondary,#ccc);}
+.cite-format {display:grid;gap:6px;font-size:14px;}
+.cite-format select,.cite-preview {width:100%;min-width:0;padding:12px;border:1px solid var(--hairline-strong,#7776);border-radius:12px;background:var(--surface-sunken,#111);color:inherit;font:inherit;font-size:16px;}
+.cite-preview {min-height:130px;resize:vertical;line-height:1.5;}
+.cite-attach {display:grid;gap:12px;border-top:1px solid var(--hairline,#7776);padding-top:16px;}
+
+.cite-source-sheet button {background:var(--surface-sunken,#333);color:var(--text-primary,#fff);text-align:center;}

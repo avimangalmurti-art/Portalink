@@ -1,6 +1,6 @@
 import React from 'react';
 import { DndContext, KeyboardCode, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors, type CollisionDetection } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, rectSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useReducedMotion } from 'framer-motion';
 
@@ -12,10 +12,11 @@ export type MobileReorderActivator = React.ButtonHTMLAttributes<HTMLButtonElemen
 
 /** Hold the destination itself to move it; menus and inputs remain ordinary controls. */
 export function MobileReorderList<T extends { id: string }>({
-  items, label, disabled = false, className, itemClassName, groupForItem,
+  items, label, disabled = false, className, itemClassName, groupForItem, layout = 'list',
   onReorder, renderItem,
 }: {
   items: T[];
+  layout?: 'list' | 'grid';
   label: string;
   disabled?: boolean;
   className: string;
@@ -56,7 +57,7 @@ export function MobileReorderList<T extends { id: string }>({
       // so cancellation is reversible and one gesture cannot race multiple saves.
       onReorder(arrayMove(items, from, to));
     }}>
-    <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
+    <SortableContext items={items.map(item => item.id)} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy}>
       <ul aria-label={label} className={className}>
         {items.map((item, index) => <MobileReorderRow key={item.id} id={item.id} disabled={disabled || items.length < 2} className={itemClassName}>
           {activator => renderItem(item, activator, { moveUp: moveAction(index, -1), moveDown: moveAction(index, 1) })}

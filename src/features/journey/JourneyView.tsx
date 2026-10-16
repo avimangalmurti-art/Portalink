@@ -1,7 +1,7 @@
 import { useJourneyCitations } from '../citations/useJourneyCitations';
 import { journeyTimeline, type TimelineOrder } from '../citations/journeyCitations';
 import React, { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontalIcon } from 'lucide-react';
+import { Columns2Icon, MoreHorizontalIcon, PlusIcon } from 'lucide-react';
 import { InterfaceIcon } from '../../components/ui/InterfaceIcon';
 import { MobileProjectPopup } from '../../components/media/MobileProjectPopup';
 import { usePresentation } from '../../presentation/usePresentation';
@@ -67,14 +67,14 @@ function JourneyContent({ profile, owner, onOpen, onEdit, onEditDescription, onD
   });
   const popup = isMobile && detailsProject && <MobileProjectPopup project={detailsProject} creator={profile} onClose={() => setDetailsProject(null)} contextHandlers={owner ? { delete: onDelete ? () => onDelete(detailsProject) : undefined } : undefined} onEditDescription={owner && onEditDescription ? () => onEditDescription(detailsProject) : undefined} onOptions={owner && onEdit ? () => onEdit(detailsProject) : undefined} />;
   return <section className="journey-view" data-timeline-order={order} aria-label={`${profile.name} Timeline`}>
-    <div className="journey-toolbar">
+    <header className="journey-toolbar">
       <div className="journey-order" role="group" aria-label="Timeline order">
         <button type="button" aria-pressed={order === 'newest'} onClick={() => setOrder('newest')}>Newest first</button>
         <button type="button" aria-pressed={order === 'oldest'} onClick={() => setOrder('oldest')}>Oldest first</button>
       </div>
-      {isMobile && owner && onAdd && <button type="button" className="journey-toolbar-action" onClick={() => onAdd()}>Add work</button>}
-      {isMobile && owner && onPair && <button type="button" className="journey-toolbar-action" onClick={onPair}>Choose a Then/Now pair</button>}
-    </div>
+      {isMobile && owner && onAdd && <button type="button" className="journey-toolbar-action" aria-label="Add work" title="Add work" onClick={() => onAdd()}><PlusIcon size={22} aria-hidden="true" /></button>}
+      {isMobile && owner && onPair && <button type="button" className="journey-toolbar-action" aria-label="Choose a Then/Now pair" title="Choose a Then/Now pair" onClick={onPair}><Columns2Icon size={22} aria-hidden="true" /></button>}
+    </header>
     {groups.map(group => <section className="journey-year" key={group.year ?? 'undated'} aria-label={String(group.year ?? 'Date not set')}>
       <h2>{group.year ?? 'Date not set'}<span className="journey-year-count">{group.projectCount} {group.projectCount === 1 ? 'project' : 'projects'}</span></h2>
       <ol className="journey-list">{group.entries.map(entry => {

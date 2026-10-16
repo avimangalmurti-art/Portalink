@@ -21,7 +21,8 @@ import { deriveProjectRelevance } from '../../domain/discovery/ranking';
  */
 export type PublishStep = 'metadata' | 'preview' | 'done';
 /**
- * Nothing is pre-filled: metadata the creator did not type would be invented on
+ * New fields start empty unless supplied by the creator in project setup.
+ * Metadata the creator did not type would be invented on
  * their behalf, so every field starts empty. A title is the only required
  * public detail; a creator can add context when it genuinely helps the work.
  */
@@ -32,7 +33,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { initialMetadata?: Pick<DraftMetadata, 'title' | 'summary'>; persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
   const {
     projects: projectService, profiles: profileService
   } = useServices();
@@ -87,6 +88,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const persistWorkspace = Boolean(workspace?.persist);
   const activation = Boolean(workspace?.activation);
   const resumeId = workspace?.resume?.id;
+  const initialTitle = workspace?.initialMetadata?.title, initialSummary = workspace?.initialMetadata?.summary;
   const checkpointSignature = useRef<string | null>(null);
   const isOwner = Boolean(profileId) && auth.viewerProfileId === profileId;
   // Exactly one draft per opening. Without this, any re-render that re-runs the
@@ -108,6 +110,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     draftRequestRef.current = requestKey;
     let isCurrent = true;
     setDraftError(null);
+    if (initialTitle !== undefined) setMetadata({...EMPTY_METADATA,title:initialTitle,summary:initialSummary??''});
     draftCompleted.current = false;
     setRestoringDraft(firstProject);
     void (async () => {
@@ -154,7 +157,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId, activation]);
+  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId, activation, initialTitle, initialSummary]);
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);

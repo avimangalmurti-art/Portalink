@@ -4983,6 +4983,26 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 [data-presentation='mobile'] [data-link-icon-form] { width: 100%; max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; box-shadow: none; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 [data-presentation='mobile'] [data-link-icon-pinned] { background: var(--surface-raised); padding-bottom: 16px; }
 
+/* Keep link-picker actions inside the visible viewport, including the keyboard.
+   The icon library absorbs height changes; the footer never scrolls offscreen. */
+#root [data-mobile-icon-create='link'][data-link-icon-screen] {
+  top: var(--dialog-viewport-top, 0px);
+  bottom: auto;
+  height: var(--dialog-viewport-height, 100dvh);
+  min-height: 0;
+}
+#root [data-mobile-icon-create='link'][data-link-icon-screen] [data-link-icon-form] {
+  box-sizing: border-box;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
+}
+#root [data-mobile-icon-create='link'] [data-icon-create-panel] [data-icon-create-footer] {
+  flex-shrink: 0;
+  padding-bottom: max(22px, var(--safe-area-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
 
 /* Studio header reference: circular Back/actions, pill Select/Done on one row. */
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header :is(.studio-bookmarks-navigation, .studio-drafts-heading, .studio-mobile-header-fallback) { justify-content: space-between; gap: 12px; }
@@ -5442,8 +5462,60 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 #root .codex-shell[data-presentation='mobile'] .journey-entry .journey-portal::before { content: ''; position: absolute; inset: 0 0 -20px; z-index: -1; }
 
 /* Timeline owner actions sit beside ordering controls and scroll on narrow phones. */
-#root .codex-shell[data-presentation='mobile'] .journey-toolbar { gap: 4px 8px; flex-wrap: nowrap; overflow-x: auto; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar { gap: 4px 8px; flex-wrap: wrap; overflow: visible; }
 #root .codex-shell[data-presentation='mobile'] .journey-toolbar > * { flex-shrink: 0; }
-#root .codex-shell[data-presentation='mobile'] .journey-toolbar-action { white-space: nowrap; min-height: 44px; padding: 6px 10px; border-radius: var(--shape-compact); background: var(--surface-sunken); color: var(--text-primary); font-size: 14px; line-height: 1.3; }
+#root .codex-shell[data-presentation='mobile'] .journey-toolbar-action { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: var(--shape-compact); background: var(--surface-sunken); color: var(--text-primary); }
 /* Studio Overview embeds the existing Insights page without collection padding. */
 #root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page { flex: 1; padding: 0; overflow: hidden; }
+
+/* Overview must follow browser-chrome changes rather than a cached app height.
+   Its nested Insights panel shares this viewport instead of allocating another. */
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has(> .mobile-insights-page) {
+  height: 100dvh;
+  min-height: 0;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page {
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  flex: 1 1 0px;
+}
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell > .mobile-insights-page > .mobile-insights-scroll {
+  flex: 1 1 0px;
+}
+
+/* Profile portal chooser: taller, raised glass frame; the library scrolls inside. */
+#root .codex-shell[data-presentation='mobile'] [data-profile-page] .mobile-profile-portal-overlay > .mobile-portals-page {
+  top: max(24px, env(safe-area-inset-top, 0px)) !important;
+  transform: translateX(-50%) !important;
+  height: min(82dvh, 780px) !important;
+  max-height: calc(100% - max(24px, env(safe-area-inset-top, 0px)) - 24px) !important;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portals-list {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+  padding: 12px; border-radius: 0; background: transparent;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item {
+  display: flex; align-items: flex-start; min-width: 0; border: 1px solid var(--hairline);
+  border-radius: 16px; background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-item::before { content: none; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row {
+  flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px;
+  min-height: 150px; width: 100%; padding: 20px 10px 16px 16px;
+}
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-label { flex: none; font-size: 14px; line-height: 1.4; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-row > :last-child { display: none; }
+
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename { flex-wrap: wrap; padding: 12px; }
+#root .codex-shell[data-presentation='mobile'] .mobile-portals-page[data-portals-layout='grid'] .mobile-portal-rename input { flex: 1 1 100%; }
+
+/* Search occupies the top header; the globe centers in the remaining canvas. */
+#root .codex-shell[data-presentation='mobile'] .portalink-world { display:flex; height:100dvh; min-height:0; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header { padding-top:max(12px,env(safe-area-inset-top,0px)); }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .portalink-world-search { align-self:auto; margin:0 auto; pointer-events:auto; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-stage { flex:1; min-height:0; padding-bottom:var(--mobile-dock-clearance,88px); container-type:size; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-stage > [role='group'] { transform:none; width:min(100cqw,100cqh,720px); max-width:100%; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within { justify-content:flex-start; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results { position:relative; top:auto; min-height:0; flex:1; display:flex; flex-direction:column; }
+#root .codex-shell[data-presentation='mobile'] .portalink-world-search:focus-within .location-search-results ul { max-height:none; min-height:0; overflow-y:auto; flex:1; }

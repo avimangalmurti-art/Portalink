@@ -1,4 +1,4 @@
-:root { --m-fast:120ms; --m-base:180ms; --m-slow:260ms; --m-enter:cubic-bezier(.2,.8,.2,1); --m-exit:cubic-bezier(.4,0,1,1); }
+:root { --m-fast:120ms; --m-base:180ms; --m-slow:260ms; --m-loading-cycle:1400ms; --m-enter:cubic-bezier(.2,.8,.2,1); --m-exit:cubic-bezier(.4,0,1,1); }
 /* These change paint/compositing only; geometry belongs to the existing screens. */
 :where(button,a[href],[role='button'],input[type='checkbox']) { transition-duration:var(--m-fast); transition-timing-function:var(--m-enter); }
 html[data-motion-navigation]::view-transition-group(root) { animation-duration:var(--m-slow); }
@@ -29,7 +29,7 @@ html:is([data-motion-navigation='dock'],[data-motion-navigation='tabs'])::view-t
 @keyframes m-sheet-in { from {transform:translateY(100%);} to {transform:translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px)));} }
 @keyframes m-sheet-out { from {transform:var(--sheet-exit-transform,translateY(calc(var(--sheet-rest-y,0px) + var(--sheet-drag-y,0px))));} to {transform:translateY(100%);} }
 .motion-skeleton { overflow:hidden;position:relative;background:var(--surface-sunken);border-radius:inherit; }
-.motion-skeleton::after { content:'';position:absolute;inset:0;background:var(--surface-raised);animation:m-skeleton var(--m-slow) var(--m-enter) infinite alternate; }
+.motion-skeleton::after { content:'';position:absolute;inset:0;background:var(--surface-raised);animation:m-skeleton var(--m-loading-cycle) ease-in-out infinite alternate; }
 @keyframes m-skeleton { from {opacity:0;} to {opacity:.35;} }
 .motion-reader-skeleton { width:100%;height:100%;min-height:0;display:flex;flex-direction:column; }
 .motion-reader-skeleton .motion-reader-page { flex:0 0 auto;min-height:0;aspect-ratio:var(--motion-page-aspect, .707);margin-inline:auto;width:100%; }

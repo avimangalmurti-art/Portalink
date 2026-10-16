@@ -73,6 +73,7 @@ const PortalsPage = React.lazy(() => import('./features/profile/PortalsPage').th
 const ProfileEditorPage = React.lazy(loadProfileEditorPage);
 const AuthDialog = React.lazy(() => import('./features/auth/AuthDialog').then(module => ({ default: module.AuthDialog })));
 const ProfileOnboardingDialog = React.lazy(() => import('./features/profile/ProfileOnboardingDialog').then(module => ({ default: module.ProfileOnboardingDialog })));
+const ProjectSetupScreen = React.lazy(() => import('./features/publishing/ProjectSetupScreen').then(module => ({ default: module.ProjectSetupScreen })));
 const PublishProjectDialog = React.lazy(() => import('./features/publishing/PublishProjectDialog').then(module => ({ default: module.PublishProjectDialog })));
 // Profile editing, sorting and the full media viewer are not Home startup work.
 // These retain their existing state/props inside the screen's Suspense boundary.
@@ -561,6 +562,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     const timer = window.setTimeout(() => setPublishConfirmation(null), 5000);
     return () => window.clearTimeout(timer);
   }, [publishConfirmation]);
+  const [projectSetupAccountId, setProjectSetupAccountId] = useState<string | null>(null);
+  const [projectSetupMetadata, setProjectSetupMetadata] = useState<{categoryId:string;categoryLabel:string;title:string;summary:string} | undefined>();
   const [publishTargetCategoryId, setPublishTargetCategoryId] = useState<string | null>(null);
   const [publishAccountId, setPublishAccountId] = useState<string | null>(null);
   const [globalCreateAccountId, setGlobalCreateAccountId] = useState<string | null>(null);
@@ -579,6 +582,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     defaultCategoryRequest.current = null;
     setGlobalCreateAccountId(null);
     setPublishAccountId(null);
+    setProjectSetupAccountId(null);
+    setProjectSetupMetadata(undefined);
     setIsPublishOpen(false);
     setPublishResumeDraft(undefined);
     setPublishTargetCategoryId(null);
@@ -976,8 +981,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }
   /**
    * Create is a primary action, independent of where the viewer happens to be.
-   * It returns to the authenticated creator context, chooses the first category
-   * as a sensible default, and only then starts the real draft lifecycle.
+   * It returns to the authenticated creator context. Mobile collects project
+   * details and an explicit portal choice before starting the draft lifecycle.
    */
   function requestMobilePublish() {
     // The dock hides while a modal is open, before the modal can capture it.
@@ -985,6 +990,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     requestGlobalPublish();
   }
   function closePublisher() {
+    setProjectSetupAccountId(null);
+    setProjectSetupMetadata(undefined);
     if (firstProjectPublisher && auth.viewerProfileId) nav.profile(auth.viewerProfileId);
     setIsPublishOpen(false);
     setPublishResumeDraft(undefined);
@@ -1021,6 +1028,12 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
     if (!isGlobalCreatePending || !isOwnerMode || !viewedProfile) {
       return;
     }
+    if (presentation === 'mobile') {
+      setProjectSetupAccountId(auth.user?.id ?? null);
+      setProjectSetupMetadata(undefined);
+      setGlobalCreateAccountId(null);
+      return;
+    }
     let current = true;
     const createAccountId = auth.user?.id;
     void (async () => {
@@ -1030,7 +1043,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       const target = viewedProfile.categories.find(category => category.id === saved?.draft.categoryId) ?? activeCategory ?? viewedProfile.categories[0] ?? null;
       if (!target) {
         const requestKey = `${createAccountId}:${viewedProfile.id}`;
-        if ((presentation === 'mobile' || journeyMadeIn !== null) && defaultCategoryRequest.current?.key !== requestKey) {
+        if (journeyMadeIn !== null && defaultCategoryRequest.current?.key !== requestKey) {
           const request = createFirstProjectCategory('Work', 'Grid2X2Icon');
           defaultCategoryRequest.current = { key: requestKey, promise: request };
           void request.then(category => {
@@ -1045,8 +1058,8 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         return;
       }
       setIsFirstProjectPublish(viewedProfile.projects.length === 0);
-      setFirstProjectPublisher(journeyMadeIn !== null || (presentation !== 'mobile' && Boolean(saved)));
-      setPublishResumeDraft(presentation === 'mobile' ? saved?.draft : undefined);
+      setFirstProjectPublisher(journeyMadeIn !== null || Boolean(saved));
+      setPublishResumeDraft(undefined);
       setPublishTargetCategoryId(target.id);
       setPublishAccountId(auth.user?.id ?? null);
       setIsPublishOpen(true);
@@ -1062,7 +1075,9 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
   }, [presentation, isOwnerMode, viewedProfile, viewedProfileQuery.status, route.kind, search, auth.user?.id, nav]);
   const canShowPublisher = isPublishOpen && isOwnerMode && publishAccountId !== null
     && publishAccountId === auth.user?.id
-    && Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId));
+    // A newly created portal is already confirmed by the owner service; the
+    // profile query may still be refreshing when its publisher opens.
+    && (projectSetupMetadata?.categoryId === publishTargetCategoryId || Boolean(viewedProfile?.categories.some(category => category.id === publishTargetCategoryId)));
   /** Opening or closing a project inside its category is a change of URL. */
   function selectProject(projectId: string | null, replace = false) {
     if (!activeCategory || !viewedProfileId) {
@@ -1406,7 +1421,16 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
 
       {/* Publishing targets the category resolved when Create was pressed, so it
            works from every destination rather than only inside a category. */}
-      <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
+      {projectSetupAccountId && projectSetupAccountId === auth.user?.id && isOwnerMode && viewedProfile && <DeferredDialog active onClose={closePublisher}><ProjectSetupScreen key={projectSetupAccountId} categories={viewedProfile.categories} initialCategoryId={activeCategory?.id} onCreatePortal={name => management.createCategory(name, 'Grid2X2Icon')} onClose={closePublisher} onContinue={value => {
+        setProjectSetupMetadata(value);
+        setIsFirstProjectPublish(viewedProfile.projects.length === 0);
+        setPublishTargetCategoryId(value.categoryId);
+        setPublishAccountId(auth.user?.id ?? null);
+        setFirstProjectPublisher(journeyMadeIn !== null);
+        setProjectSetupAccountId(null);
+        setIsPublishOpen(true);
+      }}/></DeferredDialog>}
+      <DeferredDialog key={auth.user?.id ?? 'guest'} active={canShowPublisher} onClose={closePublisher}><PublishProjectDialog initialMetadata={projectSetupMetadata} resumeDraft={publishResumeDraft} firstProject={firstProjectPublisher ? { madeIn: journeyMadeIn ?? undefined, name: viewedProfile?.name ?? '', categories: viewedProfile?.categories.map(category => category.label) ?? [] } : undefined} isOpen={canShowPublisher} profileId={auth.viewerProfileId} categoryId={publishTargetCategoryId} categoryLabel={projectSetupMetadata?.categoryLabel ?? viewedProfile?.categories.find((category) => category.id === publishTargetCategoryId)?.label ?? 'Work'} onClose={closePublisher} onPublished={(result, title) => {
         const targetCategoryId = publishTargetCategoryId;
         const citeIntent = window.sessionStorage.getItem('portalink:cite-intent');
         if (citeIntent && result.mediaPersisted && !result.sessionOnly) {

@@ -2,6 +2,7 @@ import { motionSeconds, motionCurve } from '../../presentation/motion/motion';
 import { handleRadioGroupKeyDown } from '../../utils/radioGroupKeyboard';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useModalFocus } from '../../hooks/useModalFocus';
+import { useDialogViewport } from '../../hooks/useDialogViewport';
 import { createPortal } from 'react-dom';
 import { usePresentation } from '../../presentation/usePresentation';
 import { Reorder, useDragControls, useReducedMotion } from 'framer-motion';
@@ -209,6 +210,7 @@ export function ProfileLinksEditor({
   }, [links, selectedId]);
 
   const iconDialogRef = useRef<HTMLElement>(null);
+  const iconViewportRef = useDialogViewport(isChoosingIcon && presentation === 'mobile');
   useModalFocus(isChoosingIcon && links.some((link) => link.id === selectedId), iconDialogRef, () => setIsChoosingIcon(false));
   useEffect(() => {
     if (!isChoosingIcon) return;
@@ -291,7 +293,7 @@ export function ProfileLinksEditor({
     </fieldset>
 
     {isChoosingIcon && selected ? createPortal(
-      <div data-mobile-icon-create={presentation==='mobile'?'link':undefined} data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
+      <div ref={iconViewportRef} data-mobile-icon-create={presentation==='mobile'?'link':undefined} data-presentation={presentation} data-link-icon-screen="" role="presentation" onMouseDown={(event) => {
         if (event.target === event.currentTarget) setIsChoosingIcon(false);
       }} className="modal-scrim fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-4">
         <section data-icon-create-panel="" data-link-icon-form="" ref={iconDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="profile-link-icon-heading" onKeyDown={(event) => {

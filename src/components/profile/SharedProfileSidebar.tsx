@@ -1,6 +1,6 @@
 import { useCompactNavigation } from '../../hooks/useCompactNavigation';
 import React, { useEffect, useState } from 'react';
-import { MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, LayoutGridIcon, ListIcon, MoonIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, SettingsIcon, SunIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getCategoryIcon } from './categoryIcons';
 import { InterfaceIcon } from '../ui/InterfaceIcon';
@@ -49,6 +49,7 @@ export function SharedProfileSidebar({
   // This is the public viewer's visit, not the owner's saved workspace layout.
   // Preserve the choice between shared routes.
   const [preferredCollapsed, setIsCollapsed] = useState(false);
+  const [portalLayout, setPortalLayout] = useState<'list' | 'grid'>('list');
   useEffect(() => {
     const reset = () => setIsCollapsed(false);
     window.addEventListener(PANEL_LAYOUT_RESET_EVENT, reset);
@@ -107,5 +108,24 @@ export function SharedProfileSidebar({
         </div>
       </div>
     </aside>;
-  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled}>{close => renderSidebar(close)}</PublicProfileDrawer> : renderSidebar();
+  return isMobile ? <PublicProfileDrawer name={profile.name} enabled={mobileNavigationEnabled}>{close => <section className="mobile-portals-page shared-mobile-portals" data-portals-layout={portalLayout} aria-label={`${profile.name} portals`}>
+    <header className="global-control-header shrink-0 gap-2 px-4">
+      <button type="button" aria-label="Go back" className="mobile-portal-action" onClick={close}><InterfaceIcon icon={ChevronLeftIcon} size="lg" mirroredInRtl /></button>
+      <h1 className="min-w-0 flex-1 truncate text-[20px] font-semibold">Portals</h1>
+      <button type="button" className="mobile-portal-action" aria-label={portalLayout === 'list' ? 'Show portals as cards' : 'Show portals as list'} onClick={() => setPortalLayout(value => value === 'list' ? 'grid' : 'list')}><InterfaceIcon icon={portalLayout === 'list' ? LayoutGridIcon : ListIcon} size="lg" /></button>
+    </header>
+    <nav className="mobile-portals-scroll scrollbar-overlay" aria-label={`${profile.name} public portals`}>
+      <ul className="mobile-portals-list">
+        {profile.categories.map(category => <li key={category.id} className="mobile-portal-item"><button type="button" data-category-row="" className="mobile-portal-row" aria-current={category.id === activeCategoryId ? 'page' : undefined} onClick={() => { close(); onOpenCategory(category.id); }}>
+          <InterfaceIcon icon={getCategoryIcon(category.iconName)} size="lg" weight="medium" /><span className="mobile-portal-label">{category.label}</span><InterfaceIcon icon={ChevronRightIcon} size="sm" className="text-[var(--text-tertiary)]" />
+        </button></li>)}
+      </ul>
+      {!profile.categories.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
+    </nav>
+    <footer className="shared-mobile-portals-footer">
+      <Link data-shared-profile-home="" to={buildPath('sharedProfile', { profileId: profile.id })} onClick={close} aria-label={`Return to ${profile.name}'s profile landing page`}>Back to profile</Link>
+      <div><button type="button" aria-label="Open settings" onClick={() => { close(); onSettingsOpen(); }}><InterfaceIcon icon={SettingsIcon} /><span>Settings</span></button>
+      <button type="button" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}><InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} /><span>Appearance</span></button></div>
+    </footer>
+  </section>}</PublicProfileDrawer> : renderSidebar();
 }
