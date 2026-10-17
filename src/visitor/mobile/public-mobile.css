@@ -1281,15 +1281,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-engagement-bar {
-  width: var(--mobile-control-group-width) !important;
   gap: var(--mobile-control-gap);
   padding: var(--mobile-control-inset);
   border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
-  height: var(--mobile-control-target);
-  min-width: var(--mobile-control-target);
+  height: 44px;
+  min-width: 44px;
   border-radius: 999px;
   flex-direction: column;
   gap: 2px;
@@ -1510,7 +1509,7 @@
   z-index: 3;
 }
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-has-extension='false'][data-expanded='true'] :is(.project-card-frame, .project-preview-artwork, .project-preview-description) {
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 4px 4px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .project-preview-card[data-mobile-project-card] {
@@ -1995,10 +1994,10 @@
 }
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: var(--mobile-dock-bottom);
+  padding-bottom: max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom));
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom)) + var(--shared-sign-in-height, 0px) + 8px);
 }
 html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)),
 html:has(.codex-shell[data-presentation='mobile'] [data-mobile-project-view]:not(.screen-exit *)) body,
@@ -2571,7 +2570,7 @@ html:has([data-public-portfolio] .public-actions-overlay[data-presentation='mobi
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .global-control-header {flex:none;background:transparent!important;border-bottom:1px solid var(--hairline);}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals .mobile-portals-scroll {flex:1;min-height:0;overflow-y:auto;padding:0 0 8px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer {flex:none;border-top:1px solid var(--hairline);padding:8px 16px max(8px,env(safe-area-inset-bottom));font-size:14px;}
-#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer>div {display:flex;gap:8px;}
+#root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer>div {display:flex;flex-direction:column;gap:8px;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer :is(button,a) {display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:44px;padding:8px;border-radius:12px;color:var(--text-secondary);}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile'] .shared-mobile-portals-footer button {flex:1;}
 #root .codex-shell[data-public-portfolio][data-presentation='mobile']:is(.reduce-translucency,.high-contrast) .mobile-shared-drawer-scrim {-webkit-backdrop-filter:none;backdrop-filter:none;}

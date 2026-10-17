@@ -247,9 +247,9 @@ function interactionBarHarness(mode, guest = false) {
     './useMediaPageSize': { useMediaPageSize: () => ({ ref: { current: null }, pageWidth: 390, hostWidth: 390, isVisible: true }) },
     './MediaCommentsPopover': { MediaCommentsPopover: popover },
   }, {window:{location:{pathname:'/share/creator/c/portal/project',search:'?page=2'}}});
-  const render = () => {
+  const render = (changes = {}) => {
     cursor = 0;
-    return MediaInteractionBar({ target: { projectId: 'project', attachmentId: 'attachment', pageIndex: 0, label: 'Original source' } });
+    return MediaInteractionBar({ target: { projectId: 'project', attachmentId: 'attachment', pageIndex: 0, label: 'Original source' }, ...changes });
   };
   return { gates, activity, render, popover, get retries() { return retries; }, get dismissals() { return dismissals; } };
 }
@@ -258,6 +258,16 @@ function descendants(node) {
   if (!React.isValidElement(node)) return [];
   return [node, ...React.Children.toArray(node.props.children).flatMap(descendants)];
 }
+
+test('focused mobile owner and visitor actions all fit the same four-column row', () => {
+  for (const isOwner of [true, false]) {
+    const env = interactionBarHarness('mobile');
+    const toolbar = descendants(env.render({ placement: 'focused', isOwner })).find(node => node.props.className === 'media-item-engagement-bar shrink-0');
+    assert.equal(descendants(toolbar).filter(node => node.type === 'button').length, 4);
+    assert.equal(toolbar.props.style.gridTemplateColumns, 'repeat(4, minmax(44px, 1fr))');
+    assert.equal(toolbar.props.style.minWidth, 196);
+  }
+});
 
 test('shared mobile guest page actions stay tappable while resolving and prompt Create account', () => {
   const env = interactionBarHarness('mobile', true);

@@ -1842,15 +1842,14 @@
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-engagement-bar {
-  width: var(--mobile-control-group-width) !important;
   gap: var(--mobile-control-gap);
   padding: var(--mobile-control-inset);
   border-radius: 999px;
 }
 
 #root .codex-shell[data-presentation='mobile'] .media-item-engagement--focused .media-item-action {
-  height: var(--mobile-control-target);
-  min-width: var(--mobile-control-target);
+  height: 44px;
+  min-width: 44px;
   border-radius: 999px;
   flex-direction: column;
   gap: 2px;
@@ -3319,10 +3318,10 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
    Their footer clears the shared account bar, including enlarged text. */
 #root .codex-shell[data-presentation='mobile'] [data-project-stage] { background-color: var(--codex-workspace-bg); }
 #root .codex-shell[data-presentation='mobile'] [data-mobile-focused-view] {
-  padding-bottom: var(--mobile-dock-bottom);
+  padding-bottom: max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom));
 }
 #root .codex-shell[data-presentation='mobile'].shared-portalink-shell [data-mobile-focused-view] {
-  padding-bottom: calc(var(--mobile-dock-bottom) + var(--shared-sign-in-height, 0px) + 8px);
+  padding-bottom: calc(max(var(--mobile-content-safe-bottom), var(--mobile-dock-bottom)) + var(--shared-sign-in-height, 0px) + 8px);
 }
 /* Context sheets share the app's appearance and material tokens on body portals. */
 [data-presentation='mobile'].mobile-context-scrim { position: fixed; inset-inline: 0; top: auto; bottom: 0; padding: 0; box-sizing: border-box; z-index: 100; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; background: rgb(0 0 0 / 46%); }
@@ -4664,7 +4663,7 @@ html:has(.codex-shell[data-presentation='mobile']) body::-webkit-scrollbar {
 }
 
 #root .codex-shell[data-presentation='mobile'] .mobile-home-search-header .mobile-screen-action-row {
-  display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: 8px;
 }
 #root .codex-shell[data-presentation='mobile'] .mobile-home-header-button {
   display: flex; align-items: center; justify-content: center;

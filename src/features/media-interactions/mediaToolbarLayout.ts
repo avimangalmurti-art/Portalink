@@ -17,7 +17,7 @@ export function mediaToolbarLayout(pageWidth: number, hostWidth: number, inset: 
   return { width, unit: width / baseWidth, slots };
 }
 
-/** Focused phone pages use five equal touch targets across the viewer. */
+/** Focused phone pages keep their four actions in one compact, touchable row. */
 export function mobileFocusedMediaToolbarLayout(hostWidth: number) {
-  return { width: Math.max(0, hostWidth - 16), unit: 1.5, slots: [1, 1, 1, 1, 1] };
+  return { width: Math.max(0, Math.min(212, hostWidth - 16)), unit: 1.25, slots: [1, 1, 1, 1] };
 }

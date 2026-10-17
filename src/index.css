@@ -1255,6 +1255,8 @@ button[data-portalink-tile],
   --project-card-media-gap: 8px;
   --project-card-action-inset: 4px;
 }
+.explore-feed-card,
+[data-profile-page] .project-preview-card { --project-thumbnail-radius: 6px; }
 .project-preview-card { isolation: isolate; }
 .project-preview-card[data-expanded='true'] { z-index: 2; }
 .project-card-frame,

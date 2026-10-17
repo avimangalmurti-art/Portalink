@@ -139,8 +139,8 @@ export function MediaInteractionBar({
     <div data-material="media-overlay" role="group" aria-label={`Actions for ${presentedTarget.label}`} className="media-item-engagement-bar shrink-0" style={{
       width: layout.width,
       '--media-action-unit': `${layout.unit}px`,
-      gridTemplateColumns: `repeat(${isOwner ? 3 : 4}, minmax(44px, 1fr))`,
-        minWidth: isOwner ? 132 : 176
+      gridTemplateColumns: `repeat(${isMobileFocused ? 4 : isOwner ? 3 : 4}, minmax(44px, 1fr))`,
+        minWidth: isMobileFocused ? 196 : isOwner ? 132 : 176
     } as React.CSSProperties}>
       {ACTIONS.map(({ kind, label, icon: Icon }, index) => {
         const engaged = activity.record.engaged[kind];

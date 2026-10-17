@@ -169,7 +169,7 @@ test('MOBILE restores the creator drawer and preserves WEB collapse preference',
   assert.equal(tree.type, 'PublicProfileDrawer');
   let closed = 0;
   const drawer = tree.props.children(() => closed++);
-  assert.equal(home(drawer).props.to, '/share/creator');
+  assert.equal(home(drawer), undefined);
   assert.equal(portals(drawer).length, 2);
   portals(drawer)[0].props.onClick();
   assert.equal(closed, 1);

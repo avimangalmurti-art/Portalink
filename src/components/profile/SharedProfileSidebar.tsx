@@ -123,7 +123,6 @@ export function SharedProfileSidebar({
       {!profile.categories.length && <p className="p-4 text-[var(--text-secondary)]">No portals yet</p>}
     </nav>
     <footer className="shared-mobile-portals-footer">
-      <Link data-shared-profile-home="" to={buildPath('sharedProfile', { profileId: profile.id })} onClick={close} aria-label={`Return to ${profile.name}'s profile landing page`}>Back to profile</Link>
       <div><button type="button" aria-label="Open settings" onClick={() => { close(); onSettingsOpen(); }}><InterfaceIcon icon={SettingsIcon} /><span>Settings</span></button>
       <button type="button" data-system-color="" aria-label={theme === 'dark' ? 'Switch shared Portalink to light mode' : 'Switch shared Portalink to dark mode'} onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}><InterfaceIcon icon={theme === 'dark' ? SunIcon : MoonIcon} /><span>Appearance</span></button></div>
     </footer>

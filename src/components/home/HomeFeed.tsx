@@ -6,8 +6,6 @@ import { Globe2Icon, HomeIcon, CircleUserRoundIcon, LayoutGridIcon } from 'lucid
 import { InterfaceIcon } from '../ui/InterfaceIcon';
 import { useHomePullRefresh } from './useHomePullRefresh';
 import { WeeklyReadNote } from '../../features/reads/WeeklyReadNote';
-import { MobileContextButton, useMobileScreenActions } from '../../presentation/mobile/MobileContextActions';
-import { contextActions } from '../../presentation/mobile/contextActions';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useFeed } from '../../features/discovery/useFeed';
 import { ProjectFeedCard } from './ProjectFeedCard';
@@ -233,10 +231,6 @@ export function HomeFeed({
   const {isRefreshing,status:feedStatus,retry}=feed;
   const refreshHome=useCallback(()=>{if(isRefreshing||feedStatus==='loading')return;setHasReloaded(true);retry();},[isRefreshing,feedStatus,retry]);
   const pullLabel=useHomePullRefresh(autoScrollRef,showMobileSearch && !categoriesOpen && !(firstProjectAction && projects.length===0),feed.isRefreshing||feed.status==='loading',refreshHome);
-  useMobileScreenActions(showSearchPlaceholder && !categoriesOpen ? contextActions('home', { signedIn: isAuthenticated }, { handlers: {
-    explore:onExploreWorld,search:onSearchUsers,
-    refresh: !feed.isRefreshing && feed.status !== 'loading' ? refreshHome : undefined,
-  },labels:{search:'Search accounts',explore:'Explore the world'} }) : null, 5);
   if(isMobile && categoriesOpen)return <ExploreCategories onBack={()=>setCategoriesOpen(false)}/>;
   if (isMobile && firstProjectAction && projects.length === 0) return <section className="first-project-home" aria-labelledby="first-project-home-title"><h2 id="first-project-home-title">Add your first project</h2><p>Start with something you’ve made.</p><button type="button" data-ui-control="button" data-control-variant="primary" data-control-size="lg" onClick={firstProjectAction}>Choose your work</button></section>;
   return <div data-mobile-home-search={showMobileSearch ? '' : undefined} data-feed-artwork-edge={!locationId && projects.length > 0 && feed.status !== 'error' ? '' : undefined} className="feed-starfield relative flex h-full w-full flex-col">
@@ -251,7 +245,7 @@ export function HomeFeed({
               <button type="button" aria-label="Home" aria-current="page" data-selected="true" className="mobile-home-header-button" onClick={() => { navigate(buildPath('home')); window.scrollTo({top: 0}); autoScrollRef.current?.scrollTo({top: 0}); }}><InterfaceIcon icon={HomeIcon} weight="medium" /></button>
               {onSearchUsers && <button type="button" aria-label="Search accounts" title="Search accounts" className="mobile-home-header-button" onClick={onSearchUsers}><InterfaceIcon icon={CircleUserRoundIcon} weight="medium" /></button>}
               <button type="button" aria-label="Explore categories" className="mobile-home-header-button" onClick={()=>setCategoriesOpen(true)}><InterfaceIcon icon={LayoutGridIcon} weight="medium" /></button>
-              <div data-inline-screen-actions=""><MobileContextButton /></div></div>
+            </div>
             {(pullLabel || feed.isRefreshing) && <p data-home-pull-feedback="" role="status" className="flex items-center justify-center py-2 text-[13px] text-[var(--text-secondary)]">
               <span className="premium-media-loading-mark" aria-hidden="true" />
               <span className="sr-only">{feed.isRefreshing ? 'Refreshing Home content.' : pullLabel}</span>
