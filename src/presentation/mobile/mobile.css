@@ -5658,6 +5658,27 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
   background: #d1d1d6;
   pointer-events: none;
 }
+/* World search uses the same rounded Back surface as other mobile destinations. */
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .global-control-header::after {
+  display: none;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: var(--navigation-surface, var(--nav-button-background));
+  color: var(--navigation-foreground, var(--nav-button-text));
+  box-shadow: var(--navigation-shadow, none);
+  text-decoration: none;
+}
+#root .codex-shell[data-presentation='mobile'] .portalink-world-header .world-view-back:focus-visible {
+  outline: 2px solid var(--navigation-focus-ring, var(--focus-ring));
+  outline-offset: 2px;
+}
 #root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search,
 #root .codex-shell[data-presentation='mobile'].codex-shell .portalink-world-header .portalink-world-search:focus-within {
   position: relative;
