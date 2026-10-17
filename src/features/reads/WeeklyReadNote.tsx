@@ -7,10 +7,12 @@ import { currentWeek } from './readSignal';
 import { Button } from '../../components/ui/Button';
 import './reads.css';
 import { motionMs, motionEase } from '../../presentation/motion/motion';
+import { usePresentation } from '../../presentation/usePresentation';
 const dismissedSessions = new WeakMap<object, Set<string>>();
 /** Dismiss only for this login; readership itself always comes from D1. */
 export function WeeklyReadNote({startupPending=false,startupAttempt=0,onStartupSettled}:{startupPending?:boolean;startupAttempt?:number;onStartupSettled?:(settled:boolean)=>void}={}){
   const {reads}=useServices(),auth=useAuth(),navigate=useNavigate();const week=currentWeek(new Date()),key=`portalink.reads.dismissed:${auth.user?.id??''}:${week}`;
+  const isMobile=usePresentation()==='mobile';
   const fallbackSession=useRef({});
   const session=auth.loginSession??fallbackSession.current;
   const cardRef=useRef<HTMLElement>(null);
@@ -41,5 +43,5 @@ export function WeeklyReadNote({startupPending=false,startupAttempt=0,onStartupS
     void animation.finished.then(finish,finish);
   };
   if(!auth.user||(dismissed&&!closing.current)||state.loading||state.error||!state.data)return null;
-  return <aside ref={cardRef} className="reads-weekly" aria-label="This week"><small>This week</small><h2>{opened} project opens. {finished} reads reached the end.</h2><p>{opened>0?'Your work is being read. These are anonymous tab counts, not identified people.':'Share your work and check back to see how it’s being read. Counts are anonymous, not identified people.'}</p><div><Button onClick={()=>navigate(rows.length===1?`/insights?project=${rows[0].projectId}`:'/insights')}>See reads</Button><Button variant="secondary" onClick={dismiss}>Dismiss</Button><img className="reads-weekly-character" src="/portalink-heart-character.png" alt="" width="128" height="128" loading="lazy" decoding="async" /></div></aside>;
+  return <aside ref={cardRef} className="reads-weekly" aria-label="This week"><small>This week</small>{isMobile?<ul className="reads-weekly-metrics"><li>{opened} project opens.</li><li>{finished} reads reached the end.</li></ul>:<><h2>{opened} project opens. {finished} reads reached the end.</h2><p>{opened>0?'Your work is being read. These are anonymous tab counts, not identified people.':'Share your work and check back to see how it’s being read. Counts are anonymous, not identified people.'}</p></>}<div><Button onClick={()=>navigate(rows.length===1?`/insights?project=${rows[0].projectId}`:'/insights')}>See reads</Button><Button variant="secondary" onClick={dismiss}>Dismiss</Button><img className="reads-weekly-character" src="/portalink-heart-character.png" alt="" width="128" height="128" loading="lazy" decoding="async" /></div></aside>;
 }

@@ -139,7 +139,7 @@ test('a late decode between scope render and passive cleanup keeps the old readi
 });
 
 test('WeeklyReadNote reports settlement and dismisses smoothly once per login', async () => {
-  let cursor = 0, effects = [], retries = 0, loginSession = {};
+  let cursor = 0, effects = [], retries = 0, loginSession = {}, presentation = 'web';
   const slots = [], reports = [];
   const query = { loading: true, data: undefined, error: undefined, retry: () => retries++ };
   const react = { ...React, useState(initial) { const i = cursor++; slots[i] ??= { value: initial }; return [slots[i].value, value => { slots[i].value = value; }]; },
@@ -148,6 +148,7 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
     react, 'react-router-dom': { useNavigate: () => () => {} }, '../../contexts/ServicesContext': { useServices: () => ({ reads: {} }) },
     '../../contexts/AuthContext': { useAuth: () => ({ user: { id: 'account' }, loginSession }) }, '../library/useAccountQuery': { useAccountQuery: () => query },
     '../../presentation/motion/motion': { motionMs: () => 200, motionEase: () => 'ease-out' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
     './readSignal': { currentWeek: () => 'week' }, '../../components/ui/Button': { Button: 'button' }, './reads.css': {},
   }, { localStorage: { getItem: () => 'yes', setItem: () => assert.fail('Dismissal must not persist across logins') } });
   const render = attempt => { cursor = 0; effects = []; const tree = WeeklyReadNote({ startupPending: true, startupAttempt: attempt, onStartupSettled: value => reports.push(value) }); effects.forEach(effect => effect()); return tree; };
@@ -158,6 +159,15 @@ test('WeeklyReadNote reports settlement and dismisses smoothly once per login', 
   query.data = [{ projectId: 'work', weekly: { opened: 48, finished: 6 } }];
   assert.ok(render(1), 'Old weekly localStorage dismissal is ignored');
   const walk = node => !React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(walk)];
+  const webCard=walk(render(1));
+  assert.ok(webCard.some(node=>node.type==='h2'));
+  assert.ok(webCard.some(node=>node.type==='p'&&node.props.children.startsWith('Your work is being read.')));
+  presentation='mobile';
+  const mobileCard=walk(render(1));
+  assert.equal(mobileCard.filter(node=>node.type==='li').length,2);
+  assert.deepEqual(mobileCard.filter(node=>node.type==='li').map(node=>React.Children.toArray(node.props.children).join('')),['48 project opens.','6 reads reached the end.']);
+  assert.equal(mobileCard.some(node=>node.type==='p'||node.type==='h2'),false);
+  presentation='web';
   walk(render(1)).find(node => node.type === 'button' && node.props.children === 'Dismiss').props.onClick();
   query.loading = true; assert.equal(render(1), null); assert.equal(reports.at(-1), true);
   slots.length = 0; assert.equal(render(1), null, 'Navigation remount keeps this login dismissed');
