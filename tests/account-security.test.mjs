@@ -54,6 +54,12 @@ function serviceHarness() {
     };
   }
   const auth = load('../src/services/supabase/authService.ts', {
+    './googleHandoff': { startGoogleHandoff: () => assert.fail('Account security must not start OAuth') },
+    './legacyLaunchCompletion': {
+      getLaunchCompletion: () => assert.fail('Account security must not read launch completion'),
+      completeLaunchEligibility: () => assert.fail('Account security must not complete launch eligibility'),
+    },
+    './adultLaunch': { admittedLaunch: () => assert.fail('Account security must not require signup admission') },
     '../../types/auth': types,
     './client': { requireSupabase: () => client, createPasswordRecoveryClient: boundClient, passwordRecovery: { read: () => null }, accountDeletionEnabled: false },
     '../../utils/passwordRecoveryReturn': {}, '../../features/auth/registration': {}

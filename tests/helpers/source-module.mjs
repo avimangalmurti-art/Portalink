@@ -11,6 +11,8 @@ export function sourceModule(path, imports = {}, globals = {}) {
     if (!(name in imports) && name.endsWith('/motion/motion'))return motionFixture;
     if (!(name in imports) && name.endsWith('/useSheetMotion'))return sheetMotionFixture;
     if (!(name in imports) && name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
+    if (!(name in imports) && name.endsWith('/launch/adultLaunch')) return sourceModule('src/features/launch/adultLaunch.ts');
+    if (!(name in imports) && name.endsWith('/legacyLaunchCompletion')) return sourceModule('src/services/supabase/legacyLaunchCompletion.ts', {'./client':imports['./client'],'../../features/launch/adultLaunch':sourceModule('src/features/launch/adultLaunch.ts')});
     assert.ok(name in imports, `Unexpected source dependency ${name}`); return imports[name];
   }});
   return exports;

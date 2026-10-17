@@ -11,6 +11,8 @@ import { PORTALINK_SPLASH_EXIT_EVENT } from './splashLifecycle';
 import { useViewportPresentation } from '../presentation/useViewportPresentation';
 import { warmScreenForPath } from './screenModules';
 import { HOME_STARTUP_TIMEOUT_MS } from './homeStartup';
+import { accountDeletionEnabled } from '../services/supabase/client';
+import { DELETION_RECOVERY_OPEN_EVENT } from '../features/auth/deletionRecoverySignal';
 
 const SHARED_VIEWER_PROFILE_KEY = 'portalink.sharedViewerProfileId';
 
@@ -68,6 +70,12 @@ export function ApplicationBootstrap() {
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
   const [hasStartupCompleted, setHasStartupCompleted] = useState(isSharedView);
+  useEffect(() => {
+    if (!accountDeletionEnabled) return;
+    const showRecovery = () => { setHasLeftLanding(true); setHasStartupCompleted(true); };
+    window.addEventListener(DELETION_RECOVERY_OPEN_EVENT, showRecovery);
+    return () => window.removeEventListener(DELETION_RECOVERY_OPEN_EVENT, showRecovery);
+  }, []);
   const [hasSplashCompleted, setHasSplashCompleted] = useState(false);
   const completeSplash = useCallback(() => setHasSplashCompleted(true), []);
   const routeSharedProfileId = sharedProfileIdFromPath(pathname);

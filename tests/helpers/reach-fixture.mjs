@@ -10,6 +10,7 @@ export function loadModule(path, extras = {}) {
   vm.runInNewContext(ts.transpileModule(read(path), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, Request, Response, Headers, URL, URLSearchParams, TextEncoder, TextDecoder, AbortSignal, crypto, Date, setTimeout, clearTimeout,
     require: id => {
+      if (id.endsWith('/launch/adultLaunch')) return {OPTIONAL_COLLECTION_ENABLED:true}; // Isolated transport tests; launch-off has its own coverage.
       if (id.endsWith('readSignal')) return loadModule('src/features/reads/readSignal.ts');
       throw new Error(`Unexpected import ${id}`);
     }, ...extras,

@@ -20,26 +20,22 @@ test('verified social identities receive stable display defaults, never metadata
  assert.equal(socialRegistration({...user,app_metadata:{provider:'apple'},user_metadata:{}}).name,'creator');
 });
 
-test('OAuth uses the same project client and an origin-bound callback with sanitized public destination',async()=>{
+test('OAuth stays closed pending reviewed server admission without provider requests',async()=>{
  const calls=[];
  const service=sourceModule('src/services/supabase/authService.ts',{
+  './googleHandoff':{startGoogleHandoff:async()=>{calls.push('handoff');}},
+  './adultLaunch':{admittedLaunch:async()=>{throw Error('server eligibility pending');}},
   '../../types/auth':sourceModule('src/types/auth.ts'),
   './client':{requireSupabase:()=>({auth:{signInWithOAuth:async input=>{calls.push(input);return {error:null};}}})},
   '../../utils/passwordRecoveryReturn':{},'../../features/auth/registration':registration,'../../features/auth/socialRegistration':{socialRegistration},
  },{window:{location:{origin:'https://portalink.example.test'}}}).supabaseAuthService;
- await service.signInWithOAuth('google','/share/creator?access_token=secret&page=2');
- assert.equal(calls[0].provider,'google');
- const url=new URL(calls[0].options.redirectTo);
- assert.equal(url.origin,'https://portalink.example.test');assert.equal(url.pathname,'/');
- assert.equal(url.searchParams.get('onboarding_return'),'/share/creator?page=2');
- await service.signInWithOAuth('apple','https://outside.test/share/a');
- assert.equal(calls[1].options.redirectTo,'https://portalink.example.test/?entry=oauth');
+ await assert.rejects(service.signInWithOAuth('google'),/server eligibility/);assert.equal(calls.length,0);
 });
 
 function agreementHarness(){
  const slots=[];let cursor=0;let controls;let disagreed=0;
  const react={...React,useState(initial){const i=cursor++;if(!(i in slots))slots[i]=initial;return[slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];},useRef(initial){const i=cursor++;return slots[i]??={current:initial};},useEffect(){}};
- const {EntryAgreements}=sourceModule('src/components/auth/EntryAgreements.tsx',{react,'../ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{},'../../hooks/useDialogViewport':{},'./entryAgreements.css':{}});
+ const {EntryAgreements}=sourceModule('src/components/auth/EntryAgreements.tsx',{react,'../../features/launch/adultLaunch':{acknowledgeLaunchReview(){},clearTransientBirth(){},ADMISSION_KEY:'fixture'},'../ui/ModalPortal':{ModalPortal:'portal'},'../../hooks/useModalFocus':{},'../../hooks/useDialogViewport':{},'./entryAgreements.css':{}},{sessionStorage:{removeItem(){}}});
  function render(){cursor=0;return EntryAgreements({onDisagree:()=>disagreed++,children:value=>{controls=value;return null;}});}
  function sheet(){const tree=render();return React.Children.toArray(tree.props.children).find(node=>node.props?.onAgree);}
  render();return{get controls(){return controls;},sheet,get disagreed(){return disagreed;}};

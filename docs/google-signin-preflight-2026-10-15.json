@@ -1,0 +1,92 @@
+{
+  "checked_at_utc": "2026-10-15T23:25:12Z",
+  "project_ref": "nnjtsqdmvtaxtygxqkmw",
+  "project_name": "Portalink Networks",
+  "branch": "main (production)",
+  "method": "Four SELECT-only system-catalog queries through existing authenticated Supabase dashboard; read-only provider and hook UI inspection. No account/content rows queried.",
+  "postgres_version": "17.6",
+  "candidate_objects_found": [],
+  "migration_ledger_present": false,
+  "cron": {
+    "available_version": "1.6.4",
+    "installed_version": null,
+    "job_relation_present": false,
+    "database_name": "postgres",
+    "use_background_workers": "off",
+    "job_created": false
+  },
+  "google": {
+    "enabled": false,
+    "client_ids_populated": false,
+    "client_secret_populated": false,
+    "skip_nonce_checks": false,
+    "allow_users_without_email": false
+  },
+  "auth": {
+    "hooks_configured": false,
+    "new_signups_enabled": true,
+    "email_enabled": true,
+    "confirm_email": true,
+    "manual_linking": false,
+    "anonymous_signins": false,
+    "apple_enabled": false
+  },
+  "original_functions": [
+    {
+      "signature": "public.is_project_citable(uuid)",
+      "arguments": "p_project_id uuid",
+      "returns": "boolean",
+      "owner": "postgres",
+      "definition_md5": "cf8eeff1ac5abd3f4aa01c2657f3908f",
+      "execute_roles": [
+        "postgres",
+        "anon",
+        "authenticated",
+        "service_role"
+      ]
+    },
+    {
+      "signature": "public.resolve_citation_item(text,boolean)",
+      "arguments": "p_item_id text, p_require_citable boolean DEFAULT false",
+      "returns": "jsonb",
+      "owner": "postgres",
+      "definition_md5": "2562ad334f95e530845cddeae5f3b3f9",
+      "execute_roles": [
+        "postgres",
+        "anon",
+        "authenticated",
+        "service_role"
+      ]
+    }
+  ],
+  "citation_dependencies": [
+    "policy project_pages_citable_read on table project_pages",
+    "rule _RETURN on view citable_images"
+  ],
+  "roles_present": [
+    "anon",
+    "authenticated",
+    "service_role",
+    "supabase_auth_admin"
+  ],
+  "schema_access": {
+    "inspected_as": "postgres",
+    "create_public": true,
+    "auth_admin_public_usage": true
+  },
+  "defaults": {
+    "profiles.is_private": "false",
+    "projects.is_hidden": "false",
+    "projects.citation_permitted": "false"
+  },
+  "pending_sql_sha256": {
+    "supabase/pending/adult_launch_review.sql": "fa438c77655a2cdb7528ecc9a3274b2d50983f41f4de55a940bb40574fc4bb14",
+    "supabase/pending/google_eligibility_handoff.sql": "036f00859df39014a98a940d70504b7dc250139b4fd7d4fb7620138f171f9b1b",
+    "supabase/pending/google_handoff_cleanup_schedule.sql": "800c10de61a820246efd9a408892f063c5d3746bab3e4115c2e968cfe9fbf8b4"
+  },
+  "limits": [
+    "Metadata snapshot is not a full recovery backup or a production application test.",
+    "No Google Cloud OAuth-client/consent configuration inspected.",
+    "No Cron execution, live Auth payload, real OAuth account, worker secrets/logging or private-preview access control verified."
+  ]
+}

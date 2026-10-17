@@ -1,0 +1,30 @@
+{
+  "status": "REVIEW ONLY; none applied, scheduled, configured or published",
+  "base_commit": "f8e36c828f528f5f329133e5d48f672d075aa596",
+  "sha256": {
+    "supabase/pending/adult_launch_review.sql": "fa438c77655a2cdb7528ecc9a3274b2d50983f41f4de55a940bb40574fc4bb14",
+    "supabase/pending/google_eligibility_handoff.sql": "036f00859df39014a98a940d70504b7dc250139b4fd7d4fb7620138f171f9b1b",
+    "supabase/pending/google_handoff_cleanup_schedule.sql": "800c10de61a820246efd9a408892f063c5d3746bab3e4115c2e968cfe9fbf8b4",
+    "supabase/pending/google_initial_test_exit.sql": "a9d4012db228e9d3020f09de6a9f25454006517ff9a3062466c5cd92354d844d",
+    "docs/google-cron-enablement-proposal.md": "1dad739073fcdbe52169a03b808d5f8b6756b5025a180a92ff87b0d7cfa59325",
+    "docs/google-controlled-test-plan.md": "52da976610aa3db9c466becc041b96e54ad60911394831c08822295cf74b8232"
+  },
+  "local_checks": {
+    "focused_tests": 36,
+    "failed": 0,
+    "skipped": 0,
+    "database_tests": 8,
+    "hosted_oauth_or_cron_tested": false
+  },
+  "note": "Regenerate after edits and recheck hosted baseline before any separately authorized execution.",
+  "additional_unapproved_candidates": {
+    "supabase/pending/legacy_email_launch_completion.sql": {
+      "sha256": "34694a8d4daaf4b32a92b1f0d6bb95ad674bbd76cc829236432bc4241c7aebb0",
+      "status": "UNAPPLIED; separate exact-SQL review required; earlier two-migration approval does not cover this file",
+      "depends_on": [
+        "supabase/pending/adult_launch_review.sql",
+        "supabase/pending/google_eligibility_handoff.sql"
+      ]
+    }
+  }
+}

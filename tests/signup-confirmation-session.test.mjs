@@ -72,6 +72,15 @@ function serviceHarness() {
   };
   function newService() {
     return load('src/services/supabase/authService.ts', {
+      './googleHandoff': { startGoogleHandoff: () => assert.fail('Email confirmation must not start OAuth') },
+      './legacyLaunchCompletion': {
+        getLaunchCompletion: () => assert.fail('Session restoration must not read launch completion'),
+        completeLaunchEligibility: () => assert.fail('Session restoration must not complete launch eligibility'),
+      },
+      // This suite exercises registration persistence after an admitted signup.
+      // Eligibility enforcement is exercised separately by adult-launch.test.mjs.
+      './adultLaunch': { admittedLaunch: async () => ({ country: 'US', ageBand: '18+', checkedAt: 1,
+        acknowledgedAt: 1, termsVersion: 'fixture', privacyVersion: 'fixture' }) },
       '../../types/auth': authTypes,
       '../../features/auth/registration': { ...registration, async readRegistrationDraft(email) {
         state.localReads.push(email);

@@ -1,3 +1,4 @@
+import { recordLaunchReceipt } from './adultLaunch';
 import { supabaseTimelinePairService } from './timelinePairsService';
 import { validContactEmail } from '../../features/employer/employer';
 import { profileSharing } from './profileSharing';
@@ -112,6 +113,7 @@ export const supabaseProfileService: ProfileService = {
   },
 
   async createProfile(accountId, input): Promise<CreateProfileResult> {
+    await recordLaunchReceipt();
     const automaticHandle = input.handle === undefined;
     let handle = automaticHandle ? createProfileHandle(input.name) : normalizeHandle(input.handle ?? '');
     if (!handle || !input.name.trim()) {
@@ -129,7 +131,7 @@ export const supabaseProfileService: ProfileService = {
           headline: input.headline?.trim() ?? '',
           location: input.location?.trim() ?? '',
           avatar_url: avatarUrl,
-          is_private: input.isPrivate === true,
+          is_private: true,
           ...(input.publicAppearance ? { public_appearance: normalizePublicAppearance(input.publicAppearance) } : {}),
         })
         .select('id')
@@ -525,6 +527,7 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async publishProject(input: PublishProjectInput): Promise<PublishResult> {
+    if (input.metadata.accessLevel === 'citable') throw new PublishServiceError('invalid_metadata', 'Optional AI permissions are unavailable at launch.');
     if (!input.metadata.title.trim()) {
       throw new PublishServiceError('invalid_metadata', 'A project title is required.');
     }
@@ -536,7 +539,7 @@ export const supabaseProjectService: ProjectService = {
     const relevance = withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? '')), input.location);
     const extended = await requireSupabase().rpc('publish_project_citation_fields', {
       p_made_on: input.metadata.madeOn || null,
-      p_access_level: input.metadata.accessLevel ?? 'public',
+      p_access_level: input.metadata.accessLevel ?? 'private',
       p_draft_id: input.draftId,
       p_profile_id: input.profileId,
       p_category_id: input.categoryId,
@@ -595,6 +598,7 @@ export const supabaseProjectService: ProjectService = {
   },
 
   async updateProject(input: UpdateProjectInput): Promise<UpdateProjectResult> {
+    if (input.metadata.accessLevel === 'citable') throw new ProjectMutationError('invalid_metadata', 'Optional AI permissions are unavailable at launch.');
     if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
       throw new ProjectMutationError('invalid_metadata', 'A title and description are required.');
     }

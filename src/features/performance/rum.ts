@@ -1,3 +1,4 @@
+import { OPTIONAL_COLLECTION_ENABLED } from '../launch/adultLaunch';
 import { createRumCollector, isRumContentRead, type RumMetric } from './rumCore';
 
 declare global {
@@ -23,7 +24,7 @@ function adoptEarlyData() {
 /** Called by both entries before React mounts. Sampling is 100%; prototype
  * sessions stay silent. No identifiers, storage or global fetch interception. */
 export function initializeRum(version: string, enabled: boolean) {
-  if (collector || !enabled || typeof window === 'undefined' || !/^[a-f0-9]{7,64}$/.test(version)) return;
+  if (!OPTIONAL_COLLECTION_ENABLED || collector || !enabled || typeof window === 'undefined' || !/^[a-f0-9]{7,64}$/.test(version)) return;
   collector = createRumCollector({
     now: () => performance.now(), version, viewport: () => window.innerWidth,
     connection: () => (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType,

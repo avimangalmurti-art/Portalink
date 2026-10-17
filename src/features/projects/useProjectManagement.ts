@@ -110,7 +110,7 @@ export function useProjectManagement(profileId: Id | null) {
     setPreviewAspectRatio(getProjectAspectRatio(project));
     const nextMetadata = {
       madeOn: project.madeOn ?? project.publishedAt?.slice(0,10),
-      accessLevel: project.isPubliclyVisible === false ? 'private' as const : project.citationPermitted ? 'citable' as const : 'public' as const,
+      accessLevel: project.isPubliclyVisible === false ? 'private' as const : 'public' as const,
       title: project.title,
       thenNowCaption: project.thenNowCaption ?? '',
       creationDetails: project.creationDetails,

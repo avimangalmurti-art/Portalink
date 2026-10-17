@@ -108,6 +108,12 @@ function serviceHarness({ callbackFailed = false } = {}) {
     },
   };
   const { supabaseAuthService: auth } = load('../src/services/supabase/authService.ts', {
+    './googleHandoff': { startGoogleHandoff: () => assert.fail('Password recovery must not start OAuth') },
+    './legacyLaunchCompletion': {
+      getLaunchCompletion: () => assert.fail('Password recovery must not read launch completion'),
+      completeLaunchEligibility: () => assert.fail('Password recovery must not complete launch eligibility'),
+    },
+    './adultLaunch': { admittedLaunch: () => assert.fail('Password recovery must not require signup admission') },
     '../../types/auth': authTypes, '../../features/auth/registration': registration,
     './client': { requireSupabase: () => provider, passwordRecovery: tracker, recoveryCallbackFailed: callbackFailed, accountDeletionEnabled: false,
       createPasswordRecoveryClient: () => {

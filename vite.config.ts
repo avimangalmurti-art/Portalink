@@ -84,6 +84,6 @@ export default defineConfig(({ command, mode }) => {
   build: {
     outDir: 'dist/client',
     manifest: true,
-    rollupOptions: { input: { main: fileURLToPath(new URL('./index.html', import.meta.url)), visitor: fileURLToPath(new URL('./share.html', import.meta.url)), citation: fileURLToPath(new URL('./cite.html', import.meta.url)) } },
+    rollupOptions: { input: { googleAuth: fileURLToPath(new URL('./google-auth.html', import.meta.url)), main: fileURLToPath(new URL('./index.html', import.meta.url)), visitor: fileURLToPath(new URL('./share.html', import.meta.url)), citation: fileURLToPath(new URL('./cite.html', import.meta.url)) } },
   },
 }})

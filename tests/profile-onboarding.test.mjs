@@ -47,7 +47,7 @@ function creationService(errors = []) {
   };
   class ProfileServiceError extends Error { constructor(code, message) { super(message); this.code = code; } }
   const { service } = execute(`exports.service = { ${method} }`, {
-    ProfileServiceError, createProfileHandle, validateHandle: validation.validateHandle, normalizeHandle: validation.normalizeHandle,
+    recordLaunchReceipt: async()=>{}, ProfileServiceError, createProfileHandle, validateHandle: validation.validateHandle, normalizeHandle: validation.normalizeHandle,
     uploadAvatar: async () => { uploads++; return 'https://example.test/avatar.webp'; },
     requireSupabase: () => ({ from: () => chain }),
     throwProfileError: (error) => { throw new ProfileServiceError('network', error.message); },
@@ -78,7 +78,7 @@ test('visibility is written on the initial insert and retained during handle ret
     const h = creationService([{ code: '23505', message: 'duplicate key violates profiles_handle_key' }]);
     await h.service.createProfile('account', { name: 'Creator', isPrivate });
     assert.equal(h.inserts.length, 2);
-    for (const row of h.inserts) assert.equal(row.is_private, isPrivate === true);
+    for (const row of h.inserts) assert.equal(row.is_private, true);
   }
 });
 test('explicit handles/headlines survive and duplicate accounts are not retried as handle collisions', async () => {
@@ -105,7 +105,7 @@ test('missing name is rejected before uploading or writing', async () => {
 function component(file, name, props, overrides = {}) {
   const slots = [];
   let cursor = 0;
-  const react = { ...React, useLayoutEffect() {}, useEffect() {}, useRef(value) {
+  const react = { ...React, useCallback(fn) {return fn;}, useLayoutEffect() {}, useEffect() {}, useRef(value) {
     const index = cursor++;
     if (!(index in slots)) slots[index] = { current: value };
     return slots[index];

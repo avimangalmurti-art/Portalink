@@ -41,7 +41,7 @@ test('foreground checks are single-flight, skip guests and send no credentials i
 });
 
 test('actual production client wiring clears channels and uses only local logout after denial; replacement login cancels stale logout', async () => {
-  const callbacks = [], timers = [], calls = [], events = {};
+  const callbacks = [], timers = [], calls = [], broadcasts = [], events = {};
   let options;
   const client = { removeAllChannels: async () => calls.push('channels'), auth: {
     onAuthStateChange(callback) { callbacks.push(callback); },
@@ -52,11 +52,16 @@ test('actual production client wiring clears channels and uses only local logout
     .replaceAll('import.meta.env', 'fixtureEnv');
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText, {
     exports, URL, URLSearchParams, Headers, Request, AbortSignal,
+    BroadcastChannel:class {constructor(){broadcasts.push(this);}postMessage(value){this.message=value;}close(){}},
     fixtureEnv:{VITE_SUPABASE_URL:'https://fixture.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'synthetic-publishable-key-long-enough',VITE_RUNTIME_MODE:'production',PROD:true},
     document:{visibilityState:'visible',addEventListener:(name,callback)=>{events[name]=callback;}},
-    window:{location:{hash:''},sessionStorage:null,setTimeout:callback=>timers.push(callback),setInterval:callback=>{events.interval=callback;},addEventListener:(name,callback)=>{events[name]=callback;}},
+    window:{location:{hash:'',reload:()=>calls.push('reload')},sessionStorage:null,setTimeout:callback=>timers.push(callback),setInterval:callback=>{events.interval=callback;},addEventListener:(name,callback)=>{events[name]=callback;}},
     require(name) {
+      if(name==='../../features/auth/scopedSessionCleanup')return{revokeIssuedSession:async(host,key,token)=>{
+        assert.equal(host,'https://fixture.supabase.co');assert.equal(key,'synthetic-publishable-key-long-enough');assert.equal(token,'failed-callback-token');calls.push('exact-issued-cleanup');return true;
+      }};
       if(name==='@supabase/supabase-js')return{createClient:(_url,_key,value)=>{options=value;return client;}};
+      if(name==='./callbackSession')return{sessionId:token=>token==='failed-callback-token'?'failed-id':token,createCallbackSessionStorage:()=>({storage:{},removeIssued:async token=>{assert.equal(token,'failed-callback-token');calls.push('conditional-storage-cleanup');return true;}})};
       if(name==='./passwordRecovery')return{createPasswordRecoveryTracker:()=>({record(){},clear(){}})};
       if(name==='../../features/performance/rum')return{rumSupabaseFetch:async()=>Response.json({code:'PT401'},{status:401})};
       if(name==='./sessionRevocation')return{createSessionRevocationObserver};
@@ -67,8 +72,14 @@ test('actual production client wiring clears channels and uses only local logout
   emit('old');
   await options.global.fetch('https://fixture.supabase.co/rest/v1/profiles',{headers:{authorization:'Bearer old'}});
   emit('replacement'); timers.shift()(); assert.deepEqual(calls,[]);
+  assert.equal(await exports.cleanupIssuedAuthSession('failed-callback-token'),true);
+  assert.deepEqual(calls,['exact-issued-cleanup','conditional-storage-cleanup'],'Callback cleanup uses its explicit token, without shared signOut or channel removal.');calls.length=0;
   await options.global.fetch('https://fixture.supabase.co/rest/v1/profiles',{headers:{authorization:'Bearer replacement'}});
   emit('replacement'); // SDK metadata events for the revoked token do not cancel logout.
   timers.shift()(); assert.deepEqual(calls,['channels','local']);
+  const listener=broadcasts[0];assert.equal(broadcasts[1].message.sessionId,'failed-id');
+  calls.length=0;listener.onmessage({data:{sessionId:'failed-id'}});assert.deepEqual(calls,[]);
+  emit('failed-callback-token');listener.onmessage({data:{sessionId:'failed-id'}});assert.deepEqual(calls,['reload']);
+  calls.length=0;emit('newer');listener.onmessage({data:{sessionId:'failed-id'}});assert.deepEqual(calls,[]);
   assert.equal(typeof events.focus,'function'); assert.equal(typeof events.visibilitychange,'function'); assert.equal(typeof events.interval,'function');
 });

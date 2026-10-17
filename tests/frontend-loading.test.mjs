@@ -122,6 +122,7 @@ test('a deferred dialog stays unloaded until first use and remains mounted throu
   };
   const { DeferredDialog } = execute(read('src/components/ui/DeferredDialog.tsx'), { react,
     '../../hooks/useModalFocus': {}, '../../hooks/useDialogViewport': {}, './ModalPortal': {},
+    '../../presentation/usePresentation': { usePresentation: () => 'web' },
   });
   const render = (active, children) => { cursor = 0; effects = []; const result = DeferredDialog({ active, children }); effects.forEach(effect => effect()); return result; };
   const child = React.createElement('dialog-content', { draft: 'pending draft' });
@@ -140,7 +141,7 @@ test('a deferred dialog stays unloaded until first use and remains mounted throu
 });
 
 
-test('a rejected deferred surface stays contained, is dismissible, and reloads only by explicit request', () => {
+for (const presentation of ['mobile', 'web']) test(`a rejected ${presentation} deferred surface stays contained, is dismissible, and reloads only by explicit request`, () => {
   let closes = 0, reloads = 0;
   const focus = [];
   const exports = execute(read('src/components/ui/DeferredDialog.tsx'), {
@@ -148,6 +149,7 @@ test('a rejected deferred surface stays contained, is dismissible, and reloads o
     '../../hooks/useModalFocus': { useModalFocus: (...args) => focus.push(args) },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     './ModalPortal': { ModalPortal: 'ModalPortal' },
+    '../../presentation/usePresentation': { usePresentation: () => presentation },
   }, { window: { location: { reload: () => reloads++ } } });
   const child = React.createElement('form', { draft: 'saved registration remains untouched' });
   const onClose = () => closes++;
@@ -161,6 +163,13 @@ test('a rejected deferred surface stays contained, is dismissible, and reloads o
   assert.equal(rendered[0].type, 'ModalPortal');
   assert.ok(rendered.some(node => node.props.role === 'alert'));
   assert.ok(rendered.some(node => node.props.role === 'dialog' && node.props['aria-modal'] === 'true'));
+  const characters = rendered.filter(node => node.type === 'img');
+  assert.equal(characters.length, presentation === 'mobile' ? 1 : 0, 'The error character is limited to the mobile failure state.');
+  if (presentation === 'mobile') {
+    assert.equal(characters[0].props.src, '/portalink-question-character.png');
+    assert.equal(characters[0].props.alt, '');
+    assert.equal(characters[0].props['aria-hidden'], 'true', 'The decorative character does not repeat the accessible error.');
+  }
   assert.equal(focus[0][0], true);
   assert.equal(focus[0][2], onClose, 'Escape uses the existing surface close path.');
   assert.equal(reloads, 0);
@@ -186,12 +195,14 @@ test('opening feedback is cancellable without reloading or mounting feature chil
     '../../hooks/useModalFocus': { useModalFocus() {} },
     '../../hooks/useDialogViewport': { useDialogViewport: () => ({ current: null }) },
     './ModalPortal': { ModalPortal: 'ModalPortal' },
+    '../../presentation/usePresentation': { usePresentation: () => 'mobile' },
   });
   const surface = DeferredSurface({ active: true, children: 'unresolved form', onClose: () => cancelled++ });
   const fallback = surface.props.children.props.fallback;
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(nodes)];
   const rendered = nodes(fallback.type(fallback.props));
   assert.ok(rendered.some(node => node.props.role === 'status' && node.props.children === 'Opening\u2026'));
+  assert.equal(rendered.filter(node => node.type === 'img').length, 0, 'Mobile loading does not show the failure character.');
   const buttons = rendered.filter(node => node.type === 'button');
   assert.equal(buttons.length, 1);
   assert.equal(buttons[0].props.children, 'Cancel');
