@@ -48,7 +48,7 @@ type ProfileCategoryPageProps = {
   onMobileIndexOpenChange?: (open: boolean) => void;
   /**
    * Changes which project the portal is showing. `replace` is used for the
-   * automatic first-project selection on entry, so that lands in place of the
+   * WEB's automatic first-project selection on entry, so that lands in place of the
    * bare category rather than as its own history entry.
    */
   onSelectProject: (projectId: string | null, replace?: boolean) => void;
@@ -336,8 +336,8 @@ export function ProfileCategoryPage({
   const projectTypefaceIds = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, typography.resolveTypefaceId(project.id)])), [categoryProjects, typography]);
   const projectTypefaceStacks = useMemo(() => Object.fromEntries(categoryProjects.map((project) => [project.id, getTypefaceStack(projectTypefaceIds[project.id])])), [categoryProjects, projectTypefaceIds]);
   /**
-   * A portal opens its first project in the saved order. On mobile, keep its
-   * index above the work so the viewer can browse without repeatedly reopening it.
+   * WEB opens its first project in saved order. MOBILE keeps the unselected
+   * portal popup open until the viewer chooses a project.
    *
    * Deliberately narrow: it fires only when nothing is selected, so a URL naming a
    * project that this category does not hold still reports that plainly instead of
@@ -350,8 +350,7 @@ export function ProfileCategoryPage({
   const isCurrentCategory = (currentRoute.kind === 'category' || currentRoute.kind === 'sharedCategory')
     && currentRoute.profileId === profile.id && currentRoute.categoryId === category.id;
   useEffect(() => {
-    if (isCurrentCategory && activeProjectId === null && firstProjectId) {
-      if (isMobile) setMobilePanel('index');
+    if (!isMobile && isCurrentCategory && activeProjectId === null && firstProjectId) {
       onSelectProject(firstProjectId, true);
     }
     // Keyed to the category through its resolved order, so switching portals

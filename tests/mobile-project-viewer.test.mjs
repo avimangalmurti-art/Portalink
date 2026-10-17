@@ -722,14 +722,35 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.equal(button(projectList, 'Collapse document list'), undefined, 'The clean mobile header uses outside dismissal instead of a duplicate collapse control');
   assert.equal(portalReturns, 1);
   currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
+  const beforeOpeningPortal = selections.length;
   tree = render({ ...props, activeProjectId: null });
-  assert.deepEqual(selections.at(-1), ['work', true]);
+  assert.equal(selections.length, beforeOpeningPortal, 'Opening a MOBILE portal must wait for a project choice');
+  assert.ok(nodes(tree).find(node => node.type === IndexPortal));
+  assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
+  assert.deepEqual(Array.from(nodes(tree).find(node => node.type === Index).props.projects, project => project.id), ['work', 'second']);
+  for (const viewerRole of ['owner', 'visitor', 'guest']) {
+    for (const sharedReadOnly of [false, true]) {
+      tree = render({ ...props, activeProjectId: null, viewerRole, sharedReadOnly,
+        profile: { ...props.profile, projects: props.profile.projects.slice(0, 1) } });
+      assert.ok(nodes(tree).find(node => node.type === IndexPortal), 'Even one-project portals open the chooser');
+      assert.equal(nodes(tree).find(node => node.type === Viewer), undefined);
+      assert.equal(selections.length, beforeOpeningPortal);
+    }
+  }
+  tree = render({ ...props, activeProjectId: null });
+  nodes(tree).find(node => node.type === Index).props.onSelect('second');
+  assert.deepEqual(selections.at(-1), ['second', undefined], 'Only the chosen row opens a project');
+  tree = render(props);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'second');
+  tree = render({ ...props, activeProjectId: null });
   button(toolbar(tree), 'Back to portals').props.onClick();
   assert.equal(portalReturns, 2);
   assert.equal(back, 1);
+  props.activeProjectId = 'work';
+  currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
   tree = render(props);
   assert.equal(nodes(tree).find(node => node.type === Viewer).props.projectId, 'work');
-  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, true);
+  assert.equal(nodes(tree).find(node => node.type === Viewer).props.mobileNavigation.isIndexOpen, false, 'An explicit project link does not force the index open');
   const selectionCount = selections.length;
   for (const route of [
     { kind: 'profile', profileId: 'owner' },
@@ -781,6 +802,12 @@ test('project workspace combines only resolved mobile projects and uses the exis
   assert.deepEqual(Array.from(webIndex.projects, project => project.id), ['work', 'second']);
   assert.equal(webIndex.mobileReorderFromMenu, false);
   assert.equal(webIndex.mobileReorderDisabled, false);
+  currentRoute = { kind: 'category', profileId: 'owner', categoryId: 'portal' };
+  tree = render({ ...props, activeProjectId: null, isIndexCollapsed: false });
+  assert.deepEqual(selections.at(-1), ['work', true], 'WEB retains its saved-order first-project selection');
+  assert.equal(selections.length, selectionCount + 1);
+  currentRoute = { kind: 'project', profileId: 'owner', categoryId: 'portal', projectId: 'work' };
+  tree = render({ ...props, isIndexCollapsed: false });
   // A WEB query must never become an invisible MOBILE filter after resizing.
   for (const query of ['needle', 'no-matching-project']) {
     const search = nodes(tree).find(node => node.props.type === 'search');

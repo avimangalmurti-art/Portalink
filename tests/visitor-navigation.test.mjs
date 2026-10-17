@@ -529,7 +529,7 @@ test('public portfolio has no follow action or follow lookup for guests, members
   }
 });
 
-test('MOBILE public project Back skips category overview and old category links replace to the portfolio', () => {
+test('MOBILE public portal links open the chooser while explicit project links still open the reader', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = appHarness();
     h.state.presentation = presentation;
@@ -538,6 +538,8 @@ test('MOBILE public project Back skips category overview and old category links 
     const tree = h.render();
     const project = nodes(tree).find(node => node.props?.project?.id === 'work' && node.props?.onBack);
     assert.ok(project);
+    assert.equal(one(tree, 'SharedPortalPopup'), undefined);
+    assert.equal(h.navigations.length, 0, 'Explicit project links are not replaced by a chooser');
     project.props.onBack();
     assert.equal(h.navigations.at(-1)[0], presentation === 'mobile' ? `/share/${profileId}` : `/share/${profileId}/c/portal`);
     h.state.route = {kind:'sharedCategory',profileId,categoryId:'portal'};
@@ -547,6 +549,16 @@ test('MOBILE public project Back skips category overview and old category links 
     if (presentation === 'mobile') {
       assert.deepEqual(json(h.navigations.at(-1)), [`/share/${profileId}`, {replace:true}]);
       assert.equal(nodes(categoryTree).find(node=>node.props?.onOpen && node.props?.profile)?.props.categoryId, null);
+      assert.equal(one(categoryTree, 'SharedPortalPopup').props.categoryId, 'portal');
+      assert.equal(nodes(categoryTree).some(node=>node.props?.project?.id && node.props?.onBack), false);
+      h.state.route = {kind:'sharedProfile',profileId};
+      h.state.location.pathname = `/share/${profileId}`;
+      h.navigations.length = 0;
+      const popup = one(h.render(), 'SharedPortalPopup');
+      assert.equal(popup.props.categoryId, 'portal', 'The requested portal survives profile-route normalization');
+      assert.equal(h.navigations.length, 0, 'No project opens until a row is selected');
+      popup.props.onSelect('portal', 'next');
+      assert.equal(h.navigations.at(-1)[0], `/share/${profileId}/c/portal/next`);
     } else assert.equal(h.navigations.length, 0);
   }
 });
@@ -563,6 +575,26 @@ test('MOBILE sidebar portal opens its project popup without navigating to the pr
   h.state.presentation='web';
   one(h.render(),'SharedProfileSidebar').props.onOpenCategory('portal');
   assert.ok(h.navigations.length>0);
+});
+
+test('MOBILE stale portal links and a different creator never leave navigation blocked by an invisible popup', () => {
+  const h = appHarness();
+  h.state.route = {kind:'sharedCategory',profileId,categoryId:'deleted-portal'};
+  h.state.location.pathname = `/share/${profileId}/c/deleted-portal`;
+  let tree = h.render();
+  assert.equal(one(tree, 'SharedPortalPopup'), undefined);
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, true);
+  h.state.route = {kind:'sharedProfile',profileId};
+  h.state.location.pathname = `/share/${profileId}`;
+  one(h.render(), 'SharedProfileSidebar').props.onOpenCategory('portal');
+  assert.equal(one(h.render(), 'SharedPortalPopup').props.categoryId, 'portal');
+  const nextProfileId = '22222222-2222-4222-8222-222222222222';
+  h.state.route = {kind:'sharedProfile',profileId:nextProfileId};
+  h.state.location.pathname = `/share/${nextProfileId}`;
+  h.state.query = {...h.state.query, profile:{...profile,id:nextProfileId}};
+  tree = h.render();
+  assert.equal(one(tree, 'SharedPortalPopup'), undefined, 'A matching category ID in another creator does not inherit the popup');
+  assert.equal(one(tree, 'SharedProfileSidebar').props.mobileNavigationEnabled, true);
 });
 
 
