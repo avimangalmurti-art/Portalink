@@ -4,5 +4,7 @@
 .density-separator::-moz-range-progress { background:transparent; }
 .density-separator::-webkit-slider-thumb { appearance:none; -webkit-appearance:none; width:18px; height:18px; margin-top:-8.5px; border:1px solid var(--hairline-strong); border-radius:50%; background:var(--hairline); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
 .density-separator::-moz-range-thumb { width:16px; height:16px; border:1px solid var(--hairline-strong); border-radius:50%; background:var(--hairline); box-shadow:0 1px 3px rgb(0 0 0 / 12%); }
+[data-presentation='mobile'] .density-separator::-webkit-slider-thumb { width:30px; border-radius:999px; }
+[data-presentation='mobile'] .density-separator::-moz-range-thumb { width:28px; border-radius:999px; }
 .density-separator:focus-visible { outline:2px solid var(--focus-ring); outline-offset:0; border-radius:8px; }
 .density-separator { touch-action: none; }
