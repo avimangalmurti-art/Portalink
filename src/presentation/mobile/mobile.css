@@ -5806,6 +5806,11 @@ body:has(#root .codex-shell[data-presentation='mobile'] .app-screen-layer.screen
 }
 
 /* Every Studio collection uses the centered Insights title/control row. */
+/* Drafts no longer reserves space for the hidden options button. */
+#root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-drafts-heading,
+#root .codex-shell[data-presentation='mobile'] .studio-citation-shell:has([data-studio-pill='drafts'][aria-pressed='true']) .studio-mobile-header-fallback {
+  padding-right: 0;
+}
 #root .codex-shell[data-presentation='mobile'] .studio-mobile-shell-header .studio-collection-title {
   display: block !important;
   position: absolute;
