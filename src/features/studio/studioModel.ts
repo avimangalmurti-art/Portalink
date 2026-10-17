@@ -3,7 +3,7 @@ import type { FeedCreator, Notification, Profile, Project, ProjectView } from '.
 import type { SavedCreatorEntry, SavedPageEntry } from '../library/collectionQueries';
 import { savedPageKey } from '../library/savedPages';
 
-export const STUDIO_CATEGORIES = ['drafts', 'published', 'bookmarks', 'activity', 'all'] as const;
+export const STUDIO_CATEGORIES = ['drafts', 'published', 'bookmarks', 'activity'] as const;
 export type StudioCategory = typeof STUDIO_CATEGORIES[number];
 export type StudioBookmarkTab = 'projects' | 'pages' | 'creators';
 export type StudioAction = 'open' | 'share' | 'copy-link' | 'edit' | 'unsave' | 'mark-read';
@@ -19,7 +19,7 @@ export type StudioRow = StudioRowBase & (
 export type StudioSection = { id: StudioCategory; title: string; rows: StudioRow[]; description?: string };
 
 export function studioCategory(value: string | null): StudioCategory {
-  return STUDIO_CATEGORIES.includes(value as StudioCategory) ? value as StudioCategory : 'all';
+  return STUDIO_CATEGORIES.includes(value as StudioCategory) ? value as StudioCategory : 'bookmarks';
 }
 
 export function studioBookmarkTab(value: string | null): StudioBookmarkTab {
@@ -81,11 +81,11 @@ export function studioSections(rows: StudioRow[], category: StudioCategory, tab:
   const sections: StudioSection[] = [
     { id: 'drafts', title: 'Drafts', rows: [], description: STUDIO_DRAFTS_EXPLANATION },
     { id: 'published', title: 'Published', rows: rows.filter(row => row.kind === 'published') },
-    { id: 'bookmarks', title: 'Bookmarks', rows: rows.filter(row => row.kind.startsWith('saved-') &&
-      (category === 'all' || row.kind === (tab === 'projects' ? 'saved-project' : tab === 'pages' ? 'saved-page' : 'saved-creator'))) },
+    { id: 'bookmarks', title: 'Bookmarks', rows: rows.filter(row =>
+      row.kind === (tab === 'projects' ? 'saved-project' : tab === 'pages' ? 'saved-page' : 'saved-creator')) },
     { id: 'activity', title: 'Activity', rows: rows.filter(row => row.kind === 'activity') },
   ];
-  return category === 'all' ? sections : sections.filter(section => section.id === category);
+  return sections.filter(section => section.id === category);
 }
 
 /** Capabilities are real: no resumable draft or Mark unread service exists. */

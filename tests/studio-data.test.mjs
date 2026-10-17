@@ -20,6 +20,7 @@ const savedPageKey = target => JSON.stringify([target.projectId, target.attachme
 const model = load('../src/features/studio/studioModel.ts', {
   '../../app/routes': routes, '../library/savedPages': { savedPageKey },
 });
+const view = load('../src/features/studio/studioView.ts', { '../../app/routes': routes });
 const oldProject = { id: 'old', categoryId: 'cat', title: 'Old work', summary: 'Red buildings', publishedAt: '2026-01-01T00:00:00Z' };
 const newProject = { ...oldProject, id: 'new', title: 'New work', publishedAt: '2026-02-01T00:00:00Z' };
 const creator = { id: 'creator', name: 'Ava', handle: '@ava', headline: 'Designer', projects: [oldProject, newProject], categories: [{ id: 'cat', label: 'Architecture' }] };
@@ -43,20 +44,41 @@ test('Published rows display made-on dates without changing publication ordering
  const rows=model.publishedStudioRows(profile);assert.deepEqual(Array.from(rows,row=>row.project.id),['new','old']);assert.deepEqual(Array.from(rows,row=>row.date),['2019-01-02','2020-04-05']);assert.equal(model.savedProjectStudioRows([{project:profile.projects[0],creator:profile}])[0].date,'2020-04-05');
 });
 
-test('Studio All retains every saved kind and an explicit unavailable Drafts explanation', () => {
+test('Studio retains separate collections and each saved kind without an aggregate collection', () => {
   const rows = [...model.publishedStudioRows(creator), ...model.savedProjectStudioRows([{ project: oldProject, creator }]),
     ...model.savedPageStudioRows([pageEntry]), ...model.savedCreatorStudioRows([{ id: creator.id, profile: creator }]), ...model.activityStudioRows([notification])];
-  const all = model.studioSections(rows, 'all', 'projects');
-  assert.deepEqual(Array.from(all, section => section.id), ['drafts', 'published', 'bookmarks', 'activity']);
-  assert.equal(all[0].rows.length, 0);
-  assert.match(all[0].description, /Drafts cannot be listed here yet/);
-  assert.match(all[0].description, /New project to resume a draft saved on this device/);
-  assert.match(all[0].description, /Your first project on your profile/);
-  assert.equal(all[2].rows.length, 3);
-  assert.equal(model.studioSections(rows, 'bookmarks', 'pages')[0].rows[0].kind, 'saved-page');
-  assert.equal(model.studioCategory('unknown'), 'all');
+  assert.deepEqual(Array.from(model.STUDIO_CATEGORIES), ['drafts', 'published', 'bookmarks', 'activity']);
+  assert.deepEqual(Array.from(view.STUDIO_CATEGORIES), Array.from(model.STUDIO_CATEGORIES));
+  const drafts = model.studioSections(rows, 'drafts', 'projects');
+  assert.equal(drafts.length, 1);
+  assert.equal(drafts[0].rows.length, 0);
+  assert.match(drafts[0].description, /Drafts cannot be listed here yet/);
+  assert.match(drafts[0].description, /New project to resume a draft saved on this device/);
+  assert.match(drafts[0].description, /Your first project on your profile/);
+  assert.deepEqual(Array.from(model.studioSections(rows, 'published', 'projects')[0].rows, row => row.kind), ['published', 'published']);
+  assert.deepEqual(Array.from(model.studioSections(rows, 'activity', 'projects')[0].rows, row => row.kind), ['activity']);
+  for (const [tab, kind] of [['projects', 'saved-project'], ['pages', 'saved-page'], ['creators', 'saved-creator']]) {
+    const sections = model.studioSections(rows, 'bookmarks', tab);
+    assert.deepEqual(Array.from(sections, section => section.id), ['bookmarks']);
+    assert.deepEqual(Array.from(sections[0].rows, row => row.kind), [kind]);
+  }
   assert.equal(model.studioBookmarkTab('unknown'), 'projects');
   assert.equal(model.filterStudioRows(rows, 'red buildings').length, 3);
+});
+
+test('legacy All locations and invalid categories fall back to Bookmarks while retaining saved tabs', () => {
+  for (const category of [null, 'unknown', 'all']) assert.equal(model.studioCategory(category), 'bookmarks');
+  for (const search of ['', 'category=all', 'collection=all', 'collection=all&category=published', 'collection=unknown']) {
+    const location = view.readStudioLocation(new URLSearchParams(search));
+    assert.equal(location.category, 'bookmarks');
+    assert.equal(location.tab, 'projects');
+  }
+  const pages = view.readStudioLocation(new URLSearchParams('collection=all&tab=pages'));
+  assert.equal(pages.category, 'bookmarks');
+  assert.equal(pages.tab, 'pages');
+  assert.equal(view.readStudioLocation(new URLSearchParams('collection=activity&category=all')).category, 'activity');
+  assert.equal(view.readStudioLocation(new URLSearchParams('collection=published'), true).category, 'bookmarks');
+  for (const category of model.STUDIO_CATEGORIES) assert.equal(model.studioCategory(category), category);
 });
 
 test('Studio actions never promise unsupported draft/unread or unavailable bookmark navigation', () => {
@@ -170,7 +192,7 @@ test('a pending notification acknowledgement cannot start a foreground refresh t
   assert.equal(hook.value.status, 'success'); hook.dispose();
 });
 
-function studioHarness({ more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
+function studioHarness({ category = 'bookmarks', tab = 'projects', more = async () => ({ items: [], nextCursor: null }), remove = async () => {}, unsave = async () => ({}) } = {}) {
   const auth = { user: { id: 'one' }, viewerProfileId: creator.id, isAuthenticated: true };
   const queries = [{ data: creator, loading: false, fetchedAt: 100, retry() {} },
     { data: [{ id: creator.id, profile: creator }], loading: false, fetchedAt: 150, retry() {} },
@@ -178,7 +200,7 @@ function studioHarness({ more = async () => ({ items: [], nextCursor: null }), r
   let queryIndex = 0;
   const refreshed = [];
   const services = { profiles: {}, projects: {}, creatorSaves: { setCreatorSave: async () => true }, engagement: { setEngagement: unsave } };
-  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, ['all', 'projects'], { revision: 0 }, {
+  const hook = hookHarness(new URL('../src/features/studio/useStudioData.ts', import.meta.url), 'useStudioData', services, auth, [category, tab], { revision: 0 }, {
     '../../contexts/EngagementContext': { useEngagementStore: () => ({ refresh: id => refreshed.push(id) }) },
     '../engagement/useActivityCollection': { useActivityCollection: () => ({ phase: 'ready', items: [{ project: oldProject, creator }], updatedAt: 125, retry() {} }) },
     '../library/useAccountQuery': { useAccountQuery: () => queries[queryIndex++ % 3] },
@@ -190,12 +212,31 @@ function studioHarness({ more = async () => ({ items: [], nextCursor: null }), r
   return { hook, auth, queries, refreshed };
 }
 
+test('Studio data defaults to bookmarked projects and reports only the selected collection state', async () => {
+  const { hook, queries } = studioHarness();
+  hook.options([]);
+  queries[0].error = 'Published could not load';
+  queries[1].error = 'Creators could not load';
+  queries[2].error = 'Pages could not load';
+  await hook.flush();
+  assert.deepEqual(Array.from(hook.value.rows, row => row.kind), ['saved-project']);
+  assert.equal(hook.value.status, 'ready');
+  assert.equal(hook.value.error, null);
+  assert.equal(hook.value.updatedAt, 125);
+  assert.equal(hook.value.hasMore, false);
+  hook.options(['bookmarks', 'pages']); await hook.flush();
+  assert.equal(hook.value.status, 'error');
+  assert.equal(hook.value.error, 'Pages could not load');
+  assert.equal(hook.value.updatedAt, null);
+  hook.dispose();
+});
+
 test('Studio saved-page pagination retains prior rows, deduplicates targets, and preserves a failed cursor for retry', async () => {
   let fail = true;
   const nextEntry = { target: { ...target, pageIndex: 1 }, presentation: null };
   const cursors = [];
-  const { hook } = studioHarness({ more: async cursor => { cursors.push(cursor); if (fail) throw Error('offline'); return { items: [pageEntry, nextEntry], nextCursor: null }; } });
-  await hook.flush(); assert.equal(hook.value.updatedAt, 100); assert.equal(hook.value.hasMore, true);
+  const { hook } = studioHarness({ tab: 'pages', more: async cursor => { cursors.push(cursor); if (fail) throw Error('offline'); return { items: [pageEntry, nextEntry], nextCursor: null }; } });
+  await hook.flush(); assert.equal(hook.value.updatedAt, 200); assert.equal(hook.value.hasMore, true);
   await hook.value.loadMore(); await hook.flush();
   assert.equal(hook.value.loadMoreError, 'offline'); assert.equal(hook.value.rows.filter(row => row.kind === 'saved-page').length, 1);
   hook.options(['published', 'projects']); await hook.flush(); assert.equal(hook.value.loadMoreError, null); assert.equal(hook.value.hasMore, false);
@@ -210,6 +251,7 @@ test('Studio ignores obsolete pages after refresh and prevents stale unsave call
   const more = deferred(); let mutations = 0;
   const { hook, auth, queries } = studioHarness({ more: () => more.promise, unsave: async () => { mutations++; } });
   await hook.flush(); const oldUnsave = hook.value.unsave; const saved = hook.value.rows.find(row => row.kind === 'saved-project');
+  hook.options(['bookmarks', 'pages']); await hook.flush();
   const loadMore = hook.value.loadMore(); await hook.flush();
   queries[2].data = { items: [], nextCursor: null }; hook.rerender(); await hook.flush();
   more.resolve({ items: [pageEntry], nextCursor: null }); await loadMore; await hook.flush();

@@ -18,9 +18,9 @@ test('active tab centres after layout at 375 and 430, without vertical scrolling
   active=false;assert.equal(MobilePillHeader(props),null);
  }
 });
-test('six Studio empty states retain exact requested copy and a single optional pill',()=>{
+test('five Studio empty states retain exact requested copy and a single optional pill',()=>{
  const {StudioEmptyState}=sourceModule('src/features/studio/StudioEmptyState.tsx',{react:React});
- const copy={drafts:'Start something and it will wait here.',published:'Nothing published yet.',bookmarks:'Use Save on any page or project.',references:'References you add appear here.',cited:'When someone builds on your work, it appears here.',all:'Your Studio is empty.'};
+ const copy={drafts:'Start something and it will wait here.',published:'Nothing published yet.',bookmarks:'Use Save on any page or project.',references:'References you add appear here.',cited:'When someone builds on your work, it appears here.'};
  for(const [kind,text] of Object.entries(copy)){
   const tree=StudioEmptyState({kind});const children=React.Children.toArray(tree.props.children);
   assert.ok(children.some(c=>c.props.children===text));assert.equal(children.some(c=>c.type==='button'),false);

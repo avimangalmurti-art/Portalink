@@ -1,7 +1,7 @@
 import { buildPath } from '../../app/routes';
 import type { StudioBookmarkTab, StudioCategory, StudioRow } from './studioModel';
 
-export const STUDIO_CATEGORIES: readonly StudioCategory[] = ['drafts', 'published', 'bookmarks', 'activity', 'all'];
+export const STUDIO_CATEGORIES: readonly StudioCategory[] = ['drafts', 'published', 'bookmarks', 'activity'];
 export const STUDIO_BOOKMARK_TABS: readonly StudioBookmarkTab[] = ['projects', 'pages', 'creators'];
 
 export function readStudioLocation(params: URLSearchParams, savedRoute = false) {

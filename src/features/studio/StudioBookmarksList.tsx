@@ -60,7 +60,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
   const location = readStudioLocation(params, savedRoute);
   const category: StudioCategory = location.category;
   const tab = location.tab;
-  const collectionTitle = category === 'all' ? 'All' : category[0].toUpperCase() + category.slice(1);
+  const collectionTitle = category[0].toUpperCase() + category.slice(1);
   const data = useStudioData(category, tab);
   const refreshStudio = data.refresh;
   const management = useProjectManagement(auth.viewerProfileId);
@@ -246,7 +246,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
       {(localError || data.mutationError) && <p role="alert" className="studio-feedback text-[var(--status-danger)]">{localError || data.mutationError}</p>}
       {data.status === 'loading' && !data.rows.length ? <LoadingState kind="studio" label="Loading Studio" /> : null}
       {data.error && <ErrorState title="Some of Studio could not load" description={data.error} onRetry={data.refresh} />}
-      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'bookmarks' ? 'No bookmarks yet' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No items yet'} description={query ? 'Try another search, or clear this one.' : category === 'bookmarks' ? 'Keep projects, pages and creators here using their bookmark action.' : category === 'published' ? 'Your published projects appear here.' : category === 'activity' ? 'Your updates appear here.' : 'Your work, bookmarks and updates appear here.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
+      {visibleRows.length ? <ul className="studio-list inset-row-group inset-row-group-icons">{visibleRows.map(renderRow)}</ul> : data.status !== 'loading' && !data.error ? <EmptyState title={query ? 'No matching items' : category === 'bookmarks' ? 'No bookmarks yet' : category === 'published' ? 'No published projects yet' : category === 'activity' ? 'No activity yet' : 'No items yet'} description={query ? 'Try another search, or clear this one.' : category === 'bookmarks' ? 'Keep projects, pages and creators here using their bookmark action.' : category === 'published' ? 'Your published projects appear here.' : category === 'activity' ? 'Your updates appear here.' : 'Your items appear here.'} action={query ? { label: 'Clear search', onClick: () => setQuery('') } : undefined} /> : null}
       {data.loadMoreError && <ErrorState title="More saved pages could not load" description={data.loadMoreError} onRetry={() => { void data.loadMore(); }} />}
       {data.hasMore && <div className="studio-load-more"><p>Search and selection cover the pages loaded so far.</p><button type="button" className="studio-text-control" disabled={data.loadingMore || bulkPending} onClick={() => { void data.loadMore(); }}>{data.loadingMore ? 'Loading…' : 'Load more saved pages'}</button></div>}
     </div>

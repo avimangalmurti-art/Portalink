@@ -21,10 +21,10 @@ const rows = [
   { kind: 'activity', id: 'activity:n1', title: 'Message', secondary: 'Hello', href: '/messages?conversation=1', notification: { id: 'n1', isUnread: true } },
 ];
 
-function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false, citations = [] } = {}) {
+function pageHarness({ savedRoute = false, initialSearch = '', preference = 'categories', headerHost, hideBack = false, citations = [], extraRows = [] } = {}) {
   let params = new URLSearchParams(initialSearch), cursor = 0, dirty = true, effects = [], tree;
   const slots = [], history = [], calls = [], frames = [];
-  const currentRows = [...rows];
+  const currentRows = [...rows, ...extraRows];
   const same = (a, b) => a && b && a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   const react = { ...React,
     useState(initial) { const index = cursor++; slots[index] ??= { value: typeof initial === 'function' ? initial() : initial }; return [slots[index].value, next => { const value = typeof next === 'function' ? next(slots[index].value) : next; if (!Object.is(value, slots[index].value)) { slots[index].value = value; dirty = true; } }]; },
@@ -138,13 +138,13 @@ test('mobile selection and Back render in the header host and retain selection b
 });
 
 test('collection selection wins over a stale legacy category and drives actual rows', () => {
- for (const category of ['published', 'activity', 'all']) {
+ for (const category of ['published', 'activity']) {
   const selected = view.readStudioLocation(new URLSearchParams('collection='+category+'&category=bookmarks'));
   assert.equal(selected.category, category);
   const page = pageHarness({ initialSearch: 'collection='+category+'&category=bookmarks' });
   const entries = page.nodes.filter(node => node.type === 'studio-row').map(node => node.props.id);
   assert.equal(page.nodes.find(node => node.props.className === 'studio-title').props.children, category[0].toUpperCase()+category.slice(1));
-  assert.deepEqual(entries, category === 'published' ? ['published:p1'] : category === 'activity' ? ['activity:n1'] : ['published:p1','saved-project:p1','activity:n1']);
+  assert.deepEqual(entries, category === 'published' ? ['published:p1'] : ['activity:n1']);
  }
  assert.equal(view.readStudioLocation(new URLSearchParams('category=published')).category, 'published');
  assert.equal(view.readStudioLocation(new URLSearchParams('collection=published'), true).category, 'bookmarks');
@@ -179,7 +179,7 @@ test('Published references live within row metadata, hide zero, and keep the ref
 
 test('row copying and batch sharing emit official public links from a preview host', async () => {
  for (const headerHost of [undefined, {}]) {
-  const page = pageHarness({ initialSearch: 'collection=all', headerHost });
+  const page = pageHarness({ initialSearch: 'collection=published', headerHost, extraRows: [{ ...rows[0], id:'published:p2', project:{...project,id:'p2'} }] });
   page.nodes.find(node => node.type === 'studio-row' && node.props.id === 'published:p1').props.onMenu();
   page.nodes.find(node => node.type === 'sheet').props.actions.find(action => action.id === 'copy-link').onAction();
   await new Promise(resolve => setImmediate(resolve));
@@ -188,6 +188,6 @@ test('row copying and batch sharing emit official public links from a preview ho
   page.nodes.filter(node => node.type === 'studio-row' && node.props.id !== 'activity:n1').forEach(node => node.props.onSelect());
   const toolbar = page.nodes.find(node => node.props['aria-label'] === 'Selected item actions');
   nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Share (')).props.onClick();
-  assert.equal(page.calls.find(call => call[0] === 'share')[1].url, 'https://portalinknetworks.com/share/me/c/c1/p1\nhttps://portalinknetworks.com/share/me/c/c1/p1');
+  assert.equal(page.calls.find(call => call[0] === 'share')[1].url, 'https://portalinknetworks.com/share/me/c/c1/p1\nhttps://portalinknetworks.com/share/me/c/c1/p2');
  }
 });

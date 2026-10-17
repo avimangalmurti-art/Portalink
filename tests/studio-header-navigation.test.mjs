@@ -37,10 +37,11 @@ test('mobile Drafts restores Back while WEB retains its existing navigation', ()
 
 test('mobile Studio starts on Insights, and selecting Drafts switches the content with consistent header controls', () => {
  let params=new URLSearchParams(), mobile=true, registered;
+ const effects=[],paramWrites=[];
  let workbench={data:{profile:{projects:[{id:'real-work-fixture'}]},drafts:[]},retry(){}};
- const react={...React,useEffect(){},useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
+ const react={...React,useEffect:effect=>effects.push(effect),useMemo:fn=>fn(),useState:initial=>[typeof initial==='function'?initial():initial,()=>{}]};
  const imports={
-  react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>()=>{},useSearchParams:()=>[params,next=>{params=new URLSearchParams(next);}]},
+  react,'react-router-dom':{useLocation:()=>({state:{}}),useNavigate:()=>()=>{},useSearchParams:()=>[params,(next,options)=>{params=new URLSearchParams(next);paramWrites.push({params,options});}]},
   'lucide-react':{},
   '../../presentation/usePresentation':{usePresentation:()=>mobile?'mobile':'web'},
   '../library/PersonalPages':{InsightsPage:'insights'},
@@ -69,6 +70,7 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
  const pills=tree.filter(n=>n.props['data-studio-pill']);
  assert.equal(pills[0].props.children,'Insights');
  assert.equal(pills.some(n=>n.props['data-studio-pill']==='published'),false);
+ assert.equal(pills.some(n=>n.props['data-studio-pill']==='all'),false);
  assert.equal(pills[0].props['aria-pressed'],true);
  assert.ok(tree.some(n=>n.type==='insights'));
  assert.equal(tree.some(n=>n.type==='overview'),false);
@@ -87,8 +89,10 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
  tree=nodes(StudioPage(props));
  assert.equal(tree.filter(n=>n.props['data-studio-pill'])[0].props.children,'Drafts');
  assert.equal(tree.some(n=>n.props['data-studio-pill']==='overview'),false);
+ assert.equal(tree.some(n=>n.props['data-studio-pill']==='all'),false);
+ assert.ok(tree.some(n=>n.type==='overview'),'WEB retains its workbench overview');
  mobile=true;
- for(const collection of ['overview','drafts','published','bookmarks','references','cited','activity','all']) {
+ for(const collection of ['overview','drafts','published','bookmarks','references','cited','activity']) {
   params=new URLSearchParams({collection});
   workbench={data:{profile:{projects:[]},drafts:[],material:[]},retry(){}};
   const emptyTree=nodes(StudioPage(props));
@@ -97,6 +101,18 @@ test('mobile Studio starts on Insights, and selecting Drafts switches the conten
   assert.equal(emptyTree.filter(n=>n.type==='header'&&n.props.showBookmarks===false).length,fallback,`${collection}: fallback contains screen actions header`);
   assert.equal(registered, null,`${collection}: screen or list child provides its actions`);
  }
+ effects.length=0;
+ for(const isMobile of [true,false])for(const key of ['collection','category']) {
+  mobile=isMobile;params=new URLSearchParams({[key]:'all',tab:'pages',from:'legacy'});
+  const legacyTree=nodes(StudioPage(props));
+  assert.ok(legacyTree.some(n=>n.type===(mobile?'insights':'overview')));
+  assert.equal(legacyTree.some(n=>n.type==='collection'),false);
+  assert.equal(legacyTree.some(n=>n.props['data-studio-pill']==='all'),false);
+  effects.splice(0).forEach(effect=>effect());
+  assert.equal(params.has('collection'),false);assert.equal(params.has('category'),false);
+  assert.equal(params.get('from'),'legacy');assert.equal(paramWrites.at(-1).options.replace,true);
+ }
+ mobile=true;
  for(const state of [{loading:true},{error:'Unavailable'},{data:{draftsUnavailable:true}}]) {
   params=new URLSearchParams({collection:'drafts'});workbench={...state,retry(){}};
   const unavailableTree=nodes(StudioPage(props));
