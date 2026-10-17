@@ -1,3 +1,4 @@
+import { OPTIONAL_COLLECTION_ENABLED } from '../launch/adultLaunch';
 import { useEffect, useRef, type RefObject } from 'react';
 import type { ProjectAttachment } from '../../types/domain';
 import { projectPageMap } from './readSignal';
@@ -7,7 +8,7 @@ export function useProjectReach(root: RefObject<HTMLElement>, projectId: string,
     const latest = useRef(attachments);
     latest.current = attachments;
     useEffect(() => {
-        if (!enabled || !/^[a-f0-9-]{36}$/i.test(projectId))
+        if (!OPTIONAL_COLLECTION_ENABLED || !enabled || !/^[a-f0-9-]{36}$/i.test(projectId))
             return;
         let frame: number | undefined, stopped = false, collector: ReturnType<typeof createReachCollector> | undefined;
         const resolved: Record<string, number> = {};

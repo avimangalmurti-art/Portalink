@@ -6,6 +6,7 @@
 .entry-agreements-scroll { min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 20px 20px; display:flex; flex-direction:column; gap:16px; }
 .entry-agreements-card { border-radius:24px; background:var(--surface-sunken); padding:20px; font-size:15px; line-height:1.6; }
 .entry-agreements-card p { margin-top:12px; }
+.entry-agreements-card code { overflow-wrap:anywhere; }
 .entry-agreements-card nav { margin-top:18px; }
 .entry-agreements-card nav button { min-height:56px; width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--hairline-strong); padding:14px 0; text-align:left; color:var(--accent-text); font-weight:600; }
 .entry-agreements-sheet footer { flex-shrink:0; display:grid; gap:10px; padding:12px 20px max(20px, env(safe-area-inset-bottom, 0px)); background:var(--agreement-bg); }

@@ -20,6 +20,7 @@ type Config = {
     publishableKey: string;
     authenticate: (request: Request, required: boolean) => Promise<User | null>;
     fetcher?: typeof fetch;
+    assertDeletionWrite?: (accounts: string[], projects: string[]) => Promise<void>;
 };
 type ProjectRow = {
     id: string;
@@ -203,6 +204,7 @@ export async function ingestReach(request: Request, db: ReachDatabase | undefine
         if (!pages.length || pages.length !== payload.page_count)
             return reachJson({ error: 'Page count is unavailable or has changed.' }, 409);
         const now = (options.now ?? Date.now)(), at = new Date(now).toISOString(), hash = await sessionHash(payload.session_token, project.id, at.slice(0, 10));
+        await config.assertDeletionWrite?.([], [project.id]);
         await db.prepare(`INSERT INTO project_reach_events(id,at,project_id,session_hash,furthest_page,page_count,ref_class,vw_bucket) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(project_id,session_hash) DO UPDATE SET furthest_page=max(furthest_page,excluded.furthest_page)
       WHERE excluded.furthest_page>furthest_page AND excluded.page_count=page_count`).bind(crypto.randomUUID(), at, project.id, hash, payload.furthest_page, payload.page_count, payload.ref_class, payload.vw_bucket).run();
@@ -377,6 +379,7 @@ export async function handleReachRead(request: Request, db: ReachDatabase | unde
             return reachJson(notes.map(note => ({ ...note, isUnread: groups.has(note.id) ? (groups.get(note.id)??[]).some(action=>acknowledgements.get(`d1:action:${action.id}`)!==action.at) : acknowledgements.get(note.id)!==note.timestamp })).sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 100));
         }
         if (url.pathname === '/api/reach/read' && request.method === 'POST') {
+            await config.assertDeletionWrite?.([user.id], projects.map(project => project.id));
             const body = await boundedReachBody(request) as {
                 id?: unknown;
                 revision?: unknown;
@@ -402,6 +405,7 @@ export async function handleReachRead(request: Request, db: ReachDatabase | unde
             return reachJson({ read: true });
         }
         if (url.pathname === '/api/reach/weekly' && request.method === 'POST') {
+            await config.assertDeletionWrite?.([user.id], projects.map(project => project.id));
             const body = await boundedReachBody(request) as {
                 week?: unknown;
             };
@@ -447,6 +451,7 @@ export async function preparePageAction(request: Request, db: ReachDatabase, con
     const project = verifiedProject ?? (await projectRows(config, target.projectId, request.headers.get('authorization')))[0];
     if (!project || project.profile.account_id === user.id)
         return null;
+    await config.assertDeletionWrite?.([user.id, project.profile.account_id], [target.projectId]);
     const [actor] = await supabaseRows<{
         id: string;
         account_id: string;

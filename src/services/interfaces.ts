@@ -35,6 +35,9 @@ import type { SaveInsights } from '../types/creatorSaves';
  * or accepts a token: session handling belongs to the implementation.
  */
 export interface AuthService {
+  /** Existing confirmed accounts must obtain an account-bound launch receipt before profile setup. */
+  getLaunchCompletion?(accountId: string): Promise<'ready' | 'required' | 'reauthenticate' | 'unavailable'>;
+  completeLaunchEligibility?(accountId: string): Promise<void>;
   /** The session as it stands right now, or null when signed out. */
   getSession(): Promise<AuthSession | null>;
   /** Subscribe to session changes. Returns its own unsubscribe. */
@@ -77,8 +80,9 @@ export interface AuthService {
    * genuinely removed.
    */
   deleteAccount(input: DeleteAccountInput): Promise<DeleteAccountResult>;
-  getAccountDeletionStatus?(): Promise<DeleteAccountResult | null>;
-  cancelAccountDeletion?(): Promise<DeleteAccountResult>;
+  getAccountDeletionStatus?(accountId: Id): Promise<DeleteAccountResult | null>;
+  /** Local receipt lookup only; never exposes another active account's progress. */
+  getAccountDeletionRecovery?(): Promise<{ accountId: Id } | null>;
   /**
    * What this implementation can actually do to an authenticated account's
    * credentials. Read before any security control is offered, so the product never

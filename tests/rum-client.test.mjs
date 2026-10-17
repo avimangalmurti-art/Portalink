@@ -109,7 +109,7 @@ function browserHarness(fetcher = async () => new Response('{}')) {
   const document = { visibilityState: 'visible', addEventListener: (name, callback) => documentEvents.set(name, callback) };
   const module = load('src/features/performance/rum.ts', { window, document, performance: { now: () => now, mark() {} }, Blob,
     navigator: { connection: { effectiveType: '4g' }, sendBeacon: (url, body) => { sent.push({ url, body }); return true; } },
-    fetch: fetcher, require: name => { assert.equal(name, './rumCore'); return core; } });
+    fetch: fetcher, require: name => { if(name.endsWith('/launch/adultLaunch')) return {OPTIONAL_COLLECTION_ENABLED:true}; assert.equal(name, './rumCore'); return core; } });
   return { module, window, sent, time: value => { now = value; }, hide: () => { document.visibilityState = 'hidden'; documentEvents.get('visibilitychange')?.(); },
     pagehide: () => windowEvents.get('pagehide')?.() };
 }

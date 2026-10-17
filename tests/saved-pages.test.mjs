@@ -15,6 +15,8 @@ function load(path, imports = {}, globals = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+      if (id === './server/googleHandoff') return { handleGoogleHandoff: () => assert.fail('Unexpected Google route in saved-pages fixture') };
+      if (id === './features/launch/adultLaunch') return { OPTIONAL_COLLECTION_ENABLED: false };
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };

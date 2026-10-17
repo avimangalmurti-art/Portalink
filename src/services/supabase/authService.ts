@@ -1,3 +1,6 @@
+import {startGoogleHandoff} from './googleHandoff';
+import {getLaunchCompletion,completeLaunchEligibility} from './legacyLaunchCompletion';
+import { admittedLaunch } from './adultLaunch';
 import type { Session, User } from '@supabase/supabase-js';
 import type { AuthService } from '../interfaces';
 import { AuthServiceError, isFutureIssuedJwtError, SESSION_NOT_READY_MESSAGE, toAuthError } from '../../types/auth';
@@ -5,10 +8,11 @@ import type {
   AccountSecurityState,
   AuthSession,
   AuthUser,
+  DeleteAccountResult,
 } from '../../types/auth';
 import { accountDeletionEnabled, createPasswordRecoveryClient, passwordRecovery, recoveryCallbackFailed, requireSupabase, readSocialProviders } from './client';
 import { clearPasswordRecoveryReturn, passwordRecoveryRedirect } from '../../utils/passwordRecoveryReturn';
-import { readRegistrationDraft, readRegistrationProfile, readSharedReturnPath } from '../../features/auth/registration';
+import { readRegistrationDraft, readRegistrationProfile } from '../../features/auth/registration';
 import { socialRegistration } from '../../features/auth/socialRegistration';
 
 function textMetadata(user: User, key: string): string {
@@ -193,6 +197,64 @@ async function currentProviderUser(): Promise<User> {
   return data.user;
 }
 
+/** Only confirmed permanent completion makes the account's email reusable. */
+function accountDeletionResult(data: unknown): DeleteAccountResult {
+  const result = data as { isDeleted?: boolean; status?: string; message?: string } | null;
+  if (result?.status === 'completed' && result.isDeleted === true) {
+    return { isDeleted: true, status: 'completed', message: result.message ?? 'Your account has been deleted. You can register again with the same email address.' };
+  }
+  if (result?.status === 'processing' && result.isDeleted !== true) {
+    return { isDeleted: false, status: 'processing', message: 'Deletion in progress. This cannot be undone. Your email becomes available after deletion is complete.' };
+  }
+  throw new AuthServiceError('network', 'Check your deletion status before trying again.');
+}
+
+const deletionReceiptPattern = /^[0-9a-f]{64}$/;
+const deletionReceiptKey = (accountId: string) => `portalink.deletion-receipt.v1:${accountId}`;
+const deletionRecoveryKey = 'portalink.deletion-recovery.v1';
+function deletionReceiptStorage(): Storage {
+  if (typeof localStorage === 'undefined') throw new AuthServiceError('network', 'Deletion status cannot be saved on this device. No deletion was started.');
+  return localStorage;
+}
+function readDeletionReceipt(accountId: string): string | null {
+  try {
+    const saved = deletionReceiptStorage().getItem(deletionReceiptKey(accountId));
+    if (!saved) return null;
+    const record = JSON.parse(saved) as { accountId?: string; receipt?: string };
+    return record.accountId === accountId && typeof record.receipt === 'string' && deletionReceiptPattern.test(record.receipt) ? record.receipt : null;
+  } catch { throw new AuthServiceError('network', 'Deletion status could not be read on this device.'); }
+}
+function saveDeletionReceipt(accountId: string, receipt: string): void {
+  try {
+    const storage = deletionReceiptStorage();
+    const value = JSON.stringify({ accountId, receipt });
+    storage.setItem(deletionReceiptKey(accountId), value);
+    storage.setItem(deletionRecoveryKey, accountId);
+    if (storage.getItem(deletionReceiptKey(accountId)) !== value || storage.getItem(deletionRecoveryKey) !== accountId) throw new Error('Receipt was not saved');
+  } catch { throw new AuthServiceError('network', 'Deletion status could not be saved on this device. No deletion was started.'); }
+}
+function clearDeletionReceipt(accountId: string): void {
+  try {
+    const storage = deletionReceiptStorage();
+    storage.removeItem(deletionReceiptKey(accountId));
+    if (storage.getItem(deletionRecoveryKey) === accountId) storage.removeItem(deletionRecoveryKey);
+  } catch { /* Confirmed server completion remains authoritative. */ }
+}
+async function deletionInvokeError(error: { context?: unknown }): Promise<never> {
+  const response = error.context instanceof Response ? error.context : null;
+  const details = response ? await response.clone().json().catch(() => null) as { message?: string } | null : null;
+  const code = response?.status === 400 ? 'confirmation_mismatch' : response?.status === 401 ? 'reauthentication_required' : 'network';
+  throw new AuthServiceError(code, details?.message ?? 'The deletion request could not be confirmed. Check its status before trying again.');
+}
+async function requireReceiptAccount(accountId: string, requireSession = false): Promise<void> {
+  const { data } = await requireSupabase().auth.getSession();
+  // A removed provider account can leave an Auth error with no session. The
+  // receipt still authorizes its minimal status; another active account cannot.
+  if (requireSession && !data.session || data.session && data.session.user.id !== accountId) {
+    throw new AuthServiceError('reauthentication_required', 'Your account changed. Reopen deletion for the intended account.');
+  }
+}
+
 async function verifiedRecoverySession() {
   if (recoveryCallbackFailed) return null;
   const client = requireSupabase();
@@ -211,6 +273,8 @@ async function verifiedRecoverySession() {
 }
 
 export const supabaseAuthService: AuthService = {
+  getLaunchCompletion,
+  completeLaunchEligibility,
   async getSession() {
     const client = requireSupabase();
     const { data, error } = await client.auth.getSession();
@@ -277,17 +341,13 @@ export const supabaseAuthService: AuthService = {
   },
 
   async signInWithOAuth(provider, returnPath) {
-    const redirect = new URL('/', window.location.origin);
-    redirect.searchParams.set('entry', 'oauth');
-    const safePath = readSharedReturnPath(returnPath);
-    if (safePath) redirect.searchParams.set('onboarding_return', safePath);
-    const { error } = await requireSupabase().auth.signInWithOAuth({
-      provider, options: { redirectTo: redirect.href },
-    });
-    if (error) throw authFailure(error, 'Sign in could not be started.');
+    if(provider!=='google')throw new Error('This sign-in provider is unavailable.');
+    await admittedLaunch();
+    await startGoogleHandoff(returnPath);
   },
 
   async signUp(input) {
+    const launch = await admittedLaunch();
     const client = requireSupabase();
     const email = input.email.trim().toLowerCase();
     const registration = readRegistrationProfile(input.registration);
@@ -298,7 +358,7 @@ export const supabaseAuthService: AuthService = {
       email,
       password: input.password,
       options: { emailRedirectTo: window.location.origin,
-        data: registration ? { portalink_registration: registration } : undefined },
+        data: { ...(registration ? { portalink_registration: registration } : {}), portalink_launch: launch } },
     });
     if (error) {
       throw authFailure(error, 'Account creation failed.');
@@ -391,38 +451,63 @@ export const supabaseAuthService: AuthService = {
     if (!accountDeletionEnabled) {
       throw new AuthServiceError('deletion_unavailable', 'Account deletion is not enabled for this deployment.');
     }
-    const user = await currentProviderUser();
+    const client = requireSupabase();
+    const { data: credential, error: credentialError } = await client.auth.getSession();
+    const captured = credential.session;
+    if (credentialError || !captured?.access_token || captured.user.id !== input.accountId) {
+      throw new AuthServiceError('reauthentication_required', 'Sign in again before confirming deletion.');
+    }
+    const verified = await client.auth.getUser(captured.access_token);
+    if (verified.error || !verified.data.user) throw new AuthServiceError('reauthentication_required', 'Sign in again before confirming deletion.');
+    const user = verified.data.user;
+    const capturedHeaders = { Authorization: `Bearer ${captured.access_token}` };
     if (!user.email?.trim() || user.id !== input.accountId || user.email.toLowerCase() !== input.confirmation.trim().toLowerCase()) {
       throw new AuthServiceError('confirmation_mismatch', 'That does not match the email address on this account.');
     }
-    const { data, error } = await requireSupabase().functions.invoke('delete-account', {
-      body: { action: 'request', confirmation: input.confirmation },
-    });
-    if (error) {
-      const response = error.context instanceof Response ? error.context : null;
-      const details = response ? await response.clone().json().catch(() => null) as { message?: string } | null : null;
-      const code = response?.status === 400 ? 'confirmation_mismatch' : response?.status === 401 ? 'reauthentication_required' : 'network';
-      throw new AuthServiceError(code, details?.message ?? 'The deletion request could not be confirmed. Check its status before trying again.');
+    let receipt = readDeletionReceipt(input.accountId);
+    if (!receipt) {
+      const prepared = await client.functions.invoke('delete-account', { headers: capturedHeaders, body: { action: 'prepare', expectedAccountId: input.accountId } });
+      if (prepared.error) return deletionInvokeError(prepared.error);
+      const preparedReceipt: unknown = prepared.data?.receipt;
+      if (prepared.data?.status !== 'prepared' || typeof preparedReceipt !== 'string' || !deletionReceiptPattern.test(preparedReceipt)) {
+        throw new AuthServiceError('network', 'Deletion status could not be prepared. No deletion was started.');
+      }
+      await requireReceiptAccount(input.accountId, true);
+      receipt = preparedReceipt;
+      saveDeletionReceipt(input.accountId, preparedReceipt);
     }
-    const result = data as { isDeleted?: boolean; status?: string; deleteAfter?: string; message?: string } | null;
-    if (result?.status === 'completed' && result.isDeleted === true) return { isDeleted: true, status: 'completed', message: result.message ?? 'Your account has been deleted. You can register again with the same email address.' };
-    if (result?.status === 'processing') return { isDeleted: false, status: 'processing', message: result.message ?? 'Deletion is processing. Your email becomes available after completion.' };
-    if (result?.status !== 'pending' || !result.deleteAfter) throw new AuthServiceError('network', 'Check your deletion status before trying again.');
-    return { isDeleted: false, status: 'pending', deleteAfter: result.deleteAfter, message: result.message ?? 'Deletion scheduled. You can cancel before permanent deletion starts.' };
+    await requireReceiptAccount(input.accountId, true);
+    const { data, error } = await client.functions.invoke('delete-account', {
+      headers: capturedHeaders,
+      body: { action: 'request', confirmation: input.confirmation, receipt },
+    });
+    if (error) return deletionInvokeError(error);
+    await requireReceiptAccount(input.accountId);
+    const outcome = accountDeletionResult(data);
+    if (outcome.isDeleted) clearDeletionReceipt(input.accountId);
+    return outcome;
   },
 
-  async getAccountDeletionStatus() {
-    const { data, error } = await requireSupabase().functions.invoke('delete-account', { body: { action: 'status' } });
+  async getAccountDeletionStatus(accountId) {
+    if (!accountId) throw new AuthServiceError('reauthentication_required', 'Choose the account whose deletion is being checked.');
+    await requireReceiptAccount(accountId);
+    const receipt = readDeletionReceipt(accountId);
+    const { data, error } = await requireSupabase().functions.invoke('delete-account', { body: { action: 'status', ...(receipt ? { receipt } : {}) } });
     if (error) throw new AuthServiceError('deletion_unavailable', 'Deletion status is currently unavailable.');
-    if (!data?.status) return null;
-    if (!['pending', 'processing', 'completed'].includes(data.status)) return null;
-    return { isDeleted: false, status: data.status, deleteAfter: data.deleteAfter, message: data.status === 'pending' ? 'Deletion is scheduled. You can cancel before permanent deletion starts.' : 'Permanent deletion has started.' };
+    await requireReceiptAccount(accountId);
+    if (!data || data.status === 'none') return null;
+    const outcome = accountDeletionResult(data);
+    if (outcome.isDeleted) clearDeletionReceipt(accountId);
+    return outcome;
   },
 
-  async cancelAccountDeletion() {
-    const { data, error } = await requireSupabase().functions.invoke('delete-account', { body: { action: 'cancel' } });
-    if (error || data?.status !== 'cancelled') throw new AuthServiceError('network', 'Cancellation could not be confirmed. Check your deletion status.');
-    return { isDeleted: false, status: 'cancelled', message: 'Deletion cancelled. Your account and content are restored.' };
+  async getAccountDeletionRecovery() {
+    if (!accountDeletionEnabled) return null;
+    const { data } = await requireSupabase().auth.getSession();
+    const currentAccountId = data.session?.user.id;
+    const accountId = currentAccountId ?? deletionReceiptStorage().getItem(deletionRecoveryKey);
+    if (!accountId || accountId.length > 160 || !readDeletionReceipt(accountId)) return null;
+    return { accountId };
   },
 
   async getAccountSecurityCapability() {

@@ -27,7 +27,7 @@ export type PublishStep = 'metadata' | 'preview' | 'done';
  * public detail; a creator can add context when it genuinely helps the work.
  */
 const EMPTY_METADATA: DraftMetadata = {
-  accessLevel: 'public',
+  accessLevel: 'private',
   title: '',
   summary: ''
 };

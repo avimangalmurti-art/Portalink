@@ -1,0 +1,36 @@
+{
+  "status": "PROPOSED ONLY; execution/scheduling held",
+  "proposed_origin": "https://google-test.portalinknetworks.com",
+  "proposed_callback": "https://google-test.portalinknetworks.com/api/auth/google/callback",
+  "address_reserved_or_created": false,
+  "runtime_created": false,
+  "existing_sites_project_retained": "appgprj_6a9273ef43f8819198e0878a0020ad91",
+  "read_only_sites_findings": {
+    "audience": "public",
+    "current_user_role": "owner",
+    "current_preview_url": null,
+    "attached_custom_domains": []
+  },
+  "proposed_outer_access": "separate owner-private Sites runtime; all routes and aliases including callback",
+  "existing_supabase_retained": true,
+  "runtime_secrets_queried": false,
+  "proposal_sha256": "fd51af90cc1a36ffea1301af690655eae699f375749bc4dc6011915401818ee9",
+  "remaining_gates": [
+    "hostname occupancy/private custom-domain support/TLS",
+    "separate runtime creation/deployment authorization",
+    "Sites cookie and callback forwarding",
+    "exact Google client and production service-key privilege acceptance",
+    "platform log exclusions and accepted retention",
+    "direct alias/worker bypass checks"
+  ],
+  "validation": "Read-only native metadata, provider documents and source inspection; local proposal hash/JSON/whitespace verified. No deployed access, callback, logging or OAuth acceptance claimed.",
+  "read_only_check_date": "2026-10-15",
+  "read_only_blocker_check": {
+    "custom_domain_support": "Documented for workspace Sites generally; exact owner/admin restriction, aliases and callback behavior unverified",
+    "narrowest_documented_audience": "Owner and workspace admins; not verified sole-person access",
+    "logging": "No policy/config inspection control exposed in available Sites tools; no production logs fetched",
+    "cloudflare_retention_evidence": "Workers Logs documents 3-day Free / 7-day Paid retention; not a Sites end-to-end retention guarantee",
+    "decision": "Hold real OAuth/DOB traffic pending platform evidence and separately authorized synthetic verification",
+    "remote_mutations": false
+  }
+}

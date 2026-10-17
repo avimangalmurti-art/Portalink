@@ -209,7 +209,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
   const handle = requestedHandle ?? createProfileHandle(name);
 
   const [location, setLocation] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(true);
   const [email, setEmail] = useState(auth.rememberedEmail);
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -236,7 +236,7 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
       setName(saved.registration.name);
       setRequestedHandle(saved.registration.handle ?? null);
       setLocation(saved.registration.location);
-      setIsPrivate(saved.registration.isPrivate === true);
+      setIsPrivate(true);
       setEmail(saved.email);
       setRegistrationReturnPath(path => path ?? saved.registration.returnPath);
       if (saved.registration.hasAvatar && !saved.avatar && !saved.requiresEmailVerification) {
@@ -322,9 +322,9 @@ function SignUpForm(props: FormProps & AccountAppearanceProps & { step: MobileSi
     if (!await confirmHandle() || submittingRef.current) return;
     submittingRef.current = true;
     try {
-      if (props.compactEntry && !await agreements.request()) return;
+      if (!await agreements.request()) return;
       await signUp.submit(email, password, { version: 1, id: registrationId.current,
-        name: name.trim(), handle: preparedHandle ?? handle, location: location.trim(), isPrivate, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
+        name: name.trim(), handle: preparedHandle ?? handle, location: location.trim(), isPrivate: true, accentColor: props.accentColor, systemGray: props.systemGray, hasAvatar: Boolean(avatar.avatar),
         ...(registrationReturnPath ? { returnPath: registrationReturnPath } : {}) }, avatar.avatar);
     } finally { submittingRef.current = false; }
   }

@@ -13,8 +13,9 @@ function execute(code, imports = {}, globals = {}) {
     { exports, crypto, File, Blob, URL, ...globals, require(name) {
     if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
     if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
-    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/EntryAgreements')) return imports[name] ?? {useEntryAgreements: () => ({request: async () => true})};
     if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+    if (name.endsWith('/LegacyLaunchCompletion')) return {LegacyLaunchCompletion: 'LegacyLaunchCompletion'};
 
       if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
       if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
@@ -75,10 +76,10 @@ test('registration metadata is normalized and never becomes an ownership or veri
   assert.equal(value.accountId, undefined);
   assert.equal(value.profileId, undefined);
   assert.equal(value.isEmailVerified, undefined);
-  assert.equal(value.isPrivate, false, 'Older registration drafts retain their Public default.');
+  assert.equal(value.isPrivate, true, 'Older registration drafts start private.');
   for (const isPrivate of [false, true]) {
     const saved = registration.readRegistrationProfile(JSON.parse(JSON.stringify({ ...draft, isPrivate })));
-    assert.equal(saved.isPrivate, isPrivate);
+    assert.equal(saved.isPrivate, true, 'Restored Public and Private drafts both start private.');
   }
   for (const change of [{version: 2}, {id: 'bad'}, {name: ''}, {location: 8}, {accentColor: 'url(unsafe)'}, {hasAvatar: 'yes'}, {isPrivate: 'false'}, {isPrivate: null}]) {
     assert.equal(registration.readRegistrationProfile({ ...draft, ...change }), undefined);
@@ -160,14 +161,14 @@ function hookRuntime() {
 const formNodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(formNodes)];
 const signupField = (tree, key) => formNodes(tree).find(node => node.props?.id === `auth-signup-${key}`);
 
-function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount, pendingIntent = null, registrationReturnPath, compactEntry = false } = {}) {
+function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount, pendingIntent = null, registrationReturnPath, compactEntry = false, requestAgreement = async () => true } = {}) {
   const hooks = hookRuntime(), reads = [], selectedAvatars = [], appearanceChanges = [];
   let step = 'appearance';
   const avatar = { avatar: null, error: null,
     select(file, details = {}) { avatar.avatar = { file, ...details }; selectedAvatars.push(avatar.avatar); },
     clear() { avatar.avatar = null; },
   };
-  const authContext = { rememberedEmail, rememberEmail(value) { authContext.rememberedEmail = value; },
+  const authContext = { pendingView: 'signUp', rememberedEmail, rememberEmail(value) { authContext.rememberedEmail = value; },
     peekPendingIntent: () => pendingIntent, refreshSession: async () => true };
   const draftApi = { ...registration,
     async readRegistrationDraft(email) {
@@ -193,9 +194,10 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
       return { email: input.email, requiresEmailVerification: true, session: null };
     } } }) },
   });
-  const { SignUpForm } = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
+  const { AuthDialog, SignUpForm } = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
     '../../contexts/AuthContext': { useAuth: () => authContext },
+    '../../components/auth/EntryAgreements': {useEntryAgreements: () => ({request: requestAgreement})},
     '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': {PortalinkSplashLoader:'welcome'},
     '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' }, '../../components/profile/ProfileField': { ProfileField: 'ProfileField' },
     '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
@@ -212,6 +214,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
   };
   return { props, avatar, reads, selectedAvatars, appearanceChanges, get step() { return step; },
     render() { return hooks.render(() => SignUpForm({ ...props, step })); },
+    renderDialog() { return hooks.render(() => AuthDialog(props)); },
     showStep(next) { step = next; }, unmount: hooks.unmount,
   };
 }
@@ -603,7 +606,7 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(submitted[0][2].name, 'Creator');
   assert.equal(submitted[0][2].location, 'City');
   assert.equal(submitted[0][2].accentColor, '#0A84FF');
-  assert.equal(submitted[0][2].isPrivate, presentation === 'mobile');
+  assert.equal(submitted[0][2].isPrivate, true, 'Both presentations submit private profiles.');
   assert.equal(submitted[0][2].returnPath, '/share/original/c/portal?page=2', 'The captured shared entry wins over a category auto-select or later URL change on both platforms.');
   mock.result = {requiresEmailVerification:true, email:'example@example.test'};
   render(); tree = render();
@@ -614,8 +617,76 @@ test('one registration form validates account and profile fields before the sing
   }
 });
 
+test('actual signup entry selects the gated compact account form on both presentations', () => {
+  for (const presentation of ['web', 'mobile']) {
+    const h = signupRestoreHarness({store: {saved: null}, submitted: [], presentation});
+    const tree = h.renderDialog();
+    const welcome = formNodes(tree).find(node => node.type === 'welcome');
+    assert.ok(welcome, 'Signup enters the shared welcome surface.');
+    const entry = welcome.props.landing.content;
+    assert.equal(entry.type, 'EntryChoices', 'The account form stays inside the eligibility/agreement entry.');
+    const form = formNodes(entry).find(node => node.type?.name === 'SignUpForm');
+    assert.ok(form);
+    assert.equal(form.props.compactEntry, true);
+    assert.equal(form.props.step, 'account');
+    assert.equal(entry.props.onEmail, undefined, 'Email fields are already open on initial entry.');
+    entry.props.onDisagree();
+    const declinedEntry = formNodes(h.renderDialog()).find(node => node.type === 'welcome').props.landing.content;
+    assert.equal(formNodes(declinedEntry).some(node => node.type?.name === 'SignUpForm'), false);
+    assert.equal(typeof declinedEntry.props.onEmail, 'function');
+    declinedEntry.props.onEmail();
+    assert.ok(formNodes(formNodes(h.renderDialog()).find(node => node.type === 'welcome').props.landing.content)
+      .some(node => node.type?.name === 'SignUpForm'), 'Email entry can be reopened after declining.');
+    h.unmount();
+  }
+});
+
+test('compact signup restores Public drafts privately and waits for agreement before one account request', async () => {
+  for (const presentation of ['web', 'mobile']) {
+    const submitted = [], store = {saved: {registration: {...draft, name: 'Restored Creator', isPrivate: false},
+      email: 'saved@example.test', avatar: null, requiresEmailVerification: false}};
+    let decide, agreementRequests = 0;
+    const h = signupRestoreHarness({store, submitted, presentation, compactEntry: true,
+      requestAgreement: () => {agreementRequests++; return new Promise(resolve => {decide = resolve;});}});
+    h.render(); await tick(); let tree = h.render();
+    assert.equal(signupField(tree, 'name').props.value, 'Restored Creator');
+    assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
+    assert.equal(signupField(tree, 'password').props.value, '');
+    assert.equal(signupField(tree, 'confirmation'), undefined, 'Compact entry does not require an invisible confirmation field.');
+    assert.equal(formNodes(tree).some(node => node.type === 'ProfileVisibilityField' || node.type === 'Appearance'), false);
+    await tree.props.onSubmit({preventDefault() {}});
+    assert.equal(agreementRequests, 0, 'Invalid credentials cannot open acceptance or submit.');
+    signupField(h.render(), 'password').props.onChange('synthetic-password');
+    // A restored handle can need a first explicit availability confirmation.
+    let pending;
+    for (let attempt = 0; attempt < 3 && !decide; attempt++) {
+      pending = h.render().props.onSubmit({preventDefault() {}});
+      await tick();
+      if (!decide) await pending;
+    }
+    assert.equal(typeof decide, 'function');
+    assert.equal(submitted.length, 0);
+    assert.equal(store.saved.requiresEmailVerification, false);
+    await h.render().props.onSubmit({preventDefault() {}});
+    assert.equal(agreementRequests, 1, 'Repeated activation cannot create overlapping agreement requests.');
+    decide(false); await pending;
+    assert.equal(submitted.length, 0, 'Declining never reaches the account service.');
+    pending = h.render().props.onSubmit({preventDefault() {}}); await tick();
+    assert.equal(agreementRequests, 2, 'Retry needs a new affirmative agreement decision.');
+    assert.equal(submitted.length, 0);
+    decide(true); await pending;
+    assert.equal(submitted.length, 1);
+    assert.equal(submitted[0].registration.isPrivate, true);
+    assert.equal(store.saved.registration.isPrivate, true);
+    assert.equal(store.saved.requiresEmailVerification, true);
+    assert.doesNotMatch(JSON.stringify(store.saved), /synthetic-password/);
+    assert.ok(formNodes(h.render()).some(node => node.props?.title === 'Check your email'));
+    h.unmount();
+  }
+});
+
 test('email confirmation completes the saved profile once; a missing image asks for selection instead', async () => {
-  for (const mode of ['image', 'missing', 'no-image', 'mobile-welcome']) {
+  for (const mode of ['image', 'missing', 'no-image', 'mobile-welcome', 'legacy-web', 'legacy-mobile']) {
     const hooks = hookRuntime(), submissions = [], completed = [], cleaned = [];
     const image = new File(['synthetic-image'], 'photo.webp', {type: 'image/webp'});
     const avatar = { avatar: null, error: null, select(file, details) { avatar.avatar = { file, ...details }; }, clear() { avatar.avatar = null; } };
@@ -629,12 +700,22 @@ test('email confirmation completes the saved profile once; a missing image asks 
       '../../components/profile/ProfileField': {ProfileField: 'ProfileField'}, '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/ui/Button': {Button: 'Button'},
       '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
       '../../components/profile/ProfileLocationPicker': {ProfileLocationPicker: 'ProfileLocationPicker'},
-      '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' || mode === 'mobile-welcome' ? 'mobile' : 'web'},
+      '../../contexts/ServicesContext': {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'},...(mode.startsWith('legacy-')?{auth:{getLaunchCompletion:async()=> 'required'}}:{})})},
+      '../../presentation/usePresentation': {usePresentation: () => mode === 'missing' || mode === 'mobile-welcome' || mode === 'legacy-mobile' ? 'mobile' : 'web'},
       './useProfileOnboarding': {useAvatarSelection: () => avatar, useCreateProfile: () => create}, './validation': validation,
     });
     const props = {isOpen: true, accentColor: '#0A84FF', onAccentColorChange() {}, onDismiss() {}, onComplete: id => completed.push(id)};
     const render = () => hooks.render(() => ProfileOnboardingDialog(props));
-    render(); await tick(); render(); await tick(); render();
+    let initial=render();
+    if(mode.startsWith('legacy-')){
+      await tick();initial=render();
+      assert.equal(submissions.length,0,'Saved metadata must not auto-create a profile before the receipt gate.');
+      const gate=formNodes(initial).find(node=>node.type==='LegacyLaunchCompletion');
+      assert.ok(gate);
+      gate.props.onReady('different-account');render();assert.equal(submissions.length,0);
+      gate.props.onReady('a');
+    }
+    await tick(); render(); await tick(); render();
     assert.equal(submissions.length, mode === 'missing' ? 0 : 1);
     if (mode !== 'missing') {
       assert.equal(submissions[0].name, draft.name);
@@ -644,7 +725,7 @@ test('email confirmation completes the saved profile once; a missing image asks 
       if (mode === 'image') { assert.equal(submissions[0].avatar.file, image); assert.equal(submissions[0].avatar.crop.zoom, 2); }
       create.status = 'success'; create.createdProfile = {id: 'created'};
       render(); await tick(); render();
-      if (mode === 'mobile-welcome') {
+      if (mode === 'mobile-welcome' || mode === 'legacy-mobile') {
         assert.deepEqual(completed, ['created'], 'Mobile completes immediately after saving.');
         const nodes = node => !node || typeof node !== 'object' ? [] : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
         const welcome = nodes(render()).find(node => node.type === 'Welcome');

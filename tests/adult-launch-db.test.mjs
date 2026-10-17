@@ -1,0 +1,57 @@
+import process from 'node:process';
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+const modulePath=process.env.PGLITE_MODULE_PATH;
+const PGlite=modulePath ? (await import(pathToFileURL(modulePath).href)).PGlite : null;
+const uid='00000000-0000-4000-8000-000000000001';
+test('pending guards fail closed, bind receipts to confirmed owner, enforce defaults, and revoke AI RPC access',{skip:!PGlite},async()=>{
+ const db=new PGlite();try{
+ await db.exec(`create role service_role;create role anon;create role authenticated;create role supabase_auth_admin;create schema auth;
+ create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.account',true),'')::uuid$$;
+ grant usage on schema auth,public to authenticated,anon;
+ create table auth.users(id uuid primary key,email_confirmed_at timestamptz,raw_user_meta_data jsonb);
+ create table profiles(id uuid primary key,account_id uuid,is_private boolean default false);
+ create table projects(id uuid primary key,is_hidden boolean default false,citation_permitted boolean default false);
+ create function is_project_citable(p_project_id uuid) returns boolean language sql as $$select true$$;
+ create function resolve_citation_item(p_item_id text,p_require_citable boolean default false) returns jsonb language sql as $$select '{"citable":true}'::jsonb$$;
+ grant insert,select on profiles,projects to authenticated;
+ `);
+ await db.exec(readFileSync('supabase/pending/adult_launch_review.sql','utf8'));
+ assert.equal((await db.query('select adult_launch_policy() p')).rows[0].p.ready,false);
+ const deny=(await db.query(`select adult_launch_before_user_created('{}') result`)).rows[0].result;assert.deepEqual(deny,{});
+ await db.exec(`insert into profiles values('${uid}','${uid}',false);insert into projects values('${uid}',false,true)`);
+ assert.equal((await db.query('select is_private from profiles')).rows[0].is_private,false);
+ assert.equal((await db.query('select is_hidden from projects')).rows[0].is_hidden,false);
+ assert.equal((await db.query(`select is_project_citable('${uid}') value`)).rows[0].value,true);
+ await db.exec(`delete from profiles;delete from projects;update adult_launch_configuration set stage='public'`);
+ await assert.rejects(db.exec(`insert into profiles values('${uid}','${uid}',false)`),/receipt required/);
+ await db.exec(`update adult_launch_configuration set approved=true,public_legal_verified=true,hook_verified=true,terms_version='review',privacy_version='review';
+ insert into auth.users values('${uid}',now(),'{"portalink_launch":{"country":"US","ageBand":"18+","termsVersion":"review","privacyVersion":"review"}}');
+ set role authenticated;select set_config('request.account','${uid}',false);`);
+ await assert.rejects(db.query(`select record_adult_launch('CA','18+','review','review')`),/invalid launch/);
+ await assert.rejects(db.query(`select record_adult_launch('US','18+','review','review')`),/signup hook receipt/);
+ await db.exec('reset role');
+ await db.query(`select adult_launch_before_user_created($1::jsonb)`,[JSON.stringify({user:{id:uid,user_metadata:{portalink_launch:{country:'US',ageBand:'18+',termsVersion:'review',privacyVersion:'review'}}}})]);
+ await db.exec('set role authenticated');
+
+ await db.query(`select record_adult_launch('US','18+','review','review')`);
+ await db.query(`select record_adult_launch('US','18+','review','review')`);
+ assert.equal((await db.query('select * from account_launch_receipts')).rows.length,1);
+ await assert.rejects(db.exec(`insert into account_launch_receipts(account_id,country,age_band,terms_version,privacy_version) values('${uid}','US','18+','fake','fake')`),/permission denied/);
+ await db.exec(`insert into profiles values('${uid}','${uid}',false);insert into projects values('${uid}',false,false)`);
+ assert.equal((await db.query('select is_private from profiles')).rows[0].is_private,true);
+ assert.equal((await db.query('select is_hidden from projects')).rows[0].is_hidden,true);
+ await assert.rejects(db.exec(`insert into projects values('00000000-0000-4000-8000-000000000002',false,true)`),/AI permissions unavailable/);
+ assert.equal((await db.query(`select resolve_citation_item('x',true) item`)).rows[0].item,null);
+ assert.equal((await db.query(`select resolve_citation_item('x',false) item`)).rows[0].item.citable,false);
+ await assert.rejects(db.query(`select resolve_citation_item_before_adult_launch('x',false)`),/permission denied/);
+ await db.exec(`select set_config('request.account','00000000-0000-4000-8000-000000000002',false)`);
+ assert.equal((await db.query('select * from account_launch_receipts')).rows.length,0);
+ await assert.rejects(db.query(`select record_adult_launch('US','18+','review','review')`),/confirmed signup/);
+ await db.exec('reset role;set role anon');
+ await assert.rejects(db.query('select * from account_launch_receipts'),/permission denied/);
+ await assert.rejects(db.query(`select adult_launch_before_user_created('{}')`),/permission denied/);
+ }finally{await db.close();}
+});

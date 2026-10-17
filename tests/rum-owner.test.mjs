@@ -55,6 +55,8 @@ function setup() {
   const owner = load('src/server/rumOwner.ts', {}, { fetch });
   const rum = load('src/server/rum.ts');
   const worker = load('src/sites-worker.ts', {
+    './server/googleHandoff': { handleGoogleHandoff: () => assert.fail('Unexpected Google route in RUM-owner fixture') },
+    './features/launch/adultLaunch': { OPTIONAL_COLLECTION_ENABLED: false },
     './features/sharing/shareModel': load('src/features/sharing/shareModel.ts'),
     './server/shareAddress': {}, './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach': {},
     './server/sharedPreview': {}, './server/publicMedia': { isPublicMediaRoute: () => false },

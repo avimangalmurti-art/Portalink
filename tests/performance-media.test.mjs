@@ -12,6 +12,8 @@ function load(path, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
     { exports, TextDecoder, URL, URLSearchParams, Response, Request, Headers, AbortSignal, TextEncoder, btoa, atob, crypto, setTimeout, clearTimeout, ...globals, require: (id) => {
+      if (id === './server/googleHandoff') return { handleGoogleHandoff: () => assert.fail('Unexpected Google route in media-performance fixture') };
+      if (id === './features/launch/adultLaunch') return { OPTIONAL_COLLECTION_ENABLED: false };
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};

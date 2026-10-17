@@ -1,0 +1,33 @@
+{
+  "status": "APPROVED IN PRINCIPLE ONLY by user; not effective or authorized for execution; source copy unchanged",
+  "version": "portalink-controlled-test-2026-10-15-v1",
+  "receipt_mapping": {
+    "terms_version": "portalink-controlled-test-2026-10-15-v1",
+    "privacy_version": "portalink-controlled-test-2026-10-15-v1",
+    "terms_sections": [
+      "A",
+      "C",
+      "D restrictions"
+    ],
+    "privacy_notice_section": "B",
+    "optional_consent_granted": false
+  },
+  "sha256": {
+    "docs/google-test-agreements-review.md": "85e0c81585a2f5782a62ec2151969350efb1f5de55407ff6013f45cecf0a3fe8",
+    "src/components/auth/EntryAgreements.tsx": "63df7f8c3bbac29427963db2f4e8d93f2de610d8c1d1b8840370f75390e7208d",
+    "src/features/launch/adultLaunch.ts": "c460fb4a5cd0bed5d4d2af8e454de96f34819572af46cc3aa365de4d1ccf9d00",
+    "src/components/auth/entryAgreements.css": "f107c79dfda8411cd13c5aee4697aa61b3938d34ed9c478ea709907daba7ed4e"
+  },
+  "copy_matches_ui": true,
+  "checks": {
+    "focused_tests": 42,
+    "failed": 0,
+    "skipped": 0,
+    "typecheck": "passed",
+    "focused_lint": "passed",
+    "production_build": "passed with configured main/visitor Supabase graph guards",
+    "browser": "isolated actual sheet at420x912 and1280x900; navigation, long scroll, reachable footer, no horizontal overflow, decline; no signup",
+    "hosted_oauth_or_real_device_tested": false
+  },
+  "execution_hold": true
+}

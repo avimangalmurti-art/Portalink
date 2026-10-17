@@ -1,3 +1,5 @@
+import { ADMISSION_KEY, clearTransientBirth } from '../../features/launch/adultLaunch';
+import { AdultLaunchGate } from '../../features/launch/AdultLaunchGate';
 import React, { useEffect, useRef, useState } from 'react';
 import { useServices } from '../../contexts/ServicesContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,10 +15,13 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
   const mobile = usePresentation() === 'mobile';
   const { auth: service } = useServices();
   const auth = useAuth();
+  const [screeningRevision, setScreeningRevision] = useState(0);
   const [providers, setProviders] = useState<{ google: boolean; apple: boolean } | null>(null);
   const [error, setError] = useState<string | null>(() => new URLSearchParams(window.location.search).get('entry') === 'oauth'
     && [window.location.search, window.location.hash].some(part => new URLSearchParams(part.slice(1)).has('error'))
-    ? 'Sign in was cancelled or could not be completed. Try again or continue with email.' : null);
+    ? new URLSearchParams(window.location.search).get('error') === 'oauth_cleanup_pending'
+      ? 'Sign-in failed and cleanup of the new sign-in session could not be confirmed. Please wait and try again.'
+      : 'Sign in was cancelled or could not be completed. Try again or continue with email.' : null);
   const [busy, setBusy] = useState(false);
   const starting = useRef(false);
   useEffect(() => {
@@ -33,11 +38,14 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
       const intent = auth.peekPendingIntent();
       await service.signInWithOAuth(provider, readSharedReturnPath(intent?.kind === 'route' ? intent.path : returnPath));
     } catch {
-      setError('Sign in could not be started. Please try again or continue with email.');
+      clearTransientBirth();
+      try { sessionStorage.removeItem(ADMISSION_KEY); } catch { /* Storage unavailable. */ }
+      setScreeningRevision(value => value + 1);
+      setError('Sign in could not be started. Please check eligibility again or continue with email.');
     } finally { starting.current = false; setBusy(false); }
   }
   const emailButton = onEmail && <button className="entry-email" type="button" disabled={!ready || busy} onClick={onEmail}>Continue with email</button>;
-  return <EntryAgreements onDisagree={onDisagree ?? (() => undefined)}>{agreements => <div className="one-screen-entry">
+  return <AdultLaunchGate key={screeningRevision} onSignIn={onSignIn} onGuest={onGuest}><EntryAgreements onDisagree={() => { setScreeningRevision(value => value + 1); onDisagree?.(); }}>{agreements => <div className="one-screen-entry">
     {mobile && emailButton}
     <div className="entry-providers" aria-label="Sign-in options">
       {(['google', 'apple'] as const).map(provider => {
@@ -63,5 +71,5 @@ export function EntryChoices({ ready = true, onEmail, onSignIn, onGuest, childre
       <button type="button" disabled={!ready || busy} onClick={onGuest}>Continue as guest</button>
     </div>
     <EntryLegal />
-  </div>}</EntryAgreements>;
+  </div>}</EntryAgreements></AdultLaunchGate>;
 }

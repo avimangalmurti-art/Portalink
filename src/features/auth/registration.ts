@@ -11,7 +11,7 @@ export type RegistrationProfile = {
   name: string;
   handle?: string;
   location: string;
-  /** Omitted by older drafts, which retain the existing public default. */
+  /** New profiles start private, including restored legacy drafts. */
   isPrivate?: boolean;
   accentColor: string;
   systemGray?: string;
@@ -51,7 +51,7 @@ export function readRegistrationProfile(value: unknown): RegistrationProfile | u
     || (data.isPrivate !== undefined && typeof data.isPrivate !== 'boolean')) return;
   const returnPath = readSharedReturnPath(data.returnPath);
   const systemGray = typeof data.systemGray === 'string' && /^gray(?:[2-6])?$/.test(data.systemGray) ? data.systemGray : undefined;
-  return { version: 1, id: data.id, name: data.name.trim(), ...(typeof data.handle === 'string' ? { handle: data.handle } : {}), location: data.location.trim(), isPrivate: data.isPrivate === true, accentColor: data.accentColor, ...(systemGray ? { systemGray } : {}), hasAvatar: data.hasAvatar, ...(returnPath ? { returnPath } : {}) };
+  return { version: 1, id: data.id, name: data.name.trim(), ...(typeof data.handle === 'string' ? { handle: data.handle } : {}), location: data.location.trim(), isPrivate: true, accentColor: data.accentColor, ...(systemGray ? { systemGray } : {}), hasAvatar: data.hasAvatar, ...(returnPath ? { returnPath } : {}) };
 }
 
 export function canResumeRegistration(session: AuthSession | null, view: string | null): boolean {

@@ -203,8 +203,8 @@ export type AccountDeletionCapability = {
 };
 
 /**
- * Requesting account deletion requires explicit confirmation. The request is
- * reversible during grace; permanent cleanup runs separately afterward.
+ * Account deletion starts immediately after explicit confirmation. An accepted
+ * request cannot be cancelled; cleanup resumes until completion is confirmed.
  */
 export type DeleteAccountInput = {
   /** The account being deleted, so an implementation never infers it. */
@@ -219,9 +219,12 @@ export type DeleteAccountInput = {
  * claiming a deletion it did not perform.
  */
 export type DeleteAccountResult = {
-  isDeleted: boolean;
-  status?: 'pending' | 'processing' | 'cancelled' | 'completed';
-  deleteAfter?: string;
+  isDeleted: false;
+  status?: 'processing';
+  message: string;
+} | {
+  isDeleted: true;
+  status: 'completed';
   message: string;
 };
 

@@ -3,8 +3,8 @@ import React from 'react';
 import test from 'node:test';
 import { sourceModule } from './helpers/source-module.mjs';
 
-function bootstrap(presentation, authenticated = true) {
-  const slots = [], timers = new Map();
+function bootstrap(presentation, authenticated = true, deletionEnabled = false) {
+  const slots = [], timers = new Map(), events = new Map();
   let cursor = 0, effects = [], timer = 0;
   const react = {
     ...React,
@@ -39,18 +39,33 @@ function bootstrap(presentation, authenticated = true) {
     './splashLifecycle': { PORTALINK_SPLASH_EXIT_EVENT: 'splash-exit' },
     './screenModules': { warmScreenForPath: () => Promise.resolve() },
     './homeStartup': { HOME_STARTUP_TIMEOUT_MS: 12000 },
+    '../services/supabase/client': { accountDeletionEnabled: deletionEnabled },
+    '../features/auth/deletionRecoverySignal': { DELETION_RECOVERY_OPEN_EVENT: 'deletion-recovery-open' },
     '../features/sharing/shareModel': { handleFromPath: () => null },
     '../presentation/useViewportPresentation': { useViewportPresentation: () => presentation },
   }, { window: {
     sessionStorage: { getItem: () => null, removeItem() { return; } },
     setTimeout(callback, delay) { timers.set(++timer, { callback, delay }); return timer; },
     clearTimeout(id) { timers.delete(id); },
+    addEventListener(name,callback) { events.set(name,callback); },
+    removeEventListener(name) { events.delete(name); },
   } });
   return {
     render() { cursor = 0; effects = []; const tree = ApplicationBootstrap(); effects.forEach(effect => effect()); return tree.props.children; },
     timeout() { const pending = [...timers.values()].find(item => item.delay === 12000); assert.ok(pending); pending.callback(); },
+    openRecovery() { events.get('deletion-recovery-open')?.(); },
   };
 }
+
+test('only an enabled identifier-free recovery event releases the signed-out Welcome overlay on both platforms', () => {
+  for(const presentation of ['mobile','web'])for(const enabled of [false,true]){
+    const h=bootstrap(presentation,false,enabled);
+    let children=h.render();assert.ok(children[1].props.children?.props.landing);
+    h.openRecovery();children=h.render();
+    if(enabled){assert.equal(children[1].props.children,null);assert.equal(children[0].props.homeStartupPending,false);}
+    else assert.ok(children[1].props.children?.props.landing);
+  }
+});
 
 test('Home Retry preserves completed startup media on MOBILE and WEB while retaining account/attempt readiness', () => {
   for (const presentation of ['mobile', 'web']) {

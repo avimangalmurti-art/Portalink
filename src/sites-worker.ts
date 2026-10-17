@@ -1,3 +1,5 @@
+import {handleGoogleHandoff} from './server/googleHandoff';
+import { OPTIONAL_COLLECTION_ENABLED } from './features/launch/adultLaunch';
 import {handleReferenceResolve} from './server/referenceResolver';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
@@ -31,6 +33,13 @@ interface D1Database {
 }
 
 interface SitesEnvironment {
+  ACCOUNT_DELETION_D1_ENABLED?: string
+  ACCOUNT_DELETION_D1_FENCE_ENABLED?: string
+  ACCOUNT_DELETION_D1_HMAC_SECRET?: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  SUPABASE_SERVICE_ROLE_KEY?: string
+  AUTH_PUBLIC_ORIGIN?: string
   ASSETS: StaticAssets
   DB?: D1Database
   PORTFOLIO_PDF_WORKER_URL?: string
@@ -259,7 +268,7 @@ async function requestBody(request: Request): Promise<Record<string, unknown>> {
   return request.json() as Promise<Record<string, unknown>>
 }
 
-async function handleMediaInteractions(request: Request, db: D1Database): Promise<Response> {
+async function handleMediaInteractions(request: Request, db: D1Database, assertDeletionWrite?: (accounts: string[], projects: string[]) => Promise<void>): Promise<Response> {
   // Schema is owned by drizzle migrations. Existing deployed D1 tables and
   // records are reused; page reads never perform DDL on a cold isolate.
   const url = new URL(request.url)
@@ -333,6 +342,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     if (!ENGAGEMENT_KINDS.includes(kind as EngagementKind) || typeof engaged !== 'boolean') throw new Error('Invalid engagement action.')
     await requireReadableTargets(request, [target], user)
     if (engaged) {
+      await assertDeletionWrite?.([user.id], [target.projectId]);
       const save = db.prepare(`INSERT OR IGNORE INTO media_engagements
         (account_id, project_id, attachment_id, page_index, kind) VALUES (?, ?, ?, ?, ?)`)
         .bind(user.id, target.projectId, target.attachmentId, target.pageIndex, kind)
@@ -354,6 +364,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
     const comment = boundedText(body.body, 'comment', 1000).trim()
     if (!comment) throw new Error('Write something before posting.')
     await requireReadableTargets(request, [target], user)
+    await assertDeletionWrite?.([user.id], [target.projectId]);
     const author = authorIdentity(user)
     const commentId = crypto.randomUUID()
     const write = db.prepare(`INSERT INTO media_comments
@@ -361,7 +372,7 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(commentId, user.id, target.projectId, target.attachmentId, target.pageIndex, author.name, author.avatarUrl, comment)
     let event
-    try { event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser},user,target,'comment',body.pageHeading,commentId) } catch { /* Existing comment remains available. */ }
+    try { event = await preparePageAction(request,db,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser,assertDeletionWrite},user,target,'comment',body.pageHeading,commentId) } catch { /* Existing comment remains available. */ }
     if (event) {
       try { await db.batch([write,event]) } catch(error) {
         if (!/no such table.*project_page_actions/i.test(String(error))) throw error
@@ -390,14 +401,26 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    if (url.pathname === '/api/internal/account-deletion/d1') {
+      const { handleAccountDeletionD1 } = await import('./server/accountDeletionD1');
+      return handleAccountDeletionD1(request, environment);
+    }
+    const assertDeletionWrite = environment.ACCOUNT_DELETION_D1_FENCE_ENABLED === 'true'
+      ? async (accounts: string[], projects: string[]) => {
+        if (!environment.DB) throw json({ error: 'Account deletion cleanup is unavailable.' }, 503);
+        const { assertAccountDeletionD1WriteAllowed } = await import('./server/accountDeletionD1');
+        await assertAccountDeletionD1WriteAllowed(environment.DB, accounts, projects);
+      } : undefined;
+    if(url.pathname.startsWith('/api/auth/google/')) return handleGoogleHandoff(request,{...environment,supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,assets:environment.ASSETS});
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
     if(exportProfile)return handlePortfolioExport(request,exportProfile[1],environment,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     const license = citationLicenseResponse(url.pathname); if (license) return license;
     if (url.pathname.startsWith('/cite/')) return handleCitation(request,environment.ASSETS,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
-    const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser}
+    const reachConfig = {supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY,authenticate:authenticatedUser,assertDeletionWrite}
     if (url.pathname === '/api/studio/attention') return handleStudioAttention(request,environment.DB,reachConfig)
+    if (!OPTIONAL_COLLECTION_ENABLED && (url.pathname === '/api/reach' || url.pathname === '/api/rum')) return new Response(null, {status:204,headers:{'cache-control':'no-store'}});
     if (url.pathname === '/api/reach') return ingestReach(request,environment.DB,reachConfig)
     if (url.pathname.startsWith('/api/reach/')) return handleReachRead(request,environment.DB,reachConfig)
     if (isPublicMediaRoute(url.pathname)) return handlePublicMedia(request, {
@@ -423,9 +446,10 @@ const worker = {
     if (url.pathname.startsWith('/api/media-interactions')) {
       if (!environment.DB) return json({ error: 'Page activity is not available yet.' }, 503)
       try {
-        return await handleMediaInteractions(request, environment.DB)
+        return await handleMediaInteractions(request, environment.DB, assertDeletionWrite)
       } catch (error) {
         if (error instanceof Response) return error
+        if (/Account deletion write blocked\./.test(String(error))) return json({ error: 'Account deletion write blocked.' }, 403)
         return json({ error: error instanceof Error ? error.message : 'That request could not be completed.' }, 400)
       }
     }

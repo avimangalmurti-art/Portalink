@@ -1,3 +1,4 @@
+import { OPTIONAL_COLLECTION_ENABLED } from '../launch/adultLaunch';
 import { classifyReferrer, viewportBucket, type ReachPayload } from './readSignal';
 let tabToken: string | undefined;
 /** No storage: this value disappears on reload and cannot follow a visitor. */
@@ -30,6 +31,7 @@ export function createReachCollector(projectId: string, pageCount: number, optio
             clearTimer(timer); } };
 }
 export function sendReach(payload: ReachPayload): void {
+    if (!OPTIONAL_COLLECTION_ENABLED) return;
     // sendBeacon always uses credentials:include. A credential-free keepalive
     // request preserves the requested no-cookies boundary even on same-origin.
     void fetch('/api/reach', { method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', keepalive: true, cache: 'no-store', headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(payload) }).catch(() => undefined);

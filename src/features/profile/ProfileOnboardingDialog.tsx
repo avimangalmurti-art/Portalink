@@ -1,6 +1,7 @@
 import { useServices } from '../../contexts/ServicesContext';
 import { createProfileHandle, prepareProfileHandle } from '../../utils/profileHandle';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {LegacyLaunchCompletion} from '../launch/LegacyLaunchCompletion';
 import { AlertCircleIcon, CheckCircle2Icon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { AccountWelcomeSurface, type AccountAppearanceProps } from '../../components/auth/AccountWelcomeSurface';
@@ -46,7 +47,10 @@ export function ProfileOnboardingDialog({
   onReduceTranslucencyChange
 }: ProfileOnboardingDialogProps) {
   const auth = useAuth();
-  const { profiles } = useServices();
+  const { profiles, auth: authService } = useServices();
+  const [admittedAccount,setAdmittedAccount]=useState<string|null>(null);
+  const launchReady=!authService?.getLaunchCompletion||admittedAccount===auth.user?.id;
+  const acceptAccount=useCallback((accountId:string)=>setAdmittedAccount(accountId),[]);
   const isMobile = usePresentation() === 'mobile';
   const [registration, setRegistration] = useState(auth.user?.registration);
   const [draftLoading, setDraftLoading] = useState(Boolean(registration));
@@ -98,7 +102,7 @@ export function ProfileOnboardingDialog({
     setDraftLoading(true);
   }, [auth.user?.registration, registration]);
   useEffect(() => {
-    if (!isOpen || !registration || autoStarted.current) return;
+    if (!isOpen || !launchReady || !registration || autoStarted.current) return;
     let current = true;
     const restore = async () => {
       await Promise.resolve();
@@ -130,7 +134,7 @@ export function ProfileOnboardingDialog({
     };
     void restore();
     return () => { current = false; };
-  }, [isOpen, registration, selectAvatar, restoreAttempt]);
+  }, [isOpen, launchReady, registration, selectAvatar, restoreAttempt]);
   useEffect(() => {
     if (!registration || create.status !== 'success' || !create.createdProfile) return;
     if (!cleaned.current && (!registration.hasAvatar || (touched.current.avatar && !avatar.avatar && !avatar.error) || create.avatarPersisted || create.createdProfile.avatar)) {
@@ -153,7 +157,7 @@ export function ProfileOnboardingDialog({
   }
   const isSubmitting = create.isLoading || draftLoading;
   const isComplete = create.status === 'success' && create.createdProfile !== null;
-  const canSubmit = !isSubmitting;
+  const canSubmit = !isSubmitting && launchReady;
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!canSubmit || (missingSavedAvatar && !avatar.avatar)) {
@@ -199,6 +203,11 @@ export function ProfileOnboardingDialog({
       isSubmittingRef.current = false;
     }
   }
+  if(!launchReady&&auth.user)return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} title="Finish your account" accentColor={accentColor}
+    onAccentColorChange={onAccentColorChange} highContrast={highContrast} onHighContrastChange={onHighContrastChange}
+    reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange} showAppearance={false} busy={false} dirty={false} onDismiss={onDismiss}>
+    <LegacyLaunchCompletion key={auth.user.id} accountId={auth.user.id} service={authService} onReady={acceptAccount} onDismiss={onDismiss} onSignIn={()=>{onDismiss();auth.requestAuth('signIn');}}/>
+  </AccountWelcomeSurface>;
   return <AccountWelcomeSurface mobileOnboarding={isMobile} theme={theme} showAppearance={!isMobile} title={isMobile ? (isComplete ? 'Finishing setup' : 'Create your profile') : isComplete ? 'Account ready' : registration ? 'Finishing your account' : 'Finish your account'} accentColor={accentColor} onAccentColorChange={onAccentColorChange}
     highContrast={highContrast} onHighContrastChange={onHighContrastChange} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={onReduceTranslucencyChange}
     busy={isSubmitting} dirty={isDirty && !isComplete} onDismiss={onDismiss}>

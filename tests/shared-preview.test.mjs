@@ -98,6 +98,8 @@ function setup() {
   const reachCore=compile('../src/features/reads/readSignal.ts');
   const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
   const worker = compile('../src/sites-worker.ts', { './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
+    './server/googleHandoff': { handleGoogleHandoff: () => assert.fail('Unexpected Google route in shared-preview fixture') },
+    './features/launch/adultLaunch': { OPTIONAL_COLLECTION_ENABLED: false },
     './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
   }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');

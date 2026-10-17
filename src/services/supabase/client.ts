@@ -1,10 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
+import {createCallbackSessionStorage,adoptCallbackSession,sessionId} from './callbackSession';
+import {revokeIssuedSession} from '../../features/auth/scopedSessionCleanup';
 import { createPasswordRecoveryTracker } from './passwordRecovery';
 import { rumSupabaseFetch } from '../../features/performance/rum';
 import { createSessionRevocationObserver } from './sessionRevocation';
 
 const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? '';
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? '';
+
+/** Callback recovery targets its delivered token; never signs out the current/shared session. */
+export function revokeIssuedAuthSession(accessToken:string):Promise<boolean> {
+  return revokeIssuedSession(projectUrl,publishableKey,accessToken);
+}
 
 export async function readSocialProviders() {
   requireSupabase();
@@ -13,7 +20,9 @@ export async function readSocialProviders() {
   });
   if (!response.ok) throw new Error('Sign-in options could not be checked.');
   const settings = await response.json();
-  return { google: settings.external?.google === true, apple: settings.external?.apple === true };
+  let handoffReady=false;
+  try{const capability=await fetch('/api/auth/google/capability',{cache:'no-store',signal:AbortSignal.timeout(8000)});if(capability.ok)handoffReady=(await capability.json()).google===true;}catch{/* Fail closed until server configuration is reviewed. */}
+  return { google: settings.external?.google === true && handoffReady, apple: settings.external?.apple === true };
 }
 const configuredRuntimeMode = import.meta.env.VITE_RUNTIME_MODE?.trim().toLowerCase() ?? '';
 
@@ -43,6 +52,28 @@ export const isSupabaseConfigured = isRealProjectUrl && isRealPublishableKey;
 // Keep the SDK's existing namespace explicit so confirmed account deletion can
 // clear only this application's session if the SDK cannot finish local logout.
 const authStorageKey = isRealProjectUrl ? `sb-${new URL(projectUrl).hostname.split('.')[0]}-auth-token` : '';
+// All participating tabs serialize storage operations; callback admission fails closed without Web Locks.
+const callbackSessionStorage=createCallbackSessionStorage(()=>{try{return typeof window==='undefined'?null:window.localStorage;}catch{return null;}},authStorageKey,
+ typeof navigator!=='undefined'&&navigator.locks
+  ? operation=>navigator.locks.request(authStorageKey+'-storage',{signal:AbortSignal.timeout(5000)},()=>operation()) : null);
+export async function adoptIssuedAuthSession(access:string,refresh:string,onIssued:(token:string)=>void,navigate:()=>void) {
+ requireSupabase();
+ // A targeted cleanup notice must be available to tabs which read a brief commit.
+ const probe=new BroadcastChannel(authStorageKey+'-callback-cleanup');probe.close();
+ const isolated=createClient(projectUrl,publishableKey,{auth:{storageKey:authStorageKey+'-callback-memory',
+  persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+ await adoptCallbackSession(isolated.auth,callbackSessionStorage,access,refresh,onIssued,navigate);
+}
+export async function cleanupIssuedAuthSession(token:string):Promise<boolean> {
+ // Revoke first, then reconcile rotated credentials under the shared storage lock.
+ let remote=false;
+ try{remote=await revokeIssuedAuthSession(token);}catch{/* Local reconciliation still runs after unexpected transport failure. */}
+ const local=await callbackSessionStorage.removeIssued(token);
+ let notified=false;
+ if(local){try{const channel=new BroadcastChannel(authStorageKey+'-callback-cleanup');
+  channel.postMessage({sessionId:sessionId(token)});channel.close();notified=true;}catch{/* Report unconfirmed cross-tab reconciliation. */}}
+ return remote&&local&&notified;
+}
 const recoveryStorage = (() => {
   try { return typeof window === 'undefined' ? null : window.sessionStorage; } catch { return null; }
 })();
@@ -83,12 +114,21 @@ export const supabase = isSupabaseConfigured
       global: { fetch: sessionRevocation.fetch },
       auth: {
         storageKey: authStorageKey,
+        storage: callbackSessionStorage.storage,
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
     })
   : null;
+
+if(supabase&&typeof window!=='undefined'&&typeof BroadcastChannel!=='undefined') {
+ const channel=new BroadcastChannel(authStorageKey+'-callback-cleanup');
+ channel.onmessage=event=>{
+  try{if(observedAccessToken&&sessionId(observedAccessToken)===event.data?.sessionId)window.location.reload();}
+  catch{/* Malformed local messages cannot clear storage or log out another session. */}
+ };
+}
 
 // Register before React mounts: the SDK emits PASSWORD_RECOVERY only once
 // while consuming the link, and late subscribers receive INITIAL_SESSION.

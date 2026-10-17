@@ -11,7 +11,7 @@ export function socialRegistration(user: { id: string; email?: string; email_con
   // Stable account-derived suffix makes a retried callback use the same handle.
   const prefix = createProfileHandle(name).slice(0, 13).replace(/^\.+|\.+$/g, '') || 'creator';
   const handle = `${prefix}.${user.id.replace(/-/g, '').slice(0, 16)}`;
-  return readRegistrationProfile({ version: 1, id: user.id, name, handle, location: '', hasAvatar: false,
+  return readRegistrationProfile({ version: 1, id: user.id, name, handle, location: '', isPrivate: true, hasAvatar: false,
     accentColor: DEFAULT_PUBLIC_APPEARANCE.accentColor, systemGray: DEFAULT_PUBLIC_APPEARANCE.systemGray,
     returnPath: readSharedReturnPath(returnPath) });
 }

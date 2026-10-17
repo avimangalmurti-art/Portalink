@@ -38,6 +38,7 @@ import { useLiveSessions } from './features/live/useLiveSessions';
 import { useCategoryManagement } from './features/profile/useCategoryManagement';
 import { useAuth } from './contexts/AuthContext';
 import { SessionStatusBanner } from './features/auth/SessionStatusBanner';
+import { AccountDeletionRecovery } from './features/auth/AccountDeletionRecovery';
 import { AlertCircleIcon } from 'lucide-react';
 import { InteractionSafePresence } from './components/ui/InteractionSafePresence';
 import { FeatureInDesignPage } from './components/FeatureInDesignPage';
@@ -1420,6 +1421,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
       </InteractionSafePresence></DeferredSurface>
 
       {/* The auth surface is application-level: any control can request it. */}
+      <AccountDeletionRecovery />
       {(!isOnboardingOpen || !auth.isAuthenticated || auth.pendingView === 'resetPassword' || auth.session?.isPasswordRecovery) && <DeferredDialog active={Boolean(auth.pendingView)} onClose={auth.closeAuth}><AuthDialog welcomeBeforeSignup={isSharedRoute} showWelcomeMedia={!isSharedRoute} registrationReturnPath={isSharedRoute ? readSharedReturnPath(pathname + search) : presentation === 'mobile' ? settingsReturnPath : undefined} theme={theme} systemGray={navSystemGray} onSystemGrayChange={setNavSystemGray} accentColor={accentColor} onAccentColorChange={setAccentColor} highContrast={highContrast} onHighContrastChange={setHighContrast} reduceTranslucency={reduceTranslucency} onReduceTranslucencyChange={setReduceTranslucency} /></DeferredDialog>}
 
       {/* Publishing targets the category resolved when Create was pressed, so it
