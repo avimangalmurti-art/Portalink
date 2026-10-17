@@ -393,6 +393,10 @@ test('disclosed mobile portal count floats the supplied chooser above the wall a
       const stats = nodes(tree).find(node => node.type?.name === 'ProfileStats');
       nodes(stats.type(stats.props)).filter(node => node.type === 'button')[1].props.onClick();
       const portalTree = h.render();
+      const portalSurface = nodes(portalTree).find(node => node.type === 'DeferredSurface');
+      assert.equal(portalSurface?.props.children, mobilePortalsView, 'The lazy chooser has its own loading/error boundary');
+      assert.equal(portalSurface.props.active, true);
+      assert.equal(portalSurface.props.resetKey, 'owner');
       assert.ok(nodes(portalTree).some(node => node.props === mobilePortalsView.props));
       assert.ok(wall(portalTree), 'Opening Portals must leave the artwork mounted underneath');
       const underlay = nodes(portalTree).find(node => node.props?.className === 'mobile-profile-wall scrollbar-overlay');
@@ -406,7 +410,7 @@ test('disclosed mobile portal count floats the supplied chooser above the wall a
       assert.equal(h.navigation.at(-1).replace, false);
       const restored = profileHarness(h.search(), { presentation: 'mobile', viewerRole, props: { mobilePortalsView } }).render();
       assert.ok(nodes(restored).some(node => node.props === mobilePortalsView.props));
-      nodes(portalTree).find(node => node.props?.['aria-label'] === 'Close portals').props.onClick();
+      portalSurface.props.onClose();
       const closed = h.render();
       assert.equal(nodes(closed).some(node => node.props === mobilePortalsView.props), false);
       const restoredWall = nodes(closed).find(node => node.props?.className === underlay.props.className);

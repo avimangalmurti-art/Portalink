@@ -3,6 +3,7 @@ import { DensitySeparator } from './ui/DensitySeparator';
 import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
 import { PortfolioShareLoading } from '../features/sharing/PortfolioSharePreview';
+import { DeferredSurface } from './ui/DeferredDialog';
 import { ScreenBack } from '../presentation/mobile/MobileBackNavigation';
 import { EmployerOverview } from '../features/employer/EmployerOverview';
 import { useAuth } from '../contexts/AuthContext';
@@ -877,7 +878,7 @@ export function UserProfilePage({
           </div>
           {mobilePortalOverlay && <div ref={portalOverlayRef} className="mobile-profile-portal-overlay">
             <button type="button" className="mobile-profile-portal-dismiss" aria-label="Close portals" onClick={() => setActiveView('projects')} />
-            {mobilePortalOverlay}
+            <DeferredSurface active resetKey={profile.id} onClose={() => setActiveView('projects')}>{mobilePortalOverlay}</DeferredSurface>
           </div>}
         </> : nestedMobileContent ?? (activeView !== 'projects' ? <ProfileCollectionGrid shared={isSharedView} profileId={profile.id} kind={activeView} portals={profile.categories} people={connections.items} loading={activeView !== 'portals' && connections.loading} error={activeView === 'portals' ? null : connections.error} hasMore={activeView !== 'portals' && connections.nextOffset !== null} onRetry={connections.canRetry ? connections.retry : undefined} onLoadMore={connections.loadMore} /> : projectWall)}
       </main>
