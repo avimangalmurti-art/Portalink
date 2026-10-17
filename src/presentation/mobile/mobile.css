@@ -3341,7 +3341,8 @@ html:has([data-presentation='mobile'] :is(.mobile-profile-portal-overlay, .mobil
   width: min(100%, 480px); border: 1px solid var(--hairline);
   border-color: var(--context-outline, var(--hairline)) !important;
   border-radius: var(--ui-popup-radius, 24px) var(--ui-popup-radius, 24px) 0 0 !important;
-  background: var(--material-regular) !important; color: var(--text-primary);
+  /* Resolve the shared material recipe in this sheet's active theme. */
+  background: color-mix(in srgb, var(--surface-raised) var(--interface-glass-opacity, 78%), transparent) !important; color: var(--text-primary);
   box-shadow: 0 -8px 40px rgb(0 0 0 / 18%) !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
   outline: none; padding-bottom: calc(max(16px, var(--safe-area-bottom)) + var(--sheet-rest-y));
