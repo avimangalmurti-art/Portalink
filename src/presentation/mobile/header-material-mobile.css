@@ -93,15 +93,15 @@
   backdrop-filter: none;
 }
 
-/* All mobile screen headers stay opaque and sharp, including lazy screens and
-   the Studio pill rail before the overlap observer has marked its header. */
-#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls) {
+/* Screen headers stay opaque, including lazy screens and the Studio pill rail.
+   Floating headers belong to their rounded parent surface in either theme. */
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls):not(:where([role='dialog'] *, [role='menu'] *, [data-ui-surface] *, .mobile-profile-portal-overlay *, [data-project-index-panel] *, [data-project-response-rail] *)) {
   background: var(--surface-canvas, var(--codex-workspace-bg)) !important;
   filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls) :is(button, input, select) {
+#root .codex-shell.codex-shell[data-presentation='mobile'] :is(header, [data-mobile-header-underlap], .profile-header-region, .mobile-home-search-header, .studio-citation-pills, .timeline-header-controls, .global-control-header, [data-inbox-controls], .new-portal-pinned-controls):not(:where([role='dialog'] *, [role='menu'] *, [data-ui-surface] *, .mobile-profile-portal-overlay *, [data-project-index-panel] *, [data-project-response-rail] *)) :is(button, input, select) {
   filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
