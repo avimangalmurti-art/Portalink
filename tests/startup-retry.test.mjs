@@ -52,9 +52,8 @@ function bootstrap(presentation, authenticated = true) {
   };
 }
 
-test('Home Retry preserves completed startup media on MOBILE and WEB while retaining account/attempt readiness', () => {
-  for (const presentation of ['mobile', 'web']) {
-    const h = bootstrap(presentation);
+test('WEB Home Retry preserves completed startup media while retaining account/attempt readiness', () => {
+    const h = bootstrap('web');
     let [app, presence] = h.render();
     assert.equal(presence.props.children.props.stillOnly, false);
     presence.props.children.props.onComplete();
@@ -68,12 +67,10 @@ test('Home Retry preserves completed startup media on MOBILE and WEB while retai
     assert.equal(h.render()[1].props.children.type, 'splash', 'Old attempt cannot uncover Home');
     app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true);
     h.render(); assert.equal(h.render()[1].props.children, null);
-  }
 });
 
-test('natural completion keeps the first-attempt media surface while Home waits on MOBILE and WEB', () => {
-  for (const presentation of ['mobile', 'web']) {
-    const h = bootstrap(presentation);
+test('WEB natural completion keeps the first-attempt media surface while Home waits', () => {
+    const h = bootstrap('web');
     let [app, presence] = h.render();
     presence.props.children.props.onComplete();
     for (let render = 0; render < 3; render++) {
@@ -83,10 +80,9 @@ test('natural completion keeps the first-attempt media surface while Home waits 
     }
     app.props.onHomeStartupReady(true); app.props.onHomeStartupShellReady(true);
     h.render(); assert.equal(h.render()[1].props.children, null);
-  }
 });
 
-test('a completed guest frame does not freeze the welcome or its Home-wait handoff on either platform', () => {
+test('explicit welcome Continue enters MOBILE immediately and preserves WEB Home-wait handoff', () => {
   for (const presentation of ['mobile', 'web']) {
     const h = bootstrap(presentation, false);
     let [app, presence] = h.render();
@@ -96,6 +92,11 @@ test('a completed guest frame does not freeze the welcome or its Home-wait hando
     assert.equal(presence.props.children.props.stillOnly, false);
     presence.props.children.props.landing.onContinue();
     [app, presence] = h.render();
+    if (presentation === 'mobile') {
+      assert.equal(presence.props.children, null, 'MOBILE guest enters the app without waiting for Home');
+      assert.equal(app.props.homeStartupPending, false);
+      continue;
+    }
     assert.equal(presence.props.children.props.landing, undefined);
     assert.equal(presence.props.children.props.welcomeHandoff, true);
     assert.equal(presence.props.children.props.stillOnly, false, 'The existing guest animation continues until Home is ready');

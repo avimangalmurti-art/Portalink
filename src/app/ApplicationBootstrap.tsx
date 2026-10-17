@@ -37,9 +37,8 @@ function readSharedViewerProfileId(): string | null {
 }
 
 /**
- * Restore the session before mounting account content beneath the full intro.
- * Opening Home also waits for its layout and visible artwork to be ready.
- * Other destinations retain their existing startup handoff.
+ * Restore the session while the opening clip plays once. MOBILE enters the app
+ * at the clip's end; WEB retains its ready-layout/artwork Home handoff.
  */
 export function ApplicationBootstrap() {
   const auth = useAuth();
@@ -61,9 +60,9 @@ export function ApplicationBootstrap() {
   const isAuthCallback = !oauthFailed && /[?#&](?:auth|code|token|access_token|refresh_token|provider_token|provider_refresh_token|token_hash|type|error|error_code|error_description)=/i.test(search + hash);
   const isRecovery = auth.pendingView === 'resetPassword' || Boolean(auth.session?.isPasswordRecovery);
   const isWelcomeInvite = pathname === '/' && (new URLSearchParams(search).get('welcome') === '1' || oauthFailed) && !isAuthCallback && !isRecovery;
-  // Only the opening mobile visit is a landing. Rotation or later navigation
-  // cannot introduce it over an existing session, recovery flow or content.
-  const [landingPath] = useState(() => (presentation === 'mobile' || isWelcomeInvite)
+  // Only an explicit invitation/account return owns the welcome scene.
+  // Ordinary launches finish their one intro directly in the app, including guests.
+  const [landingPath] = useState(() => isWelcomeInvite
     && !isAuthCallback && pathname === '/' ? '/' : null);
   const [hasLeftLanding, setHasLeftLanding] = useState(false);
   const [hasPresentedLanding, setHasPresentedLanding] = useState(false);
@@ -93,7 +92,7 @@ export function ApplicationBootstrap() {
   const homeReady = homeReadiness?.scope === homeScope && homeReadiness.content && homeReadiness.shell;
   const isPublicSettings = pathname.replace(/\/+$/, '') === routes.controlCenter.path || pathname.replace(/\/+$/, '') === '/appearance';
   const shouldRedirect = !isHandleView && !isPublicSettings && !auth.isInitializing && auth.pendingView !== 'resetPassword' && lockedSharedProfileId && routeSharedProfileId !== lockedSharedProfileId;
-  const homeStartupTarget = openingPath === '/' && pathname === '/' && !isSharedView && !usePublicEntry && !shouldRedirect && !isRecovery && !auth.isSessionUnavailable;
+  const homeStartupTarget = openingPresentation !== 'mobile' && openingPath === '/' && pathname === '/' && !isSharedView && !usePublicEntry && !shouldRedirect && !isRecovery && !auth.isSessionUnavailable;
   const waitingForHome = homeStartupTarget && !hasStartupCompleted && !homeReady;
   useEffect(() => {
     if (!waitingForHome || auth.isInitializing || holdLanding || auth.pendingView) return;
@@ -149,10 +148,13 @@ export function ApplicationBootstrap() {
     }
   }, [auth.isAuthenticated, auth.isInitializing, isWelcomeInvite, routeSharedProfileId, sessionSharedProfileId]);
 
-  const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !holdLanding && !hasPresentedLanding && !isRecovery && !waitingForHome;
+  const timedIntroEnded = openingPresentation === 'mobile' && hasSplashCompleted && !landingPath && !holdLanding && !hasPresentedLanding && !isRecovery && !waitingForHome;
+  // Keep speculative screen warming out of the opening clip. MOBILE readiness
+  // reports may arrive underneath it, but cannot extend the video handoff.
+  const appStartupPending = waitingForHome || (openingPresentation === 'mobile' && !hasSplashCompleted && !hasStartupCompleted);
 
   return <>
-      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App homeStartupPending={waitingForHome} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell} /> : null}
+      {usePublicEntry ? null : shouldRedirect ? <Navigate replace to={buildPath('sharedProfile', { profileId: lockedSharedProfileId! })} /> : !auth.isInitializing ? <App homeStartupPending={appStartupPending} homeStartupAttempt={homeAttempt} onHomeStartupReady={reportHomeContent} onHomeStartupShellReady={reportHomeShell} /> : null}
       <AnimatePresence onExitComplete={() => {
         // The World view deliberately waits for this handoff before painting
         // its expensive cartography and blur layers. That keeps the full-screen
@@ -160,7 +162,7 @@ export function ApplicationBootstrap() {
         window.dispatchEvent(new Event(PORTALINK_SPLASH_EXIT_EVENT));
       }}>
         {!isSharedView && (!hasStartupCompleted || auth.isInitializing) && !timedIntroEnded && !showHomeRetry ? <PortalinkSplashLoader key="portalink-splash" onComplete={completeSplash} stillOnly={hasStartupCompleted || (hasSplashCompleted && homeAttempt > 0 && !hasPresentedLanding)}
-          timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery && (auth.isInitializing || auth.isAuthenticated)}
+          timedIntro={openingPresentation === 'mobile' && !hasStartupCompleted && !hasPresentedLanding && !isRecovery}
           welcomeHandoff={hasPresentedLanding && !holdLanding}
           hidden={Boolean(landingPath && ((!auth.isAuthenticated && auth.pendingView) || isRecovery || (presentation !== 'mobile' && !isWelcomeInvite && hasPresentedLanding)))}
           landing={holdLanding ? {

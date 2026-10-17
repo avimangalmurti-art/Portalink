@@ -701,7 +701,7 @@ function sharedBootstrap({ presentation = 'mobile', path = '/share/a/c/b/c', sea
     '../presentation/useViewportPresentation':{useViewportPresentation:()=>presentation},
     '../features/auth/registration':{readSharedReturnPath:path=>path.startsWith('/share/')?path:undefined},
     }, {window:{...h.window,location:{replace:path=>redirects.push(path)},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}}});
-  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
+  return {auth,requested,redirects,location,storage,get app(){return rendered.props.children[0];},get waiting(){return rendered.props.children[2];},get homeError(){return rendered.props.children[3];},get homeTimerCount(){return [...h.timers.values()].filter(timer=>timer.delay===12000).length;},timer(){const entry=[...h.timers.values()].find(timer=>timer.delay===12000);assert.ok(entry);entry.fn();},setPresentation(value){presentation=value;},render(){rendered=h.render(ApplicationBootstrap);h.flush();const app=rendered.props.children[0];if(homeReady&&app?.type==='app'){app.props.onHomeStartupReady(true);app.props.onHomeStartupShellReady(true);}return rendered.props.children[1].props.children;}};
 }
 
 test('shared entry bypasses every intro on both platforms while respecting session readiness', () => {
@@ -772,6 +772,31 @@ test('invites open root welcome without a previous shared-profile redirect or ac
   assert.equal(reopened.render().props.landing.ready,true,'opening a new invitation shows welcome again');
 });
 
+test('explicit MOBILE welcome keeps its splash host when the intro ends before guest restoration', () => {
+  for(const entry of [{search:'?welcome=1'},{search:'?entry=oauth',hash:'#error=access_denied'}]) {
+    const h=sharedBootstrap({path:'/',homeReady:false,...entry});
+    const initial=h.render();assert.equal(initial.type,'splash');assert.equal(initial.key,'portalink-splash');
+    assert.equal(initial.props.landing,undefined);assert.equal(h.app,null);
+    initial.props.onComplete();
+    for(let render=0;render<2;render++) {
+      const pending=h.render();assert.equal(pending.type,initial.type);assert.equal(pending.key,initial.key);
+      assert.equal(pending.props.onComplete,initial.props.onComplete);assert.equal(pending.props.landing,undefined);
+      assert.equal(h.waiting,false,'an explicit welcome must not flash neutral loading or remount its completed video');
+      assert.equal(h.app,null);assert.equal(h.homeTimerCount,0);
+    }
+    h.auth.isInitializing=false;
+    const welcome=h.render();assert.equal(welcome.type,initial.type);assert.equal(welcome.key,initial.key);
+    assert.equal(welcome.props.landing.ready,true);assert.equal(h.app.type,'app');assert.equal(h.waiting,false);
+    welcome.props.landing.onSignIn();
+    assert.deepEqual(h.requested.at(-1),{view:'signIn'});
+    const account=h.render();assert.equal(account.key,initial.key);assert.equal(account.props.hidden,true);
+    h.auth.pendingView=null;
+    const returned=h.render();assert.equal(returned.key,initial.key);assert.equal(returned.props.hidden,false);
+    returned.props.landing.onContinue();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+    assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
+  }
+});
+
 test('invitation marker does not override signed-in, recovery or authentication callback flows', () => {
   for (const options of [{authenticated:true},{recovery:true},{search:'?welcome=1&code=private'},{hash:'#type=recovery'}]) {
     const h=sharedBootstrap({path:'/',search:'?welcome=1',storedProfileId:'previous-creator',...options});
@@ -798,39 +823,52 @@ test('restored MOBILE and WEB sessions finish the splash while ready screens loa
  }
 });
 
-test('opening Home keeps its splash through a slow session without revealing protected content', () => {
-  const h=sharedBootstrap({path:'/',search:''}); h.render().props.onComplete();
-  assert.equal(h.render().type,'splash'); assert.equal(h.app,null); assert.equal(h.waiting,false);
-  h.auth.isInitializing=false; h.auth.isAuthenticated=true;
-  h.render();h.render();assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
+test('a completed MOBILE intro yields to neutral session loading without exposing account content or waiting for Home', () => {
+  for (const authenticated of [false,true]) {
+    const h=sharedBootstrap({path:'/',search:'',homeReady:false}); h.render().props.onComplete();
+    assert.equal(h.render(),null); assert.equal(h.app,null);
+    assert.equal(h.waiting.props.children.type,'loading');
+    assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+    assert.equal(h.homeTimerCount,0);
+    h.auth.isInitializing=false; h.auth.isAuthenticated=authenticated;
+    assert.equal(h.render(),null); assert.equal(h.app.type,'app'); assert.equal(h.waiting,false);
+    assert.equal(h.app.props.homeStartupPending,false);
+    h.render();assert.equal(h.render(),null);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
+  }
 });
 
-test('rotation preserves complete splash playback while the ready screen loads', () => {
-  const h=sharedBootstrap({path:'/',search:''}); h.render(); h.setPresentation('web');
+test('an opening MOBILE visit keeps its one-shot handoff after rotation even while Home remains unready', () => {
+  const h=sharedBootstrap({path:'/',search:'',homeReady:false}); h.render(); h.setPresentation('web');
   let splash=h.render(); assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
   h.auth.isInitializing=false; h.auth.isAuthenticated=true; splash=h.render();
   splash=h.render(); assert.equal(splash.type,'splash'); assert.equal(h.app.type,'app');
+  assert.equal(h.app.props.homeStartupPending,true,'speculative screen warming stays deferred while the clip runs'); assert.equal(h.homeTimerCount,0);
   splash.props.onComplete(); h.render(); assert.equal(h.render(),null);
+  assert.equal(h.app.props.homeStartupPending,false);
+  h.setPresentation('mobile');assert.equal(h.render(),null);assert.equal(h.homeError,false);
 });
 
-test('root mobile landing waits for verified guest status, then stays behind account forms', () => {
+test('ordinary MOBILE guests play the intro once then enter the app without a looping welcome or Home retry', () => {
   for (const first of ['media','auth']) {
-    const h=sharedBootstrap({path:'/',search:''}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
+    const h=sharedBootstrap({path:'/',search:'',homeReady:false}); let splash=h.render(); assert.equal(splash.props.landing,undefined);
     assert.equal(splash.props.timedIntro,true); assert.equal(splash.props.hidden,false);
     if(first==='media') splash.props.onComplete(); else h.auth.isInitializing=false;
     splash=h.render();
-    if(first==='media') assert.equal(splash.type,'splash','Home stays covered until the session can start its real reads');
-    else assert.equal(splash.props.landing.ready,true);
+    if(first==='media') {
+      assert.equal(splash,null);assert.equal(h.app,null);assert.equal(h.waiting.props.children.type,'loading');
+    } else {
+      assert.equal(splash.props.landing,undefined);assert.equal(splash.props.timedIntro,true);
+      assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true,'the intro alone defers speculative screen warming');
+    }
     if(first==='media') h.auth.isInitializing=false; else splash.props.onComplete();
-    splash=h.render(); assert.equal(splash.props.landing.ready,true);
-    splash.props.landing.onCreateAccount(); splash=h.render();
-    assert.deepEqual(h.requested[0],{view:'signUp'});
-    assert.equal(splash.props.hidden,true); assert.equal(splash.props.stillOnly,false);
-    for(const view of ['signIn','forgotPassword','signUp']) {h.auth.pendingView=view;assert.equal(h.render().props.hidden,true);}
-    h.auth.pendingView=null; splash=h.render();
-    assert.equal(splash.props.hidden,false); assert.equal(splash.props.landing.ready,true); assert.equal(splash.props.stillOnly,false);
-    splash.props.landing.onContinue(); h.render(); assert.equal(h.render(),null);
-    h.location.pathname='/share/other'; assert.equal(h.render(),null);
+    assert.equal(h.render(),null);h.render();assert.equal(h.render(),null);
+    assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);assert.equal(h.waiting,false);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
+    assert.equal(h.requested.length,0,'ordinary guest launch requires no welcome choice or authentication action');
+    h.location.pathname='/messages';assert.equal(h.render(),null);
+    h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
+    assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+    h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+    h.location.pathname='/';assert.equal(h.render(),null);assert.equal(h.homeTimerCount,0);
   }
 });
 
@@ -842,9 +880,8 @@ test('authenticated visitors, recovery, WEB and callback URLs never hold the lan
   }
 });
 
-test('opening Home waits for decoded content and its shell after the full intro on both platforms', () => {
- for (const presentation of ['mobile','web']) {
-  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});
+test('WEB opening Home retains its decoded-content and shell handoff after the full intro', () => {
+  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});
   h.auth.isInitializing=false;
   let splash=h.render(); assert.equal(h.app.type,'app'); assert.equal(h.app.props.homeStartupPending,true);
   splash.props.onComplete(); h.app.props.onHomeStartupShellReady(true);
@@ -853,17 +890,41 @@ test('opening Home waits for decoded content and its shell after the full intro 
   h.app.props.onHomeStartupReady(false); assert.equal(h.render().type,'splash');
   h.app.props.onHomeStartupReady(true); h.render(); assert.equal(h.render(),null);
   h.location.pathname='/messages'; assert.equal(h.render(),null);
- }
+});
+
+test('returning MOBILE sessions enter unready Home at the natural end without a startup timeout or later replay', () => {
+  const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+  const splash=h.render();assert.equal(splash.type,'splash');assert.equal(splash.props.landing,undefined);
+  assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,true);assert.equal(h.homeTimerCount,0);
+  splash.props.onComplete();assert.equal(h.render(),null);h.render();
+  assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
+  h.app.props.onHomeStartupReady(false);h.app.props.onHomeStartupShellReady(false);
+  h.auth.session={user:{id:'restored-account'}};h.auth.user={id:'restored-account'};
+  assert.equal(h.render(),null);assert.equal(h.homeError,false);assert.equal(h.homeTimerCount,0);
+  h.setPresentation('web');assert.equal(h.render(),null);h.setPresentation('mobile');assert.equal(h.render(),null);
+  h.auth.isInitializing=true;assert.equal(h.render(),null);assert.equal(h.app,null);
+  assert.equal(h.waiting.props.children.props.label,'Opening Portalink…');
+  h.auth.isInitializing=false;assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+});
+
+test('an opening WEB visit retains Home readiness and retry ownership after rotation to MOBILE', () => {
+  const h=sharedBootstrap({path:'/',search:'',presentation:'web',authenticated:true,homeReady:false});
+  h.render();h.setPresentation('mobile');h.auth.isInitializing=false;
+  const splash=h.render();assert.equal(splash.props.timedIntro,false);assert.equal(h.app.props.homeStartupPending,true);
+  splash.props.onComplete();assert.equal(h.render().type,'splash');assert.equal(h.homeTimerCount,1);
+  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
 test('ready Home never shortens the full intro', () => {
- const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
- h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
- let splash=h.render();assert.equal(splash.type,'splash');splash.props.onComplete();h.render();assert.equal(h.render(),null);
+ for(const presentation of ['mobile','web']) {
+  const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation,homeReady:false});h.auth.isInitializing=false;
+  h.render(); h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);
+  const splash=h.render();assert.equal(splash.type,'splash');splash.props.onComplete();h.render();assert.equal(h.render(),null);
+ }
 });
 
-test('Home timeout offers Retry and rejects stale account or startup-attempt completions', () => {
- const h=sharedBootstrap({path:'/',search:'',authenticated:true,homeReady:false});h.auth.isInitializing=false;
+test('WEB Home timeout retains Retry and rejects stale account or startup-attempt completions', () => {
+ const h=sharedBootstrap({path:'/',search:'',authenticated:true,presentation:'web',homeReady:false});h.auth.isInitializing=false;
  h.render().props.onComplete(); h.render();
  const old=h.app.props;
  h.timer();assert.equal(h.render(),null);assert.equal(h.homeError.props.children.type,'home-error');
@@ -874,16 +935,23 @@ test('Home timeout offers Retry and rejects stale account or startup-attempt com
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('guest Continue waits for Home without reopening entry actions', () => {
- const h=sharedBootstrap({path:'/',search:'',homeReady:false});h.auth.isInitializing=false;
+test('explicit WEB welcome Continue retains the Home readiness handoff without reopening entry actions', () => {
+ const h=sharedBootstrap({path:'/',search:'?welcome=1',presentation:'web',homeReady:false});h.auth.isInitializing=false;
  const splash=h.render();splash.props.landing.onContinue();
  const waiting=h.render();assert.equal(waiting.type,'splash');assert.equal(waiting.props.landing,undefined);assert.equal(waiting.props.welcomeHandoff,true);
  h.app.props.onHomeStartupReady(true);h.app.props.onHomeStartupShellReady(true);h.render();assert.equal(h.render(),null);
 });
 
-test('all root mobile welcome actions open the intended form without adding a shared destination', () => {
+test('explicit MOBILE welcome Continue enters the app immediately even while Home remains unready', () => {
+ const h=sharedBootstrap({path:'/',search:'?welcome=1',homeReady:false});h.auth.isInitializing=false;
+ const splash=h.render();assert.equal(splash.props.landing.ready,true);splash.props.landing.onContinue();
+ assert.equal(h.render(),null);assert.equal(h.app.type,'app');assert.equal(h.app.props.homeStartupPending,false);
+ assert.equal(h.homeTimerCount,0);assert.equal(h.homeError,false);
+});
+
+test('explicit root mobile welcome actions open the intended form without adding a shared destination', () => {
   for (const [action, view] of [['onSignIn','signIn'],['onCreateAccount','signUp'],['onForgotPassword','forgotPassword']]) {
-    const h=sharedBootstrap({path:'/',search:''}); h.auth.isInitializing=false;
+    const h=sharedBootstrap({path:'/',search:'?welcome=1'}); h.auth.isInitializing=false;
     const splash=h.render(); assert.equal(splash.props.landing.ready,true, 'buttons do not wait for video playback');
     splash.props.landing[action]();
     assert.equal(h.requested[0].view,view);
@@ -893,13 +961,16 @@ test('all root mobile welcome actions open the intended form without adding a sh
   }
 });
 
-test('ordinary root fragments keep welcome while authentication fragments bypass it', () => {
+test('ordinary root fragments keep one-shot entry; explicit invites retain welcome unless authentication fragments bypass it', () => {
   for(const hash of ['#projects','#page-2']) {
     const h=sharedBootstrap({path:'/',search:'',hash}); h.auth.isInitializing=false;
-    assert.equal(h.render().props.landing.ready,true);
+    const splash=h.render();assert.equal(splash.props.landing,undefined);assert.equal(splash.props.timedIntro,true);
+    splash.props.onComplete();assert.equal(h.render(),null);assert.equal(h.app.type,'app');
+    const invite=sharedBootstrap({path:'/',search:'?welcome=1',hash});invite.auth.isInitializing=false;
+    assert.equal(invite.render().props.landing.ready,true);
   }
   for(const hash of ['#access_token=private','#refresh_token=private','#type=recovery','#error_description=expired','#code=private']) {
-    const h=sharedBootstrap({path:'/',search:'',hash}); h.auth.isInitializing=false;
+    const h=sharedBootstrap({path:'/',search:'?welcome=1',hash}); h.auth.isInitializing=false;
     assert.equal(h.render().props.landing,undefined);
   }
 });
@@ -951,14 +1022,16 @@ test('mobile welcome delegates readiness to the shared entry controls',()=>{
   h.unmount();
 });
 
-test('sign in or resizing to WEB ends the opening landing permanently', () => {
-  for(const action of ['signin','resize']) {
-    const h=sharedBootstrap({path:'/',search:''});h.auth.isInitializing=false;h.render().props.onComplete();
+test('sign in or guest continuation ends an explicit welcome permanently across presentation changes', () => {
+  for(const action of ['signin','guest']) {
+    const h=sharedBootstrap({path:'/',search:'?welcome=1'});h.auth.isInitializing=false;h.render().props.onComplete();
     const splash=h.render();
     if(action==='signin'){splash.props.landing.onSignIn();h.auth.isAuthenticated=true;h.auth.pendingView=null;}
-    else h.setPresentation('web');
-    const handoff=h.render();assert.equal(handoff.props.hidden,action==='resize');if(action==='signin')assert.equal(handoff.props.welcomeHandoff,true);assert.equal(h.render(),null);
-    h.auth.isAuthenticated=false;h.setPresentation('mobile');assert.equal(h.render(),null);
+    else splash.props.landing.onContinue();
+    const handoff=h.render();if(action==='signin')assert.equal(handoff.props.welcomeHandoff,true);else assert.equal(handoff,null);
+    assert.equal(h.render(),null);
+    h.auth.isAuthenticated=false;h.setPresentation('web');assert.equal(h.render(),null);
+    h.setPresentation('mobile');assert.equal(h.render(),null);
   }
 });
 
