@@ -2,6 +2,23 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script data-portalink-canonical-entry>
+      (() => {
+        const url = new URL(window.location.href);
+        if (url.hostname !== 'portalinknetworksinc.avimangalmurti566055.chatgpt.site') return;
+        // Complete existing origin-bound email/OAuth callbacks where they began.
+        // The server cannot see fragment tokens, so root navigation is checked here.
+        const callbackKeys = /^(?:code|state|nonce|auth|entry|onboarding_return|access_token|refresh_token|id_token|session|session_id|token|token_hash|type|error|error_code|error_description|provider_token|provider_refresh_token|expires_at|expires_in|token_type)$/i;
+        if ([...url.searchParams.keys(), ...new URLSearchParams(url.hash.slice(1)).keys()].some(key => callbackKeys.test(key))) return;
+        url.protocol = 'https:';
+        url.host = 'portalinknetworks.com';
+        url.username = '';
+        url.password = '';
+        window.location.replace(url.href);
+      })();
+    </script>
+    <link rel="canonical" href="https://portalinknetworks.com/" />
+    <meta property="og:url" content="https://portalinknetworks.com/" />
     <script>window.__PORTALINK_RUM_BOOT_MS__ = performance.now();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -293,7 +310,7 @@
         timer = window.setTimeout(() => { failed = true; show(); }, 12000);
       })();
     </script>
-    <meta property="og:image" content="https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/portalink-social-preview-centered.png" />
+    <meta property="og:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1254" />
     <meta property="og:image:height" content="1254" />
@@ -301,7 +318,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="portalinknetworks" />
     <meta name="twitter:description" content="Create what comes next" />
-    <meta name="twitter:image" content="https://portalinknetworksinc.avimangalmurti566055.chatgpt.site/portalink-social-preview-centered.png" />
+    <meta name="twitter:image" content="https://portalinknetworks.com/portalink-social-preview-centered.png" />
     <meta name="twitter:image:alt" content="Portalink character holding the Earth." />
     <title>portalink networks</title>
   </head>

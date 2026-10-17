@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ExportSheet } from '../../features/references/ExportSheet';
 import { FollowContentInfoPopup } from './FollowContentInfoPopup';
 import { CitationReferences } from '../../features/citations/CitationReferences';
@@ -256,7 +257,8 @@ export function ProjectMediaViewer({
     }
   }, [mobilePopup, engagement.resolveError, engagement.failure]);
   const sendContent = useInternalContentShare();
-  const shareProject = () => sendContent({title:projectTitle,url:window.location.href,onSent:()=>setIsProjectShared(true)});
+  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/') + window.location.search + window.location.hash, PUBLIC_ORIGIN).href;
+  const shareProject = () => sendContent({title:projectTitle,url:publicUrl,onSent:()=>setIsProjectShared(true)});
   const active = attachments.find((item) => item.id === activeId) ?? attachments[0];
   useEffect(() => {
     setIsImmersive(false);
@@ -302,7 +304,6 @@ export function ProjectMediaViewer({
   const journeyNavigate = useNavigate(), journeyAuth = useAuth();
   const requireSharedAccount = readOnlyShare && isMobileViewer && !journeyAuth.isAuthenticated ? () => { closeMobilePopup(); journeyAuth.requestAuthenticatedDestination({ kind: 'route', path: window.location.pathname + window.location.search, label: 'engage with this project' }, 'signUp'); } : undefined;
   useProjectReach(viewerRootRef,projectId,attachments,!journeyAuth.isInitializing && journeyAuth.viewerProfileId !== creator?.id && !isOwner);
-  const publicUrl = new URL(window.location.pathname.replace(/^\/p\//, '/share/'), window.location.origin).href;
   const [exportOpen,setExportOpen]=useState(false);
   const [ownCopyStatus,setOwnCopyStatus]=useState('');
   const copyScope=useRef<string|null>(null);

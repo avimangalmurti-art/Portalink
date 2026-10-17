@@ -340,11 +340,14 @@ test('held object refresh updates Save labels and leaves WEB scroll listeners un
  cleanup();assert.equal(listeners.size,0);mobile=false;press=render();assert.equal(Object.keys(press).length,0);assert.equal(listeners.size,0);
 });
 
-test('project holds resolve engagement only on demand, use shared capabilities and refresh the same object source', () => {
+test('project holds resolve engagement only on demand, use shared capabilities and refresh the same object source', async () => {
  let requested=false, latest, onOpen, shared=false;
+ const sent=[],copied=[];
  const record={isSaved:true}; let resolved=false;
  const {useMobileProjectContext}=compile('../src/presentation/mobile/useMobileProjectContext.ts',{
-  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>()=>{}},
+  '../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},
+  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>sent.push(target)},
+  '../../utils/copyPublicLink':{copyPublicLink:async url=>copied.push(url)},
   react:{useState:()=>[requested,next=>{requested=next;}]},
   '../../features/sharing/shareModel':{isPublicSharePath:path=>path.startsWith('/share/')},
   'react-router-dom':{useNavigate:()=>()=>{},useLocation:()=>({pathname:shared?'/share/creator':'/p/creator',search:''})},
@@ -357,6 +360,51 @@ test('project holds resolve engagement only on demand, use shared capabilities a
  render();assert.ok(!ids(latest).includes('saveProject'));onOpen();render();assert.ok(!ids(latest).includes('saveProject'));
  resolved=true;render();assert.equal(latest.primary.find(a=>a.id==='saveProject').label,'Unsave project');
  shared=true;render();assert.deepEqual(Array.from(ids(latest)),['share','copy']);
+ const actions=[...latest.primary,...latest.groups.flat()];
+ actions.find(action=>action.id==='share').run();await actions.find(action=>action.id==='copy').run();
+ assert.equal(sent[0].url,'https://portalinknetworks.com/share/creator/c/portal/work');
+ assert.deepEqual(copied,['https://portalinknetworks.com/share/creator/c/portal/work']);
+});
+
+test('shared project and collaboration actions emit official links while retaining public state', async () => {
+ for(const pathname of ['/share/creator/c/portal/work','/share/creator/collaboration']){
+  const sent=[],copied=[],native=[];
+  const location={pathname,search:'?media=file&page=7&view=page&via=friend',hash:'#references'};
+  const {SharedContextActions}=compile('../src/presentation/mobile/SharedContextActions.tsx',{
+   '../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},
+   '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>sent.push(target)},
+   'react-router-dom':{useLocation:()=>location,useNavigate:()=>()=>{}},
+   '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:true})},
+   '../../features/auth/registration':{readSharedReturnPath:value=>value},
+   '../../utils/copyPublicLink':{copyPublicLink:async url=>copied.push(url)},
+   './MobileContextActions':{MobileScreenActions:'actions'},'./contextActions':{contextActions},
+  },{URL,navigator:{share:async value=>native.push(value)},window:{location:{origin:'https://old-preview.test'}},DOMException});
+  const model=SharedContextActions({title:'Work'}).props.model;
+  const actions=[...model.primary,...model.groups.flat()];
+  const expected='https://portalinknetworks.com'+pathname+location.search+location.hash;
+  await actions.find(action=>action.id==='share').run();await actions.find(action=>action.id==='copy').run();
+  assert.equal(pathname.includes('/c/')?sent[0].url:native[0].url,expected);
+  assert.deepEqual(copied,[expected]);
+ }
+});
+
+test('profile hold shares and copies its official public portfolio URL', async () => {
+ const copied=[],shared=[];
+ let model;
+ const {MobileProfileContext}=compile('../src/presentation/mobile/MobileProfileContext.tsx',{
+  react:React,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},
+  'react-router-dom':{useLocation:()=>({pathname:'/share/creator',search:''}),useNavigate:()=>()=>{}},
+  '../../app/routes':{buildPath:(_name,{profileId})=>'/share/'+profileId},
+  '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:false})},
+  '../../utils/copyPublicLink':{copyPublicLink:async url=>copied.push(url)},
+  './SharedContextActions':{shareContextLink:async url=>shared.push(url)},
+  './contextActions':{contextActions},'./MobileContextActions':{useMobileContextPress:value=>{model=value;return{};}},
+ },{URL,window:{location:{origin:'https://old-preview.test'}}});
+ MobileProfileContext({profileId:'creator',name:'Creator',children:React.createElement('div')});
+ const actions=[...model.primary,...model.groups.flat()];
+ await actions.find(action=>action.id==='share').run();await actions.find(action=>action.id==='copy').run();
+ assert.deepEqual(shared,['https://portalinknetworks.com/share/creator']);
+ assert.deepEqual(copied,shared);
 });
 
 test('workbench has Drafts and Bookmarks; Select is only supplied by collection lists',()=>{const handlers={newProject(){},drafts(){},bookmarks(){},reads(){}};assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers}))),['drafts','bookmarks']);assert.deepEqual(Array.from(ids(contextActions('studio',{signedIn:true,owner:true},{handlers:{...handlers,select(){}}}))),['drafts','bookmarks','select']);});

@@ -5,7 +5,7 @@ const citation=sourceModule('src/features/citations/model.ts');
 const model=sourceModule('src/features/references/model.ts',{'../citations/model':citation});
 const resolver=sourceModule('src/server/referenceResolver.ts',{'../features/references/model':model},{fetch,AbortController,AbortSignal,setTimeout,clearTimeout,Response,TextDecoder});
 const cover=sourceModule('src/services/supabase/coverThumbnailReads.ts',{'../../features/media/publicMediaUrl':{publicCoverUrl:()=>''}});
-const preview=sourceModule('src/server/sharedPreview.ts',{'../features/sharing/shareModel':{},'../services/supabase/coverThumbnailReads':cover},{fetch,AbortSignal,Response,Date});
+const preview=sourceModule('src/server/sharedPreview.ts',{'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'../features/sharing/shareModel':{},'../services/supabase/coverThumbnailReads':cover},{fetch,AbortSignal,Response,Date});
 const server=sourceModule('src/server/portfolioExport.ts',{'./sharedPreview':preview,'../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalink.example'},'../services/supabase/coverThumbnailReads':cover,'./referenceResolver':resolver},{fetch,AbortSignal,Response,Date});
 const profile='00000000-0000-0000-0000-000000000001',category='10000000-0000-0000-0000-000000000001',hash='a'.repeat(64),config={supabaseUrl:'https://supabase.example',publishableKey:'synthetic-publishable-key'};
 const json=data=>new Response(JSON.stringify(data),{headers:{'content-type':'application/json'}});

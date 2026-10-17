@@ -38,11 +38,12 @@ function pageHarness({ savedRoute = false, initialSearch = '', preference = 'cat
     async markRead(row) { calls.push(['mark-read', row.id]); row.notification.isUnread = false; dirty = true; return true; },
   };
   const deps = {
+    '../citations/publicOrigin': { PUBLIC_ORIGIN: 'https://portalinknetworks.com' },
     '../../presentation/usePresentation': {usePresentation:()=>headerHost?'mobile':'web'},
     './StudioEmptyState': {StudioEmptyState:'studio-empty'},
     '../references/useReferences':{useReferences:()=>({externalReferences:async()=>[]})},
     '../references/ExportSheet':{ExportSheet:'export-sheet'},
-    '../sharing/InternalContentShare': {useInternalContentShare:()=>()=>{throw Error('Unexpected share in bookmarks selection fixture');}},
+    '../sharing/InternalContentShare': {useInternalContentShare:()=>target=>calls.push(['share',target])},
     '../citations/service': {listCitations:async()=>citations,resolveCitationItem:async()=>null,resolvePageId:async()=>null,resolveImageId:async()=>null,citationProject:async()=>null},
     '../citations/CiteSheet': {CiteSheet:'cite-sheet'},
     '../../components/text/textFormatting': {plainFormattedText:s=>s},
@@ -174,4 +175,19 @@ test('mobile Studio retains Back, Select and Done together in the header', () =>
 
 test('Published references live within row metadata, hide zero, and keep the reference link', async()=>{
  for(const count of [0,2]){const page=pageHarness({initialSearch:'collection=published',citations:Array.from({length:count},()=>({citing_project_id:'p1'}))});page.nodes;for(let i=0;i<10;i++)await Promise.resolve();const row=page.nodes.find(n=>n.type==='studio-row');assert.equal(row.props.referenceCount,count);assert.equal(page.nodes.some(n=>n.type==='li'&&nodes(n).some(c=>c.props.children===`${count} references`)),false);row.props.onOpenReferences();assert.equal(page.history.at(-1).path,'/p/me/c/c1/p1#references');}
+});
+
+test('row copying and batch sharing emit official public links from a preview host', async () => {
+ for (const headerHost of [undefined, {}]) {
+  const page = pageHarness({ initialSearch: 'collection=all', headerHost });
+  page.nodes.find(node => node.type === 'studio-row' && node.props.id === 'published:p1').props.onMenu();
+  page.nodes.find(node => node.type === 'sheet').props.actions.find(action => action.id === 'copy-link').onAction();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(page.calls.find(call => call[0] === 'copy'), ['copy', 'https://portalinknetworks.com/share/me/c/c1/p1']);
+  page.button('Select items').props.onClick();
+  page.nodes.filter(node => node.type === 'studio-row' && node.props.id !== 'activity:n1').forEach(node => node.props.onSelect());
+  const toolbar = page.nodes.find(node => node.props['aria-label'] === 'Selected item actions');
+  nodes(toolbar).find(node => node.type === 'button' && nodes(node).some(child => child.type === 'span' && child.props.children?.[0] === 'Share (')).props.onClick();
+  assert.equal(page.calls.find(call => call[0] === 'share')[1].url, 'https://portalinknetworks.com/share/me/c/c1/p1\nhttps://portalinknetworks.com/share/me/c/c1/p1');
+ }
 });

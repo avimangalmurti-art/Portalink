@@ -19,12 +19,12 @@ function nodes(node) {
 const withProp = (tree, prop) => nodes(tree).find(node => prop in node.props);
 const button = (tree, label) => nodes(tree).find(node => node.type === 'button' && node.props['aria-label'] === label);
 
-function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video' } = {}) {
+function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty = false, engagement = {}, mediaKind = 'video', search = '', hash = '' } = {}) {
   engagement = { isPending: () => false, isEngaged: () => false, canEngage: true, isResolving: false, ...engagement };
   const slots = []; let cursor = 0, panel = null;
   const serviceIds = [], gates = [];
   const viewerMemory = new Map(), memoryWrites = [];
-  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [];
+  const swipeCalls = [], navigationCalls = [], outsideCalls = [], optionCalls = [], screenActions = [], sharedTargets = [], copies = [];
   const onBack = () => navigationCalls.push('back'), onClose = () => navigationCalls.push('close');
   const swipeHandlers = { onPointerUpCapture() {}, onClickCapture() {} };
   const react = { ...React, useEffect() {}, useLayoutEffect() {}, useCallback: fn => fn,
@@ -38,7 +38,10 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   const exports = {};
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/ProjectMediaViewer.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true },
-  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project',search:''} }, require(name) {
+  }).outputText, { exports, URL, URLSearchParams, window: { location: {pathname:readOnlyShare?'/share/creator/c/portal/project':'/p/creator/c/portal/project',origin:'https://portalink.test',href:'https://portalink.test/p/creator/c/portal/project'+search+hash,search,hash} }, require(name) {
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
+    if (name.endsWith('/InternalContentShare')) return { useInternalContentShare: () => target => sharedTargets.push(target) };
+    if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => copies.push(value) };
     if (name.endsWith('/ExportSheet')) return {ExportSheet:'export-sheet'};
     if (name === 'react') return react;
     if (name.endsWith('/contextActions')) return actionMap;
@@ -79,7 +82,7 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
   } });
   const attachments = empty ? [] : ['first', 'second'].map(id => ({ id, kind: mediaKind, displayName: id, typeLabel: 'Video' }));
   const index = React.createElement('aside', { 'data-project-index-panel': '' }, React.createElement('button', { onClick: () => { panel = null; }, 'aria-label': 'Collapse document list' }));
-  return { gates, attachments, optionCalls, screenActions, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
+  return { gates, attachments, optionCalls, screenActions, sharedTargets, copies, serviceIds, viewerMemory, memoryWrites, swipeCalls, swipeHandlers, navigationCalls, outsideCalls, onBack, openIndex() { panel = 'index'; }, render(overrides = {}) {
     cursor = 0;
     return exports.ProjectMediaViewer({ projectId: 'project', projectTitle: 'Work', attachments, pageCount: null,
       responseRailWidth: { width: panel === 'response' ? 320 : 52 }, singlePanel: null, readOnlyShare,
@@ -90,6 +93,21 @@ function harness({ signedIn = true, mobile = true, readOnlyShare = false, empty 
     });
   } };
 }
+
+test('project sharing and copying use the official public destination with the current page state', async () => {
+  for (const mobile of [true, false]) for (const readOnlyShare of [true, false]) {
+    const h = harness({ mobile, readOnlyShare, search: '?media=first&page=2&view=page&via=friend', hash: '#references' });
+    h.render();
+    const model = h.screenActions.at(-1).model;
+    const actions = [...model.primary, ...model.groups.flat()];
+    actions.find(action => action.id === 'share').run();
+    await actions.find(action => action.id === 'copy').run();
+    const expected = 'https://portalinknetworks.com/share/creator/c/portal/project?media=first&page=2&view=page&via=friend#references';
+    assert.equal(h.sharedTargets[0].url, expected);
+    assert.deepEqual(h.copies, [expected]);
+    assert.equal(h.sharedTargets[0].title, 'Work');
+  }
+});
 
 test('project overview attaches mobile swipe Back to the work stage and uses navigation rather than media Close', () => {
   const h = harness();

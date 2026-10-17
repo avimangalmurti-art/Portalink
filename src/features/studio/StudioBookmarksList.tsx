@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 import { usePresentation } from '../../presentation/usePresentation';
 import { StudioEmptyState } from './StudioEmptyState';
 import { useReferences } from '../references/useReferences';
@@ -132,7 +133,7 @@ export function StudioPage({ onBack, onOpenProject, onNewProject, savedRoute = f
     const identity = account.current;
     const paths = rows.map(studioSharePath).filter((path): path is string => Boolean(path));
     if (!paths.length) return;
-    const links = paths.map(path => new URL(path, window.location.origin).href);
+    const links = paths.map(path => new URL(path, PUBLIC_ORIGIN).href);
     setLocalError(null);
     try {
       if (!copy) {

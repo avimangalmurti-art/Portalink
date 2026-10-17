@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../../features/citations/publicOrigin';
 import { ProjectPopupEngagement } from './ProjectPopupEngagement';
 import { useMobileActions } from '../../presentation/mobile/MobileContextActions';
 
@@ -70,7 +71,7 @@ export function MobileProjectPopup({ project, creator: suppliedCreator, creatorI
 
  const requireAccount = shared && !auth.isAuthenticated ? () => auth.requestAuthenticatedDestination({kind:'route',path:location.pathname + location.search,label:'engage with this project'},'signUp') : undefined;
 
- const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),window.location.origin).href;
+ const url = new URL(buildPath('sharedProject', {profileId: creator?.id ?? creatorId ?? '',categoryId:project.categoryId,projectId:project.id}),PUBLIC_ORIGIN).href;
 
  const owner = !shared && auth.viewerProfileId === (creator?.id ?? creatorId);
  const actionModel = contextHandlers ? contextActions(shared ? 'shared' : 'project', {signedIn:auth.isAuthenticated,owner}, {title:project.title,handlers:contextHandlers}) : undefined;

@@ -193,6 +193,7 @@ function timelineActionsHarness(presentation, viewerRole = 'visitor', followStat
   const code = ts.transpileModule(read('../src/components/UserProfilePage.tsx'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {}, placeholder = new Proxy({}, { get: (_object, key) => key });
   vm.runInNewContext(code, { exports, URL, URLSearchParams, window: { location: { origin: 'https://portalink.test' } }, require(name) {
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
     if (name === 'react') return react;
     if (name === 'react-router-dom') return { useLocation: () => ({ state: null }), useNavigate: () => () => {}, useSearchParams: () => [params, update => { params = update(params); }] };
     if (name === 'lucide-react') return icons;

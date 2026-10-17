@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from './features/citations/publicOrigin';
 import { OptionalAccountSetup } from './components/auth/OptionalAccountSetup';
 import { RouteError, routeErrorKind } from './components/ui/RouteError';
 import { useWeeklyReadSignal } from './features/reads/useWeeklyReadSignal';
@@ -1293,7 +1294,7 @@ function AppContent({ homeStartupPending = false, homeStartupAttempt = 0, onHome
         const path = buildPath(isSharedRoute ? 'sharedProfile' : 'profile', { profileId: viewedProfile.id });
         const target = view === 'projects' ? path : `${path}?view=${view}`;
         if (target !== `${pathname}${search}`) nav.to(target);
-      }} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${window.location.origin}${buildPath('sharedProfile', {
+      }} viewerRole={viewerRole} isSharedView={isSharedRoute} onBeforeShare={creatorAppearance.flush} shareUrl={isOwnerMode ? `${PUBLIC_ORIGIN}${buildPath('sharedProfile', {
         profileId: viewedProfile.id
       })}` : undefined} follow={isSharedRoute && auth.viewerProfileId === viewedProfile.id ? undefined : {
         isFollowing: follows.isFollowing,

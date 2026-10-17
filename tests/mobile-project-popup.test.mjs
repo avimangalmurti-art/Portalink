@@ -9,7 +9,7 @@ function render(shared=false, owner=false, props={}) {
  const calls=[]; const exports={};
  const engagement={};
  const react={...React,useEffect(){},useState(){return [undefined,()=>{}];}};
- const mocks={react,'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:shared?'/share/creator':'/home',search:''})},
+ const mocks={react,'../../features/citations/publicOrigin':{PUBLIC_ORIGIN:'https://portalinknetworks.com'},'react-router-dom':{useNavigate:()=>path=>calls.push(['navigate',path]),useLocation:()=>({pathname:shared?'/share/creator':'/home',search:''})},
  '../../contexts/ServicesContext':{useServices:()=>({profiles:{getProfile:()=>{throw Error('Supplied creator must not be fetched');}}})},
  '../../contexts/AuthContext':{useAuth:()=>({isAuthenticated:!shared,viewerProfileId:owner?'creator':undefined,requestAuthenticatedDestination:(...args)=>calls.push(['account',...args])})},
  '../../features/engagement/useProjectEngagement':{useProjectEngagement:id=>{calls.push(['engagement',id]);return engagement;}},
@@ -18,7 +18,7 @@ function render(shared=false, owner=false, props={}) {
  '../../features/sharing/InternalContentShare':{useInternalContentShare:()=>target=>calls.push(['share',target])},
  '../../presentation/mobile/MobileContextActions':{useMobileActions:()=>({open(){}})},
  '../../presentation/mobile/contextActions':{contextActions:(kind,viewer,target)=>({primary:Object.entries(target.handlers).filter(([,run])=>run).map(([id,run])=>({id,run})),groups:[]})},
- '../../app/routes':{buildPath:(kind,ids)=>'/'+kind+'/'+ids.profileId},
+ '../../app/routes':{buildPath:(kind,ids)=>kind==='sharedProject'?`/share/${ids.profileId}/c/${ids.categoryId}/${ids.projectId}`:'/'+kind+'/'+ids.profileId},
  '../../features/sharing/shareModel':{isPublicSharePath:()=>shared}};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../src/components/media/MobileProjectPopup.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,esModuleInterop:true,jsx:ts.JsxEmit.React,target:ts.ScriptTarget.ES2022}}).outputText,{exports,require:n=>mocks[n]??{},window:{location:{origin:'https://example.com'}},URL});
  const tree=exports.MobileProjectPopup({project:{id:'work',categoryId:'portal',title:'Work',summary:'Description'},creator:{id:'creator',name:'Artist',avatar:'avatar.png'},onClose:()=>calls.push(['close']),onOpenComments:()=>calls.push(['comments']),...props});
@@ -29,6 +29,7 @@ test('project popup preserves description, canonical engagement and creator orde
  const details=nodes(tree.props.engagementContent);const bar=details.find(n=>n.type==='engagement');
  const identity=nodes(tree.props.creatorHeader);const creator=identity.find(n=>n.props.className==='project-popup-creator');
  assert.equal(bar.props.engagement,engagement);assert.equal(bar.props.projectId,'work');
+ assert.equal(bar.props.url,'https://portalinknetworks.com/share/creator/c/portal/work');
  assert.ok(creator);assert.equal(identity.find(n=>n.type==='avatar').props.shape,'squircle');assert.equal(tree.props.title,'Work');
  bar.props.onOpenComments();assert.deepEqual(calls.slice(-2),[['close'],['comments']]);
  creator.props.onClick();assert.deepEqual(calls.slice(-2),[['close'],['navigate','/profile/creator']]);

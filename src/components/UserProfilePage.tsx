@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../features/citations/publicOrigin';
 import { DensitySeparator } from './ui/DensitySeparator';
 import { rememberAccount } from '../features/follows/recentAccounts';
 import { visitorPreviewPath } from '../features/profile/visitorPreview';
@@ -546,14 +547,15 @@ export function UserProfilePage({
     try { if (localStorage.getItem(`portalink.handle-intro:${profile.id}`) === '1') return; } catch { /* Optional convenience. */ }
     offeredHandle.current = profile.id; setShareAuto(true); setShareOpen(true);
   }, [isMobile, showsOwnerTools, profile.id, profile.isPrivate, publishedProjectId]);
-  const publicProfileUrl = shareUrl ?? new URL(buildPath('sharedProfile', { profileId: profile.id }), window.location.origin).href;
+  const publicProfileLocation = new URL(shareUrl ?? buildPath('sharedProfile', { profileId: profile.id }), PUBLIC_ORIGIN);
+  const publicProfileUrl = `${PUBLIC_ORIGIN}${publicProfileLocation.pathname}${publicProfileLocation.search}${publicProfileLocation.hash}`;
   const { profiles: profileServices } = useServices();
   const readsNavigate = useNavigate();
   const prepareProfileLink = async () => {
     await onBeforeShare?.();
     const address = await profileServices.getShareAddress?.(profile.id);
     if (showsOwnerTools && address?.handle) await profileServices.markHandleShared?.(profile.id, address.handle);
-    return address?.handle ? new URL(portfolioPath(profile.id, address.handle), window.location.origin).href : publicProfileUrl;
+    return address?.handle ? new URL(portfolioPath(profile.id, address.handle), PUBLIC_ORIGIN).href : publicProfileUrl;
   };
   const profileActions = contextActions('profile', { signedIn: !needsAccount(viewerRole), owner: showsOwnerTools }, { title: showsOwnerTools ? 'Your profile' : profile.name, handlers: {
     viewAsVisitor: showsOwnerTools && !isSharedView ? () => window.location.assign(visitorPreviewPath(profile.id)) : undefined,

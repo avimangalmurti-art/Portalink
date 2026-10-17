@@ -1,4 +1,6 @@
 import {handleReferenceResolve} from './server/referenceResolver';
+import { PUBLIC_ORIGIN } from './features/citations/publicOrigin';
+import { publicOriginRedirect } from './server/publicOriginRedirect';
 import {handlePortfolioExport} from './server/portfolioExport';
 import { handleCitation, citationLicenseResponse } from './server/citation';
 import { readPortfolioCard } from './server/sharedPreview';
@@ -390,6 +392,8 @@ async function handleMediaInteractions(request: Request, db: D1Database): Promis
 const worker = {
   async fetch(request: Request, environment: SitesEnvironment, context?: { waitUntil(promise: Promise<unknown>): void }): Promise<Response> {
     const url = new URL(request.url)
+    const officialRedirect = publicOriginRedirect(request);
+    if (officialRedirect) return officialRedirect;
     if (url.pathname === '/sitemap.xml') return publicSitemap(request,{supabaseUrl:SUPABASE_URL,publishableKey:SUPABASE_KEY});
     if(url.pathname==='/api/references/resolve')return handleReferenceResolve(request,authenticatedUser);
     const exportProfile=/^\/api\/exports\/portfolio\/([^/]+)$/.exec(url.pathname);
@@ -433,7 +437,7 @@ const worker = {
     if (url.pathname.startsWith('/api/portfolio-card/')) {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       try {
-        const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), url.origin, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
+        const card = await readPortfolioCard(url.pathname.slice('/api/portfolio-card/'.length), PUBLIC_ORIGIN, { supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY });
         return json(card ?? { error: 'Public preview is not available yet.' }, card ? 200 : 404);
       } catch { return json({ error: 'Public preview is temporarily unavailable.' }, 503); }
     }
@@ -466,7 +470,7 @@ const worker = {
     }
     if (address.resolution) for (const name of ['content-length','content-encoding','etag','last-modified']) headers.delete(name);
     if (address.unavailable) headers.set('retry-after', '30');
-    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, url.origin + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
+    const shell = new Response(request.method === 'HEAD' ? null : address.resolution ? injectShareResolution(await response.text(), address.resolution, PUBLIC_ORIGIN + url.pathname) : response.body, { status: address.unavailable ? 503 : address.missing && handleFromPath(url.pathname) ? 404 : response.status, headers });
     if (!navigation || !shared || !LINK_PREVIEW_CRAWLER.test(request.headers.get('user-agent') ?? '')) return shell;
     return withSharedPreview(shell, request, {
       supabaseUrl: SUPABASE_URL, publishableKey: SUPABASE_KEY,

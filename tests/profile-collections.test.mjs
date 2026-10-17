@@ -195,6 +195,8 @@ function profileHarness(search = '', options = {}) {
       }
     }, useRef(value) { const i = cursor++; return slots[i] ??= { current: value }; }, useMemo: (fn) => fn() };
   const { UserProfilePage } = compile('../src/components/UserProfilePage.tsx', (name) => {
+    if (name.endsWith('/publicOrigin')) return { PUBLIC_ORIGIN: 'https://portalinknetworks.com' };
+    if (name.endsWith('/copyPublicLink')) return { copyPublicLink: async value => options.onCopy?.(value) };
     if (name.endsWith('/useMenuFocus')) return { useMenuFocus: () => ({ onTriggerKeyDown() {} }) };
     if (name.endsWith('/useModalFocus')) return { useModalFocus() {} };
     if (name === 'react') return react;
@@ -682,6 +684,18 @@ test('mobile owner reorder is available through the action popup with no passive
   assert.equal(reorderControl(web.render()), undefined);
   reorderControl(openProfileOptions(web)).props.onClick();
   assert.equal(wall(web.render()).props.reorderMode.enabled, true);
+});
+
+test('profile copy normalizes a supplied preview-host URL without losing public path or state', async () => {
+  for (const presentation of ['mobile', 'web']) {
+    const copies = [];
+    const h = profileHarness('', { presentation, onCopy: value => copies.push(value), props: {
+      shareUrl: 'https://old-preview.test/share/owner?view=portals&via=friend#portfolio',
+    } });
+    h.render();
+    await h.action('copy').run();
+    assert.deepEqual(copies, ['https://portalinknetworks.com/share/owner?view=portals&via=friend#portfolio']);
+  }
 });
 
 test('mobile owner header keeps Bio and links while Edit and Share work through the action popup', () => {

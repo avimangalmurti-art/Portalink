@@ -1,4 +1,5 @@
 import { sourceModule } from './helpers/source-module.mjs';
+import { publicOriginFixture, publicRedirectFixture } from './helpers/public-origin-fixture.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -15,6 +16,8 @@ function load(path, imports = {}, globals = {}) {
   const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, TextDecoder, TextEncoder, crypto, URL, URLSearchParams, Response, Request, Headers, AbortSignal, btoa, atob, ...globals, require: (id) => {
+      if (id.endsWith('/publicOrigin')) return publicOriginFixture;
+      if (id.endsWith('/publicOriginRedirect')) return publicRedirectFixture;
       if (id.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts');
       if (id === './server/referenceResolver' || id === './server/portfolioExport') return {};
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };

@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from '../citations/publicOrigin';
 import { plainFormattedText } from '../../components/text/textFormatting';
 import { useServices } from '../../contexts/ServicesContext';
 import { PortfolioPreview } from '../sharing/PortfolioPreview';
@@ -20,7 +21,7 @@ export function PortfolioLiveCard({ profile, publishedProjectId, onBeforeShare, 
   useEffect(() => { let active=true; void profiles.getPortfolioCard?.(profile.id).then(value=>{if(active)setCard(value);}).catch(()=>undefined); void profiles.getShareAddress?.(profile.id).then(value=>{if(active)setHandle(value.handle);}).catch(()=>undefined); const dismiss=(event:Event)=>{if((event as CustomEvent).detail?.profileId===profile.id)setProjectId(null);}; window.addEventListener('portalink:portfolio-shared',dismiss); return()=>{active=false;window.removeEventListener('portalink:portfolio-shared',dismiss);}; }, [profile.id, profiles]);
   const project = profile.projects.find(item => item.id === projectId);
   if (!project || profile.isPrivate || project.sessionOnly || project.isPubliclyVisible === false) return null;
-  const url = new URL(portfolioPath(profile.id,handle),window.location.origin).href;
+  const url = new URL(portfolioPath(profile.id,handle),PUBLIC_ORIGIN).href;
   const share = async (native: boolean) => {
     if (native && onOpenShare) { onOpenShare(); return; }
     if (busy) return;

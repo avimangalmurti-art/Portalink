@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { publicOriginFixture, publicRedirectFixture } from './helpers/public-origin-fixture.mjs';
 import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
@@ -41,6 +42,8 @@ function setup() {
   vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, {
     exports, URL, URLSearchParams, Response, Request, Headers, AbortSignal, crypto, btoa, atob,
     require: id => {
+      if (id === './features/citations/publicOrigin') return publicOriginFixture;
+      if (id === './server/publicOriginRedirect') return publicRedirectFixture;
       if(id==='./server/referenceResolver'||id==='./server/portfolioExport')return{};
       if (id === './server/citation') return { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } };
       if (id === './server/publicMedia') return { isPublicMediaRoute: () => false };
