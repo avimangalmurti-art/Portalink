@@ -125,7 +125,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
       }
     }).catch((error) => {
       if (current()) {
-        setArrangementError(messageFor(error, 'Your portfolio arrangement could not be loaded.'));
+        setArrangementError(messageFor(error, 'Your catalogue arrangement could not be loaded.'));
       }
     }).finally(() => {
       if (current()) {
@@ -307,7 +307,7 @@ export function useCategoryManagement(profileId: Id | null, isOwner: boolean): C
     isAvailable: false,
     removes: [],
     blockingProjectCount: 0,
-    reason: 'There is no portfolio open, so nothing can be removed.'
+    reason: 'There is no catalogue open, so nothing can be removed.'
   }), [profileId, profileService]);
   const deleteCategory = useCallback(async function deleteCategory(categoryId: Id): Promise<boolean> {
     if (!profileId) {

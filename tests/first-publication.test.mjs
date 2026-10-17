@@ -71,7 +71,7 @@ function harness() {
 
 test('guest Home action resumes first publication after sign-in and completed profile onboarding', async () => {
   const h = harness();
-  assert.equal(h.homeAction().label, 'Create your portfolio');
+  assert.equal(h.homeAction().label, 'Create your catalogue');
   h.homeAction().onClick();
   assert.deepEqual(h.calls, [['auth', { kind: 'create-project' }]]);
   assert.equal(h.context.isPublishOpen, false);

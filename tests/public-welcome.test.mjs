@@ -18,7 +18,7 @@ test('visitor entry never mounts a blocking appearance sheet', () => {
   assert.match(source, /ControlCenterPage/);
 });
 const nodes = tree => React.isValidElement(tree) ? [tree,...React.Children.toArray(tree.props.children).flatMap(nodes)] : [];
-test('timed splash advances to live controls; completion requires View portfolio or Escape', () => {
+test('timed splash advances to live controls; completion requires View catalogue or Escape', () => {
   let intro=true, complete=0, escape;
   const appearance = {theme:'light',mode:'auto',accentColor:'#0A84FF',systemGray:'gray6',highContrast:false,reduceTranslucency:false,chooseMode(){},chooseAppearance(value){Object.assign(appearance,value);}};
   const {PublicPortfolioWelcome} = load('src/visitor/mobile/PublicPortfolioWelcome.tsx', {
@@ -33,6 +33,6 @@ test('timed splash advances to live controls; completion requires View portfolio
   const controls=list.find(n=>n.type==='MobileOnboardingAppearance'); assert.equal(controls.props.showPreview,false);
   controls.props.onAccentColorChange('#ff0000'); controls.props.onHighContrastChange(true);
   assert.equal(appearance.accentColor,'#ff0000');assert.equal(appearance.highContrast,true);
-  list.find(n=>n.type==='button'&&n.props.children==='View portfolio').props.onClick();assert.equal(complete,1);
+  list.find(n=>n.type==='button'&&n.props.children==='View catalogue').props.onClick();assert.equal(complete,1);
   escape();assert.equal(complete,2);
 });

@@ -55,7 +55,7 @@ export function useSharedProfileQuery(profileId: string | null, projectId: strin
       if (!cancelled && currentScope.current === scope) setState({ scope, key, profile, status: 'ready', error: null });
     }, (error: unknown) => {
       if (!cancelled && currentScope.current === scope) {
-        const message = error instanceof Error ? error.message : 'The shared portfolio could not be loaded.';
+        const message = error instanceof Error ? error.message : 'The shared catalogue could not be loaded.';
         setState({ scope, key, profile: null, status: /not found|could not be found|invalid input syntax for type uuid/i.test(message) ? 'not-found' : 'error', error: message });
       }
     });

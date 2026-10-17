@@ -4,8 +4,8 @@ export async function downloadPortfolio(profileId: string, signal: AbortSignal):
     credentials: 'omit', cache: 'no-store', signal,
   });
   if (!response.ok) throw new Error(response.status === 503
-    ? 'Portfolio PDF is not available yet. Please try again later.'
-    : 'The portfolio could not be downloaded. Check your connection and try again.');
+    ? 'Catalogue PDF is not available yet. Please try again later.'
+    : 'The catalogue could not be downloaded. Check your connection and try again.');
   const blob = await response.blob();
   if (!/^application\/pdf(?:;|$)/i.test(blob.type) || !blob.size) {
     throw new Error('The download did not contain a PDF. Please try again.');

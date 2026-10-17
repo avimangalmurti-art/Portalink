@@ -22,7 +22,7 @@ const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('actual export handlers retain retry action, prevent double activation, and clear the error after success',async()=>{
  let reject, calls=0;
  const ui=fixture(async()=>{calls++;if(calls===1)return new Promise((_resolve,r)=>reject=r);return new Blob(['%PDF']);});
- const start=ui.button('Download Portfolio PDF');start.props.onClick();start.props.onClick();
+ const start=ui.button('Download Catalogue PDF');start.props.onClick();start.props.onClick();
  assert.equal(calls,1);assert.equal(ui.button('Preparing PDF...').props.isLoading,true);
  reject(new Error('Offline'));await settle();
  assert.ok(ui.render().some(n=>n.props.role==='alert'&&n.props.children==='Offline'));
@@ -33,10 +33,10 @@ test('actual export handlers retain retry action, prevent double activation, and
 
 test('actual export timeout releases the busy state and offers another attempt without saving partial output',async()=>{
  const ui=fixture((_id,signal)=>new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')))));
- ui.button('Download Portfolio PDF').props.onClick();ui.timeout();await settle();
+ ui.button('Download Catalogue PDF').props.onClick();ui.timeout();await settle();
  assert.equal(ui.saves(),0);assert.ok(ui.button('Retry download'));
  assert.ok(ui.render().some(n=>n.props.role==='alert'&&/took too long/.test(n.props.children)));
- assert.equal(ui.button('Download Portfolio PDF').props.isLoading,false);
+ assert.equal(ui.button('Download Catalogue PDF').props.isLoading,false);
 });
 
 test('bibliography retry retains the chosen format and copy has its own retry label',async()=>{

@@ -5,7 +5,7 @@ export function immediateAddressValidation(handle: string, address: ShareAddress
   if (!validHandle(handle)) return { handle, status: 'invalid', message: 'Use 3–30 lowercase letters, numbers or dots. Reserved addresses cannot be used.' };
   if (!address) return { handle, status: 'checking', message: 'Loading your current address…' };
   if (handle === address.handle) return { handle, status: 'current', message: 'This is your current address.' };
-  if (!address.available) return { handle, status: 'unavailable', message: 'Address editing is unavailable. Your existing portfolio link still works.' };
+  if (!address.available) return { handle, status: 'unavailable', message: 'Address editing is unavailable. Your existing catalogue link still works.' };
   return null;
 }
 export function usePortfolioAddressValidation(enabled: boolean, value: string, address: ShareAddress | null, check?: (handle: string) => Promise<'available' | 'taken' | 'unavailable'>, retryKey = 0) {

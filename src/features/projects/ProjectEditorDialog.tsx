@@ -308,5 +308,5 @@ export function DeleteProjectDialog({
     deletion
   } = management;
   if (deletion.projectId === null || deletion.phase === 'idle') return null;
-  return <ConfirmationDialog title="Delete this project?" description={`“${projectTitle}” and its files will be removed from your portfolio. This cannot be undone.`} confirmLabel="Delete project" variant="destructive" pending={deletion.isDeleting} pendingLabel="Deleting…" error={deletion.failure?.message} onCancel={deletion.cancel} onConfirm={async()=>{const deleted=await deletion.confirm();if(deleted)onDeleted();return deleted;}}/>;
+  return <ConfirmationDialog title="Delete this project?" description={`“${projectTitle}” and its files will be removed from your catalogue. This cannot be undone.`} confirmLabel="Delete project" variant="destructive" pending={deletion.isDeleting} pendingLabel="Deleting…" error={deletion.failure?.message} onCancel={deletion.cancel} onConfirm={async()=>{const deleted=await deletion.confirm();if(deleted)onDeleted();return deleted;}}/>;
 }

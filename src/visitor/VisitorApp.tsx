@@ -111,7 +111,7 @@ export function VisitorApp() {
     document.body.classList.toggle('reduce-translucency', reduceTranslucency);
   }, [theme, highContrast, reduceTranslucency]);
   useEffect(() => {
-    document.title = settings ? 'Settings | Portalink' : profile ? project ? `${project.title} — ${profile.name} | Portalink` : `${profile.name} — Portfolio | Portalink` : 'Shared portfolio | Portalink';
+    document.title = settings ? 'Settings | Portalink' : profile ? project ? `${project.title} — ${profile.name} | Portalink` : `${profile.name} — Catalogue | Portalink` : 'Shared catalogue | Portalink';
   }, [profile, project, settings]);
   const fulfilIntent = useCallback((intent: AuthIntent | null) => {
     if (!intent || intent.kind === 'interaction') return;
@@ -171,7 +171,7 @@ export function VisitorApp() {
         {visitorPreview && profileId && <VisitorPreviewBar onDone={() => window.location.assign(visitorPreviewReturn(profileId))} />}
         <div id="app-viewport">
           <div className="app-screen-layer h-full min-h-0">
-            <main tabIndex={-1} aria-label={settings ? 'Settings' : profile ? `${profile.name} shared portfolio` : 'Shared portfolio'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <main tabIndex={-1} aria-label={settings ? 'Settings' : profile ? `${profile.name} shared catalogue` : 'Shared catalogue'} className={`min-h-0 h-full w-full ${projectId && !settings ? 'overflow-hidden' : 'overflow-y-auto'}`}>
               <div data-screen-scroll={projectId && !settings ? 'nested' : 'page'} className={`feed-starfield min-h-full ${projectId && !settings ? 'h-full' : ''}`}>
                 <DeferredSurfaceBoundary active onClose={back} resetKey={location.pathname}>
                   <Suspense fallback={pending}>
@@ -211,7 +211,7 @@ export function VisitorApp() {
           onAccentColorChange={value => appearance.chooseAppearance({ accentColor: value })} highContrast={highContrast}
           onHighContrastChange={value => appearance.chooseAppearance({ highContrast: value })} reduceTranslucency={reduceTranslucency}
           onReduceTranslucencyChange={value => appearance.chooseAppearance({ reduceTranslucency: value })}
-          completionActionLabel={deferredIntent.current?.kind === 'messages' ? 'Continue to messages' : 'Return to portfolio'}
+          completionActionLabel={deferredIntent.current?.kind === 'messages' ? 'Continue to messages' : 'Return to catalogue'}
           onDismiss={() => { setOnboardingOpen(false); deferredIntent.current = null; }}
           onComplete={id => { setOnboardingOpen(false); const intent = deferredIntent.current; deferredIntent.current = null;
             if (intent?.kind === 'my-profile') window.location.assign(buildPath('profile', { profileId: id })); else fulfilIntent(intent);

@@ -170,7 +170,7 @@ test('profile card uses its public avatar, creator title, public-only queries an
     authorization: 'Bearer owner-session', cookie: 'session=private', 'if-none-match': 'template-etag',
   });
   const html = await response.text();
-  assert.match(html, /<title>Test creator — Portfolio<\/title>/);
+  assert.match(html, /<title>Test creator — Catalogue<\/title>/);
   assert.equal(value(html, 'og:description'), '1 project');
   assert.equal(value(html, 'og:type'), 'profile');
   assert.equal(value(html, 'og:url'), officialOrigin + profilePath);

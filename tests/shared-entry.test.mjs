@@ -84,7 +84,7 @@ test('public sign-in bar offers optional account actions only for a verified gue
   const buttons = nodes(tree).filter(node => node.type === 'button');
   assert.equal(buttons.length, 3); assert.equal(buttons[0].props.children, 'Sign in');
   assert.equal(buttons[1].props.children, 'Create account'); assert.equal(buttons[2].props['aria-label'], 'Dismiss sign-in bar');
-  assert.ok(nodes(tree).some(node => node.props.className === 'shared-sign-in-identity' && React.Children.toArray(node.props.children).join('') === "Viewing Creator Name's portfolio"));
+  assert.ok(nodes(tree).some(node => node.props.className === 'shared-sign-in-identity' && React.Children.toArray(node.props.children).join('') === "Viewing Creator Name's catalogue"));
   assert.equal(visitor.requested.length, 0);
   for (const options of [{ name: '' }, { name: null }, { initializing: true }, { signedIn: true }, { initializing: true, signedIn: true }, { path: '/' }, { path: '/studio' }, { path: '/profile/creator' }, { path: '/share' }, { path: '/shared/creator' }]) {
     const h = signInBar(options);

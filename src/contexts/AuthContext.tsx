@@ -90,7 +90,7 @@ function describeIntent(intent: AuthIntent): string {
     case 'view-profile':
       return 'Sign in to explore this creator and the rest of Portalink.';
     case 'view-portfolio':
-      return 'Sign in to explore this portfolio and the rest of Portalink.';
+      return 'Sign in to explore this catalogue and the rest of Portalink.';
     case 'studio':
       return 'Sign in to open Studio and the rest of Portalink.';
     case 'create-project':

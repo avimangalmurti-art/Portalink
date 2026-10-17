@@ -200,7 +200,7 @@ export const supabaseProfileService: ProfileService = {
     if (input.avatar) update.avatar_url = await uploadAvatar(authData.session.user.id, input.avatar);
     if (Object.keys(update).length === 0) return this.getProfile(profileId);
     const { error } = await requireSupabase().from('profiles').update(update).eq('id', profileId).eq('account_id', authData.session.user.id).select('id').single();
-    if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These portfolio settings are not enabled yet. Your changes have not been saved.');
+    if (error && ['42703','PGRST204'].includes(error.code) && /portfolio_headline|school|availability|contact_email|allow_pdf_download|start_here_project_id/.test(error.message)) throw new Error('These catalogue settings are not enabled yet. Your changes have not been saved.');
     if (error && ['42703', 'PGRST204'].includes(error.code) && /show_journey|then_now/.test(error.message)) throw new Error('Timeline sharing and pairs are not enabled yet. Your changes have not been saved.');
     if (error) throwProfileError(error, 'Your profile changes could not be saved.');
     return this.getProfile(profileId);
@@ -324,7 +324,7 @@ export const supabaseProfileService: ProfileService = {
         }
       : {
           isAvailable: true,
-          removes: ['This category and its position in your portfolio.'],
+          removes: ['This category and its position in your catalogue.'],
           blockingProjectCount: 0,
         };
   },
@@ -532,7 +532,7 @@ export const supabaseProjectService: ProjectService = {
       throw new PublishServiceError('invalid_media', 'Upload at least one file before publishing.');
     }
     const categoryResult = await requireSupabase().from('portfolio_categories').select('label').eq('id', input.categoryId).eq('profile_id', input.profileId).single();
-    if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That portfolio category could not be found.');
+    if (categoryResult.error) throw new PublishServiceError('category_not_found', 'That catalogue category could not be found.');
     const relevance = withProjectLocation(input.relevance ?? projectRelevanceForPersistence(input.metadata, String((categoryResult.data as { label?: string }).label ?? '')), input.location);
     const extended = await requireSupabase().rpc('publish_project_citation_fields', {
       p_made_on: input.metadata.madeOn || null,

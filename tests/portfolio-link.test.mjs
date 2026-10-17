@@ -28,9 +28,9 @@ test('handle grammar, suggestions, all product roots and URL fallbacks',()=>{
  for(const name of ['Avi Mangal Murti','A','Portalink','!!!']) {const values=model.handleSuggestions(name);assert.equal(values.length,3);assert.ok(values.every(model.validHandle));}
 });
 test('shared card text, mailto and optional referral contain exactly authored values',()=>{
- const card=model.shareCardText('Avi','Architecture',7,'School');assert.equal(card.title,'Avi — Portfolio');assert.equal(card.description,'Architecture · School · 7 projects');
+ const card=model.shareCardText('Avi','Architecture',7,'School');assert.equal(card.title,'Avi — Catalogue');assert.equal(card.description,'Architecture · School · 7 projects');
  const url=model.withReferral('https://example.test/avi','a12b');assert.equal(url,'https://example.test/avi?via=a12b');
- const link=model.portfolioMailto('friend@example.test','Hello & welcome','Avi',url);const parsed=new URL(link);assert.equal(parsed.searchParams.get('subject'),'Portfolio — Avi');assert.equal(parsed.searchParams.get('body'),'Hello & welcome\n\n'+url);assert.throws(()=>model.portfolioMailto('bad@example.test?bcc=x','Hi','Avi',url));
+ const link=model.portfolioMailto('friend@example.test','Hello & welcome','Avi',url);const parsed=new URL(link);assert.equal(parsed.searchParams.get('subject'),'Catalogue — Avi');assert.equal(parsed.searchParams.get('body'),'Hello & welcome\n\n'+url);assert.throws(()=>model.portfolioMailto('bad@example.test?bcc=x','Hi','Avi',url));
 });
 test('address resolver handles permanent UUID and expiring alias redirects without forwarding identity',async()=>{
  let data={profileId:id,handle:'avi',alias:true}; const calls=[];

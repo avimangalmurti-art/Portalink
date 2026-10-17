@@ -48,9 +48,9 @@ def public_cover(url: str, supabase_origin: str) -> bytes | None:
 
 def render_portfolio(document: dict, cover_loader=None) -> bytes:
     if not isinstance(document, dict) or not isinstance(document.get('projects'), list):
-        raise ValueError('Invalid portfolio')
+        raise ValueError('Invalid catalogue')
     if len(document['projects']) > 10000:
-        raise ValueError('Portfolio exceeds export capacity')
+        raise ValueError('Catalogue exceeds export capacity')
     pdf = fitz.open()
     started = time.monotonic()
     # Embedded Unicode-capable font, rather than losing names/handles to ASCII.
@@ -75,7 +75,7 @@ def render_portfolio(document: dict, cover_loader=None) -> bytes:
         text(page, 'No public projects.', 40, y)
     for project in document['projects']:
         if time.monotonic() - started > 45:
-            raise TimeoutError('Portfolio export deadline exceeded')
+            raise TimeoutError('Catalogue export deadline exceeded')
         if y + 245 > 785:
             page = pdf.new_page(width=595, height=842)
             text(page, document.get('name', '') + ' · Timeline', 40, 30, 12)
@@ -143,7 +143,7 @@ def serve_exports() -> None:
                 self.end_headers()
                 self.wfile.write(output)
             except Exception:
-                self.send_error(503, 'Portfolio export unavailable')
+                self.send_error(503, 'Catalogue export unavailable')
             finally:
                 capacity.release()
     ThreadingHTTPServer((os.environ.get('PDF_EXPORT_BIND', '127.0.0.1'), int(os.environ.get('PORT', '8080'))), Handler).serve_forever()

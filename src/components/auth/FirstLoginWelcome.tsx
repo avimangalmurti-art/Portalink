@@ -13,8 +13,8 @@ export const WELCOME_STEPS = [
   {icon:CompassIcon,title:'Your ideas belong here',description:'Welcome to Portalink. Bring your projects together, tell their stories and let people discover what you create.'},
   {icon:UsersIcon,title:'For every kind of maker',description:'Student, designer, engineer, artist, researcher or curious beginner—there is room for your work here. You do not need a job title to start.'},
   {icon:LightbulbIcon,title:'Share the process, too',description:'Coursework, sketches, experiments and prototypes all count. Show what you tried, what you learned and what you are working toward.'},
-  {icon:FolderOpenIcon,title:'Give your projects a home',description:'Organize your work into Portals. Keep a class, a discipline or a personal passion together, and build your portfolio one project at a time.'},
-  {icon:Globe2Icon,title:'Let your work travel',description:'Share your portfolio link with classmates, friends and future collaborators. Choose what you make public and share when you feel ready.'},
+  {icon:FolderOpenIcon,title:'Give your projects a home',description:'Organize your work into Portals. Keep a class, a discipline or a personal passion together, and build your catalogue one project at a time.'},
+  {icon:Globe2Icon,title:'Let your work travel',description:'Share your catalogue link with classmates, friends and future collaborators. Choose what you make public and share when you feel ready.'},
   {icon:RocketIcon,title:'Start with one project',description:'Choose something you made, give it a title and add your files. A small beginning can tell a big story. Your next idea belongs here, too.'},
 ] as const;
 

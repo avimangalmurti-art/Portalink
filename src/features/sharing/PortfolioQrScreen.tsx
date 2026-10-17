@@ -20,23 +20,23 @@ export function PortfolioQrScreen({ profile, counts, url, heading, busy, copied 
   }, [url, attempt]);
   const state = result.url !== url ? 'loading' : result.error ? 'error' : 'ready';
   return <>
-    <div className="share-introduction"><h2 id={heading}>Your portfolio QR code</h2><p>Let others scan this code to view your public portfolio.</p></div>
-    <section className="share-qr-card" aria-label="Portfolio QR code and identity">
+    <div className="share-introduction"><h2 id={heading}>Your catalogue QR code</h2><p>Let others scan this code to view your public catalogue.</p></div>
+    <section className="share-qr-card" aria-label="Catalogue QR code and identity">
       <div className="share-qr-image" data-state={state} aria-busy={state === 'loading'}>
-        <canvas ref={canvas} aria-label="QR code for your public portfolio" hidden={state !== 'ready'} />
+        <canvas ref={canvas} aria-label="QR code for your public catalogue" hidden={state !== 'ready'} />
         {state === 'loading' && <div className="share-qr-skeleton" role="status" aria-label="Generating your QR code"/>}
         {state === 'error' && <div><p role="alert">{result.error}</p><Button variant="secondary" onClick={()=>setAttempt(value=>value+1)}>Retry QR code</Button></div>}
       </div>
-      <section className="share-profile-preview" aria-label="Public portfolio preview">
+      <section className="share-profile-preview" aria-label="Public catalogue preview">
         <CreatorAvatar name={profile.name} avatar={profile.avatar} shape="squircle" className="share-profile-avatar" priority />
         <strong>{profile.name}</strong>{profile.location && <p>{profile.location}</p>}
-        <div className="share-preview-tabs"><span>Portfolio</span>{profile.showJourney && <span>Timeline</span>}</div>
+        <div className="share-preview-tabs"><span>Catalogue</span>{profile.showJourney && <span>Timeline</span>}</div>
         <div className="share-preview-stats"><span><b>{profile.projects.length}</b> projects</span><span><b>{profile.categories.length}</b> portals</span>{counts?.followers != null && <span><b>{counts.followers}</b> followers</span>}{counts?.following != null && <span><b>{counts.following}</b> following</span>}</div>
       </section>
     </section>
     <Button variant="primary" className="share-qr-save" isLoading={saving} disabled={busy || state !== 'ready'} onClick={onSave}><DownloadIcon size={22}/>{saving ? 'Preparing image…' : 'Save to photos'}</Button>
     <p className="share-qr-save-help">Downloads a PNG image. Save it to Photos from your browser.</p>
     <div className="share-actions share-main-actions"><Button variant="secondary" disabled={busy} onClick={onCopy}>{copied ? <CheckIcon size={22}/> : <CopyIcon size={22}/>}<span aria-live="polite">{copied ? 'Copied' : 'Copy link'}</span></Button><Button variant="secondary" disabled={busy} onClick={onSend}><SendIcon size={22}/>Send to someone</Button></div>
-    <aside className="share-qr-info"><QrCodeIcon size={24}/><div><p>Anyone can scan this code to view your public portfolio.</p><p>This code contains your current public portfolio address.</p></div></aside>
+    <aside className="share-qr-info"><QrCodeIcon size={24}/><div><p>Anyone can scan this code to view your public catalogue.</p><p>This code contains your current public catalogue address.</p></div></aside>
   </>;
 }

@@ -337,7 +337,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         // committed tile. Closing first would briefly reveal the zero-work view.
         const refreshed = await profileService.getProfile(profileId);
         if (!refreshed.projects.some(project => project.id === published.projectId)) {
-          throw new Error('Your project is published. Try again to open the updated portfolio.');
+          throw new Error('Your project is published. Try again to open the updated catalogue.');
         }
         invalidateProfiles();
         cacheProfile(refreshed);

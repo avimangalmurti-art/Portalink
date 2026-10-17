@@ -189,7 +189,7 @@ export const mockProfileService: ProfileService = {
       initials: deriveInitials(input.name),
       // No storage backend exists, so the chosen file is never given a URL.
       avatar: '',
-      navHeading: 'PORTFOLIO',
+      navHeading: 'CATALOGUE',
       stats: [],
       socialLinks: {},
       links: [],
@@ -321,7 +321,7 @@ export const mockProfileService: ProfileService = {
     }
     return resolve({
       isAvailable: true,
-      removes: [`The “${category.label}” category and its place in your sidebar.`, 'Its chosen icon and its position in your portfolio order.'],
+      removes: [`The “${category.label}” category and its place in your sidebar.`, 'Its chosen icon and its position in your catalogue order.'],
       blockingProjectCount: 0
     }, 90);
   },
@@ -762,7 +762,7 @@ export const mockProjectService: ProjectService = {
       removedAttachmentIds,
       // No storage exists, so nothing was deleted from it and nothing claims to be.
       storageDeleted: false,
-      message: 'The project is removed from your portfolio for this session. No files were deleted from storage, because no storage is connected, and a reload restores the original record.'
+      message: 'The project is removed from your catalogue for this session. No files were deleted from storage, because no storage is connected, and a reload restores the original record.'
     };
   }
 };

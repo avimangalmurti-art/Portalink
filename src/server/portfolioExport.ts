@@ -10,7 +10,7 @@ const clean=(value:unknown,max=500)=>typeof value==='string'?plainFormattedText(
 async function rows(table:string,query:URLSearchParams,config:Config,signal:AbortSignal,fetcher:typeof fetch):Promise<Row[]>{
  const request=(parameters:URLSearchParams)=>fetcher(`${config.supabaseUrl}/rest/v1/${table}?${parameters}`,{headers:{apikey:config.publishableKey,accept:'application/json'},credentials:'omit',redirect:'error',cache:'no-store',signal});let response=await request(query);
  if(!response.ok&&table==='profiles'&&query.get('select')?.includes('allow_pdf_download')){const error=await response.clone().json().catch(()=>null);if(['42703','PGRST204'].includes(error?.code)&&/allow_pdf_download/.test(error?.message??'')){const legacy=new URLSearchParams(query);legacy.set('select',query.get('select')!.replace(',allow_pdf_download',''));response=await request(legacy);}}
- if(!response.ok)throw new Error('Public portfolio unavailable');const data=JSON.parse(await boundedText(response,signal,8*1024*1024));if(!Array.isArray(data))throw new Error('Public portfolio unavailable');return data;
+ if(!response.ok)throw new Error('Public catalogue unavailable');const data=JSON.parse(await boundedText(response,signal,8*1024*1024));if(!Array.isArray(data))throw new Error('Public catalogue unavailable');return data;
 }
 export async function publicPortfolio(profileId:string,config:Config,fetcher:typeof fetch=fetch,now=new Date()):Promise<PortfolioDocument|null>{
  const signal=AbortSignal.timeout(30000),profileRows=await rows('profiles',new URLSearchParams({select:'id,name,handle,is_private,allow_pdf_download',id:`eq.${profileId}`,is_private:'eq.false'}),config,signal,fetcher);
@@ -34,11 +34,11 @@ export async function handlePortfolioExport(request:Request,profileId:string,env
  const fail=(message:string,status:number)=>new Response(message,{status,headers:{'cache-control':'no-store','content-type':'text/plain;charset=utf-8'}});
  if(!['GET','HEAD'].includes(request.method))return fail('Method not allowed',405);
  if(!/^[a-f\d]{8}-(?:[a-f\d]{4}-){3}[a-f\d]{12}$/i.test(profileId))return fail('Not found',404);
- if(!environment.PORTFOLIO_PDF_WORKER_URL||!environment.PORTFOLIO_PDF_WORKER_SECRET)return fail('Portfolio PDF is not available yet.',503);
+ if(!environment.PORTFOLIO_PDF_WORKER_URL||!environment.PORTFOLIO_PDF_WORKER_SECRET)return fail('Catalogue PDF is not available yet.',503);
  try{const endpoint=new URL(environment.PORTFOLIO_PDF_WORKER_URL);if(endpoint.protocol!=='https:'||endpoint.username||endpoint.password||endpoint.search||endpoint.hash)throw new Error();
   const fetcher=dependencies.fetcher??fetch,document=await publicPortfolio(profileId,config,fetcher,dependencies.now);if(!document)return fail('Not found',404);
   const response=await fetcher(endpoint.href,{method:'POST',headers:{authorization:`Bearer ${environment.PORTFOLIO_PDF_WORKER_SECRET}`,'content-type':'application/json'},body:JSON.stringify(document),credentials:'omit',redirect:'error',signal:AbortSignal.timeout(60000)});
-  if(!response.ok||!/^application\/pdf\b/.test(response.headers.get('content-type')??''))return fail('Portfolio PDF is not available yet.',503);
-  return new Response(request.method==='HEAD'?null:response.body,{headers:{'content-type':'application/pdf','content-disposition':'attachment; filename="portalink-portfolio.pdf"','cache-control':'no-store','x-content-type-options':'nosniff'}});
- }catch{return fail('Portfolio PDF is not available yet.',503);}
+  if(!response.ok||!/^application\/pdf\b/.test(response.headers.get('content-type')??''))return fail('Catalogue PDF is not available yet.',503);
+  return new Response(request.method==='HEAD'?null:response.body,{headers:{'content-type':'application/pdf','content-disposition':'attachment; filename="portalink-catalogue.pdf"','cache-control':'no-store','x-content-type-options':'nosniff'}});
+ }catch{return fail('Catalogue PDF is not available yet.',503);}
 }
