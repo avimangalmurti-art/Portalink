@@ -3221,6 +3221,11 @@
   height: var(--mobile-viewport-height, 100dvh);
   min-height: 0;
 }
+/* Installed iOS can retain a launch-sized 100vh after its visible area shrinks.
+   Bound single-page controls to the same settled viewport as the dock. */
+#root .codex-shell[data-presentation='mobile'] [data-mobile-project-view]:has([data-mobile-focused-view]):where(html[data-standalone] *) {
+  height: min(100dvh, var(--mobile-dock-viewport-height, 100dvh));
+}
 #root .codex-shell[data-presentation='mobile'] #messages-thread-panel:not(.hidden) {
   height: calc(var(--mobile-viewport-height, 100dvh) - var(--mobile-sidebar-header) - var(--safe-area-top));
   flex: 1 1 0;
