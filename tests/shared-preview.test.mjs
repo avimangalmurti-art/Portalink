@@ -1,4 +1,5 @@
 import { sourceModule } from './helpers/source-module.mjs';
+import { officialOrigin, publicOriginFixture, publicRedirectFixture } from './helpers/public-origin-fixture.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
@@ -88,7 +89,7 @@ function setup() {
     const source = read(path).replaceAll('import.meta.env.VITE_SUPABASE_URL', "'https://test.supabase.co'")
       .replaceAll('import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY', "'public-test-key'");
     vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText,
-      { ...globals, exports, require: name => { if(name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, name); return imports[name]; } });
+      { ...globals, exports, require: name => { if(name.endsWith('/publicOrigin')) return publicOriginFixture; if(name.endsWith('/publicOriginRedirect')) return publicRedirectFixture; if(name.endsWith('/textFormatting')) return sourceModule('src/components/text/textFormatting.ts'); assert.ok(name in imports, name); return imports[name]; } });
     return exports;
   }
   const model = compile('../src/features/sharing/shareModel.ts');
@@ -97,7 +98,7 @@ function setup() {
   const preview = compile('../src/server/sharedPreview.ts', {'../features/sharing/shareModel':model,'../services/supabase/coverThumbnailReads':reads});
   const reachCore=compile('../src/features/reads/readSignal.ts');
   const reach=compile('../src/server/projectReach.ts', {'../features/reads/readSignal':reachCore});
-  const worker = compile('../src/sites-worker.ts', { './server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
+  const worker = compile('../src/sites-worker.ts', { './server/referenceResolver':{},'./server/portfolioExport':{},'./server/citation': { citationLicenseResponse: () => null, handleCitation: () => { throw new Error('Unexpected citation route in non-citation fixture'); } }, './server/projectReach':reach, './server/sharedPreview': preview, './features/sharing/shareModel':model, './server/shareAddress':{resolveShareRequest:async()=>({}),injectShareResolution:html=>html},
     './server/publicMedia': { isPublicMediaRoute: () => false }, './server/rum': {}, './server/rumOwner': {},
   }).default;
   const html = () => shell.replace('</head>', state.extraHead + '</head>').replace('</body>', state.extraBody + '</body>');
@@ -147,7 +148,7 @@ function assertGeneric(html, expected = shell) {
   assert.equal(html, expected, 'Unavailable/unsafe cover keeps the original generic shell intact');
 }
 function assertProfileImage(html) {
-  assert.equal(value(html, 'og:image'), 'https://portalink.example/media/avatars/' + id(1) + '/avatar.webp');
+  assert.equal(value(html, 'og:image'), officialOrigin+'/media/avatars/' + id(1) + '/avatar.webp');
   assert.equal(value(html, 'twitter:image'), value(html, 'og:image'));
   assert.equal(value(html, 'og:image:width'), '800');
   assert.equal(value(html, 'og:image:height'), '800');
@@ -169,10 +170,10 @@ test('profile card uses its public avatar, creator title, public-only queries an
     authorization: 'Bearer owner-session', cookie: 'session=private', 'if-none-match': 'template-etag',
   });
   const html = await response.text();
-  assert.match(html, /<title>Test creator — Portfolio<\/title>/);
+  assert.match(html, /<title>Test creator — Catalogue<\/title>/);
   assert.equal(value(html, 'og:description'), '1 project');
   assert.equal(value(html, 'og:type'), 'profile');
-  assert.equal(value(html, 'og:url'), 'https://portalink.example' + profilePath);
+  assert.equal(value(html, 'og:url'), officialOrigin + profilePath);
   assert.doesNotMatch(html, /private-value|owner-session/);
   assertProfileImage(html);
   assert.equal(h.reads()[0].url.searchParams.get('is_private'), 'eq.false');
@@ -508,13 +509,13 @@ test('cache invalidates changed text, cover path, dimensions and SPA shell befor
   assert.match(await (await h.request(projectPath)).text(), /second-shell/);
 });
 
-test('cache isolates path, canonical origin and publishable configuration', async () => {
+test('cache isolates request origin and configuration while emitting the official canonical host', async () => {
   const h = setup();
   await h.direct(categoryPath);
   await h.direct(projectPath);
   assert.equal(h.signs().length, 2);
   const otherOrigin = await (await h.direct(categoryPath, { origin: 'https://preview.portalink.example' })).text();
-  assert.equal(value(otherOrigin, 'og:url'), 'https://preview.portalink.example' + categoryPath);
+  assert.equal(value(otherOrigin, 'og:url'), officialOrigin + categoryPath);
   assert.equal(h.signs().length, 3);
   await h.direct(categoryPath, { previewConfig: { ...config, publishableKey: 'another-public-key' } });
   assert.equal(h.signs().length, 4);
@@ -633,7 +634,8 @@ test('portfolio card and pasted-link metadata use the profile avatar rather than
  h.state.profiles[0].avatar_url=`${config.supabaseUrl}/storage/v1/object/public/avatars/${avatar}`;
  h.state.projects[0].profile.avatar_url=h.state.profiles[0].avatar_url;
  const card=await h.preview.readPortfolioCard(id(1),'https://portalink.example',config);
- assert.equal(card.image,`https://portalink.example/media/avatars/${avatar}`);
+ assert.equal(card.image,`${officialOrigin}/media/avatars/${avatar}`);
+ assert.equal(card.url,officialOrigin+profilePath);
  const html=await(await h.request(profilePath)).text();
  assert.equal(value(html,'og:image'),card.image);
  assert.equal(value(html,'og:image:alt'),'Test creator profile picture');
@@ -647,7 +649,7 @@ test('nested handle project crawler metadata keeps its project rather than showi
  const response=await h.preview.withSharedPreview(new Response(h.html(),{headers:{'content-type':'text/html'}}),new Request('https://portalink.example'+path,{headers:{accept:'text/html','user-agent':'Twitterbot'}}),config,id(1));
  const html=await response.text();
  assert.match(html, /Courtyard — Test creator/);
- assert.equal(value(html,'og:url'),'https://portalink.example'+path);
+ assert.equal(value(html,'og:url'),officialOrigin+path);
  assert.equal(value(html,'og:type'),'article');
  assertImage(html);
  const query=h.reads().find(call=>call.url.pathname.endsWith('/projects')).url.searchParams;

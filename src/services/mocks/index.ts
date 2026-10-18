@@ -125,7 +125,29 @@ function profileForCurrentViewer(profile: PrototypeProfile): Profile {
   return { ...profile, categories, projects } as Profile;
 }
 
+const timelinePairs = new Map<string, Array<{ id: string; then: string; now: string }>>();
+let timelinePairSequence = 0;
 export const mockProfileService: ProfileService = {
+  async listTimelinePairs(profileId) {
+    const profile = findProfileById(profileId);
+    const own = currentFollower()?.profileId === profileId;
+    if (!profile || (!own && (!profileForCurrentViewer(profile).showJourney || profile.isPrivate))) return [];
+    const visible = new Set(profileForCurrentViewer(profile).projects.filter(project => project.isPubliclyVisible !== false).map(project => project.id));
+    return (timelinePairs.get(profileId) ?? []).filter(pair => visible.has(pair.then) && visible.has(pair.now));
+  },
+  async addTimelinePair(profileId, thenId, nowId) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can add pairs.');
+    const profile = findProfileById(profileId);
+    const visible = new Set((profile ? profileForCurrentViewer(profile).projects : []).filter(project => !project.sessionOnly && project.isPubliclyVisible !== false).map(project => project.id));
+    if (thenId === nowId || !visible.has(thenId) || !visible.has(nowId)) throw new Error('Choose two visible projects.');
+    const pairs = timelinePairs.get(profileId) ?? [];
+    if (pairs.some(pair => pair.then === thenId && pair.now === nowId)) throw new Error('This pair already exists.');
+    timelinePairs.set(profileId, [...pairs, { id: 'pair-' + ++timelinePairSequence, then: thenId, now: nowId }]);
+  },
+  async removeTimelinePair(profileId, pairId) {
+    if (requireOwnProfile().profileId !== profileId) throw new Error('Only the owner can remove pairs.');
+    timelinePairs.set(profileId, (timelinePairs.get(profileId) ?? []).filter(pair => pair.id !== pairId));
+  },
   async getProfile(profileId) {
     const profile = findProfileById(profileId);
     // Absence is reported, never papered over. Returning a fallback record here
@@ -167,7 +189,7 @@ export const mockProfileService: ProfileService = {
       initials: deriveInitials(input.name),
       // No storage backend exists, so the chosen file is never given a URL.
       avatar: '',
-      navHeading: 'PORTFOLIO',
+      navHeading: 'CATALOGUE',
       stats: [],
       socialLinks: {},
       links: [],
@@ -299,7 +321,7 @@ export const mockProfileService: ProfileService = {
     }
     return resolve({
       isAvailable: true,
-      removes: [`The “${category.label}” category and its place in your sidebar.`, 'Its chosen icon and its position in your portfolio order.'],
+      removes: [`The “${category.label}” category and its place in your sidebar.`, 'Its chosen icon and its position in your catalogue order.'],
       blockingProjectCount: 0
     }, 90);
   },
@@ -571,10 +593,9 @@ export const mockProjectService: ProjectService = {
     if (!profile.categories.some((category) => category.id === input.categoryId)) {
       throw new PublishServiceError('category_not_found', 'That category does not belong to this profile.');
     }
-    // Defence in depth: the public fields are required at the boundary too, so
-    // no path can create a project with metadata invented to fill a gap.
-    if (!input.metadata.title.trim() || (!input.metadata.creationDetails && !input.metadata.summary.trim())) {
-      throw new PublishServiceError('invalid_metadata', 'A title and a description are both required.');
+    // Keep the title required at the boundary; descriptions are optional.
+    if (!input.metadata.title.trim()) {
+      throw new PublishServiceError('invalid_metadata', 'A title is required.');
     }
     const preparedMedia = input.media ?? [];
     const persistedAttachments = input.attachments ?? [];
@@ -741,7 +762,7 @@ export const mockProjectService: ProjectService = {
       removedAttachmentIds,
       // No storage exists, so nothing was deleted from it and nothing claims to be.
       storageDeleted: false,
-      message: 'The project is removed from your portfolio for this session. No files were deleted from storage, because no storage is connected, and a reload restores the original record.'
+      message: 'The project is removed from your catalogue for this session. No files were deleted from storage, because no storage is connected, and a reload restores the original record.'
     };
   }
 };

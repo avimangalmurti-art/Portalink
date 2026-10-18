@@ -11,6 +11,11 @@ function execute(code, imports = {}, globals = {}) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(code, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, esModuleInterop: true } }).outputText,
     { exports, crypto, File, Blob, URL, ...globals, require(name) {
+    if (name.endsWith('/socialRegistration')) return {socialRegistration: () => undefined};
+    if (name.endsWith('/EntryChoices')) return {EntryChoices: 'EntryChoices'};
+    if (name.endsWith('/EntryAgreements')) return {useEntryAgreements: () => ({request: async () => true})};
+    if (name.endsWith('/ConfirmationDialog')) return {ConfirmationDialog: 'ConfirmationDialog'};
+
       if(name==='../../utils/profileHandle')return sourceModule('src/utils/profileHandle.ts', {'../features/sharing/shareModel':shareModel});
       if(name==='../../contexts/ServicesContext' && !(name in imports))return {useServices:()=>({profiles:{checkPublicHandle:async()=> 'available'}})};
 
@@ -155,7 +160,7 @@ function hookRuntime() {
 const formNodes = tree => !tree || typeof tree !== 'object' ? [] : [tree, ...React.Children.toArray(tree.props?.children).flatMap(formNodes)];
 const signupField = (tree, key) => formNodes(tree).find(node => node.props?.id === `auth-signup-${key}`);
 
-function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount, pendingIntent = null, registrationReturnPath } = {}) {
+function signupRestoreHarness({ store, submitted, presentation = 'mobile', rememberedEmail = '', readDraft, requestAccount, pendingIntent = null, registrationReturnPath, compactEntry = false } = {}) {
   const hooks = hookRuntime(), reads = [], selectedAvatars = [], appearanceChanges = [];
   let step = 'appearance';
   const avatar = { avatar: null, error: null,
@@ -191,7 +196,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
   const { SignUpForm } = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': { AlertCircleIcon: 'AlertIcon', CheckCircle2Icon: 'CheckIcon' },
     '../../contexts/AuthContext': { useAuth: () => authContext },
-    '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {},
+    '../../components/auth/AuthField': { AuthField: 'AuthField' }, '../../components/ui/Button': { Button: 'Button' }, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': {PortalinkSplashLoader:'welcome'},
     '../../components/profile/AvatarPicker': { AvatarPicker: 'AvatarPicker' }, '../../components/profile/ProfileField': { ProfileField: 'ProfileField' },
     '../../components/profile/ProfileVisibilityField': { ProfileVisibilityField: 'ProfileVisibilityField' },
     '../../components/profile/ProfileLocationPicker': { ProfileLocationPicker: 'ProfileLocationPicker' },
@@ -200,7 +205,7 @@ function signupRestoreHarness({ store, submitted, presentation = 'mobile', remem
     '../../components/auth/MobileOnboarding': { MobileOnboardingAppearance: 'Appearance', MobileOnboardingAction: 'Action' },
     '../../components/auth/AccountWelcomeSurface': {}, './useAuthFlows': authFlows, './validation': load('src/features/auth/validation.ts'),
   });
-  const props = { accentColor: '#0A84FF', systemGray: 'gray6', firstFieldRef: { current: null }, registrationReturnPath,
+  const props = { compactEntry, accentColor: '#0A84FF', systemGray: 'gray6', firstFieldRef: { current: null }, registrationReturnPath,
     onStepChange(next) { step = next; }, onBusyChange() {}, onDirtyChange() {}, onViewChange() {},
     onAccentColorChange(value) { props.accentColor = value; appearanceChanges.push(['accent', value]); },
     onSystemGrayChange(value) { props.systemGray = value; appearanceChanges.push(['gray', value]); },
@@ -298,7 +303,8 @@ test('an unsubmitted saved draft restores all editable fields and reuses its id 
     const store = { saved: { registration: savedRegistration, email: 'saved@example.test', avatar: { file: image }, requiresEmailVerification: false } };
     const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, rememberedEmail: 'saved@example.test' });
     h.render(); await tick(); let tree = h.render();
-    assert.equal(h.step, 'account');
+    assert.equal(h.step, 'appearance');
+    h.showStep('account'); tree = h.render();
     assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
     assert.equal(signupField(tree, 'password').props.value, '');
     assert.equal(signupField(tree, 'confirmation').props.value, '');
@@ -352,7 +358,7 @@ test('changing the normalized signup email after an uncertain failure starts a s
     const submitted = [], h = signupRestoreHarness({ store, submitted, presentation, requestAccount: async () => {
       throw new Error('Response lost after the provider may have accepted signup');
     } });
-    h.render(); await tick(); let tree = h.render();
+    h.render(); await tick(); h.showStep('account'); let tree = h.render();
     signupField(tree, 'password').props.onChange('test-password');
     signupField(tree, 'confirmation').props.onChange('test-password');
     tree = h.render(); await tree.props.onSubmit({ preventDefault() {} });
@@ -396,7 +402,8 @@ test('a pre-verification draft with a missing promised picture stays blocked unt
     store.saved.avatar = { file: image };
     tree.props.onRetry(); h.render(); await tick(); tree = h.render();
     assert.equal(tree.type, 'form');
-    assert.equal(h.step, 'account');
+    assert.equal(h.step, 'appearance');
+    h.showStep('account'); tree = h.render();
     assert.equal(h.avatar.avatar.file, image);
     assert.equal(signupField(tree, 'email').props.value, 'saved@example.test');
     assert.equal(signupField(tree, 'password').props.value, '');
@@ -470,7 +477,7 @@ test('one registration form validates account and profile fields before the sing
   const selectAvatar = () => {};
   const {SignUpForm} = execute(source('src/features/auth/AuthDialog.tsx') + '\nexports.SignUpForm = SignUpForm;', {
     react: hooks.react, 'lucide-react': {AlertCircleIcon:'AlertIcon', CheckCircle2Icon:'CheckIcon'}, '../../contexts/AuthContext': {useAuth: () => ({rememberedEmail: '', rememberEmail() {}, peekPendingIntent: () => ({kind:'route',path:'/share/original/c/portal?page=2&access_token=do-not-persist'})})},
-    '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {},
+    '../../components/auth/AuthField': {AuthField: 'AuthField'}, '../../components/ui/Button': {Button: 'Button'}, '../../components/ui/InterfaceIcon': {}, '../../components/ui/PortalinkSplashLoader': {PortalinkSplashLoader:'welcome'},
     '../../components/profile/AvatarPicker': {AvatarPicker: 'AvatarPicker'}, '../../components/profile/ProfileField': {ProfileField: 'ProfileField'},
     '../../components/profile/ProfileVisibilityField': {ProfileVisibilityField: 'ProfileVisibilityField'},
     '../../components/profile/ProfileLocationPicker': {ProfileLocationPicker: 'ProfileLocationPicker'},
@@ -603,6 +610,9 @@ test('one registration form validates account and profile fields before the sing
   assert.equal(step, 'verification');
   const success = nodes(tree).find(node => node.props?.title === 'Check your email');
   assert.ok(success.props.description.includes('confirmation link'));
+  assert.match(success.props.description, /If you’re new to Portalink/);
+  assert.match(success.props.description, /Already have an account\? Sign in instead/);
+  assert.doesNotMatch(success.props.description, /link sent to|account is ready/);
   assert.equal(nodes(tree).some(node => node.type === 'Welcome'), false);
   }
 });
@@ -817,4 +827,23 @@ test('explicitly removing a promised picture permits completion and cleans its d
   await h.settle(); await h.settle();
   assert.deepEqual(h.cleaned, [id], 'A completed deliberate no-picture profile must not resurrect its old promised photo');
   h.unmount();
+});
+
+
+test('one-screen signup validates and submits once without appearance, location, avatar or password confirmation', async () => {
+ for (const presentation of ['mobile', 'web']) {
+  const submitted = [], h = signupRestoreHarness({store:{saved:null},submitted,presentation,compactEntry:true});
+  h.render(); await tick(); let tree=h.render();
+  assert.equal(signupField(tree,'location'),undefined);
+  assert.equal(signupField(tree,'confirmation'),undefined);
+  signupField(tree,'name').props.onChange('New Creator');
+  signupField(tree,'email').props.onChange('new@example.test');
+  signupField(tree,'password').props.onChange('synthetic-test-password');
+  tree=h.render(); await tree.props.onSubmit({preventDefault(){}});
+  assert.equal(submitted.length,1);
+  assert.equal(submitted[0].registration.name,'New Creator');
+  assert.equal(submitted[0].registration.location,'');
+  assert.equal(submitted[0].registration.handle,'newcreator');
+  h.unmount();
+ }
 });

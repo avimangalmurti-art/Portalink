@@ -77,7 +77,7 @@ test('first publication keeps its real preview until the canonical profile conta
  h.context.clearDraftWorkspace=async()=>{};let ready=false;
  h.context.profileService={getProfile:async()=>({id:'owner',projects:ready?[{id:'already-published'}]:[]})};
  h.context.cacheProfile=profile=>h.calls.push(['cache',profile.projects[0].id]);
- await assert.rejects(h.context.publish.run(),/updated portfolio/);
+ await assert.rejects(h.context.publish.run(),/updated catalogue/);
  assert.equal(h.calls.includes('clear'),false);
  assert.equal(h.calls.some(value=>Array.isArray(value)&&value[0]==='result'),false);
  ready=true;await h.context.publish.run();

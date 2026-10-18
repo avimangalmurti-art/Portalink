@@ -28,7 +28,7 @@ test('publish validation accepts long prose and still enforces the title rules',
   const validate = find(file, (n) => ts.isVariableDeclaration(n) && n.name.getText(file) === 'validate');
   const callback = validate.initializer.arguments[0].getText(file);
   const validators = execute(read('../src/features/publishing/validation.ts'));
-  for (const summary of ['Brief description', longDescription]) {
+  for (const summary of ['', '   ', 'Brief description', longDescription]) {
     let errors;
     const { run } = execute(`exports.run = ${callback}`, {
       firstProject:false, metadata: { title: 'My project', summary }, validateTitle: validators.validateTitle,
@@ -51,7 +51,7 @@ test('both create and edit description fields have no maximum length', () => {
     const field = find(file, (n) => ts.isJsxSelfClosingElement(n) && n.attributes.properties.some((p) =>
       ts.isJsxAttribute(p) && p.name.getText(file) === 'id' && p.initializer?.text === id));
     assert.ok(!field.attributes.properties.some((p) => p.name?.getText(file) === 'maxLength'));
-    assert.ok(field.attributes.properties.some((p) => p.name?.getText(file) === 'required'), 'Description labels must agree with the existing save/publish requirement');
+    assert.equal(field.attributes.properties.some((p) => p.name?.getText(file) === 'required'), id === 'project-summary', 'Creation description is optional; existing editor policy is preserved');
   }
 });
 
@@ -93,6 +93,8 @@ test('draft, atomic publish, and edit preserve descriptions; missing citation RP
   await service.updateProject(input);
   assert.equal(calls.length, 4);
   for (const [kind, data] of calls) assert.equal(kind === 'draft' ? data.summary : data.p_summary, longDescription.trim());
+  await service.publishProject({...input,metadata:{title:'Without description',summary:'   '}});
+  assert.equal(calls.at(-1)[1].p_summary,'');
 });
 
 test('hover descriptions preserve paragraphs and scroll rather than truncate', () => {

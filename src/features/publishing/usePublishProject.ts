@@ -21,7 +21,8 @@ import { deriveProjectRelevance } from '../../domain/discovery/ranking';
  */
 export type PublishStep = 'metadata' | 'preview' | 'done';
 /**
- * Nothing is pre-filled: metadata the creator did not type would be invented on
+ * New fields start empty unless supplied by the creator in project setup.
+ * Metadata the creator did not type would be invented on
  * their behalf, so every field starts empty. A title is the only required
  * public detail; a creator can add context when it genuinely helps the work.
  */
@@ -32,7 +33,7 @@ const EMPTY_METADATA: DraftMetadata = {
 };
 /** The order fields are validated and focused in — the order they are read. */
 const FIELD_ORDER: Array<'title' | 'summary'> = ['title', 'summary'];
-export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
+export function usePublishProject(profileId: Id | null, categoryId: Id | null, isOpen: boolean, categoryLabel = '', manualLocation = false, firstProject = false, presetMadeIn = '', workspace?: { initialMetadata?: Pick<DraftMetadata, 'title' | 'summary'>; persist: boolean; resume?: ProjectDraft; activation?: boolean }) {
   const {
     projects: projectService, profiles: profileService
   } = useServices();
@@ -87,6 +88,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
   const persistWorkspace = Boolean(workspace?.persist);
   const activation = Boolean(workspace?.activation);
   const resumeId = workspace?.resume?.id;
+  const initialTitle = workspace?.initialMetadata?.title, initialSummary = workspace?.initialMetadata?.summary;
   const checkpointSignature = useRef<string | null>(null);
   const isOwner = Boolean(profileId) && auth.viewerProfileId === profileId;
   // Exactly one draft per opening. Without this, any re-render that re-runs the
@@ -108,6 +110,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     draftRequestRef.current = requestKey;
     let isCurrent = true;
     setDraftError(null);
+    if (initialTitle !== undefined) setMetadata({...EMPTY_METADATA,title:initialTitle,summary:initialSummary??''});
     draftCompleted.current = false;
     setRestoringDraft(firstProject);
     void (async () => {
@@ -154,7 +157,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     return () => {
       isCurrent = false;
     };
-  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId, activation]);
+  }, [isOpen, profileId, categoryId, isOwner, projectService, firstProject, presetMadeIn, auth.user?.id, restoreMedia, restoreUpload, resumeId, activation, initialTitle, initialSummary]);
   useEffect(() => {
     if (!isOpen) {
       setDraft(null);
@@ -230,13 +233,13 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
     const nextErrors = {
       title: validateTitle(metadata.title),
       // Descriptions are prose, not captions: do not impose a character cap.
-      summary: metadata.summary.trim() ? null : 'Add a description before publishing.'
+      summary: null
     };
     setFieldErrors(nextErrors);
     const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]) ?? null;
     setInvalidField(firstInvalid);
     return firstInvalid === null;
-  }, [metadata, firstProject]);
+  }, [metadata]);
   /**
    * The production-ready publish sequence:
    *
@@ -334,7 +337,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
         // committed tile. Closing first would briefly reveal the zero-work view.
         const refreshed = await profileService.getProfile(profileId);
         if (!refreshed.projects.some(project => project.id === published.projectId)) {
-          throw new Error('Your project is published. Try again to open the updated portfolio.');
+          throw new Error('Your project is published. Try again to open the updated catalogue.');
         }
         invalidateProfiles();
         cacheProfile(refreshed);
@@ -442,7 +445,7 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       setIsDiscarding(false);
     }
   }, [draft, media, projectService, upload, firstProject, persistWorkspace, resumeId, auth.user?.id, profileId]);
-  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) && metadata.summary.trim() ? 'ready' : 'editing';
+  const state: DraftState = publish.isLoading || upload.isBusy ? 'publishing' : publish.status === 'error' || upload.phase === 'failed' ? 'failed' : result ? 'published' : media.isComplete && !validateTitle(metadata.title) ? 'ready' : 'editing';
   /**
    * Retrying after a PUBLISH failure must not re-upload. The persisted
    * attachments are still held by the transport hook, so this repeats only the
@@ -466,9 +469,9 @@ export function usePublishProject(profileId: Id | null, categoryId: Id | null, i
       await publish.run(uploaded);
     }
   }, [draft, profileId, upload, publish]);
-  const isMetadataComplete = !validateTitle(metadata.title) && (metadata.summary.trim() !== '');
+  const isMetadataComplete = !validateTitle(metadata.title);
   // Stated plainly rather than leaving a disabled control unexplained.
-  const blockingReason = !media.isComplete ? 'Add at least one file to continue.' : validateTitle(metadata.title) ?? (!firstProject && !metadata.summary.trim() ? 'Add a description before continuing.' : null);
+  const blockingReason = !media.isComplete ? 'Add at least one file to continue.' : validateTitle(metadata.title);
   /**
    * Whether publishing will actually store the files. False while no storage
    * backend is connected, and the UI must say so rather than implying an upload.

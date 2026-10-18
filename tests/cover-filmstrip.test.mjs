@@ -123,7 +123,7 @@ test('thumbnail drag, wheel and keyboard crop the draft without leaving empty bo
   h.dispose();
 });
 
-test('creation rejects blank descriptions while allowing unrestricted prose', () => {
+test('creation accepts optional blank descriptions and unrestricted prose', () => {
   const validators = execute(read('features/publishing/validation.ts'));
   for (const summary of ['', '  \n ', 'Detailed project description. '.repeat(10000)]) {
     let errors;
@@ -131,8 +131,8 @@ test('creation rejects blank descriptions while allowing unrestricted prose', ()
       firstProject: false, metadata: { title: 'Project', summary }, validateTitle: validators.validateTitle,
       FIELD_ORDER: ['title', 'summary'], setFieldErrors: (next) => { errors = next; }, setInvalidField() {},
     });
-    assert.equal(validate(), Boolean(summary.trim()));
-    assert.equal(Boolean(errors.summary), !summary.trim());
+    assert.equal(validate(), true);
+    assert.equal(errors.summary, null);
   }
 });
 
